@@ -139,14 +139,52 @@ async function edgeFallbackUpload(params: {
   path: string;
   file: File;
 }): Promise<void> {
-  const form = new FormData();
-  form.append("bucket", params.bucket);
-  form.append("path", params.path);
-  form.append("file", params.file, params.file.name || "upload");
+  const { data } = await supabase.auth.getSession();
+  const token = data?.session?.access_token || SUPABASE_ANON_KEY;
+  const functionUrl = `${SUPABASE_URL}/functions/v1/upload-file`;
 
-  const { data, error } = await supabase.functions.invoke("upload-file", { body: form });
-  if (error) throw new UploadError(error.message || "Fallback upload failed");
-  if (data && (data as any).error) throw new UploadError((data as any).error);
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ""));
+    reader.onerror = () => reject(new UploadError("Could not read file for fallback upload"));
+    reader.readAsDataURL(params.file);
+  });
+  const base64 = dataUrl.includes(",") ? dataUrl.split(",")[1] : dataUrl;
+
+  const response = await fetch(functionUrl, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      apikey: SUPABASE_ANON_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      bucket: params.bucket,
+      path: params.path,
+      fileName: params.file.name || "upload",
+      contentType: params.file.type || "application/octet-stream",
+      base64,
+    }),
+  }).catch((e) => {
+    throw new UploadError(e?.message || "Could not reach fallback upload service", {
+      transport: true,
+    });
+  });
+
+  let body: any = null;
+  const text = await response.text();
+  try {
+    body = text ? JSON.parse(text) : null;
+  } catch {
+    body = null;
+  }
+
+  if (!response.ok) {
+    throw new UploadError(body?.error || `Fallback upload failed (HTTP ${response.status})`, {
+      status: response.status,
+    });
+  }
+  if (body?.error) throw new UploadError(body.error);
 }
 
 interface UploadOptions {
@@ -227,7 +265,7 @@ export async function uploadToStorage({
       Sentry.captureException(fallbackError, {
         extra: { bucket, path, size: file.size, type: file.type, fallback: true },
       });
-      throw new Error(describeUploadError(lastError, file));
+      throw new Error(describeUploadError(fallbackError, file));
     }
   }
 
