@@ -461,6 +461,104 @@ The Cycle Courier Co. Team
   }
 });
 
+async function handleFerryConfirmation(orderId: string, resend: any): Promise<Response> {
+  try {
+    console.log("Starting ferry confirmation process for order:", orderId);
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+
+    const { data: order, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("id", orderId)
+      .single();
+
+    if (error || !order) {
+      console.error("Error fetching order details for ferry email:", error);
+      return new Response(
+        JSON.stringify({ error: "Failed to fetch order details" }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 404 }
+      );
+    }
+
+    if (order.ferry_confirmation_sent_at) {
+      console.log("Ferry confirmation already sent on:", order.ferry_confirmation_sent_at);
+      return new Response(
+        JSON.stringify({ success: true, message: "Ferry confirmation already sent", alreadySent: true }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+
+    if (!order.receiver?.email) {
+      console.log("No receiver email on order, skipping ferry confirmation");
+      return new Response(
+        JSON.stringify({ success: true, message: "No receiver email", receiverSent: false }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+
+    const trackingUrl = `https://booking.cyclecourierco.com/tracking/${order.tracking_number}`;
+    const itemName = `${order.bike_brand || ""} ${order.bike_model || ""}`.trim() || "Bicycle";
+
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2>Hello ${order.receiver.name || "Customer"},</h2>
+        <p>Good news - your bicycle has reached the ferry port and has been handed over to our Irish Sea carrier.</p>
+        <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+          <p><strong>Bicycle:</strong> ${itemName}</p>
+          <p><strong>Tracking Number:</strong> ${order.tracking_number}</p>
+          <p><strong>Status:</strong> Delivered to ferry - awaiting transport across the Irish Sea</p>
+        </div>
+        <p>It is now awaiting the crossing to Northern Ireland. Once it has arrived, you will be contacted to arrange the final delivery.</p>
+        <div style="text-align: center; margin: 20px 0;">
+          <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            Track Your Bicycle
+          </a>
+        </div>
+        <p>Thank you for choosing The Cycle Courier Co.</p>
+        <p>Best regards,<br>The Cycle Courier Co. Team</p>
+      </div>
+    `;
+
+    let receiverSent = false;
+    try {
+      const { error: sendError } = await resend.emails.send({
+        from: "Ccc@notification.cyclecourierco.com",
+        to: order.receiver.email,
+        subject: "Your Bicycle Has Reached the Ferry Port - The Cycle Courier Co.",
+        html,
+        reply_to: "Info@cyclecourierco.com"
+      });
+      if (sendError) {
+        console.error("Error sending ferry confirmation to receiver:", sendError);
+      } else {
+        receiverSent = true;
+      }
+    } catch (e) {
+      console.error("Exception sending ferry confirmation email:", e);
+    }
+
+    if (receiverSent) {
+      await supabase
+        .from("orders")
+        .update({ ferry_confirmation_sent_at: new Date().toISOString() })
+        .eq("id", orderId);
+      console.log("Marked ferry confirmation as sent for order:", orderId);
+    }
+
+    return new Response(
+      JSON.stringify({ success: true, receiverSent, message: "Ferry confirmation processing completed" }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+    );
+  } catch (error) {
+    console.error("Error in handleFerryConfirmation:", error);
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : "Failed to send ferry confirmation email" }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    );
+  }
+}
+
 async function handleDeliveryConfirmation(orderId: string, resend: any): Promise<Response> {
   try {
     console.log("Starting delivery confirmation process for order:", orderId);
