@@ -1,33 +1,30 @@
-## Diagnosis
+## What I checked
 
-Do I know what the issue is? Yes, at least for the remaining failure path:
+The client code is already identical: both `BoxMyBikePage.tsx` and `FoamMyBikeSection.tsx` call the same `uploadToStorage()` helper. So the difference is not in the upload code — it's in the storage permissions and the fallback path.
 
-- The direct Storage upload is still failing as a transport/network failure.
-- The fallback edge-function upload is also failing before it can complete, with `Failed to send a request to the Edge Function`.
-- The current frontend then throws the original direct-upload message, so the user only sees “connection dropped” even though the fallback also failed.
-- The `upload-file` edge function logs only show boot/shutdown, with no useful upload error, so the fix needs better fallback transport and better diagnostics.
+Confirmed by querying the database:
+
+- Both buckets exist and are private.
+- `box-my-bike-labels` has **4** policies: admin/cs_agent/loader ALL, plus owner SELECT/INSERT/UPDATE.
+- `foam-my-bike-labels` has only **2**: staff ALL for admin/loader/mechanic/route_planner, and customer SELECT.
+
+So a `cs_agent` (or an order-owner customer) who can upload a box label is rejected by RLS on the foam bucket. A rejected upload returns 4xx, and the code then tries the `upload-file` edge function, which is where the "Failed to fetch" in the console comes from.
 
 ## Plan
 
-1. **Replace the fallback transport**
-   - Stop using `supabase.functions.invoke("upload-file", { body: FormData })` for file fallback uploads.
-   - Call the edge function URL directly with explicit auth/API headers so browser/network errors are easier to distinguish from function errors.
-   - Keep the same storage path and bucket validation.
+1. **Mirror the Box My Bike storage policies onto `foam-my-bike-labels`** (migration):
+   - Staff ALL policy extended to include `cs_agent` (matching box), keeping admin/loader/mechanic/route_planner.
+   - Owner INSERT/UPDATE policies scoped to `orders.user_id = auth.uid()` on the folder-name order id, matching the box owner policies.
+   - Keep the existing customer SELECT policy.
 
-2. **Add a JSON/base64 fallback mode**
-   - Update `upload-file` to accept either:
-     - existing `multipart/form-data`, or
-     - JSON containing bucket, path, filename, content type, and base64 file data.
-   - Use JSON/base64 as the final fallback because small PDF labels like this are well within the 20MB limit and it avoids mobile/FormData upload quirks.
+2. **Match the same role set in the `upload-file` edge function** so its authorisation check can't be stricter than the storage policies.
 
-3. **Improve error reporting**
-   - If the fallback fails, show the fallback’s actual status/message instead of always showing the original “connection dropped” message.
-   - Keep Sentry capture, but avoid logging personal data or file contents.
+3. **Report the real reason instead of "connection dropped"**: when the direct upload returns a 4xx (permission/policy), stop and show that message rather than falling through to the edge fallback and reporting a transport error. Only genuine transport failures (network drop, timeout, 5xx) should use the fallback.
 
-4. **Verify the function and CORS path**
-   - Ensure every response from `upload-file`, including validation and unexpected errors, returns CORS headers.
-   - Deploy/test the edge function after changes using a small test upload request where possible.
+4. **Verify** by re-running an upload against the foam bucket and confirming the row updates with `foam_label_url`.
 
-5. **Keep the UI unchanged**
-   - The Foam My Bike label upload button and progress text stay where they are.
-   - This is only a reliability fix for the upload path.
+## Technical notes
+
+Files touched: one new migration for `storage.objects` policies, `supabase/functions/upload-file/index.ts` (role list), and `src/utils/uploadFile.ts` (error classification). No change to `FoamMyBikeSection.tsx` UI.
+
+One thing that would speed this up: if you tell me which account you're uploading from (admin, cs_agent, or the customer's own login), I can confirm the exact policy that rejected it — but the plan above covers all three cases.
