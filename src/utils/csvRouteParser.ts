@@ -430,3 +430,40 @@ export const analyzeRouteViability = (
     viableMatchResults,
   };
 };
+
+/**
+ * Collection status of a delivery candidate, relative to this CSV route
+ */
+export type DeliveryCollectionStatus =
+  | { kind: 'collected' }
+  | { kind: 'on_route_before'; sequence: number }
+  | { kind: 'on_route_after'; sequence: number }
+  | { kind: 'scheduled'; date: string }
+  | { kind: 'not_collected' };
+
+/**
+ * Work out whether a bike for a delivery has been collected, is scheduled to be
+ * collected, or is being collected on this same route (before or after the drop).
+ */
+export const getDeliveryCollectionStatus = (
+  order: OrderData,
+  deliverySequence: number,
+  pickupSequenceByOrderId: Map<string, number>
+): DeliveryCollectionStatus => {
+  if (order.order_collected === true) return { kind: 'collected' };
+
+  const pickupSeq = pickupSequenceByOrderId.get(order.id);
+  if (pickupSeq !== undefined) {
+    return pickupSeq < deliverySequence
+      ? { kind: 'on_route_before', sequence: pickupSeq }
+      : { kind: 'on_route_after', sequence: pickupSeq };
+  }
+
+  const scheduled = (order as any).scheduled_pickup_date as string | null | undefined;
+  if (scheduled) return { kind: 'scheduled', date: scheduled };
+
+  const pickupDates = order.pickup_date as string[] | null | undefined;
+  if (pickupDates && pickupDates.length > 0) return { kind: 'scheduled', date: pickupDates[0] };
+
+  return { kind: 'not_collected' };
+};
