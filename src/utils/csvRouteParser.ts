@@ -6,12 +6,21 @@ export interface CSVRow {
   address: string;
 }
 
+export interface MatchCandidate {
+  order: OrderData;
+  jobType: 'pickup' | 'delivery';
+  matchType: 'exact' | 'fuzzy' | 'address';
+  confidence: number;
+}
+
 export interface MatchResult {
   csvRow: CSVRow;
   matchedOrder: OrderData | null;
   matchType: 'exact' | 'fuzzy' | 'address' | 'none';
   jobType: 'pickup' | 'delivery' | null;
   confidence: number;
+  /** All plausible order/leg candidates for this row, best first */
+  candidates: MatchCandidate[];
 }
 
 // Depot addresses to exclude from matching
@@ -137,13 +146,7 @@ const matchRowToOrder = (
   const normalizedCSVName = normalizeName(row.name);
   const csvPostcode = extractPostcode(row.address);
   
-  let bestMatch: MatchResult = {
-    csvRow: row,
-    matchedOrder: null,
-    matchType: 'none',
-    jobType: null,
-    confidence: 0
-  };
+  const candidates: MatchCandidate[] = [];
   
   for (const order of orders) {
     // Skip already matched orders for this job type
@@ -215,41 +218,48 @@ const matchRowToOrder = (
         `${order.receiver.address.street} ${order.receiver.address.city} ${order.receiver.address.zipCode}`
       );
       
-      if (senderPostcode === csvPostcode && !usedOrderIds.has(`${order.id}-pickup`)) {
+      if (senderPostcode === csvPostcode) {
         senderConfidence = 0.6;
         senderMatchType = 'address';
       }
-      if (receiverPostcode === csvPostcode && !usedOrderIds.has(`${order.id}-delivery`)) {
+      if (receiverPostcode === csvPostcode) {
         receiverConfidence = 0.6;
         receiverMatchType = 'address';
       }
     }
     
-    // Take the best match for this order
-    if (senderConfidence > receiverConfidence && senderConfidence > bestMatch.confidence) {
-      if (!usedOrderIds.has(`${order.id}-pickup`)) {
-        bestMatch = {
-          csvRow: row,
-          matchedOrder: order,
-          matchType: senderMatchType,
-          jobType: 'pickup',
-          confidence: senderConfidence
-        };
-      }
-    } else if (receiverConfidence > bestMatch.confidence) {
-      if (!usedOrderIds.has(`${order.id}-delivery`)) {
-        bestMatch = {
-          csvRow: row,
-          matchedOrder: order,
-          matchType: receiverMatchType,
-          jobType: 'delivery',
-          confidence: receiverConfidence
-        };
-      }
+    // Record every plausible candidate (both legs), so the planner can choose
+    if (senderConfidence > 0 && senderMatchType !== 'none') {
+      candidates.push({
+        order,
+        jobType: 'pickup',
+        matchType: senderMatchType,
+        confidence: senderConfidence,
+      });
+    }
+    if (receiverConfidence > 0 && receiverMatchType !== 'none') {
+      candidates.push({
+        order,
+        jobType: 'delivery',
+        matchType: receiverMatchType,
+        confidence: receiverConfidence,
+      });
     }
   }
   
-  return bestMatch;
+  candidates.sort((a, b) => b.confidence - a.confidence);
+  
+  // Default selection = best candidate whose leg isn't already used by an earlier row
+  const best = candidates.find(c => !usedOrderIds.has(`${c.order.id}-${c.jobType}`));
+  
+  return {
+    csvRow: row,
+    matchedOrder: best?.order ?? null,
+    matchType: best?.matchType ?? 'none',
+    jobType: best?.jobType ?? null,
+    confidence: best?.confidence ?? 0,
+    candidates,
+  };
 };
 
 /**
@@ -419,4 +429,41 @@ export const analyzeRouteViability = (
     matchResults,
     viableMatchResults,
   };
+};
+
+/**
+ * Collection status of a delivery candidate, relative to this CSV route
+ */
+export type DeliveryCollectionStatus =
+  | { kind: 'collected' }
+  | { kind: 'on_route_before'; sequence: number }
+  | { kind: 'on_route_after'; sequence: number }
+  | { kind: 'scheduled'; date: string }
+  | { kind: 'not_collected' };
+
+/**
+ * Work out whether a bike for a delivery has been collected, is scheduled to be
+ * collected, or is being collected on this same route (before or after the drop).
+ */
+export const getDeliveryCollectionStatus = (
+  order: OrderData,
+  deliverySequence: number,
+  pickupSequenceByOrderId: Map<string, number>
+): DeliveryCollectionStatus => {
+  if (order.order_collected === true) return { kind: 'collected' };
+
+  const pickupSeq = pickupSequenceByOrderId.get(order.id);
+  if (pickupSeq !== undefined) {
+    return pickupSeq < deliverySequence
+      ? { kind: 'on_route_before', sequence: pickupSeq }
+      : { kind: 'on_route_after', sequence: pickupSeq };
+  }
+
+  const scheduled = (order as any).scheduled_pickup_date as string | null | undefined;
+  if (scheduled) return { kind: 'scheduled', date: scheduled };
+
+  const pickupDates = order.pickup_date as string[] | null | undefined;
+  if (pickupDates && pickupDates.length > 0) return { kind: 'scheduled', date: pickupDates[0] };
+
+  return { kind: 'not_collected' };
 };

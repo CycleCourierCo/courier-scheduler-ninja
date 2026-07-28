@@ -612,19 +612,19 @@ const JobItem: React.FC<JobItemProps> = ({
             {job.type !== 'break' && (job.lat && job.lon) && (
               <>
                 {groupedJobs.length > 1 ? (
-                  // Individual send buttons for each job in the group
-                  groupedJobs.map((groupedJob) => (
+                  // Multi-job group: only show the SendZen (SZ) grouped button
+                  job.isGroupedLocation && job.locationGroupId && onSendGroupedTimeslotsSendZen && (
                     <Button
-                      key={`${groupedJob.orderId}-${groupedJob.type}`}
                       size="sm"
-                      onClick={() => onSendTimeslot(groupedJob)}
-                      disabled={isSendingTimeslots || !groupedJob.estimatedTime}
-                      className="flex items-center gap-1 text-xs h-7 px-2"
+                      variant="outline"
+                      onClick={() => onSendGroupedTimeslotsSendZen!(job.locationGroupId!)}
+                      disabled={isSendingTimeslots || !job.estimatedTime}
+                      className="flex items-center gap-1 text-purple-600 hover:text-purple-700 h-7 text-xs px-2"
                     >
-                      <Send className="h-3 w-3" />
-                      {groupedJob.type === 'pickup' ? 'Col' : 'Del'}
+                      <Zap className="h-3 w-3" />
+                      SZ
                     </Button>
-                  ))
+                  )
                 ) : (
                   // Single job send button
                   <Button
@@ -636,34 +636,6 @@ const JobItem: React.FC<JobItemProps> = ({
                     <Send className="h-3 w-3" />
                     Send
                   </Button>
-                )}
-                
-                {job.isGroupedLocation && job.locationGroupId && onSendGroupedTimeslots && 
-                 allJobs.filter(j => j.locationGroupId === job.locationGroupId && j.type !== 'break').length > 1 && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onSendGroupedTimeslots!(job.locationGroupId!)}
-                      disabled={isSendingTimeslots || !job.estimatedTime}
-                      className="flex items-center gap-1 text-blue-600 hover:text-blue-700 h-7 text-xs px-2"
-                    >
-                      <Send className="h-3 w-3" />
-                      All
-                    </Button>
-                    {onSendGroupedTimeslotsSendZen && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onSendGroupedTimeslotsSendZen!(job.locationGroupId!)}
-                        disabled={isSendingTimeslots || !job.estimatedTime}
-                        className="flex items-center gap-1 text-purple-600 hover:text-purple-700 h-7 text-xs px-2"
-                      >
-                        <Zap className="h-3 w-3" />
-                        SZ
-                      </Button>
-                    )}
-                  </>
                 )}
               </>
             )}
@@ -1275,18 +1247,16 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     }
   };
 
-  const handleCsvConfirm = () => {
-    // Get all matched jobs and convert to SelectedJob format
-    const matchedJobs = csvMatchResults
-      .filter(result => result.matchedOrder && result.jobType)
-      .map((result, index) => {
-        const order = result.matchedOrder!;
-        const jobType = result.jobType!;
-        const contact = jobType === 'pickup' ? order.sender : order.receiver;
-        
+  const handleCsvConfirm = (selected: { orderId: string; jobType: 'pickup' | 'delivery'; sequence: number }[]) => {
+    const matchedJobs = selected
+      .map((sel, index) => {
+        const order = orderList.find(o => o.id === sel.orderId);
+        if (!order) return null;
+        const contact = sel.jobType === 'pickup' ? order.sender : order.receiver;
+
         return {
           orderId: order.id,
-          type: jobType,
+          type: sel.jobType,
           address: formatAddress(contact.address),
           contactName: contact.name,
           orderData: order,
@@ -1295,7 +1265,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           lat: contact.address.lat,
           lon: contact.address.lon
         } as SelectedJob;
-      });
+      })
+      .filter(Boolean) as SelectedJob[];
 
     if (matchedJobs.length > 0) {
       setSelectedJobs(matchedJobs);
@@ -1465,8 +1436,30 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   };
 
   const removeJob = (jobToRemove: SelectedJob) => {
+    // Recompute grouping so we can detect if this job is bundled with others
+    const grouped = groupJobsByLocation(selectedJobs);
+    const target = grouped.find(
+      j => j.orderId === jobToRemove.orderId && j.type === jobToRemove.type
+    );
+
+    let toRemove: Array<{ orderId: string; type: SelectedJob['type'] }> = [
+      { orderId: jobToRemove.orderId, type: jobToRemove.type }
+    ];
+
+    if (target?.locationGroupId) {
+      const groupMembers = grouped.filter(
+        j => j.locationGroupId === target.locationGroupId && j.type !== 'break'
+      );
+      if (groupMembers.length > 1) {
+        toRemove = groupMembers.map(j => ({ orderId: j.orderId, type: j.type }));
+      }
+    }
+
+    const isRemoved = (job: SelectedJob) =>
+      toRemove.some(r => r.orderId === job.orderId && r.type === job.type);
+
     const updatedJobs = selectedJobs
-      .filter(job => !(job.orderId === jobToRemove.orderId && job.type === jobToRemove.type))
+      .filter(job => !isRemoved(job))
       .map((job, index) => ({
         ...job,
         order: index + 1
@@ -1526,6 +1519,19 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     return distance <= LOCATION_GROUPING_RADIUS_METERS; // Within 750 meters
   };
 
+  // Build a stable contact key so different customers at the same address don't merge
+  const getContactKey = (job: SelectedJob): string | null => {
+    if (job.type === 'break') return null;
+    const contact: any = job.type === 'pickup'
+      ? job.orderData?.sender
+      : job.orderData?.receiver;
+    const email = (contact?.email || '').toString().toLowerCase().trim();
+    if (email) return `e:${email}`;
+    const phone = (contact?.phone || contact?.phoneNumber || '').toString().replace(/\s+/g, '').trim();
+    if (phone) return `p:${phone}`;
+    return null;
+  };
+
   // Helper function to group jobs by location
   const groupJobsByLocation = (jobs: SelectedJob[]): SelectedJob[] => {
     const routeJobs = jobs.filter(job => job.type !== 'break');
@@ -1537,21 +1543,27 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     
     routeJobs.forEach(job => {
       if (!job.lat || !job.lon) return;
+      const jobKey = getContactKey(job);
       
-      // Find existing group with same location
+      // Find existing group with same location AND same contact (or both missing keys)
       let groupId = null;
       for (const [existingGroupId, existingJobs] of Object.entries(locationGroups)) {
         const firstJobInGroup = existingJobs[0];
-        if (firstJobInGroup.lat && firstJobInGroup.lon && 
-            isSameLocation({ lat: job.lat, lon: job.lon }, { lat: firstJobInGroup.lat, lon: firstJobInGroup.lon })) {
-          groupId = existingGroupId;
-          break;
-        }
+        if (!firstJobInGroup.lat || !firstJobInGroup.lon) continue;
+        if (!isSameLocation({ lat: job.lat, lon: job.lon }, { lat: firstJobInGroup.lat, lon: firstJobInGroup.lon })) continue;
+
+        const existingKey = getContactKey(firstJobInGroup);
+        // Only merge when contact keys match. If either is missing, fall back to location-only merge.
+        const contactMatches = jobKey && existingKey ? jobKey === existingKey : true;
+        if (!contactMatches) continue;
+
+        groupId = existingGroupId;
+        break;
       }
       
       // Create new group if no existing group found
       if (!groupId) {
-        groupId = `location-${job.lat}-${job.lon}-${Date.now()}`;
+        groupId = `location-${job.lat}-${job.lon}-${jobKey ?? 'nokey'}-${Object.keys(locationGroups).length}`;
         locationGroups[groupId] = [];
       }
       

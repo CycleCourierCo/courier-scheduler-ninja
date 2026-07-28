@@ -1,26 +1,28 @@
 ## Problem
 
-The Bulk Message button was added to `MultiJobTimeslotDialog`, but the screenshots show the "Route Timeslots" drawer inside `RouteBuilder.tsx` (with Recalculate + Flip Route buttons and Send All / Send All (SendZen) at the bottom). That's a different component, so the button never appears where expected.
+The review dialog groups CSV rows into stops with the key `normalized(name) + "|" + normalized(address)`. That requires the full address string to match character-for-character (after stripping punctuation).
+
+Confirmed in the screenshots: the same customer appears twice because the CSV address strings differ.
+
+```text
+#3  Louth Cycle Centre — Unit 10-11 Station Estate, Newbridge Hill, Louth, LN11 0JT
+#4  Louth Cycle Centre — Unit 10-11 Station Estate, Newbridge Hill, Louth, Lincolnshire LN11 0JT
+```
+
+Identical location, but one row includes "Lincolnshire" — so the normalized strings differ and two separate stop cards are produced.
 
 ## Fix
 
-Add a **Bulk Message** button in `src/components/scheduling/RouteBuilder.tsx` right next to the **Flip Route** button, in both places it renders:
-- Mobile drawer block (around line 3524)
-- Desktop block (around line 3713)
+In `src/components/scheduling/CSVMatchReviewDialog.tsx`, change the stop grouping key to be tolerant of address-format variation:
 
-Wire it to the existing `BulkRouteMessageDialog`, passing the current route's jobs (mapped into the shape the dialog expects: orderId, type, contactName, phoneNumber, address, order snapshot, plus the completion flags order_delivered / order_collected / box status so completed jobs render unticked).
+1. Extract the UK postcode from the address with a regex (e.g. `[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}`), normalized to uppercase with no spaces.
+2. Extract the leading premise identifier (the first number/unit token of the address, e.g. `1011` from "Unit 10-11") so two different units sharing a postcode stay separate.
+3. Build the key as `normalized(name) | postcode | premise`.
+4. Fall back to the existing `normalized(name) | normalized(address)` key when no postcode can be found, so behaviour is unchanged for malformed addresses.
 
-Add local state `bulkMessageOpen` and render `<BulkRouteMessageDialog>` once inside the component. Button is disabled when there are no jobs in the builder.
+Everything downstream (sequence badges, merged-row count, candidate dedupe by `orderId|jobType`, default selection) already works off the grouped stop, so no other changes are needed — the two Louth rows will collapse into one card showing `#3 #4` and "2 CSV rows merged into this stop".
 
-Leave the copy in `MultiJobTimeslotDialog` in place (harmless) or remove it — I'll remove it to avoid duplication.
+## Notes
 
-## Technical details
-
-- File: `src/components/scheduling/RouteBuilder.tsx`
-  - Import `BulkRouteMessageDialog` and `MessageSquare` icon.
-  - Add `const [bulkMessageOpen, setBulkMessageOpen] = useState(false);`
-  - After each Flip Route button, add a matching `<Button variant="outline" onClick={() => setBulkMessageOpen(true)}>` with `<MessageSquare />` + "Bulk Message".
-  - Render `<BulkRouteMessageDialog open={bulkMessageOpen} onOpenChange={setBulkMessageOpen} jobs={jobsForBulk} />` once at the end of the component's return.
-  - Build `jobsForBulk` from the current route stops list already used to render the drawer rows.
-- File: `src/components/scheduling/MultiJobTimeslotDialog.tsx`
-  - Remove the Bulk Message button + `BulkRouteMessageDialog` usage added earlier.
+- Different customers at the same postcode (e.g. PAUL MARTIN and CBT Coalville Ltd on Sapperton) will still remain separate cards, since the customer name stays part of the key. That is intentional and matches the earlier rule that different customers must never be bundled.
+- No backend, parser, or route-builder changes; this is presentation-layer grouping only.

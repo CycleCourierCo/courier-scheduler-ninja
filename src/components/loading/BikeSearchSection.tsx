@@ -21,6 +21,21 @@ interface BikeSearchSectionProps {
 
 type LocationState = "pending" | "storage" | "van";
 
+// Helper to extract collection date (pickup-leg completion) from tracking events
+const getCollectionDate = (order: Order | undefined): string | null => {
+  const updates = order?.trackingEvents?.shipday?.updates;
+  if (!updates || updates.length === 0) return null;
+  const pickupId = order?.trackingEvents?.shipday?.pickup_id?.toString();
+  const completion = updates.find(
+    (u: any) => u.event === 'ORDER_COMPLETED' && u.orderId === pickupId
+  );
+  const ts = completion?.timestamp;
+  if (!ts) return null;
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+};
+
 const hasBeenCollected = (order: Order) => {
   if (order.status === "collected" || order.status === "driver_to_delivery") return true;
   const updates = order.trackingEvents?.shipday?.updates || [];
@@ -267,6 +282,11 @@ export const BikeSearchSection = ({
                       <p className="text-xs text-muted-foreground">
                         Tracking: <span className="font-mono">{order.trackingNumber}</span>
                       </p>
+                      {getCollectionDate(order) && (
+                        <p className="text-xs text-muted-foreground">
+                          Collected: {getCollectionDate(order)}
+                        </p>
+                      )}
                       {order.scheduledDeliveryDate && (
                         <p className="text-xs text-muted-foreground">
                           Scheduled delivery: {new Date(order.scheduledDeliveryDate).toLocaleDateString("en-GB")}
