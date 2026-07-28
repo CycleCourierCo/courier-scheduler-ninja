@@ -1,34 +1,27 @@
-## What I found
+# Northern Ireland deliveries + foam markers on Job Scheduling
 
-For order `CCC754877137960COLBT4` (receiver postcode `BT48 8JP`):
+Two confirmed problems:
 
-- The database row still has `is_northern_ireland = false`, `destination_region = null`, `foam_status = null` — so the "Mark as Northern Ireland delivery" write did not persist (the Supabase update is fired without checking how many rows came back, so a silent 0-row update looks like success).
-- Because the flag is false, the Shipday job was created against the real NI address: the edge function log shows `customerName: "Brendan Whelan"`, `customerAddress: "67 Coney Road, Culmore, County Londonderry BT48 8JP"`.
-- The "NORTHERN IRELAND DELIVERY" text in that job is just the order's own `delivery_instructions` field, not the code's hand-off note — further confirmation the NI branch never ran.
-- The edge function's postcode fallback (`isNorthernIrelandAddress`) should have caught `BT48` even with the flag false, so the deployed copy of `create-shipday-order` is also suspect and needs redeploying.
+1. **Scheduling still shows the NI customer address.** In `src/components/scheduling/RouteBuilder.tsx` (~line 1082) the delivery job is built straight from `order.receiver.address` — there is no NI check, so the drawer, map, distances and optimisation all use the Northern Ireland address (hence the 661 mi / 24h 50m route in the screenshot). Shipday was fixed earlier, but the planner UI was not.
+2. **Foam badges never render.** `SchedulingCard.tsx` reads `firstOrder.isNorthernIreland` / `firstOrder.foamStatus` (camelCase). The Job Scheduling page query in `src/pages/JobScheduling.tsx` returns raw database rows (`is_northern_ireland`, `foam_status`), so those properties are always `undefined`. RouteBuilder job cards and the timeslot drawer have no foam badge at all.
 
-## Fix
+## What will change
 
-**1. Make the flag write verifiable (`src/components/order-detail/NorthernIrelandEditor.tsx`)**
-- Change the update to `.update(patch).eq("id", order.id).select("id, is_northern_ireland, foam_status").maybeSingle()`.
-- If no row is returned or the returned `is_northern_ireland` doesn't match what was requested, abort with a clear error and do NOT touch Shipday.
-- Only after a confirmed write, re-route the delivery leg.
+### 1. Central NI delivery override
+Add City Air Express coordinates (M17 1GB) to `src/constants/depot.ts` and a small shared helper that, given an order, returns the effective delivery destination:
+- If `is_northern_ireland` (or the receiver postcode is a BT postcode via the existing `isNorthernIrelandAddress`), return the City Air Express name, address, phone and coordinates.
+- Otherwise return the receiver's own details.
 
-**2. Remove the read-after-write dependency (`supabase/functions/create-shipday-order/index.ts`)**
-- Accept an optional `forceNorthernIreland: boolean` in the request body.
-- Resolve `isNI` as: `forceNorthernIreland ?? (order.is_northern_ireland === true || isNorthernIrelandAddress(receiver?.address))`.
-- Log the resolved `isNI`, the source of that decision, and the final delivery address so future failures are diagnosable from the logs.
-- Pass `forceNorthernIreland` from the editor (and from `createShipdayOrder` in `src/services/shipdayService.ts` as an optional argument) when re-routing.
+Apply it in the delivery job builder in `RouteBuilder.tsx` so `address`, `contactName`, `phoneNumber`, `lat`, `lon` all point at Manchester. Everything downstream — the timeslot drawer, route optimisation, flip route, distance/ETA summary and the SendZen/bulk message address text — then uses the correct stop automatically. The same override is applied in `JobMap.tsx` and `ClusterMap` so the map pin sits in Manchester.
 
-**3. Redeploy the NI-aware functions**
-- Redeploy `create-shipday-order` (and `_shared/northernIreland.ts` consumers) so the live version matches the repo.
+The NI customer's real address and name stay visible as secondary context on the job card (labelled "Final destination: …") so the planner knows where the bike ultimately goes.
 
-**4. Repair the affected order**
-- Set `is_northern_ireland = true`, `destination_region = 'Northern Ireland'`, `foam_status = 'pending_collection'` on `CCC754877137960COLBT4`.
-- Delete Shipday delivery job `50983151` and re-create the delivery leg so it lands on City Air Express, Unit 1 Ordinal Street, Trafford Park, Manchester M17 1GB, with the NI receiver block in the instructions.
+### 2. Foam markers
+- Add a small reusable badge component: green **"Bike foamed"** for `foamed_ready` / `delivered_to_ferry` / `delivered_ni`, red **"Pending foaming"** otherwise — shown only when the order is NI and the leg is a delivery.
+- Render it on: the Job Scheduling job list card, the RouteBuilder stop card (both grouped and single-stop layouts), and the Route Timeslots drawer stop rows.
+- Fix the data mismatch: the badge logic reads the raw snake_case fields (`is_northern_ireland`, `foam_status`) that the scheduling query actually returns, and `SchedulingCard.tsx` is corrected to use the same source rather than the missing camelCase props.
 
-**5. Post-fix check**
-- Re-read the order row and the edge function log to confirm the new job's `customerName` is `City Air Express` and the address is the Manchester one, and report the result.
-
-### Notes
-Collection leg is untouched throughout. The £120-per-bike surcharge and the Foam My Bike pipeline both key off `is_northern_ireland`, so both start working correctly once the flag actually persists.
+## Technical notes
+- City Air Express coords: approx. `53.4718, -2.2960` (Unit 1 Ordinal Street, Trafford Park, M17 1GB) — these will be geocoded once and hardcoded in the constant so route optimisation is deterministic.
+- No database migration and no edge function changes; this is presentation/route-building only.
+- Existing NI orders (e.g. `CCC754877137960COLBT4`) will immediately show the Manchester stop and a foam badge without any data repair.
