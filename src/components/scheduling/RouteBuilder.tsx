@@ -1375,19 +1375,24 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   // Silently update saved_routes row for the currently loaded route
   const updateSavedRouteRow = async (routeId: string) => {
     try {
-      const jobData = selectedJobs.map(job => ({
-        orderId: job.orderId,
-        type: job.type,
-        address: job.address,
-        contactName: job.contactName,
-        phoneNumber: job.phoneNumber,
-        order: job.order,
-        estimatedTime: job.estimatedTime,
-        lat: job.lat,
-        lon: job.lon,
-        breakDuration: job.breakDuration,
-        breakType: job.breakType,
-      }));
+      const jobData = selectedJobs.map(job => {
+        const coords = job.orderData
+          ? resolveStopCoords(job.orderData, job.type)
+          : { lat: null, lon: null };
+        return {
+          orderId: job.orderId,
+          type: job.type,
+          address: job.address,
+          contactName: job.contactName,
+          phoneNumber: job.phoneNumber,
+          order: job.order,
+          estimatedTime: job.estimatedTime,
+          lat: coords.lat ?? job.lat,
+          lon: coords.lon ?? job.lon,
+          breakDuration: job.breakDuration,
+          breakType: job.breakType,
+        };
+      });
       const { error } = await supabase
         .from('saved_routes')
         .update({
