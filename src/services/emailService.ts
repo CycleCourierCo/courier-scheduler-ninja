@@ -660,15 +660,26 @@ export const sendReceiverDatesConfirmedEmail = async (orderId: string, selectedD
     }
     
     const baseUrl = window.location.origin;
+
+    // Northern Ireland: the dates email goes to City Air Express, not the NI receiver.
+    const isNI = order.isNorthernIreland || isNorthernIrelandAddress(order.receiver.address as any);
+    const recipientEmail = isNI ? CITY_AIR_EXPRESS.email : order.receiver.email;
+    const recipientName = isNI ? CITY_AIR_EXPRESS.name : (order.receiver.name || "Customer");
     
     const response = await supabase.functions.invoke("send-email", {
       body: {
-        to: order.receiver.email,
+        to: recipientEmail,
         emailType: "receiver_dates_confirmed",
-        name: order.receiver.name || "Customer",
+        name: recipientName,
         trackingNumber: order.trackingNumber,
         selectedDates: selectedDates,
-        baseUrl
+        baseUrl,
+        niReceiver: isNI ? {
+          name: order.receiver.name,
+          email: order.receiver.email,
+          phone: order.receiver.phone,
+          address: order.receiver.address,
+        } : undefined
       }
     });
     
@@ -677,7 +688,8 @@ export const sendReceiverDatesConfirmedEmail = async (orderId: string, selectedD
       return false;
     }
     
-    console.log("Receiver dates confirmed email sent successfully to:", order.receiver.email);
+    console.log("Receiver dates confirmed email sent successfully to:", recipientEmail);
+
     return true;
   } catch (error) {
     console.error("Failed to send receiver dates confirmed email:", error);
