@@ -534,20 +534,33 @@ export const sendReceiverAvailabilityEmail = async (id: string): Promise<boolean
       price: 0
     };
     
-    console.log("Sending receiver availability email to:", order.receiver.email);
+    // Northern Ireland: the availability/dates email goes to City Air Express,
+    // who book the crossing — not to the NI receiver.
+    const isNI = order.isNorthernIreland || isNorthernIrelandAddress(order.receiver.address as any);
+    const recipientEmail = isNI ? CITY_AIR_EXPRESS.email : order.receiver.email;
+    const recipientName = isNI ? CITY_AIR_EXPRESS.name : (order.receiver.name || "Receiver");
+
+    console.log("Sending receiver availability email to:", recipientEmail);
     
     // Send email to receiver with improved error handling
     const response = await supabase.functions.invoke("send-email", {
       body: {
-        to: order.receiver.email,
-        name: order.receiver.name || "Receiver",
+        to: recipientEmail,
+        name: recipientName,
         orderId: id,
         baseUrl,
         emailType: "receiver",
         item: item,
-        trackingNumber: order.trackingNumber
+        trackingNumber: order.trackingNumber,
+        niReceiver: isNI ? {
+          name: order.receiver.name,
+          email: order.receiver.email,
+          phone: order.receiver.phone,
+          address: order.receiver.address,
+        } : undefined
       }
     });
+
     
     if (response.error) {
       console.error("Error sending email to receiver:", response.error);
