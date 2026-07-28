@@ -124,7 +124,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       const patch: any = { foam_status: newStage, updated_at: new Date().toISOString() };
       const col = foamTimestampColumn(newStage);
       if (col) patch[col] = new Date().toISOString();
-      // Once handed to City Air Express the public tracking shows the ferry stage
+      // Once handed off at the ferry stage, the public tracking shows that milestone.
       if (newStage === "delivered_to_ferry") patch.status = "delivered_to_ferry";
       if (newStage === "delivered_ni") patch.status = "delivered";
       const { error } = await supabase.from("orders").update(patch).eq("id", id);
