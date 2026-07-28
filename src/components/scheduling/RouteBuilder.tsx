@@ -1567,6 +1567,11 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   // Build a stable contact key so different customers at the same address don't merge
   const getContactKey = (job: SelectedJob): string | null => {
     if (job.type === 'break') return null;
+    // Northern Ireland delivery legs all hand off to the same ferry contact,
+    // so they share a single key and bundle into one multi-job stop.
+    if (job.type === 'delivery' && isNiOrder(job.orderData)) {
+      return 'ni-ferry-handoff';
+    }
     const contact: any = job.type === 'pickup'
       ? job.orderData?.sender
       : job.orderData?.receiver;

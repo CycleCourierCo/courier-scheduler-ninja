@@ -1,32 +1,36 @@
-## Problem
+## Goal
 
-For Northern Ireland orders, the delivery stop shows the Manchester ferry hand-off address, but the arrival times in the Route Timeslots drawer are computed from the customer's Northern Ireland coordinates (your screenshot: 22:20 and 00:10 for two stops at the same Manchester address — those gaps match Birmingham→Derry and Belfast→Derry drive times, not Manchester).
+Multiple Northern Ireland deliveries on one route currently show as separate stops (#1, #2 …) at the ferry hand-off address. They should bundle into a single multi-job stop, and all messaging for that stop must go to the ferry hand-off contact you supplied — never the Northern Ireland receiver.
 
-Confirmed from reads:
-- Both NI orders in the database (`CCC754212916013STEBT9`, `CCC754877137960COLBT4`) are flagged `is_northern_ireland = true`, and their `receiver.address` coordinates are the NI ones (54.57/-5.95 and 55.05/-7.26).
-- `src/constants/depot.ts` holds the correct ferry coordinates (53.4713, -2.3049).
-- `RouteBuilder.refreshAndCalculateTimeslots` (the function that runs when you press "Get Timeslots") overwrites every job's `lat`/`lon` with `receiver.address.lat/lon` straight from the database, with no Northern Ireland check. That is the point where ferry coordinates get replaced by NI coordinates.
-- The same raw-receiver pattern is used in a few other places (coordinate edit/save, timeslip mileage, saved-route writes), so a fix in one spot alone won't hold.
-- Note: your screenshot shows the stop named "City Air Express", but current code names it "Ferry hand-off" — the published site is running an older build, so a republish is needed after this fix.
+## Why they aren't bundling
 
-## Fix
+`groupJobsByLocation` in `src/components/scheduling/RouteBuilder.tsx` merges stops only when coordinates match **and** the contact key matches. The contact key is built from `orderData.receiver.email` / phone — the NI end customer, different for every order — so the merge is refused even though both stops resolve to the same ferry coordinates.
 
-1. **`src/components/scheduling/RouteBuilder.tsx` — `refreshAndCalculateTimeslots`**
-   - Add `is_northern_ireland` to the `orders` select.
-   - Build the refreshed stop through `getLegContact(freshOrder, job.type)` instead of reading `sender`/`receiver` directly, so NI delivery legs keep the ferry coordinates, name, phone and address.
-   - Carry `is_northern_ireland` (and `foam_status`) into the merged `orderData` so downstream checks stay correct.
+## Contact details used
 
-2. **Guard the remaining raw-coordinate paths in the same file**
-   - `updateAvailableJobCoordinates`: block/ignore writing customer coordinates onto an NI delivery stop in the builder (the DB receiver record stays untouched).
-   - `createTimeslip` and the saved-route write: derive stop coordinates and addresses from `getLegContact` so mileage, pay and the Google Maps link use the ferry point.
+The ferry hand-off contact is already the single source of truth in `src/constants/depot.ts` and is returned by `getLegContact(order, 'delivery')` for NI orders:
 
-3. **Single source of truth**
-   - Add a small `resolveStopCoords(order, type)` helper in `src/utils/niDelivery.ts` that returns ferry coordinates for NI delivery legs and customer coordinates otherwise, and use it everywhere the builder derives `lat`/`lon`, so any future path can't reintroduce the bug.
+- Name shown on the stop: Ferry hand-off
+- Email: the operations address stored in that constant
+- Phone: the mobile number stored in that constant
+- Address: Unit 1 Ordinal Street, Trafford Park, Manchester, M17 1GB
 
-4. **Verify**
-   - Load the two NI orders as delivery stops in the Route Builder, press Get Timeslots, and confirm each shows a Birmingham→Manchester travel time (roughly 1h30 for the first stop, ~0 min between the two Manchester stops), plus a "Ferry hand-off" label.
+The NI receiver's name and address remain visible only as the "Final destination:" reference line on the card. `send-timeslot-whatsapp` already redirects the WhatsApp and email for NI delivery legs to this hand-off contact — the grouped send will reuse that same path, so no receiver contact is ever used.
 
-## Notes
+## Change
 
-- No database or edge function changes are required; the stored NI receiver address stays as the customer's real address (it's still shown as "Final destination" and used for the onward leg).
-- After merging, the app needs republishing for the live domain to pick up both this fix and the earlier "Ferry hand-off" naming change.
+1. In `RouteBuilder.tsx`, change `getContactKey` so a delivery leg on a Northern Ireland order (detected with the existing `isNiOrder` helper) returns one shared key derived from the ferry hand-off contact instead of the receiver's email/phone.
+2. With the key shared, the existing location + contact merge groups all NI delivery legs at the ferry coordinates into one stop card: one arrival time, each job listed beneath with customer name, bike count, badges and its final destination line, and one grouped SendZen button.
+3. Verify the grouped send path passes the ferry hand-off email/phone for every job in the group (it resolves per-order through the NI branch in `send-timeslot-whatsapp`), and that no NI receiver email/phone is used for the stop.
+4. Pickups and non-NI deliveries keep their current per-contact key, so nothing else regroups.
+
+## Behaviour after the change
+
+- One "Ferry hand-off" stop containing all NI jobs, single arrival time, travel time counted once.
+- One Send action, messaging only the hand-off operations email and mobile.
+- Removing the stop removes all jobs in the group (existing group-removal logic).
+
+## Technical notes
+
+- Main edit: `src/components/scheduling/RouteBuilder.tsx` (`getContactKey`), importing `isNiOrder` / `getLegContact` from `@/utils/niDelivery`.
+- No database changes; saved routes and timeslip mileage already resolve NI stops via `resolveStopCoords`.
