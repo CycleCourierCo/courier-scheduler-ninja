@@ -1,30 +1,21 @@
-## What I checked
-
-The client code is already identical: both `BoxMyBikePage.tsx` and `FoamMyBikeSection.tsx` call the same `uploadToStorage()` helper. So the difference is not in the upload code — it's in the storage permissions and the fallback path.
-
-Confirmed by querying the database:
-
-- Both buckets exist and are private.
-- `box-my-bike-labels` has **4** policies: admin/cs_agent/loader ALL, plus owner SELECT/INSERT/UPDATE.
-- `foam-my-bike-labels` has only **2**: staff ALL for admin/loader/mechanic/route_planner, and customer SELECT.
-
-So a `cs_agent` (or an order-owner customer) who can upload a box label is rejected by RLS on the foam bucket. A rejected upload returns 4xx, and the code then tries the `upload-file` edge function, which is where the "Failed to fetch" in the console comes from.
-
 ## Plan
 
-1. **Mirror the Box My Bike storage policies onto `foam-my-bike-labels`** (migration):
-   - Staff ALL policy extended to include `cs_agent` (matching box), keeping admin/loader/mechanic/route_planner.
-   - Owner INSERT/UPDATE policies scoped to `orders.user_id = auth.uid()` on the folder-name order id, matching the box owner policies.
-   - Keep the existing customer SELECT policy.
+1. **Use the proven Box My Bike upload path for Foam labels**
+   - Keep the same `uploadToStorage` helper, but remove Foam-specific differences where possible.
+   - Make the Foam label upload mutation match the Box label mutation structure, including how the order update is performed after upload.
 
-2. **Match the same role set in the `upload-file` edge function** so its authorisation check can't be stricter than the storage policies.
+2. **Fix the edge fallback deployment/runtime gap**
+   - Confirm the deployed `upload-file` function includes the latest code.
+   - If needed, deploy only `upload-file` so the fallback can actually run with the updated bucket and role logic.
 
-3. **Report the real reason instead of "connection dropped"**: when the direct upload returns a 4xx (permission/policy), stop and show that message rather than falling through to the edge fallback and reporting a transport error. Only genuine transport failures (network drop, timeout, 5xx) should use the fallback.
+3. **Add safe diagnostics for the failed path**
+   - Improve `upload-file` logs to show non-sensitive facts only: bucket, file size, content type, auth present, and failure stage.
+   - Do not log file contents, personal details, tokens, or full paths beyond the order-id prefix.
 
-4. **Verify** by re-running an upload against the foam bucket and confirming the row updates with `foam_label_url`.
+4. **Check whether the browser is failing before the function is reached**
+   - The latest logs show no matching `upload-file` request after your retry, so I’ll verify whether the client is still attempting direct Storage only, being blocked by CORS/network before fallback, or using stale frontend code.
 
-## Technical notes
-
-Files touched: one new migration for `storage.objects` policies, `supabase/functions/upload-file/index.ts` (role list), and `src/utils/uploadFile.ts` (error classification). No change to `FoamMyBikeSection.tsx` UI.
-
-One thing that would speed this up: if you tell me which account you're uploading from (admin, cs_agent, or the customer's own login), I can confirm the exact policy that rejected it — but the plan above covers all three cases.
+5. **Validate the fix**
+   - Test the deployed `upload-file` function directly with an authenticated request shape.
+   - Re-check Edge Function logs after the test.
+   - Final result will clearly state whether the signed-in browser upload path was verified or if it remains unverified.
