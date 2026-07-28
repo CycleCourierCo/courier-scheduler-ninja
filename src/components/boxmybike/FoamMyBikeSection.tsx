@@ -335,7 +335,12 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
                 </Button>
               )}
               {next && (
-                <Button size="sm" onClick={() => updateStage.mutate({ id: o.id, newStage: next })}>
+                <Button
+                  size="sm"
+                  disabled={blockedAdvance}
+                  title={blockedAdvance ? "Upload a label and add a tracking link first" : undefined}
+                  onClick={() => updateStage.mutate({ id: o.id, newStage: next })}
+                >
                   {FOAM_STATUS_LABELS[next]} <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               )}
