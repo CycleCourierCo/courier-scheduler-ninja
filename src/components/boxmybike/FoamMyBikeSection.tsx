@@ -124,7 +124,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       const patch: any = { foam_status: newStage, updated_at: new Date().toISOString() };
       const col = foamTimestampColumn(newStage);
       if (col) patch[col] = new Date().toISOString();
-      // Once handed to City Air Express the public tracking shows the ferry stage
+      // Once handed off at the ferry stage, the public tracking shows that milestone.
       if (newStage === "delivered_to_ferry") patch.status = "delivered_to_ferry";
       if (newStage === "delivered_ni") patch.status = "delivered";
       const { error } = await supabase.from("orders").update(patch).eq("id", id);
@@ -175,24 +175,24 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
   };
 
   const uploadLabel = useMutation({
-    mutationFn: async ({ id, file }: { id: string; file: File }) => {
+    mutationFn: async ({ order, file }: { order: FoamOrder; file: File }) => {
       const path = await uploadToStorage({
         bucket: FOAM_LABEL_BUCKET,
-        prefix: id,
+        prefix: order.id,
         file,
         onProgress: setUploadPct,
       });
 
-      const { error } = await supabase
+      const { error: updErr } = await supabase
         .from("orders")
         .update({
           foam_label_url: path,
           foam_label_uploaded_at: new Date().toISOString(),
-          foam_label_uploaded_by: userId || null,
+          foam_label_uploaded_by: userId,
           updated_at: new Date().toISOString(),
         } as any)
-        .eq("id", id);
-      if (error) throw error;
+        .eq("id", order.id);
+      if (updErr) throw updErr;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["foam-my-bike-orders"] });
@@ -252,7 +252,8 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     const prev = prevFoamStage(stage);
     const next = nextFoamStage(stage);
     const addr = o.receiver?.address || {};
-    const canEditLabel = isStaff && stage === "foamed_ready";
+    const isOwner = !isStaff && o.user_id === userId;
+    const canEditLabel = (isOwner || isStaff) && stage === "foamed_ready";
     const showLabelSection = stage === "foamed_ready" || !!o.foam_label_url || !!o.foam_tracking_url;
     // Can't hand a bike to the ferry courier without a label and tracking link
     const blockedAdvance = stage === "foamed_ready" && (!o.foam_label_url || !o.foam_tracking_url);
@@ -315,7 +316,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
                           const input = e.target as HTMLInputElement;
                           const f = input.files?.[0];
                           input.value = "";
-                          if (f) uploadLabel.mutate({ id: o.id, file: f });
+                          if (f) uploadLabel.mutate({ order: o, file: f });
                         }}
 
                       />
