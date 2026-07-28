@@ -97,6 +97,11 @@ serve(async (req) => {
       return await handleDeliveryConfirmation(reqData.meta.orderId, resend);
     }
 
+    if (reqData.meta && reqData.meta.action === "ferry_confirmation") {
+      console.log("Processing ferry confirmation action for order:", reqData.meta.orderId);
+      return await handleFerryConfirmation(reqData.meta.orderId, resend);
+    }
+
     if (reqData.meta && reqData.meta.action === "collection_confirmation") {
       console.log("Processing collection confirmation action for order:", reqData.meta.orderId);
       return await handleCollectionConfirmation(reqData.meta.orderId, resend);
