@@ -3,6 +3,11 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import {
+  CITY_AIR_EXPRESS,
+  isNorthernIrelandAddress,
+  formatNiReceiverBlock,
+} from "../_shared/northernIreland.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -121,6 +126,23 @@ function determinePrimaryJobType(recipientType: "sender" | "receiver"): JobType 
   return recipientType === "sender" ? "pickup" : "delivery";
 }
 
+/** Northern Ireland deliveries are handed over in Manchester, never driven to the customer. */
+function isNiOrder(o: any): boolean {
+  if (!o) return false;
+  return o.is_northern_ireland === true || isNorthernIrelandAddress(o.receiver?.address);
+}
+
+/** Contact the driver actually visits / we message for a delivery leg. */
+function niHandoffContact() {
+  return {
+    name: CITY_AIR_EXPRESS.name,
+    phone: CITY_AIR_EXPRESS.phone,
+    email: CITY_AIR_EXPRESS.email,
+    address: { ...CITY_AIR_EXPRESS.address },
+  };
+}
+
+
 const serve_handler = async (req: Request): Promise<Response> => {
   // CORS preflight
   if (req.method === "OPTIONS") {
@@ -166,7 +188,15 @@ const serve_handler = async (req: Request): Promise<Response> => {
     }
 
     // Contact + scheduled date for PRIMARY message (still based on recipientType)
-    const contact = recipientType === "sender" ? order.sender : order.receiver;
+    // Northern Ireland: the delivery leg goes to the ferry hand-off, so the
+    // timeslot must go to the hand-off contact, not the NI customer.
+    const primaryIsNiDelivery = recipientType === "receiver" && isNiOrder(order);
+    const contact = recipientType === "sender"
+      ? order.sender
+      : (primaryIsNiDelivery ? niHandoffContact() : order.receiver);
+    if (primaryIsNiDelivery) {
+      console.log("NI delivery leg — messaging ferry hand-off contact instead of receiver");
+    }
     const scheduledDateForMessage =
       recipientType === "sender"
         ? order.scheduled_pickup_date
@@ -217,6 +247,15 @@ Please ensure the pedals have been removed from the bike and in a bag along with
 
 Thank you!
 Cycle Courier Co.`;
+    } else if (primaryIsNiDelivery) {
+      message = `Dear ${contact.name},
+
+Your ${order.bike_brand || "bike"} ${order.bike_model || ""} Delivery has been scheduled for ${formatDateForCustomer(scheduledDateForMessage)} between ${startTimeDisplay} and ${endTimeDisplay}.
+
+${formatNiReceiverBlock(order.receiver, order.tracking_number)}
+
+Thank you!
+Cycle Courier Co.`;
     } else {
       message = `Dear ${contact.name},
 
@@ -227,6 +266,7 @@ You will receive a text with a live tracking link once the driver is on his way.
 Thank you!
 Cycle Courier Co.`;
     }
+
 
     // Initialize Resend
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -377,7 +417,10 @@ Cycle Courier Co.`;
             ? scheduledUTCDate
             : addDaysToUTCYYYYMMDD(scheduledUTCDate, end.dayOffset);
 
-        const jobContact = isPickup ? orderToUpdate.sender : orderToUpdate.receiver;
+        const jobIsNiDelivery = !isPickup && isNiOrder(orderToUpdate);
+        const jobContact = isPickup
+          ? orderToUpdate.sender
+          : (jobIsNiDelivery ? niHandoffContact() : orderToUpdate.receiver);
         const jobNotes = isPickup ? orderToUpdate.sender_notes : orderToUpdate.receiver_notes;
 
         // Build delivery instructions
@@ -403,9 +446,13 @@ Cycle Courier Co.`;
 
         const baseDeliveryInstructions = orderToUpdate.delivery_instructions || "";
         const allInstructions = [
+          jobIsNiDelivery ? "NORTHERN IRELAND — hand over at ferry hand-off point" : "",
           ...orderDetails,
           baseDeliveryInstructions,
           jobNotes,
+          jobIsNiDelivery
+            ? formatNiReceiverBlock(orderToUpdate.receiver, orderToUpdate.tracking_number)
+            : "",
         ]
           .filter(Boolean)
           .join(" | ");

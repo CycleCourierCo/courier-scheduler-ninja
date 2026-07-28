@@ -1723,12 +1723,28 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
   const calculateTimeslots = async (jobsToCalculate?: SelectedJob[]) => {
     // Use passed jobs or fall back to state
-    const jobs = jobsToCalculate || selectedJobs;
-    
-    if (jobs.length === 0) return;
+    const rawJobs = jobsToCalculate || selectedJobs;
+
+    if (rawJobs.length === 0) return;
+
+    // Refresh coordinates/contact from the live order so NI deliveries always
+    // route to the ferry hand-off, even if the stop was added/saved earlier.
+    const jobs = rawJobs.map((job: any) => {
+      if (job.type === 'break' || !job.orderData) return job;
+      const leg = getLegContact(job.orderData, job.type);
+      if (leg.lat == null || leg.lon == null) return job;
+      return {
+        ...job,
+        lat: leg.lat,
+        lon: leg.lon,
+        contactName: leg.name || job.contactName,
+        phoneNumber: leg.phone || job.phoneNumber,
+      };
+    });
 
     // Group jobs by location first
     const groupedJobs = groupJobsByLocation(jobs);
+
 
     // Filter out breaks for coordinate validation and routing
     const routeJobs = groupedJobs.filter(job => job.type !== 'break');

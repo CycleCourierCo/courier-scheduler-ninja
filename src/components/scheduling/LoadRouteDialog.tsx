@@ -10,6 +10,10 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { OrderData } from "@/pages/JobScheduling";
+import { getLegContact } from "@/utils/niDelivery";
+
+const formatLegAddress = (a: any) =>
+  [a?.street, a?.city, a?.state, a?.zipCode].filter(Boolean).join(", ");
 
 interface SavedJobData {
   orderId: string;
@@ -100,14 +104,27 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
   };
 
   const handleLoadRoute = (route: SavedRoute) => {
-    // Re-hydrate orderData from current orders
+    // Re-hydrate orderData from current orders, and re-derive the stop details
+    // from the live order so stale snapshots (e.g. a job flagged Northern
+    // Ireland after the route was saved) don't keep old coordinates/contacts.
     const loadedJobs: LoadedJob[] = route.job_data.map(savedJob => {
       const order = orders.find(o => o.id === savedJob.orderId);
+      if (!order || savedJob.type === 'break') {
+        return { ...savedJob, orderData: order };
+      }
+
+      const leg = getLegContact(order, savedJob.type);
       return {
         ...savedJob,
+        address: leg.address ? formatLegAddress(leg.address) : savedJob.address,
+        contactName: leg.name || savedJob.contactName,
+        phoneNumber: leg.phone || savedJob.phoneNumber,
+        lat: leg.lat ?? savedJob.lat,
+        lon: leg.lon ?? savedJob.lon,
         orderData: order
       };
     });
+
 
     // Check for stale jobs (jobs that no longer exist in orders)
     const staleCount = loadedJobs.filter(j => j.type !== 'break' && !j.orderData).length;

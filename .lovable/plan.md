@@ -1,25 +1,36 @@
-## Goal
-Make Northern Ireland orders created through the public API (and Shopify, which posts to the same endpoint) behave exactly like NI orders created in the web UI — detected automatically from the receiver address, with nothing extra required from the caller.
+## What's wrong
 
-## Current gap (verified)
-- `supabase/functions/orders/index.ts` — the POST insert payload (~lines 276-306) contains no `is_northern_ireland` and no `foam_status`, and the function never imports `_shared/northernIreland.ts`.
-- `src/services/orderService.ts:400,454-457` — the web UI does set `is_northern_ireland` plus `foam_status: 'pending_collection'` and `foam_pending_collection_at` at creation.
-- `supabase/functions/shopify-webhook/index.ts:368` creates orders by calling the same `orders` API function, so it inherits the gap.
-- Fallbacks that already work without the flag: `create-shipday-order/index.ts:160-171` (ferry routing) and `create-quickbooks-invoice/index.ts:580-582` (£120 surcharge) both re-detect NI from the receiver address.
-- Fallbacks that do NOT exist: `shipday-webhook/index.ts:133` and `reconcile-shipday-orders/index.ts:257` read `is_northern_ireland` directly, so an API-created NI order would be marked plain "delivered" instead of "delivered to ferry", and the Foam My Bike board (`FoamMyBikeSection.tsx:108` filters `is_northern_ireland = true`) would never show it.
+`supabase/functions/send-timeslot-whatsapp/index.ts` has no Northern Ireland awareness. On a delivery leg it does `const contact = order.receiver` and uses that for:
+
+- the WhatsApp send (`contact.phone`),
+- the email send (`to: [contact.email]`),
+- the Shipday job update, where `jobContact = orderToUpdate.receiver` supplies `customerName`, `customerAddress`, `customerEmail`, `customerPhoneNumber`.
+
+So for an NI order the timeslot goes to the customer in Northern Ireland, and the Shipday delivery job gets rewritten back to the NI address — which is also why the route timings look wrong.
+
+Related, from the earlier investigation: `LoadRouteDialog` replays the `lat`/`lon` saved in `saved_routes.job_data` verbatim (only `orderData` is re-hydrated), so routes saved before an order was flagged NI still carry Belfast coordinates. And `CITY_AIR_EXPRESS.lat/lon` in `src/constants/depot.ts` (`53.4718, -2.2960`) is roughly 600 m off Unit 1 Ordinal Street, M17 1GB.
 
 ## Changes
 
-1. **`supabase/functions/orders/index.ts`** — import `isNorthernIrelandAddress` from `../_shared/northernIreland.ts` and run it against the receiver address/region on every create. Add to the insert payload:
-   - `is_northern_ireland`
-   - `foam_status: 'pending_collection'` and `foam_pending_collection_at` when NI, otherwise null
+**1. NI-aware recipient in the timeslot function** (`supabase/functions/send-timeslot-whatsapp/index.ts`)
 
-   Detection is fully automatic from the receiver address — no new request field, nothing for API or Shopify callers to send. Same logic as the web UI so both paths produce identical rows.
+- Import `CITY_AIR_EXPRESS` and `isNorthernIrelandAddress` from `_shared/northernIreland.ts`.
+- Compute `isNI = order.is_northern_ireland === true || isNorthernIrelandAddress(order.receiver?.address)`.
+- For `recipientType === "receiver"` on an NI order, resolve the contact to the hand-off name/phone/email/address instead of `order.receiver`. Collection legs are untouched.
+- Append the NI receiver block (`formatNiReceiverBlock`) to the message/email body so the hand-off contact knows which bike and final destination the slot is for.
 
-2. **`supabase/functions/shipday-webhook/index.ts`** — add the same receiver-address fallback the other functions use, so a completed delivery leg is treated as the ferry leg when either the flag is true or the address resolves to NI. Same for `reconcile-shipday-orders/index.ts`.
+**2. NI-aware Shipday update in the same function**
 
-3. **Backfill** — one-off data update setting `is_northern_ireland` and initialising `foam_status` for existing non-cancelled, non-delivered orders whose receiver postcode is NI but whose flag is false/null, so anything already booked via API/Shopify lands on the Foam board.
+In the per-job update loop, when the job is a delivery and its order is NI, set `customerName`, `customerAddress`, `customerEmail`, `customerPhoneNumber` to the hand-off details and add the `NORTHERN IRELAND — hand over` line plus the NI receiver block to the instructions — matching what `create-shipday-order` already does. This stops timeslot updates from reverting the Shipday job to the NI address.
 
-## Notes
-- Detection uses the existing shared helper (BT-postcode / region match), so behaviour matches the web UI exactly.
-- No changes to pricing or Shipday routing behaviour; those already handle NI correctly via fallback.
+**3. Self-heal stale route coordinates** (`src/components/scheduling/LoadRouteDialog.tsx`, `src/components/scheduling/RouteBuilder.tsx`)
+
+When loading a saved route, rebuild each non-break stop from the live order via `getLegContact(order, type)` — overriding `lat`, `lon`, `address`, `contactName`, `phoneNumber` — instead of trusting the saved snapshot. Do the same refresh at the start of `calculateTimeslots` so a flag change mid-session is picked up. Breaks and stops with no matching order keep their saved values.
+
+**4. Correct the hand-off coordinates** (`src/constants/depot.ts`)
+
+Update `lat`/`lon` to the accurate Unit 1 Ordinal Street, M17 1GB point (approximately `53.4713, -2.3049`). Send exact coordinates if you have them and I'll use those.
+
+## Deliberate behaviour
+
+On the delivery leg of an NI order the customer no longer receives a timeslot message — the slot describes the drive to the Manchester hand-off, not their door. They still get the ferry-port confirmation email when the leg completes. Say the word if you'd rather they also get an informational "on its way to the ferry" note at timeslot time.
