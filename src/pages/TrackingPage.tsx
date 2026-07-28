@@ -175,7 +175,7 @@ const TrackingPage = () => {
                   </div>
                   
                   {/* Scheduled Dates Section */}
-                  {(order.scheduledPickupDate || order.scheduledDeliveryDate) && (
+                  {(order.scheduledPickupDate || (order.scheduledDeliveryDate && !order.isNorthernIreland)) && (
                     <div className="border-t pt-4">
                       <h3 className="text-sm font-medium mb-3 flex items-center">
                         <Calendar className="mr-2 h-4 w-4 text-courier-500" />
