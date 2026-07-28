@@ -8,6 +8,7 @@ import { extractOutwardCode } from "@/utils/locationUtils";
 import JobSchedulingForm from "./JobSchedulingForm";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
+import { getFoamBadge, getLegContact } from "@/utils/niDelivery";
 
 // Create a type-safe helper function to get the correct badge variant
 const getPolygonBadgeVariant = (segment: number | undefined) => {
@@ -38,7 +39,8 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
   const isPickup = group.type === 'pickup';
   
   // Get the contact info based on whether this is a pickup or delivery
-  const contact = isPickup ? firstOrder.sender : firstOrder.receiver;
+  // (Northern Ireland deliveries are dropped at City Air Express, Manchester)
+  const contact = getLegContact(firstOrder, isPickup ? 'pickup' : 'delivery') as any;
   const contactType = isPickup ? "Sender" : "Receiver";
   
   // Get bike information
@@ -91,9 +93,16 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
                 P{polygonSegment}
               </Badge>
             )}
+            {(() => {
+              const foamBadge = getFoamBadge(firstOrder, isPickup ? 'pickup' : 'delivery');
+              return foamBadge ? (
+                <Badge className={`text-xs ${foamBadge.color}`}>{foamBadge.text}</Badge>
+              ) : null;
+            })()}
             {isScheduled && (
               <Badge variant="outline" className="text-xs">Scheduled</Badge>
             )}
+
           </div>
         </CardTitle>
       </CardHeader>

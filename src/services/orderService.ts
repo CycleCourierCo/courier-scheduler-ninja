@@ -13,6 +13,8 @@ import {
 import { generateTrackingNumber } from "@/services/trackingService";
 import { upsertContact } from "@/services/contactService";
 import { geocodeAddress, buildAddressString } from "@/utils/geocoding";
+import { resolveRegion, isNorthernIrelandAddress } from "@/utils/northernIreland";
+
 
 const attachInspectionSummary = async (order: Order, orderIdentifier: string): Promise<Order> => {
   if (!order.needsInspection) {
@@ -387,6 +389,16 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
 
     const trackingNumber = await generateTrackingNumber(sender.name, receiver.address.zipCode);
 
+    // Classify the delivery destination (England / Scotland / Wales / Northern Ireland)
+    const receiverRegionInput = {
+      region: (receiver.address as any).region,
+      state: receiverState,
+      zipCode: receiverZipCode,
+      country: receiverCountry,
+    };
+    const destinationRegion = resolveRegion(receiverRegionInput);
+    const isNorthernIreland = isNorthernIrelandAddress(receiverRegionInput);
+
     const { data: order, error } = await supabase
       .from("orders")
       .insert({
@@ -401,6 +413,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
             state: senderState,
             zipCode: senderZipCode,
             country: senderCountry,
+            region: (sender.address as any).region || null,
             lat: finalSenderLat,
             lon: finalSenderLon,
           },
@@ -415,10 +428,12 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
             state: receiverState,
             zipCode: receiverZipCode,
             country: receiverCountry,
+            region: (receiver.address as any).region || null,
             lat: finalReceiverLat,
             lon: finalReceiverLon,
           },
         },
+
         bike_brand: bikeBrand || bikes?.[0]?.brand,
         bike_model: bikeModel || bikes?.[0]?.model,
         bike_type: bikeType || bikes?.[0]?.type,
@@ -435,6 +450,12 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         needs_inspection: needsInspection || false,
         is_box_my_bike: isBoxMyBike || false,
         box_my_bike_status: isBoxMyBike ? 'awaiting_depot' : null,
+        destination_region: destinationRegion,
+        is_northern_ireland: isNorthernIreland,
+        // NI bikes enter the Foam My Bike pipeline immediately
+        foam_status: isNorthernIreland ? 'pending_collection' : null,
+        foam_pending_collection_at: isNorthernIreland ? timestamp : null,
+
         status: "created",
         created_at: timestamp,
         updated_at: timestamp,

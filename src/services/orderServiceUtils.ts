@@ -66,7 +66,17 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     boxLabelPrintedAt: dbOrder.box_label_printed_at ? parseDate(dbOrder.box_label_printed_at) : null,
     boxCollectedBy3pAt: dbOrder.box_collected_by_3p_at ? parseDate(dbOrder.box_collected_by_3p_at) : null,
     boxDeliveredBy3pAt: dbOrder.box_delivered_by_3p_at ? parseDate(dbOrder.box_delivered_by_3p_at) : null,
+    destinationRegion: dbOrder.destination_region || null,
+    isNorthernIreland: dbOrder.is_northern_ireland || false,
+    foamStatus: dbOrder.foam_status || null,
+    foamPendingCollectionAt: dbOrder.foam_pending_collection_at ? parseDate(dbOrder.foam_pending_collection_at) : null,
+    foamPendingFoamingAt: dbOrder.foam_pending_foaming_at ? parseDate(dbOrder.foam_pending_foaming_at) : null,
+    foamFoamedAt: dbOrder.foam_foamed_at ? parseDate(dbOrder.foam_foamed_at) : null,
+    foamDeliveredToFerryAt: dbOrder.foam_delivered_to_ferry_at ? parseDate(dbOrder.foam_delivered_to_ferry_at) : null,
+    foamDeliveredNiAt: dbOrder.foam_delivered_ni_at ? parseDate(dbOrder.foam_delivered_ni_at) : null,
+    foamDeliveryPhotos: dbOrder.foam_delivery_photos || null,
   };
+
 
   // Add optional date fields only if they exist in the DB record
   if (dbOrder.pickup_date) {

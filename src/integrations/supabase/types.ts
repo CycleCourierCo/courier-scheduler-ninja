@@ -1677,10 +1677,23 @@ export type Database = {
           delivery_driver_name: string | null
           delivery_instructions: string | null
           delivery_timeslot: string | null
+          destination_region: string | null
+          foam_delivered_ni_at: string | null
+          foam_delivered_to_ferry_at: string | null
+          foam_delivery_photos: Json
+          foam_foamed_at: string | null
+          foam_label_uploaded_at: string | null
+          foam_label_uploaded_by: string | null
+          foam_label_url: string | null
+          foam_pending_collection_at: string | null
+          foam_pending_foaming_at: string | null
+          foam_status: Database["public"]["Enums"]["foam_status"] | null
+          foam_tracking_url: string | null
           id: string
           is_bike_swap: boolean | null
           is_box_my_bike: boolean
           is_ebay_order: boolean | null
+          is_northern_ireland: boolean
           loaded_onto_van: boolean | null
           loaded_onto_van_at: string | null
           needs_inspection: boolean | null
@@ -1742,10 +1755,23 @@ export type Database = {
           delivery_driver_name?: string | null
           delivery_instructions?: string | null
           delivery_timeslot?: string | null
+          destination_region?: string | null
+          foam_delivered_ni_at?: string | null
+          foam_delivered_to_ferry_at?: string | null
+          foam_delivery_photos?: Json
+          foam_foamed_at?: string | null
+          foam_label_uploaded_at?: string | null
+          foam_label_uploaded_by?: string | null
+          foam_label_url?: string | null
+          foam_pending_collection_at?: string | null
+          foam_pending_foaming_at?: string | null
+          foam_status?: Database["public"]["Enums"]["foam_status"] | null
+          foam_tracking_url?: string | null
           id?: string
           is_bike_swap?: boolean | null
           is_box_my_bike?: boolean
           is_ebay_order?: boolean | null
+          is_northern_ireland?: boolean
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
           needs_inspection?: boolean | null
@@ -1807,10 +1833,23 @@ export type Database = {
           delivery_driver_name?: string | null
           delivery_instructions?: string | null
           delivery_timeslot?: string | null
+          destination_region?: string | null
+          foam_delivered_ni_at?: string | null
+          foam_delivered_to_ferry_at?: string | null
+          foam_delivery_photos?: Json
+          foam_foamed_at?: string | null
+          foam_label_uploaded_at?: string | null
+          foam_label_uploaded_by?: string | null
+          foam_label_url?: string | null
+          foam_pending_collection_at?: string | null
+          foam_pending_foaming_at?: string | null
+          foam_status?: Database["public"]["Enums"]["foam_status"] | null
+          foam_tracking_url?: string | null
           id?: string
           is_bike_swap?: boolean | null
           is_box_my_bike?: boolean
           is_ebay_order?: boolean | null
+          is_northern_ireland?: boolean
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
           needs_inspection?: boolean | null
@@ -3670,6 +3709,12 @@ export type Database = {
         | "settlement_proposed"
         | "negotiation"
         | "settlement_agreed"
+      foam_status:
+        | "pending_collection"
+        | "pending_foaming"
+        | "foamed_ready"
+        | "delivered_to_ferry"
+        | "delivered_ni"
       order_status:
         | "created"
         | "sender_availability_pending"
@@ -3693,6 +3738,7 @@ export type Database = {
         | "awaiting_3p_collection"
         | "collected_by_3p"
         | "delivered_by_3p"
+        | "delivered_to_ferry"
       task_priority: "low" | "normal" | "high" | "urgent"
       task_status: "open" | "in_progress" | "blocked" | "done" | "cancelled"
       user_role:
@@ -3878,6 +3924,13 @@ export const Constants = {
         "negotiation",
         "settlement_agreed",
       ],
+      foam_status: [
+        "pending_collection",
+        "pending_foaming",
+        "foamed_ready",
+        "delivered_to_ferry",
+        "delivered_ni",
+      ],
       order_status: [
         "created",
         "sender_availability_pending",
@@ -3901,6 +3954,7 @@ export const Constants = {
         "awaiting_3p_collection",
         "collected_by_3p",
         "delivered_by_3p",
+        "delivered_to_ferry",
       ],
       task_priority: ["low", "normal", "high", "urgent"],
       task_status: ["open", "in_progress", "blocked", "done", "cancelled"],

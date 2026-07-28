@@ -29,6 +29,7 @@ import { z } from "zod";
 import { format, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { countJobsForOrders } from "@/utils/jobUtils";
+import { getLegContact, getFoamBadge } from "@/utils/niDelivery";
 import { parseCSV, matchCSVToOrders, MatchResult, analyzeRouteViability, RouteAnalysis } from "@/utils/csvRouteParser";
 import { createShipdayOrder } from "@/services/shipdayService";
 import { getRevenueForRouteStops, clearSpecialRatePriceCache } from "@/services/profitabilityService";
@@ -463,7 +464,21 @@ const JobItem: React.FC<JobItemProps> = ({
                                 </Badge>
                               ) : null;
                             })()}
+                            {/* Foam Badge (Northern Ireland deliveries) */}
+                            {(() => {
+                              const foamBadge = getFoamBadge(groupedJob.orderData, groupedJob.type);
+                              return foamBadge ? (
+                                <Badge className={`text-xs px-1.5 py-0 ${foamBadge.color}`}>
+                                  {foamBadge.text}
+                                </Badge>
+                              ) : null;
+                            })()}
                           </div>
+                          {getFoamBadge(groupedJob.orderData, groupedJob.type) && groupedJob.orderData?.receiver?.address && (
+                            <p className="text-[10px] text-muted-foreground">
+                              Final destination: {groupedJob.orderData.receiver.name} — {[groupedJob.orderData.receiver.address.street, groupedJob.orderData.receiver.address.city, groupedJob.orderData.receiver.address.zipCode].filter(Boolean).join(', ')}
+                            </p>
+                          )}
                           {groupedJob.orderData?.delivery_instructions && (
                             <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">📋 {groupedJob.orderData.delivery_instructions}</p>
                           )}
@@ -558,11 +573,26 @@ const JobItem: React.FC<JobItemProps> = ({
                           </Badge>
                         ) : null;
                       })()}
+
+                      {/* Foam Badge (Northern Ireland deliveries) */}
+                      {(() => {
+                        const foamBadge = getFoamBadge(job.orderData, job.type);
+                        return foamBadge ? (
+                          <Badge className={`text-xs px-1.5 py-0 ${foamBadge.color}`}>
+                            {foamBadge.text}
+                          </Badge>
+                        ) : null;
+                      })()}
                     </>
                   )}
                 </div>
                 {job.type !== 'break' && (
                   <>
+                    {getFoamBadge(job.orderData, job.type) && job.orderData?.receiver?.address && (
+                      <p className="text-[10px] text-muted-foreground">
+                        Final destination: {job.orderData.receiver.name} — {[job.orderData.receiver.address.street, job.orderData.receiver.address.city, job.orderData.receiver.address.zipCode].filter(Boolean).join(', ')}
+                      </p>
+                    )}
                     {job.orderData?.delivery_instructions && (
                       <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap">📋 {job.orderData.delivery_instructions}</p>
                     )}
@@ -1076,15 +1106,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         const deliveryVisible = deliveryDateVisible && passesCollectedOnly && passesCollectingBefore && passesInspected;
 
         if (deliveryVisible) {
+          // Northern Ireland deliveries go to City Air Express (Manchester), not the customer
+          const dest = getLegContact(order, 'delivery');
           jobs.push({
             orderId: order.id,
             type: 'delivery',
-            address: formatAddress(order.receiver.address),
-            contactName: order.receiver.name,
-            phoneNumber: order.receiver.phone,
+            address: formatAddress(dest.address),
+            contactName: dest.name,
+            phoneNumber: dest.phone,
             order,
-            lat: order.receiver.address.lat,
-            lon: order.receiver.address.lon
+            lat: dest.lat,
+            lon: dest.lon
           });
         }
       }
@@ -1252,7 +1284,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       .map((sel, index) => {
         const order = orderList.find(o => o.id === sel.orderId);
         if (!order) return null;
-        const contact = sel.jobType === 'pickup' ? order.sender : order.receiver;
+        const contact = getLegContact(order, sel.jobType);
 
         return {
           orderId: order.id,
@@ -1262,8 +1294,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           orderData: order,
           phoneNumber: contact.phone,
           order: index + 1,
-          lat: contact.address.lat,
-          lon: contact.address.lon
+          lat: contact.lat,
+          lon: contact.lon
         } as SelectedJob;
       })
       .filter(Boolean) as SelectedJob[];
@@ -1372,7 +1404,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         const order = orderList.find(o => o.id === ij.orderId);
         if (!order) return;
         
-        const contact = ij.type === 'pickup' ? order.sender : order.receiver;
+        const contact = getLegContact(order, ij.type);
         
         jobs.push({
           orderId: order.id,
@@ -1382,8 +1414,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           orderData: order,
           phoneNumber: contact.phone,
           order: idx + 1,
-          lat: contact.address.lat,
-          lon: contact.address.lon
+          lat: contact.lat,
+          lon: contact.lon
         });
       });
       
@@ -3434,6 +3466,21 @@ Route Link: ${routeLink}`;
                         <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground" />
                         <p className="text-xs text-muted-foreground">{job.address}</p>
                       </div>
+                      {(() => {
+                        const foamBadge = getFoamBadge(job.order, job.type);
+                        if (!foamBadge) return null;
+                        const r = job.order.receiver;
+                        return (
+                          <div className="space-y-1">
+                            <Badge className={`text-xs ${foamBadge.color}`}>{foamBadge.text}</Badge>
+                            {r?.address && (
+                              <p className="text-[10px] text-muted-foreground">
+                                Final destination: {r.name} — {[r.address.street, r.address.city, r.address.zipCode].filter(Boolean).join(', ')}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
                       <p className="text-xs text-muted-foreground">
                         {job.order.bike_brand} {job.order.bike_model}
                       </p>

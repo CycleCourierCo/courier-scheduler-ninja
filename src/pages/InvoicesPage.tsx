@@ -40,6 +40,7 @@ type InvoiceItem = {
   receiver: any;
   needs_inspection: boolean | null;
   is_box_my_bike: boolean | null;
+  is_northern_ireland?: boolean | null;
 };
 
 type InvoiceHistory = {
@@ -168,7 +169,8 @@ export default function InvoicesPage() {
           sender,
           receiver,
           needs_inspection,
-          is_box_my_bike
+          is_box_my_bike,
+          is_northern_ireland
         `)
         .eq("user_id", selectedCustomer)
         .gte("created_at", startDate.toISOString())
