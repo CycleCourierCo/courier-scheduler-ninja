@@ -1,33 +1,36 @@
 ## Goal
 
-For Northern Ireland orders, the scheduled "delivery" leg is really the ferry hand-off, so the date shown to the customer is misleading. Keep saving it internally (route builder, Shipday, dispatch, timeslips all stay unchanged) but stop showing a Delivery Date / timeslot on the customer-facing pages.
+Multiple Northern Ireland deliveries on one route currently show as separate stops (#1, #2 …) at the ferry hand-off address. They should bundle into a single multi-job stop, and all messaging for that stop must go to the ferry hand-off contact you supplied — never the Northern Ireland receiver.
 
-## What changes
+## Why they aren't bundling
 
-**1. Expose the NI flag on the public tracking payload**
+`groupJobsByLocation` in `src/components/scheduling/RouteBuilder.tsx` merges stops only when coordinates match **and** the contact key matches. The contact key is built from `orderData.receiver.email` / phone — the NI end customer, different for every order — so the merge is refused even though both stops resolve to the same ferry coordinates.
 
-The public tracking page reads orders via the `get_public_order` / `get_public_order_with_proof` database functions, whose payload builder (`_build_public_order_payload`) currently does not include `is_northern_ireland` or `foam_status`. A migration will add both fields to the returned JSON so the front end can tell an NI order apart. No new tables, no policy changes.
+## Contact details used
 
-**2. Public tracking page (`src/pages/TrackingPage.tsx`)**
+The ferry hand-off contact is already the single source of truth in `src/constants/depot.ts` and is returned by `getLegContact(order, 'delivery')` for NI orders:
 
-- When the order is Northern Ireland: do not render the green "Delivery Date" block or its timeslot.
-- Show a short neutral line in its place, e.g. "Delivery date to be confirmed — your bike travels onward by ferry once it reaches the ferry port."
-- If the collection date is also absent, the whole "Scheduled Dates" section stays hidden as it does today.
+- Name shown on the stop: Ferry hand-off
+- Email: the operations address stored in that constant
+- Phone: the mobile number stored in that constant
+- Address: Unit 1 Ordinal Street, Trafford Park, Manchester, M17 1GB
 
-**3. Logged-in customer order page (`src/pages/CustomerOrderDetail.tsx`)**
+The NI receiver's name and address remain visible only as the "Final destination:" reference line on the card. `send-timeslot-whatsapp` already redirects the WhatsApp and email for NI delivery legs to this hand-off contact — the grouped send will reuse that same path, so no receiver contact is ever used.
 
-Same treatment for the delivery date / timeslot block, so both customer views are consistent.
+## Change
 
-**4. Timeline**
+1. In `RouteBuilder.tsx`, change `getContactKey` so a delivery leg on a Northern Ireland order (detected with the existing `isNiOrder` helper) returns one shared key derived from the ferry hand-off contact instead of the receiver's email/phone.
+2. With the key shared, the existing location + contact merge groups all NI delivery legs at the ferry coordinates into one stop card: one arrival time, each job listed beneath with customer name, bike count, badges and its final destination line, and one grouped SendZen button.
+3. Verify the grouped send path passes the ferry hand-off email/phone for every job in the group (it resolves per-order through the NI branch in `send-timeslot-whatsapp`), and that no NI receiver email/phone is used for the stop.
+4. Pickups and non-NI deliveries keep their current per-contact key, so nothing else regroups.
 
-The tracking timeline itself is driven by statuses/events, not by the scheduled delivery date, so it keeps working as-is (ferry hand-off and ferry-port confirmation entries stay).
+## Behaviour after the change
 
-## Not changing
-
-- The `scheduled_delivery_date` / `delivery_timeslot` values are still written when the ferry leg is scheduled — internal scheduling, Shipday sync and route planning are untouched.
-- Admin/staff order views still show the real date.
+- One "Ferry hand-off" stop containing all NI jobs, single arrival time, travel time counted once.
+- One Send action, messaging only the hand-off operations email and mobile.
+- Removing the stop removes all jobs in the group (existing group-removal logic).
 
 ## Technical notes
 
-- Migration: `CREATE OR REPLACE FUNCTION public._build_public_order_payload(...)` adding `'is_northern_ireland'` and `'foam_status'` to the `jsonb_build_object` result (function body otherwise unchanged, keeps `SECURITY DEFINER` and `search_path`).
-- `mapDbOrderToOrder` in `src/services/orderServiceUtils.ts` already maps `is_northern_ireland` → `isNorthernIreland`, so no mapper change is needed once the payload carries it.
+- Main edit: `src/components/scheduling/RouteBuilder.tsx` (`getContactKey`), importing `isNiOrder` / `getLegContact` from `@/utils/niDelivery`.
+- No database changes; saved routes and timeslip mileage already resolve NI stops via `resolveStopCoords`.

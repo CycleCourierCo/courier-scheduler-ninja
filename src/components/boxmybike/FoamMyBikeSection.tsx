@@ -11,6 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { FoamStatus, FOAM_STATUS_LABELS, FOAM_STATUS_ORDER } from "@/types/order";
 import { CITY_AIR_EXPRESS } from "@/constants/depot";
 import { formatStorageLocations } from "@/utils/storageLocation";
+import { uploadToStorage, describeUploadError } from "@/utils/uploadFile";
+
 
 interface FoamOrder {
   id: string;
@@ -29,7 +31,8 @@ interface FoamOrder {
   storage_locations: any;
 }
 
-const FOAM_LABEL_BUCKET = "foam-my-bike-labels";
+const BOX_LABEL_BUCKET = "box-my-bike-labels";
+
 
 // Inline editor for the courier tracking link on a foam order
 const FoamTrackingUrlEditor: React.FC<{
@@ -121,7 +124,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       const patch: any = { foam_status: newStage, updated_at: new Date().toISOString() };
       const col = foamTimestampColumn(newStage);
       if (col) patch[col] = new Date().toISOString();
-      // Once handed to City Air Express the public tracking shows the ferry stage
+      // Once handed off at the ferry stage, the public tracking shows that milestone.
       if (newStage === "delivered_to_ferry") patch.status = "delivered_to_ferry";
       if (newStage === "delivered_ni") patch.status = "delivered";
       const { error } = await supabase.from("orders").update(patch).eq("id", id);
@@ -134,13 +137,17 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     onError: (e: any) => toast.error(e?.message || "Failed to update stage"),
   });
 
+  const [uploadPct, setUploadPct] = React.useState<number | null>(null);
+
   const uploadPhoto = useMutation({
     mutationFn: async ({ order, file }: { order: FoamOrder; file: File }) => {
-      const path = `${order.id}/${Date.now()}-${file.name}`;
-      const { error: upErr } = await supabase.storage
-        .from("foam-delivery-photos")
-        .upload(path, file, { upsert: true });
-      if (upErr) throw upErr;
+      const path = await uploadToStorage({
+        bucket: "foam-delivery-photos",
+        prefix: order.id,
+        file,
+        onProgress: setUploadPct,
+      });
+
       const photos = [...(order.foam_delivery_photos || []), path];
       const { error } = await supabase
         .from("orders")
@@ -152,7 +159,8 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       queryClient.invalidateQueries({ queryKey: ["foam-my-bike-orders"] });
       toast.success("Photo uploaded");
     },
-    onError: (e: any) => toast.error(e?.message || "Failed to upload photo"),
+    onError: (e: any) => toast.error(describeUploadError(e) || "Failed to upload photo"),
+    onSettled: () => setUploadPct(null),
   });
 
   const viewPhoto = async (path: string) => {
@@ -167,29 +175,33 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
   };
 
   const uploadLabel = useMutation({
-    mutationFn: async ({ id, file }: { id: string; file: File }) => {
-      const path = `${id}/${Date.now()}-${file.name}`;
-      const { error: upErr } = await supabase.storage
-        .from(FOAM_LABEL_BUCKET)
-        .upload(path, file, { upsert: true });
-      if (upErr) throw upErr;
-      const { error } = await supabase
+    mutationFn: async ({ order, file }: { order: FoamOrder; file: File }) => {
+      const path = await uploadToStorage({
+        bucket: BOX_LABEL_BUCKET,
+        prefix: order.id,
+        file,
+        onProgress: setUploadPct,
+      });
+
+      const { error: updErr } = await supabase
         .from("orders")
         .update({
           foam_label_url: path,
           foam_label_uploaded_at: new Date().toISOString(),
-          foam_label_uploaded_by: userId || null,
+          foam_label_uploaded_by: userId,
           updated_at: new Date().toISOString(),
         } as any)
-        .eq("id", id);
-      if (error) throw error;
+        .eq("id", order.id);
+      if (updErr) throw updErr;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["foam-my-bike-orders"] });
       toast.success("Label uploaded");
     },
-    onError: (e: any) => toast.error(e?.message || "Failed to upload label"),
+    onError: (e: any) => toast.error(describeUploadError(e) || "Failed to upload label"),
+    onSettled: () => setUploadPct(null),
   });
+
 
   const saveTrackingUrl = useMutation({
     mutationFn: async ({ id, url }: { id: string; url: string }) => {
@@ -210,7 +222,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     // Open the tab synchronously so popup blockers don't kill it
     const tab = window.open("", "_blank");
     const { data, error } = await supabase.storage
-      .from(FOAM_LABEL_BUCKET)
+      .from(BOX_LABEL_BUCKET)
       .createSignedUrl(path, 60 * 10);
     if (error || !data?.signedUrl) {
       tab?.close();
@@ -240,7 +252,8 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     const prev = prevFoamStage(stage);
     const next = nextFoamStage(stage);
     const addr = o.receiver?.address || {};
-    const canEditLabel = isStaff && stage === "foamed_ready";
+    const isOwner = !isStaff && o.user_id === userId;
+    const canEditLabel = (isOwner || isStaff) && stage === "foamed_ready";
     const showLabelSection = stage === "foamed_ready" || !!o.foam_label_url || !!o.foam_tracking_url;
     // Can't hand a bike to the ferry courier without a label and tracking link
     const blockedAdvance = stage === "foamed_ready" && (!o.foam_label_url || !o.foam_tracking_url);
@@ -298,20 +311,28 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
                         type="file"
                         accept="application/pdf,image/*"
                         className="hidden"
+                        disabled={uploadLabel.isPending}
                         onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          if (f) uploadLabel.mutate({ id: o.id, file: f });
-                          e.currentTarget.value = "";
+                          const input = e.target as HTMLInputElement;
+                          const f = input.files?.[0];
+                          input.value = "";
+                          if (f) uploadLabel.mutate({ order: o, file: f });
                         }}
+
                       />
                       <Button size="sm" variant="outline" asChild>
                         <span>
                           <Upload className="h-4 w-4 mr-1" />
-                          {o.foam_label_url ? "Replace label" : "Upload label"}
+                          {uploadLabel.isPending
+                            ? `Uploading${uploadPct !== null ? ` ${uploadPct}%` : "…"}`
+                            : o.foam_label_url
+                              ? "Replace label"
+                              : "Upload label"}
                         </span>
                       </Button>
                     </label>
                   )}
+
                 </div>
               </div>
 
@@ -359,10 +380,12 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
                   accept="image/*"
                   className="hidden"
                   onChange={(e) => {
-                    const f = e.target.files?.[0];
+                    const input = e.target as HTMLInputElement;
+                    const f = input.files?.[0];
+                    input.value = "";
                     if (f) uploadPhoto.mutate({ order: o, file: f });
-                    e.currentTarget.value = "";
                   }}
+
                 />
                 <Button size="sm" variant="outline" asChild>
                   <span><Camera className="h-4 w-4 mr-1" /> Add photo</span>

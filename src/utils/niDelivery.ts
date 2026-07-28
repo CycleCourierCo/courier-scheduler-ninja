@@ -64,6 +64,26 @@ export const getDeliveryDestination = (order: any): DeliveryDestination => {
   };
 };
 
+/**
+ * Coordinates the driver actually drives to for a leg. NI delivery legs ALWAYS
+ * resolve to the ferry hand-off point — never the customer's NI coordinates.
+ */
+export const resolveStopCoords = (
+  order: any,
+  type: "pickup" | "delivery" | "break" | string
+): { lat: number | null; lon: number | null } => {
+  if (!order || type === "break") return { lat: null, lon: null };
+  if (type === "pickup") {
+    const a = order?.sender?.address || {};
+    return { lat: a.lat ?? null, lon: a.lon ?? null };
+  }
+  if (isNiOrder(order)) {
+    return { lat: CITY_AIR_EXPRESS.lat, lon: CITY_AIR_EXPRESS.lon };
+  }
+  const a = order?.receiver?.address || {};
+  return { lat: a.lat ?? null, lon: a.lon ?? null };
+};
+
 /** Contact used for a leg: sender for pickups, NI-aware destination for deliveries. */
 export const getLegContact = (order: any, type: "pickup" | "delivery") => {
   if (type === "pickup") {

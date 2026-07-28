@@ -99,3 +99,6 @@ verify_jwt = false
 
 [functions.weekly-invoice-batch]
 verify_jwt = false
+
+[functions.upload-file]
+verify_jwt = false
