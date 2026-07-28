@@ -264,7 +264,10 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
             </div>
             <div className="text-muted-foreground text-xs mt-1">
               Ferry hand-off: {CITY_AIR_EXPRESS.name}, {CITY_AIR_EXPRESS.formatted}
+            </div>
           </div>
+
+
 
           {showLabelSection && (
             <div className="rounded-md border p-3 space-y-3">
