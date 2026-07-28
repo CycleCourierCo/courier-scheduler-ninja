@@ -1130,6 +1130,14 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     try {
       // Validate coordinates
       coordinateSchema.parse({ lat, lon });
+
+      // NI deliveries are driven to the ferry hand-off — never override with customer coords
+      const targetOrder = orderList.find(o => o.id === orderId);
+      if (type === 'delivery' && targetOrder && isNiOrder(targetOrder)) {
+        toast.info('This is a Northern Ireland delivery — the stop always uses the ferry hand-off location.');
+        return;
+      }
+
       
       // Update in database
       const addressField = type === 'pickup' ? 'sender' : 'receiver';
