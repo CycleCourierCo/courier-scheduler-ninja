@@ -10,6 +10,10 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { OrderData } from "@/pages/JobScheduling";
+import { getLegContact } from "@/utils/niDelivery";
+
+const formatLegAddress = (a: any) =>
+  [a?.street, a?.city, a?.state, a?.zipCode].filter(Boolean).join(", ");
 
 interface SavedJobData {
   orderId: string;
