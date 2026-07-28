@@ -224,41 +224,48 @@ const matchRowToOrder = (
         `${order.receiver.address.street} ${order.receiver.address.city} ${order.receiver.address.zipCode}`
       );
       
-      if (senderPostcode === csvPostcode && !usedOrderIds.has(`${order.id}-pickup`)) {
+      if (senderPostcode === csvPostcode) {
         senderConfidence = 0.6;
         senderMatchType = 'address';
       }
-      if (receiverPostcode === csvPostcode && !usedOrderIds.has(`${order.id}-delivery`)) {
+      if (receiverPostcode === csvPostcode) {
         receiverConfidence = 0.6;
         receiverMatchType = 'address';
       }
     }
     
-    // Take the best match for this order
-    if (senderConfidence > receiverConfidence && senderConfidence > bestMatch.confidence) {
-      if (!usedOrderIds.has(`${order.id}-pickup`)) {
-        bestMatch = {
-          csvRow: row,
-          matchedOrder: order,
-          matchType: senderMatchType,
-          jobType: 'pickup',
-          confidence: senderConfidence
-        };
-      }
-    } else if (receiverConfidence > bestMatch.confidence) {
-      if (!usedOrderIds.has(`${order.id}-delivery`)) {
-        bestMatch = {
-          csvRow: row,
-          matchedOrder: order,
-          matchType: receiverMatchType,
-          jobType: 'delivery',
-          confidence: receiverConfidence
-        };
-      }
+    // Record every plausible candidate (both legs), so the planner can choose
+    if (senderConfidence > 0 && senderMatchType !== 'none') {
+      candidates.push({
+        order,
+        jobType: 'pickup',
+        matchType: senderMatchType,
+        confidence: senderConfidence,
+      });
+    }
+    if (receiverConfidence > 0 && receiverMatchType !== 'none') {
+      candidates.push({
+        order,
+        jobType: 'delivery',
+        matchType: receiverMatchType,
+        confidence: receiverConfidence,
+      });
     }
   }
   
-  return bestMatch;
+  candidates.sort((a, b) => b.confidence - a.confidence);
+  
+  // Default selection = best candidate whose leg isn't already used by an earlier row
+  const best = candidates.find(c => !usedOrderIds.has(`${c.order.id}-${c.jobType}`));
+  
+  return {
+    csvRow: row,
+    matchedOrder: best?.order ?? null,
+    matchType: best?.matchType ?? 'none',
+    jobType: best?.jobType ?? null,
+    confidence: best?.confidence ?? 0,
+    candidates,
+  };
 };
 
 /**
