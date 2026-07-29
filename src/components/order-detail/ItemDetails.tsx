@@ -96,11 +96,12 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Package className="text-courier-600" />
-          <h3 className="font-semibold">Item Details</h3>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex items-center space-x-2 min-w-0 flex-1">
+          <Package className="text-courier-600 shrink-0" />
+          <h3 className="font-semibold break-words">Item Details</h3>
         </div>
+
         {isAdmin && (
           <Button variant="outline" size="sm" onClick={openEdit} className="gap-1">
             <Pencil className="h-3.5 w-3.5" /> Edit Bikes

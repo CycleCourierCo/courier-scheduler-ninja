@@ -628,10 +628,10 @@ export default function InvoicesPage() {
   return (
     <Layout>
       <div className="container px-4 py-6 md:px-6 mx-auto space-y-8">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <FileText className="h-8 w-8 text-primary" />
-            <h1 className="text-3xl font-bold">Create Invoice</h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <FileText className="h-8 w-8 text-primary shrink-0" />
+            <h1 className="text-2xl sm:text-3xl font-bold break-words">Create Invoice</h1>
           </div>
           
           {!quickBooksConnected && (
@@ -750,9 +750,9 @@ export default function InvoicesPage() {
             <CardContent>
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {orders.map((order) => (
-                  <div key={order.id} className="flex justify-between items-center p-2 border rounded">
-                    <div>
-                      <p className="font-medium">
+                  <div key={order.id} className="flex flex-wrap justify-between items-start gap-2 p-2 border rounded">
+                    <div className="min-w-0">
+                      <p className="font-medium break-words">
                         {order.tracking_number} - {order.bike_brand} {order.bike_model}
                       </p>
                       <p className="text-sm text-muted-foreground">
@@ -786,7 +786,7 @@ export default function InvoicesPage() {
             </div>
           )}
           
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-col sm:flex-row sm:justify-end gap-3">
             <Button
               onClick={handleCreateAllInvoices}
               disabled={
@@ -798,7 +798,7 @@ export default function InvoicesPage() {
               }
               size="lg"
               variant="secondary"
-              className="min-w-[200px]"
+              className="w-full sm:w-auto sm:min-w-[200px]"
             >
               <FileText className="mr-2 h-4 w-4" />
               {isCreatingAllInvoices 
@@ -820,7 +820,7 @@ export default function InvoicesPage() {
                 !quickBooksConnected
               }
               size="lg"
-              className="min-w-[200px]"
+              className="w-full sm:w-auto sm:min-w-[200px]"
             >
               <Send className="mr-2 h-4 w-4" />
               {isCreatingInvoice ? "Creating Invoice..." : "Create QuickBooks Invoice"}
@@ -930,27 +930,28 @@ export default function InvoicesPage() {
                 {invoiceHistory.map((invoice) => (
                   <div
                     key={invoice.id}
-                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 border rounded-lg hover:bg-accent/50 transition-colors"
                   >
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h4 className="font-medium">{invoice.customer_name}</h4>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <h4 className="font-medium break-words">{invoice.customer_name}</h4>
                         {invoice.quickbooks_invoice_number && (
                           <span className="text-sm text-muted-foreground">
                             #{invoice.quickbooks_invoice_number}
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">
+                      <p className="text-sm text-muted-foreground break-all">
                         {invoice.customer_email} • {invoice.order_count} orders • £{invoice.total_amount}
                       </p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground break-words">
                         {format(new Date(invoice.start_date), "MMM d")} - {format(new Date(invoice.end_date), "MMM d, yyyy")} • 
                         Created {format(new Date(invoice.created_at), "MMM d, yyyy 'at' h:mm a")}
                       </p>
                     </div>
                     
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                         invoice.status === 'created' 
                           ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'

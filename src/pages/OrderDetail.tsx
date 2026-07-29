@@ -1247,12 +1247,13 @@ const OrderDetail = () => {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Package className="mr-2" />
-                {itemName} {order.customerOrderNumber ? `(${order.customerOrderNumber})` : ''}
+            <CardTitle className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div className="flex items-start min-w-0 flex-1">
+                <Package className="mr-2 shrink-0" />
+                <span className="min-w-0 break-words">{itemName} {order.customerOrderNumber ? `(${order.customerOrderNumber})` : ''}</span>
               </div>
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+
                 <Button 
                   variant="default" 
                   size="sm" 

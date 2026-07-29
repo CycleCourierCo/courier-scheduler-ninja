@@ -1,19 +1,21 @@
-## What's happening
+## Problem
 
-The Route Builder's "SZ" / grouped send buttons call the **`send-sendzen-whatsapp`** edge function (RouteBuilder lines ~2704, 2816, 2867) — not `send-timeslot-whatsapp`.
+On a 360px viewport the Invoices page (`src/pages/InvoicesPage.tsx`) scrolls sideways because several rows are locked to a single non-wrapping line:
 
-`send-timeslot-whatsapp` already redirects Northern Ireland delivery legs to the ferry hand-off contact. `send-sendzen-whatsapp` has no Northern Ireland logic at all: it picks `order.receiver` whenever `recipientType === "receiver"` (line 516) and emails `contact.email` (line 420), so the WhatsApp and email went to the Northern Ireland customer.
+1. **Invoice history rows** (lines 931–983) — `flex items-center justify-between` with a status pill plus "View in QuickBooks" and "Delete" buttons pushes content past the card edge (matches the screenshot).
+2. **Page header** (line 631) — title + QuickBooks connect/status on one row.
+3. **Create Invoice action row** (line 789) — two `min-w-[200px]` `size="lg"` buttons side by side exceed 360px.
+4. **Orders to Invoice rows** (line 753) — long tracking/bike text and date on one non-shrinking row.
 
-## Change
+## Fix (presentation only)
 
-Only `supabase/functions/send-sendzen-whatsapp/index.ts` changes — mirror what the other function already does:
+- **History rows**: `flex flex-col sm:flex-row sm:items-center justify-between gap-3`; text block gets `min-w-0 flex-1` with `break-words` / `break-all` on the email line; action group becomes `flex flex-wrap items-center gap-2` so the buttons wrap under the details on mobile.
+- **Page header**: `flex flex-wrap items-center justify-between gap-3`, heading `text-2xl sm:text-3xl`.
+- **Action buttons row**: `flex flex-col sm:flex-row sm:justify-end gap-3`, buttons `w-full sm:w-auto sm:min-w-[200px]`.
+- **Orders to Invoice rows**: `flex flex-wrap justify-between items-start gap-2` with `min-w-0` on the text block and `break-words` on the tracking line.
 
-1. Import `CITY_AIR_EXPRESS`, `isNorthernIrelandAddress`, `formatNiReceiverBlock` from `../_shared/northernIreland.ts` and add the same `isNiOrder(order)` / `niHandoffContact()` helpers.
-2. Where the primary contact is chosen: if `recipientType === "receiver"` and the order is Northern Ireland, use the hand-off contact (name, phone `+44 7730 145621`, email `operations.man@cityairexpress.com`, Manchester address) instead of `order.receiver`. WhatsApp number, template contact name and email recipient all follow from this one contact object.
-3. Related jobs in a grouped send (line ~213): each job resolves its own contact the same way — pickup legs use the sender, delivery legs on Northern Ireland orders use the hand-off contact, everything else unchanged. The Shipday update and `customerEmail` in that block use the resolved contact too.
-4. Email body for a Northern Ireland delivery includes the final-destination block (`formatNiReceiverBlock`) so the hand-off contact knows which customer the bike is for; the customer-facing "you'll get a tracking link" line is dropped for that case.
-5. Deploy the function.
+No changes to data fetching, invoice creation, or QuickBooks logic.
 
-## Behaviour after
+## Verification
 
-Any timeslot sent from the Route Builder for a ferry hand-off stop — single or grouped — messages only the operations email and mobile above. Non-Northern-Ireland deliveries and all collections are untouched.
+Load `/invoices` in a 360px-wide Playwright viewport, screenshot the header, action buttons and invoice history sections, and confirm `document.documentElement.scrollWidth <= 360`.
