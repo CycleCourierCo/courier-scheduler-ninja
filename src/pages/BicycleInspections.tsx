@@ -66,6 +66,8 @@ import { hasRole } from "@/lib/roles";
 import { RepairPicker, type RepairPickerSelection } from "@/components/inspections/RepairPicker";
 import { BikeCategoryPicker } from "@/components/inspections/BikeCategoryPicker";
 import WorkshopScheduleTab from "@/components/inspections/WorkshopScheduleTab";
+import { sendOrderToInspectaBike } from "@/services/inspectabikeService";
+
 // (workshop settings/labour pricing consumed inside RepairPicker)
 
 
