@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { isNorthernIrelandAddress, NI_SURCHARGE_PER_BIKE } from "../_shared/northernIreland.ts";
+import { isNorthernIrelandAddress, NI_SURCHARGE_NET } from "../_shared/northernIreland.ts";
 
 
 const corsHeaders = {
@@ -576,10 +576,10 @@ const handler = async (req: Request): Promise<Response> => {
           }
         }
         
-        // Northern Ireland surcharge: £120 per bike, rolled into the bike line
+        // Northern Ireland surcharge: £100 net (£120 inc. VAT) per bike, rolled into the bike line
         const isNI = order.is_northern_ireland === true
           || isNorthernIrelandAddress(order.receiver?.address);
-        const unitPrice = isNI ? product.price + NI_SURCHARGE_PER_BIKE : product.price;
+        const unitPrice = isNI ? product.price + NI_SURCHARGE_NET : product.price;
 
         // Build description
         let description = `${order.tracking_number || order.id}`;
@@ -591,7 +591,7 @@ const handler = async (req: Request): Promise<Response> => {
         }
         description += ` - ${senderName} → ${receiverName}`;
         if (isNI) {
-          description += ` - Northern Ireland (incl. £${NI_SURCHARGE_PER_BIKE} NI surcharge)`;
+          description += ` - Northern Ireland (incl. £${NI_SURCHARGE_NET} NI surcharge)`;
         }
         
         lineItems.push({
