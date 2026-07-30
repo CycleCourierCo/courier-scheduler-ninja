@@ -576,10 +576,10 @@ const handler = async (req: Request): Promise<Response> => {
           }
         }
         
-        // Northern Ireland surcharge: £120 per bike, rolled into the bike line
+        // Northern Ireland surcharge: £100 net (£120 inc. VAT) per bike, rolled into the bike line
         const isNI = order.is_northern_ireland === true
           || isNorthernIrelandAddress(order.receiver?.address);
-        const unitPrice = isNI ? product.price + NI_SURCHARGE_PER_BIKE : product.price;
+        const unitPrice = isNI ? product.price + NI_SURCHARGE_NET : product.price;
 
         // Build description
         let description = `${order.tracking_number || order.id}`;
