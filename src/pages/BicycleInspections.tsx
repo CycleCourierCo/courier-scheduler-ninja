@@ -66,6 +66,8 @@ import { hasRole } from "@/lib/roles";
 import { RepairPicker, type RepairPickerSelection } from "@/components/inspections/RepairPicker";
 import { BikeCategoryPicker } from "@/components/inspections/BikeCategoryPicker";
 import WorkshopScheduleTab from "@/components/inspections/WorkshopScheduleTab";
+import { sendOrderToInspectaBike } from "@/services/inspectabikeService";
+
 // (workshop settings/labour pricing consumed inside RepairPicker)
 
 
@@ -321,6 +323,27 @@ const BicycleInspections = () => {
       console.error(error);
     },
   });
+
+  // InspectaBike: push a bike to the external inspection app
+  const [sendingInspectaBikeOrderId, setSendingInspectaBikeOrderId] = useState<string | null>(null);
+  const sendToInspectaBikeMutation = useMutation({
+    mutationFn: async ({ orderId }: { orderId: string }) => {
+      setSendingInspectaBikeOrderId(orderId);
+      return sendOrderToInspectaBike(orderId);
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success(result?.already_linked ? "Already linked to InspectaBike" : "Sent to InspectaBike");
+      if (result?.report_url) window.open(result.report_url, "_blank", "noopener");
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to send to InspectaBike");
+      console.error(error);
+    },
+    onSettled: () => setSendingInspectaBikeOrderId(null),
+  });
+
+
 
 
 
@@ -881,7 +904,43 @@ const BicycleInspections = () => {
                     </div>
                   </div>
                 )}
+                {canManageInspections && (
+                  (inspection as any)?.external_inspection_id ? (
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <Badge variant="secondary" className="flex items-center gap-1">
+                        <Wrench className="h-3 w-3" />
+                        InspectaBike linked
+                      </Badge>
+                      {(inspection as any)?.external_report_url && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-6 text-[11px]"
+                          onClick={() => window.open((inspection as any).external_report_url, "_blank", "noopener")}
+                        >
+                          <ExternalLink className="mr-1 h-3 w-3" /> View report
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-6 text-[11px]"
+                      disabled={sendToInspectaBikeMutation.isPending && sendingInspectaBikeOrderId === order.id}
+                      onClick={() => sendToInspectaBikeMutation.mutate({ orderId: order.id })}
+                    >
+                      {sendToInspectaBikeMutation.isPending && sendingInspectaBikeOrderId === order.id ? (
+                        <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                      ) : (
+                        <Send className="mr-1 h-3 w-3" />
+                      )}
+                      Send to InspectaBike
+                    </Button>
+                  )
+                )}
               </div>
+
 
             </div>
             <div className="flex w-full min-w-0 flex-col items-start gap-2 sm:w-auto sm:items-end">
@@ -1015,6 +1074,12 @@ const BicycleInspections = () => {
                           From catalogue · {(issue as any).repair_id}
                         </p>
                       )}
+                      {canManageInspections && (issue as any).external_fault_id && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Synced from InspectaBike
+                        </p>
+                      )}
+
 
                       {/* Part info — mechanic/admin only */}
                       {canManageInspections && (issue.part_name || issue.part_spec || issue.part_number) && (
