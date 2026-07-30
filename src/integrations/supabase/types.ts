@@ -89,6 +89,11 @@ export type Database = {
           drivetrain_degreased_at: string | null
           drivetrain_degreased_by_id: string | null
           drivetrain_degreased_by_name: string | null
+          external_completed_at: string | null
+          external_inspection_id: string | null
+          external_provider: string | null
+          external_report_url: string | null
+          external_sent_at: string | null
           frame_cleaned_at: string | null
           frame_cleaned_by_id: string | null
           frame_cleaned_by_name: string | null
@@ -113,6 +118,11 @@ export type Database = {
           drivetrain_degreased_at?: string | null
           drivetrain_degreased_by_id?: string | null
           drivetrain_degreased_by_name?: string | null
+          external_completed_at?: string | null
+          external_inspection_id?: string | null
+          external_provider?: string | null
+          external_report_url?: string | null
+          external_sent_at?: string | null
           frame_cleaned_at?: string | null
           frame_cleaned_by_id?: string | null
           frame_cleaned_by_name?: string | null
@@ -137,6 +147,11 @@ export type Database = {
           drivetrain_degreased_at?: string | null
           drivetrain_degreased_by_id?: string | null
           drivetrain_degreased_by_name?: string | null
+          external_completed_at?: string | null
+          external_inspection_id?: string | null
+          external_provider?: string | null
+          external_report_url?: string | null
+          external_sent_at?: string | null
           frame_cleaned_at?: string | null
           frame_cleaned_by_id?: string | null
           frame_cleaned_by_name?: string | null
@@ -1158,6 +1173,8 @@ export type Database = {
           customer_responded_at: string | null
           customer_response: string | null
           estimated_cost: number | null
+          external_fault_id: string | null
+          external_synced_at: string | null
           id: string
           inspection_id: string
           issue_description: string
@@ -1192,6 +1209,8 @@ export type Database = {
           customer_responded_at?: string | null
           customer_response?: string | null
           estimated_cost?: number | null
+          external_fault_id?: string | null
+          external_synced_at?: string | null
           id?: string
           inspection_id: string
           issue_description: string
@@ -1226,6 +1245,8 @@ export type Database = {
           customer_responded_at?: string | null
           customer_response?: string | null
           estimated_cost?: number | null
+          external_fault_id?: string | null
+          external_synced_at?: string | null
           id?: string
           inspection_id?: string
           issue_description?: string
