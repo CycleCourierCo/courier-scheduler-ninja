@@ -1074,6 +1074,12 @@ const BicycleInspections = () => {
                           From catalogue · {(issue as any).repair_id}
                         </p>
                       )}
+                      {canManageInspections && (issue as any).external_fault_id && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Synced from InspectaBike
+                        </p>
+                      )}
+
 
                       {/* Part info — mechanic/admin only */}
                       {canManageInspections && (issue.part_name || issue.part_spec || issue.part_number) && (
