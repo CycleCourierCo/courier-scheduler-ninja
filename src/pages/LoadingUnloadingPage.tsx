@@ -183,10 +183,10 @@ const LoadingUnloadingPage = () => {
     );
   };
 
-  // Helper function to check if order has been delivered
+  // Helper function to check if order has been delivered / left the depot
   const hasBeenDelivered = (order: Order) => {
-    // Check order status first
-    if (order.status === 'delivered') {
+    // Delivered, 3rd-party courier hand-off and ferry hand-off all mean it's gone
+    if (hasLeftDepot(order.status)) {
       return true;
     }
     
@@ -198,6 +198,7 @@ const LoadingUnloadingPage = () => {
       update.status?.toLowerCase().includes('delivered')
     );
   };
+
 
   // Get bikes that need storage allocation (collected but not delivered, not cancelled, and no storage allocation)
   const collectedBikes = orders.filter(order => {
