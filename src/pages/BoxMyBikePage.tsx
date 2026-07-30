@@ -125,14 +125,25 @@ const BoxMyBikePage: React.FC = () => {
       const patch: any = { box_my_bike_status: newStage, updated_at: new Date().toISOString() };
       const col = stageTimestampColumn(newStage);
       if (col) patch[col] = new Date().toISOString();
+      // Mirror the "load onto van" flow: once the 3rd-party courier has the bike it
+      // has left the depot, so free the bay.
+      const releasedBay =
+        newStage === "collected_by_3p" || newStage === "delivered_by_3p";
+      if (releasedBay) patch.storage_locations = null;
       const { error } = await supabase.from("orders").update(patch).eq("id", id);
       if (error) throw error;
       await fireBoxWebhooks(id, stageWebhookEvent(newStage));
+      return { releasedBay };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["box-my-bike-orders"] });
-      toast.success("Stage updated");
+      toast.success(
+        result?.releasedBay
+          ? "Stage updated — bike removed from storage"
+          : "Stage updated"
+      );
     },
+
     onError: (e: any) => toast.error(e?.message || "Failed to update stage"),
   });
 
