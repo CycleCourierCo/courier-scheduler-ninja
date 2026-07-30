@@ -99,8 +99,8 @@ export const getOrdersForLoading = async (): Promise<Order[]> => {
     const { data, error } = await supabase
       .from("orders")
       .select("*, bicycle_inspections(status)")
-      .not('status', 'eq', 'cancelled')
-      .not('status', 'eq', 'delivered')
+      .not('status', 'in', '("cancelled","delivered","collected_by_3p","delivered_by_3p","delivered_to_ferry")')
+
       .order("created_at", { ascending: false })
       .limit(5000);
 
