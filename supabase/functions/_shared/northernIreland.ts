@@ -3,7 +3,11 @@
  * Shared by edge functions (orders API, Shopify webhook, Shipday, QuickBooks).
  */
 
+/** Customer-facing, VAT-inclusive surcharge (emails, UI, pricing page). */
 export const NI_SURCHARGE_PER_BIKE = 120;
+
+/** Net (ex-VAT) surcharge used on QuickBooks invoice lines, where VAT is added via the tax code. */
+export const NI_SURCHARGE_NET = 100;
 
 export const CITY_AIR_EXPRESS = {
   displayName: 'Ferry hand-off',
