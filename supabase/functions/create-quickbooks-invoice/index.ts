@@ -591,7 +591,7 @@ const handler = async (req: Request): Promise<Response> => {
         }
         description += ` - ${senderName} → ${receiverName}`;
         if (isNI) {
-          description += ` - Northern Ireland (incl. £${NI_SURCHARGE_PER_BIKE} NI surcharge)`;
+          description += ` - Northern Ireland (incl. £${NI_SURCHARGE_NET} NI surcharge)`;
         }
         
         lineItems.push({
