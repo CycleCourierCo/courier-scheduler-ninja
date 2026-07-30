@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { MapPin, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStorageBays, getBayMaxPosition } from "@/hooks/useStorageBays";
+import { hasLeftDepot } from "@/utils/storageLocation";
+
 
 interface StorageLocationProps {
   order: Order;
