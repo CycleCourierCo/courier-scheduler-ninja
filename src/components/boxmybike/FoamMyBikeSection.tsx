@@ -127,13 +127,23 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       // Once handed off at the ferry stage, the public tracking shows that milestone.
       if (newStage === "delivered_to_ferry") patch.status = "delivered_to_ferry";
       if (newStage === "delivered_ni") patch.status = "delivered";
+      // Mirror the "load onto van" flow: at the ferry hand-off the bike has left the
+      // depot, so free the bay.
+      const releasedBay = newStage === "delivered_to_ferry" || newStage === "delivered_ni";
+      if (releasedBay) patch.storage_locations = null;
       const { error } = await supabase.from("orders").update(patch).eq("id", id);
       if (error) throw error;
+      return { releasedBay };
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["foam-my-bike-orders"] });
-      toast.success("Foam stage updated");
+      toast.success(
+        result?.releasedBay
+          ? "Foam stage updated — bike removed from storage"
+          : "Foam stage updated"
+      );
     },
+
     onError: (e: any) => toast.error(e?.message || "Failed to update stage"),
   });
 
