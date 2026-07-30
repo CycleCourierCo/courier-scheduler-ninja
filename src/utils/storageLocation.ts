@@ -50,3 +50,20 @@ export function formatStorageLocations(raw: any): string | null {
   const labels = getStorageLocationLabels(raw);
   return labels.length ? labels.join(", ") : null;
 }
+
+/**
+ * Order statuses where the bike has physically left our depot, so any bay it
+ * held is free again (3rd-party courier hand-off, ferry hand-off, delivered).
+ */
+export const DEPARTED_DEPOT_STATUSES = [
+  'delivered',
+  'collected_by_3p',
+  'delivered_by_3p',
+  'delivered_to_ferry',
+] as const;
+
+/** True when the order's status means the bike is no longer in our depot. */
+export function hasLeftDepot(status?: string | null): boolean {
+  return !!status && (DEPARTED_DEPOT_STATUSES as readonly string[]).includes(status);
+}
+
