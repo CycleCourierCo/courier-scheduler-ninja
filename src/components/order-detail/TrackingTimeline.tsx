@@ -712,10 +712,10 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
                           variant="outline"
                           size="sm"
                           onClick={() => openVerificationDialog(eventType)}
-                          className="flex items-center gap-2"
+                          className="flex items-start gap-2 w-full sm:w-auto h-auto min-h-9 py-2 whitespace-normal text-left"
                         >
-                          <Lock className="h-4 w-4" />
-                          Verify {eventType} postcode to view signature
+                          <Lock className="h-4 w-4 shrink-0 mt-0.5" />
+                          <span className="min-w-0 break-words">Verify postcode to view signature</span>
                         </Button>
                       ) : (
                         <a
