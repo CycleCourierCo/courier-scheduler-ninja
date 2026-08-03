@@ -485,6 +485,23 @@ const BoxMyBikePage: React.FC = () => {
           orders.map(renderCard)
         )}
       </div>
+
+      <ServiceOverrideDialog
+        open={!!overrideFor}
+        onOpenChange={(o) => !o && setOverrideFor(null)}
+        stageLabel={serviceGateLabel(overrideFor ? inspectionStages[overrideFor.id] : null)}
+        targetLabel={BOX_MY_BIKE_STATUS_LABELS.boxed_awaiting_label}
+        onConfirm={(reason) => {
+          if (overrideFor) {
+            updateStage.mutate({
+              id: overrideFor.id,
+              newStage: "boxed_awaiting_label",
+              overrideReason: reason,
+            });
+          }
+          setOverrideFor(null);
+        }}
+      />
     </Layout>
   );
 };

@@ -11,6 +11,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { FoamStatus, FOAM_STATUS_LABELS, FOAM_STATUS_ORDER } from "@/types/order";
 import { CITY_AIR_EXPRESS } from "@/constants/depot";
 import { formatStorageLocations } from "@/utils/storageLocation";
+import { isServiceComplete, serviceGateLabel } from "@/utils/servicingGate";
+import { useInspectionStages, fetchInspectionStages } from "@/hooks/useInspectionStages";
+import ServiceOverrideDialog from "@/components/boxmybike/ServiceOverrideDialog";
+import { useAuth } from "@/contexts/AuthContext";
+import { hasRole } from "@/lib/roles";
 import { uploadToStorage, describeUploadError } from "@/utils/uploadFile";
 
 
@@ -29,6 +34,7 @@ interface FoamOrder {
   user_id: string;
   created_at: string;
   storage_locations: any;
+  needs_inspection: boolean | null;
 }
 
 const BOX_LABEL_BUCKET = "box-my-bike-labels";
@@ -100,14 +106,17 @@ function prevFoamStage(s: FoamStatus | null): FoamStatus | null {
 
 const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ isStaff, userId }) => {
   const queryClient = useQueryClient();
+  const { userProfile } = useAuth();
+  const isAdmin = hasRole(userProfile, "admin");
   const [activeTab, setActiveTab] = React.useState<FoamStatus>("pending_collection");
+  const [overrideFor, setOverrideFor] = React.useState<FoamOrder | null>(null);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["foam-my-bike-orders", userId, isStaff],
     queryFn: async () => {
       let q = supabase
         .from("orders")
-        .select("id, tracking_number, status, foam_status, foam_delivery_photos, foam_label_url, foam_tracking_url, sender, receiver, bike_brand, bike_model, user_id, created_at, storage_locations")
+        .select("id, tracking_number, status, foam_status, foam_delivery_photos, foam_label_url, foam_tracking_url, sender, receiver, bike_brand, bike_model, user_id, created_at, storage_locations, needs_inspection")
         .eq("is_northern_ireland", true)
         .neq("status", "cancelled")
         .order("created_at", { ascending: false });
@@ -119,8 +128,49 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     enabled: !!userId,
   });
 
+  const inspectionOrderIds = React.useMemo(
+    () => orders.filter((o) => o.needs_inspection === true).map((o) => o.id),
+    [orders]
+  );
+  const { data: inspectionStages = {} } = useInspectionStages(inspectionOrderIds);
+
   const updateStage = useMutation({
-    mutationFn: async ({ id, newStage }: { id: string; newStage: FoamStatus }) => {
+    mutationFn: async ({
+      id,
+      newStage,
+      overrideReason,
+    }: {
+      id: string;
+      newStage: FoamStatus;
+      overrideReason?: string;
+    }) => {
+      // Re-check the service gate so a stale card can't push an unserviced bike
+      // into foaming.
+      if (newStage === "foamed_ready") {
+        const { data: fresh } = await supabase
+          .from("orders")
+          .select("needs_inspection")
+          .eq("id", id)
+          .maybeSingle();
+        if ((fresh as any)?.needs_inspection === true) {
+          const stages = await fetchInspectionStages([id]);
+          if (!isServiceComplete(true, stages[id])) {
+            if (!overrideReason) {
+              throw new Error(
+                `Service outstanding (${serviceGateLabel(stages[id])}) — this bike can't be foamed yet.`
+              );
+            }
+            await supabase.from("order_comments").insert({
+              order_id: id,
+              admin_id: userProfile?.id,
+              admin_name: userProfile?.name || "Admin",
+              comment: `Service gate overridden to foam this bike (workshop stage: ${serviceGateLabel(
+                stages[id]
+              )}). Reason: ${overrideReason}`,
+            } as any);
+          }
+        }
+      }
       const patch: any = { foam_status: newStage, updated_at: new Date().toISOString() };
       const col = foamTimestampColumn(newStage);
       if (col) patch[col] = new Date().toISOString();
@@ -267,6 +317,9 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     const showLabelSection = stage === "foamed_ready" || !!o.foam_label_url || !!o.foam_tracking_url;
     // Can't hand a bike to the ferry courier without a label and tracking link
     const blockedAdvance = stage === "foamed_ready" && (!o.foam_label_url || !o.foam_tracking_url);
+    const serviceDone = isServiceComplete(o.needs_inspection, inspectionStages[o.id]);
+    const serviceBlocked = next === "foamed_ready" && !serviceDone;
+    const serviceStage = serviceGateLabel(inspectionStages[o.id]);
 
     return (
       <Card key={o.id} className="mb-3">
@@ -283,6 +336,9 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
                 <Badge variant="secondary">📍 {formatStorageLocations(o.storage_locations)}</Badge>
               ) : (
                 <Badge variant="outline" className="text-muted-foreground">📍 Not allocated</Badge>
+              )}
+              {!serviceDone && (
+                <Badge variant="destructive">Service outstanding — {serviceStage}</Badge>
               )}
               <Badge variant="outline">{FOAM_STATUS_LABELS[stage]}</Badge>
             </div>
@@ -377,11 +433,22 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
               {next && (
                 <Button
                   size="sm"
-                  disabled={blockedAdvance}
-                  title={blockedAdvance ? "Upload a label and add a tracking link first" : undefined}
+                  disabled={blockedAdvance || serviceBlocked}
+                  title={
+                    serviceBlocked
+                      ? `Service outstanding (${serviceStage}) — finish service and cleaning before foaming`
+                      : blockedAdvance
+                        ? "Upload a label and add a tracking link first"
+                        : undefined
+                  }
                   onClick={() => updateStage.mutate({ id: o.id, newStage: next })}
                 >
                   {FOAM_STATUS_LABELS[next]} <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+              )}
+              {serviceBlocked && isAdmin && (
+                <Button size="sm" variant="outline" onClick={() => setOverrideFor(o)}>
+                  Override
                 </Button>
               )}
               <label className="inline-flex">
@@ -421,6 +488,19 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
   }
 
   return (
+    <>
+    <ServiceOverrideDialog
+      open={!!overrideFor}
+      onOpenChange={(o) => !o && setOverrideFor(null)}
+      stageLabel={serviceGateLabel(overrideFor ? inspectionStages[overrideFor.id] : null)}
+      targetLabel={FOAM_STATUS_LABELS.foamed_ready}
+      onConfirm={(reason) => {
+        if (overrideFor) {
+          updateStage.mutate({ id: overrideFor.id, newStage: "foamed_ready", overrideReason: reason });
+        }
+        setOverrideFor(null);
+      }}
+    />
     <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as FoamStatus)}>
       <TabsList className="flex flex-wrap h-auto">
         {FOAM_STATUS_ORDER.map((s) => (
@@ -442,6 +522,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
         </TabsContent>
       ))}
     </Tabs>
+    </>
   );
 };
 
