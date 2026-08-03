@@ -74,13 +74,43 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
     type: "collection" | "delivery";
   }>({ isOpen: false, type: "collection" });
 
+  const isNorthernIrelandOrder = Boolean(
+    (order as any).isNorthernIreland ?? (order as any).is_northern_ireland
+  );
+  const foamPhotoPaths: string[] = Array.isArray((order as any).foamDeliveryPhotos)
+    ? (order as any).foamDeliveryPhotos
+    : [];
+  const [foamPhotoUrls, setFoamPhotoUrls] = useState<string[]>([]);
+
+  // Foam delivery photos live in a private bucket, so swap the stored paths for
+  // short-lived signed URLs before rendering them.
+  useEffect(() => {
+    let cancelled = false;
+    if (foamPhotoPaths.length === 0) {
+      setFoamPhotoUrls([]);
+      return;
+    }
+    (async () => {
+      const { data, error } = await supabase.storage
+        .from("foam-delivery-photos")
+        .createSignedUrls(foamPhotoPaths, 60 * 60);
+      if (cancelled) return;
+      if (error) {
+        setFoamPhotoUrls([]);
+        return;
+      }
+      setFoamPhotoUrls((data || []).map((d) => d.signedUrl).filter(Boolean) as string[]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [foamPhotoPaths.join(",")]);
 
   console.log("TrackingTimeline rendering with order:", order.id);
-  console.log("TrackingTimeline tracking events:", JSON.stringify(order.trackingEvents, null, 2));
 
   const getTrackingEvents = () => {
-    console.log("Getting tracking events for order:", order.id);
     const events = [];
+
     
     // Add the creation event first (this always exists)
     events.push({
