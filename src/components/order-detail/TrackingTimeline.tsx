@@ -438,6 +438,44 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
       });
     }
 
+    // Northern Ireland (foam) lifecycle events (public tracking)
+    if (isNorthernIrelandOrder) {
+      const foamedAt = (order as any).foamFoamedAt;
+      const ferryAt = (order as any).foamDeliveredToFerryAt;
+      const niAt = (order as any).foamDeliveredNiAt;
+
+      if (foamedAt) {
+        events.push({
+          title: "Protective foam packing applied",
+          date: foamedAt,
+          icon: <Snowflake className="h-4 w-4 text-courier-600" />,
+          description: "Bike has been foam-packed ready for the ferry crossing",
+        } as any);
+      }
+
+      if (ferryAt && !events.some(e => e.title === "Arrived at ferry port")) {
+        events.push({
+          title: "Arrived at ferry port",
+          date: ferryAt,
+          icon: <Ship className="h-4 w-4 text-courier-600" />,
+          description: "Bike has reached the ferry port and is travelling onward by ferry to Northern Ireland",
+        } as any);
+      }
+
+      if (niAt) {
+        events.push({
+          title: "Delivered in Northern Ireland",
+          date: niAt,
+          icon: <CheckCircle className="h-4 w-4 text-green-600" />,
+          description: "Bike has been delivered in Northern Ireland",
+          isPickup: false,
+          hasPod: Boolean((order as any).foamHasPhotos) || foamPhotoPaths.length > 0,
+          podUrls: foamPhotoUrls,
+        } as any);
+      }
+    }
+
+
     if (order.status === "driver_to_collection" || order.status === "driver_to_delivery" ||
         order.status === "collected" || order.status === "delivered") {
       
