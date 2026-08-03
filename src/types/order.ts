@@ -166,6 +166,7 @@ export type Order = {
   foamDeliveredToFerryAt?: Date | null;
   foamDeliveredNiAt?: Date | null;
   foamDeliveryPhotos?: string[] | null;
+  foamHasPhotos?: boolean;
 
   collectionCode?: string;
   deliveryInstructions?: string;
