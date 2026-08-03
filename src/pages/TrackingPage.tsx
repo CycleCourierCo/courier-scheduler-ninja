@@ -164,7 +164,7 @@ const TrackingPage = () => {
                     {(order.bikeBrand || order.bikeModel) && (
                       <div className="flex items-start text-sm text-muted-foreground gap-2 min-w-0 overflow-hidden">
                         <Bike className="h-4 w-4 mt-0.5 shrink-0" />
-                        <span className="break-words truncate">
+                        <span className="min-w-0 flex-1 break-words leading-tight">
                           {order.bikeBrand} {order.bikeModel}
                           {order.bikeQuantity && order.bikeQuantity > 1 && (
                             <span className="ml-1">(×{order.bikeQuantity})</span>
