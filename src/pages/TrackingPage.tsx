@@ -144,8 +144,8 @@ const TrackingPage = () => {
             {/* Order Header with Scheduled Dates and Bike Details */}
             <Card>
               <CardContent className="pt-6">
-                <div className="grid gap-6">
-                  <div className="flex flex-col gap-4">
+                <div className="grid gap-6 min-w-0">
+                  <div className="flex flex-col gap-4 min-w-0">
                     <div className="min-w-0 overflow-hidden">
                       <h2 className="text-lg sm:text-xl font-semibold flex items-start gap-2 mb-2">
                         <Package className="h-5 w-5 text-courier-500 shrink-0 mt-0.5" />
