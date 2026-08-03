@@ -255,7 +255,7 @@ const TrackingPage = () => {
                        </div>
                      )}
                        </div>
-                      <p className="text-sm text-muted-foreground mt-3 italic">
+                      <p className="text-xs sm:text-sm text-muted-foreground mt-3 italic break-words leading-snug">
                         * These dates are provisional. You will receive a 3-hour timeslot when an exact date is scheduled in.
                       </p>
                     </div>
