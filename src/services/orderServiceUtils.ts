@@ -75,6 +75,11 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     foamDeliveredToFerryAt: dbOrder.foam_delivered_to_ferry_at ? parseDate(dbOrder.foam_delivered_to_ferry_at) : null,
     foamDeliveredNiAt: dbOrder.foam_delivered_ni_at ? parseDate(dbOrder.foam_delivered_ni_at) : null,
     foamDeliveryPhotos: dbOrder.foam_delivery_photos || null,
+    // Public tracking payload flags that photos exist even when the paths are
+    // withheld until the receiver verifies their postcode.
+    foamHasPhotos:
+      dbOrder.has_foam_photos ??
+      ((dbOrder.foam_delivery_photos?.length || 0) > 0),
   };
 
 
