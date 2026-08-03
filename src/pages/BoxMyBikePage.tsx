@@ -17,6 +17,9 @@ import {
 } from "@/types/order";
 import StatusBadge from "@/components/StatusBadge";
 import { formatStorageLocations } from "@/utils/storageLocation";
+import { isServiceComplete, serviceGateLabel } from "@/utils/servicingGate";
+import { useInspectionStages, fetchInspectionStages } from "@/hooks/useInspectionStages";
+import ServiceOverrideDialog from "@/components/boxmybike/ServiceOverrideDialog";
 import { uploadToStorage, describeUploadError } from "@/utils/uploadFile";
 
 import FoamMyBikeSection from "@/components/boxmybike/FoamMyBikeSection";
@@ -42,6 +45,7 @@ interface BoxOrder {
   created_at: string;
   collection_driver_name: string | null;
   storage_locations: any;
+  needs_inspection: boolean | null;
 }
 
 function nextStage(s: BoxMyBikeStatus | null): BoxMyBikeStatus | null {
@@ -106,7 +110,7 @@ const BoxMyBikePage: React.FC = () => {
     queryFn: async () => {
       let q = supabase
         .from("orders")
-        .select("id, tracking_number, status, box_my_bike_status, box_label_url, box_tracking_url, box_my_bike_invoice_id, box_my_bike_invoice_number, box_my_bike_invoice_url, sender, receiver, bike_brand, bike_model, user_id, created_at, collection_driver_name, storage_locations")
+        .select("id, tracking_number, status, box_my_bike_status, box_label_url, box_tracking_url, box_my_bike_invoice_id, box_my_bike_invoice_number, box_my_bike_invoice_url, sender, receiver, bike_brand, bike_model, user_id, created_at, collection_driver_name, storage_locations, needs_inspection")
         .eq("is_box_my_bike", true)
         .neq("status", "cancelled")
         .order("created_at", { ascending: false });
@@ -120,8 +124,51 @@ const BoxMyBikePage: React.FC = () => {
     enabled: !!user,
   });
 
+  const inspectionOrderIds = React.useMemo(
+    () => orders.filter((o) => o.needs_inspection === true).map((o) => o.id),
+    [orders]
+  );
+  const { data: inspectionStages = {} } = useInspectionStages(inspectionOrderIds);
+
+  const isAdmin = hasRole(userProfile, "admin");
+  const [overrideFor, setOverrideFor] = React.useState<BoxOrder | null>(null);
+
   const updateStage = useMutation({
-    mutationFn: async ({ id, newStage }: { id: string; newStage: BoxMyBikeStatus }) => {
+    mutationFn: async ({
+      id,
+      newStage,
+      overrideReason,
+    }: {
+      id: string;
+      newStage: BoxMyBikeStatus;
+      overrideReason?: string;
+    }) => {
+      // Re-check the service gate server-side so a stale card can't slip through.
+      if (newStage === "boxed_awaiting_label") {
+        const { data: fresh } = await supabase
+          .from("orders")
+          .select("needs_inspection")
+          .eq("id", id)
+          .maybeSingle();
+        if ((fresh as any)?.needs_inspection === true) {
+          const stages = await fetchInspectionStages([id]);
+          if (!isServiceComplete(true, stages[id])) {
+            if (!overrideReason) {
+              throw new Error(
+                `Service outstanding (${serviceGateLabel(stages[id])}) — this bike can't be boxed yet.`
+              );
+            }
+            await supabase.from("order_comments").insert({
+              order_id: id,
+              admin_id: userProfile?.id,
+              admin_name: userProfile?.name || "Admin",
+              comment: `Service gate overridden to box this bike (workshop stage: ${serviceGateLabel(
+                stages[id]
+              )}). Reason: ${overrideReason}`,
+            } as any);
+          }
+        }
+      }
       const patch: any = { box_my_bike_status: newStage, updated_at: new Date().toISOString() };
       const col = stageTimestampColumn(newStage);
       if (col) patch[col] = new Date().toISOString();
@@ -238,6 +285,9 @@ const BoxMyBikePage: React.FC = () => {
     const isOwner = !isStaff && o.user_id === user?.id;
     const blockedAdvance =
       stage === "boxed_awaiting_label" && (!o.box_label_url || !o.box_tracking_url); // need both label and tracking link
+    const serviceDone = isServiceComplete(o.needs_inspection, inspectionStages[o.id]);
+    const serviceBlocked = next === "boxed_awaiting_label" && !serviceDone;
+    const serviceStage = serviceGateLabel(inspectionStages[o.id]);
     return (
       <Card key={o.id} className="mb-3">
         <CardContent className="p-4 space-y-3">
@@ -257,6 +307,9 @@ const BoxMyBikePage: React.FC = () => {
                 <Badge variant="secondary">📍 {formatStorageLocations(o.storage_locations)}</Badge>
               ) : (
                 <Badge variant="outline" className="text-muted-foreground">📍 Not allocated</Badge>
+              )}
+              {!serviceDone && (
+                <Badge variant="destructive">Service outstanding — {serviceStage}</Badge>
               )}
               <Badge variant="secondary">{BOX_MY_BIKE_STATUS_LABELS[stage]}</Badge>
             </div>
@@ -344,14 +397,27 @@ const BoxMyBikePage: React.FC = () => {
               >
                 <ChevronLeft className="h-4 w-4 mr-1" /> Revert
               </Button>
-              <Button
-                size="sm"
-                disabled={!next || blockedAdvance || updateStage.isPending}
-                onClick={() => next && updateStage.mutate({ id: o.id, newStage: next })}
-                title={blockedAdvance ? "Customer must upload a label first" : undefined}
-              >
-                Advance <ChevronRight className="h-4 w-4 ml-1" />
-              </Button>
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  size="sm"
+                  disabled={!next || blockedAdvance || serviceBlocked || updateStage.isPending}
+                  onClick={() => next && updateStage.mutate({ id: o.id, newStage: next })}
+                  title={
+                    serviceBlocked
+                      ? `Service outstanding (${serviceStage}) — finish service and cleaning before boxing`
+                      : blockedAdvance
+                        ? "Customer must upload a label first"
+                        : undefined
+                  }
+                >
+                  Advance <ChevronRight className="h-4 w-4 ml-1" />
+                </Button>
+                {serviceBlocked && isAdmin && (
+                  <Button size="sm" variant="outline" onClick={() => setOverrideFor(o)}>
+                    Override
+                  </Button>
+                )}
+              </div>
             </div>
           )}
         </CardContent>
