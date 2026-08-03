@@ -1,3 +1,4 @@
+import { pushIssueStatusToInspectaBike } from '@/services/inspectabikeService';
 import { supabase } from "@/integrations/supabase/client";
 import { BicycleInspection, InspectionIssue, InspectionStatus, IssueStatus } from "@/types/inspection";
 import { resendReceiverAvailabilityEmail } from "./emailService";
@@ -652,6 +653,7 @@ export const acceptIssue = async (issueId: string): Promise<InspectionIssue | nu
       .single();
 
     if (error) throw error;
+    pushIssueStatusToInspectaBike(issueId);
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error accepting issue:', error);
@@ -677,6 +679,7 @@ export const declineIssue = async (
       .single();
 
     if (error) throw error;
+    pushIssueStatusToInspectaBike(issueId);
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error declining issue:', error);
@@ -704,6 +707,7 @@ export const markPartsOrdered = async (
       .single();
 
     if (error) throw error;
+    pushIssueStatusToInspectaBike(issueId);
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error marking parts ordered:', error);
@@ -731,6 +735,7 @@ export const unmarkPartsOrdered = async (issueId: string): Promise<InspectionIss
       .single();
 
     if (error) throw error;
+    pushIssueStatusToInspectaBike(issueId);
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error unmarking parts ordered:', error);
@@ -758,6 +763,7 @@ export const markPartsArrived = async (
       .single();
 
     if (error) throw error;
+    pushIssueStatusToInspectaBike(issueId);
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error marking parts arrived:', error);
@@ -780,6 +786,7 @@ export const unmarkPartsArrived = async (issueId: string): Promise<InspectionIss
       .single();
 
     if (error) throw error;
+    pushIssueStatusToInspectaBike(issueId);
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error unmarking parts arrived:', error);

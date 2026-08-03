@@ -10,6 +10,8 @@ import { toast } from "sonner";
 import { MapPin, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStorageBays, getBayMaxPosition } from "@/hooks/useStorageBays";
+import { hasLeftDepot } from "@/utils/storageLocation";
+
 
 interface StorageLocationProps {
   order: Order;
@@ -207,10 +209,11 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
     );
   };
 
-  // Only show storage location for collected bikes
-  if (!hasBeenCollected(order)) {
+  // Only show storage location for collected bikes still in our depot
+  if (!hasBeenCollected(order) || hasLeftDepot(order.status)) {
     return null;
   }
+
 
   // Get all allocations for this order
   const orderAllocations = allAllocations.filter(a => a.orderId === order.id);

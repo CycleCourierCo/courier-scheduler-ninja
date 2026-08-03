@@ -102,3 +102,12 @@ verify_jwt = false
 
 [functions.upload-file]
 verify_jwt = false
+
+[functions.inspectabike-create-job]
+verify_jwt = false
+
+[functions.inspectabike-fault-webhook]
+verify_jwt = false
+
+[functions.inspectabike-push-status]
+verify_jwt = false

@@ -1,11 +1,12 @@
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { format, isValid, parseISO } from "date-fns";
 import { Order, ShipdayUpdate } from "@/types/order";
-import { Package, ClipboardEdit, Calendar, Truck, Check, CheckCircle, Clock, MapPin, Map, Bike, AlertCircle, Image, Lock, Wrench, Box } from "lucide-react";
+import { Package, ClipboardEdit, Calendar, Truck, Check, CheckCircle, Clock, MapPin, Map, Bike, AlertCircle, Image, Lock, Wrench, Box, Ship, Snowflake } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PostcodeVerification from "./PostcodeVerification";
 import { verifyPublicOrderPostcode } from "@/services/fetchOrderService";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TrackingTimelineProps {
   order: Order;
@@ -73,13 +74,43 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
     type: "collection" | "delivery";
   }>({ isOpen: false, type: "collection" });
 
+  const isNorthernIrelandOrder = Boolean(
+    (order as any).isNorthernIreland ?? (order as any).is_northern_ireland
+  );
+  const foamPhotoPaths: string[] = Array.isArray((order as any).foamDeliveryPhotos)
+    ? (order as any).foamDeliveryPhotos
+    : [];
+  const [foamPhotoUrls, setFoamPhotoUrls] = useState<string[]>([]);
+
+  // Foam delivery photos live in a private bucket, so swap the stored paths for
+  // short-lived signed URLs before rendering them.
+  useEffect(() => {
+    let cancelled = false;
+    if (foamPhotoPaths.length === 0) {
+      setFoamPhotoUrls([]);
+      return;
+    }
+    (async () => {
+      const { data, error } = await supabase.storage
+        .from("foam-delivery-photos")
+        .createSignedUrls(foamPhotoPaths, 60 * 60);
+      if (cancelled) return;
+      if (error) {
+        setFoamPhotoUrls([]);
+        return;
+      }
+      setFoamPhotoUrls((data || []).map((d) => d.signedUrl).filter(Boolean) as string[]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [foamPhotoPaths.join(",")]);
 
   console.log("TrackingTimeline rendering with order:", order.id);
-  console.log("TrackingTimeline tracking events:", JSON.stringify(order.trackingEvents, null, 2));
 
   const getTrackingEvents = () => {
-    console.log("Getting tracking events for order:", order.id);
     const events = [];
+
     
     // Add the creation event first (this always exists)
     events.push({
@@ -248,9 +279,17 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
               icon = <Check className="h-4 w-4 text-courier-600" />;
               if (!description) description = "Driver has collected the bike";
             } else if (isDelivery) {
-              title = "Delivered";
-              icon = <Check className="h-4 w-4 text-green-600" />;
-              if (!description) description = "Driver has delivered the bike";
+              if (isNorthernIrelandOrder) {
+                // NI deliveries end at the ferry port, not at the customer.
+                title = "Arrived at ferry port";
+                icon = <Ship className="h-4 w-4 text-courier-600" />;
+                description =
+                  "Bike has reached the ferry port and is travelling onward by ferry to Northern Ireland";
+              } else {
+                title = "Delivered";
+                icon = <Check className="h-4 w-4 text-green-600" />;
+                if (!description) description = "Driver has delivered the bike";
+              }
             }
           } else if (update.event === "ORDER_FAILED") {
             // Always show failures, even if we can't determine the leg
@@ -399,6 +438,44 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
       });
     }
 
+    // Northern Ireland (foam) lifecycle events (public tracking)
+    if (isNorthernIrelandOrder) {
+      const foamedAt = (order as any).foamFoamedAt;
+      const ferryAt = (order as any).foamDeliveredToFerryAt;
+      const niAt = (order as any).foamDeliveredNiAt;
+
+      if (foamedAt) {
+        events.push({
+          title: "Protective foam packing applied",
+          date: foamedAt,
+          icon: <Snowflake className="h-4 w-4 text-courier-600" />,
+          description: "Bike has been foam-packed ready for the ferry crossing",
+        } as any);
+      }
+
+      if (ferryAt && !events.some(e => e.title === "Arrived at ferry port")) {
+        events.push({
+          title: "Arrived at ferry port",
+          date: ferryAt,
+          icon: <Ship className="h-4 w-4 text-courier-600" />,
+          description: "Bike has reached the ferry port and is travelling onward by ferry to Northern Ireland",
+        } as any);
+      }
+
+      if (niAt) {
+        events.push({
+          title: "Delivered in Northern Ireland",
+          date: niAt,
+          icon: <CheckCircle className="h-4 w-4 text-green-600" />,
+          description: "Bike has been delivered in Northern Ireland",
+          isPickup: false,
+          hasPod: Boolean((order as any).foamHasPhotos) || foamPhotoPaths.length > 0,
+          podUrls: foamPhotoUrls,
+        } as any);
+      }
+    }
+
+
     if (order.status === "driver_to_collection" || order.status === "driver_to_delivery" ||
         order.status === "collected" || order.status === "delivered") {
       
@@ -432,7 +509,8 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
           });
         }
         
-        if (order.status === "delivered" && !events.some(e => e.title === "Delivered")) {
+        if (order.status === "delivered" && !isNorthernIrelandOrder &&
+            !events.some(e => e.title === "Delivered")) {
           events.push({
             title: "Delivered",
             date: order.updatedAt,
@@ -592,10 +670,10 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
                           variant="outline"
                           size="sm"
                           onClick={() => openVerificationDialog(eventType)}
-                          className="flex items-center gap-2"
+                          className="flex items-start gap-2 w-full sm:w-auto h-auto min-h-9 py-2 whitespace-normal text-left"
                         >
-                          <Lock className="h-4 w-4" />
-                          Verify {eventType} postcode to view images
+                          <Lock className="h-4 w-4 shrink-0 mt-0.5" />
+                          <span className="min-w-0 break-words">Verify postcode to view photos</span>
                         </Button>
                       ) : (
                         <div className="flex gap-2 flex-wrap">
@@ -634,10 +712,10 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
                           variant="outline"
                           size="sm"
                           onClick={() => openVerificationDialog(eventType)}
-                          className="flex items-center gap-2"
+                          className="flex items-start gap-2 w-full sm:w-auto h-auto min-h-9 py-2 whitespace-normal text-left"
                         >
-                          <Lock className="h-4 w-4" />
-                          Verify {eventType} postcode to view signature
+                          <Lock className="h-4 w-4 shrink-0 mt-0.5" />
+                          <span className="min-w-0 break-words">Verify postcode to view signature</span>
                         </Button>
                       ) : (
                         <a

@@ -144,8 +144,8 @@ const TrackingPage = () => {
             {/* Order Header with Scheduled Dates and Bike Details */}
             <Card>
               <CardContent className="pt-6">
-                <div className="grid gap-6">
-                  <div className="flex flex-col gap-4">
+                <div className="grid gap-6 min-w-0">
+                  <div className="flex flex-col gap-4 min-w-0">
                     <div className="min-w-0 overflow-hidden">
                       <h2 className="text-lg sm:text-xl font-semibold flex items-start gap-2 mb-2">
                         <Package className="h-5 w-5 text-courier-500 shrink-0 mt-0.5" />
@@ -164,7 +164,7 @@ const TrackingPage = () => {
                     {(order.bikeBrand || order.bikeModel) && (
                       <div className="flex items-start text-sm text-muted-foreground gap-2 min-w-0 overflow-hidden">
                         <Bike className="h-4 w-4 mt-0.5 shrink-0" />
-                        <span className="break-words truncate">
+                        <span className="min-w-0 flex-1 break-words leading-tight">
                           {order.bikeBrand} {order.bikeModel}
                           {order.bikeQuantity && order.bikeQuantity > 1 && (
                             <span className="ml-1">(×{order.bikeQuantity})</span>
@@ -176,12 +176,12 @@ const TrackingPage = () => {
                   
                   {/* Scheduled Dates Section */}
                   {(order.scheduledPickupDate || (order.scheduledDeliveryDate && !order.isNorthernIreland)) && (
-                    <div className="border-t pt-4">
+                    <div className="border-t pt-4 min-w-0">
                       <h3 className="text-sm font-medium mb-3 flex items-center">
-                        <Calendar className="mr-2 h-4 w-4 text-courier-500" />
+                        <Calendar className="mr-2 h-4 w-4 text-courier-500 shrink-0" />
                         Scheduled Dates
                       </h3>
-                   <div className="space-y-4">
+                   <div className="space-y-4 min-w-0">
                      {order.scheduledPickupDate && (
                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 min-w-0 overflow-hidden">
                          <p className="text-sm font-medium text-blue-900 mb-2">Collection Date</p>
@@ -255,7 +255,7 @@ const TrackingPage = () => {
                        </div>
                      )}
                        </div>
-                      <p className="text-sm text-muted-foreground mt-3 italic">
+                      <p className="text-xs sm:text-sm text-muted-foreground mt-3 italic break-words leading-snug">
                         * These dates are provisional. You will receive a 3-hour timeslot when an exact date is scheduled in.
                       </p>
                     </div>
