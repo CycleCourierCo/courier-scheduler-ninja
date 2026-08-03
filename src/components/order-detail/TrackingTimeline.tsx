@@ -471,7 +471,8 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
           });
         }
         
-        if (order.status === "delivered" && !events.some(e => e.title === "Delivered")) {
+        if (order.status === "delivered" && !isNorthernIrelandOrder &&
+            !events.some(e => e.title === "Delivered")) {
           events.push({
             title: "Delivered",
             date: order.updatedAt,
