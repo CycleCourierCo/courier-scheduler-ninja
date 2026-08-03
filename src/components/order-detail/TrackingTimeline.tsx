@@ -1,11 +1,12 @@
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { format, isValid, parseISO } from "date-fns";
 import { Order, ShipdayUpdate } from "@/types/order";
-import { Package, ClipboardEdit, Calendar, Truck, Check, CheckCircle, Clock, MapPin, Map, Bike, AlertCircle, Image, Lock, Wrench, Box } from "lucide-react";
+import { Package, ClipboardEdit, Calendar, Truck, Check, CheckCircle, Clock, MapPin, Map, Bike, AlertCircle, Image, Lock, Wrench, Box, Ship, Snowflake } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PostcodeVerification from "./PostcodeVerification";
 import { verifyPublicOrderPostcode } from "@/services/fetchOrderService";
+import { supabase } from "@/integrations/supabase/client";
 
 interface TrackingTimelineProps {
   order: Order;
