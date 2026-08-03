@@ -248,9 +248,17 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
               icon = <Check className="h-4 w-4 text-courier-600" />;
               if (!description) description = "Driver has collected the bike";
             } else if (isDelivery) {
-              title = "Delivered";
-              icon = <Check className="h-4 w-4 text-green-600" />;
-              if (!description) description = "Driver has delivered the bike";
+              if (isNorthernIrelandOrder) {
+                // NI deliveries end at the ferry port, not at the customer.
+                title = "Arrived at ferry port";
+                icon = <Ship className="h-4 w-4 text-courier-600" />;
+                description =
+                  "Bike has reached the ferry port and is travelling onward by ferry to Northern Ireland";
+              } else {
+                title = "Delivered";
+                icon = <Check className="h-4 w-4 text-green-600" />;
+                if (!description) description = "Driver has delivered the bike";
+              }
             }
           } else if (update.event === "ORDER_FAILED") {
             // Always show failures, even if we can't determine the leg
