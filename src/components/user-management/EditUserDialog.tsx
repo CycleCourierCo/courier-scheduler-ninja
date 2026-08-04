@@ -124,6 +124,8 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
 
 
   const isDriver = (roles?.includes('driver')) || user.role === 'driver';
+  const isMechanic = (roles?.includes('mechanic')) || user.role === 'mechanic';
+  const showPayTab = isDriver || isMechanic;
   const isBusiness = user.is_business;
 
   return (
@@ -137,11 +139,11 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
             <TabsTrigger value="basic">Basic</TabsTrigger>
             {isBusiness && <TabsTrigger value="business">Business</TabsTrigger>}
             <TabsTrigger value="address">Address</TabsTrigger>
-            {isDriver && <TabsTrigger value="driver">Driver</TabsTrigger>}
+            {showPayTab && <TabsTrigger value="driver">{isDriver ? 'Driver' : 'Pay'}</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="basic" className="space-y-4 mt-4">
@@ -338,9 +340,9 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
             </div>
           </TabsContent>
 
-          {isDriver && (
+          {showPayTab && (
             <TabsContent value="driver" className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-hourly-rate">Hourly Rate (£)</Label>
                   <Input
@@ -351,6 +353,8 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     onChange={(e) => setFormData({ ...formData, hourly_rate: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
+                {isDriver && (
+                <>
                 <div className="space-y-2">
                   <Label htmlFor="edit-van-allowance">Van Allowance (£)</Label>
                   <Input
@@ -425,6 +429,8 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                   />
                   <Label htmlFor="edit-is-active">Active</Label>
                 </div>
+                </>
+                )}
               </div>
             </TabsContent>
           )}
