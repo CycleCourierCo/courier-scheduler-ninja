@@ -126,8 +126,8 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
 
   const isDriver = (roles?.includes('driver')) || user.role === 'driver';
   const isMechanic = (roles?.includes('mechanic')) || user.role === 'mechanic';
-  const showPayTab = isDriver || isMechanic;
   const isBusiness = user.is_business;
+  const tabCount = 2 + (isBusiness ? 1 : 0) + (isDriver ? 1 : 0) + (isMechanic ? 1 : 0);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
