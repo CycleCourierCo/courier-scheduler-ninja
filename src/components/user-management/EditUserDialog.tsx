@@ -340,9 +340,9 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
             </div>
           </TabsContent>
 
-          {isDriver && (
+          {showPayTab && (
             <TabsContent value="driver" className="space-y-4 mt-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="edit-hourly-rate">Hourly Rate (£)</Label>
                   <Input
