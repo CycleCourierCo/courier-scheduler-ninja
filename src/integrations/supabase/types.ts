@@ -2080,6 +2080,7 @@ export type Database = {
           uses_own_van: boolean | null
           van_allowance: number | null
           website: string | null
+          workshop_hourly_rate: number | null
         }
         Insert: {
           account_status?:
@@ -2118,6 +2119,7 @@ export type Database = {
           uses_own_van?: boolean | null
           van_allowance?: number | null
           website?: string | null
+          workshop_hourly_rate?: number | null
         }
         Update: {
           account_status?:
@@ -2156,6 +2158,7 @@ export type Database = {
           uses_own_van?: boolean | null
           van_allowance?: number | null
           website?: string | null
+          workshop_hourly_rate?: number | null
         }
         Relationships: [
           {
@@ -3588,6 +3591,7 @@ export type Database = {
           uses_own_van: boolean | null
           van_allowance: number | null
           website: string | null
+          workshop_hourly_rate: number | null
         }[]
         SetofOptions: {
           from: "*"
@@ -3705,6 +3709,7 @@ export type Database = {
           uses_own_van: boolean | null
           van_allowance: number | null
           website: string | null
+          workshop_hourly_rate: number | null
         }
         SetofOptions: {
           from: "*"
