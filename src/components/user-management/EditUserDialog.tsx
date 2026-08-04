@@ -342,11 +342,31 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
             </div>
           </TabsContent>
 
-          {showPayTab && (
+          {isMechanic && (
+            <TabsContent value="pay" className="space-y-4 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-workshop-rate">Workshop Hourly Rate (£)</Label>
+                  <Input
+                    id="edit-workshop-rate"
+                    type="number"
+                    step="0.01"
+                    value={formData.workshop_hourly_rate ?? ''}
+                    onChange={(e) => setFormData({ ...formData, workshop_hourly_rate: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Used for mechanic clock-ins and workshop timeslips. If empty, the driver hourly rate is used, then £11.00/hr.
+                  </p>
+                </div>
+              </div>
+            </TabsContent>
+          )}
+
+          {isDriver && (
             <TabsContent value="driver" className="space-y-4 mt-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-hourly-rate">Hourly Rate (£)</Label>
+                  <Label htmlFor="edit-hourly-rate">Driver Hourly Rate (£)</Label>
                   <Input
                     id="edit-hourly-rate"
                     type="number"
@@ -355,8 +375,8 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     onChange={(e) => setFormData({ ...formData, hourly_rate: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
-                {isDriver && (
                 <>
+
                 <div className="space-y-2">
                   <Label htmlFor="edit-van-allowance">Van Allowance (£)</Label>
                   <Input
