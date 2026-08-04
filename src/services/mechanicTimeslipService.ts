@@ -23,7 +23,7 @@ export interface MechanicTimeslip {
   approved_at: string | null;
   created_at: string;
   updated_at: string;
-  driver?: { id: string; name: string | null; email: string | null; hourly_rate?: number | null };
+  driver?: { id: string; name: string | null; email: string | null; hourly_rate?: number | null; workshop_hourly_rate?: number | null };
 }
 
 const BUCKET = 'mechanic-clock-photos';
