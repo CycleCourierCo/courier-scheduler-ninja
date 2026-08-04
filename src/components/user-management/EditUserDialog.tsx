@@ -140,7 +140,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
-          <TabsList className={`grid w-full grid-cols-2 sm:grid-cols-${tabCount}`}>
+          <TabsList className={`grid w-full grid-cols-2 ${tabCount === 5 ? 'sm:grid-cols-5' : tabCount === 4 ? 'sm:grid-cols-4' : tabCount === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
             <TabsTrigger value="basic">Basic</TabsTrigger>
             {isBusiness && <TabsTrigger value="business">Business</TabsTrigger>}
             <TabsTrigger value="address">Address</TabsTrigger>
