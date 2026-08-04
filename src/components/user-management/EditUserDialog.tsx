@@ -139,11 +139,11 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
             <TabsTrigger value="basic">Basic</TabsTrigger>
             {isBusiness && <TabsTrigger value="business">Business</TabsTrigger>}
             <TabsTrigger value="address">Address</TabsTrigger>
-            {isDriver && <TabsTrigger value="driver">Driver</TabsTrigger>}
+            {showPayTab && <TabsTrigger value="driver">{isDriver ? 'Driver' : 'Pay'}</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="basic" className="space-y-4 mt-4">
