@@ -103,7 +103,7 @@ const MechanicClock: React.FC = () => {
       if (!user?.id) throw new Error('Not signed in');
       const photo = await requestPhoto();
       const loc = await requestLocation();
-      const hourly = Number(userProfile?.hourly_rate ?? 11);
+      const hourly = Number(userProfile?.workshop_hourly_rate ?? userProfile?.hourly_rate ?? 11);
       return clockIn({ driverId: user.id, hourlyRate: hourly, photo, lat: loc.lat, lng: loc.lng });
     },
     onSuccess: () => {
