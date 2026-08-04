@@ -175,7 +175,7 @@ const MechanicClock: React.FC = () => {
             ) : (
               <>
                 <p className="text-sm text-muted-foreground text-center">
-                  Take a photo to start your shift. Your rate: £{Number(userProfile?.hourly_rate ?? 11).toFixed(2)}/hr.
+                  Take a photo to start your shift. Your rate: £{Number(userProfile?.workshop_hourly_rate ?? userProfile?.hourly_rate ?? 11).toFixed(2)}/hr.
                 </p>
                 <Button size="lg" className="w-full" onClick={handleClockIn} disabled={busy}>
                   <LogIn className="h-5 w-5 mr-2" />
