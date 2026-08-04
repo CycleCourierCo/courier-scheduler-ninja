@@ -56,6 +56,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         opening_hours: user.opening_hours || DEFAULT_OPENING_HOURS,
         is_test_account: user.is_test_account,
         hourly_rate: user.hourly_rate,
+        workshop_hourly_rate: user.workshop_hourly_rate,
         uses_own_van: user.uses_own_van,
         van_allowance: user.van_allowance,
         is_active: user.is_active,
