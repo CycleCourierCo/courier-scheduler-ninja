@@ -429,6 +429,8 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                   />
                   <Label htmlFor="edit-is-active">Active</Label>
                 </div>
+                </>
+                )}
               </div>
             </TabsContent>
           )}
