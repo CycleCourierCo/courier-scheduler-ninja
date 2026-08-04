@@ -23,7 +23,7 @@ export interface MechanicTimeslip {
   approved_at: string | null;
   created_at: string;
   updated_at: string;
-  driver?: { id: string; name: string | null; email: string | null; hourly_rate?: number | null };
+  driver?: { id: string; name: string | null; email: string | null; hourly_rate?: number | null; workshop_hourly_rate?: number | null };
 }
 
 const BUCKET = 'mechanic-clock-photos';
@@ -76,7 +76,7 @@ export async function listAllMechanicTimeslips(filters?: {
 }): Promise<MechanicTimeslip[]> {
   let q = supabase
     .from('mechanic_timeslips')
-    .select('*, driver:profiles!mechanic_timeslips_driver_id_fkey(id,name,email,hourly_rate)')
+    .select('*, driver:profiles!mechanic_timeslips_driver_id_fkey(id,name,email,hourly_rate,workshop_hourly_rate)')
     .order('clock_in_at', { ascending: false });
   if (filters?.driverId) q = q.eq('driver_id', filters.driverId);
   if (filters?.status && filters.status !== 'all') q = q.eq('status', filters.status);

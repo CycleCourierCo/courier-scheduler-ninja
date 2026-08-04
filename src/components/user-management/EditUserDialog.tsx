@@ -56,6 +56,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         opening_hours: user.opening_hours || DEFAULT_OPENING_HOURS,
         is_test_account: user.is_test_account,
         hourly_rate: user.hourly_rate,
+        workshop_hourly_rate: user.workshop_hourly_rate,
         uses_own_van: user.uses_own_van,
         van_allowance: user.van_allowance,
         is_active: user.is_active,
@@ -125,8 +126,8 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
 
   const isDriver = (roles?.includes('driver')) || user.role === 'driver';
   const isMechanic = (roles?.includes('mechanic')) || user.role === 'mechanic';
-  const showPayTab = isDriver || isMechanic;
   const isBusiness = user.is_business;
+  const tabCount = 2 + (isBusiness ? 1 : 0) + (isDriver ? 1 : 0) + (isMechanic ? 1 : 0);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -139,11 +140,12 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+          <TabsList className={`grid w-full grid-cols-2 ${tabCount === 5 ? 'sm:grid-cols-5' : tabCount === 4 ? 'sm:grid-cols-4' : tabCount === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
             <TabsTrigger value="basic">Basic</TabsTrigger>
             {isBusiness && <TabsTrigger value="business">Business</TabsTrigger>}
             <TabsTrigger value="address">Address</TabsTrigger>
-            {showPayTab && <TabsTrigger value="driver">{isDriver ? 'Driver' : 'Pay'}</TabsTrigger>}
+            {isDriver && <TabsTrigger value="driver">Driver</TabsTrigger>}
+            {isMechanic && <TabsTrigger value="pay">Pay</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="basic" className="space-y-4 mt-4">
@@ -340,11 +342,31 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
             </div>
           </TabsContent>
 
-          {showPayTab && (
+          {isMechanic && (
+            <TabsContent value="pay" className="space-y-4 mt-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-workshop-rate">Workshop Hourly Rate (£)</Label>
+                  <Input
+                    id="edit-workshop-rate"
+                    type="number"
+                    step="0.01"
+                    value={formData.workshop_hourly_rate ?? ''}
+                    onChange={(e) => setFormData({ ...formData, workshop_hourly_rate: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Used for mechanic clock-ins and workshop timeslips. If empty, the driver hourly rate is used, then £11.00/hr.
+                  </p>
+                </div>
+              </div>
+            </TabsContent>
+          )}
+
+          {isDriver && (
             <TabsContent value="driver" className="space-y-4 mt-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-hourly-rate">Hourly Rate (£)</Label>
+                  <Label htmlFor="edit-hourly-rate">Driver Hourly Rate (£)</Label>
                   <Input
                     id="edit-hourly-rate"
                     type="number"
@@ -353,8 +375,8 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     onChange={(e) => setFormData({ ...formData, hourly_rate: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
-                {isDriver && (
                 <>
+
                 <div className="space-y-2">
                   <Label htmlFor="edit-van-allowance">Van Allowance (£)</Label>
                   <Input
@@ -430,7 +452,6 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                   <Label htmlFor="edit-is-active">Active</Label>
                 </div>
                 </>
-                )}
               </div>
             </TabsContent>
           )}
