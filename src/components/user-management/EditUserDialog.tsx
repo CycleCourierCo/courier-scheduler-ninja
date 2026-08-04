@@ -353,6 +353,8 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     onChange={(e) => setFormData({ ...formData, hourly_rate: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
+                {isDriver && (
+                <>
                 <div className="space-y-2">
                   <Label htmlFor="edit-van-allowance">Van Allowance (£)</Label>
                   <Input
