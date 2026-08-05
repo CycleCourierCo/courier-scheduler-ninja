@@ -63,6 +63,7 @@ import PerformanceTrendChart from "@/components/analytics/PerformanceTrendChart"
 import PerformanceLeaderboard from "@/components/analytics/PerformanceLeaderboard";
 import TimeSeriesFilters from "@/components/analytics/TimeSeriesFilters";
 import InspectionsOverTimeChart from "@/components/analytics/InspectionsOverTimeChart";
+import MechanicComparisonChart from "@/components/analytics/MechanicComparisonChart";
 import StatsCard from "@/components/analytics/StatsCard";
 import { Bike, Calendar as CalendarLucide, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer, ClipboardCheck, AlertTriangle, PoundSterling, ThumbsUp, Route, Users } from "lucide-react";
 import {
@@ -529,7 +530,9 @@ const AnalyticsPage = () => {
                 <div className="grid grid-cols-1 gap-2 sm:gap-4">
                   <InspectionsOverTimeChart data={inspectionsOverTime} />
                   <InspectionStageDurationsChart data={stageDurations} />
+                  <MechanicComparisonChart />
                 </div>
+
               </TabsContent>
 
               <TabsContent value="vehicles" className="space-y-2 sm:space-y-4">
