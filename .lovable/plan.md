@@ -34,14 +34,14 @@ Every update and milestone email ends with a short expectations note so customer
 - The area list lives in one place in code so it can be tuned later without touching each email.
 
 
-## 2. Milestone gaps to close
+## 3. Milestone gaps to close
 
 Add emails where today we go quiet even though something happened:
 - Collection scheduled: confirm the arranged date to the receiver too, not just the sender.
 - Inspection completed / repairs approved / repairs completed: notify sender and receiver.
 - Delayed job: if a scheduled collection or delivery date passes without the Shipday stop completing, send an apology-plus-reschedule note the next morning.
 
-## 3. Admin visibility
+## 4. Admin visibility
 
 On the order page, a small "Customer updates" list showing every update email sent, to whom and when, so CS can see at a glance whether a complaining customer was actually kept informed. This reads from the existing email delivery event records plus the new update log.
 
@@ -52,3 +52,4 @@ On the order page, a small "Customer updates" list showing every update email se
 - New `emailType` cases in `supabase/functions/send-email/index.ts` for the stage messages, reusing current branding, `Info@notification.cyclecourierco.com` sender and `Info@cyclecourierco.com` reply-to.
 - `pg_cron` entry to invoke it daily at 08:00 Europe/London through a `SECURITY DEFINER` wrapper, matching the existing cron pattern.
 - Manual "Send update now" button on the order detail page for CS, calling the same function for a single order.
+- Remote-area detection reuses the existing postcode/region data on the order (outward code prefixes plus the geocoded region), kept in a single shared constant.
