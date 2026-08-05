@@ -127,7 +127,6 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
   const isDriver = (roles?.includes('driver')) || user.role === 'driver';
   const isMechanic = (roles?.includes('mechanic')) || user.role === 'mechanic';
   const isBusiness = user.is_business;
-  const tabCount = 2 + (isBusiness ? 1 : 0) + (isDriver ? 1 : 0) + (isMechanic ? 1 : 0);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -140,13 +139,14 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         </DialogHeader>
 
         <Tabs defaultValue="basic" className="w-full">
-          <TabsList className={`grid w-full grid-cols-2 ${tabCount === 5 ? 'sm:grid-cols-5' : tabCount === 4 ? 'sm:grid-cols-4' : tabCount === 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
-            <TabsTrigger value="basic">Basic</TabsTrigger>
-            {isBusiness && <TabsTrigger value="business">Business</TabsTrigger>}
-            <TabsTrigger value="address">Address</TabsTrigger>
-            {isDriver && <TabsTrigger value="driver">Driver</TabsTrigger>}
-            {isMechanic && <TabsTrigger value="pay">Pay</TabsTrigger>}
+          <TabsList className="flex w-full h-auto flex-nowrap justify-start gap-1 overflow-x-auto">
+            <TabsTrigger value="basic" className="shrink-0 sm:flex-1">Basic</TabsTrigger>
+            {isBusiness && <TabsTrigger value="business" className="shrink-0 sm:flex-1">Business</TabsTrigger>}
+            <TabsTrigger value="address" className="shrink-0 sm:flex-1">Address</TabsTrigger>
+            {isDriver && <TabsTrigger value="driver" className="shrink-0 sm:flex-1">Driver</TabsTrigger>}
+            {isMechanic && <TabsTrigger value="pay" className="shrink-0 sm:flex-1">Pay</TabsTrigger>}
           </TabsList>
+
 
           <TabsContent value="basic" className="space-y-4 mt-4">
             <div className="grid grid-cols-2 gap-4">
