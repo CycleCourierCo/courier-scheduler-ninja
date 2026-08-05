@@ -252,7 +252,7 @@ const MechanicTimeslipsTab: React.FC = () => {
                 )}
 
                 {/* Actions */}
-                <div className="flex flex-wrap gap-2 pt-1 border-t pt-3">
+                <div className="flex flex-wrap gap-2 border-t pt-3">
                   {s.status !== 'approved' && s.clock_out_at && (
                     <Button size="sm" className="flex-1 sm:flex-none" onClick={() => approve(s.id)} disabled={updateMut.isPending}>
                       <Check className="h-4 w-4 mr-1" />Approve
