@@ -66,23 +66,36 @@ export const fetchInspectionsForAnalytics = async (): Promise<InspectionAnalytic
 
 export const getInspectionsOverTime = (
   inspections: InspectionAnalyticsRecord[]
-): { month: string; label: string; count: number }[] => {
-  const map: Record<string, number> = {};
+): { month: string; label: string; booked: number; completed: number }[] => {
+  const map: Record<string, { booked: number; completed: number }> = {};
+  const keyFor = (value: string | null | undefined): string | null => {
+    if (!value) return null;
+    const d = new Date(value);
+    if (isNaN(d.getTime())) return null;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  };
+  const ensure = (key: string) => {
+    if (!map[key]) map[key] = { booked: 0, completed: 0 };
+    return map[key];
+  };
+
   inspections.forEach(i => {
-    const d = new Date(i.created_at);
-    if (isNaN(d.getTime())) return;
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    map[key] = (map[key] || 0) + 1;
+    const bookedKey = keyFor(i.created_at);
+    if (bookedKey) ensure(bookedKey).booked += 1;
+    const completedKey = keyFor(i.inspected_at);
+    if (completedKey) ensure(completedKey).completed += 1;
   });
+
   return Object.entries(map)
-    .map(([month, count]) => {
+    .map(([month, counts]) => {
       const [y, m] = month.split('-');
       const date = new Date(Number(y), Number(m) - 1, 1);
       const label = date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
-      return { month, label, count };
+      return { month, label, booked: counts.booked, completed: counts.completed };
     })
     .sort((a, b) => a.month.localeCompare(b.month));
 };
+
 
 export const getInspectionsWithIssuesRate = (inspections: InspectionAnalyticsRecord[]) => {
   const total = inspections.length;
