@@ -23,6 +23,17 @@ Rules:
 - Skip cancelled and delivered jobs, and skip test accounts (same suppression already used for Shipday/email).
 - Northern Ireland delivery legs keep the existing routing: ferry hand-off contact gets logistics mail, the actual receiver gets the customer-facing update.
 
+## 2. Expected time frames in every email
+
+Every update and milestone email ends with a short expectations note so customers know what "normal" looks like:
+
+- "We typically collect within 2-4 working days of dates being agreed, and deliver within 2-4 working days of collection."
+- Where the collection or delivery postcode falls in a remoter area, the note switches to a longer wording: "Because this journey covers a more remote area, please allow a little longer than our usual 2-4 working days."
+- Remote areas covered: Cornwall and Devon, the Lake District and far north west, Scotland (especially the Highlands and islands), mid and west Wales, Northern Ireland, and the Isle of Wight / other islands.
+- Northern Ireland already gets ferry wording; the remote note sits alongside it rather than replacing it.
+- The area list lives in one place in code so it can be tuned later without touching each email.
+
+
 ## 2. Milestone gaps to close
 
 Add emails where today we go quiet even though something happened:
