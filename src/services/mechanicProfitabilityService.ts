@@ -90,6 +90,8 @@ export async function getMechanicProfitability(fromISO: string, toISO: string): 
     const row = ensure(i.inspected_by_id, i.inspected_by_name);
     row.inspectionsDone += 1;
     row.inspectionRevenue += INSPECTION_REVENUE;
+    // Inspections are pure labour, so they count towards labour revenue too
+    row.labourRevenue += INSPECTION_REVENUE;
   });
 
   (issues || []).forEach((iss: any) => {
