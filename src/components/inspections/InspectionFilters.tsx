@@ -21,6 +21,9 @@ export interface InspectionFilterState {
   datePreset: DatePreset;
   from?: Date;
   to?: Date;
+  bookedPreset: DatePreset;
+  bookedFrom?: Date;
+  bookedTo?: Date;
   customer: string;
   inspector: string;
   repairer: string;
@@ -32,6 +35,9 @@ export const EMPTY_INSPECTION_FILTERS: InspectionFilterState = {
   datePreset: "all",
   from: undefined,
   to: undefined,
+  bookedPreset: "all",
+  bookedFrom: undefined,
+  bookedTo: undefined,
   customer: "all",
   inspector: "all",
   repairer: "all",
@@ -57,6 +63,7 @@ const DATE_LABELS: Record<DatePreset, string> = {
 export const countActiveInspectionFilters = (f: InspectionFilterState) =>
   [
     f.datePreset !== "all",
+    f.bookedPreset !== "all",
     f.customer !== "all",
     f.inspector !== "all",
     f.repairer !== "all",
@@ -100,17 +107,22 @@ const InspectionFilters: React.FC<Props> = ({ filters, onChange, options, showBi
     </div>
   );
 
-  const dateControl = (
+  const renderDateControl = (
+    label: string,
+    presetKey: "datePreset" | "bookedPreset",
+    fromKey: "from" | "bookedFrom",
+    toKey: "to" | "bookedTo"
+  ) => (
     <div className="min-w-0 space-y-1">
-      <Label className="text-xs text-muted-foreground">Collected</Label>
+      <Label className="text-xs text-muted-foreground">{label}</Label>
       <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
         <Select
-          value={filters.datePreset}
+          value={filters[presetKey]}
           onValueChange={(v) =>
             set({
-              datePreset: v as DatePreset,
-              ...(v === "custom" ? {} : { from: undefined, to: undefined }),
-            })
+              [presetKey]: v as DatePreset,
+              ...(v === "custom" ? {} : { [fromKey]: undefined, [toKey]: undefined }),
+            } as Partial<InspectionFilterState>)
           }
         >
           <SelectTrigger className="h-9 w-full min-w-0 text-xs sm:w-[150px]">
@@ -124,9 +136,9 @@ const InspectionFilters: React.FC<Props> = ({ filters, onChange, options, showBi
             ))}
           </SelectContent>
         </Select>
-        {filters.datePreset === "custom" && (
+        {filters[presetKey] === "custom" && (
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            {(["from", "to"] as const).map((side) => (
+            {([fromKey, toKey] as const).map((side) => (
               <Popover key={side}>
                 <PopoverTrigger asChild>
                   <Button
@@ -137,7 +149,11 @@ const InspectionFilters: React.FC<Props> = ({ filters, onChange, options, showBi
                     )}
                   >
                     <CalendarIcon className="mr-1 h-3.5 w-3.5" />
-                    {filters[side] ? format(filters[side] as Date, "dd MMM yyyy") : side === "from" ? "From" : "To"}
+                    {filters[side]
+                      ? format(filters[side] as Date, "dd MMM yyyy")
+                      : side === fromKey
+                      ? "From"
+                      : "To"}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
@@ -159,7 +175,9 @@ const InspectionFilters: React.FC<Props> = ({ filters, onChange, options, showBi
 
   const controls = (
     <>
-      {dateControl}
+      {renderDateControl("Collected", "datePreset", "from", "to")}
+      {renderDateControl("Booked", "bookedPreset", "bookedFrom", "bookedTo")}
+
       {dropdown("Customer", filters.customer, options.customers, "customer", "All customers")}
       {dropdown("Inspected by", filters.inspector, options.inspectors, "inspector", "Any mechanic")}
       {dropdown("Repaired by", filters.repairer, options.repairers, "repairer", "Any mechanic")}
@@ -189,7 +207,22 @@ const InspectionFilters: React.FC<Props> = ({ filters, onChange, options, showBi
       filters.datePreset === "custom"
         ? `${filters.from ? format(filters.from, "dd MMM") : "…"} → ${filters.to ? format(filters.to, "dd MMM") : "…"}`
         : DATE_LABELS[filters.datePreset];
-    chips.push({ label, clear: () => set({ datePreset: "all", from: undefined, to: undefined }) });
+    chips.push({
+      label: `Collected: ${label}`,
+      clear: () => set({ datePreset: "all", from: undefined, to: undefined }),
+    });
+  }
+  if (filters.bookedPreset !== "all") {
+    const label =
+      filters.bookedPreset === "custom"
+        ? `${filters.bookedFrom ? format(filters.bookedFrom, "dd MMM") : "…"} → ${
+            filters.bookedTo ? format(filters.bookedTo, "dd MMM") : "…"
+          }`
+        : DATE_LABELS[filters.bookedPreset];
+    chips.push({
+      label: `Booked: ${label}`,
+      clear: () => set({ bookedPreset: "all", bookedFrom: undefined, bookedTo: undefined }),
+    });
   }
   if (filters.customer !== "all") chips.push({ label: filters.customer, clear: () => set({ customer: "all" }) });
   if (filters.inspector !== "all")
