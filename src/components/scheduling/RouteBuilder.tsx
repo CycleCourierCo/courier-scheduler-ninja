@@ -1671,7 +1671,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     // Fetch latest order data from Supabase
     const { data: freshOrders, error } = await supabase
       .from('orders')
-      .select('id, sender, receiver, is_northern_ireland, foam_status, scheduled_pickup_date, scheduled_delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, pickup_date, delivery_date, status')
+      .select('id, sender, receiver, is_northern_ireland, ni_direction, foam_status, scheduled_pickup_date, scheduled_delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, pickup_date, delivery_date, status')
       .in('id', orderIds);
 
     if (error) {
@@ -1706,6 +1706,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         orderData: job.orderData ? {
           ...job.orderData,
           is_northern_ireland: freshOrder.is_northern_ireland ?? (job.orderData as any).is_northern_ireland,
+          ni_direction: (freshOrder as any).ni_direction ?? (job.orderData as any).ni_direction,
           foam_status: freshOrder.foam_status ?? (job.orderData as any).foam_status,
           scheduled_pickup_date: freshOrder.scheduled_pickup_date ?? job.orderData.scheduled_pickup_date,
           scheduled_delivery_date: freshOrder.scheduled_delivery_date ?? job.orderData.scheduled_delivery_date,
