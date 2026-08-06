@@ -1682,9 +1682,17 @@ const OrderDetail = () => {
 
             <OrderTasksPanel orderId={order.id} />
 
+            {isAdmin && (
+              <>
+                <Separator className="my-6" />
+                <CustomerUpdatesCard orderId={order.id} />
+              </>
+            )}
+
             <Separator className="my-6" />
 
             <OrderComments orderId={order.id} />
+
           </CardContent>
           <CardFooter className="flex flex-wrap justify-between gap-3">
             <Button asChild>
