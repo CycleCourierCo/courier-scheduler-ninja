@@ -21,6 +21,9 @@ export interface InspectionFilterState {
   datePreset: DatePreset;
   from?: Date;
   to?: Date;
+  bookedPreset: DatePreset;
+  bookedFrom?: Date;
+  bookedTo?: Date;
   customer: string;
   inspector: string;
   repairer: string;
@@ -32,6 +35,9 @@ export const EMPTY_INSPECTION_FILTERS: InspectionFilterState = {
   datePreset: "all",
   from: undefined,
   to: undefined,
+  bookedPreset: "all",
+  bookedFrom: undefined,
+  bookedTo: undefined,
   customer: "all",
   inspector: "all",
   repairer: "all",
@@ -57,6 +63,7 @@ const DATE_LABELS: Record<DatePreset, string> = {
 export const countActiveInspectionFilters = (f: InspectionFilterState) =>
   [
     f.datePreset !== "all",
+    f.bookedPreset !== "all",
     f.customer !== "all",
     f.inspector !== "all",
     f.repairer !== "all",
