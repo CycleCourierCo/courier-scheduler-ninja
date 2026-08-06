@@ -664,7 +664,6 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
               Facebook
             </a>
           </div>
-          ${expectationsHtml(expectationsForOrder(order))}
           <p>Thank you for choosing The Cycle Courier Co.</p>
           <p>Best regards,<br>The Cycle Courier Co. Team</p>
         </div>
@@ -843,6 +842,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
               Track Your Delivery
             </a>
           </div>
+          ${expectationsHtml(expectationsForOrder(order))}
           <p>Thank you for choosing The Cycle Courier Co.</p>
           <p>Best regards,<br>The Cycle Courier Co. Team</p>
         </div>
