@@ -9,6 +9,7 @@ import {
   niDirectionOf,
   isFerryLeg,
   formatNiReceiverBlock,
+  formatNiSenderBlock,
 } from "../_shared/northernIreland.ts";
 
 const corsHeaders = {
@@ -462,12 +463,18 @@ Cycle Courier Co.`;
 
         const baseDeliveryInstructions = orderToUpdate.delivery_instructions || "";
         const allInstructions = [
-          jobIsNiDelivery ? "NORTHERN IRELAND — hand over at ferry hand-off point" : "",
+          jobIsNiDelivery
+            ? (isPickup
+              ? "NORTHERN IRELAND (inbound) — collect from ferry hand-off point"
+              : "NORTHERN IRELAND — hand over at ferry hand-off point")
+            : "",
           ...orderDetails,
           baseDeliveryInstructions,
           jobNotes,
           jobIsNiDelivery
-            ? formatNiReceiverBlock(orderToUpdate.receiver, orderToUpdate.tracking_number)
+            ? (isPickup
+              ? formatNiSenderBlock(orderToUpdate.sender, orderToUpdate.tracking_number)
+              : formatNiReceiverBlock(orderToUpdate.receiver, orderToUpdate.tracking_number))
             : "",
         ]
           .filter(Boolean)
