@@ -109,6 +109,11 @@ const BicycleInspections = () => {
   const canManageInspections = isAdmin || isMechanic;
 
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
+  const [skipInvoiceDialog, setSkipInvoiceDialog] = useState<{
+    open: boolean;
+    inspectionId: string | null;
+    reason: string;
+  }>({ open: false, inspectionId: null, reason: "" });
   const [billingDialogState, setBillingDialogState] = useState<{
     open: boolean;
     inspectionId: string | null;
