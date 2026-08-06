@@ -969,8 +969,6 @@ const BicycleInspections = () => {
   const withIssues = filteredInspections.filter((i: any) => i.inspection?.status === "issues_found");
   const awaitingParts = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_parts");
   const awaitingRepair = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_repair" || i.inspection?.status === "in_repair" || i.inspection?.status === "cleaning");
-  const isBillingSettled = (i: any) =>
-    !!i.inspection?.invoice_number || !!i.inspection?.invoice_skipped_at;
   const inspectedAndServiced = filteredInspections.filter(
     (i: any) =>
       (i.inspection?.status === "inspected" || i.inspection?.status === "repaired") &&
