@@ -66,3 +66,57 @@ export function formatNiReceiverBlock(receiver: any, trackingNumber?: string | n
     trackingNumber ? `Tracking: ${trackingNumber}` : '',
   ].filter(Boolean).join('\n');
 }
+
+/** Coordinates of the ferry hand-off point (Manchester). */
+export const CITY_AIR_EXPRESS_COORDS = { lat: 53.4713, lon: -2.3049 };
+
+export type NiDirection = 'outbound' | 'inbound' | null;
+
+/**
+ * Direction of a Northern Ireland job.
+ * - `outbound`: mainland -> Northern Ireland (delivery handed over at the ferry point)
+ * - `inbound`: Northern Ireland -> mainland (ferry partner collects in NI, we collect in Manchester)
+ */
+export function resolveNiDirection(
+  sender?: Record<string, any> | null,
+  receiver?: Record<string, any> | null,
+): NiDirection {
+  if (isNorthernIrelandAddress(receiver?.address || receiver)) return 'outbound';
+  if (isNorthernIrelandAddress(sender?.address || sender)) return 'inbound';
+  return null;
+}
+
+/** Direction stored on the order, falling back to address detection. */
+export function niDirectionOf(order: any): NiDirection {
+  if (!order) return null;
+  const stored = order.ni_direction ?? order.niDirection ?? null;
+  if (stored === 'outbound' || stored === 'inbound') return stored;
+  const derived = resolveNiDirection(order.sender, order.receiver);
+  if (derived) return derived;
+  return order.is_northern_ireland === true ? 'outbound' : null;
+}
+
+export function isOutboundNiOrder(order: any): boolean {
+  return niDirectionOf(order) === 'outbound';
+}
+
+export function isInboundNiOrder(order: any): boolean {
+  return niDirectionOf(order) === 'inbound';
+}
+
+/** True when the ferry hand-off point is the stop for this leg. */
+export function isFerryLeg(order: any, isPickup: boolean): boolean {
+  return isPickup ? isInboundNiOrder(order) : isOutboundNiOrder(order);
+}
+
+/** Human-readable NI sender block for inbound jobs (Shipday notes / emails). */
+export function formatNiSenderBlock(sender: any, trackingNumber?: string | null): string {
+  const a = sender?.address || {};
+  return [
+    `NI SENDER: ${sender?.name || ''}`,
+    `Address: ${[a.street, a.city, a.state, a.zipCode].filter(Boolean).join(', ')}`,
+    `Phone: ${sender?.phone || ''}`,
+    `Email: ${sender?.email || ''}`,
+    trackingNumber ? `Tracking: ${trackingNumber}` : '',
+  ].filter(Boolean).join('\n');
+}
