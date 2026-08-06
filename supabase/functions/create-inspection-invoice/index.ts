@@ -397,7 +397,7 @@ const handler = async (req: Request): Promise<Response> => {
     const quickbooksInvoice = {
       Line: lineItems,
       CustomerRef: { value: qbCustomerId },
-      BillEmail: { Address: billingEmail },
+      ...(billingEmail && { BillEmail: { Address: billingEmail } }),
       TxnDate: inspection.inspected_at
         ? new Date(inspection.inspected_at).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0],
@@ -420,8 +420,17 @@ const handler = async (req: Request): Promise<Response> => {
     if (!invoiceResponse.ok) {
       const errorText = await invoiceResponse.text();
       console.error('QuickBooks API error:', errorText);
-      throw new Error('Failed to create invoice in QuickBooks');
+      let detail = '';
+      try {
+        const parsed = JSON.parse(errorText);
+        const fault = parsed?.Fault?.Error?.[0];
+        detail = [fault?.Message, fault?.Detail].filter(Boolean).join(' — ');
+      } catch {
+        detail = errorText.slice(0, 200);
+      }
+      throw new Error(`QuickBooks rejected the invoice${detail ? `: ${detail}` : ''}`);
     }
+
 
     const qbResponse = await invoiceResponse.json();
     const qbInvoice = qbResponse.Invoice;
