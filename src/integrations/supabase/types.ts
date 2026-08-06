@@ -1666,6 +1666,47 @@ export type Database = {
           },
         ]
       }
+      order_update_log: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          recipient: string | null
+          sent_at: string
+          side: string
+          stage_key: string
+          subject: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          recipient?: string | null
+          sent_at?: string
+          side: string
+          stage_key: string
+          subject?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          recipient?: string | null
+          sent_at?: string
+          side?: string
+          stage_key?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_update_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           bike_brand: string | null
