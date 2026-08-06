@@ -290,11 +290,30 @@ export const getPendingInspections = async () => {
 
     if (inspError) throw inspError;
 
-    return data?.map(order => ({
-      ...order,
-      inspection: inspections?.find(i => i.order_id === order.id) || null,
-      issues: inspections?.find(i => i.order_id === order.id)?.inspection_issues || []
-    })) || [];
+    // Look up booking-account names so the UI can filter/label by customer.
+    const userIds = Array.from(new Set((data || []).map(o => o.user_id).filter(Boolean))) as string[];
+    let profileMap = new Map<string, { name: string | null; email: string | null; company: string | null }>();
+    if (userIds.length > 0) {
+      const { data: profs } = await supabase
+        .from('profiles')
+        .select('id, name, email, company_name')
+        .in('id', userIds);
+      profileMap = new Map(
+        (profs || []).map(p => [p.id, { name: p.name ?? null, email: p.email ?? null, company: p.company_name ?? null }])
+      );
+    }
+
+    return data?.map(order => {
+      const prof = order.user_id ? profileMap.get(order.user_id) : undefined;
+      return {
+        ...order,
+        booking_customer_name: prof?.company || prof?.name || prof?.email || null,
+        booking_customer_email: prof?.email || null,
+        inspection: inspections?.find(i => i.order_id === order.id) || null,
+        issues: inspections?.find(i => i.order_id === order.id)?.inspection_issues || []
+      };
+    }) || [];
+
   } catch (error) {
     console.error('Error fetching pending inspections:', error);
     return [];
