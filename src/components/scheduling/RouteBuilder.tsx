@@ -29,7 +29,7 @@ import { z } from "zod";
 import { format, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { countJobsForOrders } from "@/utils/jobUtils";
-import { getLegContact, getFoamBadge, resolveStopCoords, isNiOrder } from "@/utils/niDelivery";
+import { getLegContact, getFoamBadge, resolveStopCoords, isNiOrder, isFerryLeg } from "@/utils/niDelivery";
 import { parseCSV, matchCSVToOrders, MatchResult, analyzeRouteViability, RouteAnalysis } from "@/utils/csvRouteParser";
 import { createShipdayOrder } from "@/services/shipdayService";
 import { getRevenueForRouteStops, clearSpecialRatePriceCache } from "@/services/profitabilityService";
@@ -1133,10 +1133,10 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       // Validate coordinates
       coordinateSchema.parse({ lat, lon });
 
-      // NI deliveries are driven to the ferry hand-off — never override with customer coords
+      // NI ferry legs are driven to the hand-off point — never override with customer coords
       const targetOrder = orderList.find(o => o.id === orderId);
-      if (type === 'delivery' && targetOrder && isNiOrder(targetOrder)) {
-        toast.info('This is a Northern Ireland delivery — the stop always uses the ferry hand-off location.');
+      if (targetOrder && isFerryLeg(targetOrder, type)) {
+        toast.info('This is a Northern Ireland job — the stop always uses the ferry hand-off location.');
         return;
       }
 
@@ -1571,7 +1571,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     if (job.type === 'break') return null;
     // Northern Ireland delivery legs all hand off to the same ferry contact,
     // so they share a single key and bundle into one multi-job stop.
-    if (job.type === 'delivery' && isNiOrder(job.orderData)) {
+    if (isFerryLeg(job.orderData, job.type)) {
       return 'ni-ferry-handoff';
     }
     const contact: any = job.type === 'pickup'
