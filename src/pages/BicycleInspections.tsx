@@ -2210,6 +2210,55 @@ const BicycleInspections = () => {
           </DialogContent>
         </Dialog>
 
+        <Dialog
+          open={skipInvoiceDialog.open}
+          onOpenChange={(open) => setSkipInvoiceDialog((prev) => ({ ...prev, open }))}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>No invoice needed</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="skip-invoice-reason" className="text-xs">
+                Reason (optional)
+              </Label>
+              <Textarea
+                id="skip-invoice-reason"
+                placeholder="e.g. goodwill, covered under warranty, internal bike"
+                value={skipInvoiceDialog.reason}
+                onChange={(e) =>
+                  setSkipInvoiceDialog((prev) => ({ ...prev, reason: e.target.value }))
+                }
+              />
+            </div>
+            <DialogFooter className="flex-col gap-2 sm:flex-row">
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => setSkipInvoiceDialog({ open: false, inspectionId: null, reason: "" })}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="w-full sm:w-auto"
+                disabled={skipInvoiceMutation.isPending || !skipInvoiceDialog.inspectionId}
+                onClick={() =>
+                  skipInvoiceDialog.inspectionId &&
+                  skipInvoiceMutation.mutate({
+                    inspectionId: skipInvoiceDialog.inspectionId,
+                    reason: skipInvoiceDialog.reason,
+                  })
+                }
+              >
+                {skipInvoiceMutation.isPending && (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                )}
+                Mark as not invoiced
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <BillingCustomerDialog
           open={billingDialogState.open}
           onOpenChange={(open) =>
