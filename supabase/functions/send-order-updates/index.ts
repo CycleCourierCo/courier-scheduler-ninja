@@ -66,7 +66,7 @@ const hasDates = (value: any): boolean => {
  * Work out which single update (if any) each side should receive right now,
  * based on where the job actually is.
  */
-function deriveUpdates(order: any): Update[] {
+function deriveUpdates(order: any, inspectionPending = false): Update[] {
   const updates: Update[] = [];
   const item = itemName(order);
   const status: string = order.status || "";
@@ -205,7 +205,15 @@ function deriveUpdates(order: any): Update[] {
     });
   }
 
-  if (order.sender_confirmed_at && !order.receiver_confirmed_at && !hasDates(order.delivery_date) && !order.order_delivered) {
+  // Never chase the receiver for delivery dates while the bike is still in
+  // inspection / repair — that handoff is deferred until the workshop finishes.
+  if (
+    order.sender_confirmed_at &&
+    !order.receiver_confirmed_at &&
+    !hasDates(order.delivery_date) &&
+    !order.order_delivered &&
+    !inspectionPending
+  ) {
     push({
       side: "receiver",
       stageKey: "awaiting_receiver_dates",
