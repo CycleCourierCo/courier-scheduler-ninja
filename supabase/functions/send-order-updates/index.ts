@@ -411,6 +411,30 @@ serve(async (req) => {
       }
     }
 
+    // --- Inspection state: orders still in the workshop must not be chased
+    // for delivery dates. Complete = an inspection row at 'inspected' or 'repaired'.
+    const inspectionOrderIds = orders
+      .filter((o) => o.needs_inspection === true)
+      .map((o) => o.id);
+    const inspectionComplete = new Set<string>();
+    if (inspectionOrderIds.length > 0) {
+      for (let i = 0; i < inspectionOrderIds.length; i += 200) {
+        const chunk = inspectionOrderIds.slice(i, i + 200);
+        const { data: insps, error: inspErr } = await admin
+          .from("bicycle_inspections")
+          .select("order_id, status")
+          .in("order_id", chunk);
+        if (inspErr) throw inspErr;
+        for (const insp of insps || []) {
+          if (insp.status === "repaired" || insp.status === "inspected") {
+            inspectionComplete.add(insp.order_id);
+          }
+        }
+      }
+    }
+    const isInspectionPending = (order: any): boolean =>
+      order.needs_inspection === true && !inspectionComplete.has(order.id);
+
     const today = todayLondon();
     const cutoff = new Date(Date.now() - QUIET_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
@@ -424,7 +448,7 @@ serve(async (req) => {
         continue;
       }
 
-      const updates = deriveUpdates(order);
+      const updates = deriveUpdates(order, isInspectionPending(order));
       if (updates.length === 0) {
         skipped++;
         continue;
