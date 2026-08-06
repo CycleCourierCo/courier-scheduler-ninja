@@ -207,7 +207,22 @@ const InspectionFilters: React.FC<Props> = ({ filters, onChange, options, showBi
       filters.datePreset === "custom"
         ? `${filters.from ? format(filters.from, "dd MMM") : "…"} → ${filters.to ? format(filters.to, "dd MMM") : "…"}`
         : DATE_LABELS[filters.datePreset];
-    chips.push({ label, clear: () => set({ datePreset: "all", from: undefined, to: undefined }) });
+    chips.push({
+      label: `Collected: ${label}`,
+      clear: () => set({ datePreset: "all", from: undefined, to: undefined }),
+    });
+  }
+  if (filters.bookedPreset !== "all") {
+    const label =
+      filters.bookedPreset === "custom"
+        ? `${filters.bookedFrom ? format(filters.bookedFrom, "dd MMM") : "…"} → ${
+            filters.bookedTo ? format(filters.bookedTo, "dd MMM") : "…"
+          }`
+        : DATE_LABELS[filters.bookedPreset];
+    chips.push({
+      label: `Booked: ${label}`,
+      clear: () => set({ bookedPreset: "all", bookedFrom: undefined, bookedTo: undefined }),
+    });
   }
   if (filters.customer !== "all") chips.push({ label: filters.customer, clear: () => set({ customer: "all" }) });
   if (filters.inspector !== "all")
