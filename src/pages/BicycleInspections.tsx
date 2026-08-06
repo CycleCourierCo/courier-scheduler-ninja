@@ -67,6 +67,7 @@ import { RepairPicker, type RepairPickerSelection } from "@/components/inspectio
 import { BikeCategoryPicker } from "@/components/inspections/BikeCategoryPicker";
 import WorkshopScheduleTab from "@/components/inspections/WorkshopScheduleTab";
 import { sendOrderToInspectaBike } from "@/services/inspectabikeService";
+import BillingCustomerDialog, { type QuickBooksCustomerOption } from "@/components/inspections/BillingCustomerDialog";
 
 // (workshop settings/labour pricing consumed inside RepairPicker)
 
@@ -106,6 +107,12 @@ const BicycleInspections = () => {
   const canManageInspections = isAdmin || isMechanic;
 
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
+  const [billingDialogState, setBillingDialogState] = useState<{
+    open: boolean;
+    inspectionId: string | null;
+    suggestions: QuickBooksCustomerOption[];
+    triedEmails: string[];
+  }>({ open: false, inspectionId: null, suggestions: [], triedEmails: [] });
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [issueCount, setIssueCount] = useState(1);
   const [issues, setIssues] = useState<IssueEntry[]>([{ ...EMPTY_ISSUE }]);
@@ -557,23 +564,53 @@ const BicycleInspections = () => {
 
   // Create inspection invoice mutation
   const createInvoiceMutation = useMutation({
-    mutationFn: async (inspectionId: string) => {
+    mutationFn: async (vars: {
+      inspectionId: string;
+      quickbooksCustomerId?: string;
+      billingEmailOverride?: string;
+    }) => {
       const { data, error } = await supabase.functions.invoke('create-inspection-invoice', {
-        body: { inspectionId },
+        body: vars,
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (error) {
+        // Non-2xx: read the structured payload so we can react to a failed match.
+        let payload: any = null;
+        try {
+          payload = await (error as any)?.context?.json?.();
+        } catch {
+          payload = null;
+        }
+        if (payload?.error === 'customer_not_matched') {
+          const err: any = new Error(payload.message || 'Choose the billing customer to continue.');
+          err.customerNotMatched = payload;
+          throw err;
+        }
+        throw new Error(payload?.message || payload?.error || error.message || 'Failed to create invoice');
+      }
+      if (data?.error) throw new Error(data.message || data.error);
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      setBillingDialogState({ open: false, inspectionId: null, suggestions: [], triedEmails: [] });
       toast.success(`Invoice ${data.invoiceNumber} created successfully`);
     },
-    onError: (error: any) => {
+    onError: (error: any, vars) => {
+      if (error?.customerNotMatched) {
+        setBillingDialogState({
+          open: true,
+          inspectionId: vars.inspectionId,
+          suggestions: error.customerNotMatched.suggestions || [],
+          triedEmails: error.customerNotMatched.triedEmails || [],
+        });
+        toast.info(error.message);
+        return;
+      }
       toast.error(error.message || "Failed to create invoice");
       console.error(error);
     },
   });
+
 
   const handleOpenIssueDialog = (orderId: string) => {
     setSelectedOrderId(orderId);
@@ -1673,7 +1710,7 @@ const BicycleInspections = () => {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => createInvoiceMutation.mutate(inspection.id)}
+                onClick={() => createInvoiceMutation.mutate({ inspectionId: inspection.id })}
                 disabled={createInvoiceMutation.isPending}
               >
                 {createInvoiceMutation.isPending ? (
@@ -2070,9 +2107,28 @@ const BicycleInspections = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <BillingCustomerDialog
+          open={billingDialogState.open}
+          onOpenChange={(open) =>
+            setBillingDialogState((prev) => ({ ...prev, open }))
+          }
+          suggestions={billingDialogState.suggestions}
+          triedEmails={billingDialogState.triedEmails}
+          isSubmitting={createInvoiceMutation.isPending}
+          onConfirm={({ quickbooksCustomerId, billingEmailOverride }) => {
+            if (!billingDialogState.inspectionId) return;
+            createInvoiceMutation.mutate({
+              inspectionId: billingDialogState.inspectionId,
+              quickbooksCustomerId,
+              billingEmailOverride,
+            });
+          }}
+        />
       </div>
     </Layout>
   );
+
 };
 
 export default BicycleInspections;

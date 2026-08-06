@@ -109,10 +109,72 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (profile?.role !== 'admin') throw new Error('Admin access required');
 
-    const { inspectionId } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const {
+      inspectionId,
+      mode,
+      search,
+      billingEmailOverride,
+      quickbooksCustomerId,
+    } = (body || {}) as {
+      inspectionId?: string;
+      mode?: string;
+      search?: string;
+      billingEmailOverride?: string;
+      quickbooksCustomerId?: string;
+    };
+
+    const qbQuery = async (token: { access_token: string; company_id: string }, query: string) => {
+      const res = await fetch(
+        `https://quickbooks.api.intuit.com/v3/company/${token.company_id}/query?query=${encodeURIComponent(query)}`,
+        { headers: { 'Authorization': `Bearer ${token.access_token}`, 'Accept': 'application/json' } }
+      );
+      if (!res.ok) return null;
+      return await res.json();
+    };
+
+    const mapCustomer = (c: any) => ({
+      id: c.Id,
+      name: c.DisplayName || c.CompanyName || c.FullyQualifiedName || '',
+      email: c.PrimaryEmailAddr?.Address || null,
+    });
+
+    // --- Customer search mode (used by the "Choose billing customer" dialog) ---
+    if (mode === 'search-customers') {
+      const searchToken = await getValidQuickBooksToken(supabase, user.id);
+      if (!searchToken) {
+        return new Response(
+          JSON.stringify({ error: 'QuickBooks is not connected. Connect QuickBooks on the Invoices page first.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
+      }
+
+      const term = escapeQuickBooksString(String(search || '').trim());
+      const query = term
+        ? `SELECT * FROM Customer WHERE Active = true AND DisplayName LIKE '%${term}%' MAXRESULTS 25`
+        : `SELECT * FROM Customer WHERE Active = true MAXRESULTS 25`;
+
+      let customers = (await qbQuery(searchToken, query))?.QueryResponse?.Customer || [];
+
+      // Also try an email match so admins can paste an address.
+      if (term && term.includes('@')) {
+        const byEmail =
+          (await qbQuery(searchToken, `SELECT * FROM Customer WHERE PrimaryEmailAddr = '${term}'`))
+            ?.QueryResponse?.Customer || [];
+        const seen = new Set(customers.map((c: any) => c.Id));
+        customers = [...customers, ...byEmail.filter((c: any) => !seen.has(c.Id))];
+      }
+
+      return new Response(JSON.stringify({ customers: customers.map(mapCustomer) }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+
     if (!inspectionId) throw new Error('inspectionId is required');
 
     console.log('Creating inspection invoice for inspection:', inspectionId);
+
 
     // Fetch inspection with order details
     const { data: inspection, error: inspError } = await supabase
@@ -150,12 +212,39 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (custError || !customerProfile) throw new Error('Customer profile not found');
-    const billingEmail = customerProfile.accounts_email || customerProfile.email;
-    if (!billingEmail) throw new Error('Customer profile has no email or accounts_email');
+
+    const isInternalEmail = (email?: string | null) =>
+      !!email && email.toLowerCase().includes('@cyclecourierco.com');
+
+    // Candidate billing identities, most authoritative first. Internal
+    // addresses are skipped so a staff-booked order never invoices ourselves.
+    const emailCandidates: string[] = [];
+    const pushEmail = (email?: string | null) => {
+      if (!email) return;
+      const clean = String(email).trim();
+      if (!clean || isInternalEmail(clean)) return;
+      if (!emailCandidates.some(e => e.toLowerCase() === clean.toLowerCase())) emailCandidates.push(clean);
+    };
+
+    if (billingEmailOverride) pushEmail(billingEmailOverride);
+    pushEmail(customerProfile.accounts_email);
+    pushEmail(customerProfile.email);
+    pushEmail((order.sender as any)?.email);
+    pushEmail((order.receiver as any)?.email);
+
+    const nameCandidates = [
+      customerProfile.company_name,
+      customerProfile.name,
+      (order.sender as any)?.name,
+      (order.receiver as any)?.name,
+    ]
+      .map(n => (n ? String(n).trim() : ''))
+      .filter(Boolean);
 
     // Get QuickBooks token
     const tokenData = await getValidQuickBooksToken(supabase, user.id);
-    if (!tokenData) throw new Error('QuickBooks not connected or refresh failed');
+    if (!tokenData) throw new Error('QuickBooks is not connected. Connect QuickBooks on the Invoices page first.');
+
 
     // Find VAT tax code
     let vatTaxCodeId: string | null = null;
@@ -195,24 +284,84 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Find customer in QuickBooks
-    const escapedEmail = escapeQuickBooksString(billingEmail);
-    const customerQuery = `SELECT * FROM Customer WHERE PrimaryEmailAddr = '${escapedEmail}'`;
-    const customerResponse = await fetch(
-      `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=${encodeURIComponent(customerQuery)}`,
-      { headers: { 'Authorization': `Bearer ${tokenData.access_token}`, 'Accept': 'application/json' } }
-    );
-
     let qbCustomerId: string | null = null;
-    if (customerResponse.ok) {
-      const customers = (await customerResponse.json()).QueryResponse?.Customer || [];
-      if (customers.length > 0) {
-        qbCustomerId = customers[0].Id;
+    let billingEmail: string | null = billingEmailOverride?.trim() || null;
+
+    // 1) Explicit customer chosen by the admin in the dialog.
+    if (quickbooksCustomerId) {
+      const chosen = (await qbQuery(
+        tokenData,
+        `SELECT * FROM Customer WHERE Id = '${escapeQuickBooksString(String(quickbooksCustomerId))}'`,
+      ))?.QueryResponse?.Customer?.[0];
+      if (!chosen) {
+        return new Response(
+          JSON.stringify({ error: 'The selected QuickBooks customer could not be found.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
+      }
+      qbCustomerId = chosen.Id;
+      billingEmail = billingEmail || chosen.PrimaryEmailAddr?.Address || null;
+    }
+
+    // 2) Auto-match on the payer emails, then on names.
+    if (!qbCustomerId) {
+      for (const candidate of emailCandidates) {
+        const match = (await qbQuery(
+          tokenData,
+          `SELECT * FROM Customer WHERE PrimaryEmailAddr = '${escapeQuickBooksString(candidate)}'`,
+        ))?.QueryResponse?.Customer?.[0];
+        if (match) {
+          qbCustomerId = match.Id;
+          billingEmail = candidate;
+          break;
+        }
       }
     }
 
     if (!qbCustomerId) {
-      throw new Error(`Customer not found in QuickBooks for email: ${billingEmail}`);
+      for (const name of nameCandidates) {
+        const match = (await qbQuery(
+          tokenData,
+          `SELECT * FROM Customer WHERE DisplayName = '${escapeQuickBooksString(name)}'`,
+        ))?.QueryResponse?.Customer?.[0];
+        if (match) {
+          qbCustomerId = match.Id;
+          billingEmail = billingEmail || match.PrimaryEmailAddr?.Address || null;
+          break;
+        }
+      }
     }
+
+    // 3) Nothing matched — hand the decision back to the admin.
+    if (!qbCustomerId) {
+      const suggestions =
+        (await qbQuery(
+          tokenData,
+          nameCandidates[0]
+            ? `SELECT * FROM Customer WHERE Active = true AND DisplayName LIKE '%${escapeQuickBooksString(nameCandidates[0])}%' MAXRESULTS 15`
+            : `SELECT * FROM Customer WHERE Active = true MAXRESULTS 15`,
+        ))?.QueryResponse?.Customer || [];
+
+      return new Response(
+        JSON.stringify({
+          error: 'customer_not_matched',
+          message: 'No QuickBooks customer matched this order. Choose the billing customer to continue.',
+          triedEmails: emailCandidates,
+          triedNames: nameCandidates,
+          suggestions: suggestions.map(mapCustomer),
+        }),
+        { status: 409, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
+    if (!billingEmail) {
+      const current = (await qbQuery(
+        tokenData,
+        `SELECT * FROM Customer WHERE Id = '${escapeQuickBooksString(qbCustomerId)}'`,
+      ))?.QueryResponse?.Customer?.[0];
+      billingEmail = current?.PrimaryEmailAddr?.Address || null;
+    }
+
 
     // Build line items from approved issues
     const bikeDesc = `${order.tracking_number || order.id} - ${order.bike_brand || ''} ${order.bike_model || ''}`.trim();
@@ -248,7 +397,7 @@ const handler = async (req: Request): Promise<Response> => {
     const quickbooksInvoice = {
       Line: lineItems,
       CustomerRef: { value: qbCustomerId },
-      BillEmail: { Address: billingEmail },
+      ...(billingEmail && { BillEmail: { Address: billingEmail } }),
       TxnDate: inspection.inspected_at
         ? new Date(inspection.inspected_at).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0],
@@ -271,8 +420,17 @@ const handler = async (req: Request): Promise<Response> => {
     if (!invoiceResponse.ok) {
       const errorText = await invoiceResponse.text();
       console.error('QuickBooks API error:', errorText);
-      throw new Error('Failed to create invoice in QuickBooks');
+      let detail = '';
+      try {
+        const parsed = JSON.parse(errorText);
+        const fault = parsed?.Fault?.Error?.[0];
+        detail = [fault?.Message, fault?.Detail].filter(Boolean).join(' — ');
+      } catch {
+        detail = errorText.slice(0, 200);
+      }
+      throw new Error(`QuickBooks rejected the invoice${detail ? `: ${detail}` : ''}`);
     }
+
 
     const qbResponse = await invoiceResponse.json();
     const qbInvoice = qbResponse.Invoice;
