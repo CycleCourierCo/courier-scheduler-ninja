@@ -18,6 +18,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { CITY_AIR_EXPRESS } from "@/constants/depot";
 import { isNorthernIrelandAddress } from "@/utils/northernIreland";
+import { getNiDirection } from "@/utils/niDelivery";
 import { createShipdayOrder } from "@/services/shipdayService";
 import { FOAM_STATUS_LABELS, FoamStatus, Order } from "@/types/order";
 
@@ -34,7 +35,17 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
   const isNI = Boolean((order as any).isNorthernIreland ?? (order as any).is_northern_ireland);
   const foamStatus = ((order as any).foamStatus ?? (order as any).foam_status) as FoamStatus | null;
   const receiverAddress = order.receiver?.address;
-  const looksNI = isNorthernIrelandAddress(receiverAddress as any);
+  const senderAddress = order.sender?.address;
+  // Which end of the journey is in Northern Ireland decides the whole flow:
+  // outbound = we hand the bike over at the ferry, inbound = we collect it there.
+  const storedDirection = getNiDirection(order);
+  const looksOutbound = isNorthernIrelandAddress(receiverAddress as any);
+  const looksInbound = !looksOutbound && isNorthernIrelandAddress(senderAddress as any);
+  const direction: "outbound" | "inbound" =
+    (isNI ? storedDirection : null) ?? (looksInbound ? "inbound" : "outbound");
+  const isInbound = direction === "inbound";
+  const looksNI = looksOutbound || looksInbound;
+  const ferryLeg: "pickup" | "delivery" = isInbound ? "pickup" : "delivery";
   const blocked = BLOCKED_STATUSES.includes(String(order.status));
 
   const deliveryScheduled = Boolean(
@@ -43,27 +54,28 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
   const deliveryDriver =
     (order as any).deliveryDriverName || (order as any).delivery_driver_name || null;
 
-  const rerouteDelivery = async (markAsNI: boolean) => {
-    // Remove only the delivery leg; the collection job is untouched.
+  const rerouteFerryLeg = async (markAsNI: boolean) => {
+    // Only the leg that touches the ferry is re-created; the other leg is untouched.
+    const idColumn = isInbound ? "shipday_pickup_id" : "shipday_delivery_id";
     const { data: row } = await supabase
       .from("orders")
-      .select("shipday_delivery_id")
+      .select(idColumn)
       .eq("id", order.id)
       .maybeSingle();
 
-    const shipdayDeliveryId = row?.shipday_delivery_id;
-    if (shipdayDeliveryId) {
+    const shipdayId = (row as any)?.[idColumn];
+    if (shipdayId) {
       const { error } = await supabase.functions.invoke("delete-shipday-order", {
-        body: { shipdayDeliveryId },
+        body: isInbound ? { shipdayPickupId: shipdayId } : { shipdayDeliveryId: shipdayId },
       });
       if (error) throw new Error(error.message);
       await supabase
         .from("orders")
-        .update({ shipday_delivery_id: null })
+        .update({ [idColumn]: null } as any)
         .eq("id", order.id);
     }
 
-    await createShipdayOrder(order.id, "delivery", markAsNI);
+    await createShipdayOrder(order.id, ferryLeg, markAsNI);
   };
 
   const applyChange = async (markAsNI: boolean) => {
@@ -74,13 +86,16 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
       const patch: Record<string, any> = markAsNI
         ? {
             is_northern_ireland: true,
-            destination_region: "Northern Ireland",
-            foam_status: "pending_collection",
-            foam_pending_collection_at: now,
+            ni_direction: direction,
+            destination_region: isInbound ? null : "Northern Ireland",
+            // Inbound bikes arrive already packed, so they skip the foam pipeline.
+            foam_status: isInbound ? null : "pending_collection",
+            foam_pending_collection_at: isInbound ? null : now,
             updated_at: now,
           }
         : {
             is_northern_ireland: false,
+            ni_direction: null,
             destination_region: null,
             foam_status: null,
             foam_pending_collection_at: null,
@@ -110,13 +125,15 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
       }
       flagged = true;
 
-      await rerouteDelivery(markAsNI);
+      await rerouteFerryLeg(markAsNI);
 
 
       toast.success(
         markAsNI
-          ? "Marked as a Northern Ireland delivery and re-routed to City Air Express"
-          : "Northern Ireland flag removed and delivery restored to the receiver"
+          ? (isInbound
+            ? "Marked as an inbound Northern Ireland order — collection re-routed to the ferry hand-off"
+            : "Marked as a Northern Ireland delivery and re-routed to the ferry hand-off")
+          : `Northern Ireland flag removed and ${ferryLeg === "pickup" ? "collection" : "delivery"} restored to the customer address`
       );
       onUpdate();
     } catch (e: any) {
@@ -138,29 +155,33 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-base flex items-center gap-2">
-          <Ship className="h-4 w-4" /> Northern Ireland delivery
+          <Ship className="h-4 w-4" /> Northern Ireland {isInbound ? "collection" : "delivery"}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         {isNI ? (
           <div className="space-y-2 text-sm">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="bg-emerald-600 hover:bg-emerald-600">Northern Ireland delivery</Badge>
+              <Badge className="bg-emerald-600 hover:bg-emerald-600">
+                {isInbound ? "Northern Ireland collection (inbound)" : "Northern Ireland delivery"}
+              </Badge>
               {foamStatus && (
                 <Badge variant="outline">{FOAM_STATUS_LABELS[foamStatus] || foamStatus}</Badge>
               )}
             </div>
             <p className="text-muted-foreground">
-              Delivery is handed over at the ferry port, {CITY_AIR_EXPRESS.formatted}. A £120
-              per-bike surcharge applies at invoicing.
+              {isInbound
+                ? `The ferry partner collects in Northern Ireland and we collect from the ferry port, ${CITY_AIR_EXPRESS.formatted}. No foaming is needed — the bike arrives packed.`
+                : `Delivery is handed over at the ferry port, ${CITY_AIR_EXPRESS.formatted}.`}{" "}
+              A £120 per-bike surcharge applies at invoicing.
             </p>
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">
-            This order is not flagged as a Northern Ireland delivery.
+            This order is not flagged as a Northern Ireland order.
             {looksNI && (
               <span className="block mt-1 text-amber-600 font-medium">
-                This looks like a Northern Ireland address.
+                The {looksInbound ? "collection" : "delivery"} address looks like Northern Ireland.
               </span>
             )}
           </p>
@@ -176,20 +197,31 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
             <AlertDialogTrigger asChild>
               <Button variant={isNI ? "outline" : "default"} size="sm" disabled={working}>
                 {working && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                {isNI ? "Unmark Northern Ireland delivery" : "Mark as Northern Ireland delivery"}
+                {isNI
+                  ? "Unmark Northern Ireland order"
+                  : `Mark as Northern Ireland ${isInbound ? "collection" : "delivery"}`}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>
-                  {isNI ? "Remove the Northern Ireland flag?" : "Mark as a Northern Ireland delivery?"}
+                  {isNI
+                    ? "Remove the Northern Ireland flag?"
+                    : `Mark as a Northern Ireland ${isInbound ? "collection" : "delivery"}?`}
                 </AlertDialogTitle>
                 <AlertDialogDescription asChild>
                   <div className="space-y-2 text-sm">
                     {isNI ? (
                       <p>
-                        The foam pipeline will be cleared and the Shipday delivery job will be
-                        re-created against the real receiver address.
+                        The foam pipeline will be cleared and the Shipday{" "}
+                        {ferryLeg === "pickup" ? "collection" : "delivery"} job will be re-created
+                        against the real customer address.
+                      </p>
+                    ) : isInbound ? (
+                      <p>
+                        The Shipday collection job is re-created against the ferry hand-off point in
+                        Manchester (the ferry partner collects in Northern Ireland), and a £120
+                        per-bike surcharge applies to future invoicing. No foaming step is added.
                       </p>
                     ) : (
                       <p>
@@ -208,7 +240,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
                         re-scheduling.
                       </p>
                     )}
-                    <p>The collection job is not affected.</p>
+                    <p>The {isInbound ? "delivery" : "collection"} job is not affected.</p>
                   </div>
                 </AlertDialogDescription>
               </AlertDialogHeader>
