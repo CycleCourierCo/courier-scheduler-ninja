@@ -1924,6 +1924,14 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
+              {canManageInspections && (
+                <TabsTrigger value="invoiced" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
+                  Invoiced
+                  {invoicedList.length > 0 && (
+                    <Badge variant="secondary" className="ml-1">{invoicedList.length}</Badge>
+                  )}
+                </TabsTrigger>
+              )}
               <TabsTrigger value="schedule" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Schedule
               </TabsTrigger>
