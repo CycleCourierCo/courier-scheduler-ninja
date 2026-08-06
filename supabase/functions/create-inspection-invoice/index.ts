@@ -284,24 +284,84 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Find customer in QuickBooks
-    const escapedEmail = escapeQuickBooksString(billingEmail);
-    const customerQuery = `SELECT * FROM Customer WHERE PrimaryEmailAddr = '${escapedEmail}'`;
-    const customerResponse = await fetch(
-      `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=${encodeURIComponent(customerQuery)}`,
-      { headers: { 'Authorization': `Bearer ${tokenData.access_token}`, 'Accept': 'application/json' } }
-    );
-
     let qbCustomerId: string | null = null;
-    if (customerResponse.ok) {
-      const customers = (await customerResponse.json()).QueryResponse?.Customer || [];
-      if (customers.length > 0) {
-        qbCustomerId = customers[0].Id;
+    let billingEmail: string | null = billingEmailOverride?.trim() || null;
+
+    // 1) Explicit customer chosen by the admin in the dialog.
+    if (quickbooksCustomerId) {
+      const chosen = (await qbQuery(
+        tokenData,
+        `SELECT * FROM Customer WHERE Id = '${escapeQuickBooksString(String(quickbooksCustomerId))}'`,
+      ))?.QueryResponse?.Customer?.[0];
+      if (!chosen) {
+        return new Response(
+          JSON.stringify({ error: 'The selected QuickBooks customer could not be found.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
+      }
+      qbCustomerId = chosen.Id;
+      billingEmail = billingEmail || chosen.PrimaryEmailAddr?.Address || null;
+    }
+
+    // 2) Auto-match on the payer emails, then on names.
+    if (!qbCustomerId) {
+      for (const candidate of emailCandidates) {
+        const match = (await qbQuery(
+          tokenData,
+          `SELECT * FROM Customer WHERE PrimaryEmailAddr = '${escapeQuickBooksString(candidate)}'`,
+        ))?.QueryResponse?.Customer?.[0];
+        if (match) {
+          qbCustomerId = match.Id;
+          billingEmail = candidate;
+          break;
+        }
       }
     }
 
     if (!qbCustomerId) {
-      throw new Error(`Customer not found in QuickBooks for email: ${billingEmail}`);
+      for (const name of nameCandidates) {
+        const match = (await qbQuery(
+          tokenData,
+          `SELECT * FROM Customer WHERE DisplayName = '${escapeQuickBooksString(name)}'`,
+        ))?.QueryResponse?.Customer?.[0];
+        if (match) {
+          qbCustomerId = match.Id;
+          billingEmail = billingEmail || match.PrimaryEmailAddr?.Address || null;
+          break;
+        }
+      }
     }
+
+    // 3) Nothing matched — hand the decision back to the admin.
+    if (!qbCustomerId) {
+      const suggestions =
+        (await qbQuery(
+          tokenData,
+          nameCandidates[0]
+            ? `SELECT * FROM Customer WHERE Active = true AND DisplayName LIKE '%${escapeQuickBooksString(nameCandidates[0])}%' MAXRESULTS 15`
+            : `SELECT * FROM Customer WHERE Active = true MAXRESULTS 15`,
+        ))?.QueryResponse?.Customer || [];
+
+      return new Response(
+        JSON.stringify({
+          error: 'customer_not_matched',
+          message: 'No QuickBooks customer matched this order. Choose the billing customer to continue.',
+          triedEmails: emailCandidates,
+          triedNames: nameCandidates,
+          suggestions: suggestions.map(mapCustomer),
+        }),
+        { status: 409, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+      );
+    }
+
+    if (!billingEmail) {
+      const current = (await qbQuery(
+        tokenData,
+        `SELECT * FROM Customer WHERE Id = '${escapeQuickBooksString(qbCustomerId)}'`,
+      ))?.QueryResponse?.Customer?.[0];
+      billingEmail = current?.PrimaryEmailAddr?.Address || null;
+    }
+
 
     // Build line items from approved issues
     const bikeDesc = `${order.tracking_number || order.id} - ${order.bike_brand || ''} ${order.bike_model || ''}`.trim();
