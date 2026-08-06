@@ -1074,15 +1074,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         const pickupVisible = pickupBaseVisible || pickupExpiredVisible;
 
         if (pickupVisible) {
+          // Inbound Northern Ireland collections happen at the ferry hand-off, not the NI address
+          const origin = getLegContact(order, 'pickup');
           jobs.push({
             orderId: order.id,
             type: 'pickup',
-            address: formatAddress(order.sender.address),
-            contactName: order.sender.name,
-            phoneNumber: order.sender.phone,
+            address: formatAddress(origin.address),
+            contactName: origin.name,
+            phoneNumber: origin.phone,
             order,
-            lat: order.sender.address.lat,
-            lon: order.sender.address.lon
+            lat: origin.lat,
+            lon: origin.lon
           });
         }
       }
