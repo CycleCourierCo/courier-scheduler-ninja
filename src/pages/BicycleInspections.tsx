@@ -930,6 +930,19 @@ const BicycleInspections = () => {
       if (filters.to) toDate = new Date(new Date(filters.to).setHours(23, 59, 59, 999));
     }
 
+    let bookedFromDate: Date | null = null;
+    let bookedToDate: Date | null = null;
+    if (filters.bookedPreset === "7d") {
+      bookedFromDate = new Date(now.getTime() - 7 * 86400000);
+    } else if (filters.bookedPreset === "30d") {
+      bookedFromDate = new Date(now.getTime() - 30 * 86400000);
+    } else if (filters.bookedPreset === "month") {
+      bookedFromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (filters.bookedPreset === "custom") {
+      if (filters.bookedFrom) bookedFromDate = new Date(new Date(filters.bookedFrom).setHours(0, 0, 0, 0));
+      if (filters.bookedTo) bookedToDate = new Date(new Date(filters.bookedTo).setHours(23, 59, 59, 999));
+    }
+
     return sortedInspections.filter((o: any) => {
       if (q) {
         const haystack = [
