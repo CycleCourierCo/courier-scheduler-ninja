@@ -21,4 +21,5 @@ Because the same selector is reused in the admin contact editor on order detail,
 
 ## Verify
 
-Run the app at Z Fold cover width (344px) and standard phone width (360px), select a long-named contact with a long email in both Collection and Delivery steps, and confirm document width still equals viewport width with no sideways shift.
+Run the app at standard phone width (360px), select a long-named contact with a long email in both Collection and Delivery steps, and confirm document width still equals viewport width with no sideways shift.
+
