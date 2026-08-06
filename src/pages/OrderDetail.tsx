@@ -39,6 +39,7 @@ import NorthernIrelandEditor from "@/components/order-detail/NorthernIrelandEdit
 import SchedulingButtons from "@/components/order-detail/SchedulingButtons";
 import EmailResendButtons from "@/components/order-detail/EmailResendButtons";
 import OrderComments from "@/components/order-detail/OrderComments";
+import CustomerUpdatesCard from "@/components/order-detail/CustomerUpdatesCard";
 import OrderTasksPanel from "@/components/tasks/OrderTasksPanel";
 import TimeslotSelection from "@/components/order-detail/TimeslotSelection";
 import { pollOrderUpdates } from "@/services/orderService";
