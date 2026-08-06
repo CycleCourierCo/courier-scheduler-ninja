@@ -212,12 +212,39 @@ const handler = async (req: Request): Promise<Response> => {
       .single();
 
     if (custError || !customerProfile) throw new Error('Customer profile not found');
-    const billingEmail = customerProfile.accounts_email || customerProfile.email;
-    if (!billingEmail) throw new Error('Customer profile has no email or accounts_email');
+
+    const isInternalEmail = (email?: string | null) =>
+      !!email && email.toLowerCase().includes('@cyclecourierco.com');
+
+    // Candidate billing identities, most authoritative first. Internal
+    // addresses are skipped so a staff-booked order never invoices ourselves.
+    const emailCandidates: string[] = [];
+    const pushEmail = (email?: string | null) => {
+      if (!email) return;
+      const clean = String(email).trim();
+      if (!clean || isInternalEmail(clean)) return;
+      if (!emailCandidates.some(e => e.toLowerCase() === clean.toLowerCase())) emailCandidates.push(clean);
+    };
+
+    if (billingEmailOverride) pushEmail(billingEmailOverride);
+    pushEmail(customerProfile.accounts_email);
+    pushEmail(customerProfile.email);
+    pushEmail((order.sender as any)?.email);
+    pushEmail((order.receiver as any)?.email);
+
+    const nameCandidates = [
+      customerProfile.company_name,
+      customerProfile.name,
+      (order.sender as any)?.name,
+      (order.receiver as any)?.name,
+    ]
+      .map(n => (n ? String(n).trim() : ''))
+      .filter(Boolean);
 
     // Get QuickBooks token
     const tokenData = await getValidQuickBooksToken(supabase, user.id);
-    if (!tokenData) throw new Error('QuickBooks not connected or refresh failed');
+    if (!tokenData) throw new Error('QuickBooks is not connected. Connect QuickBooks on the Invoices page first.');
+
 
     // Find VAT tax code
     let vatTaxCodeId: string | null = null;
