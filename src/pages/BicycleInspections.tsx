@@ -932,7 +932,7 @@ const BicycleInspections = () => {
         const skipped = !!o.inspection?.invoice_skipped_at;
         if (filters.billing === "invoiced" && !invoiced) return false;
         if (filters.billing === "skipped" && !skipped) return false;
-        if (filters.billing === "unsettled" && (invoiced || skipped)) return false;
+        if (filters.billing === "unsettled" && isBillingSettled(o)) return false;
       }
 
       return true;
