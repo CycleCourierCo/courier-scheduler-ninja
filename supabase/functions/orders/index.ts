@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { corsHeaders } from '../_shared/cors.ts'
 import { initSentry, captureException, startSpan } from '../_shared/sentry.ts'
-import { isNorthernIrelandAddress } from '../_shared/northernIreland.ts'
+import { isNorthernIrelandAddress, resolveNiDirection } from '../_shared/northernIreland.ts'
 
 // Bike type numeric ID mapping
 const BIKE_TYPE_BY_ID: Record<number, string> = {
@@ -273,9 +273,12 @@ Deno.serve(async (req) => {
 
       const trackingNumber = trackingData.trackingNumber
 
-      // Northern Ireland is detected automatically from the receiver address so that
-      // API/Shopify orders enter the Foam My Bike pipeline exactly like web orders.
-      const isNorthernIreland = isNorthernIrelandAddress(body.receiver?.address || body.receiver)
+      // Northern Ireland is detected automatically from BOTH ends so that
+      // API/Shopify orders behave exactly like web orders:
+      //  - outbound (receiver in NI): enters the Foam My Bike pipeline
+      //  - inbound (sender in NI): ferry partner collects in NI, we collect in Manchester
+      const niDirection = resolveNiDirection(body.sender, body.receiver)
+      const isNorthernIreland = niDirection !== null
       const niTimestamp = new Date().toISOString()
 
       // Create order WITHOUT waiting for geocoding/emails/Shipday — those run in the background.
@@ -303,8 +306,9 @@ Deno.serve(async (req) => {
         is_box_my_bike: body.isBoxMyBike || body.is_box_my_bike || false,
         box_my_bike_status: (body.isBoxMyBike || body.is_box_my_bike) ? 'awaiting_depot' : null,
         is_northern_ireland: isNorthernIreland,
-        foam_status: isNorthernIreland ? 'pending_collection' : null,
-        foam_pending_collection_at: isNorthernIreland ? niTimestamp : null,
+        ni_direction: niDirection,
+        foam_status: niDirection === 'outbound' ? 'pending_collection' : null,
+        foam_pending_collection_at: niDirection === 'outbound' ? niTimestamp : null,
         status: 'created',
         tracking_number: trackingNumber,
         pickup_date: body.pickup_date || null,
