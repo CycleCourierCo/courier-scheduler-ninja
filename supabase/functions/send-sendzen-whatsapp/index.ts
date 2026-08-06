@@ -4,6 +4,8 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 import {
   CITY_AIR_EXPRESS,
   isNorthernIrelandAddress,
+  niDirectionOf,
+  isFerryLeg,
   formatNiReceiverBlock,
 } from "../_shared/northernIreland.ts";
 
@@ -128,10 +130,14 @@ function determinePrimaryJobType(recipientType: "sender" | "receiver"): JobType 
   return recipientType === "sender" ? "pickup" : "delivery";
 }
 
-/** Northern Ireland deliveries are handed over in Manchester, never driven to the customer. */
+/** Northern Ireland legs are handed over in Manchester, never driven to/from NI. */
 function isNiOrder(o: any): boolean {
-  if (!o) return false;
-  return o.is_northern_ireland === true || isNorthernIrelandAddress(o.receiver?.address);
+  return niDirectionOf(o) !== null;
+}
+
+/** True when the leg for this recipient happens at the ferry hand-off point. */
+function isFerryRecipient(o: any, recipientType: "sender" | "receiver"): boolean {
+  return isFerryLeg(o, recipientType === "sender");
 }
 
 /** Contact we message / send to Shipday for a delivery leg on an NI order. */
@@ -571,13 +577,13 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Get contact based on recipientType
-    const primaryIsNiDelivery = recipientType === "receiver" && isNiOrder(order);
+    const primaryIsNiDelivery = isFerryRecipient(order, recipientType);
     if (primaryIsNiDelivery) {
-      console.log("NI delivery leg — messaging ferry hand-off contact instead of receiver");
+      console.log("NI ferry leg — messaging ferry hand-off contact instead of the customer");
     }
-    const contact = recipientType === "sender"
-      ? order.sender
-      : (primaryIsNiDelivery ? niHandoffContact() : order.receiver);
+    const contact = primaryIsNiDelivery
+      ? niHandoffContact()
+      : (recipientType === "sender" ? order.sender : order.receiver);
     if (!contact?.phone) {
       return new Response(
         JSON.stringify({ error: `No phone number found for ${recipientType}` }),
