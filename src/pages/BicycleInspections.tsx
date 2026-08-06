@@ -1876,13 +1876,19 @@ const BicycleInspections = () => {
 
           {(() => {
             const reason = getSettledReason(order);
-            if (reason !== "no_issues" && reason !== "declined") return null;
+            if (reason !== "no_issues" && reason !== "declined" && reason !== "zero_value")
+              return null;
             return (
               <div className="flex min-w-0 flex-wrap items-center gap-2 pt-2">
                 <Badge variant="secondary" className="flex min-w-0 max-w-full items-center gap-1">
                   <X className="h-3 w-3 shrink-0" />
-                  {reason === "no_issues" ? "No issues" : "Repairs declined"}
+                  {reason === "no_issues"
+                    ? "No issues"
+                    : reason === "declined"
+                      ? "Repairs declined"
+                      : "£0 — nothing to bill"}
                 </Badge>
+
                 <span className="min-w-0 text-xs text-muted-foreground break-words">
                   Nothing to invoice
                 </span>
