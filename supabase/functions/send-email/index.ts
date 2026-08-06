@@ -3,6 +3,7 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { initSentry, captureException } from "../_shared/sentry.ts";
 import { requireAuth, createAuthErrorResponse } from "../_shared/auth.ts";
+import { expectationsHtml, expectationsText, expectationsForOrder } from "../_shared/deliveryExpectations.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -195,6 +196,7 @@ serve(async (req) => {
             ` : ''}
           </div>
           ${niBlock}
+          ${timeframeHtml}
 
           <p>Please click the button below to confirm your availability:</p>
           <div style="text-align: center; margin: 30px 0;">
@@ -215,6 +217,8 @@ Thank you for using The Cycle Courier Co.
 We need to confirm your availability for the ${availabilityType} of your item:
 ${item.name} (Quantity: ${item.quantity})
 ${trackingNumber ? `Tracking Number: ${trackingNumber}\nTrack your order: ${trackingUrl}` : ''}
+
+${timeframeText}
 
 Please visit the following link to confirm your availability:
 ${availabilityUrl}
@@ -274,6 +278,7 @@ The Cycle Courier Co. Team
             <li>You receive a tracking link when the driver is on the way to you</li>
             <li>The bike is delivered to the receiver based on their dates for availability</li>
           </ol>
+          ${timeframeHtml}
           
           <p style="margin-top: 30px;">Thank you,<br>The Cycle Courier Co. Team</p>
         </div>
@@ -293,6 +298,8 @@ This is what happens next:
 1. We send you a timeslot the day before we are due on one of the dates you have selected
 2. You receive a tracking link when the driver is on the way to you
 3. The bike is delivered to the receiver based on their dates for availability
+
+${timeframeText}
 
 Thank you,
 The Cycle Courier Co. Team
@@ -360,6 +367,7 @@ The Cycle Courier Co. Team
             <li>You receive a tracking link when the driver is on the way to you</li>
             <li>Your bicycle will be delivered on the scheduled date</li>
           </ol>
+          ${timeframeHtml}
           
           <p style="margin-top: 30px;">Thank you,<br>The Cycle Courier Co. Team</p>
         </div>
@@ -379,6 +387,8 @@ This is what happens next:
 1. We send you a timeslot the day before we are due on one of the dates you have selected
 2. You receive a tracking link when the driver is on the way to you
 3. Your bicycle will be delivered on the scheduled date
+
+${timeframeText}
 
 Thank you,
 The Cycle Courier Co. Team
