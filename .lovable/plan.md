@@ -1,6 +1,7 @@
 # Fix layout widening after picking an address-book contact
 
-Selecting a contact on the Create Order page makes the whole form grow wider than the screen, so content slides sideways and overlaps (visible in the attached phone screenshot).
+Selecting a contact on the Create Order page makes the whole form grow wider than the screen, so content slides sideways and overlaps (reported on a standard phone, ~360px wide, as in the attached screenshot).
+
 
 ## Cause
 
@@ -20,4 +21,5 @@ Because the same selector is reused in the admin contact editor on order detail,
 
 ## Verify
 
-Run the app at Z Fold cover width (344px) and standard phone width (360px), select a long-named contact with a long email in both Collection and Delivery steps, and confirm document width still equals viewport width with no sideways shift.
+Run the app at standard phone width (360px), select a long-named contact with a long email in both Collection and Delivery steps, and confirm document width still equals viewport width with no sideways shift.
+
