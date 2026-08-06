@@ -869,6 +869,27 @@ const BicycleInspections = () => {
       .filter((iss: any) => iss.status === "repaired" && iss.resolved_by_name)
       .map((iss: any) => iss.resolved_by_name as string);
 
+  // Billing settlement: invoiced, manually skipped, or nothing to invoice
+  // (released inspection with no issues, or all repairs declined).
+  const getSettledReason = (
+    i: any
+  ): "invoiced" | "skipped" | "no_issues" | "declined" | null => {
+    const inspection = i.inspection;
+    if (inspection?.invoice_number) return "invoiced";
+    if (inspection?.invoice_skipped_at) return "skipped";
+    const released = inspection?.status === "inspected" || inspection?.status === "repaired";
+    if (!released) return null;
+    const issues = i.issues || [];
+    if (issues.length === 0) return "no_issues";
+    const billable = issues.filter(
+      (iss: any) => iss.status !== "declined" && iss.status !== "cancelled"
+    );
+    if (billable.length === 0) return "declined";
+    if (i.repairs_declined_at) return "declined";
+    return null;
+  };
+  const isBillingSettled = (i: any) => getSettledReason(i) !== null;
+
   const filterOptions = useMemo(() => {
     const uniq = (arr: (string | null | undefined)[]) =>
       Array.from(new Set(arr.filter((v): v is string => !!v && v.trim().length > 0))).sort((a, b) =>
