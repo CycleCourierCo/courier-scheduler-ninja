@@ -106,6 +106,12 @@ const BicycleInspections = () => {
   const canManageInspections = isAdmin || isMechanic;
 
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
+  const [billingDialogState, setBillingDialogState] = useState<{
+    open: boolean;
+    inspectionId: string | null;
+    suggestions: QuickBooksCustomerOption[];
+    triedEmails: string[];
+  }>({ open: false, inspectionId: null, suggestions: [], triedEmails: [] });
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [issueCount, setIssueCount] = useState(1);
   const [issues, setIssues] = useState<IssueEntry[]>([{ ...EMPTY_ISSUE }]);
