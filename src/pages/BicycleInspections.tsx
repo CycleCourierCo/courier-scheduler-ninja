@@ -1710,7 +1710,7 @@ const BicycleInspections = () => {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => createInvoiceMutation.mutate(inspection.id)}
+                onClick={() => createInvoiceMutation.mutate({ inspectionId: inspection.id })}
                 disabled={createInvoiceMutation.isPending}
               >
                 {createInvoiceMutation.isPending ? (
