@@ -2107,9 +2107,28 @@ const BicycleInspections = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <BillingCustomerDialog
+          open={billingDialogState.open}
+          onOpenChange={(open) =>
+            setBillingDialogState((prev) => ({ ...prev, open }))
+          }
+          suggestions={billingDialogState.suggestions}
+          triedEmails={billingDialogState.triedEmails}
+          isSubmitting={createInvoiceMutation.isPending}
+          onConfirm={({ quickbooksCustomerId, billingEmailOverride }) => {
+            if (!billingDialogState.inspectionId) return;
+            createInvoiceMutation.mutate({
+              inspectionId: billingDialogState.inspectionId,
+              quickbooksCustomerId,
+              billingEmailOverride,
+            });
+          }}
+        />
       </div>
     </Layout>
   );
+
 };
 
 export default BicycleInspections;
