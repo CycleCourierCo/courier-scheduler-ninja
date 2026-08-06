@@ -90,19 +90,20 @@ export const ContactSelector = ({
                 >
                   <Check
                     className={cn(
-                      "mr-2 h-4 w-4",
+                      "mr-2 h-4 w-4 shrink-0",
                       selectedId === contact.id ? "opacity-100" : "opacity-0"
                     )}
                   />
-                  <div className="flex flex-col">
-                    <span>{contact.name}</span>
+                  <div className="flex min-w-0 flex-col overflow-hidden">
+                    <span className="truncate">{contact.name}</span>
                     {contact.email && (
-                      <span className="text-xs text-muted-foreground">
+                      <span className="truncate text-xs text-muted-foreground">
                         {contact.email}
                       </span>
                     )}
                   </div>
                 </CommandItem>
+
               ))}
             </CommandGroup>
           </CommandList>
