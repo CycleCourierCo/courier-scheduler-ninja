@@ -242,6 +242,16 @@ const serve_handler = async (req: Request): Promise<Response> => {
     let message: string;
     if (customMessage) {
       message = customMessage;
+    } else if (primaryIsNiDelivery && recipientType === "sender") {
+      // Inbound Northern Ireland: we collect at the ferry hand-off point
+      message = `Dear ${contact.name},
+
+Collection of a ${order.bike_brand || "bike"} ${order.bike_model || ""} has been scheduled for ${formatDateForCustomer(scheduledDateForMessage)} between ${startTimeDisplay} and ${endTimeDisplay}.
+
+${formatNiSenderBlock(order.sender, order.tracking_number)}
+
+Thank you!
+Cycle Courier Co.`;
     } else if (recipientType === "sender") {
       message = `Dear ${contact.name},
 
