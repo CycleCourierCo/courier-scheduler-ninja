@@ -120,15 +120,23 @@ export default function ReceiverAvailability() {
     );
   }
 
-  // Block the form when the bike still needs inspection / repair.
-  // The receiver will be re-emailed automatically once inspection completes.
+  // Block the form only while there is outstanding inspection / repair work.
+  // Ready cases: repairs completed, all repairs declined, no issues at all, or a
+  // released inspection with nothing pending and every approved issue resolved.
+  const summary = order?.inspectionSummary;
+  const nothingOutstanding =
+    !!summary?.inspection_exists &&
+    (summary?.pending_count ?? 0) === 0 &&
+    (summary?.resolved_count ?? 0) >= (summary?.approved_count ?? 0);
   const inspectionBlocked =
     !!order?.needsInspection &&
     !(
-      order?.inspectionSummary?.repairs_completed_at ||
-      (order?.inspectionSummary?.inspection_exists &&
-        !order?.inspectionSummary?.has_issues)
+      summary?.repairs_completed_at ||
+      summary?.repairs_declined_at ||
+      (summary?.inspection_exists && !summary?.has_issues) ||
+      nothingOutstanding
     );
+
 
   if (inspectionBlocked) {
     return (

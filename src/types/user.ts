@@ -52,6 +52,7 @@ export interface UserProfile {
   accounts_email: string | null;
   // Driver fields
   hourly_rate: number | null;
+  workshop_hourly_rate?: number | null;
   uses_own_van: boolean | null;
   van_allowance: number | null;
   is_active: boolean | null;

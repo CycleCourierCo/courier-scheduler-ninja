@@ -3,6 +3,7 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { initSentry, captureException } from "../_shared/sentry.ts";
 import { requireAuth, createAuthErrorResponse } from "../_shared/auth.ts";
+import { expectationsHtml, expectationsText, expectationsForOrder } from "../_shared/deliveryExpectations.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -64,15 +65,20 @@ serve(async (req) => {
       console.log('Public email type:', reqData.emailType, '- no auth required');
     }
 
+    // Order row used for test-account suppression and expectations wording
+    let orderRow: any = null;
+
     // Check if order-related emails should be skipped for test accounts
     if (reqData.meta?.orderId || reqData.orderId) {
       const checkOrderId = reqData.meta?.orderId || reqData.orderId;
       const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
       const { data: orderData } = await adminClient
         .from("orders")
-        .select("user_id")
+        .select("user_id, sender, receiver, is_northern_ireland")
         .eq("id", checkOrderId)
         .single();
+
+      orderRow = orderData || null;
 
       if (orderData?.user_id) {
         const { data: profile } = await adminClient
@@ -90,6 +96,14 @@ serve(async (req) => {
         }
       }
     }
+
+    // Typical time-frame expectations note appended to customer-facing emails.
+    const expectationInput = orderRow
+      ? expectationsForOrder(orderRow)
+      : { senderPostcode: null, receiverPostcode: null, isNorthernIreland: reqData.isNorthernIreland };
+    const timeframeHtml = expectationsHtml(expectationInput);
+    const timeframeText = expectationsText(expectationInput);
+
 
     // Handle special actions
     if (reqData.meta && reqData.meta.action === "delivery_confirmation") {
@@ -182,6 +196,7 @@ serve(async (req) => {
             ` : ''}
           </div>
           ${niBlock}
+          ${timeframeHtml}
 
           <p>Please click the button below to confirm your availability:</p>
           <div style="text-align: center; margin: 30px 0;">
@@ -202,6 +217,8 @@ Thank you for using The Cycle Courier Co.
 We need to confirm your availability for the ${availabilityType} of your item:
 ${item.name} (Quantity: ${item.quantity})
 ${trackingNumber ? `Tracking Number: ${trackingNumber}\nTrack your order: ${trackingUrl}` : ''}
+
+${timeframeText}
 
 Please visit the following link to confirm your availability:
 ${availabilityUrl}
@@ -261,6 +278,7 @@ The Cycle Courier Co. Team
             <li>You receive a tracking link when the driver is on the way to you</li>
             <li>The bike is delivered to the receiver based on their dates for availability</li>
           </ol>
+          ${timeframeHtml}
           
           <p style="margin-top: 30px;">Thank you,<br>The Cycle Courier Co. Team</p>
         </div>
@@ -280,6 +298,8 @@ This is what happens next:
 1. We send you a timeslot the day before we are due on one of the dates you have selected
 2. You receive a tracking link when the driver is on the way to you
 3. The bike is delivered to the receiver based on their dates for availability
+
+${timeframeText}
 
 Thank you,
 The Cycle Courier Co. Team
@@ -347,6 +367,7 @@ The Cycle Courier Co. Team
             <li>You receive a tracking link when the driver is on the way to you</li>
             <li>Your bicycle will be delivered on the scheduled date</li>
           </ol>
+          ${timeframeHtml}
           
           <p style="margin-top: 30px;">Thank you,<br>The Cycle Courier Co. Team</p>
         </div>
@@ -366,6 +387,8 @@ This is what happens next:
 1. We send you a timeslot the day before we are due on one of the dates you have selected
 2. You receive a tracking link when the driver is on the way to you
 3. Your bicycle will be delivered on the scheduled date
+
+${timeframeText}
 
 Thank you,
 The Cycle Courier Co. Team
@@ -819,6 +842,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
               Track Your Delivery
             </a>
           </div>
+          ${expectationsHtml(expectationsForOrder(order))}
           <p>Thank you for choosing The Cycle Courier Co.</p>
           <p>Best regards,<br>The Cycle Courier Co. Team</p>
         </div>
@@ -872,6 +896,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
               <li style="margin-bottom: 0;">Your bicycle will be delivered on the scheduled date</li>
             </ol>
           </div>
+          ${expectationsHtml(expectationsForOrder(order))}
           <p>Best regards,<br>The Cycle Courier Co. Team</p>
         </div>
       `;

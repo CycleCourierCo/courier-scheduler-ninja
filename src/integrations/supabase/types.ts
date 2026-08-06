@@ -1666,6 +1666,47 @@ export type Database = {
           },
         ]
       }
+      order_update_log: {
+        Row: {
+          created_at: string
+          id: string
+          order_id: string
+          recipient: string | null
+          sent_at: string
+          side: string
+          stage_key: string
+          subject: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          order_id: string
+          recipient?: string | null
+          sent_at?: string
+          side: string
+          stage_key: string
+          subject?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          order_id?: string
+          recipient?: string | null
+          sent_at?: string
+          side?: string
+          stage_key?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_update_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       orders: {
         Row: {
           bike_brand: string | null
@@ -2080,6 +2121,7 @@ export type Database = {
           uses_own_van: boolean | null
           van_allowance: number | null
           website: string | null
+          workshop_hourly_rate: number | null
         }
         Insert: {
           account_status?:
@@ -2118,6 +2160,7 @@ export type Database = {
           uses_own_van?: boolean | null
           van_allowance?: number | null
           website?: string | null
+          workshop_hourly_rate?: number | null
         }
         Update: {
           account_status?:
@@ -2156,6 +2199,7 @@ export type Database = {
           uses_own_van?: boolean | null
           van_allowance?: number | null
           website?: string | null
+          workshop_hourly_rate?: number | null
         }
         Relationships: [
           {
@@ -3588,6 +3632,7 @@ export type Database = {
           uses_own_van: boolean | null
           van_allowance: number | null
           website: string | null
+          workshop_hourly_rate: number | null
         }[]
         SetofOptions: {
           from: "*"
@@ -3640,6 +3685,7 @@ export type Database = {
         Returns: undefined
       }
       invoke_refresh_vehicles: { Args: never; Returns: undefined }
+      invoke_send_order_updates: { Args: never; Returns: undefined }
       invoke_weekly_invoice_batch: { Args: never; Returns: undefined }
       is_account_approved: { Args: { user_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
@@ -3705,6 +3751,7 @@ export type Database = {
           uses_own_van: boolean | null
           van_allowance: number | null
           website: string | null
+          workshop_hourly_rate: number | null
         }
         SetofOptions: {
           from: "*"

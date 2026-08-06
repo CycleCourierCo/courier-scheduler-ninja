@@ -39,6 +39,7 @@ import NorthernIrelandEditor from "@/components/order-detail/NorthernIrelandEdit
 import SchedulingButtons from "@/components/order-detail/SchedulingButtons";
 import EmailResendButtons from "@/components/order-detail/EmailResendButtons";
 import OrderComments from "@/components/order-detail/OrderComments";
+import CustomerUpdatesCard from "@/components/order-detail/CustomerUpdatesCard";
 import OrderTasksPanel from "@/components/tasks/OrderTasksPanel";
 import TimeslotSelection from "@/components/order-detail/TimeslotSelection";
 import { pollOrderUpdates } from "@/services/orderService";
@@ -1682,9 +1683,17 @@ const OrderDetail = () => {
 
             <OrderTasksPanel orderId={order.id} />
 
+            {isAdmin && (
+              <>
+                <Separator className="my-6" />
+                <CustomerUpdatesCard orderId={order.id} />
+              </>
+            )}
+
             <Separator className="my-6" />
 
             <OrderComments orderId={order.id} />
+
           </CardContent>
           <CardFooter className="flex flex-wrap justify-between gap-3">
             <Button asChild>

@@ -103,7 +103,7 @@ const MechanicClock: React.FC = () => {
       if (!user?.id) throw new Error('Not signed in');
       const photo = await requestPhoto();
       const loc = await requestLocation();
-      const hourly = Number(userProfile?.hourly_rate ?? 11);
+      const hourly = Number(userProfile?.workshop_hourly_rate ?? userProfile?.hourly_rate ?? 11);
       return clockIn({ driverId: user.id, hourlyRate: hourly, photo, lat: loc.lat, lng: loc.lng });
     },
     onSuccess: () => {
@@ -175,7 +175,7 @@ const MechanicClock: React.FC = () => {
             ) : (
               <>
                 <p className="text-sm text-muted-foreground text-center">
-                  Take a photo to start your shift. Your rate: £{Number(userProfile?.hourly_rate ?? 11).toFixed(2)}/hr.
+                  Take a photo to start your shift. Your rate: £{Number(userProfile?.workshop_hourly_rate ?? userProfile?.hourly_rate ?? 11).toFixed(2)}/hr.
                 </p>
                 <Button size="lg" className="w-full" onClick={handleClockIn} disabled={busy}>
                   <LogIn className="h-5 w-5 mr-2" />

@@ -57,7 +57,7 @@ const MechanicProfitabilityPanel: React.FC<Props> = ({ initialFrom, initialTo })
         </CardTitle>
         <CardDescription>
           Revenue attributed to each mechanic (£60 per inspection released + repair value on issues they resolved),
-          minus wage cost from mechanic timeslips.
+          minus wage cost from mechanic timeslips. Labour revenue includes inspections plus the labour element of repairs.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -156,7 +156,7 @@ const MechanicProfitabilityPanel: React.FC<Props> = ({ initialFrom, initialTo })
               </TableBody>
             </Table>
             <p className="text-xs text-muted-foreground mt-2">
-              Labour revenue only counts issues priced with the new parts/labour split. Labour profit = labour revenue − full mechanic wage cost.
+              Labour revenue = inspection revenue (£60 per inspection) + the labour element of repairs priced with the parts/labour split. Labour profit = labour revenue − full mechanic wage cost.
             </p>
           </div>
         ) : (

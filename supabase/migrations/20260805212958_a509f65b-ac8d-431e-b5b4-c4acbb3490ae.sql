@@ -1,0 +1,1 @@
+ALTER TABLE public.mechanic_timeslips ALTER COLUMN lunch_hours SET DEFAULT 0;

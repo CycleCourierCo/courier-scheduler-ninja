@@ -3,7 +3,14 @@ import type { Config } from "tailwindcss";
 
 export default {
 	darkMode: ["class"],
+	future: {
+		// Touch devices (e.g. Galaxy Z Fold) keep :hover stuck on the last tapped
+		// element, which leaves hover transforms applied and makes enlarged
+		// controls swallow taps meant for their neighbours.
+		hoverOnlyWhenSupported: true,
+	},
 	content: [
+
 		"./pages/**/*.{ts,tsx}",
 		"./components/**/*.{ts,tsx}",
 		"./app/**/*.{ts,tsx}",
