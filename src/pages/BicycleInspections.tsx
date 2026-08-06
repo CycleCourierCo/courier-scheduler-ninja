@@ -1938,6 +1938,14 @@ const BicycleInspections = () => {
                 </div>
               )}
             </div>
+            {canManageInspections && (
+              <InspectionFilters
+                filters={filters}
+                onChange={setFilters}
+                options={filterOptions}
+                showBilling={isAdmin}
+              />
+            )}
             <div className="w-full">
             <TabsList className="grid w-full grid-cols-1 gap-1 h-auto sm:flex sm:flex-wrap">
               <TabsTrigger value="awaiting" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
