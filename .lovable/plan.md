@@ -18,20 +18,20 @@ Two separate problems fall out of that:
 
 ## The fix
 
-**1. Fall back to the real payer on the order.** When looking up the QuickBooks customer, try in order:
+**1. Let the admin pick the customer when auto-match fails.** Instead of a bare error, the inspection card opens a "Choose billing customer" dialog: a searchable list of live QuickBooks customers plus a free-text billing email field. The admin picks the right customer and the invoice is raised against them, using that address as the invoice BillEmail.
+
+**2. Try the real payer on the order automatically first.** Before falling back to the dialog, look up the QuickBooks customer by, in order:
    - the profile's accounts email, then profile email (current behaviour), then
    - the sender's email on the order snapshot, then the receiver's email,
    - and also match by customer/company name if no email matches.
    Skip any candidate that is one of our own internal addresses (`@cyclecourierco.com`) so an internal booking never invoices ourselves.
 
-**2. Let an admin choose the customer when auto-match fails.** If nothing matches, return the list of candidate emails/names tried instead of a bare error, and show a small dialog on the inspections card where the admin can type/confirm the billing email to invoice against. That email is then used for the QuickBooks lookup and the invoice's BillEmail.
-
 **3. Make the errors readable.** Surface the real reason on the toast (customer not matched, "Bike Repair" product missing, QuickBooks not connected, QuickBooks rejection detail) rather than a generic "Failed to create invoice".
 
-**4. Then raise this specific invoice** for CCC754980293576SIMME2 against the correct customer (the sender/receiver on the order) once the fallback is in place, and confirm the invoice number lands on the inspection card.
+**4. Then raise this specific invoice** for CCC754980293576SIMME2 against the correct customer and confirm the invoice number lands on the inspection card.
 
 ## Technical notes
 
-- `supabase/functions/create-inspection-invoice/index.ts`: build an ordered candidate list for the QuickBooks customer query (accounts_email, email, order.sender.email, order.receiver.email), filter out `@cyclecourierco.com`, add a name-based `Customer` query fallback, accept an optional `billingEmailOverride` in the request body, and return `{ error, candidates }` with a `409` when nothing matches. Keep the existing escaping of QuickBooks query strings.
-- `src/pages/BicycleInspections.tsx`: read the structured error from the function response, show the specific message, and add a lightweight "Choose billing customer" dialog that re-invokes the function with `billingEmailOverride`.
+- `supabase/functions/create-inspection-invoice/index.ts`: build an ordered candidate list for the QuickBooks customer query (accounts_email, email, order.sender.email, order.receiver.email), filter out `@cyclecourierco.com`, add a name-based `Customer` query fallback, accept an optional `billingEmailOverride` / `quickbooksCustomerId` in the request body, and return `{ error, candidates }` with a `409` when nothing matches. Add a `mode: "search-customers"` branch that returns matching QuickBooks customers (name + email + id) for a search term so the dialog lists real customers. Keep the existing escaping of QuickBooks query strings.
+- `src/pages/BicycleInspections.tsx`: read the structured error from the function response, show the specific message, and add a "Choose billing customer" dialog (searchable QuickBooks customer list + billing email field) that re-invokes the invoice function with the chosen customer.
 - No schema change needed.
