@@ -48,7 +48,7 @@ export const ContactSelector = ({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full min-w-0 max-w-full justify-between"
+          className="h-auto min-h-10 w-full min-w-0 max-w-full justify-between py-2"
           disabled={isLoading}
         >
           <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
