@@ -618,6 +618,36 @@ const BicycleInspections = () => {
     },
   });
 
+  // Mark a job as deliberately not invoiced
+  const skipInvoiceMutation = useMutation({
+    mutationFn: async (vars: { inspectionId: string; reason: string }) =>
+      markInvoiceNotNeeded(vars.inspectionId, vars.reason, {
+        id: user?.id,
+        name: (userProfile as any)?.name || user?.email || null,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      setSkipInvoiceDialog({ open: false, inspectionId: null, reason: "" });
+      toast.success("Marked as no invoice needed");
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to update invoicing status");
+    },
+  });
+
+  const clearSkipMutation = useMutation({
+    mutationFn: async (inspectionId: string) => clearInvoiceSkip(inspectionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Job is invoiceable again");
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to update invoicing status");
+    },
+  });
+
+
+
 
   const handleOpenIssueDialog = (orderId: string) => {
     setSelectedOrderId(orderId);
