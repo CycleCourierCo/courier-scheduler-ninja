@@ -296,10 +296,10 @@ export const getPendingInspections = async () => {
     if (userIds.length > 0) {
       const { data: profs } = await supabase
         .from('profiles')
-        .select('id, name, email, company')
+        .select('id, name, email, company_name')
         .in('id', userIds);
       profileMap = new Map(
-        (profs || []).map(p => [p.id, { name: p.name ?? null, email: p.email ?? null, company: (p as any).company ?? null }])
+        (profs || []).map(p => [p.id, { name: p.name ?? null, email: p.email ?? null, company: p.company_name ?? null }])
       );
     }
 
