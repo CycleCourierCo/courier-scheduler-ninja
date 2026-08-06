@@ -64,15 +64,20 @@ serve(async (req) => {
       console.log('Public email type:', reqData.emailType, '- no auth required');
     }
 
+    // Order row used for test-account suppression and expectations wording
+    let orderRow: any = null;
+
     // Check if order-related emails should be skipped for test accounts
     if (reqData.meta?.orderId || reqData.orderId) {
       const checkOrderId = reqData.meta?.orderId || reqData.orderId;
       const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
       const { data: orderData } = await adminClient
         .from("orders")
-        .select("user_id")
+        .select("user_id, sender, receiver, is_northern_ireland")
         .eq("id", checkOrderId)
         .single();
+
+      orderRow = orderData || null;
 
       if (orderData?.user_id) {
         const { data: profile } = await adminClient
@@ -90,6 +95,14 @@ serve(async (req) => {
         }
       }
     }
+
+    // Typical time-frame expectations note appended to customer-facing emails.
+    const expectationInput = orderRow
+      ? expectationsForOrder(orderRow)
+      : { senderPostcode: null, receiverPostcode: null, isNorthernIreland: reqData.isNorthernIreland };
+    const timeframeHtml = expectationsHtml(expectationInput);
+    const timeframeText = expectationsText(expectationInput);
+
 
     // Handle special actions
     if (reqData.meta && reqData.meta.action === "delivery_confirmation") {
