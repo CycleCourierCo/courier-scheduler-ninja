@@ -861,22 +861,84 @@ const BicycleInspections = () => {
     return arr;
   }, [inspections, sortBy, canManageInspections]);
 
-  // Apply free-text search across tracking #, customer order #, bike, sender/receiver name
+  // Reference date used by the date filter: collection date, falling back to created date
+  const getRefDate = (o: any) =>
+    o.collection_confirmation_sent_at || o.pickup_date || o.created_at || null;
+  const getRepairerNames = (o: any): string[] =>
+    (o.issues || [])
+      .filter((iss: any) => iss.status === "repaired" && iss.resolved_by_name)
+      .map((iss: any) => iss.resolved_by_name as string);
+
+  const filterOptions = useMemo(() => {
+    const uniq = (arr: (string | null | undefined)[]) =>
+      Array.from(new Set(arr.filter((v): v is string => !!v && v.trim().length > 0))).sort((a, b) =>
+        a.localeCompare(b)
+      );
+    return {
+      customers: uniq(inspections.map((o: any) => o.booking_customer_name)),
+      inspectors: uniq(inspections.map((o: any) => o.inspection?.inspected_by_name)),
+      repairers: uniq(inspections.flatMap((o: any) => getRepairerNames(o))),
+      bikeTypes: uniq(inspections.map((o: any) => o.inspection?.bike_type)),
+    };
+  }, [inspections]);
+
+  // Apply free-text search plus the filter bar selections
   const filteredInspections = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return sortedInspections;
+
+    let fromDate: Date | null = null;
+    let toDate: Date | null = null;
+    const now = new Date();
+    if (filters.datePreset === "7d") {
+      fromDate = new Date(now.getTime() - 7 * 86400000);
+    } else if (filters.datePreset === "30d") {
+      fromDate = new Date(now.getTime() - 30 * 86400000);
+    } else if (filters.datePreset === "month") {
+      fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (filters.datePreset === "custom") {
+      if (filters.from) fromDate = new Date(new Date(filters.from).setHours(0, 0, 0, 0));
+      if (filters.to) toDate = new Date(new Date(filters.to).setHours(23, 59, 59, 999));
+    }
+
     return sortedInspections.filter((o: any) => {
-      const haystack = [
-        o.tracking_number,
-        o.customer_order_number,
-        o.bike_brand,
-        o.bike_model,
-        (o.sender as any)?.name,
-        (o.receiver as any)?.name,
-      ].filter(Boolean).join(" ").toLowerCase();
-      return haystack.includes(q);
+      if (q) {
+        const haystack = [
+          o.tracking_number,
+          o.customer_order_number,
+          o.bike_brand,
+          o.bike_model,
+          (o.sender as any)?.name,
+          (o.receiver as any)?.name,
+          o.booking_customer_name,
+        ].filter(Boolean).join(" ").toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+
+      if (fromDate || toDate) {
+        const ref = getRefDate(o);
+        if (!ref) return false;
+        const t = new Date(ref).getTime();
+        if (fromDate && t < fromDate.getTime()) return false;
+        if (toDate && t > toDate.getTime()) return false;
+      }
+
+      if (filters.customer !== "all" && o.booking_customer_name !== filters.customer) return false;
+      if (filters.inspector !== "all" && o.inspection?.inspected_by_name !== filters.inspector) return false;
+      if (filters.repairer !== "all" && !getRepairerNames(o).includes(filters.repairer)) return false;
+      if (filters.bikeType !== "all" && o.inspection?.bike_type !== filters.bikeType) return false;
+
+      if (filters.billing !== "all") {
+        const invoiced = !!o.inspection?.invoice_number;
+        const skipped = !!o.inspection?.invoice_skipped_at;
+        if (filters.billing === "invoiced" && !invoiced) return false;
+        if (filters.billing === "skipped" && !skipped) return false;
+        if (filters.billing === "unsettled" && (invoiced || skipped)) return false;
+      }
+
+      return true;
     });
-  }, [sortedInspections, searchQuery]);
+  }, [sortedInspections, searchQuery, filters]);
+
 
   // Filter inspections by status
   const awaitingBase = filteredInspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
