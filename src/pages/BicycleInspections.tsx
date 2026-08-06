@@ -873,7 +873,7 @@ const BicycleInspections = () => {
   // (released inspection with no issues, or all repairs declined).
   const getSettledReason = (
     i: any
-  ): "invoiced" | "skipped" | "no_issues" | "declined" | null => {
+  ): "invoiced" | "skipped" | "no_issues" | "declined" | "zero_value" | null => {
     const inspection = i.inspection;
     if (inspection?.invoice_number) return "invoiced";
     if (inspection?.invoice_skipped_at) return "skipped";
@@ -886,8 +886,17 @@ const BicycleInspections = () => {
     );
     if (billable.length === 0) return "declined";
     if (i.repairs_declined_at) return "declined";
+    const total = billable.reduce((sum: number, iss: any) => {
+      const parts = Number(iss.parts_cost ?? 0) || 0;
+      const labour = Number(iss.labour_cost ?? 0) || 0;
+      const split = parts + labour;
+      const value = split > 0 ? split : Number(iss.estimated_cost ?? 0) || 0;
+      return sum + value;
+    }, 0);
+    if (Math.round(total * 100) === 0) return "zero_value";
     return null;
   };
+
   const isBillingSettled = (i: any) => getSettledReason(i) !== null;
 
   const filterOptions = useMemo(() => {
