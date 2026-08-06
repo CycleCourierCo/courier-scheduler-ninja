@@ -869,6 +869,27 @@ const BicycleInspections = () => {
       .filter((iss: any) => iss.status === "repaired" && iss.resolved_by_name)
       .map((iss: any) => iss.resolved_by_name as string);
 
+  // Billing settlement: invoiced, manually skipped, or nothing to invoice
+  // (released inspection with no issues, or all repairs declined).
+  const getSettledReason = (
+    i: any
+  ): "invoiced" | "skipped" | "no_issues" | "declined" | null => {
+    const inspection = i.inspection;
+    if (inspection?.invoice_number) return "invoiced";
+    if (inspection?.invoice_skipped_at) return "skipped";
+    const released = inspection?.status === "inspected" || inspection?.status === "repaired";
+    if (!released) return null;
+    const issues = i.issues || [];
+    if (issues.length === 0) return "no_issues";
+    const billable = issues.filter(
+      (iss: any) => iss.status !== "declined" && iss.status !== "cancelled"
+    );
+    if (billable.length === 0) return "declined";
+    if (i.repairs_declined_at) return "declined";
+    return null;
+  };
+  const isBillingSettled = (i: any) => getSettledReason(i) !== null;
+
   const filterOptions = useMemo(() => {
     const uniq = (arr: (string | null | undefined)[]) =>
       Array.from(new Set(arr.filter((v): v is string => !!v && v.trim().length > 0))).sort((a, b) =>
@@ -932,7 +953,7 @@ const BicycleInspections = () => {
         const skipped = !!o.inspection?.invoice_skipped_at;
         if (filters.billing === "invoiced" && !invoiced) return false;
         if (filters.billing === "skipped" && !skipped) return false;
-        if (filters.billing === "unsettled" && (invoiced || skipped)) return false;
+        if (filters.billing === "unsettled" && isBillingSettled(o)) return false;
       }
 
       return true;
@@ -948,8 +969,6 @@ const BicycleInspections = () => {
   const withIssues = filteredInspections.filter((i: any) => i.inspection?.status === "issues_found");
   const awaitingParts = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_parts");
   const awaitingRepair = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_repair" || i.inspection?.status === "in_repair" || i.inspection?.status === "cleaning");
-  const isBillingSettled = (i: any) =>
-    !!i.inspection?.invoice_number || !!i.inspection?.invoice_skipped_at;
   const inspectedAndServiced = filteredInspections.filter(
     (i: any) =>
       (i.inspection?.status === "inspected" || i.inspection?.status === "repaired") &&
@@ -1845,6 +1864,22 @@ const BicycleInspections = () => {
               </Button>
             </div>
           )}
+
+          {(() => {
+            const reason = getSettledReason(order);
+            if (reason !== "no_issues" && reason !== "declined") return null;
+            return (
+              <div className="flex min-w-0 flex-wrap items-center gap-2 pt-2">
+                <Badge variant="secondary" className="flex min-w-0 max-w-full items-center gap-1">
+                  <X className="h-3 w-3 shrink-0" />
+                  {reason === "no_issues" ? "No issues" : "Repairs declined"}
+                </Badge>
+                <span className="min-w-0 text-xs text-muted-foreground break-words">
+                  Nothing to invoice
+                </span>
+              </div>
+            );
+          })()}
 
           {invoiceSkipped && (
             <div className="flex min-w-0 flex-wrap items-center gap-2 pt-2">
