@@ -1883,6 +1883,7 @@ const BicycleInspections = () => {
 
           {invoiceSkipped && (
             <div className="flex min-w-0 flex-wrap items-center gap-2 pt-2">
+              <Badge variant="secondary" className="flex min-w-0 max-w-full items-center gap-1">
                 <X className="h-3 w-3 shrink-0" />
                 Not invoiced
               </Badge>
