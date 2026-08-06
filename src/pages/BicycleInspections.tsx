@@ -67,6 +67,7 @@ import { RepairPicker, type RepairPickerSelection } from "@/components/inspectio
 import { BikeCategoryPicker } from "@/components/inspections/BikeCategoryPicker";
 import WorkshopScheduleTab from "@/components/inspections/WorkshopScheduleTab";
 import { sendOrderToInspectaBike } from "@/services/inspectabikeService";
+import BillingCustomerDialog, { type QuickBooksCustomerOption } from "@/components/inspections/BillingCustomerDialog";
 
 // (workshop settings/labour pricing consumed inside RepairPicker)
 
