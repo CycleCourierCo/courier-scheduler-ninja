@@ -557,23 +557,53 @@ const BicycleInspections = () => {
 
   // Create inspection invoice mutation
   const createInvoiceMutation = useMutation({
-    mutationFn: async (inspectionId: string) => {
+    mutationFn: async (vars: {
+      inspectionId: string;
+      quickbooksCustomerId?: string;
+      billingEmailOverride?: string;
+    }) => {
       const { data, error } = await supabase.functions.invoke('create-inspection-invoice', {
-        body: { inspectionId },
+        body: vars,
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (error) {
+        // Non-2xx: read the structured payload so we can react to a failed match.
+        let payload: any = null;
+        try {
+          payload = await (error as any)?.context?.json?.();
+        } catch {
+          payload = null;
+        }
+        if (payload?.error === 'customer_not_matched') {
+          const err: any = new Error(payload.message || 'Choose the billing customer to continue.');
+          err.customerNotMatched = payload;
+          throw err;
+        }
+        throw new Error(payload?.message || payload?.error || error.message || 'Failed to create invoice');
+      }
+      if (data?.error) throw new Error(data.message || data.error);
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      setBillingDialogState({ open: false, inspectionId: null, suggestions: [], triedEmails: [] });
       toast.success(`Invoice ${data.invoiceNumber} created successfully`);
     },
-    onError: (error: any) => {
+    onError: (error: any, vars) => {
+      if (error?.customerNotMatched) {
+        setBillingDialogState({
+          open: true,
+          inspectionId: vars.inspectionId,
+          suggestions: error.customerNotMatched.suggestions || [],
+          triedEmails: error.customerNotMatched.triedEmails || [],
+        });
+        toast.info(error.message);
+        return;
+      }
       toast.error(error.message || "Failed to create invoice");
       console.error(error);
     },
   });
+
 
   const handleOpenIssueDialog = (orderId: string) => {
     setSelectedOrderId(orderId);
