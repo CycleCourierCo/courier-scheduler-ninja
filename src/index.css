@@ -152,14 +152,18 @@
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* Never let a transform-based hover/focus effect linger on touch and
-     overlap a neighbouring control's tap area. */
+  /* Never let a transform-based hover effect linger on touch and overlap a
+     neighbouring control's tap area. */
   @media (hover: none) {
-    *:hover,
-    *:focus {
+    button:hover,
+    a:hover,
+    [role="button"]:hover,
+    [role="tab"]:hover,
+    .hover-lift:hover {
       transform: none !important;
     }
   }
+
 
   
   /* Custom scrollbar */
