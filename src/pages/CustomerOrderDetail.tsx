@@ -1,3 +1,4 @@
+import { isOutboundNi } from "@/utils/niDelivery";
 
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
@@ -303,7 +304,7 @@ const CustomerOrderDetail = () => {
                   <h3 className="font-semibold">Scheduled Delivery Date</h3>
                 </div>
                 
-                {order.isNorthernIreland ? (
+                {isOutboundNi(order) ? (
                   <div className="bg-green-50 p-2 rounded-md border border-green-200">
                     <p className="text-sm text-muted-foreground">
                       To be confirmed — your bike travels onward by ferry once it reaches the ferry port.

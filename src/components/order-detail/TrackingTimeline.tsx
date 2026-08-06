@@ -1,3 +1,4 @@
+import { isOutboundNi } from "@/utils/niDelivery";
 
 import React, { useEffect, useState } from "react";
 import { format, isValid, parseISO } from "date-fns";
@@ -74,9 +75,9 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
     type: "collection" | "delivery";
   }>({ isOpen: false, type: "collection" });
 
-  const isNorthernIrelandOrder = Boolean(
-    (order as any).isNorthernIreland ?? (order as any).is_northern_ireland
-  );
+  // Only OUTBOUND NI orders end at the ferry hand-off. Inbound orders (NI -> mainland)
+  // are delivered normally, so they keep the standard delivery milestones.
+  const isNorthernIrelandOrder = isOutboundNi(order);
   const foamPhotoPaths: string[] = Array.isArray((order as any).foamDeliveryPhotos)
     ? (order as any).foamDeliveryPhotos
     : [];

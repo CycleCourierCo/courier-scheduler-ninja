@@ -4,7 +4,10 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 import {
   CITY_AIR_EXPRESS,
   isNorthernIrelandAddress,
+  niDirectionOf,
+  isFerryLeg,
   formatNiReceiverBlock,
+  formatNiSenderBlock,
 } from "../_shared/northernIreland.ts";
 
 const corsHeaders = {
@@ -128,10 +131,14 @@ function determinePrimaryJobType(recipientType: "sender" | "receiver"): JobType 
   return recipientType === "sender" ? "pickup" : "delivery";
 }
 
-/** Northern Ireland deliveries are handed over in Manchester, never driven to the customer. */
+/** Northern Ireland legs are handed over in Manchester, never driven to/from NI. */
 function isNiOrder(o: any): boolean {
-  if (!o) return false;
-  return o.is_northern_ireland === true || isNorthernIrelandAddress(o.receiver?.address);
+  return niDirectionOf(o) !== null;
+}
+
+/** True when the leg for this recipient happens at the ferry hand-off point. */
+function isFerryRecipient(o: any, recipientType: "sender" | "receiver"): boolean {
+  return isFerryLeg(o, recipientType === "sender");
 }
 
 /** Contact we message / send to Shipday for a delivery leg on an NI order. */
@@ -144,10 +151,10 @@ function niHandoffContact() {
   };
 }
 
-/** Resolve the contact for a leg: sender for pickups, NI-aware for deliveries. */
+/** Resolve the contact for a leg — the ferry hand-off on whichever side is in NI. */
 function resolveLegContact(o: any, isPickup: boolean) {
-  if (isPickup) return o?.sender;
-  return isNiOrder(o) ? niHandoffContact() : o?.receiver;
+  if (isFerryLeg(o, isPickup)) return niHandoffContact();
+  return isPickup ? o?.sender : o?.receiver;
 }
 
 // ---- Background: Update Shipday (exact copy of send-timeslot-whatsapp logic) ----
@@ -415,7 +422,11 @@ async function sendEmail(
         niOrders
           .map(
             (o) =>
-              `<pre style="font-family: Arial, sans-serif; white-space: pre-wrap; background-color: #f5f5f5; padding: 16px; border-radius: 8px; margin-bottom: 12px;">${formatNiReceiverBlock(o.receiver, o.tracking_number)}</pre>`,
+              `<pre style="font-family: Arial, sans-serif; white-space: pre-wrap; background-color: #f5f5f5; padding: 16px; border-radius: 8px; margin-bottom: 12px;">${
+                niDirectionOf(o) === "inbound"
+                  ? formatNiSenderBlock(o.sender, o.tracking_number)
+                  : formatNiReceiverBlock(o.receiver, o.tracking_number)
+              }</pre>`,
           )
           .join("\n")
       : "";
@@ -426,7 +437,7 @@ async function sendEmail(
         <p>We are due to be with you on <strong>${formattedDate}</strong> between <strong>${startTime}</strong> and <strong>${endTime}</strong>.</p>
         ${itemsHtml}
         ${
-          niBlocksHtml && recipientType === "receiver"
+          niBlocksHtml && isFerryRecipient(order, recipientType)
             ? niBlocksHtml
             : `<p>You will receive a text with a live tracking link once the driver is on his way.</p>`
         }
@@ -452,8 +463,12 @@ async function sendEmail(
           <p style="margin: 5px 0; font-size: 16px;">Between <strong>${startTime}</strong> and <strong>${endTime}</strong></p>
         </div>
         ${
-          !isCollection && isNiOrder(order)
-            ? `<pre style="font-family: Arial, sans-serif; white-space: pre-wrap; background-color: #f5f5f5; padding: 16px; border-radius: 8px;">${formatNiReceiverBlock(order.receiver, order.tracking_number)}</pre>`
+          isFerryLeg(order, isCollection)
+            ? `<pre style="font-family: Arial, sans-serif; white-space: pre-wrap; background-color: #f5f5f5; padding: 16px; border-radius: 8px;">${
+                isCollection
+                  ? formatNiSenderBlock(order.sender, order.tracking_number)
+                  : formatNiReceiverBlock(order.receiver, order.tracking_number)
+              }</pre>`
             : `<p>You will receive a text with a live tracking link once the driver is on their way.</p>`
         }
         ${isCollection ? `
@@ -571,13 +586,13 @@ serve(async (req: Request): Promise<Response> => {
     }
 
     // Get contact based on recipientType
-    const primaryIsNiDelivery = recipientType === "receiver" && isNiOrder(order);
+    const primaryIsNiDelivery = isFerryRecipient(order, recipientType);
     if (primaryIsNiDelivery) {
-      console.log("NI delivery leg — messaging ferry hand-off contact instead of receiver");
+      console.log("NI ferry leg — messaging ferry hand-off contact instead of the customer");
     }
-    const contact = recipientType === "sender"
-      ? order.sender
-      : (primaryIsNiDelivery ? niHandoffContact() : order.receiver);
+    const contact = primaryIsNiDelivery
+      ? niHandoffContact()
+      : (recipientType === "sender" ? order.sender : order.receiver);
     if (!contact?.phone) {
       return new Response(
         JSON.stringify({ error: `No phone number found for ${recipientType}` }),

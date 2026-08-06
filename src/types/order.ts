@@ -159,6 +159,8 @@ export type Order = {
   boxDeliveredBy3pAt?: Date | null;
   destinationRegion?: string | null;
   isNorthernIreland?: boolean;
+  /** 'outbound' = mainland -> NI, 'inbound' = NI -> mainland */
+  niDirection?: 'outbound' | 'inbound' | null;
   foamStatus?: FoamStatus | null;
   foamPendingCollectionAt?: Date | null;
   foamPendingFoamingAt?: Date | null;

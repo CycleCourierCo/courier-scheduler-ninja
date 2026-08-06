@@ -6,7 +6,10 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 import {
   CITY_AIR_EXPRESS,
   isNorthernIrelandAddress,
+  niDirectionOf,
+  isFerryLeg,
   formatNiReceiverBlock,
+  formatNiSenderBlock,
 } from "../_shared/northernIreland.ts";
 
 const corsHeaders = {
@@ -126,10 +129,14 @@ function determinePrimaryJobType(recipientType: "sender" | "receiver"): JobType 
   return recipientType === "sender" ? "pickup" : "delivery";
 }
 
-/** Northern Ireland deliveries are handed over in Manchester, never driven to the customer. */
+/** Northern Ireland legs are handed over in Manchester, never driven to/from NI. */
 function isNiOrder(o: any): boolean {
-  if (!o) return false;
-  return o.is_northern_ireland === true || isNorthernIrelandAddress(o.receiver?.address);
+  return niDirectionOf(o) !== null;
+}
+
+/** True when the leg for this recipient happens at the ferry hand-off point. */
+function isFerryRecipient(o: any, recipientType: "sender" | "receiver"): boolean {
+  return isFerryLeg(o, recipientType === "sender");
 }
 
 /** Contact the driver actually visits / we message for a delivery leg. */
@@ -190,12 +197,12 @@ const serve_handler = async (req: Request): Promise<Response> => {
     // Contact + scheduled date for PRIMARY message (still based on recipientType)
     // Northern Ireland: the delivery leg goes to the ferry hand-off, so the
     // timeslot must go to the hand-off contact, not the NI customer.
-    const primaryIsNiDelivery = recipientType === "receiver" && isNiOrder(order);
-    const contact = recipientType === "sender"
-      ? order.sender
-      : (primaryIsNiDelivery ? niHandoffContact() : order.receiver);
+    const primaryIsNiDelivery = isFerryRecipient(order, recipientType);
+    const contact = primaryIsNiDelivery
+      ? niHandoffContact()
+      : (recipientType === "sender" ? order.sender : order.receiver);
     if (primaryIsNiDelivery) {
-      console.log("NI delivery leg — messaging ferry hand-off contact instead of receiver");
+      console.log("NI ferry leg — messaging ferry hand-off contact instead of the customer");
     }
     const scheduledDateForMessage =
       recipientType === "sender"
@@ -236,6 +243,16 @@ const serve_handler = async (req: Request): Promise<Response> => {
     let message: string;
     if (customMessage) {
       message = customMessage;
+    } else if (primaryIsNiDelivery && recipientType === "sender") {
+      // Inbound Northern Ireland: we collect at the ferry hand-off point
+      message = `Dear ${contact.name},
+
+Collection of a ${order.bike_brand || "bike"} ${order.bike_model || ""} has been scheduled for ${formatDateForCustomer(scheduledDateForMessage)} between ${startTimeDisplay} and ${endTimeDisplay}.
+
+${formatNiSenderBlock(order.sender, order.tracking_number)}
+
+Thank you!
+Cycle Courier Co.`;
     } else if (recipientType === "sender") {
       message = `Dear ${contact.name},
 
@@ -417,10 +434,10 @@ Cycle Courier Co.`;
             ? scheduledUTCDate
             : addDaysToUTCYYYYMMDD(scheduledUTCDate, end.dayOffset);
 
-        const jobIsNiDelivery = !isPickup && isNiOrder(orderToUpdate);
-        const jobContact = isPickup
-          ? orderToUpdate.sender
-          : (jobIsNiDelivery ? niHandoffContact() : orderToUpdate.receiver);
+        const jobIsNiDelivery = isFerryLeg(orderToUpdate, isPickup);
+        const jobContact = jobIsNiDelivery
+          ? niHandoffContact()
+          : (isPickup ? orderToUpdate.sender : orderToUpdate.receiver);
         const jobNotes = isPickup ? orderToUpdate.sender_notes : orderToUpdate.receiver_notes;
 
         // Build delivery instructions
@@ -446,12 +463,18 @@ Cycle Courier Co.`;
 
         const baseDeliveryInstructions = orderToUpdate.delivery_instructions || "";
         const allInstructions = [
-          jobIsNiDelivery ? "NORTHERN IRELAND — hand over at ferry hand-off point" : "",
+          jobIsNiDelivery
+            ? (isPickup
+              ? "NORTHERN IRELAND (inbound) — collect from ferry hand-off point"
+              : "NORTHERN IRELAND — hand over at ferry hand-off point")
+            : "",
           ...orderDetails,
           baseDeliveryInstructions,
           jobNotes,
           jobIsNiDelivery
-            ? formatNiReceiverBlock(orderToUpdate.receiver, orderToUpdate.tracking_number)
+            ? (isPickup
+              ? formatNiSenderBlock(orderToUpdate.sender, orderToUpdate.tracking_number)
+              : formatNiReceiverBlock(orderToUpdate.receiver, orderToUpdate.tracking_number))
             : "",
         ]
           .filter(Boolean)
