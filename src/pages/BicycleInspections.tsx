@@ -2004,6 +2004,18 @@ const BicycleInspections = () => {
               )}
             </TabsContent>
 
+            {canManageInspections && (
+              <TabsContent value="invoiced" className="space-y-4">
+                {invoicedList.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">
+                    No invoiced jobs yet
+                  </p>
+                ) : (
+                  invoicedList.map(renderInspectionCard)
+                )}
+              </TabsContent>
+            )}
+
             <TabsContent value="schedule" className="space-y-4">
               <WorkshopScheduleTab canManage={isAdmin} />
             </TabsContent>
