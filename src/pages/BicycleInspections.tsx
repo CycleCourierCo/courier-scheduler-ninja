@@ -965,6 +965,14 @@ const BicycleInspections = () => {
         if (toDate && t > toDate.getTime()) return false;
       }
 
+      if (bookedFromDate || bookedToDate) {
+        if (!o.created_at) return false;
+        const t = new Date(o.created_at).getTime();
+        if (bookedFromDate && t < bookedFromDate.getTime()) return false;
+        if (bookedToDate && t > bookedToDate.getTime()) return false;
+      }
+
+
       if (filters.customer !== "all" && o.booking_customer_name !== filters.customer) return false;
       if (filters.inspector !== "all" && o.inspection?.inspected_by_name !== filters.inspector) return false;
       if (filters.repairer !== "all" && !getRepairerNames(o).includes(filters.repairer)) return false;
