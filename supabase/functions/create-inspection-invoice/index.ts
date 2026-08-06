@@ -109,10 +109,72 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (profile?.role !== 'admin') throw new Error('Admin access required');
 
-    const { inspectionId } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const {
+      inspectionId,
+      mode,
+      search,
+      billingEmailOverride,
+      quickbooksCustomerId,
+    } = (body || {}) as {
+      inspectionId?: string;
+      mode?: string;
+      search?: string;
+      billingEmailOverride?: string;
+      quickbooksCustomerId?: string;
+    };
+
+    const qbQuery = async (token: { access_token: string; company_id: string }, query: string) => {
+      const res = await fetch(
+        `https://quickbooks.api.intuit.com/v3/company/${token.company_id}/query?query=${encodeURIComponent(query)}`,
+        { headers: { 'Authorization': `Bearer ${token.access_token}`, 'Accept': 'application/json' } }
+      );
+      if (!res.ok) return null;
+      return await res.json();
+    };
+
+    const mapCustomer = (c: any) => ({
+      id: c.Id,
+      name: c.DisplayName || c.CompanyName || c.FullyQualifiedName || '',
+      email: c.PrimaryEmailAddr?.Address || null,
+    });
+
+    // --- Customer search mode (used by the "Choose billing customer" dialog) ---
+    if (mode === 'search-customers') {
+      const searchToken = await getValidQuickBooksToken(supabase, user.id);
+      if (!searchToken) {
+        return new Response(
+          JSON.stringify({ error: 'QuickBooks is not connected. Connect QuickBooks on the Invoices page first.' }),
+          { status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
+        );
+      }
+
+      const term = escapeQuickBooksString(String(search || '').trim());
+      const query = term
+        ? `SELECT * FROM Customer WHERE Active = true AND DisplayName LIKE '%${term}%' MAXRESULTS 25`
+        : `SELECT * FROM Customer WHERE Active = true MAXRESULTS 25`;
+
+      let customers = (await qbQuery(searchToken, query))?.QueryResponse?.Customer || [];
+
+      // Also try an email match so admins can paste an address.
+      if (term && term.includes('@')) {
+        const byEmail =
+          (await qbQuery(searchToken, `SELECT * FROM Customer WHERE PrimaryEmailAddr = '${term}'`))
+            ?.QueryResponse?.Customer || [];
+        const seen = new Set(customers.map((c: any) => c.Id));
+        customers = [...customers, ...byEmail.filter((c: any) => !seen.has(c.Id))];
+      }
+
+      return new Response(JSON.stringify({ customers: customers.map(mapCustomer) }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+
     if (!inspectionId) throw new Error('inspectionId is required');
 
     console.log('Creating inspection invoice for inspection:', inspectionId);
+
 
     // Fetch inspection with order details
     const { data: inspection, error: inspError } = await supabase
