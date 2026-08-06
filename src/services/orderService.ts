@@ -397,7 +397,20 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       country: receiverCountry,
     };
     const destinationRegion = resolveRegion(receiverRegionInput);
-    const isNorthernIreland = isNorthernIrelandAddress(receiverRegionInput);
+    const senderRegionInput = {
+      region: (sender.address as any).region,
+      state: senderState,
+      zipCode: senderZipCode,
+      country: senderCountry,
+    };
+    // Northern Ireland can be either end of the journey:
+    // outbound = mainland -> NI, inbound = NI -> mainland (ferry partner collects in NI).
+    const receiverIsNi = isNorthernIrelandAddress(receiverRegionInput);
+    const senderIsNi = isNorthernIrelandAddress(senderRegionInput);
+    const niDirection: 'outbound' | 'inbound' | null = receiverIsNi
+      ? 'outbound'
+      : (senderIsNi ? 'inbound' : null);
+    const isNorthernIreland = niDirection !== null;
 
     const { data: order, error } = await supabase
       .from("orders")
@@ -452,9 +465,11 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         box_my_bike_status: isBoxMyBike ? 'awaiting_depot' : null,
         destination_region: destinationRegion,
         is_northern_ireland: isNorthernIreland,
-        // NI bikes enter the Foam My Bike pipeline immediately
-        foam_status: isNorthernIreland ? 'pending_collection' : null,
-        foam_pending_collection_at: isNorthernIreland ? timestamp : null,
+        ni_direction: niDirection,
+        // Outbound NI bikes enter the Foam My Bike pipeline immediately.
+        // Inbound bikes arrive already packed, so there is no foam step.
+        foam_status: niDirection === 'outbound' ? 'pending_collection' : null,
+        foam_pending_collection_at: niDirection === 'outbound' ? timestamp : null,
 
         status: "created",
         created_at: timestamp,
