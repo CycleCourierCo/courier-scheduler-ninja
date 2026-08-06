@@ -48,28 +48,29 @@ export const ContactSelector = ({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          className="w-full justify-between"
+          className="w-full min-w-0 max-w-full justify-between"
           disabled={isLoading}
         >
-          <div className="flex items-center gap-2">
-            <User className="h-4 w-4 text-muted-foreground" />
+          <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+            <User className="h-4 w-4 shrink-0 text-muted-foreground" />
             {selectedContact ? (
-              <span className="truncate">
-                {selectedContact.name}
+              <span className="flex min-w-0 flex-col items-start overflow-hidden text-left">
+                <span className="w-full truncate">{selectedContact.name}</span>
                 {selectedContact.email && (
-                  <span className="text-muted-foreground ml-2">
-                    ({selectedContact.email})
+                  <span className="w-full truncate text-xs text-muted-foreground">
+                    {selectedContact.email}
                   </span>
                 )}
               </span>
             ) : (
-              <span className="text-muted-foreground">
+              <span className="min-w-0 truncate text-muted-foreground">
                 {isLoading ? "Loading contacts..." : placeholder}
               </span>
             )}
           </div>
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
+
       </PopoverTrigger>
       <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
         <Command>
