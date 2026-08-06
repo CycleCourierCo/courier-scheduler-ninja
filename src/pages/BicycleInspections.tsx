@@ -1751,7 +1751,7 @@ const BicycleInspections = () => {
           )}
 
           {canCreateInvoice && (
-            <div className="pt-2">
+            <div className="flex flex-wrap gap-2 pt-2">
               <Button
                 size="sm"
                 variant="outline"
@@ -1765,8 +1765,45 @@ const BicycleInspections = () => {
                 )}
                 Create Invoice
               </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  setSkipInvoiceDialog({ open: true, inspectionId: inspection.id, reason: "" })
+                }
+              >
+                <X className="h-4 w-4 mr-1" />
+                No invoice needed
+              </Button>
             </div>
           )}
+
+          {invoiceSkipped && (
+            <div className="flex min-w-0 flex-wrap items-center gap-2 pt-2">
+              <Badge variant="secondary" className="flex min-w-0 max-w-full items-center gap-1">
+                <X className="h-3 w-3 shrink-0" />
+                Not invoiced
+              </Badge>
+              <span className="min-w-0 text-xs text-muted-foreground break-words">
+                {inspection.invoice_skip_reason || "No reason given"}
+                {inspection.invoice_skipped_by_name
+                  ? ` — ${inspection.invoice_skipped_by_name}`
+                  : ""}
+              </span>
+              {isAdmin && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => clearSkipMutation.mutate(inspection.id)}
+                  disabled={clearSkipMutation.isPending}
+                >
+                  <RotateCcw className="h-4 w-4 mr-1" />
+                  Make invoiceable again
+                </Button>
+              )}
+            </div>
+          )}
+
         </CardContent>
       </Card>
     );
