@@ -1,3 +1,4 @@
+import { isOutboundNi } from "@/utils/niDelivery";
 
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -175,7 +176,7 @@ const TrackingPage = () => {
                   </div>
                   
                   {/* Scheduled Dates Section */}
-                  {(order.scheduledPickupDate || (order.scheduledDeliveryDate && !order.isNorthernIreland)) && (
+                  {(order.scheduledPickupDate || (order.scheduledDeliveryDate && !isOutboundNi(order))) && (
                     <div className="border-t pt-4 min-w-0">
                       <h3 className="text-sm font-medium mb-3 flex items-center">
                         <Calendar className="mr-2 h-4 w-4 text-courier-500 shrink-0" />
@@ -215,7 +216,7 @@ const TrackingPage = () => {
                        </div>
                      )}
                      
-                     {order.isNorthernIreland ? (
+                     {isOutboundNi(order) ? (
                        <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4 min-w-0 overflow-hidden">
                          <p className="text-sm font-medium text-green-900 mb-2">Delivery Date</p>
                          <p className="text-xs sm:text-sm text-green-700 leading-tight break-words">
