@@ -60,6 +60,8 @@ import {
   adminSetInspectionStatus,
   updateInspectionBikeType,
   setInspectionCleaningTask,
+  markInvoiceNotNeeded,
+  clearInvoiceSkip,
 } from "@/services/inspectionService";
 import { InspectionIssue, InspectionStatus } from "@/types/inspection";
 import { hasRole } from "@/lib/roles";
@@ -107,6 +109,11 @@ const BicycleInspections = () => {
   const canManageInspections = isAdmin || isMechanic;
 
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
+  const [skipInvoiceDialog, setSkipInvoiceDialog] = useState<{
+    open: boolean;
+    inspectionId: string | null;
+    reason: string;
+  }>({ open: false, inspectionId: null, reason: "" });
   const [billingDialogState, setBillingDialogState] = useState<{
     open: boolean;
     inspectionId: string | null;
@@ -611,6 +618,36 @@ const BicycleInspections = () => {
     },
   });
 
+  // Mark a job as deliberately not invoiced
+  const skipInvoiceMutation = useMutation({
+    mutationFn: async (vars: { inspectionId: string; reason: string }) =>
+      markInvoiceNotNeeded(vars.inspectionId, vars.reason, {
+        id: user?.id,
+        name: (userProfile as any)?.name || user?.email || null,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      setSkipInvoiceDialog({ open: false, inspectionId: null, reason: "" });
+      toast.success("Marked as no invoice needed");
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to update invoicing status");
+    },
+  });
+
+  const clearSkipMutation = useMutation({
+    mutationFn: async (inspectionId: string) => clearInvoiceSkip(inspectionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Job is invoiceable again");
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to update invoicing status");
+    },
+  });
+
+
+
 
   const handleOpenIssueDialog = (orderId: string) => {
     setSelectedOrderId(orderId);
@@ -843,7 +880,14 @@ const BicycleInspections = () => {
   const withIssues = filteredInspections.filter((i: any) => i.inspection?.status === "issues_found");
   const awaitingParts = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_parts");
   const awaitingRepair = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_repair" || i.inspection?.status === "in_repair" || i.inspection?.status === "cleaning");
-  const inspectedAndServiced = filteredInspections.filter((i: any) => i.inspection?.status === "inspected" || i.inspection?.status === "repaired");
+  const isBillingSettled = (i: any) =>
+    !!i.inspection?.invoice_number || !!i.inspection?.invoice_skipped_at;
+  const inspectedAndServiced = filteredInspections.filter(
+    (i: any) =>
+      (i.inspection?.status === "inspected" || i.inspection?.status === "repaired") &&
+      !isBillingSettled(i)
+  );
+  const invoicedList = filteredInspections.filter(isBillingSettled);
 
   const renderInspectionCard = (order: any) => {
     const inspection = order.inspection;
@@ -854,8 +898,9 @@ const BicycleInspections = () => {
     const badgeConfig = getInspectionBadge(inspection?.status);
     const allApprovedRepaired = checkAllApprovedRepaired(orderIssues);
     const hasInvoice = !!inspection?.invoice_number;
+    const invoiceSkipped = !!inspection?.invoice_skipped_at;
     const totalForInvoice = approvedIssues.reduce((sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0), 0);
-    const canCreateInvoice = isAdmin && (inspection?.status === "repaired" || inspection?.status === "inspected") && approvedIssues.length > 0 && !hasInvoice && totalForInvoice > 0;
+    const canCreateInvoice = isAdmin && (inspection?.status === "repaired" || inspection?.status === "inspected") && approvedIssues.length > 0 && !hasInvoice && !invoiceSkipped && totalForInvoice > 0;
     const isAwaitingPricing = inspection?.status === "awaiting_pricing";
     const isAwaitingParts = inspection?.status === "awaiting_parts";
     const isAwaitingRepair = inspection?.status === "awaiting_repair" || inspection?.status === "in_repair" || inspection?.status === "cleaning";
@@ -1706,7 +1751,7 @@ const BicycleInspections = () => {
           )}
 
           {canCreateInvoice && (
-            <div className="pt-2">
+            <div className="flex flex-wrap gap-2 pt-2">
               <Button
                 size="sm"
                 variant="outline"
@@ -1720,8 +1765,45 @@ const BicycleInspections = () => {
                 )}
                 Create Invoice
               </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  setSkipInvoiceDialog({ open: true, inspectionId: inspection.id, reason: "" })
+                }
+              >
+                <X className="h-4 w-4 mr-1" />
+                No invoice needed
+              </Button>
             </div>
           )}
+
+          {invoiceSkipped && (
+            <div className="flex min-w-0 flex-wrap items-center gap-2 pt-2">
+              <Badge variant="secondary" className="flex min-w-0 max-w-full items-center gap-1">
+                <X className="h-3 w-3 shrink-0" />
+                Not invoiced
+              </Badge>
+              <span className="min-w-0 text-xs text-muted-foreground break-words">
+                {inspection.invoice_skip_reason || "No reason given"}
+                {inspection.invoice_skipped_by_name
+                  ? ` — ${inspection.invoice_skipped_by_name}`
+                  : ""}
+              </span>
+              {isAdmin && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => clearSkipMutation.mutate(inspection.id)}
+                  disabled={clearSkipMutation.isPending}
+                >
+                  <RotateCcw className="h-4 w-4 mr-1" />
+                  Make invoiceable again
+                </Button>
+              )}
+            </div>
+          )}
+
         </CardContent>
       </Card>
     );
@@ -1842,6 +1924,14 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
+              {canManageInspections && (
+                <TabsTrigger value="invoiced" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
+                  Invoiced
+                  {invoicedList.length > 0 && (
+                    <Badge variant="secondary" className="ml-1">{invoicedList.length}</Badge>
+                  )}
+                </TabsTrigger>
+              )}
               <TabsTrigger value="schedule" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Schedule
               </TabsTrigger>
@@ -1913,6 +2003,18 @@ const BicycleInspections = () => {
                 inspectedAndServiced.map(renderInspectionCard)
               )}
             </TabsContent>
+
+            {canManageInspections && (
+              <TabsContent value="invoiced" className="space-y-4">
+                {invoicedList.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">
+                    No invoiced jobs yet
+                  </p>
+                ) : (
+                  invoicedList.map(renderInspectionCard)
+                )}
+              </TabsContent>
+            )}
 
             <TabsContent value="schedule" className="space-y-4">
               <WorkshopScheduleTab canManage={isAdmin} />
@@ -2103,6 +2205,55 @@ const BicycleInspections = () => {
                   <CheckCircle className="h-4 w-4 mr-1" />
                 )}
                 {hasIssues ? `Submit ${allChecklistIssues.length} Issue${allChecklistIssues.length !== 1 ? 's' : ''}` : 'Complete - No Issues'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={skipInvoiceDialog.open}
+          onOpenChange={(open) => setSkipInvoiceDialog((prev) => ({ ...prev, open }))}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>No invoice needed</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="skip-invoice-reason" className="text-xs">
+                Reason (optional)
+              </Label>
+              <Textarea
+                id="skip-invoice-reason"
+                placeholder="e.g. goodwill, covered under warranty, internal bike"
+                value={skipInvoiceDialog.reason}
+                onChange={(e) =>
+                  setSkipInvoiceDialog((prev) => ({ ...prev, reason: e.target.value }))
+                }
+              />
+            </div>
+            <DialogFooter className="flex-col gap-2 sm:flex-row">
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => setSkipInvoiceDialog({ open: false, inspectionId: null, reason: "" })}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="w-full sm:w-auto"
+                disabled={skipInvoiceMutation.isPending || !skipInvoiceDialog.inspectionId}
+                onClick={() =>
+                  skipInvoiceDialog.inspectionId &&
+                  skipInvoiceMutation.mutate({
+                    inspectionId: skipInvoiceDialog.inspectionId,
+                    reason: skipInvoiceDialog.reason,
+                  })
+                }
+              >
+                {skipInvoiceMutation.isPending && (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                )}
+                Mark as not invoiced
               </Button>
             </DialogFooter>
           </DialogContent>

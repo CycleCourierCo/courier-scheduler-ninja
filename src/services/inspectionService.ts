@@ -794,6 +794,46 @@ export const unmarkPartsArrived = async (issueId: string): Promise<InspectionIss
   }
 };
 
+// Mark an inspection as deliberately not invoiced (admin decision)
+export const markInvoiceNotNeeded = async (
+  inspectionId: string,
+  reason: string | null,
+  markedBy: { id?: string | null; name?: string | null }
+) => {
+  const { data, error } = await supabase
+    .from('bicycle_inspections')
+    .update({
+      invoice_skipped_at: new Date().toISOString(),
+      invoice_skipped_by_id: markedBy?.id || null,
+      invoice_skipped_by_name: markedBy?.name || null,
+      invoice_skip_reason: reason?.trim() || null,
+    })
+    .eq('id', inspectionId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
+// Undo the "no invoice needed" decision so the job becomes invoiceable again
+export const clearInvoiceSkip = async (inspectionId: string) => {
+  const { data, error } = await supabase
+    .from('bicycle_inspections')
+    .update({
+      invoice_skipped_at: null,
+      invoice_skipped_by_id: null,
+      invoice_skipped_by_name: null,
+      invoice_skip_reason: null,
+    })
+    .eq('id', inspectionId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
 // Move to "Awaiting Repair" status (legacy alias kept for invoice/reuse callers)
 export const moveToInRepair = async (inspectionId: string): Promise<BicycleInspection | null> => {
   try {
