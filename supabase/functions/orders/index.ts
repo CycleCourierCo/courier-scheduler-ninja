@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { corsHeaders } from '../_shared/cors.ts'
 import { initSentry, captureException, startSpan } from '../_shared/sentry.ts'
-import { isNorthernIrelandAddress, resolveNiDirection } from '../_shared/northernIreland.ts'
+import { resolveNiDirection } from '../_shared/northernIreland.ts'
 
 // Bike type numeric ID mapping
 const BIKE_TYPE_BY_ID: Record<number, string> = {
