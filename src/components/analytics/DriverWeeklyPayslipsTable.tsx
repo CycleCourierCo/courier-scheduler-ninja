@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -52,8 +52,8 @@ const DriverWeeklyPayslipsTable = ({ weeks }: Props) => {
               </TableHeader>
               <TableBody>
                 {weeks.map((w) => (
-                  <>
-                    <TableRow key={w.week} className="cursor-pointer" onClick={() => setOpen((o) => ({ ...o, [w.week]: !o[w.week] }))}>
+                  <Fragment key={w.week}>
+                    <TableRow className="cursor-pointer" onClick={() => setOpen((o) => ({ ...o, [w.week]: !o[w.week] }))}>
                       <TableCell className="font-medium whitespace-nowrap">
                         <Button variant="ghost" size="sm" className="h-6 w-6 p-0 mr-1">
                           {open[w.week] ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -83,7 +83,7 @@ const DriverWeeklyPayslipsTable = ({ weeks }: Props) => {
                             <TableCell className="text-right text-xs">£{Math.round(Number(r.total_pay || 0))}</TableCell>
                           </TableRow>
                         ))}
-                  </>
+                  </Fragment>
                 ))}
                 <TableRow className="font-semibold">
                   <TableCell>Total</TableCell>
