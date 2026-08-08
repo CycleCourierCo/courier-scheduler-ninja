@@ -29,7 +29,7 @@ import { z } from "zod";
 import { format, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { countJobsForOrders } from "@/utils/jobUtils";
-import { getLegContact, getFoamBadge, resolveStopCoords, isNiOrder } from "@/utils/niDelivery";
+import { getLegContact, getFoamBadge, resolveStopCoords, isFerryLeg } from "@/utils/niDelivery";
 import { parseCSV, matchCSVToOrders, MatchResult, analyzeRouteViability, RouteAnalysis } from "@/utils/csvRouteParser";
 import { createShipdayOrder } from "@/services/shipdayService";
 import { getRevenueForRouteStops, clearSpecialRatePriceCache } from "@/services/profitabilityService";
@@ -1074,15 +1074,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         const pickupVisible = pickupBaseVisible || pickupExpiredVisible;
 
         if (pickupVisible) {
+          // Inbound Northern Ireland collections happen at the ferry hand-off, not the NI address
+          const origin = getLegContact(order, 'pickup');
           jobs.push({
             orderId: order.id,
             type: 'pickup',
-            address: formatAddress(order.sender.address),
-            contactName: order.sender.name,
-            phoneNumber: order.sender.phone,
+            address: formatAddress(origin.address),
+            contactName: origin.name,
+            phoneNumber: origin.phone,
             order,
-            lat: order.sender.address.lat,
-            lon: order.sender.address.lon
+            lat: origin.lat,
+            lon: origin.lon
           });
         }
       }
@@ -1131,10 +1133,10 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       // Validate coordinates
       coordinateSchema.parse({ lat, lon });
 
-      // NI deliveries are driven to the ferry hand-off — never override with customer coords
+      // NI ferry legs are driven to the hand-off point — never override with customer coords
       const targetOrder = orderList.find(o => o.id === orderId);
-      if (type === 'delivery' && targetOrder && isNiOrder(targetOrder)) {
-        toast.info('This is a Northern Ireland delivery — the stop always uses the ferry hand-off location.');
+      if (targetOrder && isFerryLeg(targetOrder, type)) {
+        toast.info('This is a Northern Ireland job — the stop always uses the ferry hand-off location.');
         return;
       }
 
@@ -1569,7 +1571,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     if (job.type === 'break') return null;
     // Northern Ireland delivery legs all hand off to the same ferry contact,
     // so they share a single key and bundle into one multi-job stop.
-    if (job.type === 'delivery' && isNiOrder(job.orderData)) {
+    if (isFerryLeg(job.orderData, job.type)) {
       return 'ni-ferry-handoff';
     }
     const contact: any = job.type === 'pickup'
@@ -1669,7 +1671,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     // Fetch latest order data from Supabase
     const { data: freshOrders, error } = await supabase
       .from('orders')
-      .select('id, sender, receiver, is_northern_ireland, foam_status, scheduled_pickup_date, scheduled_delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, pickup_date, delivery_date, status')
+      .select('id, sender, receiver, is_northern_ireland, ni_direction, foam_status, scheduled_pickup_date, scheduled_delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, pickup_date, delivery_date, status')
       .in('id', orderIds);
 
     if (error) {
@@ -1704,6 +1706,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         orderData: job.orderData ? {
           ...job.orderData,
           is_northern_ireland: freshOrder.is_northern_ireland ?? (job.orderData as any).is_northern_ireland,
+          ni_direction: (freshOrder as any).ni_direction ?? (job.orderData as any).ni_direction,
           foam_status: freshOrder.foam_status ?? (job.orderData as any).foam_status,
           scheduled_pickup_date: freshOrder.scheduled_pickup_date ?? job.orderData.scheduled_pickup_date,
           scheduled_delivery_date: freshOrder.scheduled_delivery_date ?? job.orderData.scheduled_delivery_date,

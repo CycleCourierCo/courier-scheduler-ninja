@@ -68,6 +68,7 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     boxDeliveredBy3pAt: dbOrder.box_delivered_by_3p_at ? parseDate(dbOrder.box_delivered_by_3p_at) : null,
     destinationRegion: dbOrder.destination_region || null,
     isNorthernIreland: dbOrder.is_northern_ireland || false,
+    niDirection: dbOrder.ni_direction || null,
     foamStatus: dbOrder.foam_status || null,
     foamPendingCollectionAt: dbOrder.foam_pending_collection_at ? parseDate(dbOrder.foam_pending_collection_at) : null,
     foamPendingFoamingAt: dbOrder.foam_pending_foaming_at ? parseDate(dbOrder.foam_pending_foaming_at) : null,

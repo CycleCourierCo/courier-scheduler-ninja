@@ -118,6 +118,8 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
         .from("orders")
         .select("id, tracking_number, status, foam_status, foam_delivery_photos, foam_label_url, foam_tracking_url, sender, receiver, bike_brand, bike_model, user_id, created_at, storage_locations, needs_inspection")
         .eq("is_northern_ireland", true)
+        // Inbound NI bikes arrive already packed — the foam pipeline is outbound only
+        .or("ni_direction.is.null,ni_direction.eq.outbound")
         .neq("status", "cancelled")
         .order("created_at", { ascending: false });
       if (!isStaff && userId) q = q.eq("user_id", userId);

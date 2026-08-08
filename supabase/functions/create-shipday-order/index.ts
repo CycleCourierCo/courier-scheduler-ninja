@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { corsHeaders } from "../_shared/cors.ts";
 import { initSentry, captureException } from "../_shared/sentry.ts";
-import { CITY_AIR_EXPRESS, isNorthernIrelandAddress, formatNiReceiverBlock } from "../_shared/northernIreland.ts";
+import { CITY_AIR_EXPRESS, isNorthernIrelandAddress, formatNiReceiverBlock, formatNiSenderBlock, niDirectionOf } from "../_shared/northernIreland.ts";
 
 
 interface OrderRequest {
@@ -153,27 +153,34 @@ serve(async (req) => {
     const sender = order.sender;
     const receiver = order.receiver;
 
-    const senderAddress = `${sender.address.street}, ${sender.address.city}, ${sender.address.state} ${sender.address.zipCode}`;
-    
-    // Northern Ireland: the delivery leg goes to City Air Express in Manchester,
-    // NOT to the customer's NI address. They handle the Irish Sea crossing.
-    const niFlag = order.is_northern_ireland === true;
+    const ferryAddress = `${CITY_AIR_EXPRESS.address.street}, ${CITY_AIR_EXPRESS.address.city}, ${CITY_AIR_EXPRESS.address.state} ${CITY_AIR_EXPRESS.address.zipCode}`;
+
+    // Northern Ireland legs are always driven to/from the ferry hand-off in Manchester,
+    // never to the Northern Irish address.
+    //  - outbound (receiver in NI): the DELIVERY leg goes to the hand-off point
+    //  - inbound (sender in NI): the PICKUP leg is collected from the hand-off point
+    const niDirection = niDirectionOf(order);
     const niByPostcode = isNorthernIrelandAddress(receiver?.address);
-    const isNI = typeof forceNorthernIreland === "boolean"
-      ? forceNorthernIreland
-      : (niFlag || niByPostcode);
+    const forcedNi = typeof forceNorthernIreland === "boolean" ? forceNorthernIreland : null;
+    const isNI = forcedNi !== null ? forcedNi : (niDirection !== null || niByPostcode);
+    const isInboundNI = isNI && (forcedNi === true ? niDirection === "inbound" : niDirection === "inbound");
+    const isOutboundNI = isNI && !isInboundNI;
 
     console.log("NI routing decision:", JSON.stringify({
       isNI,
-      source: typeof forceNorthernIreland === "boolean" ? "request_override" : (niFlag ? "order_flag" : (niByPostcode ? "postcode" : "none")),
-      orderFlag: niFlag,
-      postcodeMatch: niByPostcode,
+      direction: isInboundNI ? "inbound" : (isOutboundNI ? "outbound" : "none"),
+      source: forcedNi !== null ? "request_override" : (niDirection ? "order_direction" : (niByPostcode ? "postcode" : "none")),
     }));
 
-    const receiverAddress = isNI
-      ? `${CITY_AIR_EXPRESS.address.street}, ${CITY_AIR_EXPRESS.address.city}, ${CITY_AIR_EXPRESS.address.state} ${CITY_AIR_EXPRESS.address.zipCode}`
+    const senderAddress = isInboundNI
+      ? ferryAddress
+      : `${sender.address.street}, ${sender.address.city}, ${sender.address.state} ${sender.address.zipCode}`;
+
+    const receiverAddress = isOutboundNI
+      ? ferryAddress
       : `${receiver.address.street}, ${receiver.address.city}, ${receiver.address.state} ${receiver.address.zipCode}`;
 
+    console.log("Pickup leg target address:", senderAddress);
     console.log("Delivery leg target address:", receiverAddress);
 
 
@@ -253,6 +260,8 @@ serve(async (req) => {
     const senderNotes = order.sender_notes || '';
     const pickupInstructions = [
       ...orderDetails,
+      isInboundNI ? 'NORTHERN IRELAND (inbound) — collect from the ferry hand-off point' : '',
+      isInboundNI ? formatNiSenderBlock(sender, order.tracking_number) : '',
       baseDeliveryInstructions,
       senderNotes
     ].filter(Boolean).join(' | ');
@@ -260,8 +269,8 @@ serve(async (req) => {
     const receiverNotes = order.receiver_notes || '';
     const deliveryInstructions = [
       ...orderDetails,
-      isNI ? 'NORTHERN IRELAND — hand over to City Air Express' : '',
-      isNI ? formatNiReceiverBlock(receiver, order.tracking_number) : '',
+      isOutboundNI ? 'NORTHERN IRELAND — hand over at the ferry hand-off point' : '',
+      isOutboundNI ? formatNiReceiverBlock(receiver, order.tracking_number) : '',
       baseDeliveryInstructions,
       receiverNotes
     ].filter(Boolean).join(' | ');
@@ -272,9 +281,9 @@ serve(async (req) => {
     // Create pickup order with correct timeslot window
     const pickupOrderData: OrderRequest = {
       orderNumber: `${orderReference}-PICKUP`,
-      customerName: sender.name,
-      customerPhoneNumber: sender.phone,
-      customerEmail: sender.email || undefined,
+      customerName: isInboundNI ? CITY_AIR_EXPRESS.name : sender.name,
+      customerPhoneNumber: isInboundNI ? CITY_AIR_EXPRESS.phone : sender.phone,
+      customerEmail: (isInboundNI ? CITY_AIR_EXPRESS.email : sender.email) || undefined,
       customerAddress: senderAddress,
       restaurantName: "Cycle Courier Co.",
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
@@ -289,9 +298,9 @@ serve(async (req) => {
     // Create delivery order with correct timeslot window
     const deliveryOrderData: OrderRequest = {
       orderNumber: `${orderReference}-DELIVERY`,
-      customerName: isNI ? CITY_AIR_EXPRESS.name : receiver.name,
-      customerPhoneNumber: isNI ? CITY_AIR_EXPRESS.phone : receiver.phone,
-      customerEmail: (isNI ? CITY_AIR_EXPRESS.email : receiver.email) || undefined,
+      customerName: isOutboundNI ? CITY_AIR_EXPRESS.name : receiver.name,
+      customerPhoneNumber: isOutboundNI ? CITY_AIR_EXPRESS.phone : receiver.phone,
+      customerEmail: (isOutboundNI ? CITY_AIR_EXPRESS.email : receiver.email) || undefined,
       customerAddress: receiverAddress,
 
       restaurantName: "Cycle Courier Co.",

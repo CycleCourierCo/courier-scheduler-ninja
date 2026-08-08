@@ -103,6 +103,10 @@ export type Database = {
           inspected_by_name: string | null
           invoice_id: string | null
           invoice_number: string | null
+          invoice_skip_reason: string | null
+          invoice_skipped_at: string | null
+          invoice_skipped_by_id: string | null
+          invoice_skipped_by_name: string | null
           invoice_url: string | null
           notes: string | null
           order_id: string
@@ -132,6 +136,10 @@ export type Database = {
           inspected_by_name?: string | null
           invoice_id?: string | null
           invoice_number?: string | null
+          invoice_skip_reason?: string | null
+          invoice_skipped_at?: string | null
+          invoice_skipped_by_id?: string | null
+          invoice_skipped_by_name?: string | null
           invoice_url?: string | null
           notes?: string | null
           order_id: string
@@ -161,6 +169,10 @@ export type Database = {
           inspected_by_name?: string | null
           invoice_id?: string | null
           invoice_number?: string | null
+          invoice_skip_reason?: string | null
+          invoice_skipped_at?: string | null
+          invoice_skipped_by_id?: string | null
+          invoice_skipped_by_name?: string | null
           invoice_url?: string | null
           notes?: string | null
           order_id?: string
@@ -1761,6 +1773,7 @@ export type Database = {
           loaded_onto_van_at: string | null
           needs_inspection: boolean | null
           needs_payment_on_collection: boolean | null
+          ni_direction: string | null
           order_collected: boolean | null
           order_delivered: boolean | null
           payment_collection_phone: string | null
@@ -1840,6 +1853,7 @@ export type Database = {
           loaded_onto_van_at?: string | null
           needs_inspection?: boolean | null
           needs_payment_on_collection?: boolean | null
+          ni_direction?: string | null
           order_collected?: boolean | null
           order_delivered?: boolean | null
           payment_collection_phone?: string | null
@@ -1919,6 +1933,7 @@ export type Database = {
           loaded_onto_van_at?: string | null
           needs_inspection?: boolean | null
           needs_payment_on_collection?: boolean | null
+          ni_direction?: string | null
           order_collected?: boolean | null
           order_delivered?: boolean | null
           payment_collection_phone?: string | null

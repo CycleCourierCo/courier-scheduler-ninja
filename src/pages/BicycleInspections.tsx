@@ -60,6 +60,8 @@ import {
   adminSetInspectionStatus,
   updateInspectionBikeType,
   setInspectionCleaningTask,
+  markInvoiceNotNeeded,
+  clearInvoiceSkip,
 } from "@/services/inspectionService";
 import { InspectionIssue, InspectionStatus } from "@/types/inspection";
 import { hasRole } from "@/lib/roles";
@@ -67,6 +69,11 @@ import { RepairPicker, type RepairPickerSelection } from "@/components/inspectio
 import { BikeCategoryPicker } from "@/components/inspections/BikeCategoryPicker";
 import WorkshopScheduleTab from "@/components/inspections/WorkshopScheduleTab";
 import { sendOrderToInspectaBike } from "@/services/inspectabikeService";
+import BillingCustomerDialog, { type QuickBooksCustomerOption } from "@/components/inspections/BillingCustomerDialog";
+import InspectionFilters, {
+  EMPTY_INSPECTION_FILTERS,
+  type InspectionFilterState,
+} from "@/components/inspections/InspectionFilters";
 
 // (workshop settings/labour pricing consumed inside RepairPicker)
 
@@ -106,6 +113,17 @@ const BicycleInspections = () => {
   const canManageInspections = isAdmin || isMechanic;
 
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
+  const [skipInvoiceDialog, setSkipInvoiceDialog] = useState<{
+    open: boolean;
+    inspectionId: string | null;
+    reason: string;
+  }>({ open: false, inspectionId: null, reason: "" });
+  const [billingDialogState, setBillingDialogState] = useState<{
+    open: boolean;
+    inspectionId: string | null;
+    suggestions: QuickBooksCustomerOption[];
+    triedEmails: string[];
+  }>({ open: false, inspectionId: null, suggestions: [], triedEmails: [] });
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [issueCount, setIssueCount] = useState(1);
   const [issues, setIssues] = useState<IssueEntry[]>([{ ...EMPTY_ISSUE }]);
@@ -121,6 +139,8 @@ const BicycleInspections = () => {
   const [customerResponses, setCustomerResponses] = useState<Record<string, string>>({});
   const [sortBy, setSortBy] = useState<"oldest_collected" | "newest_collected" | "tracking_asc">("oldest_collected");
   const [searchQuery, setSearchQuery] = useState("");
+  const [filters, setFilters] = useState<InspectionFilterState>({ ...EMPTY_INSPECTION_FILTERS });
+
   
   // Inspection checklist dialog state
   const [inspectionChecklistOpen, setInspectionChecklistOpen] = useState(false);
@@ -557,23 +577,83 @@ const BicycleInspections = () => {
 
   // Create inspection invoice mutation
   const createInvoiceMutation = useMutation({
-    mutationFn: async (inspectionId: string) => {
+    mutationFn: async (vars: {
+      inspectionId: string;
+      quickbooksCustomerId?: string;
+      billingEmailOverride?: string;
+    }) => {
       const { data, error } = await supabase.functions.invoke('create-inspection-invoice', {
-        body: { inspectionId },
+        body: vars,
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (error) {
+        // Non-2xx: read the structured payload so we can react to a failed match.
+        let payload: any = null;
+        try {
+          payload = await (error as any)?.context?.json?.();
+        } catch {
+          payload = null;
+        }
+        if (payload?.error === 'customer_not_matched') {
+          const err: any = new Error(payload.message || 'Choose the billing customer to continue.');
+          err.customerNotMatched = payload;
+          throw err;
+        }
+        throw new Error(payload?.message || payload?.error || error.message || 'Failed to create invoice');
+      }
+      if (data?.error) throw new Error(data.message || data.error);
       return data;
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      setBillingDialogState({ open: false, inspectionId: null, suggestions: [], triedEmails: [] });
       toast.success(`Invoice ${data.invoiceNumber} created successfully`);
     },
-    onError: (error: any) => {
+    onError: (error: any, vars) => {
+      if (error?.customerNotMatched) {
+        setBillingDialogState({
+          open: true,
+          inspectionId: vars.inspectionId,
+          suggestions: error.customerNotMatched.suggestions || [],
+          triedEmails: error.customerNotMatched.triedEmails || [],
+        });
+        toast.info(error.message);
+        return;
+      }
       toast.error(error.message || "Failed to create invoice");
       console.error(error);
     },
   });
+
+  // Mark a job as deliberately not invoiced
+  const skipInvoiceMutation = useMutation({
+    mutationFn: async (vars: { inspectionId: string; reason: string }) =>
+      markInvoiceNotNeeded(vars.inspectionId, vars.reason, {
+        id: user?.id,
+        name: (userProfile as any)?.name || user?.email || null,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      setSkipInvoiceDialog({ open: false, inspectionId: null, reason: "" });
+      toast.success("Marked as no invoice needed");
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to update invoicing status");
+    },
+  });
+
+  const clearSkipMutation = useMutation({
+    mutationFn: async (inspectionId: string) => clearInvoiceSkip(inspectionId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Job is invoiceable again");
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to update invoicing status");
+    },
+  });
+
+
+
 
   const handleOpenIssueDialog = (orderId: string) => {
     setSelectedOrderId(orderId);
@@ -781,22 +861,135 @@ const BicycleInspections = () => {
     return arr;
   }, [inspections, sortBy, canManageInspections]);
 
-  // Apply free-text search across tracking #, customer order #, bike, sender/receiver name
+  // Reference date used by the date filter: collection date, falling back to created date
+  const getRefDate = (o: any) =>
+    o.collection_confirmation_sent_at || o.pickup_date || o.created_at || null;
+  const getRepairerNames = (o: any): string[] =>
+    (o.issues || [])
+      .filter((iss: any) => iss.status === "repaired" && iss.resolved_by_name)
+      .map((iss: any) => iss.resolved_by_name as string);
+
+  // Billing settlement: invoiced, manually skipped, or nothing to invoice
+  // (released inspection with no issues, or all repairs declined).
+  const getSettledReason = (
+    i: any
+  ): "invoiced" | "skipped" | "no_issues" | "declined" | "zero_value" | null => {
+    const inspection = i.inspection;
+    if (inspection?.invoice_number) return "invoiced";
+    if (inspection?.invoice_skipped_at) return "skipped";
+    const released = inspection?.status === "inspected" || inspection?.status === "repaired";
+    if (!released) return null;
+    const issues = i.issues || [];
+    if (issues.length === 0) return "no_issues";
+    const billable = issues.filter(
+      (iss: any) => iss.status !== "declined" && iss.status !== "cancelled"
+    );
+    if (billable.length === 0) return "declined";
+    if (i.repairs_declined_at) return "declined";
+    const total = billable.reduce((sum: number, iss: any) => {
+      const parts = Number(iss.parts_cost ?? 0) || 0;
+      const labour = Number(iss.labour_cost ?? 0) || 0;
+      const split = parts + labour;
+      const value = split > 0 ? split : Number(iss.estimated_cost ?? 0) || 0;
+      return sum + value;
+    }, 0);
+    if (Math.round(total * 100) === 0) return "zero_value";
+    return null;
+  };
+
+  const isBillingSettled = (i: any) => getSettledReason(i) !== null;
+
+  const filterOptions = useMemo(() => {
+    const uniq = (arr: (string | null | undefined)[]) =>
+      Array.from(new Set(arr.filter((v): v is string => !!v && v.trim().length > 0))).sort((a, b) =>
+        a.localeCompare(b)
+      );
+    return {
+      customers: uniq(inspections.map((o: any) => o.booking_customer_name)),
+      inspectors: uniq(inspections.map((o: any) => o.inspection?.inspected_by_name)),
+      repairers: uniq(inspections.flatMap((o: any) => getRepairerNames(o))),
+      bikeTypes: uniq(inspections.map((o: any) => o.inspection?.bike_type)),
+    };
+  }, [inspections]);
+
+  // Apply free-text search plus the filter bar selections
   const filteredInspections = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return sortedInspections;
+
+    let fromDate: Date | null = null;
+    let toDate: Date | null = null;
+    const now = new Date();
+    if (filters.datePreset === "7d") {
+      fromDate = new Date(now.getTime() - 7 * 86400000);
+    } else if (filters.datePreset === "30d") {
+      fromDate = new Date(now.getTime() - 30 * 86400000);
+    } else if (filters.datePreset === "month") {
+      fromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (filters.datePreset === "custom") {
+      if (filters.from) fromDate = new Date(new Date(filters.from).setHours(0, 0, 0, 0));
+      if (filters.to) toDate = new Date(new Date(filters.to).setHours(23, 59, 59, 999));
+    }
+
+    let bookedFromDate: Date | null = null;
+    let bookedToDate: Date | null = null;
+    if (filters.bookedPreset === "7d") {
+      bookedFromDate = new Date(now.getTime() - 7 * 86400000);
+    } else if (filters.bookedPreset === "30d") {
+      bookedFromDate = new Date(now.getTime() - 30 * 86400000);
+    } else if (filters.bookedPreset === "month") {
+      bookedFromDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    } else if (filters.bookedPreset === "custom") {
+      if (filters.bookedFrom) bookedFromDate = new Date(new Date(filters.bookedFrom).setHours(0, 0, 0, 0));
+      if (filters.bookedTo) bookedToDate = new Date(new Date(filters.bookedTo).setHours(23, 59, 59, 999));
+    }
+
     return sortedInspections.filter((o: any) => {
-      const haystack = [
-        o.tracking_number,
-        o.customer_order_number,
-        o.bike_brand,
-        o.bike_model,
-        (o.sender as any)?.name,
-        (o.receiver as any)?.name,
-      ].filter(Boolean).join(" ").toLowerCase();
-      return haystack.includes(q);
+      if (q) {
+        const haystack = [
+          o.tracking_number,
+          o.customer_order_number,
+          o.bike_brand,
+          o.bike_model,
+          (o.sender as any)?.name,
+          (o.receiver as any)?.name,
+          o.booking_customer_name,
+        ].filter(Boolean).join(" ").toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+
+      if (fromDate || toDate) {
+        const ref = getRefDate(o);
+        if (!ref) return false;
+        const t = new Date(ref).getTime();
+        if (fromDate && t < fromDate.getTime()) return false;
+        if (toDate && t > toDate.getTime()) return false;
+      }
+
+      if (bookedFromDate || bookedToDate) {
+        if (!o.created_at) return false;
+        const t = new Date(o.created_at).getTime();
+        if (bookedFromDate && t < bookedFromDate.getTime()) return false;
+        if (bookedToDate && t > bookedToDate.getTime()) return false;
+      }
+
+
+      if (filters.customer !== "all" && o.booking_customer_name !== filters.customer) return false;
+      if (filters.inspector !== "all" && o.inspection?.inspected_by_name !== filters.inspector) return false;
+      if (filters.repairer !== "all" && !getRepairerNames(o).includes(filters.repairer)) return false;
+      if (filters.bikeType !== "all" && o.inspection?.bike_type !== filters.bikeType) return false;
+
+      if (filters.billing !== "all") {
+        const invoiced = !!o.inspection?.invoice_number;
+        const skipped = !!o.inspection?.invoice_skipped_at;
+        if (filters.billing === "invoiced" && !invoiced) return false;
+        if (filters.billing === "skipped" && !skipped) return false;
+        if (filters.billing === "unsettled" && isBillingSettled(o)) return false;
+      }
+
+      return true;
     });
-  }, [sortedInspections, searchQuery]);
+  }, [sortedInspections, searchQuery, filters]);
+
 
   // Filter inspections by status
   const awaitingBase = filteredInspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
@@ -806,7 +999,12 @@ const BicycleInspections = () => {
   const withIssues = filteredInspections.filter((i: any) => i.inspection?.status === "issues_found");
   const awaitingParts = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_parts");
   const awaitingRepair = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_repair" || i.inspection?.status === "in_repair" || i.inspection?.status === "cleaning");
-  const inspectedAndServiced = filteredInspections.filter((i: any) => i.inspection?.status === "inspected" || i.inspection?.status === "repaired");
+  const inspectedAndServiced = filteredInspections.filter(
+    (i: any) =>
+      (i.inspection?.status === "inspected" || i.inspection?.status === "repaired") &&
+      !isBillingSettled(i)
+  );
+  const invoicedList = filteredInspections.filter(isBillingSettled);
 
   const renderInspectionCard = (order: any) => {
     const inspection = order.inspection;
@@ -817,8 +1015,9 @@ const BicycleInspections = () => {
     const badgeConfig = getInspectionBadge(inspection?.status);
     const allApprovedRepaired = checkAllApprovedRepaired(orderIssues);
     const hasInvoice = !!inspection?.invoice_number;
+    const invoiceSkipped = !!inspection?.invoice_skipped_at;
     const totalForInvoice = approvedIssues.reduce((sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0), 0);
-    const canCreateInvoice = isAdmin && (inspection?.status === "repaired" || inspection?.status === "inspected") && approvedIssues.length > 0 && !hasInvoice && totalForInvoice > 0;
+    const canCreateInvoice = isAdmin && (inspection?.status === "repaired" || inspection?.status === "inspected") && approvedIssues.length > 0 && !hasInvoice && !invoiceSkipped && totalForInvoice > 0;
     const isAwaitingPricing = inspection?.status === "awaiting_pricing";
     const isAwaitingParts = inspection?.status === "awaiting_parts";
     const isAwaitingRepair = inspection?.status === "awaiting_repair" || inspection?.status === "in_repair" || inspection?.status === "cleaning";
@@ -1669,11 +1868,11 @@ const BicycleInspections = () => {
           )}
 
           {canCreateInvoice && (
-            <div className="pt-2">
+            <div className="flex flex-wrap gap-2 pt-2">
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => createInvoiceMutation.mutate(inspection.id)}
+                onClick={() => createInvoiceMutation.mutate({ inspectionId: inspection.id })}
                 disabled={createInvoiceMutation.isPending}
               >
                 {createInvoiceMutation.isPending ? (
@@ -1683,8 +1882,67 @@ const BicycleInspections = () => {
                 )}
                 Create Invoice
               </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() =>
+                  setSkipInvoiceDialog({ open: true, inspectionId: inspection.id, reason: "" })
+                }
+              >
+                <X className="h-4 w-4 mr-1" />
+                No invoice needed
+              </Button>
             </div>
           )}
+
+          {(() => {
+            const reason = getSettledReason(order);
+            if (reason !== "no_issues" && reason !== "declined" && reason !== "zero_value")
+              return null;
+            return (
+              <div className="flex min-w-0 flex-wrap items-center gap-2 pt-2">
+                <Badge variant="secondary" className="flex min-w-0 max-w-full items-center gap-1">
+                  <X className="h-3 w-3 shrink-0" />
+                  {reason === "no_issues"
+                    ? "No issues"
+                    : reason === "declined"
+                      ? "Repairs declined"
+                      : "£0 — nothing to bill"}
+                </Badge>
+
+                <span className="min-w-0 text-xs text-muted-foreground break-words">
+                  Nothing to invoice
+                </span>
+              </div>
+            );
+          })()}
+
+          {invoiceSkipped && (
+            <div className="flex min-w-0 flex-wrap items-center gap-2 pt-2">
+              <Badge variant="secondary" className="flex min-w-0 max-w-full items-center gap-1">
+                <X className="h-3 w-3 shrink-0" />
+                Not invoiced
+              </Badge>
+              <span className="min-w-0 text-xs text-muted-foreground break-words">
+                {inspection.invoice_skip_reason || "No reason given"}
+                {inspection.invoice_skipped_by_name
+                  ? ` — ${inspection.invoice_skipped_by_name}`
+                  : ""}
+              </span>
+              {isAdmin && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => clearSkipMutation.mutate(inspection.id)}
+                  disabled={clearSkipMutation.isPending}
+                >
+                  <RotateCcw className="h-4 w-4 mr-1" />
+                  Make invoiceable again
+                </Button>
+              )}
+            </div>
+          )}
+
         </CardContent>
       </Card>
     );
@@ -1751,6 +2009,14 @@ const BicycleInspections = () => {
                 </div>
               )}
             </div>
+            {canManageInspections && (
+              <InspectionFilters
+                filters={filters}
+                onChange={setFilters}
+                options={filterOptions}
+                showBilling={isAdmin}
+              />
+            )}
             <div className="w-full">
             <TabsList className="grid w-full grid-cols-1 gap-1 h-auto sm:flex sm:flex-wrap">
               <TabsTrigger value="awaiting" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
@@ -1805,6 +2071,14 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
+              {canManageInspections && (
+                <TabsTrigger value="invoiced" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
+                  Invoiced
+                  {invoicedList.length > 0 && (
+                    <Badge variant="secondary" className="ml-1">{invoicedList.length}</Badge>
+                  )}
+                </TabsTrigger>
+              )}
               <TabsTrigger value="schedule" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Schedule
               </TabsTrigger>
@@ -1876,6 +2150,18 @@ const BicycleInspections = () => {
                 inspectedAndServiced.map(renderInspectionCard)
               )}
             </TabsContent>
+
+            {canManageInspections && (
+              <TabsContent value="invoiced" className="space-y-4">
+                {invoicedList.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">
+                    No invoiced jobs yet
+                  </p>
+                ) : (
+                  invoicedList.map(renderInspectionCard)
+                )}
+              </TabsContent>
+            )}
 
             <TabsContent value="schedule" className="space-y-4">
               <WorkshopScheduleTab canManage={isAdmin} />
@@ -2070,9 +2356,77 @@ const BicycleInspections = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        <Dialog
+          open={skipInvoiceDialog.open}
+          onOpenChange={(open) => setSkipInvoiceDialog((prev) => ({ ...prev, open }))}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>No invoice needed</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label htmlFor="skip-invoice-reason" className="text-xs">
+                Reason (optional)
+              </Label>
+              <Textarea
+                id="skip-invoice-reason"
+                placeholder="e.g. goodwill, covered under warranty, internal bike"
+                value={skipInvoiceDialog.reason}
+                onChange={(e) =>
+                  setSkipInvoiceDialog((prev) => ({ ...prev, reason: e.target.value }))
+                }
+              />
+            </div>
+            <DialogFooter className="flex-col gap-2 sm:flex-row">
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto"
+                onClick={() => setSkipInvoiceDialog({ open: false, inspectionId: null, reason: "" })}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="w-full sm:w-auto"
+                disabled={skipInvoiceMutation.isPending || !skipInvoiceDialog.inspectionId}
+                onClick={() =>
+                  skipInvoiceDialog.inspectionId &&
+                  skipInvoiceMutation.mutate({
+                    inspectionId: skipInvoiceDialog.inspectionId,
+                    reason: skipInvoiceDialog.reason,
+                  })
+                }
+              >
+                {skipInvoiceMutation.isPending && (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                )}
+                Mark as not invoiced
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <BillingCustomerDialog
+          open={billingDialogState.open}
+          onOpenChange={(open) =>
+            setBillingDialogState((prev) => ({ ...prev, open }))
+          }
+          suggestions={billingDialogState.suggestions}
+          triedEmails={billingDialogState.triedEmails}
+          isSubmitting={createInvoiceMutation.isPending}
+          onConfirm={({ quickbooksCustomerId, billingEmailOverride }) => {
+            if (!billingDialogState.inspectionId) return;
+            createInvoiceMutation.mutate({
+              inspectionId: billingDialogState.inspectionId,
+              quickbooksCustomerId,
+              billingEmailOverride,
+            });
+          }}
+        />
       </div>
     </Layout>
   );
+
 };
 
 export default BicycleInspections;
