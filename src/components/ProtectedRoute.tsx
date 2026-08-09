@@ -138,6 +138,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (userRestricted.length > 0) {
     let anyAllowed = false;
 
+    // Knowledge base / SOPs are open to all internal staff roles
+    if (isKnowledgePage) anyAllowed = true;
+
+
     if (hasCustomerRole && isCustomerPage) anyAllowed = true;
 
     for (const r of userRestricted) {
