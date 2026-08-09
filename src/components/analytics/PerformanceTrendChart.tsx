@@ -110,7 +110,7 @@ const PerformanceTrendChart = ({ orders, range, granularity }: Props) => {
           }}
           className="h-[320px]"
         >
-          <ResponsiveContainer width="100%" height="100%">
+          
             <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis dataKey="label" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
