@@ -548,10 +548,14 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
   } catch (error) {
-    console.error("send-order-updates failed:", error instanceof Error ? error.message : "unknown error");
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Failed to send updates" }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
-    );
+    const err = error as any;
+    const message =
+      (error instanceof Error ? error.message : err?.message) || "Failed to send updates";
+    const code = err?.code || err?.status || null;
+    console.error("send-order-updates failed:", { message, code });
+    return new Response(JSON.stringify({ error: message, code }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+    });
   }
 });
