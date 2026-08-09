@@ -81,7 +81,7 @@ const StorageLevelsChart = ({ orders, range, granularity }: Props) => {
         </div>
 
         <ChartContainer config={chartConfig} className="h-[320px]">
-          <ResponsiveContainer width="100%" height="100%">
+          
             <ComposedChart data={data.points}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis
