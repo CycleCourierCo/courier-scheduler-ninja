@@ -427,10 +427,17 @@ async function sendUpdatesForOrder(
   return { sent, skipped, failed, results };
 }
 
-/** Full scan. Runs in the background for cron/bulk, inline for single orders. */
-async function runScan(admin: any, singleOrderId?: string) {
+/** How many orders one invocation processes before handing over to the next. */
+const CHUNK_SIZE = 40;
+
+/**
+ * Scans one chunk of orders. Runs inline for single orders, and as a
+ * self-chaining chunk for cron/bulk so no single invocation can be cut short.
+ */
+async function runScan(admin: any, singleOrderId?: string, offset = 0) {
   const deadStatuses = ["delivered", "cancelled", "delivered_by_3p", "delivered_to_ferry"];
   const orders: any[] = [];
+  let hasMore = false;
 
   if (singleOrderId) {
     const { data, error } = await admin.from("orders").select("*").eq("id", singleOrderId).single();
@@ -439,20 +446,17 @@ async function runScan(admin: any, singleOrderId?: string) {
     }
     orders.push(data);
   } else {
-    const pageSize = 500;
-    for (let page = 0; page < 20; page++) {
-      const { data, error } = await admin
-        .from("orders")
-        .select("*")
-        .not("status", "in", `(${deadStatuses.join(",")})`)
-        .order("created_at", { ascending: false })
-        .range(page * pageSize, page * pageSize + pageSize - 1);
-      if (error) throw error;
-      if (!data || data.length === 0) break;
-      orders.push(...data);
-      if (data.length < pageSize) break;
-    }
+    const { data, error } = await admin
+      .from("orders")
+      .select("*")
+      .not("status", "in", `(${deadStatuses.join(",")})`)
+      .order("created_at", { ascending: false })
+      .range(offset, offset + CHUNK_SIZE - 1);
+    if (error) throw error;
+    orders.push(...(data || []));
+    hasMore = (data?.length || 0) === CHUNK_SIZE;
   }
+
 
   // --- Inspection state: orders still in the workshop must not be chased
   // for delivery dates. Complete = an inspection row at 'inspected' or 'repaired'.
