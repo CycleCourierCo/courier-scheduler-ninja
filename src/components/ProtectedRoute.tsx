@@ -121,6 +121,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const isLabourTimesPage = location.pathname === '/admin/labour-times';
   const isInboxPage = location.pathname === '/inbox' || location.pathname.startsWith('/inbox/');
   const isTasksPage = location.pathname === '/tasks' || location.pathname.startsWith('/tasks/');
+  const isKnowledgePage = location.pathname === '/knowledge' || location.pathname.startsWith('/knowledge/');
   const hasCustomerRole = hasRole(userProfile, 'b2b_customer') || hasRole(userProfile, 'b2c_customer');
   const isCustomerPage =
     isDashboardPage ||
