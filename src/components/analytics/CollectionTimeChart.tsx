@@ -49,7 +49,7 @@ const CollectionTimeChart = ({ data }: CollectionTimeChartProps) => {
         </div>
         
         <ChartContainer config={chartConfig} className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
+          
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis 
