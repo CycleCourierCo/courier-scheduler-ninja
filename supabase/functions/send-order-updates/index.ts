@@ -346,6 +346,223 @@ function buildText(order: any, update: Update, name: string): string {
     .join("\n");
 }
 
+/** Sends the updates for one order. Returns per-side outcomes. */
+async function sendUpdatesForOrder(
+  admin: any,
+  order: any,
+  updates: Update[],
+  recentSides: Set<string>
+): Promise<{ sent: number; skipped: number; failed: number; results: any[] }> {
+  let sent = 0;
+  let skipped = 0;
+  let failed = 0;
+  const results: any[] = [];
+
+  for (const update of updates) {
+    if (recentSides.has(update.side)) {
+      skipped++;
+      continue;
+    }
+
+    const contact = update.side === "sender" ? order.sender : order.receiver;
+    const to = contact?.email;
+    if (!to) {
+      skipped++;
+      continue;
+    }
+
+    const name = contact?.name || "Customer";
+
+    try {
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
+        },
+        body: JSON.stringify({
+          to,
+          subject: update.subject,
+          html: buildHtml(order, update, name),
+          text: buildText(order, update, name),
+          meta: { orderId: order.id, action: "customer_update", stage: update.stageKey },
+        }),
+      });
+
+      const payload = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        failed++;
+        results.push({ orderId: order.id, side: update.side, ok: false });
+        continue;
+      }
+
+      if (payload?.skipped) {
+        skipped++;
+        continue;
+      }
+
+      await admin.from("order_update_log").insert({
+        order_id: order.id,
+        side: update.side,
+        stage_key: update.stageKey,
+        recipient: to,
+        subject: update.subject,
+      });
+
+      recentSides.add(update.side);
+      sent++;
+      results.push({ orderId: order.id, side: update.side, stage: update.stageKey, ok: true });
+    } catch (_err) {
+      failed++;
+      console.error("Failed to send customer update", {
+        orderId: order.id,
+        side: update.side,
+        stage: update.stageKey,
+      });
+      results.push({ orderId: order.id, side: update.side, ok: false });
+    }
+  }
+
+  return { sent, skipped, failed, results };
+}
+
+/** Full scan. Runs in the background for cron/bulk, inline for single orders. */
+async function runScan(admin: any, singleOrderId?: string) {
+  const deadStatuses = ["delivered", "cancelled", "delivered_by_3p", "delivered_to_ferry"];
+  const orders: any[] = [];
+
+  if (singleOrderId) {
+    const { data, error } = await admin.from("orders").select("*").eq("id", singleOrderId).single();
+    if (error || !data) {
+      return { notFound: true as const };
+    }
+    orders.push(data);
+  } else {
+    const pageSize = 500;
+    for (let page = 0; page < 20; page++) {
+      const { data, error } = await admin
+        .from("orders")
+        .select("*")
+        .not("status", "in", `(${deadStatuses.join(",")})`)
+        .order("created_at", { ascending: false })
+        .range(page * pageSize, page * pageSize + pageSize - 1);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      orders.push(...data);
+      if (data.length < pageSize) break;
+    }
+  }
+
+  // --- Inspection state: orders still in the workshop must not be chased
+  // for delivery dates. Complete = an inspection row at 'inspected' or 'repaired'.
+  const inspectionOrderIds = orders
+    .filter((o) => o.needs_inspection === true)
+    .map((o) => o.id);
+  const inspectionComplete = new Set<string>();
+  if (inspectionOrderIds.length > 0) {
+    for (let i = 0; i < inspectionOrderIds.length; i += 200) {
+      const chunk = inspectionOrderIds.slice(i, i + 200);
+      const { data: insps, error: inspErr } = await admin
+        .from("bicycle_inspections")
+        .select("order_id, status")
+        .in("order_id", chunk);
+      if (inspErr) throw inspErr;
+      for (const insp of insps || []) {
+        if (insp.status === "repaired" || insp.status === "inspected") {
+          inspectionComplete.add(insp.order_id);
+        }
+      }
+    }
+  }
+  const isInspectionPending = (order: any): boolean =>
+    order.needs_inspection === true && !inspectionComplete.has(order.id);
+
+  const today = todayLondon();
+  const cutoff = new Date(Date.now() - QUIET_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+  // Pre-fetch the whole quiet window in one pass instead of a query per order.
+  const quietSides = new Map<string, Set<string>>();
+  if (!singleOrderId) {
+    const pageSize = 1000;
+    for (let page = 0; page < 20; page++) {
+      const { data, error } = await admin
+        .from("order_update_log")
+        .select("order_id, side")
+        .gte("sent_at", cutoff)
+        .range(page * pageSize, page * pageSize + pageSize - 1);
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      for (const row of data) {
+        const set = quietSides.get(row.order_id) || new Set<string>();
+        set.add(row.side);
+        quietSides.set(row.order_id, set);
+      }
+      if (data.length < pageSize) break;
+    }
+  }
+
+  // --- Decide what each order needs -----------------------------------------
+  type Task = { order: any; updates: Update[]; recentSides: Set<string> };
+  const tasks: Task[] = [];
+  let skipped = 0;
+
+  for (const order of orders) {
+    if (order.order_delivered && !singleOrderId) {
+      skipped++;
+      continue;
+    }
+
+    const updates = deriveUpdates(order, isInspectionPending(order));
+    if (updates.length === 0) {
+      skipped++;
+      continue;
+    }
+
+    // Never double up on a day where a milestone email already went out.
+    const milestoneToday =
+      londonDay(order.collection_confirmation_sent_at) === today ||
+      londonDay(order.delivery_confirmation_sent_at) === today ||
+      londonDay(order.ferry_confirmation_sent_at) === today;
+
+    if (milestoneToday && !singleOrderId) {
+      skipped++;
+      continue;
+    }
+
+    tasks.push({
+      order,
+      updates,
+      recentSides: new Set(singleOrderId ? [] : quietSides.get(order.id) || []),
+    });
+  }
+
+  // --- Send, in small parallel batches --------------------------------------
+  const BATCH = 5;
+  let sent = 0;
+  let failed = 0;
+  const results: any[] = [];
+
+  for (let i = 0; i < tasks.length; i += BATCH) {
+    const batch = tasks.slice(i, i + BATCH);
+    const outcomes = await Promise.all(
+      batch.map((t) => sendUpdatesForOrder(admin, t.order, t.updates, t.recentSides))
+    );
+    for (const o of outcomes) {
+      sent += o.sent;
+      skipped += o.skipped;
+      failed += o.failed;
+      if (singleOrderId) results.push(...o.results);
+    }
+  }
+
+  console.log(
+    `Customer updates complete: scanned=${orders.length} due=${tasks.length} sent=${sent} skipped=${skipped} failed=${failed}`
+  );
+
+  return { scanned: orders.length, due: tasks.length, sent, skipped, failed, results };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -382,171 +599,48 @@ serve(async (req) => {
       });
     }
 
-    // --- Load candidate orders ---------------------------------------------
-    const deadStatuses = ["delivered", "cancelled", "delivered_by_3p", "delivered_to_ferry"];
-    const orders: any[] = [];
-
+    // Single-order manual sends stay synchronous so the UI gets the outcome.
     if (singleOrderId) {
-      const { data, error } = await admin.from("orders").select("*").eq("id", singleOrderId).single();
-      if (error || !data) {
+      const outcome = await runScan(admin, singleOrderId);
+      if ((outcome as any).notFound) {
         return new Response(JSON.stringify({ error: "Order not found" }), {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      orders.push(data);
+      const o = outcome as any;
+      return new Response(
+        JSON.stringify({ success: true, scanned: o.scanned, sent: o.sent, skipped: o.skipped, results: o.results }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
+
+    // Bulk/cron: acknowledge straight away and finish the scan in the
+    // background, so a caller timing out can no longer truncate the run.
+    const work = (async () => {
+      try {
+        await runScan(admin);
+      } catch (error) {
+        const err = error as any;
+        console.error("send-order-updates background run failed:", {
+          message: (error instanceof Error ? error.message : err?.message) || "unknown",
+          code: err?.code || err?.status || null,
+        });
+      }
+    })();
+
+    // @ts-ignore EdgeRuntime is provided by the Supabase edge runtime
+    if (typeof EdgeRuntime !== "undefined" && EdgeRuntime?.waitUntil) {
+      // @ts-ignore
+      EdgeRuntime.waitUntil(work);
     } else {
-      const pageSize = 500;
-      for (let page = 0; page < 20; page++) {
-        const { data, error } = await admin
-          .from("orders")
-          .select("*")
-          .not("status", "in", `(${deadStatuses.join(",")})`)
-          .order("created_at", { ascending: false })
-          .range(page * pageSize, page * pageSize + pageSize - 1);
-        if (error) throw error;
-        if (!data || data.length === 0) break;
-        orders.push(...data);
-        if (data.length < pageSize) break;
-      }
+      await work;
     }
 
-    // --- Inspection state: orders still in the workshop must not be chased
-    // for delivery dates. Complete = an inspection row at 'inspected' or 'repaired'.
-    const inspectionOrderIds = orders
-      .filter((o) => o.needs_inspection === true)
-      .map((o) => o.id);
-    const inspectionComplete = new Set<string>();
-    if (inspectionOrderIds.length > 0) {
-      for (let i = 0; i < inspectionOrderIds.length; i += 200) {
-        const chunk = inspectionOrderIds.slice(i, i + 200);
-        const { data: insps, error: inspErr } = await admin
-          .from("bicycle_inspections")
-          .select("order_id, status")
-          .in("order_id", chunk);
-        if (inspErr) throw inspErr;
-        for (const insp of insps || []) {
-          if (insp.status === "repaired" || insp.status === "inspected") {
-            inspectionComplete.add(insp.order_id);
-          }
-        }
-      }
-    }
-    const isInspectionPending = (order: any): boolean =>
-      order.needs_inspection === true && !inspectionComplete.has(order.id);
-
-    const today = todayLondon();
-    const cutoff = new Date(Date.now() - QUIET_DAYS * 24 * 60 * 60 * 1000).toISOString();
-
-    let sent = 0;
-    let skipped = 0;
-    const results: any[] = [];
-
-    for (const order of orders) {
-      if (order.order_delivered && !singleOrderId) {
-        skipped++;
-        continue;
-      }
-
-      const updates = deriveUpdates(order, isInspectionPending(order));
-      if (updates.length === 0) {
-        skipped++;
-        continue;
-      }
-
-      // Never double up on a day where a milestone email already went out.
-      const milestoneToday =
-        londonDay(order.collection_confirmation_sent_at) === today ||
-        londonDay(order.delivery_confirmation_sent_at) === today ||
-        londonDay(order.ferry_confirmation_sent_at) === today;
-
-      if (milestoneToday && !singleOrderId) {
-        skipped++;
-        continue;
-      }
-
-      // Respect the quiet period per side (manual sends bypass it).
-      let recentSides: Set<string> = new Set();
-      if (!singleOrderId) {
-        const { data: recent } = await admin
-          .from("order_update_log")
-          .select("side")
-          .eq("order_id", order.id)
-          .gte("sent_at", cutoff);
-        recentSides = new Set((recent || []).map((r: any) => r.side));
-      }
-
-      for (const update of updates) {
-        if (recentSides.has(update.side)) {
-          skipped++;
-          continue;
-        }
-
-        const contact = update.side === "sender" ? order.sender : order.receiver;
-        const to = contact?.email;
-        if (!to) {
-          skipped++;
-          continue;
-        }
-
-        const name = contact?.name || "Customer";
-
-        try {
-          const res = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${SERVICE_ROLE_KEY}`,
-            },
-            body: JSON.stringify({
-              to,
-              subject: update.subject,
-              html: buildHtml(order, update, name),
-              text: buildText(order, update, name),
-              meta: { orderId: order.id, action: "customer_update", stage: update.stageKey },
-            }),
-          });
-
-          const payload = await res.json().catch(() => ({}));
-
-          if (!res.ok) {
-            results.push({ orderId: order.id, side: update.side, ok: false });
-            continue;
-          }
-
-          if (payload?.skipped) {
-            skipped++;
-            continue;
-          }
-
-          await admin.from("order_update_log").insert({
-            order_id: order.id,
-            side: update.side,
-            stage_key: update.stageKey,
-            recipient: to,
-            subject: update.subject,
-          });
-
-          recentSides.add(update.side);
-          sent++;
-          results.push({ orderId: order.id, side: update.side, stage: update.stageKey, ok: true });
-        } catch (err) {
-          console.error("Failed to send customer update", {
-            orderId: order.id,
-            side: update.side,
-            stage: update.stageKey,
-          });
-          results.push({ orderId: order.id, side: update.side, ok: false });
-        }
-      }
-    }
-
-    console.log(`Customer updates complete: ${sent} sent, ${skipped} skipped, ${orders.length} orders scanned`);
-
-    return new Response(
-      JSON.stringify({ success: true, scanned: orders.length, sent, skipped, results: singleOrderId ? results : undefined }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
-    );
+    return new Response(JSON.stringify({ success: true, accepted: true }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 202,
+    });
   } catch (error) {
     const err = error as any;
     const message =
@@ -559,3 +653,4 @@ serve(async (req) => {
     });
   }
 });
+
