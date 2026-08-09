@@ -55,7 +55,7 @@ const StorageAnalyticsChart = ({ data }: StorageAnalyticsChartProps) => {
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Bar dataKey="count" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
               </BarChart>
-            </ResponsiveContainer>
+            
           </ChartContainer>
         </div>
 
