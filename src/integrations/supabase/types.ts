@@ -1988,6 +1988,45 @@ export type Database = {
           },
         ]
       }
+      order_update_run_log: {
+        Row: {
+          chunk_offset: number
+          created_at: string
+          due: number
+          failed: number
+          id: string
+          run_date: string
+          scanned: number
+          sent: number
+          skipped: number
+          source: string | null
+        }
+        Insert: {
+          chunk_offset?: number
+          created_at?: string
+          due?: number
+          failed?: number
+          id?: string
+          run_date?: string
+          scanned?: number
+          sent?: number
+          skipped?: number
+          source?: string | null
+        }
+        Update: {
+          chunk_offset?: number
+          created_at?: string
+          due?: number
+          failed?: number
+          id?: string
+          run_date?: string
+          scanned?: number
+          sent?: number
+          skipped?: number
+          source?: string | null
+        }
+        Relationships: []
+      }
       orders: {
         Row: {
           bike_brand: string | null

@@ -560,6 +560,23 @@ async function runScan(admin: any, singleOrderId?: string, offset = 0) {
     `Customer updates chunk done: offset=${offset} scanned=${orders.length} due=${tasks.length} sent=${sent} skipped=${skipped} failed=${failed} hasMore=${hasMore}`
   );
 
+  // Record the chunk so the daily digest report can aggregate a fan-out run.
+  if (!singleOrderId) {
+    await admin
+      .from("order_update_run_log")
+      .insert({
+        chunk_offset: offset,
+        scanned: orders.length,
+        due: tasks.length,
+        sent,
+        skipped,
+        failed,
+        source: "scan",
+      })
+      .then(() => {})
+      .catch(() => {});
+  }
+
   return { scanned: orders.length, due: tasks.length, sent, skipped, failed, results, hasMore, offset };
 }
 
