@@ -631,16 +631,22 @@ serve(async (req) => {
       );
     }
 
-    // Bulk/cron: acknowledge straight away and finish the scan in the
-    // background, so a caller timing out can no longer truncate the run.
+    // Bulk/cron: process one chunk in the background, then hand over to a
+    // fresh invocation for the next chunk. No single run can be truncated.
     const work = (async () => {
       try {
-        await runScan(admin);
+        const outcome = (await runScan(admin, undefined, offset)) as any;
+        if (outcome?.hasMore) {
+          await chainNextChunk(admin, offset + CHUNK_SIZE);
+        } else {
+          console.log(`Customer updates pass finished at offset=${offset}`);
+        }
       } catch (error) {
         const err = error as any;
         console.error("send-order-updates background run failed:", {
           message: (error instanceof Error ? error.message : err?.message) || "unknown",
           code: err?.code || err?.status || null,
+          offset,
         });
       }
     })();
@@ -653,10 +659,11 @@ serve(async (req) => {
       await work;
     }
 
-    return new Response(JSON.stringify({ success: true, accepted: true }), {
+    return new Response(JSON.stringify({ success: true, accepted: true, offset }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 202,
     });
+
   } catch (error) {
     const err = error as any;
     const message =
