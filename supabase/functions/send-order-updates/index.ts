@@ -588,6 +588,10 @@ serve(async (req) => {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const singleOrderId: string | undefined = body?.orderId;
     const offset: number = Number.isFinite(body?.offset) ? Number(body.offset) : 0;
+    // The scheduled trigger fans out every chunk itself, so those invocations
+    // must not also chain. Self-chaining stays available as a manual fallback.
+    const chain: boolean = body?.chain === true;
+
 
 
     // --- Auth: cron secret, or an authenticated internal staff member -------
