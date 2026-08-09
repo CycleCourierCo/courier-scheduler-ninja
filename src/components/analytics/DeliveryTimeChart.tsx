@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { DeliveryTimeAnalytics } from "@/services/analyticsService";
 
 interface DeliveryTimeChartProps {
@@ -60,7 +60,7 @@ const DeliveryTimeChart = ({ data }: DeliveryTimeChartProps) => {
         </div>
         
         <ChartContainer config={chartConfig} className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
+          
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis 
@@ -79,7 +79,7 @@ const DeliveryTimeChart = ({ data }: DeliveryTimeChartProps) => {
               <Bar dataKey="collectionToDelivery" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
               <Bar dataKey="totalDuration" fill="hsl(var(--muted-foreground))" radius={[8, 8, 0, 0]} />
             </BarChart>
-          </ResponsiveContainer>
+          
         </ChartContainer>
         
         <p className="text-xs text-muted-foreground mt-2">

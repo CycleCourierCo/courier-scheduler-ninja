@@ -480,7 +480,7 @@ Deno.serve(async (req) => {
               <p>The Cycle Courier Co. Team</p>
             </div>
           `,
-                from: 'Ccc@notification.cyclecourierco.com'
+                from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>"
               }
             })
           }
@@ -524,7 +524,7 @@ Deno.serve(async (req) => {
               <p>The Cycle Courier Co. Team</p>
             </div>
           `,
-                from: 'Ccc@notification.cyclecourierco.com'
+                from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>"
               }
             })
           }

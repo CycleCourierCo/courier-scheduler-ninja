@@ -258,7 +258,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailHtml = buildEmailHTML(data);
 
     const emailResponse = await resend.emails.send({
-      from: "Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
+      from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
       to: ["info@cyclecourierco.com"],
       subject: `🚴 Route Report - ${data.date} | ${data.summary.totalStops} stops`,
       html: emailHtml,

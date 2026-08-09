@@ -1383,6 +1383,275 @@ export type Database = {
         }
         Relationships: []
       }
+      kb_article_versions: {
+        Row: {
+          article_id: string
+          body: string
+          created_at: string
+          edited_by: string | null
+          id: string
+          summary: string | null
+          title: string
+        }
+        Insert: {
+          article_id: string
+          body: string
+          created_at?: string
+          edited_by?: string | null
+          id?: string
+          summary?: string | null
+          title: string
+        }
+        Update: {
+          article_id?: string
+          body?: string
+          created_at?: string
+          edited_by?: string | null
+          id?: string
+          summary?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_article_versions_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "kb_articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kb_articles: {
+        Row: {
+          body: string
+          category_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          related_links: Json
+          slug: string
+          sort_order: number
+          status: string
+          summary: string | null
+          tags: string[]
+          title: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          body?: string
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          related_links?: Json
+          slug: string
+          sort_order?: number
+          status?: string
+          summary?: string | null
+          tags?: string[]
+          title: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          body?: string
+          category_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          related_links?: Json
+          slug?: string
+          sort_order?: number
+          status?: string
+          summary?: string | null
+          tags?: string[]
+          title?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_articles_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "kb_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kb_categories: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      kb_checklist_items: {
+        Row: {
+          article_id: string
+          created_at: string
+          guidance: string | null
+          id: string
+          position: number
+          text: string
+          updated_at: string
+        }
+        Insert: {
+          article_id: string
+          created_at?: string
+          guidance?: string | null
+          id?: string
+          position?: number
+          text: string
+          updated_at?: string
+        }
+        Update: {
+          article_id?: string
+          created_at?: string
+          guidance?: string | null
+          id?: string
+          position?: number
+          text?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_checklist_items_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "kb_articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kb_checklist_run_items: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          done: boolean
+          id: string
+          item_id: string | null
+          note: string | null
+          position: number
+          run_id: string
+          text: string
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          done?: boolean
+          id?: string
+          item_id?: string | null
+          note?: string | null
+          position?: number
+          run_id: string
+          text: string
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          done?: boolean
+          id?: string
+          item_id?: string | null
+          note?: string | null
+          position?: number
+          run_id?: string
+          text?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_checklist_run_items_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "kb_checklist_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kb_checklist_run_items_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "kb_checklist_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kb_checklist_runs: {
+        Row: {
+          article_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          label: string | null
+          notes: string | null
+          started_at: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          article_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          label?: string | null
+          notes?: string | null
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          article_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          label?: string | null
+          notes?: string | null
+          started_at?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kb_checklist_runs_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "kb_articles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       labour_time_multipliers: {
         Row: {
           adjustment_type: string
@@ -1718,6 +1987,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      order_update_run_log: {
+        Row: {
+          chunk_offset: number
+          created_at: string
+          due: number
+          failed: number
+          id: string
+          run_date: string
+          scanned: number
+          sent: number
+          skipped: number
+          source: string | null
+        }
+        Insert: {
+          chunk_offset?: number
+          created_at?: string
+          due?: number
+          failed?: number
+          id?: string
+          run_date?: string
+          scanned?: number
+          sent?: number
+          skipped?: number
+          source?: string | null
+        }
+        Update: {
+          chunk_offset?: number
+          created_at?: string
+          due?: number
+          failed?: number
+          id?: string
+          run_date?: string
+          scanned?: number
+          sent?: number
+          skipped?: number
+          source?: string | null
+        }
+        Relationships: []
       }
       orders: {
         Row: {
@@ -3695,6 +4003,7 @@ export type Database = {
       }
       invoke_fuel_finder_refresh: { Args: never; Returns: undefined }
       invoke_generate_timeslips: { Args: never; Returns: undefined }
+      invoke_internal_report: { Args: { p_report: string }; Returns: undefined }
       invoke_process_scheduled_announcements: {
         Args: never
         Returns: undefined

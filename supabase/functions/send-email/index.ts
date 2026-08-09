@@ -551,7 +551,7 @@ async function handleFerryConfirmation(orderId: string, resend: any): Promise<Re
     let receiverSent = false;
     try {
       const { error: sendError } = await resend.emails.send({
-        from: "Ccc@notification.cyclecourierco.com",
+        from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
         to: order.receiver.email,
         subject: "Your Bicycle Has Reached the Ferry Port - The Cycle Courier Co.",
         html,
@@ -671,7 +671,7 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
       
       try {
         const { data: senderData, error: senderError } = await resend.emails.send({
-          from: "Ccc@notification.cyclecourierco.com",
+          from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
           to: order.sender.email,
           subject: "Your Bicycle Has Been Delivered - The Cycle Courier Co.",
           html: senderHtml,
@@ -723,7 +723,7 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
       
       try {
         const { data: receiverData, error: receiverError } = await resend.emails.send({
-          from: "Ccc@notification.cyclecourierco.com",
+          from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
           to: order.receiver.email,
           subject: "Your Bicycle Has Been Delivered - The Cycle Courier Co.",
           html: receiverHtml,
@@ -850,7 +850,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
       
       try {
         const { data: senderData, error: senderError } = await resend.emails.send({
-          from: "Ccc@notification.cyclecourierco.com",
+          from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
           to: order.sender.email,
           subject: `Bike Collected - ${order.tracking_number || orderId}`,
           html: senderHtml,
@@ -903,7 +903,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
       
       try {
         const { data: receiverData, error: receiverError } = await resend.emails.send({
-          from: "Ccc@notification.cyclecourierco.com",
+          from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
           to: order.receiver.email,
           subject: `Bike Collected - ${order.tracking_number || orderId}`,
           html: receiverHtml,
@@ -956,7 +956,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
 
       try {
         const { error: serviceErr } = await resend.emails.send({
-          from: "Ccc@notification.cyclecourierco.com",
+          from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
           to: order.receiver.email,
           subject: `Your bike is on the way to our service centre - ${order.tracking_number || orderId}`,
           html: serviceCentreHtml,
@@ -1014,7 +1014,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
       
       try {
         const { data: availData, error: availError } = await resend.emails.send({
-          from: "Ccc@notification.cyclecourierco.com",
+          from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
           to: order.receiver.email,
           subject: `Please confirm your delivery availability - ${order.tracking_number || orderId}`,
           html: availabilityHtml,

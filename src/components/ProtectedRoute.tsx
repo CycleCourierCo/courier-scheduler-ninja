@@ -89,7 +89,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         path === '/driver-timeslips' ||
         path === '/ai-routing' ||
         path === '/fuel-finder' ||
-        path.startsWith('/dispatch');
+        path.startsWith('/dispatch') ||
+        path.startsWith('/knowledge');
       if (b2bBlocked) {
         return <Navigate to="/dashboard" replace />;
       }
@@ -121,6 +122,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const isLabourTimesPage = location.pathname === '/admin/labour-times';
   const isInboxPage = location.pathname === '/inbox' || location.pathname.startsWith('/inbox/');
   const isTasksPage = location.pathname === '/tasks' || location.pathname.startsWith('/tasks/');
+  const isKnowledgePage = location.pathname === '/knowledge' || location.pathname.startsWith('/knowledge/');
   const hasCustomerRole = hasRole(userProfile, 'b2b_customer') || hasRole(userProfile, 'b2c_customer');
   const isCustomerPage =
     isDashboardPage ||
@@ -136,6 +138,10 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   if (userRestricted.length > 0) {
     let anyAllowed = false;
+
+    // Knowledge base / SOPs are open to all internal staff roles
+    if (isKnowledgePage) anyAllowed = true;
+
 
     if (hasCustomerRole && isCustomerPage) anyAllowed = true;
 

@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend, Line, ComposedChart } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend, Line, ComposedChart } from "recharts";
 import { CollectionTimeAnalytics } from "@/services/analyticsService";
 
 interface CollectionTimeChartProps {
@@ -49,7 +49,7 @@ const CollectionTimeChart = ({ data }: CollectionTimeChartProps) => {
         </div>
         
         <ChartContainer config={chartConfig} className="h-[300px]">
-          <ResponsiveContainer width="100%" height="100%">
+          
             <BarChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis 
@@ -66,7 +66,7 @@ const CollectionTimeChart = ({ data }: CollectionTimeChartProps) => {
               <ChartTooltip content={<ChartTooltipContent />} />
               <Bar dataKey="hours" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
             </BarChart>
-          </ResponsiveContainer>
+          
         </ChartContainer>
         
         <p className="text-xs text-muted-foreground mt-2">

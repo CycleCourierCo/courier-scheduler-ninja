@@ -489,7 +489,7 @@ async function sendEmail(
 
   try {
     const emailData = await resend.emails.send({
-      from: "Ccc@notification.cyclecourierco.com",
+      from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
       to: [contact.email],
       subject: emailSubject,
       html: emailHtml,
