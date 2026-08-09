@@ -4003,6 +4003,7 @@ export type Database = {
       }
       invoke_fuel_finder_refresh: { Args: never; Returns: undefined }
       invoke_generate_timeslips: { Args: never; Returns: undefined }
+      invoke_internal_report: { Args: { p_report: string }; Returns: undefined }
       invoke_process_scheduled_announcements: {
         Args: never
         Returns: undefined
