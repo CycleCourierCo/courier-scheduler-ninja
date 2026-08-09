@@ -427,10 +427,17 @@ async function sendUpdatesForOrder(
   return { sent, skipped, failed, results };
 }
 
-/** Full scan. Runs in the background for cron/bulk, inline for single orders. */
-async function runScan(admin: any, singleOrderId?: string) {
+/** How many orders one invocation processes before handing over to the next. */
+const CHUNK_SIZE = 40;
+
+/**
+ * Scans one chunk of orders. Runs inline for single orders, and as a
+ * self-chaining chunk for cron/bulk so no single invocation can be cut short.
+ */
+async function runScan(admin: any, singleOrderId?: string, offset = 0) {
   const deadStatuses = ["delivered", "cancelled", "delivered_by_3p", "delivered_to_ferry"];
   const orders: any[] = [];
+  let hasMore = false;
 
   if (singleOrderId) {
     const { data, error } = await admin.from("orders").select("*").eq("id", singleOrderId).single();
@@ -439,20 +446,17 @@ async function runScan(admin: any, singleOrderId?: string) {
     }
     orders.push(data);
   } else {
-    const pageSize = 500;
-    for (let page = 0; page < 20; page++) {
-      const { data, error } = await admin
-        .from("orders")
-        .select("*")
-        .not("status", "in", `(${deadStatuses.join(",")})`)
-        .order("created_at", { ascending: false })
-        .range(page * pageSize, page * pageSize + pageSize - 1);
-      if (error) throw error;
-      if (!data || data.length === 0) break;
-      orders.push(...data);
-      if (data.length < pageSize) break;
-    }
+    const { data, error } = await admin
+      .from("orders")
+      .select("*")
+      .not("status", "in", `(${deadStatuses.join(",")})`)
+      .order("created_at", { ascending: false })
+      .range(offset, offset + CHUNK_SIZE - 1);
+    if (error) throw error;
+    orders.push(...(data || []));
+    hasMore = (data?.length || 0) === CHUNK_SIZE;
   }
+
 
   // --- Inspection state: orders still in the workshop must not be chased
   // for delivery dates. Complete = an inspection row at 'inspected' or 'repaired'.
@@ -481,26 +485,22 @@ async function runScan(admin: any, singleOrderId?: string) {
   const today = todayLondon();
   const cutoff = new Date(Date.now() - QUIET_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
-  // Pre-fetch the whole quiet window in one pass instead of a query per order.
+  // Pre-fetch the quiet window for this chunk in one query, not one per order.
   const quietSides = new Map<string, Set<string>>();
-  if (!singleOrderId) {
-    const pageSize = 1000;
-    for (let page = 0; page < 20; page++) {
-      const { data, error } = await admin
-        .from("order_update_log")
-        .select("order_id, side")
-        .gte("sent_at", cutoff)
-        .range(page * pageSize, page * pageSize + pageSize - 1);
-      if (error) throw error;
-      if (!data || data.length === 0) break;
-      for (const row of data) {
-        const set = quietSides.get(row.order_id) || new Set<string>();
-        set.add(row.side);
-        quietSides.set(row.order_id, set);
-      }
-      if (data.length < pageSize) break;
+  if (!singleOrderId && orders.length > 0) {
+    const { data, error } = await admin
+      .from("order_update_log")
+      .select("order_id, side")
+      .gte("sent_at", cutoff)
+      .in("order_id", orders.map((o) => o.id));
+    if (error) throw error;
+    for (const row of data || []) {
+      const set = quietSides.get(row.order_id) || new Set<string>();
+      set.add(row.side);
+      quietSides.set(row.order_id, set);
     }
   }
+
 
   // --- Decide what each order needs -----------------------------------------
   type Task = { order: any; updates: Update[]; recentSides: Set<string> };
@@ -557,11 +557,25 @@ async function runScan(admin: any, singleOrderId?: string) {
   }
 
   console.log(
-    `Customer updates complete: scanned=${orders.length} due=${tasks.length} sent=${sent} skipped=${skipped} failed=${failed}`
+    `Customer updates chunk done: offset=${offset} scanned=${orders.length} due=${tasks.length} sent=${sent} skipped=${skipped} failed=${failed} hasMore=${hasMore}`
   );
 
-  return { scanned: orders.length, due: tasks.length, sent, skipped, failed, results };
+  return { scanned: orders.length, due: tasks.length, sent, skipped, failed, results, hasMore, offset };
 }
+
+/** Kicks off the next chunk in a fresh invocation so limits never truncate the pass. */
+async function chainNextChunk(admin: any, nextOffset: number) {
+  const { data: secret } = await admin.rpc("get_cron_secret");
+  await fetch(`${SUPABASE_URL}/functions/v1/send-order-updates`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-cron-secret": secret || "",
+    },
+    body: JSON.stringify({ source: "chain", offset: nextOffset }),
+  }).catch(() => {});
+}
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -573,6 +587,8 @@ serve(async (req) => {
   try {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const singleOrderId: string | undefined = body?.orderId;
+    const offset: number = Number.isFinite(body?.offset) ? Number(body.offset) : 0;
+
 
     // --- Auth: cron secret, or an authenticated internal staff member -------
     const cronSecret = req.headers.get("x-cron-secret");
@@ -615,16 +631,22 @@ serve(async (req) => {
       );
     }
 
-    // Bulk/cron: acknowledge straight away and finish the scan in the
-    // background, so a caller timing out can no longer truncate the run.
+    // Bulk/cron: process one chunk in the background, then hand over to a
+    // fresh invocation for the next chunk. No single run can be truncated.
     const work = (async () => {
       try {
-        await runScan(admin);
+        const outcome = (await runScan(admin, undefined, offset)) as any;
+        if (outcome?.hasMore) {
+          await chainNextChunk(admin, offset + CHUNK_SIZE);
+        } else {
+          console.log(`Customer updates pass finished at offset=${offset}`);
+        }
       } catch (error) {
         const err = error as any;
         console.error("send-order-updates background run failed:", {
           message: (error instanceof Error ? error.message : err?.message) || "unknown",
           code: err?.code || err?.status || null,
+          offset,
         });
       }
     })();
@@ -637,10 +659,11 @@ serve(async (req) => {
       await work;
     }
 
-    return new Response(JSON.stringify({ success: true, accepted: true }), {
+    return new Response(JSON.stringify({ success: true, accepted: true, offset }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 202,
     });
+
   } catch (error) {
     const err = error as any;
     const message =
