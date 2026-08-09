@@ -90,7 +90,7 @@ const PerformanceLeaderboard = ({ orders, range }: Props) => {
         </div>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-[32rem] rounded-md border">
+        <div className="h-[32rem] w-full max-w-full overflow-auto rounded-md border">
           <div className="min-w-[860px]">
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur">
