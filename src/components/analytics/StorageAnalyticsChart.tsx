@@ -41,7 +41,7 @@ const StorageAnalyticsChart = ({ data }: StorageAnalyticsChartProps) => {
         <div className="mb-6">
           <h3 className="text-sm font-medium mb-3">Storage Duration Distribution</h3>
           <ChartContainer config={chartConfig} className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
+            
               <BarChart data={data.storageDistribution}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
