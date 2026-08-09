@@ -7,7 +7,7 @@ import {
   XAxis,
   YAxis,
   CartesianGrid,
-  ResponsiveContainer,
+  
   Legend,
 } from "recharts";
 import { ArrowDown, ArrowUp, Minus } from "lucide-react";
