@@ -191,12 +191,12 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/knowledge" element={
-                <ProtectedRoute>
+                <ProtectedRoute noB2CAccess={true}>
                   <KnowledgeBase />
                 </ProtectedRoute>
               } />
               <Route path="/knowledge/:slug" element={
-                <ProtectedRoute>
+                <ProtectedRoute noB2CAccess={true}>
                   <KnowledgeBase />
                 </ProtectedRoute>
               } />
