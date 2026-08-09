@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Legend } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { ArrowDown, ArrowUp, Minus } from "lucide-react";
 import {
   getPerformanceTrendSeries,
@@ -110,7 +110,7 @@ const PerformanceTrendChart = ({ orders, range, granularity }: Props) => {
           }}
           className="h-[320px]"
         >
-          <ResponsiveContainer width="100%" height="100%">
+          
             <LineChart data={chartData} margin={{ top: 8, right: 12, bottom: 8, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis dataKey="label" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
@@ -124,7 +124,7 @@ const PerformanceTrendChart = ({ orders, range, granularity }: Props) => {
               <Line type="monotone" dataKey="Collection → Delivery" stroke="hsl(220 70% 50%)" strokeWidth={2} connectNulls dot={false} />
               <Line type="monotone" dataKey="Creation → Delivery" stroke="hsl(var(--muted-foreground))" strokeWidth={2} strokeDasharray="4 4" connectNulls dot={false} />
             </LineChart>
-          </ResponsiveContainer>
+          
         </ChartContainer>
       </CardContent>
     </Card>

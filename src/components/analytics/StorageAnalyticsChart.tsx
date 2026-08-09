@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from "recharts";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StorageAnalytics } from "@/services/analyticsService";
 
@@ -41,7 +41,7 @@ const StorageAnalyticsChart = ({ data }: StorageAnalyticsChartProps) => {
         <div className="mb-6">
           <h3 className="text-sm font-medium mb-3">Storage Duration Distribution</h3>
           <ChartContainer config={chartConfig} className="h-[250px]">
-            <ResponsiveContainer width="100%" height="100%">
+            
               <BarChart data={data.storageDistribution}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis 
@@ -55,7 +55,7 @@ const StorageAnalyticsChart = ({ data }: StorageAnalyticsChartProps) => {
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Bar dataKey="count" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
               </BarChart>
-            </ResponsiveContainer>
+            
           </ChartContainer>
         </div>
 
