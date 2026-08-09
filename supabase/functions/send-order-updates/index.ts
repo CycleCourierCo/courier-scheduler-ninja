@@ -383,7 +383,7 @@ serve(async (req) => {
     }
 
     // --- Load candidate orders ---------------------------------------------
-    const deadStatuses = ["delivered", "cancelled", "delivered_by_3p", "delivered_ni"];
+    const deadStatuses = ["delivered", "cancelled", "delivered_by_3p", "delivered_to_ferry"];
     const orders: any[] = [];
 
     if (singleOrderId) {
