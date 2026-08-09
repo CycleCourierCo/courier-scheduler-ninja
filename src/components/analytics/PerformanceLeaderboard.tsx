@@ -148,7 +148,7 @@ const PerformanceLeaderboard = ({ orders, range }: Props) => {
               </tbody>
             </table>
           </div>
-        </ScrollArea>
+        </div>
       </CardContent>
 
       <CustomerOrdersDialog
