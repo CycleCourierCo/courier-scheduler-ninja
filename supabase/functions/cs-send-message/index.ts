@@ -85,7 +85,7 @@ serve(async (req) => {
       const html = body_html || `<div style="font-family:Arial,sans-serif">${(body_text || '').replace(/\n/g, '<br>')}</div>`;
       try {
         const { data: sent, error } = await resend.emails.send({
-          from: 'The Cycle Courier Co. <Info@notification.cyclecourierco.com>',
+          from: "CCC - Cycle Courier Co. <Info@notification.cyclecourierco.com>",
           reply_to: 'Info@cyclecourierco.com',
           to: [conv.contact.handle],
           subject,
