@@ -572,7 +572,7 @@ async function chainNextChunk(admin: any, nextOffset: number) {
       "Content-Type": "application/json",
       "x-cron-secret": secret || "",
     },
-    body: JSON.stringify({ source: "chain", offset: nextOffset }),
+    body: JSON.stringify({ source: "chain", offset: nextOffset, chain: true }),
   }).catch(() => {});
 }
 
@@ -588,6 +588,10 @@ serve(async (req) => {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const singleOrderId: string | undefined = body?.orderId;
     const offset: number = Number.isFinite(body?.offset) ? Number(body.offset) : 0;
+    // The scheduled trigger fans out every chunk itself, so those invocations
+    // must not also chain. Self-chaining stays available as a manual fallback.
+    const chain: boolean = body?.chain === true;
+
 
 
     // --- Auth: cron secret, or an authenticated internal staff member -------
@@ -636,11 +640,12 @@ serve(async (req) => {
     const work = (async () => {
       try {
         const outcome = (await runScan(admin, undefined, offset)) as any;
-        if (outcome?.hasMore) {
+        if (chain && outcome?.hasMore) {
           await chainNextChunk(admin, offset + CHUNK_SIZE);
         } else {
-          console.log(`Customer updates pass finished at offset=${offset}`);
+          console.log(`Customer updates chunk finished at offset=${offset}`);
         }
+
       } catch (error) {
         const err = error as any;
         console.error("send-order-updates background run failed:", {
