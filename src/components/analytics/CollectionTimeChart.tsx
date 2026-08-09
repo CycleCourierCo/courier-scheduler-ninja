@@ -66,7 +66,7 @@ const CollectionTimeChart = ({ data }: CollectionTimeChartProps) => {
               <ChartTooltip content={<ChartTooltipContent />} />
               <Bar dataKey="hours" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
             </BarChart>
-          </ResponsiveContainer>
+          
         </ChartContainer>
         
         <p className="text-xs text-muted-foreground mt-2">
