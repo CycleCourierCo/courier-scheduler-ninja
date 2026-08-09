@@ -79,7 +79,7 @@ const DeliveryTimeChart = ({ data }: DeliveryTimeChartProps) => {
               <Bar dataKey="collectionToDelivery" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
               <Bar dataKey="totalDuration" fill="hsl(var(--muted-foreground))" radius={[8, 8, 0, 0]} />
             </BarChart>
-          </ResponsiveContainer>
+          
         </ChartContainer>
         
         <p className="text-xs text-muted-foreground mt-2">
