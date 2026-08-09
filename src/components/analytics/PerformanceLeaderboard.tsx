@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { ArrowUpDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getPerformanceLeaderboard, type PerformanceLeaderboardRow, type TimeRange } from "@/services/analyticsService";
