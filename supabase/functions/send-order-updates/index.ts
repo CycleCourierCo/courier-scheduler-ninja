@@ -640,11 +640,12 @@ serve(async (req) => {
     const work = (async () => {
       try {
         const outcome = (await runScan(admin, undefined, offset)) as any;
-        if (outcome?.hasMore) {
+        if (chain && outcome?.hasMore) {
           await chainNextChunk(admin, offset + CHUNK_SIZE);
         } else {
-          console.log(`Customer updates pass finished at offset=${offset}`);
+          console.log(`Customer updates chunk finished at offset=${offset}`);
         }
+
       } catch (error) {
         const err = error as any;
         console.error("send-order-updates background run failed:", {
