@@ -572,7 +572,7 @@ async function chainNextChunk(admin: any, nextOffset: number) {
       "Content-Type": "application/json",
       "x-cron-secret": secret || "",
     },
-    body: JSON.stringify({ source: "chain", offset: nextOffset }),
+    body: JSON.stringify({ source: "chain", offset: nextOffset, chain: true }),
   }).catch(() => {});
 }
 
