@@ -58,6 +58,7 @@ import BoxMyBikePage from "./pages/BoxMyBikePage";
 import CustomerServiceInbox from "./pages/CustomerServiceInbox";
 import Tasks from "./pages/Tasks";
 import LabourTimesAdmin from "./pages/LabourTimesAdmin";
+import KnowledgeBase from "./pages/KnowledgeBase";
 
 const queryClient = new QueryClient();
 
@@ -187,6 +188,16 @@ function App() {
               <Route path="/tasks" element={
                 <ProtectedRoute>
                   <Tasks />
+                </ProtectedRoute>
+              } />
+              <Route path="/knowledge" element={
+                <ProtectedRoute>
+                  <KnowledgeBase />
+                </ProtectedRoute>
+              } />
+              <Route path="/knowledge/:slug" element={
+                <ProtectedRoute>
+                  <KnowledgeBase />
                 </ProtectedRoute>
               } />
 
