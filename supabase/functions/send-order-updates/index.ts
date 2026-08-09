@@ -587,6 +587,8 @@ serve(async (req) => {
   try {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const singleOrderId: string | undefined = body?.orderId;
+    const offset: number = Number.isFinite(body?.offset) ? Number(body.offset) : 0;
+
 
     // --- Auth: cron secret, or an authenticated internal staff member -------
     const cronSecret = req.headers.get("x-cron-secret");
