@@ -485,26 +485,22 @@ async function runScan(admin: any, singleOrderId?: string, offset = 0) {
   const today = todayLondon();
   const cutoff = new Date(Date.now() - QUIET_DAYS * 24 * 60 * 60 * 1000).toISOString();
 
-  // Pre-fetch the whole quiet window in one pass instead of a query per order.
+  // Pre-fetch the quiet window for this chunk in one query, not one per order.
   const quietSides = new Map<string, Set<string>>();
-  if (!singleOrderId) {
-    const pageSize = 1000;
-    for (let page = 0; page < 20; page++) {
-      const { data, error } = await admin
-        .from("order_update_log")
-        .select("order_id, side")
-        .gte("sent_at", cutoff)
-        .range(page * pageSize, page * pageSize + pageSize - 1);
-      if (error) throw error;
-      if (!data || data.length === 0) break;
-      for (const row of data) {
-        const set = quietSides.get(row.order_id) || new Set<string>();
-        set.add(row.side);
-        quietSides.set(row.order_id, set);
-      }
-      if (data.length < pageSize) break;
+  if (!singleOrderId && orders.length > 0) {
+    const { data, error } = await admin
+      .from("order_update_log")
+      .select("order_id, side")
+      .gte("sent_at", cutoff)
+      .in("order_id", orders.map((o) => o.id));
+    if (error) throw error;
+    for (const row of data || []) {
+      const set = quietSides.get(row.order_id) || new Set<string>();
+      set.add(row.side);
+      quietSides.set(row.order_id, set);
     }
   }
+
 
   // --- Decide what each order needs -----------------------------------------
   type Task = { order: any; updates: Update[]; recentSides: Set<string> };
