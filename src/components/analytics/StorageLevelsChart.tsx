@@ -103,7 +103,7 @@ const StorageLevelsChart = ({ orders, range, granularity }: Props) => {
                 strokeWidth={2}
               />
             </ComposedChart>
-          </ResponsiveContainer>
+          
         </ChartContainer>
       </CardContent>
     </Card>
