@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { ArrowUpDown, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getPerformanceLeaderboard, type PerformanceLeaderboardRow, type TimeRange } from "@/services/analyticsService";
@@ -90,7 +90,7 @@ const PerformanceLeaderboard = ({ orders, range }: Props) => {
         </div>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-[32rem] rounded-md border">
+        <div className="h-[32rem] w-full max-w-full overflow-auto rounded-md border">
           <div className="min-w-[860px]">
             <table className="w-full text-sm">
               <thead className="sticky top-0 z-10 bg-muted/80 backdrop-blur">
@@ -148,7 +148,7 @@ const PerformanceLeaderboard = ({ orders, range }: Props) => {
               </tbody>
             </table>
           </div>
-        </ScrollArea>
+        </div>
       </CardContent>
 
       <CustomerOrdersDialog
