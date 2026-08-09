@@ -124,7 +124,7 @@ const PerformanceTrendChart = ({ orders, range, granularity }: Props) => {
               <Line type="monotone" dataKey="Collection → Delivery" stroke="hsl(220 70% 50%)" strokeWidth={2} connectNulls dot={false} />
               <Line type="monotone" dataKey="Creation → Delivery" stroke="hsl(var(--muted-foreground))" strokeWidth={2} strokeDasharray="4 4" connectNulls dot={false} />
             </LineChart>
-          </ResponsiveContainer>
+          
         </ChartContainer>
       </CardContent>
     </Card>
