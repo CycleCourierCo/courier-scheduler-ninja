@@ -557,11 +557,25 @@ async function runScan(admin: any, singleOrderId?: string, offset = 0) {
   }
 
   console.log(
-    `Customer updates complete: scanned=${orders.length} due=${tasks.length} sent=${sent} skipped=${skipped} failed=${failed}`
+    `Customer updates chunk done: offset=${offset} scanned=${orders.length} due=${tasks.length} sent=${sent} skipped=${skipped} failed=${failed} hasMore=${hasMore}`
   );
 
-  return { scanned: orders.length, due: tasks.length, sent, skipped, failed, results };
+  return { scanned: orders.length, due: tasks.length, sent, skipped, failed, results, hasMore, offset };
 }
+
+/** Kicks off the next chunk in a fresh invocation so limits never truncate the pass. */
+async function chainNextChunk(admin: any, nextOffset: number) {
+  const { data: secret } = await admin.rpc("get_cron_secret");
+  await fetch(`${SUPABASE_URL}/functions/v1/send-order-updates`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-cron-secret": secret || "",
+    },
+    body: JSON.stringify({ source: "chain", offset: nextOffset }),
+  }).catch(() => {});
+}
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
