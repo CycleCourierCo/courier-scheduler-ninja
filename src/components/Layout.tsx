@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling, Megaphone, Sparkles, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling, Megaphone, Sparkles, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare, BookOpen } from "lucide-react";
 import NoticeBanner from "./NoticeBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,8 @@ const Layout: React.FC<LayoutProps> = ({
   const isB2C = hasRole(userProfile, 'b2c_customer');
   const isTimeslipAdmin = hasRole(userProfile, 'timeslip_admin');
   const isCsAgent = hasRole(userProfile, 'cs_agent');
+  const isInternalStaff = isAdmin || isLoader || isRoutePlanner || isSales || isDriver || isMechanic || isTimeslipAdmin || isCsAgent;
+
 
   // Only suppress general nav for users whose ONLY responsibilities are loader/mechanic/timeslip_admin/cs_agent
   const onlyLoaderOrMechanic =
@@ -138,6 +140,12 @@ const Layout: React.FC<LayoutProps> = ({
                         <CheckSquare className="mr-2 h-4 w-4" />
                         Tasks
                       </Link>
+                      {isInternalStaff && (
+                        <Link to="/knowledge" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <BookOpen className="mr-2 h-4 w-4" />
+                          Knowledge Base
+                        </Link>
+                      )}
                       {(isAdmin || isMechanic || isB2B || isB2C) && (
                         <Link to="/box-my-bike" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Package2 className="mr-2 h-4 w-4" />
@@ -377,6 +385,15 @@ const Layout: React.FC<LayoutProps> = ({
                       <span>Tasks</span>
                     </Link>
                   </DropdownMenuItem>
+
+                  {isInternalStaff && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/knowledge" className="cursor-pointer flex w-full items-center">
+                        <BookOpen className="mr-2 h-4 w-4" />
+                        <span>Knowledge Base</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
 
                   {(isAdmin || isMechanic || isB2B || isB2C) && (
                     <DropdownMenuItem asChild>
