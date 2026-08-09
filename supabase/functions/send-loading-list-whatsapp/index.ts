@@ -801,7 +801,7 @@ const handler = async (req: Request): Promise<Response> => {
       try {
         const managementEmailHtml = buildManagementEmailHtml(date, bikesFromDepot, bikesToDepot, allDrivers);
         const emailResult = await resend.emails.send({
-          from: "Ccc@notification.cyclecourierco.com",
+          from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
           to: managementEmail,
           subject: `Loading List - ${date}`,
           html: managementEmailHtml,
@@ -849,7 +849,7 @@ const handler = async (req: Request): Promise<Response> => {
               : `${baseHtml}\n${bayBreakdown.html}`)
           : baseHtml;
         const emailResult = await resend.emails.send({
-          from: "Ccc@notification.cyclecourierco.com",
+          from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
           to: loaderEmail,
           subject: `Loading List - ${date}`,
           html: loaderEmailHtml,
@@ -902,7 +902,7 @@ const handler = async (req: Request): Promise<Response> => {
           if (driverEmailHtml) {
             console.log(`Sending email to ${driverName} at ${driverEmail}`);
             const emailResult = await resend.emails.send({
-              from: "Ccc@notification.cyclecourierco.com",
+              from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
               to: driverEmail,
               subject: `Your Loading List - ${date}`,
               html: driverEmailHtml,
@@ -939,7 +939,7 @@ const handler = async (req: Request): Promise<Response> => {
             const driverEmailHtml = buildDriverEmailHtml(driverName, categories, date);
             if (driverEmailHtml) {
               const emailResult = await resend.emails.send({
-                from: "Ccc@notification.cyclecourierco.com",
+                from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
                 to: loaderEmail,
                 subject: `Loading List for ${driverName} - ${date}`,
                 html: driverEmailHtml,
