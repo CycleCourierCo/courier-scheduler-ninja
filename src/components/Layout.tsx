@@ -140,6 +140,12 @@ const Layout: React.FC<LayoutProps> = ({
                         <CheckSquare className="mr-2 h-4 w-4" />
                         Tasks
                       </Link>
+                      {isInternalStaff && (
+                        <Link to="/knowledge" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <BookOpen className="mr-2 h-4 w-4" />
+                          Knowledge Base
+                        </Link>
+                      )}
                       {(isAdmin || isMechanic || isB2B || isB2C) && (
                         <Link to="/box-my-bike" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Package2 className="mr-2 h-4 w-4" />
