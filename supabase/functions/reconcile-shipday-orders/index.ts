@@ -204,7 +204,7 @@ serve(async (req) => {
       const { data, error } = await admin
         .from("orders")
         .select(
-          "id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, delivery_confirmation_sent_at, is_northern_ireland, foam_status, receiver"
+          "id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, delivery_confirmation_sent_at, is_northern_ireland, foam_status, foam_pending_foaming_at, foam_delivered_to_ferry_at, receiver"
         )
         .or(
           `shipday_pickup_id.in.(${chunk.join(",")}),shipday_delivery_id.in.(${chunk.join(",")})`
