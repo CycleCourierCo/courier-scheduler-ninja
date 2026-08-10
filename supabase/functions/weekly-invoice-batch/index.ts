@@ -589,6 +589,21 @@ Deno.serve(async (req: Request): Promise<Response> => {
     let body: any = {};
     try { body = await req.json(); } catch (_) { /* empty body */ }
 
+    // Report-only: rebuild and re-send the summary for an existing run.
+    if (body?.reportOnly === true) {
+      const result = await resendReport(body?.logId);
+      const { data: check } = await supabase
+        .from('weekly_invoice_batch_logs')
+        .select('report_status, report_http_status, report_error, report_sent_at')
+        .eq('id', result.logId)
+        .single();
+      return new Response(JSON.stringify({ reportOnly: true, ...result, report: check }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+
+
     const { start, end, label } = body?.startDate && body?.endDate
       ? {
           start: new Date(body.startDate),
