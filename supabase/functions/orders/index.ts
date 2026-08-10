@@ -101,7 +101,10 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
         )
       }
 
+      ctx.userId = userId as string
+
       const body = await req.json()
+
 
       // Box My Bike: auto-fill depot as receiver so caller doesn't need to provide it
       const isBoxMyBike = body.isBoxMyBike || body.is_box_my_bike || false
