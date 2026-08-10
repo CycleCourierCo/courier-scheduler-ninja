@@ -464,7 +464,92 @@ async function processBatch(params: {
 
 }
 
-// ---- Handler ----
+// ---- Rebuild + re-send the report for an existing run (no invoices created) ----
+async function resendReport(logId?: string): Promise<{ logId: string; label: string }> {
+  const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
+
+  let query = supabase
+    .from('weekly_invoice_batch_logs')
+    .select('id, range_start, range_end, range_label, run_started_at, run_completed_at, eligible_count')
+    .order('run_started_at', { ascending: false })
+    .limit(1);
+  if (logId) query = supabase
+    .from('weekly_invoice_batch_logs')
+    .select('id, range_start, range_end, range_label, run_started_at, run_completed_at, eligible_count')
+    .eq('id', logId)
+    .limit(1);
+
+  const { data: rows, error } = await query;
+  if (error) throw error;
+  const run = rows?.[0];
+  if (!run) throw new Error('No batch run found to report on');
+
+  const start = new Date(run.range_start);
+  const end = new Date(run.range_end);
+  const label = run.range_label || `${start.toDateString()} to ${end.toDateString()}`;
+
+  // Invoice attempts recorded during that run window.
+  const windowStart = new Date(new Date(run.run_started_at).getTime() - 60_000).toISOString();
+  const windowEnd = new Date(
+    (run.run_completed_at ? new Date(run.run_completed_at).getTime() : Date.now()) + 10 * 60_000,
+  ).toISOString();
+
+  const { data: history } = await supabase
+    .from('invoice_history')
+    .select('customer_id, customer_name, customer_email, order_count, status, quickbooks_invoice_number, error_message')
+    .gte('created_at', windowStart)
+    .lte('created_at', windowEnd);
+
+  const successful = (history || [])
+    .filter((h: any) => h.status !== 'failed')
+    .map((h: any) => ({
+      customerName: h.customer_name,
+      customerEmail: h.customer_email,
+      orderCount: h.order_count || 0,
+      bikeCount: h.order_count || 0,
+      skippedBikes: 0,
+      invoiceNumber: h.quickbooks_invoice_number,
+    }));
+  const failed = (history || [])
+    .filter((h: any) => h.status === 'failed')
+    .map((h: any) => ({
+      customerName: h.customer_name,
+      customerEmail: h.customer_email,
+      error: h.error_message || 'Unknown error',
+    }));
+
+  // Orders in range for the customers that were invoiced (for the stats block).
+  const invoicedIds = [...new Set((history || [])
+    .filter((h: any) => h.status !== 'failed')
+    .map((h: any) => h.customer_id)
+    .filter(Boolean))];
+  let allOrders: any[] = [];
+  if (invoicedIds.length > 0) {
+    const { data: orders } = await supabase
+      .from('orders')
+      .select('*')
+      .in('user_id', invoicedIds)
+      .gte('created_at', start.toISOString())
+      .lte('created_at', end.toISOString())
+      .neq('status', 'cancelled');
+    allOrders = orders || [];
+  }
+
+  const html = buildReportHtml({
+    rangeLabel: label,
+    successful,
+    failed,
+    skipped: [],
+    eligibleCount: run.eligible_count || successful.length + failed.length,
+    allOrders,
+    missingProducts: [],
+  }) + '<p><em>This is a re-sent copy of the report rebuilt from the stored run records.</em></p>';
+
+  await sendReportEmail(supabase, run.id, `Invoice Batch Report - ${label}`, html);
+  return { logId: run.id, label };
+}
+
+
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
