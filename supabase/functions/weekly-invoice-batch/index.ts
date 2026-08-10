@@ -417,31 +417,7 @@ async function processBatch(params: {
       });
     });
 
-    // Report email.
-    try {
-      const html = buildReportHtml({
-        rangeLabel: label,
-        successful, failed, skipped,
-        eligibleCount: eligible.length,
-        allOrders,
-        missingProducts,
-      });
-      await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SERVICE_ROLE}`,
-        },
-        body: JSON.stringify({
-          to: 'info@cyclecourierco.com',
-          subject: `Invoice Batch Report - ${label}`,
-          html,
-        }),
-      });
-    } catch (e) {
-      console.error('[weekly-invoice-batch] report email failed:', e);
-    }
-
+    // Run log first, so the report reflects the persisted counters.
     await supabase.from('weekly_invoice_batch_logs').update({
       run_completed_at: new Date().toISOString(),
       status: 'completed',
@@ -450,6 +426,16 @@ async function processBatch(params: {
       skipped_count: skipped.length,
       eligible_count: eligible.length,
     }).eq('id', logId);
+
+    // Report email (outcome persisted on the run log).
+    const html = buildReportHtml({
+      rangeLabel: label,
+      successful, failed, skipped,
+      eligibleCount: eligible.length,
+      allOrders,
+      missingProducts,
+    });
+    await sendReportEmail(supabase, logId, `Invoice Batch Report - ${label}`, html);
 
     console.log(`[weekly-invoice-batch] done: ${successful.length} ok, ${failed.length} failed, ${skipped.length} skipped`);
   } catch (err: any) {
@@ -462,7 +448,20 @@ async function processBatch(params: {
         error_message: errorMsg,
       }).eq('id', logId);
     } catch (_) { /* noop */ }
+    // Always send something, even on a fatal error.
+    try {
+      await sendReportEmail(
+        supabase,
+        logId,
+        `Invoice Batch FAILED - ${label}`,
+        `<h2>Invoice Batch Creation Failed (Weekly Cron)</h2>
+         <p><strong>Date Range:</strong> ${label}</p>
+         <p>The batch stopped with an error before completing. No further invoices were created in this run.</p>
+         <p><strong>Error:</strong> ${errorMsg}</p>`,
+      );
+    } catch (_) { /* noop */ }
   }
+
 }
 
 // ---- Handler ----
