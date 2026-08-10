@@ -648,6 +648,12 @@ const AnalyticsPage = () => {
               <TabsContent value="drivers" className="space-y-2 sm:space-y-4">
                 <DriverAnalyticsSection />
               </TabsContent>
+
+              <TabsContent value="api-webhooks" className="space-y-2 sm:space-y-4">
+                <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">API &amp; Webhook Analytics</h2>
+                <ApiWebhookSection />
+              </TabsContent>
+
             </Tabs>
           </>
         )}
