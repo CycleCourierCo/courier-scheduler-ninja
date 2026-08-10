@@ -549,7 +549,7 @@ async function resendReport(logId?: string): Promise<{ logId: string; label: str
   return { logId: run.id, label };
 }
 
-
+// ---- Handler ----
 Deno.serve(async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
