@@ -192,6 +192,8 @@ serve(async (req) => {
       delivery_confirmation_sent_at: string | null;
       is_northern_ireland: boolean | null;
       foam_status: string | null;
+      foam_pending_foaming_at: string | null;
+      foam_delivered_to_ferry_at: string | null;
     };
     const byPickup = new Map<string, DbOrder>();
     const byDelivery = new Map<string, DbOrder>();
