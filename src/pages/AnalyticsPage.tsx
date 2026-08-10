@@ -67,7 +67,9 @@ import MechanicComparisonChart from "@/components/analytics/MechanicComparisonCh
 import MechanicHoursSection from "@/components/analytics/MechanicHoursSection";
 import DriverAnalyticsSection from "@/components/analytics/DriverAnalyticsSection";
 import StatsCard from "@/components/analytics/StatsCard";
-import { Bike, Calendar as CalendarLucide, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer, ClipboardCheck, AlertTriangle, PoundSterling, ThumbsUp, Route, Users } from "lucide-react";
+import ApiWebhookSection from "@/components/analytics/ApiWebhookSection";
+import { Bike, Calendar as CalendarLucide, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer, ClipboardCheck, AlertTriangle, PoundSterling, ThumbsUp, Route, Users, Webhook } from "lucide-react";
+
 import {
   getBikeValueMetrics,
   getDailyBikeValueSeries,
