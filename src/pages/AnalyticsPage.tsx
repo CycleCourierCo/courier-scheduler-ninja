@@ -67,7 +67,9 @@ import MechanicComparisonChart from "@/components/analytics/MechanicComparisonCh
 import MechanicHoursSection from "@/components/analytics/MechanicHoursSection";
 import DriverAnalyticsSection from "@/components/analytics/DriverAnalyticsSection";
 import StatsCard from "@/components/analytics/StatsCard";
-import { Bike, Calendar as CalendarLucide, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer, ClipboardCheck, AlertTriangle, PoundSterling, ThumbsUp, Route, Users } from "lucide-react";
+import ApiWebhookSection from "@/components/analytics/ApiWebhookSection";
+import { Bike, Calendar as CalendarLucide, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer, ClipboardCheck, AlertTriangle, PoundSterling, ThumbsUp, Route, Users, Webhook } from "lucide-react";
+
 import {
   getBikeValueMetrics,
   getDailyBikeValueSeries,
@@ -258,7 +260,7 @@ const AnalyticsPage = () => {
               onValueChange={setActiveTab}
               className="mb-4 sm:mb-8"
             >
-              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-1 h-auto mb-4 sm:mb-8">
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-10 gap-1 h-auto mb-4 sm:mb-8">
                 <TabsTrigger value="bike-value" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
                   <PoundSterling className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Bike Value</span>
@@ -299,12 +301,18 @@ const AnalyticsPage = () => {
                   <span className="hidden sm:inline">Vehicles</span>
                   <span className="sm:hidden">Veh</span>
                 </TabsTrigger>
-                <TabsTrigger value="drivers" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2 col-span-2 sm:col-span-1">
+                <TabsTrigger value="drivers" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
                   <Users className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Drivers</span>
                   <span className="sm:hidden">Drv</span>
                 </TabsTrigger>
+                <TabsTrigger value="api-webhooks" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2 col-span-2 sm:col-span-1">
+                  <Webhook className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">API &amp; Webhooks</span>
+                  <span className="sm:hidden">API</span>
+                </TabsTrigger>
               </TabsList>
+
               
               <TabsContent value="overview" className="space-y-8">
                 <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Order Overview</h2>
@@ -640,6 +648,12 @@ const AnalyticsPage = () => {
               <TabsContent value="drivers" className="space-y-2 sm:space-y-4">
                 <DriverAnalyticsSection />
               </TabsContent>
+
+              <TabsContent value="api-webhooks" className="space-y-2 sm:space-y-4">
+                <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">API &amp; Webhook Analytics</h2>
+                <ApiWebhookSection />
+              </TabsContent>
+
             </Tabs>
           </>
         )}
