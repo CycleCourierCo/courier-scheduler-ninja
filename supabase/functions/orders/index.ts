@@ -56,14 +56,15 @@ async function getCoordinates(addressString: string): Promise<{ lat: number; lon
   return null;
 }
 
-Deno.serve(async (req) => {
+const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
   // Initialize Sentry for this request
   initSentry("orders");
-  
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
