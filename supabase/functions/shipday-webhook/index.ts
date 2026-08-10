@@ -83,7 +83,7 @@ serve(async (req) => {
     
     const { data: orders, error: fetchError } = await supabase
       .from("orders")
-      .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, is_northern_ireland, foam_status, receiver")
+      .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, is_northern_ireland, foam_status, foam_pending_foaming_at, foam_delivered_to_ferry_at, receiver")
       .or(
         isPickup 
           ? `shipday_pickup_id.eq.${shipdayOrderId}` 
