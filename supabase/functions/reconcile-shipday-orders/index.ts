@@ -353,8 +353,19 @@ serve(async (req) => {
         updated_at: new Date().toISOString(),
       };
 
+      // Foam My Bike stage helpers — never move a foam order backwards.
+      const currentFoamStatus = dbOrder.foam_status;
+      const foamOrder = !!currentFoamStatus;
+      const nowIso = new Date().toISOString();
+
       if (newStatus === "collected" || newStatus === "driver_to_delivery") {
         updateData.order_collected = true;
+        if (foamOrder && currentFoamStatus === "pending_collection") {
+          updateData.foam_status = "pending_foaming";
+          if (!dbOrder.foam_pending_foaming_at) {
+            updateData.foam_pending_foaming_at = nowIso;
+          }
+        }
       }
       if (newStatus === "delivered") {
         updateData.order_collected = true;
@@ -362,7 +373,12 @@ serve(async (req) => {
       }
       if (newStatus === "delivered_to_ferry") {
         updateData.order_collected = true;
-        updateData.foam_status = "delivered_to_ferry";
+        if (foamOrder && currentFoamStatus !== "delivered_to_ferry" && currentFoamStatus !== "delivered_ni") {
+          updateData.foam_status = "delivered_to_ferry";
+        }
+        if (foamOrder && !dbOrder.foam_delivered_to_ferry_at) {
+          updateData.foam_delivered_to_ferry_at = nowIso;
+        }
       }
 
       // If suppressEmails is set, stamp sent_at so downstream triggers won't fire
