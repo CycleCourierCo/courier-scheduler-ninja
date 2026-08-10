@@ -606,6 +606,9 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
         )
       }
 
+      ctx.userId = userId as string
+
+
       const url = new URL(req.url)
       const orderId = url.pathname.split('/').pop()
 
