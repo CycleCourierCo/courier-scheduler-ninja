@@ -395,9 +395,21 @@ serve(async (req) => {
       updated_at: new Date().toISOString(),
     };
 
+    // Foam My Bike stage helpers — never move a foam order backwards.
+    const currentFoamStatus = (dbOrder as any).foam_status as string | null;
+    const foamOrder = !!currentFoamStatus;
+    const nowIso = new Date().toISOString();
+
     // Set collection/delivery booleans based on status
     if (newStatus === 'collected' || newStatus === 'driver_to_delivery' || newStatus === 'delivery_scheduled') {
       updateData.order_collected = true;
+      // Collected foam bikes are on their way to the depot for foaming.
+      if (foamOrder && currentFoamStatus === 'pending_collection') {
+        updateData.foam_status = 'pending_foaming';
+        if (!(dbOrder as any).foam_pending_foaming_at) {
+          updateData.foam_pending_foaming_at = nowIso;
+        }
+      }
     }
     if (newStatus === 'delivered') {
       updateData.order_collected = true;  // Must be collected to be delivered
@@ -406,7 +418,12 @@ serve(async (req) => {
     if (newStatus === 'delivered_to_ferry') {
       // Bike has reached the Irish Sea carrier but not the customer yet
       updateData.order_collected = true;
-      updateData.foam_status = 'delivered_to_ferry';
+      if (foamOrder && currentFoamStatus !== 'delivered_to_ferry' && currentFoamStatus !== 'delivered_ni') {
+        updateData.foam_status = 'delivered_to_ferry';
+      }
+      if (foamOrder && !(dbOrder as any).foam_delivered_to_ferry_at) {
+        updateData.foam_delivered_to_ferry_at = nowIso;
+      }
     }
 
     // On ORDER_FAILED, clear scheduled date/timeslot and shipday id for the failed leg
