@@ -11,7 +11,78 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 const CRON_SECRET = Deno.env.get('CRON_SECRET') ?? '';
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY') ?? '';
+const REPORT_RECIPIENT = 'info@cyclecourierco.com';
+const REPORT_FROM = 'CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>';
 const CONCURRENCY = 3;
+
+// ---- Report email (direct Resend, with persisted outcome) ----
+async function sendReportEmail(
+  supabase: any,
+  logId: string,
+  subject: string,
+  html: string,
+): Promise<void> {
+  const persist = (fields: Record<string, unknown>) =>
+    supabase.from('weekly_invoice_batch_logs').update(fields).eq('id', logId);
+
+  if (!RESEND_API_KEY) {
+    console.error('[weekly-invoice-batch] RESEND_API_KEY missing, cannot send report');
+    await persist({
+      report_status: 'failed',
+      report_error: 'RESEND_API_KEY is not configured',
+      report_recipient: REPORT_RECIPIENT,
+    });
+    return;
+  }
+
+  try {
+    const resp = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${RESEND_API_KEY}`,
+      },
+      body: JSON.stringify({
+        from: REPORT_FROM,
+        to: [REPORT_RECIPIENT],
+        reply_to: 'Info@cyclecourierco.com',
+        subject,
+        html,
+      }),
+    });
+
+    const bodyText = await resp.text();
+    if (!resp.ok) {
+      console.error(`[weekly-invoice-batch] report email failed [${resp.status}]: ${bodyText}`);
+      await persist({
+        report_status: 'failed',
+        report_http_status: resp.status,
+        report_error: bodyText.slice(0, 2000),
+        report_recipient: REPORT_RECIPIENT,
+      });
+      return;
+    }
+
+    console.log(`[weekly-invoice-batch] report email sent (${bodyText.slice(0, 200)})`);
+    await persist({
+      report_status: 'sent',
+      report_http_status: resp.status,
+      report_error: null,
+      report_sent_at: new Date().toISOString(),
+      report_recipient: REPORT_RECIPIENT,
+    });
+  } catch (err: any) {
+    const msg = err?.message || String(err);
+    console.error('[weekly-invoice-batch] report email threw:', msg);
+    await persist({
+      report_status: 'failed',
+      report_error: msg.slice(0, 2000),
+      report_recipient: REPORT_RECIPIENT,
+    });
+  }
+}
+
 
 // ---- Date helpers (Europe/London week Mon 00:00 → Sun 23:59:59.999) ----
 function londonOffsetMinutes(date: Date): number {
