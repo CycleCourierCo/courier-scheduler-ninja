@@ -1344,10 +1344,6 @@ const BicycleInspections = () => {
                                   toast.error("Enter valid parts and labour prices");
                                   return;
                                 }
-                                if (parts + labour <= 0) {
-                                  toast.error("Enter at least a parts or labour price");
-                                  return;
-                                }
                                 setPriceMutation.mutate({ issueId: issue.id, partsCost: parts, labourCost: labour });
                               }}
                               disabled={setPriceMutation.isPending}
