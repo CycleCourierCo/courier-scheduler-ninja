@@ -82,6 +82,53 @@ export type Database = {
           },
         ]
       }
+      api_request_logs: {
+        Row: {
+          api_key_id: string | null
+          created_at: string
+          duration_ms: number
+          endpoint: string
+          error_code: string | null
+          id: string
+          method: string
+          status_code: number
+          success: boolean
+          user_id: string | null
+        }
+        Insert: {
+          api_key_id?: string | null
+          created_at?: string
+          duration_ms?: number
+          endpoint: string
+          error_code?: string | null
+          id?: string
+          method: string
+          status_code: number
+          success?: boolean
+          user_id?: string | null
+        }
+        Update: {
+          api_key_id?: string | null
+          created_at?: string
+          duration_ms?: number
+          endpoint?: string
+          error_code?: string | null
+          id?: string
+          method?: string
+          status_code?: number
+          success?: boolean
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_request_logs_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bicycle_inspections: {
         Row: {
           bike_type: string | null
