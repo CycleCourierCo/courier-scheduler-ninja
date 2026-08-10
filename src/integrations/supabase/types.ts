@@ -3767,6 +3767,11 @@ export type Database = {
           range_end: string | null
           range_label: string | null
           range_start: string | null
+          report_error: string | null
+          report_http_status: number | null
+          report_recipient: string | null
+          report_sent_at: string | null
+          report_status: string | null
           run_completed_at: string | null
           run_started_at: string
           skipped_count: number
@@ -3783,6 +3788,11 @@ export type Database = {
           range_end?: string | null
           range_label?: string | null
           range_start?: string | null
+          report_error?: string | null
+          report_http_status?: number | null
+          report_recipient?: string | null
+          report_sent_at?: string | null
+          report_status?: string | null
           run_completed_at?: string | null
           run_started_at?: string
           skipped_count?: number
@@ -3799,6 +3809,11 @@ export type Database = {
           range_end?: string | null
           range_label?: string | null
           range_start?: string | null
+          report_error?: string | null
+          report_http_status?: number | null
+          report_recipient?: string | null
+          report_sent_at?: string | null
+          report_status?: string | null
           run_completed_at?: string | null
           run_started_at?: string
           skipped_count?: number
