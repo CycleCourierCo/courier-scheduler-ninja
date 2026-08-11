@@ -1,50 +1,37 @@
-# Dead code audit and cleanup
+# Regression safety net, then dead-code cleanup
 
-Goal: remove genuinely dead code without any change to functionality or UI. Anything ambiguous gets reported, not deleted.
+The project currently has **no test setup at all** (no vitest, no test files, no Playwright). So before deleting anything, we build a safety net that fails loudly if behaviour changes.
 
-## Confirmed so far (verified by scanning all 360 files in `src/`)
+## Phase 1 — Static guarantees (fast, catches most deletion mistakes)
 
-Unreferenced UI primitives — safe to delete (approved):
+1. **Vitest + React Testing Library + jsdom** installed, with `vitest.config.ts`, `src/test/setup.ts`, and a `test` script.
+2. **Strict typecheck gate** — `tsgo`/`tsc --noEmit` run after every deletion batch. This alone catches any removed import, export, prop or type that is still used.
+3. **Knip** (unused-export/file/dependency detector) added as a dev dependency and run as the source of truth for "is this really unused", instead of hand-rolled greps. Its report is reviewed by a human before any delete, and it also guards against future dead code.
+4. **ESLint tightened** for `no-unused-vars` / `no-unreachable` so new dead code is flagged at lint time.
 
-- `src/components/ui/breadcrumb.tsx`
-- `src/components/ui/carousel.tsx`
-- `src/components/ui/pagination.tsx`
-- `src/components/ui/resizable.tsx`
-- `src/components/ui/sidebar.tsx`
+## Phase 2 — Behaviour snapshot before deleting
 
-Dependencies with no reference anywhere in `src/`, `index.html`, or config:
+5. **Route smoke tests** — one test per route in `App.tsx` that renders the page inside providers (router, react-query, auth mock, Supabase client mocked) and asserts it mounts without throwing. This is the single highest-value guard: if a deletion breaks a page, a route test fails.
+6. **Unit tests on business logic** that must not change — the pure functions where regressions would be silent and expensive:
+   - `src/lib/labourPricing.ts` price formula
+   - `src/utils/niDelivery.ts`, `northernIreland.ts` (NI classification, ferry coords)
+   - `src/utils/servicingGate.ts`, `jobUtils.ts`, `timeslotUtils.ts`, `bikeSummary.ts`, `labelUtils.ts`
+   - analytics/profitability aggregators (`profitabilityService`, `mechanicProfitabilityService`, `apiWebhookAnalyticsService`, `driverAnalyticsService`) — fed fixed fixtures, asserting exact numbers
+7. **Playwright visual/flow checks** against the running preview for the highest-traffic screens (Dashboard, Order detail, Job scheduling, Analytics tabs, Tracking, Inspections): screenshot each, assert no console errors. Screenshots taken **before** cleanup become the baseline compared after.
+8. **Edge function tests** — Deno tests per function for pure helpers (status mapping, payload building, NI/foam transitions), run with the edge-function test tool. No live webhook calls.
 
-- `@types/dompurify` (obsolete — `dompurify` ships its own types)
-- `@types/leaflet` (only if no leaflet usage is found; will re-check the heat map first)
-- `@vercel/analytics`
+## Phase 3 — Cleanup under the net
 
-## What gets cleaned
+9. Delete in small batches (deps → unused shadcn primitives → unused imports/vars → dead branches → commented-out code → edge-function dead code).
+10. After **each** batch: typecheck, `vitest run`, Playwright screenshots vs baseline, edge function tests. Any red = revert that batch.
+11. Ambiguous files are **listed, not deleted** (as agreed): the legacy scheduling dialog set, timeslip map preview, `OrderTimeChart`, `dashboardUtils`, `logger`.
 
-1. **Unused files** — delete only files with zero static references and no dynamic-import or route reference.
-2. **Unused imports / variables / exported helpers** — per-file removal where the symbol is provably unreferenced across `src/` and `supabase/functions/`.
-3. **Dead code paths** — unreachable branches, conditions that can never be true, leftover feature flags that are hardcoded.
-4. **Commented-out code and obsolete comments** — remove commented-out blocks; keep explanatory comments.
-5. **Duplicate functionality** — where two helpers do the same thing, keep one and re-point call sites (no behaviour change).
-6. **Edge functions** — audit `supabase/functions/` for unused helpers, dead branches and commented-out code. No function directory is deleted, since webhooks, cron jobs and external integrations call them by URL and are not statically visible.
+## Honest limits
 
-## Explicitly NOT deleted (reported instead, per your choice)
+- Tests catch what they cover; the route smoke tests plus typecheck cover the "page still works" case well, but a rarely-used button inside a page can still be missed. That's why nothing ambiguous gets deleted.
+- Anything reached only via cron, webhooks or external API callers is invisible to static analysis — no edge function directory will be removed, only dead code inside them.
+- Runtime-dynamic references (string-built paths, `import()` by variable) are searched for explicitly before each delete.
 
-These have no static importer but look like parked or legacy features:
+## Suggested order
 
-- `src/components/scheduling/DualSchedulingForm.tsx`, `SchedulingDialog.tsx`, `SchedulingCalendar.tsx`, `SchedulingGroupList.tsx`, `SchedulingStats.tsx`, `JobMap.tsx`, `MultiJobTimeslotDialog.tsx` — the old scheduling flow; `MultiJobTimeslotDialog` was edited recently, so its dialog may have been superseded by the Route Builder version.
-- `src/components/timeslips/DriverManagementDialog.tsx`, `TimeslipMapPreview.tsx`
-- `src/components/analytics/OrderTimeChart.tsx`
-- `src/utils/dashboardUtils.ts`
-- `src/utils/logger.ts` (Sentry wrapper, only referenced by itself)
-
-Also untouched: `src/integrations/supabase/types.ts` (generated), migrations, and anything reachable from `App.tsx` routes.
-
-## Safety approach
-
-- Every deletion is preceded by a repo-wide search for the symbol/filename, including dynamic `import()`, string-based references, and edge-function code.
-- Typecheck after each batch; build must stay clean.
-- Batched in this order: unused deps → unused UI primitives → unused imports/vars → dead branches → commented-out code → edge functions.
-
-## Deliverable
-
-A summary listing exactly what was removed, grouped by category, plus the flagged list above with a short note on why each was left in place.
+Phase 1 + 2 first as a standalone change (no deletions), so the baseline is captured against today's known-good app. Then Phase 3 in follow-up batches.
