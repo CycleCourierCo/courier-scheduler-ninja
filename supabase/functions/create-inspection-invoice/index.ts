@@ -186,14 +186,19 @@ const handler = async (req: Request): Promise<Response> => {
     if (inspError || !inspection) throw new Error('Inspection not found');
     if (inspection.invoice_number) throw new Error('Invoice already created for this inspection');
 
-    // Get approved/repaired issues with costs
+    // Get approved/repaired issues with costs, excluding work billed to the
+    // receiver (they are invoiced directly, never the booking customer)
     const billableIssues = (inspection.inspection_issues || []).filter(
-      (issue: any) => (issue.status === 'approved' || issue.status === 'repaired') && issue.estimated_cost
+      (issue: any) =>
+        (issue.status === 'approved' || issue.status === 'repaired') &&
+        issue.estimated_cost &&
+        issue.billing_party !== 'receiver'
     );
 
     if (billableIssues.length === 0) {
-      throw new Error('No approved issues with costs to invoice');
+      throw new Error('No approved customer-billed issues with costs to invoice');
     }
+
 
     // Get order details
     const { data: order, error: orderError } = await supabase
