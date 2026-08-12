@@ -82,6 +82,53 @@ export type Database = {
           },
         ]
       }
+      api_request_logs: {
+        Row: {
+          api_key_id: string | null
+          created_at: string
+          duration_ms: number
+          endpoint: string
+          error_code: string | null
+          id: string
+          method: string
+          status_code: number
+          success: boolean
+          user_id: string | null
+        }
+        Insert: {
+          api_key_id?: string | null
+          created_at?: string
+          duration_ms?: number
+          endpoint: string
+          error_code?: string | null
+          id?: string
+          method: string
+          status_code: number
+          success?: boolean
+          user_id?: string | null
+        }
+        Update: {
+          api_key_id?: string | null
+          created_at?: string
+          duration_ms?: number
+          endpoint?: string
+          error_code?: string | null
+          id?: string
+          method?: string
+          status_code?: number
+          success?: boolean
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_request_logs_api_key_id_fkey"
+            columns: ["api_key_id"]
+            isOneToOne: false
+            referencedRelation: "api_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bicycle_inspections: {
         Row: {
           bike_type: string | null
@@ -1181,6 +1228,7 @@ export type Database = {
       }
       inspection_issues: {
         Row: {
+          billing_party: string
           created_at: string
           customer_responded_at: string | null
           customer_response: string | null
@@ -1189,8 +1237,17 @@ export type Database = {
           external_synced_at: string | null
           id: string
           inspection_id: string
+          invoice_id: string | null
+          invoice_number: string | null
+          invoice_url: string | null
+          invoiced_at: string | null
+          invoiced_by_id: string | null
+          invoiced_by_name: string | null
           issue_description: string
           labour_cost: number | null
+          offered_to_receiver_at: string | null
+          offered_to_receiver_by_id: string | null
+          offered_to_receiver_by_name: string | null
           order_id: string
           part_name: string | null
           part_number: string | null
@@ -1207,6 +1264,9 @@ export type Database = {
           priced_at: string | null
           priced_by_id: string | null
           priced_by_name: string | null
+          receiver_approved_at: string | null
+          receiver_approved_source: string | null
+          receiver_declined_at: string | null
           repair_id: string | null
           requested_by_id: string
           requested_by_name: string
@@ -1217,6 +1277,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          billing_party?: string
           created_at?: string
           customer_responded_at?: string | null
           customer_response?: string | null
@@ -1225,8 +1286,17 @@ export type Database = {
           external_synced_at?: string | null
           id?: string
           inspection_id: string
+          invoice_id?: string | null
+          invoice_number?: string | null
+          invoice_url?: string | null
+          invoiced_at?: string | null
+          invoiced_by_id?: string | null
+          invoiced_by_name?: string | null
           issue_description: string
           labour_cost?: number | null
+          offered_to_receiver_at?: string | null
+          offered_to_receiver_by_id?: string | null
+          offered_to_receiver_by_name?: string | null
           order_id: string
           part_name?: string | null
           part_number?: string | null
@@ -1243,6 +1313,9 @@ export type Database = {
           priced_at?: string | null
           priced_by_id?: string | null
           priced_by_name?: string | null
+          receiver_approved_at?: string | null
+          receiver_approved_source?: string | null
+          receiver_declined_at?: string | null
           repair_id?: string | null
           requested_by_id: string
           requested_by_name: string
@@ -1253,6 +1326,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          billing_party?: string
           created_at?: string
           customer_responded_at?: string | null
           customer_response?: string | null
@@ -1261,8 +1335,17 @@ export type Database = {
           external_synced_at?: string | null
           id?: string
           inspection_id?: string
+          invoice_id?: string | null
+          invoice_number?: string | null
+          invoice_url?: string | null
+          invoiced_at?: string | null
+          invoiced_by_id?: string | null
+          invoiced_by_name?: string | null
           issue_description?: string
           labour_cost?: number | null
+          offered_to_receiver_at?: string | null
+          offered_to_receiver_by_id?: string | null
+          offered_to_receiver_by_name?: string | null
           order_id?: string
           part_name?: string | null
           part_number?: string | null
@@ -1279,6 +1362,9 @@ export type Database = {
           priced_at?: string | null
           priced_by_id?: string | null
           priced_by_name?: string | null
+          receiver_approved_at?: string | null
+          receiver_approved_source?: string | null
+          receiver_declined_at?: string | null
           repair_id?: string | null
           requested_by_id?: string
           requested_by_name?: string
@@ -2072,6 +2158,17 @@ export type Database = {
           foam_pending_foaming_at: string | null
           foam_status: Database["public"]["Enums"]["foam_status"] | null
           foam_tracking_url: string | null
+          guaranteed_delivery: boolean
+          guaranteed_delivery_amount: number
+          guaranteed_delivery_invoice_id: string | null
+          guaranteed_delivery_invoice_number: string | null
+          guaranteed_delivery_invoice_url: string | null
+          guaranteed_delivery_invoiced_at: string | null
+          guaranteed_delivery_marked_at: string | null
+          guaranteed_delivery_marked_by_id: string | null
+          guaranteed_delivery_marked_by_name: string | null
+          guaranteed_delivery_note: string | null
+          guaranteed_delivery_payer: string | null
           id: string
           is_bike_swap: boolean | null
           is_box_my_bike: boolean
@@ -2152,6 +2249,17 @@ export type Database = {
           foam_pending_foaming_at?: string | null
           foam_status?: Database["public"]["Enums"]["foam_status"] | null
           foam_tracking_url?: string | null
+          guaranteed_delivery?: boolean
+          guaranteed_delivery_amount?: number
+          guaranteed_delivery_invoice_id?: string | null
+          guaranteed_delivery_invoice_number?: string | null
+          guaranteed_delivery_invoice_url?: string | null
+          guaranteed_delivery_invoiced_at?: string | null
+          guaranteed_delivery_marked_at?: string | null
+          guaranteed_delivery_marked_by_id?: string | null
+          guaranteed_delivery_marked_by_name?: string | null
+          guaranteed_delivery_note?: string | null
+          guaranteed_delivery_payer?: string | null
           id?: string
           is_bike_swap?: boolean | null
           is_box_my_bike?: boolean
@@ -2232,6 +2340,17 @@ export type Database = {
           foam_pending_foaming_at?: string | null
           foam_status?: Database["public"]["Enums"]["foam_status"] | null
           foam_tracking_url?: string | null
+          guaranteed_delivery?: boolean
+          guaranteed_delivery_amount?: number
+          guaranteed_delivery_invoice_id?: string | null
+          guaranteed_delivery_invoice_number?: string | null
+          guaranteed_delivery_invoice_url?: string | null
+          guaranteed_delivery_invoiced_at?: string | null
+          guaranteed_delivery_marked_at?: string | null
+          guaranteed_delivery_marked_by_id?: string | null
+          guaranteed_delivery_marked_by_name?: string | null
+          guaranteed_delivery_note?: string | null
+          guaranteed_delivery_payer?: string | null
           id?: string
           is_bike_swap?: boolean | null
           is_box_my_bike?: boolean
@@ -3767,6 +3886,11 @@ export type Database = {
           range_end: string | null
           range_label: string | null
           range_start: string | null
+          report_error: string | null
+          report_http_status: number | null
+          report_recipient: string | null
+          report_sent_at: string | null
+          report_status: string | null
           run_completed_at: string | null
           run_started_at: string
           skipped_count: number
@@ -3783,6 +3907,11 @@ export type Database = {
           range_end?: string | null
           range_label?: string | null
           range_start?: string | null
+          report_error?: string | null
+          report_http_status?: number | null
+          report_recipient?: string | null
+          report_sent_at?: string | null
+          report_status?: string | null
           run_completed_at?: string | null
           run_started_at?: string
           skipped_count?: number
@@ -3799,6 +3928,11 @@ export type Database = {
           range_end?: string | null
           range_label?: string | null
           range_start?: string | null
+          report_error?: string | null
+          report_http_status?: number | null
+          report_recipient?: string | null
+          report_sent_at?: string | null
+          report_status?: string | null
           run_completed_at?: string | null
           run_started_at?: string
           skipped_count?: number
@@ -3985,6 +4119,7 @@ export type Database = {
         Args: { p_identifier: string; p_postcode: string }
         Returns: Json
       }
+      get_public_repair_offer: { Args: { p_order_id: string }; Returns: Json }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
@@ -4034,6 +4169,10 @@ export type Database = {
           p_postcode?: string
           p_side: string
         }
+        Returns: Json
+      }
+      submit_public_repair_offer: {
+        Args: { p_approved_issue_ids: string[]; p_order_id: string }
         Returns: Json
       }
       update_user_profile_for_management: {

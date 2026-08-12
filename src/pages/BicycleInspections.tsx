@@ -62,6 +62,12 @@ import {
   setInspectionCleaningTask,
   markInvoiceNotNeeded,
   clearInvoiceSkip,
+  offerDeclinedRepairsToReceiver,
+  markIssueReceiverApproved,
+  undoIssueReceiverApproval,
+  reinstateDeclinedIssue,
+  createReceiverInspectionInvoice,
+
 } from "@/services/inspectionService";
 import { InspectionIssue, InspectionStatus } from "@/types/inspection";
 import { hasRole } from "@/lib/roles";
@@ -506,6 +512,88 @@ const BicycleInspections = () => {
     },
   });
 
+  // Offer declined repairs to the receiver (they pay directly)
+  const offerToReceiverMutation = useMutation({
+    mutationFn: async (orderId: string) => offerDeclinedRepairsToReceiver(orderId),
+    onSuccess: (result: any) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      if (result?.skipped === "test_account") {
+        toast.success("Offer recorded (test account — no message sent)");
+      } else {
+        toast.success(`Offer sent to the receiver for ${result?.offered ?? 0} repair(s)`);
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to send the repair offer");
+      console.error(error);
+    },
+  });
+
+  // Admin/mechanic override: receiver approved this repair (not the customer)
+  const receiverApproveMutation = useMutation({
+    mutationFn: async (issueId: string) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      await markIssueReceiverApproved(issueId, user.id, userProfile?.name || user.email || "Admin");
+      try {
+        const invoice = await createReceiverInspectionInvoice(issueId);
+        return { invoice, invoiceError: null };
+      } catch (invoiceError: any) {
+        return { invoice: null, invoiceError: invoiceError?.message || "Invoice could not be created" };
+      }
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      if (result?.invoice) {
+        const already = result.invoice.alreadyExists ? " (already existed)" : "";
+        toast.success(`Repair approved by receiver and invoice #${result.invoice.invoiceNumber} created${already}`, {
+          action: result.invoice.invoiceUrl
+            ? { label: "Open", onClick: () => window.open(result.invoice.invoiceUrl, "_blank") }
+            : undefined,
+        });
+      } else {
+        toast.success("Marked as approved by the receiver");
+        if (result?.invoiceError) {
+          toast.warning(`Invoice not created: ${result.invoiceError}`);
+        }
+      }
+    },
+    onError: (error) => {
+      toast.error("Failed to record the receiver's approval");
+      console.error(error);
+    },
+  });
+
+  const undoReceiverApprovalMutation = useMutation({
+    mutationFn: async (issueId: string) => undoIssueReceiverApproval(issueId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Receiver approval removed");
+    },
+    onError: (error) => {
+      toast.error("Failed to remove the receiver approval");
+      console.error(error);
+    },
+  });
+
+  // Staff reversal: declined -> approved (customer pays as normal)
+  const reinstateIssueMutation = useMutation({
+    mutationFn: async (issueId: string) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      return reinstateDeclinedIssue(issueId, user.id, userProfile?.name || user.email || "Admin");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Issue moved back to approved");
+    },
+    onError: (error) => {
+      toast.error("Failed to move the issue back to approved");
+      console.error(error);
+    },
+  });
+
+
+
+
   // Cleaning task mutation (frame cleaned / drivetrain degreased)
   const cleaningMutation = useMutation({
     mutationFn: async (args: { inspectionId: string; task: 'frame' | 'drivetrain'; done: boolean }) => {
@@ -873,7 +961,14 @@ const BicycleInspections = () => {
   // (released inspection with no issues, or all repairs declined).
   const getSettledReason = (
     i: any
-  ): "invoiced" | "skipped" | "no_issues" | "declined" | "zero_value" | null => {
+  ):
+    | "invoiced"
+    | "skipped"
+    | "no_issues"
+    | "declined"
+    | "zero_value"
+    | "receiver_billed"
+    | null => {
     const inspection = i.inspection;
     if (inspection?.invoice_number) return "invoiced";
     if (inspection?.invoice_skipped_at) return "skipped";
@@ -881,10 +976,13 @@ const BicycleInspections = () => {
     if (!released) return null;
     const issues = i.issues || [];
     if (issues.length === 0) return "no_issues";
-    const billable = issues.filter(
+    const notDeclined = issues.filter(
       (iss: any) => iss.status !== "declined" && iss.status !== "cancelled"
     );
-    if (billable.length === 0) return "declined";
+    if (notDeclined.length === 0) return "declined";
+    // Receiver-billed work is invoiced to the receiver, not the booking customer
+    const billable = notDeclined.filter((iss: any) => iss.billing_party !== "receiver");
+    if (billable.length === 0) return "receiver_billed";
     if (i.repairs_declined_at) return "declined";
     const total = billable.reduce((sum: number, iss: any) => {
       const parts = Number(iss.parts_cost ?? 0) || 0;
@@ -896,6 +994,7 @@ const BicycleInspections = () => {
     if (Math.round(total * 100) === 0) return "zero_value";
     return null;
   };
+
 
   const isBillingSettled = (i: any) => getSettledReason(i) !== null;
 
@@ -1016,15 +1115,41 @@ const BicycleInspections = () => {
     const allApprovedRepaired = checkAllApprovedRepaired(orderIssues);
     const hasInvoice = !!inspection?.invoice_number;
     const invoiceSkipped = !!inspection?.invoice_skipped_at;
-    const totalForInvoice = approvedIssues.reduce((sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0), 0);
-    const canCreateInvoice = isAdmin && (inspection?.status === "repaired" || inspection?.status === "inspected") && approvedIssues.length > 0 && !hasInvoice && !invoiceSkipped && totalForInvoice > 0;
+    // Receiver-billed repairs are invoiced to the receiver, so exclude them
+    // from the booking customer's inspection invoice totals.
+    const customerApprovedIssues = approvedIssues.filter(
+      (i: any) => i.billing_party !== "receiver"
+    );
+    const receiverBilledTotal = approvedIssues
+      .filter((i: any) => i.billing_party === "receiver")
+      .reduce((sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0), 0);
+    const totalForInvoice = customerApprovedIssues.reduce((sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0), 0);
+    const canCreateInvoice = isAdmin && (inspection?.status === "repaired" || inspection?.status === "inspected") && customerApprovedIssues.length > 0 && !hasInvoice && !invoiceSkipped && totalForInvoice > 0;
     const isAwaitingPricing = inspection?.status === "awaiting_pricing";
     const isAwaitingParts = inspection?.status === "awaiting_parts";
     const isAwaitingRepair = inspection?.status === "awaiting_repair" || inspection?.status === "in_repair" || inspection?.status === "cleaning";
     const allPriced = orderIssues.length > 0 && orderIssues.every((i: InspectionIssue) => i.estimated_cost != null);
     const approvedCount = approvedIssues.length;
     const declinedCount = orderIssues.filter((i: InspectionIssue) => i.status === "declined").length;
-    const totalRepairCost = approvedIssues.reduce((sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0), 0);
+    const totalRepairCost = customerApprovedIssues.reduce((sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0), 0);
+    // Declined repairs that can still be offered to the receiver (they pay directly)
+    const offerableIssues = orderIssues.filter(
+      (i: any) => i.status === "declined" && !i.receiver_declined_at
+    );
+    const offerableTotal = offerableIssues.reduce(
+      (sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0),
+      0
+    );
+    const receiverApprovedCount = orderIssues.filter(
+      (i: any) => i.billing_party === "receiver"
+    ).length;
+    const lastOfferedAt = orderIssues.reduce(
+      (latest: string | null, i: any) =>
+        i.offered_to_receiver_at && (!latest || i.offered_to_receiver_at > latest)
+          ? i.offered_to_receiver_at
+          : latest,
+      null as string | null
+    );
     const partsArrivedCount = approvedIssues.filter((i: InspectionIssue) => (i.parts_arrived && i.parts_ordered) || i.status === 'repaired' || i.status === 'resolved').length;
 
 
@@ -1231,6 +1356,11 @@ const BicycleInspections = () => {
               <Badge variant="destructive">
                 Declined: {declinedCount}
               </Badge>
+              {receiverApprovedCount > 0 && (
+                <Badge className="bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200">
+                  Receiver approved: {receiverApprovedCount}
+                </Badge>
+              )}
               {isAdmin && (
                 <Badge variant="outline">
                   Total repairs: £{totalRepairCost.toFixed(2)}
@@ -1238,6 +1368,35 @@ const BicycleInspections = () => {
               )}
             </div>
           )}
+
+          {/* Offer declined repairs to the receiver */}
+          {canManageInspections && offerableIssues.length > 0 && (
+            <div className="rounded-md border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-sky-950/40 min-w-0">
+              <p className="text-sm font-medium break-words">
+                The customer has approved {approvedCount} repair(s) but has not approved{" "}
+                {offerableIssues.length} — worth £{offerableTotal.toFixed(2)}.
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 break-words">
+                Offer this work to the receiver — anything they approve is billed to them.
+                {lastOfferedAt && ` Last offered ${new Date(lastOfferedAt).toLocaleString()}.`}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2 border-sky-500 text-sky-700 hover:bg-sky-100 dark:text-sky-300 dark:hover:bg-sky-900"
+                onClick={() => offerToReceiverMutation.mutate(order.id)}
+                disabled={offerToReceiverMutation.isPending}
+              >
+                {offerToReceiverMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <Send className="h-4 w-4 mr-1" />
+                )}
+                {lastOfferedAt ? "Re-send offer to receiver" : "Offer these repairs to the receiver"}
+              </Button>
+            </div>
+          )}
+
           {/* Issues Section */}
           {orderIssues.length > 0 && (
             <div className="space-y-3">
@@ -1342,10 +1501,6 @@ const BicycleInspections = () => {
                                 const labour = current.labour.trim() === "" ? 0 : parseFloat(current.labour);
                                 if (!isFinite(parts) || parts < 0 || !isFinite(labour) || labour < 0) {
                                   toast.error("Enter valid parts and labour prices");
-                                  return;
-                                }
-                                if (parts + labour <= 0) {
-                                  toast.error("Enter at least a parts or labour price");
                                   return;
                                 }
                                 setPriceMutation.mutate({ issueId: issue.id, partsCost: parts, labourCost: labour });
@@ -1663,6 +1818,75 @@ const BicycleInspections = () => {
                       </Button>
                     </div>
                   )}
+
+                  {/* Receiver-funded repairs */}
+                  {(issue as any).billing_party === "receiver" && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                       <Badge className="bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200">
+                        Approved by receiver
+                        {(issue as any).receiver_approved_source === "staff" ? " (recorded by staff)" : ""}
+                      </Badge>
+                      {(issue as any).invoice_number && (issue as any).invoice_url && (
+                        <Badge
+                          className="cursor-pointer bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900 dark:text-green-200"
+                          onClick={() => window.open((issue as any).invoice_url, "_blank")}
+                        >
+                          Invoice #{(issue as any).invoice_number}
+                        </Badge>
+                      )}
+                      {canManageInspections && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => undoReceiverApprovalMutation.mutate(issue.id)}
+                          disabled={undoReceiverApprovalMutation.isPending}
+                        >
+                          <RotateCcw className="h-4 w-4 mr-1" />
+                          Undo
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Admin/mechanic: record that the receiver (not the customer) approved this repair */}
+                  {canManageInspections && issue.status === "declined" && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-sky-500 text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-sky-950"
+                        onClick={() => receiverApproveMutation.mutate(issue.id)}
+                        disabled={receiverApproveMutation.isPending}
+                      >
+                        {receiverApproveMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        ) : (
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                        )}
+                        Receiver approved — do this repair
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-green-500 text-green-700 hover:bg-green-50 dark:text-green-300 dark:hover:bg-green-950"
+                        onClick={() => reinstateIssueMutation.mutate(issue.id)}
+                        disabled={reinstateIssueMutation.isPending}
+                      >
+                        {reinstateIssueMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        ) : (
+                          <RotateCcw className="h-4 w-4 mr-1" />
+                        )}
+                        Customer approved — undo decline
+
+                      </Button>
+                      {(issue as any).receiver_declined_at && (
+                        <span className="text-xs text-muted-foreground">
+                          Receiver declined {new Date((issue as any).receiver_declined_at).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -1897,7 +2121,12 @@ const BicycleInspections = () => {
 
           {(() => {
             const reason = getSettledReason(order);
-            if (reason !== "no_issues" && reason !== "declined" && reason !== "zero_value")
+            if (
+              reason !== "no_issues" &&
+              reason !== "declined" &&
+              reason !== "zero_value" &&
+              reason !== "receiver_billed"
+            )
               return null;
             return (
               <div className="flex min-w-0 flex-wrap items-center gap-2 pt-2">
@@ -1907,15 +2136,20 @@ const BicycleInspections = () => {
                     ? "No issues"
                     : reason === "declined"
                       ? "Repairs declined"
-                      : "£0 — nothing to bill"}
+                      : reason === "receiver_billed"
+                        ? "Receiver pays"
+                        : "£0 — nothing to bill"}
                 </Badge>
 
                 <span className="min-w-0 text-xs text-muted-foreground break-words">
-                  Nothing to invoice
+                  {reason === "receiver_billed"
+                    ? `Nothing to invoice the customer${receiverBilledTotal > 0 ? ` — £${receiverBilledTotal.toFixed(2)} billed to receiver` : ""}`
+                    : "Nothing to invoice"}
                 </span>
               </div>
             );
           })()}
+
 
           {invoiceSkipped && (
             <div className="flex min-w-0 flex-wrap items-center gap-2 pt-2">

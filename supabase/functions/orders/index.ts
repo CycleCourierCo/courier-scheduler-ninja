@@ -56,14 +56,15 @@ async function getCoordinates(addressString: string): Promise<{ lat: number; lon
   return null;
 }
 
-Deno.serve(async (req) => {
+const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
   // Initialize Sentry for this request
   initSentry("orders");
-  
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
 
   try {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
@@ -100,7 +101,10 @@ Deno.serve(async (req) => {
         )
       }
 
+      ctx.userId = userId as string
+
       const body = await req.json()
+
 
       // Box My Bike: auto-fill depot as receiver so caller doesn't need to provide it
       const isBoxMyBike = body.isBoxMyBike || body.is_box_my_bike || false
@@ -602,6 +606,9 @@ Deno.serve(async (req) => {
         )
       }
 
+      ctx.userId = userId as string
+
+
       const url = new URL(req.url)
       const orderId = url.pathname.split('/').pop()
 
@@ -654,4 +661,68 @@ Deno.serve(async (req) => {
       }
     )
   }
+}
+
+// Records one row per API call (no bodies, no PII) for API analytics.
+const logApiRequest = async (
+  req: Request,
+  res: Response,
+  startedAt: number,
+  userId: string | null,
+) => {
+  try {
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    )
+
+    let endpoint = 'orders'
+    try {
+      const path = new URL(req.url).pathname.replace(/^\/functions\/v1\//, '')
+      endpoint = req.method === 'GET' && path.split('/').length > 1 ? 'orders/:id' : path || 'orders'
+    } catch (_e) {
+      // keep default
+    }
+
+    let errorCode: string | null = null
+    if (!res.ok) {
+      try {
+        const parsed = await res.clone().json()
+        errorCode = typeof parsed?.code === 'string' ? parsed.code : null
+      } catch (_e) {
+        errorCode = null
+      }
+    }
+
+    await supabase.from('api_request_logs').insert({
+      user_id: userId,
+      endpoint,
+      method: req.method,
+      status_code: res.status,
+      duration_ms: Date.now() - startedAt,
+      success: res.ok,
+      error_code: errorCode,
+    })
+  } catch (e) {
+    console.error('Failed to log API request:', (e as Error).message)
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  const startedAt = Date.now()
+  const ctx: { userId: string | null } = { userId: null }
+  const res = await handleRequest(req, ctx)
+
+  try {
+    // @ts-ignore EdgeRuntime is available in Supabase Edge Functions
+    EdgeRuntime.waitUntil(logApiRequest(req, res, startedAt, ctx.userId))
+  } catch (_e) {
+    void logApiRequest(req, res, startedAt, ctx.userId)
+  }
+
+  return res
 })
