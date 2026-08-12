@@ -21,6 +21,7 @@ import { sendOrderCancellationEmails } from "@/services/emailService";
 import { isReceiverAvailabilityBlockedByInspection } from "@/services/inspectionService";
 import { Order, OrderStatus, CreateOrderFormData } from "@/types/order";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import Layout from "@/components/Layout";
