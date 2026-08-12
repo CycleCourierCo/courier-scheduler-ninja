@@ -81,7 +81,33 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     foamHasPhotos:
       dbOrder.has_foam_photos ??
       ((dbOrder.foam_delivery_photos?.length || 0) > 0),
+    guaranteedDelivery: dbOrder.guaranteed_delivery || false,
+    guaranteedDeliveryPayer: dbOrder.guaranteed_delivery_payer || null,
+    guaranteedDeliveryAmount:
+      dbOrder.guaranteed_delivery_amount != null ? Number(dbOrder.guaranteed_delivery_amount) : null,
+    guaranteedDeliveryNote: dbOrder.guaranteed_delivery_note || null,
+    guaranteedDeliveryMarkedAt: dbOrder.guaranteed_delivery_marked_at || null,
+    guaranteedDeliveryMarkedByName: dbOrder.guaranteed_delivery_marked_by_name || null,
+    guaranteedDeliveryInvoiceNumber: dbOrder.guaranteed_delivery_invoice_number || null,
+    guaranteedDeliveryInvoiceId: dbOrder.guaranteed_delivery_invoice_id || null,
+    guaranteedDeliveryInvoiceUrl: dbOrder.guaranteed_delivery_invoice_url || null,
+    guaranteedDeliveryInvoicedAt: dbOrder.guaranteed_delivery_invoiced_at || null,
   };
+
+  // Preserve raw snake_case guarantee fields for components reading them directly.
+  Object.assign(result as any, {
+    guaranteed_delivery: dbOrder.guaranteed_delivery || false,
+    guaranteed_delivery_payer: dbOrder.guaranteed_delivery_payer || null,
+    guaranteed_delivery_amount:
+      dbOrder.guaranteed_delivery_amount != null ? Number(dbOrder.guaranteed_delivery_amount) : null,
+    guaranteed_delivery_note: dbOrder.guaranteed_delivery_note || null,
+    guaranteed_delivery_marked_at: dbOrder.guaranteed_delivery_marked_at || null,
+    guaranteed_delivery_marked_by_name: dbOrder.guaranteed_delivery_marked_by_name || null,
+    guaranteed_delivery_invoice_number: dbOrder.guaranteed_delivery_invoice_number || null,
+    guaranteed_delivery_invoice_id: dbOrder.guaranteed_delivery_invoice_id || null,
+    guaranteed_delivery_invoice_url: dbOrder.guaranteed_delivery_invoice_url || null,
+    guaranteed_delivery_invoiced_at: dbOrder.guaranteed_delivery_invoiced_at || null,
+  });
 
 
   // Add optional date fields only if they exist in the DB record
