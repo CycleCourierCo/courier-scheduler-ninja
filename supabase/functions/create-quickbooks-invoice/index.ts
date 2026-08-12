@@ -949,6 +949,7 @@ const handler = async (req: Request): Promise<Response> => {
         quickbooks_invoice_id: invoiceId,
         quickbooks_invoice_number: invoiceNumber,
         quickbooks_invoice_url: invoiceUrl,
+        quickbooks_invoice_public_url: invoicePublicUrl,
         status: 'created'
       });
 
