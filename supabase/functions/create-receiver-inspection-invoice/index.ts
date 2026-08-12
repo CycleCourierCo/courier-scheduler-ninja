@@ -357,7 +357,7 @@ const handler = async (req: Request): Promise<Response> => {
         const resend = new Resend(resendApiKey);
         const email = buildReceiverInvoiceEmail(order, issue, invoiceUrl, totalAmount);
         await resend.emails.send({
-          from: 'CCC - Cycle Courier Co. <notification@cyclecourierco.com>',
+          from: 'CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>',
           to: [receiver.email],
           reply_to: 'Info@cyclecourierco.com',
           subject: email.subject,
