@@ -2088,7 +2088,19 @@ const BicycleInspections = () => {
                   View
                 </a>
               )}
+              {(inspection as any).invoice_public_url && (
+                <a
+                  href={(inspection as any).invoice_public_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary hover:underline flex items-center gap-1 shrink-0"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Customer link
+                </a>
+              )}
             </div>
+
           )}
 
           {canCreateInvoice && (
