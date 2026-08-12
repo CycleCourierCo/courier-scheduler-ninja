@@ -1281,6 +1281,11 @@ const BicycleInspections = () => {
               <Badge variant="destructive">
                 Declined: {declinedCount}
               </Badge>
+              {receiverApprovedCount > 0 && (
+                <Badge className="bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200">
+                  Receiver approved: {receiverApprovedCount}
+                </Badge>
+              )}
               {isAdmin && (
                 <Badge variant="outline">
                   Total repairs: £{totalRepairCost.toFixed(2)}
@@ -1288,6 +1293,35 @@ const BicycleInspections = () => {
               )}
             </div>
           )}
+
+          {/* Offer declined repairs to the receiver */}
+          {canManageInspections && offerableIssues.length > 0 && (
+            <div className="rounded-md border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-sky-950/40 min-w-0">
+              <p className="text-sm font-medium break-words">
+                The customer has approved {approvedCount} repair(s) but has not approved{" "}
+                {offerableIssues.length} — worth £{offerableTotal.toFixed(2)}.
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 break-words">
+                Offer this work to the receiver — anything they approve is billed to them.
+                {lastOfferedAt && ` Last offered ${new Date(lastOfferedAt).toLocaleString()}.`}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2 border-sky-500 text-sky-700 hover:bg-sky-100 dark:text-sky-300 dark:hover:bg-sky-900"
+                onClick={() => offerToReceiverMutation.mutate(order.id)}
+                disabled={offerToReceiverMutation.isPending}
+              >
+                {offerToReceiverMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <Send className="h-4 w-4 mr-1" />
+                )}
+                {lastOfferedAt ? "Re-send offer to receiver" : "Offer these repairs to the receiver"}
+              </Button>
+            </div>
+          )}
+
           {/* Issues Section */}
           {orderIssues.length > 0 && (
             <div className="space-y-3">
