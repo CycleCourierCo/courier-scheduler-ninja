@@ -193,6 +193,16 @@ export type Order = {
   inspection_status?: 'pending' | 'inspected' | 'issues_found' | 'in_repair' | 'repaired' | null;
   inspectionSummary?: InspectionSummary | null;
   createdViaApi?: boolean;
+  guaranteedDelivery?: boolean;
+  guaranteedDeliveryPayer?: 'account' | 'sender' | 'receiver' | string | null;
+  guaranteedDeliveryAmount?: number | null;
+  guaranteedDeliveryNote?: string | null;
+  guaranteedDeliveryMarkedAt?: string | null;
+  guaranteedDeliveryMarkedByName?: string | null;
+  guaranteedDeliveryInvoiceNumber?: string | null;
+  guaranteedDeliveryInvoiceId?: string | null;
+  guaranteedDeliveryInvoiceUrl?: string | null;
+  guaranteedDeliveryInvoicedAt?: string | null;
   collectionConfirmationSentAt?: Date | null;
   deliveryConfirmationSentAt?: Date | null;
 };
