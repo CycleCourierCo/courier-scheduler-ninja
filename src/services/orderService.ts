@@ -768,7 +768,8 @@ export const setGuaranteedDelivery = async (
   orderId: string,
   payer: GuaranteedDeliveryPayer,
   amount: number,
-  note?: string
+  note?: string,
+  markedBy?: { id?: string | null; name?: string | null }
 ): Promise<void> => {
   const { error } = await supabase
     .from("orders")
@@ -777,6 +778,9 @@ export const setGuaranteedDelivery = async (
       guaranteed_delivery_payer: payer,
       guaranteed_delivery_amount: amount,
       guaranteed_delivery_note: note || null,
+      guaranteed_delivery_marked_at: new Date().toISOString(),
+      guaranteed_delivery_marked_by_id: markedBy?.id || null,
+      guaranteed_delivery_marked_by_name: markedBy?.name || null,
       updated_at: new Date().toISOString(),
     } as any)
     .eq("id", orderId);
@@ -796,6 +800,9 @@ export const clearGuaranteedDelivery = async (orderId: string): Promise<void> =>
       guaranteed_delivery_invoice_number: null,
       guaranteed_delivery_invoice_url: null,
       guaranteed_delivery_invoiced_at: null,
+      guaranteed_delivery_marked_at: null,
+      guaranteed_delivery_marked_by_id: null,
+      guaranteed_delivery_marked_by_name: null,
       updated_at: new Date().toISOString(),
     } as any)
     .eq("id", orderId);
