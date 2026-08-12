@@ -35,6 +35,10 @@ interface InvoiceRequest {
     needs_inspection?: boolean | null;
     is_box_my_bike?: boolean | null;
     is_northern_ireland?: boolean | null;
+    guaranteed_delivery?: boolean | null;
+    guaranteed_delivery_payer?: string | null;
+    guaranteed_delivery_amount?: number | null;
+    guaranteed_delivery_note?: string | null;
 
   }>;
 }
@@ -685,6 +689,50 @@ const handler = async (req: Request): Promise<Response> => {
           console.warn(`Box My Bike product "Box My Bike" not found in QuickBooks`);
           if (!missingProducts.includes('Box My Bike')) {
             missingProducts.push('Box My Bike');
+          }
+        }
+      }
+
+      // Add Guaranteed Delivery Date surcharge when the booking account is paying
+      const guaranteedAmount = Number(order.guaranteed_delivery_amount || 0);
+      if (order.guaranteed_delivery && order.guaranteed_delivery_payer === 'account' && guaranteedAmount > 0) {
+        const gdProduct = await findProductByExactName(
+          tokenData.access_token,
+          tokenData.company_id,
+          'Guaranteed Delivery Date'
+        );
+
+        if (gdProduct) {
+          let gdDescription = `${order.tracking_number || order.id}`;
+          if (order.customer_order_number) {
+            gdDescription += ` (Order #${order.customer_order_number})`;
+          }
+          gdDescription += ` - Guaranteed delivery date`;
+          if (order.guaranteed_delivery_note) {
+            gdDescription += ` - ${order.guaranteed_delivery_note}`;
+          }
+
+          lineItems.push({
+            Amount: guaranteedAmount,
+            DetailType: "SalesItemLineDetail",
+            SalesItemLineDetail: {
+              ItemRef: {
+                value: gdProduct.id,
+                name: gdProduct.name
+              },
+              Qty: 1,
+              UnitPrice: guaranteedAmount,
+              ServiceDate: serviceDate,
+              ...(vatTaxCodeId && { TaxCodeRef: { value: vatTaxCodeId } })
+            },
+            Description: gdDescription
+          });
+
+          console.log(`Added Guaranteed Delivery Date line item: ${gdDescription} @ £${guaranteedAmount}`);
+        } else {
+          console.warn(`Guaranteed Delivery Date product not found in QuickBooks`);
+          if (!missingProducts.includes('Guaranteed Delivery Date')) {
+            missingProducts.push('Guaranteed Delivery Date');
           }
         }
       }

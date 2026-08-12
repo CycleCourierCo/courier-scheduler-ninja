@@ -2158,6 +2158,17 @@ export type Database = {
           foam_pending_foaming_at: string | null
           foam_status: Database["public"]["Enums"]["foam_status"] | null
           foam_tracking_url: string | null
+          guaranteed_delivery: boolean
+          guaranteed_delivery_amount: number
+          guaranteed_delivery_invoice_id: string | null
+          guaranteed_delivery_invoice_number: string | null
+          guaranteed_delivery_invoice_url: string | null
+          guaranteed_delivery_invoiced_at: string | null
+          guaranteed_delivery_marked_at: string | null
+          guaranteed_delivery_marked_by_id: string | null
+          guaranteed_delivery_marked_by_name: string | null
+          guaranteed_delivery_note: string | null
+          guaranteed_delivery_payer: string | null
           id: string
           is_bike_swap: boolean | null
           is_box_my_bike: boolean
@@ -2238,6 +2249,17 @@ export type Database = {
           foam_pending_foaming_at?: string | null
           foam_status?: Database["public"]["Enums"]["foam_status"] | null
           foam_tracking_url?: string | null
+          guaranteed_delivery?: boolean
+          guaranteed_delivery_amount?: number
+          guaranteed_delivery_invoice_id?: string | null
+          guaranteed_delivery_invoice_number?: string | null
+          guaranteed_delivery_invoice_url?: string | null
+          guaranteed_delivery_invoiced_at?: string | null
+          guaranteed_delivery_marked_at?: string | null
+          guaranteed_delivery_marked_by_id?: string | null
+          guaranteed_delivery_marked_by_name?: string | null
+          guaranteed_delivery_note?: string | null
+          guaranteed_delivery_payer?: string | null
           id?: string
           is_bike_swap?: boolean | null
           is_box_my_bike?: boolean
@@ -2318,6 +2340,17 @@ export type Database = {
           foam_pending_foaming_at?: string | null
           foam_status?: Database["public"]["Enums"]["foam_status"] | null
           foam_tracking_url?: string | null
+          guaranteed_delivery?: boolean
+          guaranteed_delivery_amount?: number
+          guaranteed_delivery_invoice_id?: string | null
+          guaranteed_delivery_invoice_number?: string | null
+          guaranteed_delivery_invoice_url?: string | null
+          guaranteed_delivery_invoiced_at?: string | null
+          guaranteed_delivery_marked_at?: string | null
+          guaranteed_delivery_marked_by_id?: string | null
+          guaranteed_delivery_marked_by_name?: string | null
+          guaranteed_delivery_note?: string | null
+          guaranteed_delivery_payer?: string | null
           id?: string
           is_bike_swap?: boolean | null
           is_box_my_bike?: boolean
