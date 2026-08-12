@@ -1180,3 +1180,116 @@ export const setInspectionCleaningTask = async (
 
   return data as BicycleInspection;
 };
+
+// ---------------------------------------------------------------------------
+// Receiver repair offers
+//
+// When a customer (the seller/booker) declines recommended repairs, staff can
+// offer the same work to the receiver, who pays for it directly. Approvals made
+// this way are billed to the receiver (`billing_party = 'receiver'`).
+// ---------------------------------------------------------------------------
+
+export interface RepairOfferIssue {
+  id: string;
+  description: string;
+  cost?: number;
+}
+
+export interface PublicRepairOffer {
+  found: boolean;
+  order_id?: string;
+  tracking_number?: string | null;
+  bike_brand?: string | null;
+  bike_model?: string | null;
+  receiver_name?: string | null;
+  approved?: RepairOfferIssue[];
+  offered?: RepairOfferIssue[];
+  receiver_approved?: RepairOfferIssue[];
+  responded_at?: string | null;
+}
+
+/** Emails/WhatsApps the receiver an offer for every declined repair on an order. */
+export const offerDeclinedRepairsToReceiver = async (
+  orderId: string
+): Promise<{ offered: number; email?: string; whatsapp?: string; link?: string }> => {
+  const { data, error } = await supabase.functions.invoke('send-repair-offer', {
+    body: { orderId },
+  });
+  if (error) {
+    let details = error.message;
+    try {
+      const ctx = (error as any)?.context;
+      if (ctx?.text) details = await ctx.text();
+    } catch {
+      // keep the original message
+    }
+    throw new Error(details || 'Failed to send repair offer');
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+};
+
+/** Public (unauthenticated) read of the receiver's repair offer. */
+export const fetchPublicRepairOffer = async (orderId: string): Promise<PublicRepairOffer> => {
+  const { data, error } = await supabase.rpc('get_public_repair_offer', { p_order_id: orderId });
+  if (error) throw error;
+  return (data || { found: false }) as PublicRepairOffer;
+};
+
+/** Public (unauthenticated) submission of the receiver's chosen repairs. */
+export const submitPublicRepairOffer = async (
+  orderId: string,
+  approvedIssueIds: string[]
+): Promise<{ success: boolean; approved?: number; declined?: number; error?: string }> => {
+  const { data, error } = await supabase.rpc('submit_public_repair_offer', {
+    p_order_id: orderId,
+    p_approved_issue_ids: approvedIssueIds,
+  });
+  if (error) throw error;
+  return (data || { success: false }) as any;
+};
+
+/**
+ * Admin/mechanic override: mark a declined issue as approved by the receiver
+ * (rather than the customer) so the work can go ahead and be billed to them.
+ */
+export const markIssueReceiverApproved = async (
+  issueId: string,
+  userId: string,
+  userName: string
+): Promise<void> => {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('inspection_issues')
+    .update({
+      status: 'approved',
+      billing_party: 'receiver',
+      receiver_approved_at: now,
+      receiver_approved_source: 'staff',
+      receiver_declined_at: null,
+      customer_response: `Approved by receiver (recorded by ${userName})`,
+      customer_responded_at: now,
+      offered_to_receiver_at: now,
+      offered_to_receiver_by_id: userId,
+      offered_to_receiver_by_name: userName,
+      updated_at: now,
+    })
+    .eq('id', issueId);
+  if (error) throw error;
+};
+
+/** Reverts a receiver approval back to a declined repair. */
+export const undoIssueReceiverApproval = async (issueId: string): Promise<void> => {
+  const { error } = await supabase
+    .from('inspection_issues')
+    .update({
+      status: 'declined',
+      billing_party: 'customer',
+      receiver_approved_at: null,
+      receiver_approved_source: null,
+      customer_response: 'Declined',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', issueId);
+  if (error) throw error;
+};
