@@ -1761,6 +1761,52 @@ const BicycleInspections = () => {
                       </Button>
                     </div>
                   )}
+
+                  {/* Receiver-funded repairs */}
+                  {(issue as any).billing_party === "receiver" && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Badge className="bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200">
+                        Approved by receiver
+                        {(issue as any).receiver_approved_source === "staff" ? " (recorded by staff)" : ""}
+                      </Badge>
+                      {canManageInspections && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => undoReceiverApprovalMutation.mutate(issue.id)}
+                          disabled={undoReceiverApprovalMutation.isPending}
+                        >
+                          <RotateCcw className="h-4 w-4 mr-1" />
+                          Undo
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Admin/mechanic: record that the receiver (not the customer) approved this repair */}
+                  {canManageInspections && issue.status === "declined" && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-sky-500 text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-sky-950"
+                        onClick={() => receiverApproveMutation.mutate(issue.id)}
+                        disabled={receiverApproveMutation.isPending}
+                      >
+                        {receiverApproveMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        ) : (
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                        )}
+                        Receiver approved — do this repair
+                      </Button>
+                      {(issue as any).receiver_declined_at && (
+                        <span className="text-xs text-muted-foreground">
+                          Receiver declined {new Date((issue as any).receiver_declined_at).toLocaleDateString()}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
