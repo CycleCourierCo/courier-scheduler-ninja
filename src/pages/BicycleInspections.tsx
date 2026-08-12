@@ -1075,6 +1075,24 @@ const BicycleInspections = () => {
     const approvedCount = approvedIssues.length;
     const declinedCount = orderIssues.filter((i: InspectionIssue) => i.status === "declined").length;
     const totalRepairCost = approvedIssues.reduce((sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0), 0);
+    // Declined repairs that can still be offered to the receiver (they pay directly)
+    const offerableIssues = orderIssues.filter(
+      (i: any) => i.status === "declined" && !i.receiver_declined_at
+    );
+    const offerableTotal = offerableIssues.reduce(
+      (sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0),
+      0
+    );
+    const receiverApprovedCount = orderIssues.filter(
+      (i: any) => i.billing_party === "receiver"
+    ).length;
+    const lastOfferedAt = orderIssues.reduce(
+      (latest: string | null, i: any) =>
+        i.offered_to_receiver_at && (!latest || i.offered_to_receiver_at > latest)
+          ? i.offered_to_receiver_at
+          : latest,
+      null as string | null
+    );
     const partsArrivedCount = approvedIssues.filter((i: InspectionIssue) => (i.parts_arrived && i.parts_ordered) || i.status === 'repaired' || i.status === 'resolved').length;
 
 
