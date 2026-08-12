@@ -992,6 +992,10 @@ const handler = async (req: Request): Promise<Response> => {
         ` : '<p style="color: #16a34a;">✓ All bike types matched to QuickBooks products</p>'}
         
         <p><a href="${invoiceUrl}">View Invoice in QuickBooks</a></p>
+        ${invoicePublicUrl
+          ? `<p>Customer link (no login needed): <a href="${invoicePublicUrl}">${invoicePublicUrl}</a></p>`
+          : '<p style="color:#b45309;">No customer share link available — online invoicing may be switched off in QuickBooks.</p>'}
+        <p>QuickBooks invoice email to customer: ${delivery.quickbooksEmailSent ? 'sent' : 'not sent'}</p>
       `;
 
       await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-email`, {
