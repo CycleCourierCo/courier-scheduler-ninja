@@ -257,6 +257,15 @@ const handler = async (req: Request): Promise<Response> => {
     const invoiceNumber = qbInvoice?.DocNumber;
     const invoiceUrl = `https://qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
 
+    // Customer-facing delivery: public share link + QuickBooks' own branded invoice email.
+    const delivery = await prepareInvoiceDelivery(
+      tokenData.access_token,
+      tokenData.company_id,
+      invoiceId,
+      billingEmail,
+      { fetchPdf: false }
+    );
+
     console.log('Retrospective inspection & service invoice created:', invoiceNumber);
 
     return new Response(JSON.stringify({
@@ -264,6 +273,8 @@ const handler = async (req: Request): Promise<Response> => {
       invoiceNumber,
       invoiceId,
       invoiceUrl,
+      invoicePublicUrl: delivery.publicUrl,
+      quickbooksEmailSent: delivery.quickbooksEmailSent,
       totalAmount: inspectionProduct.price,
     }), {
       status: 200,
