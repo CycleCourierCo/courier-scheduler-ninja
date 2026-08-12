@@ -761,3 +761,44 @@ export const pollOrderUpdates = (
 
   return () => clearInterval(intervalId);
 };
+
+export type GuaranteedDeliveryPayer = "account" | "sender" | "receiver";
+
+export const setGuaranteedDelivery = async (
+  orderId: string,
+  payer: GuaranteedDeliveryPayer,
+  amount: number,
+  note?: string
+): Promise<void> => {
+  const { error } = await supabase
+    .from("orders")
+    .update({
+      guaranteed_delivery: true,
+      guaranteed_delivery_payer: payer,
+      guaranteed_delivery_amount: amount,
+      guaranteed_delivery_note: note || null,
+      updated_at: new Date().toISOString(),
+    } as any)
+    .eq("id", orderId);
+
+  if (error) throw error;
+};
+
+export const clearGuaranteedDelivery = async (orderId: string): Promise<void> => {
+  const { error } = await supabase
+    .from("orders")
+    .update({
+      guaranteed_delivery: false,
+      guaranteed_delivery_payer: null,
+      guaranteed_delivery_amount: null,
+      guaranteed_delivery_note: null,
+      guaranteed_delivery_invoice_id: null,
+      guaranteed_delivery_invoice_number: null,
+      guaranteed_delivery_invoice_url: null,
+      guaranteed_delivery_invoiced_at: null,
+      updated_at: new Date().toISOString(),
+    } as any)
+    .eq("id", orderId);
+
+  if (error) throw error;
+};
