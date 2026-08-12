@@ -979,6 +979,18 @@ export default function InvoicesPage() {
                           View in QuickBooks
                         </Button>
                       )}
+
+                      {invoice.quickbooks_invoice_public_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(invoice.quickbooks_invoice_public_url!, '_blank')}
+                          className="flex items-center gap-1"
+                        >
+                          <Eye className="h-3 w-3" />
+                          Customer link
+                        </Button>
+                      )}
                       
                       <Button
                         variant="outline"
