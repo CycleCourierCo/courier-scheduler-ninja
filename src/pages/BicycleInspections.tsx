@@ -509,6 +509,53 @@ const BicycleInspections = () => {
     },
   });
 
+  // Offer declined repairs to the receiver (they pay directly)
+  const offerToReceiverMutation = useMutation({
+    mutationFn: async (orderId: string) => offerDeclinedRepairsToReceiver(orderId),
+    onSuccess: (result: any) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      if (result?.skipped === "test_account") {
+        toast.success("Offer recorded (test account — no message sent)");
+      } else {
+        toast.success(`Offer sent to the receiver for ${result?.offered ?? 0} repair(s)`);
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to send the repair offer");
+      console.error(error);
+    },
+  });
+
+  // Admin/mechanic override: receiver approved this repair (not the customer)
+  const receiverApproveMutation = useMutation({
+    mutationFn: async (issueId: string) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      return markIssueReceiverApproved(issueId, user.id, userProfile?.name || user.email || "Admin");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Marked as approved by the receiver");
+    },
+    onError: (error) => {
+      toast.error("Failed to record the receiver's approval");
+      console.error(error);
+    },
+  });
+
+  const undoReceiverApprovalMutation = useMutation({
+    mutationFn: async (issueId: string) => undoIssueReceiverApproval(issueId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Receiver approval removed");
+    },
+    onError: (error) => {
+      toast.error("Failed to remove the receiver approval");
+      console.error(error);
+    },
+  });
+
+
+
   // Cleaning task mutation (frame cleaned / drivetrain degreased)
   const cleaningMutation = useMutation({
     mutationFn: async (args: { inspectionId: string; task: 'frame' | 'drivetrain'; done: boolean }) => {
