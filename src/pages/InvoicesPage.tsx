@@ -41,6 +41,10 @@ type InvoiceItem = {
   needs_inspection: boolean | null;
   is_box_my_bike: boolean | null;
   is_northern_ireland?: boolean | null;
+  guaranteed_delivery?: boolean | null;
+  guaranteed_delivery_payer?: string | null;
+  guaranteed_delivery_amount?: number | null;
+  guaranteed_delivery_note?: string | null;
 };
 
 type InvoiceHistory = {
@@ -170,7 +174,11 @@ export default function InvoicesPage() {
           receiver,
           needs_inspection,
           is_box_my_bike,
-          is_northern_ireland
+          is_northern_ireland,
+          guaranteed_delivery,
+          guaranteed_delivery_payer,
+          guaranteed_delivery_amount,
+          guaranteed_delivery_note
         `)
         .eq("user_id", selectedCustomer)
         .gte("created_at", startDate.toISOString())
