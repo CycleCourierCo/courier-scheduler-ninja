@@ -556,6 +556,23 @@ const BicycleInspections = () => {
     },
   });
 
+  // Staff reversal: declined -> approved (customer pays as normal)
+  const reinstateIssueMutation = useMutation({
+    mutationFn: async (issueId: string) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      return reinstateDeclinedIssue(issueId, user.id, userProfile?.name || user.email || "Admin");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Issue moved back to approved");
+    },
+    onError: (error) => {
+      toast.error("Failed to move the issue back to approved");
+      console.error(error);
+    },
+  });
+
+
 
 
   // Cleaning task mutation (frame cleaned / drivetrain degreased)
