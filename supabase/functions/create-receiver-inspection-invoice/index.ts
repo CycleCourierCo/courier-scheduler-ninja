@@ -339,12 +339,22 @@ const handler = async (req: Request): Promise<Response> => {
     const totalAmount = Number(issue.estimated_cost || 0);
     const now = new Date().toISOString();
 
+    // Public share link + PDF so the receiver never hits a QuickBooks login wall.
+    const delivery = await prepareInvoiceDelivery(
+      tokenData.access_token,
+      tokenData.company_id,
+      invoiceId,
+      receiver.email,
+      { fetchPdf: true }
+    );
+
     const { error: updateError } = await supabase
       .from('inspection_issues')
       .update({
         invoice_number: invoiceNumber,
         invoice_id: invoiceId,
         invoice_url: invoiceUrl,
+        invoice_public_url: delivery.publicUrl,
         invoiced_at: now,
         invoiced_by_id: user.id,
         invoiced_by_name: user.user_metadata?.name || user.email || 'Staff',
@@ -360,7 +370,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (resendApiKey) {
       try {
         const resend = new Resend(resendApiKey);
-        const email = buildReceiverInvoiceEmail(order, issue, invoiceUrl, totalAmount);
+        const email = buildReceiverInvoiceEmail(order, issue, delivery.publicUrl, !!delivery.pdfBase64, totalAmount);
         await resend.emails.send({
           from: 'CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>',
           to: [receiver.email],
@@ -368,6 +378,9 @@ const handler = async (req: Request): Promise<Response> => {
           subject: email.subject,
           html: email.html,
           text: email.text,
+          ...(delivery.pdfBase64
+            ? { attachments: [{ filename: `Invoice-${invoiceNumber || invoiceId}.pdf`, content: delivery.pdfBase64 }] }
+            : {}),
         });
         console.log('Receiver invoice email sent to:', receiver.email);
       } catch (emailErr) {
@@ -383,9 +396,12 @@ const handler = async (req: Request): Promise<Response> => {
       invoiceNumber,
       invoiceId,
       invoiceUrl,
+      invoicePublicUrl: delivery.publicUrl,
+      quickbooksEmailSent: delivery.quickbooksEmailSent,
       totalAmount,
       customerId: qbCustomerId,
     }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
 
   } catch (error: any) {
     console.error('Error creating receiver inspection invoice:', error);
