@@ -57,6 +57,7 @@ type InvoiceHistory = {
   total_amount: number;
   quickbooks_invoice_number: string;
   quickbooks_invoice_url: string;
+  quickbooks_invoice_public_url?: string | null;
   status: string;
   created_at: string;
 };
