@@ -1294,3 +1294,30 @@ export const undoIssueReceiverApproval = async (issueId: string): Promise<void> 
     .eq('id', issueId);
   if (error) throw error;
 };
+
+/**
+ * Staff reversal: move a declined issue back to approved, billed to the
+ * booking customer as normal (clears any receiver-offer traces).
+ */
+export const reinstateDeclinedIssue = async (
+  issueId: string,
+  userId: string,
+  userName: string
+): Promise<void> => {
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from('inspection_issues')
+    .update({
+      status: 'approved' as IssueStatus,
+      billing_party: 'customer',
+      receiver_approved_at: null,
+      receiver_approved_source: null,
+      receiver_declined_at: null,
+      customer_response: `Approved (decline reversed by ${userName})`,
+      customer_responded_at: now,
+      updated_at: now,
+    })
+    .eq('id', issueId);
+  if (error) throw error;
+  pushIssueStatusToInspectaBike(issueId);
+};
