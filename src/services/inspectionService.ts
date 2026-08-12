@@ -1233,7 +1233,7 @@ export const offerDeclinedRepairsToReceiver = async (
 export const fetchPublicRepairOffer = async (orderId: string): Promise<PublicRepairOffer> => {
   const { data, error } = await supabase.rpc('get_public_repair_offer', { p_order_id: orderId });
   if (error) throw error;
-  return (data || { found: false }) as PublicRepairOffer;
+  return (data ?? { found: false }) as unknown as PublicRepairOffer;
 };
 
 /** Public (unauthenticated) submission of the receiver's chosen repairs. */
