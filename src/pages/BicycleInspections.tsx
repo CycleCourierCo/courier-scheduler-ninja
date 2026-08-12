@@ -2060,7 +2060,12 @@ const BicycleInspections = () => {
 
           {(() => {
             const reason = getSettledReason(order);
-            if (reason !== "no_issues" && reason !== "declined" && reason !== "zero_value")
+            if (
+              reason !== "no_issues" &&
+              reason !== "declined" &&
+              reason !== "zero_value" &&
+              reason !== "receiver_billed"
+            )
               return null;
             return (
               <div className="flex min-w-0 flex-wrap items-center gap-2 pt-2">
@@ -2070,15 +2075,20 @@ const BicycleInspections = () => {
                     ? "No issues"
                     : reason === "declined"
                       ? "Repairs declined"
-                      : "£0 — nothing to bill"}
+                      : reason === "receiver_billed"
+                        ? "Receiver pays"
+                        : "£0 — nothing to bill"}
                 </Badge>
 
                 <span className="min-w-0 text-xs text-muted-foreground break-words">
-                  Nothing to invoice
+                  {reason === "receiver_billed"
+                    ? `Nothing to invoice the customer${receiverBilledTotal > 0 ? ` — £${receiverBilledTotal.toFixed(2)} billed to receiver` : ""}`
+                    : "Nothing to invoice"}
                 </span>
               </div>
             );
           })()}
+
 
           {invoiceSkipped && (
             <div className="flex min-w-0 flex-wrap items-center gap-2 pt-2">
