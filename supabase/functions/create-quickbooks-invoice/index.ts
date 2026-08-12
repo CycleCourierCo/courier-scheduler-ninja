@@ -1028,7 +1028,9 @@ const handler = async (req: Request): Promise<Response> => {
         skippedBikes: skippedBikes,
         totalAmount: invoice.totalAmount,
         invoiceNumber: invoiceNumber,
-        invoiceUrl: invoiceUrl
+        invoiceUrl: invoiceUrl,
+        invoicePublicUrl: invoicePublicUrl,
+        quickbooksEmailSent: delivery.quickbooksEmailSent
       }
     }), {
       status: 200,
