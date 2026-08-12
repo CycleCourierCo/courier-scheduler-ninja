@@ -1256,6 +1256,12 @@ const OrderDetail = () => {
                 <span className="min-w-0 break-words">{itemName} {order.customerOrderNumber ? `(${order.customerOrderNumber})` : ''}</span>
               </div>
               <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                {(order as any).guaranteed_delivery && (
+                  <Badge className="bg-green-600 hover:bg-green-600 text-white">
+                    Guaranteed date
+                  </Badge>
+                )}
+
 
                 <Button 
                   variant="default" 
