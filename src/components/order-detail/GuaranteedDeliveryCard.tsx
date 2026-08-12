@@ -168,7 +168,20 @@ const GuaranteedDeliveryCard = ({ order, onUpdate }: GuaranteedDeliveryCardProps
                   <ExternalLink className="ml-1 h-3 w-3" />
                 </Badge>
               )}
+              {(order as any)?.guaranteed_delivery_invoice_public_url && (
+                <Badge
+                  variant="outline"
+                  className="cursor-pointer break-all"
+                  onClick={() =>
+                    window.open((order as any).guaranteed_delivery_invoice_public_url, "_blank")
+                  }
+                >
+                  Customer link
+                  <ExternalLink className="ml-1 h-3 w-3" />
+                </Badge>
+              )}
             </div>
+
 
             <dl className="space-y-1.5 text-sm">
               <div className="flex flex-wrap gap-x-2">

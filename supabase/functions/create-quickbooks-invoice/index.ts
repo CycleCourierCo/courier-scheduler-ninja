@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { isNorthernIrelandAddress, NI_SURCHARGE_NET } from "../_shared/northernIreland.ts";
+import { prepareInvoiceDelivery } from "../_shared/quickbooksInvoiceDelivery.ts";
 
 
 const corsHeaders = {
@@ -895,6 +896,20 @@ const handler = async (req: Request): Promise<Response> => {
     
     const invoiceUrl = `https://qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
 
+    // Customer-facing delivery: public share link + QuickBooks' own branded invoice email.
+    const delivery = await prepareInvoiceDelivery(
+      tokenData.access_token,
+      tokenData.company_id,
+      invoiceId,
+      invoiceData.customerEmail,
+      { fetchPdf: false }
+    );
+    const invoicePublicUrl = delivery.publicUrl;
+    console.log('Invoice delivery:', {
+      hasPublicLink: !!invoicePublicUrl,
+      quickbooksEmailSent: delivery.quickbooksEmailSent,
+    });
+
     // Persist Box My Bike invoice info on box-my-bike orders included in this invoice
     try {
       const boxOrderIds = invoiceData.orders
@@ -907,6 +922,7 @@ const handler = async (req: Request): Promise<Response> => {
             box_my_bike_invoice_id: invoiceId,
             box_my_bike_invoice_number: invoiceNumber,
             box_my_bike_invoice_url: invoiceUrl,
+            box_my_bike_invoice_public_url: invoicePublicUrl,
             updated_at: new Date().toISOString(),
           })
           .in('id', boxOrderIds);
@@ -933,6 +949,7 @@ const handler = async (req: Request): Promise<Response> => {
         quickbooks_invoice_id: invoiceId,
         quickbooks_invoice_number: invoiceNumber,
         quickbooks_invoice_url: invoiceUrl,
+        quickbooks_invoice_public_url: invoicePublicUrl,
         status: 'created'
       });
 
@@ -975,6 +992,10 @@ const handler = async (req: Request): Promise<Response> => {
         ` : '<p style="color: #16a34a;">✓ All bike types matched to QuickBooks products</p>'}
         
         <p><a href="${invoiceUrl}">View Invoice in QuickBooks</a></p>
+        ${invoicePublicUrl
+          ? `<p>Customer link (no login needed): <a href="${invoicePublicUrl}">${invoicePublicUrl}</a></p>`
+          : '<p style="color:#b45309;">No customer share link available — online invoicing may be switched off in QuickBooks.</p>'}
+        <p>QuickBooks invoice email to customer: ${delivery.quickbooksEmailSent ? 'sent' : 'not sent'}</p>
       `;
 
       await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/send-email`, {
@@ -1007,7 +1028,9 @@ const handler = async (req: Request): Promise<Response> => {
         skippedBikes: skippedBikes,
         totalAmount: invoice.totalAmount,
         invoiceNumber: invoiceNumber,
-        invoiceUrl: invoiceUrl
+        invoiceUrl: invoiceUrl,
+        invoicePublicUrl: invoicePublicUrl,
+        quickbooksEmailSent: delivery.quickbooksEmailSent
       }
     }), {
       status: 200,
