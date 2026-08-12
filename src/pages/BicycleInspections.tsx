@@ -1838,6 +1838,21 @@ const BicycleInspections = () => {
                         )}
                         Receiver approved — do this repair
                       </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-green-500 text-green-700 hover:bg-green-50 dark:text-green-300 dark:hover:bg-green-950"
+                        onClick={() => reinstateIssueMutation.mutate(issue.id)}
+                        disabled={reinstateIssueMutation.isPending}
+                      >
+                        {reinstateIssueMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        ) : (
+                          <RotateCcw className="h-4 w-4 mr-1" />
+                        )}
+                        Customer approved — undo decline
+
+                      </Button>
                       {(issue as any).receiver_declined_at && (
                         <span className="text-xs text-muted-foreground">
                           Receiver declined {new Date((issue as any).receiver_declined_at).toLocaleDateString()}
