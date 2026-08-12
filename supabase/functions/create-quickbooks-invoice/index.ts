@@ -895,6 +895,20 @@ const handler = async (req: Request): Promise<Response> => {
     
     const invoiceUrl = `https://qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
 
+    // Customer-facing delivery: public share link + QuickBooks' own branded invoice email.
+    const delivery = await prepareInvoiceDelivery(
+      tokenData.access_token,
+      tokenData.company_id,
+      invoiceId,
+      invoiceData.customerEmail,
+      { fetchPdf: false }
+    );
+    const invoicePublicUrl = delivery.publicUrl;
+    console.log('Invoice delivery:', {
+      hasPublicLink: !!invoicePublicUrl,
+      quickbooksEmailSent: delivery.quickbooksEmailSent,
+    });
+
     // Persist Box My Bike invoice info on box-my-bike orders included in this invoice
     try {
       const boxOrderIds = invoiceData.orders
