@@ -1675,8 +1675,12 @@ const OrderDetail = () => {
                 <div className="mt-6">
                   <NorthernIrelandEditor order={order as any} onUpdate={handleRefreshOrder} />
                 </div>
+                <div className="mt-6">
+                  <GuaranteedDeliveryCard order={order as any} onUpdate={handleRefreshOrder} />
+                </div>
               </>
             )}
+
 
             
             <Separator className="my-6" />
