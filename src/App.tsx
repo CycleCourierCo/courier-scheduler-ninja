@@ -16,6 +16,7 @@ import CreateOrder from "./pages/CreateOrder";
 import CustomerOrderDetail from "./pages/CustomerOrderDetail";
 import SenderAvailability from "./pages/SenderAvailability";
 import ReceiverAvailability from "./pages/ReceiverAvailability";
+import RepairOffer from "./pages/RepairOffer";
 
 import TrackingPage from "./pages/TrackingPage";
 import UserProfile from "./pages/UserProfile";
@@ -145,6 +146,7 @@ function App() {
               } />
               <Route path="/sender-availability/:id" element={<SenderAvailability />} />
               <Route path="/receiver-availability/:id" element={<ReceiverAvailability />} />
+              <Route path="/repair-offer/:id" element={<RepairOffer />} />
               <Route path="/bulk-availability" element={
                 <ProtectedRoute>
                   <BulkAvailabilityPage />
