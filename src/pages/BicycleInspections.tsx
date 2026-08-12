@@ -1093,7 +1093,7 @@ const BicycleInspections = () => {
     const allPriced = orderIssues.length > 0 && orderIssues.every((i: InspectionIssue) => i.estimated_cost != null);
     const approvedCount = approvedIssues.length;
     const declinedCount = orderIssues.filter((i: InspectionIssue) => i.status === "declined").length;
-    const totalRepairCost = approvedIssues.reduce((sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0), 0);
+    const totalRepairCost = customerApprovedIssues.reduce((sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0), 0);
     // Declined repairs that can still be offered to the receiver (they pay directly)
     const offerableIssues = orderIssues.filter(
       (i: any) => i.status === "declined" && !i.receiver_declined_at
