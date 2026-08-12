@@ -533,11 +533,29 @@ const BicycleInspections = () => {
   const receiverApproveMutation = useMutation({
     mutationFn: async (issueId: string) => {
       if (!user?.id) throw new Error("User not authenticated");
-      return markIssueReceiverApproved(issueId, user.id, userProfile?.name || user.email || "Admin");
+      await markIssueReceiverApproved(issueId, user.id, userProfile?.name || user.email || "Admin");
+      try {
+        const invoice = await createReceiverInspectionInvoice(issueId);
+        return { invoice, invoiceError: null };
+      } catch (invoiceError: any) {
+        return { invoice: null, invoiceError: invoiceError?.message || "Invoice could not be created" };
+      }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
-      toast.success("Marked as approved by the receiver");
+      if (result?.invoice) {
+        const already = result.invoice.alreadyExists ? " (already existed)" : "";
+        toast.success(`Repair approved by receiver and invoice #${result.invoice.invoiceNumber} created${already}`, {
+          action: result.invoice.invoiceUrl
+            ? { label: "Open", onClick: () => window.open(result.invoice.invoiceUrl, "_blank") }
+            : undefined,
+        });
+      } else {
+        toast.success("Marked as approved by the receiver");
+        if (result?.invoiceError) {
+          toast.warning(`Invoice not created: ${result.invoiceError}`);
+        }
+      }
     },
     onError: (error) => {
       toast.error("Failed to record the receiver's approval");
