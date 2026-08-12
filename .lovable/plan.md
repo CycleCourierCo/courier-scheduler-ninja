@@ -1,37 +1,54 @@
-# Regression safety net, then dead-code cleanup
+# Offer declined repairs to the receiver
 
-The project currently has **no test setup at all** (no vitest, no test files, no Playwright). So before deleting anything, we build a safety net that fails loudly if behaviour changes.
+When the booking customer declines some (or all) recommended repairs, staff can offer those same repairs to the person receiving the bike. The receiver gets an email and a WhatsApp with a link showing what was approved, what was declined, and the price to have the declined work done. Admin can also record a receiver approval manually.
 
-## Phase 1 — Static guarantees (fast, catches most deletion mistakes)
+## What staff see
 
-1. **Vitest + React Testing Library + jsdom** installed, with `vitest.config.ts`, `src/test/setup.ts`, and a `test` script.
-2. **Strict typecheck gate** — `tsgo`/`tsc --noEmit` run after every deletion batch. This alone catches any removed import, export, prop or type that is still used.
-3. **Knip** (unused-export/file/dependency detector) added as a dev dependency and run as the source of truth for "is this really unused", instead of hand-rolled greps. Its report is reviewed by a human before any delete, and it also guards against future dead code.
-4. **ESLint tightened** for `no-unused-vars` / `no-unreachable` so new dead code is flagged at lint time.
+On the inspection card in Bicycle Inspections, once at least one issue is declined:
 
-## Phase 2 — Behaviour snapshot before deleting
+- A button **"Offer declined repairs to receiver"**. It opens a short confirm dialog listing:
+  - "The customer has approved the following repairs" (approved/resolved issues)
+  - "…but has not approved the following" (declined issues, each with its price)
+  - Total cost of the declined work, plus the receiver's email and mobile it will go to.
+- After sending, the card shows "Offered to receiver on <date>" and the button becomes "Re-send offer".
+- On each declined issue, a per-issue admin action **"Receiver approved"** (with an "Undo" if pressed by mistake). This moves the issue into the normal approved/repair flow, and badges it **"Receiver approved — receiver pays"** everywhere the issue appears.
 
-5. **Route smoke tests** — one test per route in `App.tsx` that renders the page inside providers (router, react-query, auth mock, Supabase client mocked) and asserts it mounts without throwing. This is the single highest-value guard: if a deletion breaks a page, a route test fails.
-6. **Unit tests on business logic** that must not change — the pure functions where regressions would be silent and expensive:
-   - `src/lib/labourPricing.ts` price formula
-   - `src/utils/niDelivery.ts`, `northernIreland.ts` (NI classification, ferry coords)
-   - `src/utils/servicingGate.ts`, `jobUtils.ts`, `timeslotUtils.ts`, `bikeSummary.ts`, `labelUtils.ts`
-   - analytics/profitability aggregators (`profitabilityService`, `mechanicProfitabilityService`, `apiWebhookAnalyticsService`, `driverAnalyticsService`) — fed fixed fixtures, asserting exact numbers
-7. **Playwright visual/flow checks** against the running preview for the highest-traffic screens (Dashboard, Order detail, Job scheduling, Analytics tabs, Tracking, Inspections): screenshot each, assert no console errors. Screenshots taken **before** cleanup become the baseline compared after.
-8. **Edge function tests** — Deno tests per function for pure helpers (status mapping, payload building, NI/foam transitions), run with the edge-function test tool. No live webhook calls.
+## What the receiver sees
 
-## Phase 3 — Cleanup under the net
+A public page (no login) reached from the email/WhatsApp link, listing:
 
-9. Delete in small batches (deps → unused shadcn primitives → unused imports/vars → dead branches → commented-out code → edge-function dead code).
-10. After **each** batch: typecheck, `vitest run`, Playwright screenshots vs baseline, edge function tests. Any red = revert that batch.
-11. Ambiguous files are **listed, not deleted** (as agreed): the legacy scheduling dialog set, timeslip map preview, `OrderTimeChart`, `dashboardUtils`, `logger`.
+- Repairs already approved and being done (read-only, no prices attributed to them).
+- Repairs the customer declined, each with description and price, with a tick per repair and a running total.
+- A "Confirm these repairs" button and a "No thanks" button. On submit the page confirms and the ticked repairs immediately show as receiver-approved in the workshop.
+- Explains clearly that any repairs they approve are paid by them directly, not by the seller, and that we will be in touch about payment.
 
-## Honest limits
+## Billing
 
-- Tests catch what they cover; the route smoke tests plus typecheck cover the "page still works" case well, but a rarely-used button inside a page can still be missed. That's why nothing ambiguous gets deleted.
-- Anything reached only via cron, webhooks or external API callers is invisible to static analysis — no edge function directory will be removed, only dead code inside them.
-- Runtime-dynamic references (string-built paths, `import()` by variable) are searched for explicitly before each delete.
+Receiver-approved repairs are marked as **payer: receiver** and are excluded from the booking customer's inspection invoice, so the seller is never charged for them. They still count as completed workshop labour for scheduling and mechanic productivity. Collecting payment from the receiver stays a manual step (no new payment flow in this change).
 
-## Suggested order
+## Behaviour rules
 
-Phase 1 + 2 first as a standalone change (no deletions), so the baseline is captured against today's known-good app. Then Phase 3 in follow-up batches.
+- Only declined issues can be offered; approved and already-resolved issues are never re-offered.
+- A receiver approval flips the issue to the same `approved` status the workshop already understands, so parts ordering, repair completion and the cleaning/repaired stages behave identically.
+- Repairs the receiver also declines are recorded as receiver-declined and stay out of the workshop queue.
+- Delivery date scheduling gating is unchanged in logic, but a receiver approval re-opens outstanding work, so the delivery-date prompt correctly waits until those repairs are finished.
+- No offer is sent for test-account orders (existing test-account suppression applies).
+
+## Technical notes
+
+Database (migration):
+- `inspection_issues`: add `offered_to_receiver_at`, `offered_to_receiver_by_id/name`, `receiver_approved_at`, `receiver_approved_source` (`receiver` | `admin`), `receiver_declined_at`, `billing_party` (`customer` | `receiver`, default `customer`).
+- Two `security definer` RPCs following the existing public-order pattern (order UUID as the secret in the URL):
+  - `get_public_repair_offer(p_order_id uuid)` → approved list, declined/offered list with costs, order + bike summary, whether already responded.
+  - `submit_public_repair_offer(p_order_id uuid, p_approved_issue_ids uuid[])` → sets `status='approved'`, `billing_party='receiver'`, `receiver_approved_at`, source `receiver`; marks the rest receiver-declined. Rejects issues not in the offered set.
+- Grants: `execute` to `anon`/`authenticated` on the RPCs only; no new table grants for `anon`.
+
+Frontend:
+- New public page `src/pages/RepairOffer.tsx` at route `/repair-offer/:id` (unauthenticated, like `/receiver-availability/:id`).
+- `src/services/inspectionService.ts`: `offerDeclinedRepairsToReceiver(orderId)`, `markIssueReceiverApproved(issueId, admin)`, `undoReceiverApproval(issueId)`, plus fetch/submit helpers for the public page.
+- `src/pages/BicycleInspections.tsx`: offer button + dialog, offered-at indicator, per-issue "Receiver approved" action and badge.
+- Invoicing: `create-inspection-invoice` / `create-inspection-service-invoice` skip issues with `billing_party = 'receiver'`; the inspections "Invoiced" auto-settle rules treat receiver-paid issues as non-billable so a fully receiver-paid inspection doesn't sit in the invoice queue.
+
+Edge function `send-repair-offer`:
+- Builds the offer email (Resend, `CCC - Cycle Courier Co.` sender, reply-to Info@cyclecourierco.com) and a SendZen WhatsApp message to the receiver's mobile, both linking to `/repair-offer/<order id>`.
+- Verifies the caller's JWT and admin/mechanic role, records `offered_to_receiver_at` on the declined issues, and never logs receiver contact details.
