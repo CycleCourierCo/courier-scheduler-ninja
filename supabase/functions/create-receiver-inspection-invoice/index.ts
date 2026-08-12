@@ -195,6 +195,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (issueError || !issue) throw new Error('Issue not found');
     if (issue.status !== 'approved') throw new Error('Issue is not approved');
     if (issue.billing_party !== 'receiver') throw new Error('Issue is not billed to the receiver');
+    if (!issue.estimated_cost || Number(issue.estimated_cost) <= 0) throw new Error('Issue has no cost to invoice');
     if (issue.invoice_number) {
       return new Response(JSON.stringify({
         success: true,
