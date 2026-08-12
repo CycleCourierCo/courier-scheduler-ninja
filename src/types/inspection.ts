@@ -72,6 +72,13 @@ export interface InspectionIssue {
   resolved_at: string | null;
   resolved_by_id: string | null;
   resolved_by_name: string | null;
+  // Receiver invoice tracking
+  invoice_number: string | null;
+  invoice_id: string | null;
+  invoice_url: string | null;
+  invoiced_at: string | null;
+  invoiced_by_id: string | null;
+  invoiced_by_name: string | null;
   created_at: string;
   updated_at: string;
 }
