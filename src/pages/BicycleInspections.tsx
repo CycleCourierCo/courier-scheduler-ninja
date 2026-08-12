@@ -62,6 +62,9 @@ import {
   setInspectionCleaningTask,
   markInvoiceNotNeeded,
   clearInvoiceSkip,
+  offerDeclinedRepairsToReceiver,
+  markIssueReceiverApproved,
+  undoIssueReceiverApproval,
 } from "@/services/inspectionService";
 import { InspectionIssue, InspectionStatus } from "@/types/inspection";
 import { hasRole } from "@/lib/roles";
@@ -505,6 +508,53 @@ const BicycleInspections = () => {
       console.error(error);
     },
   });
+
+  // Offer declined repairs to the receiver (they pay directly)
+  const offerToReceiverMutation = useMutation({
+    mutationFn: async (orderId: string) => offerDeclinedRepairsToReceiver(orderId),
+    onSuccess: (result: any) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      if (result?.skipped === "test_account") {
+        toast.success("Offer recorded (test account — no message sent)");
+      } else {
+        toast.success(`Offer sent to the receiver for ${result?.offered ?? 0} repair(s)`);
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to send the repair offer");
+      console.error(error);
+    },
+  });
+
+  // Admin/mechanic override: receiver approved this repair (not the customer)
+  const receiverApproveMutation = useMutation({
+    mutationFn: async (issueId: string) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      return markIssueReceiverApproved(issueId, user.id, userProfile?.name || user.email || "Admin");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Marked as approved by the receiver");
+    },
+    onError: (error) => {
+      toast.error("Failed to record the receiver's approval");
+      console.error(error);
+    },
+  });
+
+  const undoReceiverApprovalMutation = useMutation({
+    mutationFn: async (issueId: string) => undoIssueReceiverApproval(issueId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Receiver approval removed");
+    },
+    onError: (error) => {
+      toast.error("Failed to remove the receiver approval");
+      console.error(error);
+    },
+  });
+
+
 
   // Cleaning task mutation (frame cleaned / drivetrain degreased)
   const cleaningMutation = useMutation({
@@ -1025,6 +1075,24 @@ const BicycleInspections = () => {
     const approvedCount = approvedIssues.length;
     const declinedCount = orderIssues.filter((i: InspectionIssue) => i.status === "declined").length;
     const totalRepairCost = approvedIssues.reduce((sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0), 0);
+    // Declined repairs that can still be offered to the receiver (they pay directly)
+    const offerableIssues = orderIssues.filter(
+      (i: any) => i.status === "declined" && !i.receiver_declined_at
+    );
+    const offerableTotal = offerableIssues.reduce(
+      (sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0),
+      0
+    );
+    const receiverApprovedCount = orderIssues.filter(
+      (i: any) => i.billing_party === "receiver"
+    ).length;
+    const lastOfferedAt = orderIssues.reduce(
+      (latest: string | null, i: any) =>
+        i.offered_to_receiver_at && (!latest || i.offered_to_receiver_at > latest)
+          ? i.offered_to_receiver_at
+          : latest,
+      null as string | null
+    );
     const partsArrivedCount = approvedIssues.filter((i: InspectionIssue) => (i.parts_arrived && i.parts_ordered) || i.status === 'repaired' || i.status === 'resolved').length;
 
 
@@ -1231,6 +1299,11 @@ const BicycleInspections = () => {
               <Badge variant="destructive">
                 Declined: {declinedCount}
               </Badge>
+              {receiverApprovedCount > 0 && (
+                <Badge className="bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200">
+                  Receiver approved: {receiverApprovedCount}
+                </Badge>
+              )}
               {isAdmin && (
                 <Badge variant="outline">
                   Total repairs: £{totalRepairCost.toFixed(2)}
@@ -1238,6 +1311,35 @@ const BicycleInspections = () => {
               )}
             </div>
           )}
+
+          {/* Offer declined repairs to the receiver */}
+          {canManageInspections && offerableIssues.length > 0 && (
+            <div className="rounded-md border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-sky-950/40 min-w-0">
+              <p className="text-sm font-medium break-words">
+                The customer has approved {approvedCount} repair(s) but has not approved{" "}
+                {offerableIssues.length} — worth £{offerableTotal.toFixed(2)}.
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 break-words">
+                Offer this work to the receiver — anything they approve is billed to them.
+                {lastOfferedAt && ` Last offered ${new Date(lastOfferedAt).toLocaleString()}.`}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2 border-sky-500 text-sky-700 hover:bg-sky-100 dark:text-sky-300 dark:hover:bg-sky-900"
+                onClick={() => offerToReceiverMutation.mutate(order.id)}
+                disabled={offerToReceiverMutation.isPending}
+              >
+                {offerToReceiverMutation.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                ) : (
+                  <Send className="h-4 w-4 mr-1" />
+                )}
+                {lastOfferedAt ? "Re-send offer to receiver" : "Offer these repairs to the receiver"}
+              </Button>
+            </div>
+          )}
+
           {/* Issues Section */}
           {orderIssues.length > 0 && (
             <div className="space-y-3">
@@ -1657,6 +1759,52 @@ const BicycleInspections = () => {
                         )}
                         Mark Resolved
                       </Button>
+                    </div>
+                  )}
+
+                  {/* Receiver-funded repairs */}
+                  {(issue as any).billing_party === "receiver" && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Badge className="bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200">
+                        Approved by receiver
+                        {(issue as any).receiver_approved_source === "staff" ? " (recorded by staff)" : ""}
+                      </Badge>
+                      {canManageInspections && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => undoReceiverApprovalMutation.mutate(issue.id)}
+                          disabled={undoReceiverApprovalMutation.isPending}
+                        >
+                          <RotateCcw className="h-4 w-4 mr-1" />
+                          Undo
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Admin/mechanic: record that the receiver (not the customer) approved this repair */}
+                  {canManageInspections && issue.status === "declined" && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-sky-500 text-sky-700 hover:bg-sky-50 dark:text-sky-300 dark:hover:bg-sky-950"
+                        onClick={() => receiverApproveMutation.mutate(issue.id)}
+                        disabled={receiverApproveMutation.isPending}
+                      >
+                        {receiverApproveMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                        ) : (
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                        )}
+                        Receiver approved — do this repair
+                      </Button>
+                      {(issue as any).receiver_declined_at && (
+                        <span className="text-xs text-muted-foreground">
+                          Receiver declined {new Date((issue as any).receiver_declined_at).toLocaleDateString()}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>

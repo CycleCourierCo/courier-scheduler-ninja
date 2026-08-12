@@ -1228,6 +1228,7 @@ export type Database = {
       }
       inspection_issues: {
         Row: {
+          billing_party: string
           created_at: string
           customer_responded_at: string | null
           customer_response: string | null
@@ -1238,6 +1239,9 @@ export type Database = {
           inspection_id: string
           issue_description: string
           labour_cost: number | null
+          offered_to_receiver_at: string | null
+          offered_to_receiver_by_id: string | null
+          offered_to_receiver_by_name: string | null
           order_id: string
           part_name: string | null
           part_number: string | null
@@ -1254,6 +1258,9 @@ export type Database = {
           priced_at: string | null
           priced_by_id: string | null
           priced_by_name: string | null
+          receiver_approved_at: string | null
+          receiver_approved_source: string | null
+          receiver_declined_at: string | null
           repair_id: string | null
           requested_by_id: string
           requested_by_name: string
@@ -1264,6 +1271,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          billing_party?: string
           created_at?: string
           customer_responded_at?: string | null
           customer_response?: string | null
@@ -1274,6 +1282,9 @@ export type Database = {
           inspection_id: string
           issue_description: string
           labour_cost?: number | null
+          offered_to_receiver_at?: string | null
+          offered_to_receiver_by_id?: string | null
+          offered_to_receiver_by_name?: string | null
           order_id: string
           part_name?: string | null
           part_number?: string | null
@@ -1290,6 +1301,9 @@ export type Database = {
           priced_at?: string | null
           priced_by_id?: string | null
           priced_by_name?: string | null
+          receiver_approved_at?: string | null
+          receiver_approved_source?: string | null
+          receiver_declined_at?: string | null
           repair_id?: string | null
           requested_by_id: string
           requested_by_name: string
@@ -1300,6 +1314,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          billing_party?: string
           created_at?: string
           customer_responded_at?: string | null
           customer_response?: string | null
@@ -1310,6 +1325,9 @@ export type Database = {
           inspection_id?: string
           issue_description?: string
           labour_cost?: number | null
+          offered_to_receiver_at?: string | null
+          offered_to_receiver_by_id?: string | null
+          offered_to_receiver_by_name?: string | null
           order_id?: string
           part_name?: string | null
           part_number?: string | null
@@ -1326,6 +1344,9 @@ export type Database = {
           priced_at?: string | null
           priced_by_id?: string | null
           priced_by_name?: string | null
+          receiver_approved_at?: string | null
+          receiver_approved_source?: string | null
+          receiver_declined_at?: string | null
           repair_id?: string | null
           requested_by_id?: string
           requested_by_name?: string
@@ -4047,6 +4068,7 @@ export type Database = {
         Args: { p_identifier: string; p_postcode: string }
         Returns: Json
       }
+      get_public_repair_offer: { Args: { p_order_id: string }; Returns: Json }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
@@ -4096,6 +4118,10 @@ export type Database = {
           p_postcode?: string
           p_side: string
         }
+        Returns: Json
+      }
+      submit_public_repair_offer: {
+        Args: { p_approved_issue_ids: string[]; p_order_id: string }
         Returns: Json
       }
       update_user_profile_for_management: {
