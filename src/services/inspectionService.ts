@@ -1284,6 +1284,7 @@ export const undoIssueReceiverApproval = async (issueId: string): Promise<void> 
     .from('inspection_issues')
     .update({
       status: 'declined',
+
       billing_party: 'customer',
       receiver_approved_at: null,
       receiver_approved_source: null,
