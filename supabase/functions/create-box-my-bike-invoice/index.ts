@@ -276,7 +276,7 @@ const handler = async (req: Request): Promise<Response> => {
         box_my_bike_invoice_id: invoiceId,
         box_my_bike_invoice_number: invoiceNumber,
         box_my_bike_invoice_url: invoiceUrl,
-        box_my_bike_invoice_url_public_url: delivery.publicUrl,
+        box_my_bike_invoice_public_url: delivery.publicUrl,
         updated_at: new Date().toISOString(),
       })
       .eq('id', orderId);

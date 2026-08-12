@@ -316,7 +316,7 @@ const handler = async (req: Request): Promise<Response> => {
         guaranteed_delivery_invoice_id: invoiceId,
         guaranteed_delivery_invoice_number: invoiceNumber,
         guaranteed_delivery_invoice_url: invoiceUrl,
-        guaranteed_delivery_invoice_url_public_url: delivery.publicUrl,
+        guaranteed_delivery_invoice_public_url: delivery.publicUrl,
         guaranteed_delivery_invoiced_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
