@@ -66,6 +66,7 @@ import {
   markIssueReceiverApproved,
   undoIssueReceiverApproval,
   reinstateDeclinedIssue,
+  createReceiverInspectionInvoice,
 
 } from "@/services/inspectionService";
 import { InspectionIssue, InspectionStatus } from "@/types/inspection";
@@ -532,11 +533,29 @@ const BicycleInspections = () => {
   const receiverApproveMutation = useMutation({
     mutationFn: async (issueId: string) => {
       if (!user?.id) throw new Error("User not authenticated");
-      return markIssueReceiverApproved(issueId, user.id, userProfile?.name || user.email || "Admin");
+      await markIssueReceiverApproved(issueId, user.id, userProfile?.name || user.email || "Admin");
+      try {
+        const invoice = await createReceiverInspectionInvoice(issueId);
+        return { invoice, invoiceError: null };
+      } catch (invoiceError: any) {
+        return { invoice: null, invoiceError: invoiceError?.message || "Invoice could not be created" };
+      }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
-      toast.success("Marked as approved by the receiver");
+      if (result?.invoice) {
+        const already = result.invoice.alreadyExists ? " (already existed)" : "";
+        toast.success(`Repair approved by receiver and invoice #${result.invoice.invoiceNumber} created${already}`, {
+          action: result.invoice.invoiceUrl
+            ? { label: "Open", onClick: () => window.open(result.invoice.invoiceUrl, "_blank") }
+            : undefined,
+        });
+      } else {
+        toast.success("Marked as approved by the receiver");
+        if (result?.invoiceError) {
+          toast.warning(`Invoice not created: ${result.invoiceError}`);
+        }
+      }
     },
     onError: (error) => {
       toast.error("Failed to record the receiver's approval");
@@ -1803,10 +1822,18 @@ const BicycleInspections = () => {
                   {/* Receiver-funded repairs */}
                   {(issue as any).billing_party === "receiver" && (
                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                      <Badge className="bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200">
+                       <Badge className="bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200">
                         Approved by receiver
                         {(issue as any).receiver_approved_source === "staff" ? " (recorded by staff)" : ""}
                       </Badge>
+                      {(issue as any).invoice_number && (issue as any).invoice_url && (
+                        <Badge
+                          className="cursor-pointer bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900 dark:text-green-200"
+                          onClick={() => window.open((issue as any).invoice_url, "_blank")}
+                        >
+                          Invoice #{(issue as any).invoice_number}
+                        </Badge>
+                      )}
                       {canManageInspections && (
                         <Button
                           size="sm"

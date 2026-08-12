@@ -1278,6 +1278,30 @@ export const markIssueReceiverApproved = async (
   if (error) throw error;
 };
 
+/**
+ * Creates a QuickBooks invoice for a receiver-billed repair issue.
+ * The invoice is billed to the order's receiver (not the booking customer).
+ */
+export const createReceiverInspectionInvoice = async (
+  issueId: string
+): Promise<{ invoiceNumber: string; invoiceId: string; invoiceUrl: string; totalAmount: number; alreadyExists?: boolean }> => {
+  const { data, error } = await supabase.functions.invoke('create-receiver-inspection-invoice', {
+    body: { issueId },
+  });
+  if (error) {
+    let details = error.message;
+    try {
+      const ctx = (error as any)?.context;
+      if (ctx?.text) details = await ctx.text();
+    } catch {
+      // keep the original message
+    }
+    throw new Error(details || 'Failed to create receiver invoice');
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+};
+
 /** Reverts a receiver approval back to a declined repair. */
 export const undoIssueReceiverApproval = async (issueId: string): Promise<void> => {
   const { error } = await supabase
@@ -1289,6 +1313,13 @@ export const undoIssueReceiverApproval = async (issueId: string): Promise<void> 
       receiver_approved_at: null,
       receiver_approved_source: null,
       customer_response: 'Declined',
+      // Clear any invoice created for the receiver so it can be re-billed later if needed.
+      invoice_number: null,
+      invoice_id: null,
+      invoice_url: null,
+      invoiced_at: null,
+      invoiced_by_id: null,
+      invoiced_by_name: null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', issueId);
