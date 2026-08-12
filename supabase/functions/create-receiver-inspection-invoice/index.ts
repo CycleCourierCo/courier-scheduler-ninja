@@ -188,7 +188,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { data: issue, error: issueError } = await supabase
       .from('inspection_issues')
-      .select('*, bicycle_inspections!inner(order_id), order:order_id(*)')
+      .select('*')
       .eq('id', issueId)
       .single();
 
@@ -206,8 +206,19 @@ const handler = async (req: Request): Promise<Response> => {
       }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const order = (issue as any).order;
-    if (!order) throw new Error('Order not found');
+    const { data: inspection, error: inspectionError } = await supabase
+      .from('bicycle_inspections')
+      .select('id, order_id')
+      .eq('id', issue.inspection_id)
+      .single();
+    if (inspectionError || !inspection) throw new Error('Inspection not found');
+
+    const { data: order, error: orderError } = await supabase
+      .from('orders')
+      .select('id, tracking_number, customer_order_number, bike_brand, bike_model, sender, receiver')
+      .eq('id', inspection.order_id)
+      .single();
+    if (orderError || !order) throw new Error('Order not found');
 
     const receiver: any = order.receiver || {};
     if (!receiver.email) throw new Error('Receiver has no email address');
