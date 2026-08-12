@@ -116,7 +116,13 @@ function splitName(fullName?: string | null) {
   return { given: parts.slice(0, -1).join(' '), family: parts[parts.length - 1] };
 }
 
-function buildReceiverInvoiceEmail(order: any, issue: any, invoiceUrl: string, totalAmount: number): { html: string; text: string; subject: string } {
+function buildReceiverInvoiceEmail(
+  order: any,
+  issue: any,
+  publicUrl: string | null,
+  hasPdf: boolean,
+  totalAmount: number
+): { html: string; text: string; subject: string } {
   const receiverName = (order.receiver as any)?.name || 'there';
   const trackingNumber = order.tracking_number || order.id;
   const bikeDesc = `${order.bike_brand || ''} ${order.bike_model || ''}`.trim() || 'your bike';
@@ -132,11 +138,8 @@ function buildReceiverInvoiceEmail(order: any, issue: any, invoiceUrl: string, t
         <p><strong>Amount:</strong> £${totalAmount.toFixed(2)} (including VAT)</p>
       </div>
       <p>This repair is to be paid by you directly to Cycle Courier Co., not by the person who booked the transport.</p>
-      <p>Please find your invoice below. We will be in touch shortly to arrange payment.</p>
       <div style="text-align: center; margin: 25px 0;">
-        <a href="${invoiceUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
-          View Invoice
-        </a>
+        ${buildInvoiceCtaHtml(publicUrl, hasPdf)}
       </div>
       <p>Thank you,<br>CCC - Cycle Courier Co.</p>
     </div>
@@ -151,12 +154,13 @@ Amount: £${totalAmount.toFixed(2)} (including VAT)
 
 This repair is to be paid by you directly to Cycle Courier Co., not by the person who booked the transport.
 
-Please view your invoice here: ${invoiceUrl}
+${buildInvoiceCtaText(publicUrl, hasPdf)}
 
 We will be in touch shortly to arrange payment.
 
 Thank you,
 CCC - Cycle Courier Co.`;
+
 
   return { html, text, subject };
 }
