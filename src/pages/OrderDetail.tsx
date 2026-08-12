@@ -35,6 +35,8 @@ import ContactDetails from "@/components/order-detail/ContactDetails";
 import AdminContactEditor from "@/components/order-detail/AdminContactEditor";
 import AdminTrackingEditor from "@/components/order-detail/AdminTrackingEditor";
 import NorthernIrelandEditor from "@/components/order-detail/NorthernIrelandEditor";
+import GuaranteedDeliveryCard from "@/components/order-detail/GuaranteedDeliveryCard";
+
 
 import SchedulingButtons from "@/components/order-detail/SchedulingButtons";
 import EmailResendButtons from "@/components/order-detail/EmailResendButtons";
