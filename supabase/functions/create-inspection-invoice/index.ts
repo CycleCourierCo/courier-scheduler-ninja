@@ -443,6 +443,15 @@ const handler = async (req: Request): Promise<Response> => {
     const invoiceNumber = qbInvoice?.DocNumber;
     const invoiceUrl = `https://qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
 
+    // Customer-facing delivery: public share link + QuickBooks' own branded invoice email.
+    const delivery = await prepareInvoiceDelivery(
+      tokenData.access_token,
+      tokenData.company_id,
+      invoiceId,
+      billingEmail,
+      { fetchPdf: false }
+    );
+
     console.log('QuickBooks invoice created:', invoiceNumber);
 
     // Update bicycle_inspections with invoice data
@@ -452,6 +461,7 @@ const handler = async (req: Request): Promise<Response> => {
         invoice_number: invoiceNumber,
         invoice_id: invoiceId,
         invoice_url: invoiceUrl,
+        invoice_public_url: delivery.publicUrl,
       })
       .eq('id', inspectionId);
 
