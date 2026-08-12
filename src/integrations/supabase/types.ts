@@ -1237,6 +1237,12 @@ export type Database = {
           external_synced_at: string | null
           id: string
           inspection_id: string
+          invoice_id: string | null
+          invoice_number: string | null
+          invoice_url: string | null
+          invoiced_at: string | null
+          invoiced_by_id: string | null
+          invoiced_by_name: string | null
           issue_description: string
           labour_cost: number | null
           offered_to_receiver_at: string | null
@@ -1280,6 +1286,12 @@ export type Database = {
           external_synced_at?: string | null
           id?: string
           inspection_id: string
+          invoice_id?: string | null
+          invoice_number?: string | null
+          invoice_url?: string | null
+          invoiced_at?: string | null
+          invoiced_by_id?: string | null
+          invoiced_by_name?: string | null
           issue_description: string
           labour_cost?: number | null
           offered_to_receiver_at?: string | null
@@ -1323,6 +1335,12 @@ export type Database = {
           external_synced_at?: string | null
           id?: string
           inspection_id?: string
+          invoice_id?: string | null
+          invoice_number?: string | null
+          invoice_url?: string | null
+          invoiced_at?: string | null
+          invoiced_by_id?: string | null
+          invoiced_by_name?: string | null
           issue_description?: string
           labour_cost?: number | null
           offered_to_receiver_at?: string | null
