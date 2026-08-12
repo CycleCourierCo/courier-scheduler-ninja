@@ -923,7 +923,14 @@ const BicycleInspections = () => {
   // (released inspection with no issues, or all repairs declined).
   const getSettledReason = (
     i: any
-  ): "invoiced" | "skipped" | "no_issues" | "declined" | "zero_value" | null => {
+  ):
+    | "invoiced"
+    | "skipped"
+    | "no_issues"
+    | "declined"
+    | "zero_value"
+    | "receiver_billed"
+    | null => {
     const inspection = i.inspection;
     if (inspection?.invoice_number) return "invoiced";
     if (inspection?.invoice_skipped_at) return "skipped";
@@ -931,10 +938,13 @@ const BicycleInspections = () => {
     if (!released) return null;
     const issues = i.issues || [];
     if (issues.length === 0) return "no_issues";
-    const billable = issues.filter(
+    const notDeclined = issues.filter(
       (iss: any) => iss.status !== "declined" && iss.status !== "cancelled"
     );
-    if (billable.length === 0) return "declined";
+    if (notDeclined.length === 0) return "declined";
+    // Receiver-billed work is invoiced to the receiver, not the booking customer
+    const billable = notDeclined.filter((iss: any) => iss.billing_party !== "receiver");
+    if (billable.length === 0) return "receiver_billed";
     if (i.repairs_declined_at) return "declined";
     const total = billable.reduce((sum: number, iss: any) => {
       const parts = Number(iss.parts_cost ?? 0) || 0;
@@ -946,6 +956,7 @@ const BicycleInspections = () => {
     if (Math.round(total * 100) === 0) return "zero_value";
     return null;
   };
+
 
   const isBillingSettled = (i: any) => getSettledReason(i) !== null;
 
