@@ -1834,6 +1834,15 @@ const BicycleInspections = () => {
                           Invoice #{(issue as any).invoice_number}
                         </Badge>
                       )}
+                      {(issue as any).invoice_public_url && (
+                        <Badge
+                          variant="outline"
+                          className="cursor-pointer"
+                          onClick={() => window.open((issue as any).invoice_public_url, "_blank")}
+                        >
+                          Customer link
+                        </Badge>
+                      )}
                       {canManageInspections && (
                         <Button
                           size="sm"
