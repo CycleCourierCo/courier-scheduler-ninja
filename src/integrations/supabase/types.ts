@@ -2157,6 +2157,7 @@ export type Database = {
           delivery_timeslot: string | null
           destination_region: string | null
           ferry_confirmation_sent_at: string | null
+          ferry_partner_notified_at: string | null
           foam_delivered_ni_at: string | null
           foam_delivered_to_ferry_at: string | null
           foam_delivery_photos: Json
@@ -2251,6 +2252,7 @@ export type Database = {
           delivery_timeslot?: string | null
           destination_region?: string | null
           ferry_confirmation_sent_at?: string | null
+          ferry_partner_notified_at?: string | null
           foam_delivered_ni_at?: string | null
           foam_delivered_to_ferry_at?: string | null
           foam_delivery_photos?: Json
@@ -2345,6 +2347,7 @@ export type Database = {
           delivery_timeslot?: string | null
           destination_region?: string | null
           ferry_confirmation_sent_at?: string | null
+          ferry_partner_notified_at?: string | null
           foam_delivered_ni_at?: string | null
           foam_delivered_to_ferry_at?: string | null
           foam_delivery_photos?: Json

@@ -2,6 +2,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { corsHeaders } from '../_shared/cors.ts'
 import { initSentry, captureException, startSpan } from '../_shared/sentry.ts'
 import { resolveNiDirection } from '../_shared/northernIreland.ts'
+import { buildFerryPartnerEmail } from '../_shared/ferryPartnerEmail.ts'
+
 
 // Bike type numeric ID mapping
 const BIKE_TYPE_BY_ID: Record<number, string> = {
@@ -532,10 +534,42 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
               }
             })
           }
+
+          // Northern Ireland: the ferry partner needs the NI-side details to book their leg.
+          if (isNorthernIreland) {
+            const ferryEmail = buildFerryPartnerEmail({
+              sender: body.sender,
+              receiver: body.receiver,
+              tracking_number: order.tracking_number,
+              bike_brand: bikeBrand,
+              bike_model: bikeModel,
+              bike_quantity: body.bikeQuantity || body.bike_quantity || 1,
+              ni_direction: niDirection,
+              is_northern_ireland: true,
+            })
+            const { error: ferryError } = await supabase.functions.invoke('send-email', {
+              body: {
+                to: ferryEmail.to,
+                subject: ferryEmail.subject,
+                html: ferryEmail.html,
+                from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
+                reply_to: 'Info@cyclecourierco.com',
+              }
+            })
+            if (ferryError) {
+              console.error('Ferry partner notification failed:', ferryError.message)
+            } else {
+              await supabase
+                .from('orders')
+                .update({ ferry_partner_notified_at: new Date().toISOString() })
+                .eq('id', order.id)
+            }
+          }
         } catch (emailError) {
           console.error('Background email sending failed:', emailError)
           captureException(emailError)
         }
+
 
         // Shipday
         try {

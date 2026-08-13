@@ -107,7 +107,10 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     guaranteed_delivery_invoice_id: dbOrder.guaranteed_delivery_invoice_id || null,
     guaranteed_delivery_invoice_url: dbOrder.guaranteed_delivery_invoice_url || null,
     guaranteed_delivery_invoiced_at: dbOrder.guaranteed_delivery_invoiced_at || null,
+    ferry_partner_notified_at: dbOrder.ferry_partner_notified_at || null,
+    ferryPartnerNotifiedAt: dbOrder.ferry_partner_notified_at || null,
   });
+
 
 
   // Add optional date fields only if they exist in the DB record
