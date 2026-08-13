@@ -1,6 +1,6 @@
 import React from "react";
 import { toast } from "sonner";
-import { Ship, Loader2 } from "lucide-react";
+import { Ship, Loader2, Mail } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
