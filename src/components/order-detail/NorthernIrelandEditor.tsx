@@ -200,7 +200,28 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
                 : `Delivery is handed over at the ferry port, ${CITY_AIR_EXPRESS.formatted}.`}{" "}
               A £120 per-bike surcharge applies at invoicing.
             </p>
+            <div className="space-y-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={resendFerryEmail}
+                disabled={sendingFerryEmail}
+              >
+                {sendingFerryEmail ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Mail className="h-4 w-4 mr-2" />
+                )}
+                Resend ferry partner email
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                {ferryNotifiedAt
+                  ? `Last sent ${new Date(ferryNotifiedAt).toLocaleString("en-GB")} to ${CITY_AIR_EXPRESS.email}`
+                  : `Not recorded as sent yet — sends the booking details to ${CITY_AIR_EXPRESS.email}`}
+              </p>
+            </div>
           </div>
+
         ) : (
           <p className="text-sm text-muted-foreground">
             This order is not flagged as a Northern Ireland order.
