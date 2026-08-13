@@ -31,6 +31,31 @@ const BLOCKED_STATUSES = ["delivered", "delivered_by_3p", "cancelled"];
 
 const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
   const [working, setWorking] = React.useState(false);
+  const [sendingFerryEmail, setSendingFerryEmail] = React.useState(false);
+  const [ferryNotifiedAt, setFerryNotifiedAt] = React.useState<string | null>(
+    ((order as any).ferryPartnerNotifiedAt ?? (order as any).ferry_partner_notified_at ?? null) as
+      | string
+      | null
+  );
+
+  const resendFerryEmail = async () => {
+    setSendingFerryEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-ferry-partner-notification", {
+        body: { orderId: order.id },
+      });
+      if (error) throw error;
+      setFerryNotifiedAt((data as any)?.notifiedAt || new Date().toISOString());
+      toast.success(`Booking email sent to ${CITY_AIR_EXPRESS.email}`);
+      onUpdate();
+    } catch (e: any) {
+      console.error("Ferry partner email resend failed", e);
+      toast.error(e?.message || "Could not send the ferry partner email");
+    } finally {
+      setSendingFerryEmail(false);
+    }
+  };
+
 
   const isNI = Boolean((order as any).isNorthernIreland ?? (order as any).is_northern_ireland);
   const foamStatus = ((order as any).foamStatus ?? (order as any).foam_status) as FoamStatus | null;
