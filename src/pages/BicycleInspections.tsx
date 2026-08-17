@@ -137,7 +137,7 @@ const BicycleInspections = () => {
   const [priceInputs, setPriceInputs] = useState<Record<string, { parts: string; labour: string }>>({});
   // Edit-mode state for issues during awaiting_pricing
   const [editingIssueId, setEditingIssueId] = useState<string | null>(null);
-  const [editIssueDraft, setEditIssueDraft] = useState<{ description: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string; repairId: string | null }>({ description: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null, payer: "customer" });
+  const [editIssueDraft, setEditIssueDraft] = useState<{ description: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string; repairId: string | null }>({ description: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null });
   // Add-issue inline form state, keyed by inspection id
   const [addIssueForInspectionId, setAddIssueForInspectionId] = useState<string | null>(null);
   const [newIssueDraft, setNewIssueDraft] = useState<{ description: string; cost: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string; repairId: string | null; payer: "customer" | "receiver" }>({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null, payer: "customer" });
