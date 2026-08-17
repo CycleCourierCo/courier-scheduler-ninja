@@ -140,7 +140,7 @@ const BicycleInspections = () => {
   const [editIssueDraft, setEditIssueDraft] = useState<{ description: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string; repairId: string | null }>({ description: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null });
   // Add-issue inline form state, keyed by inspection id
   const [addIssueForInspectionId, setAddIssueForInspectionId] = useState<string | null>(null);
-  const [newIssueDraft, setNewIssueDraft] = useState<{ description: string; cost: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string; repairId: string | null }>({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null });
+  const [newIssueDraft, setNewIssueDraft] = useState<{ description: string; cost: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string; repairId: string | null; payer: "customer" | "receiver" }>({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null, payer: "customer" });
 
   const [customerResponses, setCustomerResponses] = useState<Record<string, string>>({});
   const [sortBy, setSortBy] = useState<"oldest_collected" | "newest_collected" | "tracking_asc">("oldest_collected");
@@ -297,7 +297,7 @@ const BicycleInspections = () => {
 
   // Add a new issue to an existing inspection (pricing stage)
   const addIssueAtPricingMutation = useMutation({
-    mutationFn: async ({ inspectionId, orderId, draft }: { inspectionId: string; orderId: string; draft: typeof newIssueDraft }) => {
+    mutationFn: async ({ inspectionId, orderId, draft, postApproval }: { inspectionId: string; orderId: string; draft: typeof newIssueDraft; postApproval?: boolean }) => {
       if (!user?.id) throw new Error("User not authenticated");
       const parts = draft.partsCost.trim() ? parseFloat(draft.partsCost) : null;
       const labour = draft.labourCost.trim() ? parseFloat(draft.labourCost) : null;
@@ -305,7 +305,8 @@ const BicycleInspections = () => {
       const estimated = parts != null || labour != null
         ? (parts ?? 0) + (labour ?? 0)
         : fallback;
-      return addIssueToExistingInspection(
+      const billsReceiver = !!postApproval && draft.payer === "receiver";
+      const issue = await addIssueToExistingInspection(
         inspectionId,
         orderId,
         draft.description.trim(),
@@ -321,20 +322,45 @@ const BicycleInspections = () => {
           repair_id: draft.repairId,
           parts_cost: parts,
           labour_cost: labour,
+          ...(postApproval ? { status: "approved" as const } : {}),
+          billing_party: billsReceiver ? ("receiver" as const) : ("customer" as const),
         }
       );
+
+      if (billsReceiver && issue?.id) {
+        try {
+          const invoice = await createReceiverInspectionInvoice(issue.id);
+          return { issue, invoice, invoiceError: null as string | null };
+        } catch (invoiceError: any) {
+          return { issue, invoice: null, invoiceError: invoiceError?.message || "Invoice could not be created" };
+        }
+      }
+      return { issue, invoice: null, invoiceError: null as string | null };
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
       setAddIssueForInspectionId(null);
-      setNewIssueDraft({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null });
-      toast.success("Issue added");
+      setNewIssueDraft({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null, payer: "customer" });
+      if (result?.invoice) {
+        const already = result.invoice.alreadyExists ? " (already existed)" : "";
+        toast.success(`Issue added and receiver invoice #${result.invoice.invoiceNumber} created${already}`, {
+          action: result.invoice.invoiceUrl
+            ? { label: "Open", onClick: () => window.open(result.invoice.invoiceUrl, "_blank") }
+            : undefined,
+        });
+      } else {
+        toast.success("Issue added");
+        if (result?.invoiceError) {
+          toast.warning(`Invoice not created: ${result.invoiceError}`);
+        }
+      }
     },
     onError: (error) => {
       toast.error("Failed to add issue");
       console.error(error);
     },
   });
+
 
   // Update bike category on an inspection
   const updateBikeTypeMutation = useMutation({
@@ -1128,6 +1154,11 @@ const BicycleInspections = () => {
     const isAwaitingPricing = inspection?.status === "awaiting_pricing";
     const isAwaitingParts = inspection?.status === "awaiting_parts";
     const isAwaitingRepair = inspection?.status === "awaiting_repair" || inspection?.status === "in_repair" || inspection?.status === "cleaning";
+    // Post-approval stages: extra work found after the customer approved repairs.
+    const isPostApproval = ["awaiting_parts", "awaiting_repair", "in_repair", "cleaning", "repaired"].includes(
+      inspection?.status ?? ""
+    );
+
     const allPriced = orderIssues.length > 0 && orderIssues.every((i: InspectionIssue) => i.estimated_cost != null);
     const approvedCount = approvedIssues.length;
     const declinedCount = orderIssues.filter((i: InspectionIssue) => i.status === "declined").length;
@@ -1901,11 +1932,32 @@ const BicycleInspections = () => {
             </div>
           )}
 
-          {/* Add-issue inline form (awaiting_pricing) */}
-          {canManageInspections && isAwaitingPricing && inspection && (
+          {/* Add-issue inline form (awaiting_pricing, or extra work after approval) */}
+          {canManageInspections && (isAwaitingPricing || isPostApproval) && inspection && (
             <div className="pt-1">
               {addIssueForInspectionId === inspection.id ? (
                 <div className="space-y-2 p-3 rounded-md border bg-background min-w-0 overflow-hidden">
+                  {isPostApproval && (
+                    <div>
+                      <Label className="text-xs">Who pays?</Label>
+                      <Select
+                        value={newIssueDraft.payer}
+                        onValueChange={(v) => setNewIssueDraft(prev => ({ ...prev, payer: v as "customer" | "receiver" }))}
+                      >
+                        <SelectTrigger className="text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="customer">Booking customer (account)</SelectItem>
+                          {isAdmin && <SelectItem value="receiver">Receiver (invoice now)</SelectItem>}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Added as approved work at the current stage. Receiver-billed repairs are invoiced immediately.
+                      </p>
+                    </div>
+                  )}
+
                   <div>
                     <Label className="text-xs">Repair (from catalogue)</Label>
                     <RepairPicker
@@ -1982,13 +2034,18 @@ const BicycleInspections = () => {
                           toast.error("Enter a valid cost");
                           return;
                         }
-                        addIssueAtPricingMutation.mutate({ inspectionId: inspection.id, orderId: order.id, draft: newIssueDraft });
+                        if (isPostApproval && !newIssueDraft.partsCost.trim() && !newIssueDraft.labourCost.trim() && costStr === "") {
+                          toast.error("Enter a parts and/or labour price — there's no pricing round after approval");
+                          return;
+                        }
+                        addIssueAtPricingMutation.mutate({ inspectionId: inspection.id, orderId: order.id, draft: newIssueDraft, postApproval: isPostApproval });
+
                       }}
                       disabled={addIssueAtPricingMutation.isPending}
                     >
                       <Plus className="h-4 w-4 mr-1" /> Add issue
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => { setAddIssueForInspectionId(null); setNewIssueDraft({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null }); }}>
+                    <Button size="sm" variant="ghost" onClick={() => { setAddIssueForInspectionId(null); setNewIssueDraft({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null, payer: "customer" }); }}>
                       Cancel
                     </Button>
                   </div>

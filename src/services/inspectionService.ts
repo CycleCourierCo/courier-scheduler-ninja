@@ -1077,12 +1077,23 @@ export const addIssueToExistingInspection = async (
   requestedById: string,
   requestedByName: string,
   partInfo?: { part_name?: string | null; part_spec?: string | null; part_number?: string | null },
-  extra?: { repair_id?: string | null; parts_cost?: number | null; labour_cost?: number | null }
+  extra?: {
+    repair_id?: string | null;
+    parts_cost?: number | null;
+    labour_cost?: number | null;
+    /** Defaults to 'pending' (pricing-stage behaviour). */
+    status?: IssueStatus;
+    /** 'receiver' bills the repair to the order's receiver. */
+    billing_party?: 'customer' | 'receiver';
+  }
 ): Promise<InspectionIssue | null> => {
   try {
     const now = new Date().toISOString();
     const hasSplit = extra?.parts_cost != null || extra?.labour_cost != null;
     const hasAnyPrice = estimatedCost != null || hasSplit;
+    const status: IssueStatus = extra?.status ?? ('pending' as IssueStatus);
+    const billingParty = extra?.billing_party ?? 'customer';
+    const receiverBilled = billingParty === 'receiver';
     const { data, error } = await supabase
       .from('inspection_issues')
       .insert({
@@ -1095,13 +1106,31 @@ export const addIssueToExistingInspection = async (
         repair_id: extra?.repair_id ?? null,
         requested_by_id: requestedById,
         requested_by_name: requestedByName,
-        status: 'pending' as IssueStatus,
+        status,
+        billing_party: billingParty,
         part_name: partInfo?.part_name || null,
         part_spec: partInfo?.part_spec || null,
         part_number: partInfo?.part_number || null,
         priced_at: hasAnyPrice ? now : null,
         priced_by_id: hasAnyPrice ? requestedById : null,
         priced_by_name: hasAnyPrice ? requestedByName : null,
+        ...(status === 'approved'
+          ? {
+              customer_response: receiverBilled
+                ? `Approved by receiver (added by ${requestedByName})`
+                : `Approved (added by ${requestedByName})`,
+              customer_responded_at: now,
+            }
+          : {}),
+        ...(receiverBilled
+          ? {
+              receiver_approved_at: now,
+              receiver_approved_source: 'staff',
+              offered_to_receiver_at: now,
+              offered_to_receiver_by_id: requestedById,
+              offered_to_receiver_by_name: requestedByName,
+            }
+          : {}),
       } as any)
       .select()
       .single();
@@ -1112,6 +1141,7 @@ export const addIssueToExistingInspection = async (
     throw error;
   }
 };
+
 
 
 export const createInspectionServiceInvoice = async (
