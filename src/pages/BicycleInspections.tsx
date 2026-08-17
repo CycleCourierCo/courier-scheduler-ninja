@@ -138,6 +138,8 @@ const BicycleInspections = () => {
   const [priceInputs, setPriceInputs] = useState<Record<string, { parts: string; labour: string }>>({});
   // Edit-mode state for issues during awaiting_pricing
   const [editingIssueId, setEditingIssueId] = useState<string | null>(null);
+  // Per-issue admin edit-mode toggle so admins don't see editable controls by default
+  const [adminEditingIssueIds, setAdminEditingIssueIds] = useState<Set<string>>(new Set());
   const [editIssueDraft, setEditIssueDraft] = useState<{ description: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string; repairId: string | null }>({ description: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null });
   // Add-issue inline form state, keyed by inspection id
   const [addIssueForInspectionId, setAddIssueForInspectionId] = useState<string | null>(null);
