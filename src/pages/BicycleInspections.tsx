@@ -1154,6 +1154,11 @@ const BicycleInspections = () => {
     const isAwaitingPricing = inspection?.status === "awaiting_pricing";
     const isAwaitingParts = inspection?.status === "awaiting_parts";
     const isAwaitingRepair = inspection?.status === "awaiting_repair" || inspection?.status === "in_repair" || inspection?.status === "cleaning";
+    // Post-approval stages: extra work found after the customer approved repairs.
+    const isPostApproval = ["awaiting_parts", "awaiting_repair", "in_repair", "cleaning", "repaired"].includes(
+      inspection?.status ?? ""
+    );
+
     const allPriced = orderIssues.length > 0 && orderIssues.every((i: InspectionIssue) => i.estimated_cost != null);
     const approvedCount = approvedIssues.length;
     const declinedCount = orderIssues.filter((i: InspectionIssue) => i.status === "declined").length;
