@@ -69,6 +69,9 @@ const renderIndicatorRow = (
   startY: number,
   margin: number
 ): number => {
+  const hasIndicators = order.needsInspection || order.isBoxMyBike || order.isNorthernIreland;
+  if (!hasIndicators) return startY;
+
   let currentX = margin;
   const centerY = startY + ICON_SIZE / 2 + 2;
 
