@@ -56,6 +56,7 @@ import {
   unmarkPartsOrdered,
   updateInspectionIssue,
   deleteInspectionIssue,
+  setIssueStatusAsAdmin,
   addIssueToExistingInspection,
   adminSetInspectionStatus,
   updateInspectionBikeType,
