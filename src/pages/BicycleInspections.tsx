@@ -1506,8 +1506,21 @@ const BicycleInspections = () => {
                     </Badge>
                   </div>
 
-                  {/* Admin status override — approve / decline / reset to pending */}
-                  {isAdmin && (issue.status === "pending" || issue.status === "approved" || issue.status === "declined") && (
+                  {/* Admin default: read-only with edit toggle */}
+                  {isAdmin && !adminEditingIssueIds.has(issue.id) && (
+                    <div className="mt-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setAdminEditingIssueIds(prev => new Set(prev).add(issue.id))}
+                      >
+                        <Pencil className="h-4 w-4 mr-1" /> Edit
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Admin edit mode: status override */}
+                  {isAdmin && adminEditingIssueIds.has(issue.id) && (issue.status === "pending" || issue.status === "approved" || issue.status === "declined") && (
                     <div className="mt-3 flex flex-wrap items-center gap-2">
                       <span className="text-xs text-muted-foreground">Admin override:</span>
                       {(["approved", "declined", "pending"] as const).map((target) => (
@@ -1527,8 +1540,8 @@ const BicycleInspections = () => {
                     </div>
                   )}
 
-                  {/* Edit/delete — mechanics during pricing, admins at any stage */}
-                  {(isAdmin || (canManageInspections && isAwaitingPricing)) && editingIssueId !== issue.id && (
+                  {/* Edit/delete — admins only when in admin edit mode, mechanics during pricing */}
+                  {((isAdmin && adminEditingIssueIds.has(issue.id)) || (!isAdmin && canManageInspections && isAwaitingPricing)) && editingIssueId !== issue.id && (
                     <div className="mt-3 space-y-2">
                       {(() => {
                         const current = priceInputs[issue.id] ?? {
@@ -1597,7 +1610,6 @@ const BicycleInspections = () => {
                               partSpec: issue.part_spec || "",
                               partNumber: issue.part_number || "",
                               repairId: (issue as any).repair_id ?? null,
-
                             });
                           }}
                         >
@@ -1628,6 +1640,26 @@ const BicycleInspections = () => {
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
+                        )}
+                        {isAdmin && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setAdminEditingIssueIds(prev => {
+                                const next = new Set(prev);
+                                next.delete(issue.id);
+                                return next;
+                              });
+                              setPriceInputs(prev => {
+                                const next = { ...prev };
+                                delete next[issue.id];
+                                return next;
+                              });
+                            }}
+                          >
+                            Cancel
+                          </Button>
                         )}
                       </div>
                     </div>
