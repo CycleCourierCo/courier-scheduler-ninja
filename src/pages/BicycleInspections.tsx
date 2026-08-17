@@ -296,6 +296,22 @@ const BicycleInspections = () => {
     },
   });
 
+  // Admin override of an individual issue's status
+  const overrideIssueStatusMutation = useMutation({
+    mutationFn: async ({ issueId, status }: { issueId: string; status: "pending" | "approved" | "declined" }) =>
+      setIssueStatusAsAdmin(issueId, status, userProfile?.name || user?.email || "Admin"),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success(
+        vars.status === "pending" ? "Issue reset to pending" : `Issue marked ${vars.status}`
+      );
+    },
+    onError: (error) => {
+      toast.error("Failed to update issue status");
+      console.error(error);
+    },
+  });
+
   // Add a new issue to an existing inspection (pricing stage)
   const addIssueAtPricingMutation = useMutation({
     mutationFn: async ({ inspectionId, orderId, draft, postApproval }: { inspectionId: string; orderId: string; draft: typeof newIssueDraft; postApproval?: boolean }) => {
