@@ -18,7 +18,6 @@ import {
 } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Switch } from '@/components/ui/switch';
-import { supabase } from '@/integrations/supabase/client';
 import { listUsersByRole } from '@/services/mechanicTimeslipService';
 import { cn } from '@/lib/utils';
 
