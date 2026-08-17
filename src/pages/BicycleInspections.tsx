@@ -297,7 +297,7 @@ const BicycleInspections = () => {
 
   // Add a new issue to an existing inspection (pricing stage)
   const addIssueAtPricingMutation = useMutation({
-    mutationFn: async ({ inspectionId, orderId, draft }: { inspectionId: string; orderId: string; draft: typeof newIssueDraft }) => {
+    mutationFn: async ({ inspectionId, orderId, draft, postApproval }: { inspectionId: string; orderId: string; draft: typeof newIssueDraft; postApproval?: boolean }) => {
       if (!user?.id) throw new Error("User not authenticated");
       const parts = draft.partsCost.trim() ? parseFloat(draft.partsCost) : null;
       const labour = draft.labourCost.trim() ? parseFloat(draft.labourCost) : null;
@@ -305,7 +305,8 @@ const BicycleInspections = () => {
       const estimated = parts != null || labour != null
         ? (parts ?? 0) + (labour ?? 0)
         : fallback;
-      return addIssueToExistingInspection(
+      const billsReceiver = !!postApproval && draft.payer === "receiver";
+      const issue = await addIssueToExistingInspection(
         inspectionId,
         orderId,
         draft.description.trim(),
@@ -321,20 +322,45 @@ const BicycleInspections = () => {
           repair_id: draft.repairId,
           parts_cost: parts,
           labour_cost: labour,
+          ...(postApproval ? { status: "approved" as const } : {}),
+          billing_party: billsReceiver ? ("receiver" as const) : ("customer" as const),
         }
       );
+
+      if (billsReceiver && issue?.id) {
+        try {
+          const invoice = await createReceiverInspectionInvoice(issue.id);
+          return { issue, invoice, invoiceError: null as string | null };
+        } catch (invoiceError: any) {
+          return { issue, invoice: null, invoiceError: invoiceError?.message || "Invoice could not be created" };
+        }
+      }
+      return { issue, invoice: null, invoiceError: null as string | null };
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
       setAddIssueForInspectionId(null);
       setNewIssueDraft({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null, payer: "customer" });
-      toast.success("Issue added");
+      if (result?.invoice) {
+        const already = result.invoice.alreadyExists ? " (already existed)" : "";
+        toast.success(`Issue added and receiver invoice #${result.invoice.invoiceNumber} created${already}`, {
+          action: result.invoice.invoiceUrl
+            ? { label: "Open", onClick: () => window.open(result.invoice.invoiceUrl, "_blank") }
+            : undefined,
+        });
+      } else {
+        toast.success("Issue added");
+        if (result?.invoiceError) {
+          toast.warning(`Invoice not created: ${result.invoiceError}`);
+        }
+      }
     },
     onError: (error) => {
       toast.error("Failed to add issue");
       console.error(error);
     },
   });
+
 
   // Update bike category on an inspection
   const updateBikeTypeMutation = useMutation({
