@@ -1504,8 +1504,29 @@ const BicycleInspections = () => {
                     </Badge>
                   </div>
 
-                  {/* Pricing-stage edit/delete (admin+mechanic edit, admin-only delete) */}
-                  {canManageInspections && isAwaitingPricing && editingIssueId !== issue.id && (
+                  {/* Admin status override — approve / decline / reset to pending */}
+                  {isAdmin && (issue.status === "pending" || issue.status === "approved" || issue.status === "declined") && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Admin override:</span>
+                      {(["approved", "declined", "pending"] as const).map((target) => (
+                        <Button
+                          key={target}
+                          size="sm"
+                          variant={issue.status === target ? "default" : "outline"}
+                          disabled={issue.status === target || overrideIssueStatusMutation.isPending}
+                          onClick={() => overrideIssueStatusMutation.mutate({ issueId: issue.id, status: target })}
+                        >
+                          {target === "approved" && <CheckCircle className="h-4 w-4 mr-1" />}
+                          {target === "declined" && <XCircle className="h-4 w-4 mr-1" />}
+                          {target === "pending" && <RotateCcw className="h-4 w-4 mr-1" />}
+                          {target === "approved" ? "Approve" : target === "declined" ? "Decline" : "Reset to pending"}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Edit/delete — mechanics during pricing, admins at any stage */}
+                  {(isAdmin || (canManageInspections && isAwaitingPricing)) && editingIssueId !== issue.id && (
                     <div className="mt-3 space-y-2">
                       {(() => {
                         const current = priceInputs[issue.id] ?? {
