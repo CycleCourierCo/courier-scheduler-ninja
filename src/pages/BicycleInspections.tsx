@@ -2034,7 +2034,12 @@ const BicycleInspections = () => {
                           toast.error("Enter a valid cost");
                           return;
                         }
-                        addIssueAtPricingMutation.mutate({ inspectionId: inspection.id, orderId: order.id, draft: newIssueDraft });
+                        if (isPostApproval && !newIssueDraft.partsCost.trim() && !newIssueDraft.labourCost.trim() && costStr === "") {
+                          toast.error("Enter a parts and/or labour price — there's no pricing round after approval");
+                          return;
+                        }
+                        addIssueAtPricingMutation.mutate({ inspectionId: inspection.id, orderId: order.id, draft: newIssueDraft, postApproval: isPostApproval });
+
                       }}
                       disabled={addIssueAtPricingMutation.isPending}
                     >
