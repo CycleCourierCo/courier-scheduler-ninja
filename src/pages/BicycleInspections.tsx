@@ -1932,11 +1932,32 @@ const BicycleInspections = () => {
             </div>
           )}
 
-          {/* Add-issue inline form (awaiting_pricing) */}
-          {canManageInspections && isAwaitingPricing && inspection && (
+          {/* Add-issue inline form (awaiting_pricing, or extra work after approval) */}
+          {canManageInspections && (isAwaitingPricing || isPostApproval) && inspection && (
             <div className="pt-1">
               {addIssueForInspectionId === inspection.id ? (
                 <div className="space-y-2 p-3 rounded-md border bg-background min-w-0 overflow-hidden">
+                  {isPostApproval && (
+                    <div>
+                      <Label className="text-xs">Who pays?</Label>
+                      <Select
+                        value={newIssueDraft.payer}
+                        onValueChange={(v) => setNewIssueDraft(prev => ({ ...prev, payer: v as "customer" | "receiver" }))}
+                      >
+                        <SelectTrigger className="text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="customer">Booking customer (account)</SelectItem>
+                          {isAdmin && <SelectItem value="receiver">Receiver (invoice now)</SelectItem>}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Added as approved work at the current stage. Receiver-billed repairs are invoiced immediately.
+                      </p>
+                    </div>
+                  )}
+
                   <div>
                     <Label className="text-xs">Repair (from catalogue)</Label>
                     <RepairPicker
