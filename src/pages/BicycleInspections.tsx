@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
 import { formatDistanceToNowStrict } from "date-fns";
-import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search, Pencil, Trash2, Plus, Save, Truck } from "lucide-react";
+import { Wrench, CheckCircle, XCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search, Pencil, Trash2, Plus, Save, Truck } from "lucide-react";
 import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import StatusBadge from "@/components/StatusBadge";
@@ -56,6 +56,7 @@ import {
   unmarkPartsOrdered,
   updateInspectionIssue,
   deleteInspectionIssue,
+  setIssueStatusAsAdmin,
   addIssueToExistingInspection,
   adminSetInspectionStatus,
   updateInspectionBikeType,
@@ -291,6 +292,22 @@ const BicycleInspections = () => {
     },
     onError: (error) => {
       toast.error("Failed to remove issue");
+      console.error(error);
+    },
+  });
+
+  // Admin override of an individual issue's status
+  const overrideIssueStatusMutation = useMutation({
+    mutationFn: async ({ issueId, status }: { issueId: string; status: "pending" | "approved" | "declined" }) =>
+      setIssueStatusAsAdmin(issueId, status, userProfile?.name || user?.email || "Admin"),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success(
+        vars.status === "pending" ? "Issue reset to pending" : `Issue marked ${vars.status}`
+      );
+    },
+    onError: (error) => {
+      toast.error("Failed to update issue status");
       console.error(error);
     },
   });
@@ -1487,8 +1504,29 @@ const BicycleInspections = () => {
                     </Badge>
                   </div>
 
-                  {/* Pricing-stage edit/delete (admin+mechanic edit, admin-only delete) */}
-                  {canManageInspections && isAwaitingPricing && editingIssueId !== issue.id && (
+                  {/* Admin status override — approve / decline / reset to pending */}
+                  {isAdmin && (issue.status === "pending" || issue.status === "approved" || issue.status === "declined") && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Admin override:</span>
+                      {(["approved", "declined", "pending"] as const).map((target) => (
+                        <Button
+                          key={target}
+                          size="sm"
+                          variant={issue.status === target ? "default" : "outline"}
+                          disabled={issue.status === target || overrideIssueStatusMutation.isPending}
+                          onClick={() => overrideIssueStatusMutation.mutate({ issueId: issue.id, status: target })}
+                        >
+                          {target === "approved" && <CheckCircle className="h-4 w-4 mr-1" />}
+                          {target === "declined" && <XCircle className="h-4 w-4 mr-1" />}
+                          {target === "pending" && <RotateCcw className="h-4 w-4 mr-1" />}
+                          {target === "approved" ? "Approve" : target === "declined" ? "Decline" : "Reset to pending"}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Edit/delete — mechanics during pricing, admins at any stage */}
+                  {(isAdmin || (canManageInspections && isAwaitingPricing)) && editingIssueId !== issue.id && (
                     <div className="mt-3 space-y-2">
                       {(() => {
                         const current = priceInputs[issue.id] ?? {
@@ -1593,8 +1631,8 @@ const BicycleInspections = () => {
                     </div>
                   )}
 
-                  {/* Edit form (awaiting_pricing) */}
-                  {canManageInspections && isAwaitingPricing && editingIssueId === issue.id && (
+                  {/* Edit form — mechanics during pricing, admins at any stage */}
+                  {(isAdmin || (canManageInspections && isAwaitingPricing)) && editingIssueId === issue.id && (
                     <div className="mt-3 space-y-2 p-3 rounded-md border bg-background min-w-0 overflow-hidden">
                       <div>
                         <Label className="text-xs">Repair (from catalogue)</Label>

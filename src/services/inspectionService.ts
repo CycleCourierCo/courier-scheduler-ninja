@@ -706,6 +706,38 @@ export const declineIssue = async (
   }
 };
 
+// Admin override: force an issue to approved / declined / pending regardless of stage.
+export const setIssueStatusAsAdmin = async (
+  issueId: string,
+  status: 'pending' | 'approved' | 'declined',
+  actorName?: string
+): Promise<InspectionIssue | null> => {
+  try {
+    const update: Record<string, any> = { status };
+    if (status === 'pending') {
+      update.customer_response = null;
+      update.customer_responded_at = null;
+    } else {
+      update.customer_response = `${status === 'approved' ? 'Approved' : 'Declined'} by staff${actorName ? ` (${actorName})` : ''}`;
+      update.customer_responded_at = new Date().toISOString();
+    }
+
+    const { data, error } = await supabase
+      .from('inspection_issues')
+      .update(update)
+      .eq('id', issueId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    pushIssueStatusToInspectaBike(issueId);
+    return data as InspectionIssue;
+  } catch (error) {
+    console.error('Error overriding issue status:', error);
+    throw error;
+  }
+};
+
 // Mark a part as ordered for an issue (mechanic/admin)
 export const markPartsOrdered = async (
   issueId: string,
