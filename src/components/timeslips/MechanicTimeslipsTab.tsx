@@ -22,6 +22,7 @@ import {
   updateMechanicTimeslip,
   deleteMechanicTimeslip,
   getSignedPhotoUrl,
+  listUsersByRole,
   MechanicTimeslip,
 } from '@/services/mechanicTimeslipService';
 
@@ -200,7 +201,22 @@ const MechanicTimeslipsTab: React.FC = () => {
   const approve = (id: string) => updateMut.mutate({ id, updates: { status: 'approved' } });
   const reject = (id: string) => updateMut.mutate({ id, updates: { status: 'rejected' } });
 
-  const total = (slips || []).reduce((s, r) => s + Number(r.total_pay || 0), 0);
+  const totals = React.useMemo(() => {
+    const rows = slips || [];
+    const hours = rows.reduce((s, r) => s + Number(r.total_hours || 0), 0);
+    const lunch = rows.reduce((s, r) => s + Number(r.lunch_hours || 0), 0);
+    const pay = rows.reduce((s, r) => s + Number(r.total_pay || 0), 0);
+    const mechanics = new Set(rows.map((r) => r.driver_id)).size;
+    return {
+      hours,
+      lunch,
+      pay,
+      shifts: rows.length,
+      mechanics,
+      avgHours: rows.length ? hours / rows.length : 0,
+      avgRate: hours > 0 ? pay / hours : 0,
+    };
+  }, [slips]);
 
   const saveEdit = () => {
     if (!editing) return;
