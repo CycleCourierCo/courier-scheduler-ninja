@@ -19,7 +19,7 @@ import {
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Switch } from '@/components/ui/switch';
 import { supabase } from '@/integrations/supabase/client';
-import { UserProfile } from '@/types/user';
+import { listUsersByRole } from '@/services/mechanicTimeslipService';
 import { cn } from '@/lib/utils';
 
 interface TimeslipFiltersProps {
@@ -43,18 +43,9 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
 
   // Fetch all drivers
   const { data: drivers } = useQuery({
-    queryKey: ['drivers'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('role', 'driver')
-        .eq('is_active', true)
-        .order('name');
-
-      if (error) throw error;
-      return data as UserProfile[];
-    },
+    queryKey: ['role-users', 'driver'],
+    queryFn: () => listUsersByRole('driver'),
+    staleTime: 5 * 60 * 1000,
   });
 
   // Notify parent of filter changes
