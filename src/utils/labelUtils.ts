@@ -2,155 +2,25 @@ import jsPDF from 'jspdf';
 import { format } from "date-fns";
 import type { Order } from "@/types/order";
 
+const LABEL_WIDTH = 288; // 4 inches in points
+const LABEL_HEIGHT = 432; // 6 inches in points
+const MARGIN = 15;
+const ICON_SIZE = 14;
+const ICON_TEXT_GAP = 4;
+const INDICATOR_GAP = 10;
+
 export const generateSingleOrderLabel = async (order: Order) => {
   try {
-    // Create PDF with exact 4x6 inch page size for label printers
-    const labelWidth = 288; // 4 inches in points
-    const labelHeight = 432; // 6 inches in points
-    
-    const pdf = new jsPDF('portrait', 'pt', [labelWidth, labelHeight]);
+    const pdf = new jsPDF('portrait', 'pt', [LABEL_WIDTH, LABEL_HEIGHT]);
     const quantity = order.bikeQuantity || 1;
     let isFirstLabel = true;
-    
-    // Generate labels based on bike quantity
+
     for (let i = 0; i < quantity; i++) {
       if (!isFirstLabel) {
         pdf.addPage();
       }
       isFirstLabel = false;
-
-      const margin = 15;
-      let currentY = margin + 20;
-      
-      // Tracking number
-      pdf.setFontSize(14);
-      pdf.setFont("helvetica", "bold");
-      const trackingText = `Tracking: ${order.trackingNumber || 'N/A'}${quantity > 1 ? ` (${i + 1}/${quantity})` : ''}`;
-      pdf.text(trackingText, margin, currentY);
-      currentY += 30;
-      
-      // Bike details
-      if (order.bikeBrand || order.bikeModel || order.bikeQuantity) {
-        pdf.setFontSize(10);
-        pdf.setFont("helvetica", "bold");
-        pdf.text('ITEM:', margin, currentY);
-        currentY += 15;
-        
-        pdf.setFont("helvetica", "normal");
-        const isMultipleBikes = quantity > 1;
-        const itemName = isMultipleBikes 
-          ? `Bike ${i + 1} of ${quantity}` 
-          : `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bike";
-        
-        if (!isMultipleBikes && order.bikeBrand && order.bikeModel) {
-          pdf.text(`${order.bikeBrand} ${order.bikeModel}`, margin, currentY);
-        } else {
-          pdf.text(itemName, margin, currentY);
-        }
-        currentY += 12;
-        
-        // Add bike type
-        if (order.bikeType) {
-          pdf.text(`Type: ${order.bikeType}`, margin, currentY);
-        }
-        currentY += 15;
-      }
-      
-      // Sender info (FROM)
-      pdf.setFontSize(10);
-      pdf.setFont("helvetica", "bold");
-      pdf.text('FROM:', margin, currentY);
-      currentY += 15;
-      
-      pdf.setFont("helvetica", "normal");
-      if (order.sender?.name) {
-        pdf.text(order.sender.name, margin, currentY);
-        currentY += 12;
-      }
-      
-      if (order.sender?.address) {
-        const address = order.sender.address;
-        if (address.street) {
-          const streetText = splitText(pdf, address.street, labelWidth - 2 * margin);
-          streetText.forEach(line => {
-            pdf.text(line, margin, currentY);
-            currentY += 12;
-          });
-        }
-        
-        const cityLine = `${address.city || ''}, ${address.state || ''} ${address.zipCode || ''}`.trim();
-        if (cityLine.length > 2) {
-          pdf.text(cityLine, margin, currentY);
-          currentY += 12;
-        }
-      }
-      
-      if (order.sender?.phone) {
-        pdf.text(order.sender.phone, margin, currentY);
-        currentY += 25;
-      }
-      
-      // Receiver info (TO)
-      pdf.setFont("helvetica", "bold");
-      pdf.text('TO:', margin, currentY);
-      currentY += 15;
-      
-      pdf.setFont("helvetica", "normal");
-      if (order.receiver?.name) {
-        pdf.text(order.receiver.name, margin, currentY);
-        currentY += 12;
-      }
-      
-      if (order.receiver?.address) {
-        const address = order.receiver.address;
-        if (address.street) {
-          const streetText = splitText(pdf, address.street, labelWidth - 2 * margin);
-          streetText.forEach(line => {
-            pdf.text(line, margin, currentY);
-            currentY += 12;
-          });
-        }
-        
-        const cityLine = `${address.city || ''}, ${address.state || ''} ${address.zipCode || ''}`.trim();
-        if (cityLine.length > 2) {
-          pdf.text(cityLine, margin, currentY);
-          currentY += 12;
-        }
-      }
-      
-      if (order.receiver?.phone) {
-        pdf.text(order.receiver.phone, margin, currentY);
-        currentY += 25;
-      }
-      
-      // Contact information and website
-      pdf.setFontSize(8);
-      pdf.setFont("helvetica", "normal");
-      const contactText = 'cyclecourierco.com | info@cyclecourierco.com | +44 121 798 0767';
-      const contactWidth = pdf.getTextWidth(contactText);
-      const contactX = (labelWidth - contactWidth) / 2;
-      pdf.text(contactText, contactX, currentY);
-      currentY += 20;
-      
-      // Logo - square ratio and reduced size
-      try {
-        const logoWidth = (labelWidth - (2 * margin)) * 0.51; // 51% of available width (reduced by another 15%)
-        const logoHeight = logoWidth; // 1:1 ratio (square)
-        const logoX = (labelWidth - logoWidth) / 2; // Center the logo
-        
-        pdf.addImage('/cycle-courier-logo.png', 'PNG', logoX, currentY, logoWidth, logoHeight);
-        currentY += logoHeight + 10;
-        
-        // Tagline below logo
-        pdf.setFontSize(10);
-        pdf.setFont("helvetica", "normal");
-        const taglineText = 'Streamlining Bike Transport';
-        const taglineWidth = pdf.getTextWidth(taglineText);
-        const taglineX = (labelWidth - taglineWidth) / 2;
-        pdf.text(taglineText, taglineX, currentY);
-      } catch (error) {
-        console.log('Could not load logo:', error);
-      }
+      renderLabelPage(pdf, order, i, quantity, LABEL_WIDTH);
     }
 
     pdf.save(`collection-label-${order.trackingNumber || order.id}.pdf`);
@@ -162,9 +32,7 @@ export const generateSingleOrderLabel = async (order: Order) => {
 
 export const generateBulkCollectionLabels = async (orders: Order[]) => {
   try {
-    const labelWidth = 288;
-    const labelHeight = 432;
-    const pdf = new jsPDF('portrait', 'pt', [labelWidth, labelHeight]);
+    const pdf = new jsPDF('portrait', 'pt', [LABEL_WIDTH, LABEL_HEIGHT]);
     let isFirstPage = true;
 
     for (const order of orders) {
@@ -174,7 +42,7 @@ export const generateBulkCollectionLabels = async (orders: Order[]) => {
           pdf.addPage();
         }
         isFirstPage = false;
-        renderLabelPage(pdf, order, i, quantity, labelWidth);
+        renderLabelPage(pdf, order, i, quantity, LABEL_WIDTH);
       }
     }
 
@@ -185,22 +53,69 @@ export const generateBulkCollectionLabels = async (orders: Order[]) => {
   }
 };
 
+const drawIcon = (pdf: jsPDF, path: string, x: number, y: number, size: number): boolean => {
+  try {
+    pdf.addImage(path, 'PNG', x, y, size, size);
+    return true;
+  } catch (error) {
+    console.log(`Could not load icon ${path}:`, error);
+    return false;
+  }
+};
+
+const renderIndicatorRow = (
+  pdf: jsPDF,
+  order: Order,
+  startY: number,
+  margin: number
+): number => {
+  let currentX = margin;
+  const centerY = startY + ICON_SIZE / 2 + 2;
+
+  pdf.setFontSize(8);
+  pdf.setFont("helvetica", "bold");
+
+  if (order.needsInspection) {
+    drawIcon(pdf, '/label-icon-cog.png', currentX, startY, ICON_SIZE);
+    currentX += ICON_SIZE + ICON_TEXT_GAP;
+    drawIcon(pdf, '/label-icon-spanner.png', currentX, startY, ICON_SIZE);
+    currentX += ICON_SIZE + ICON_TEXT_GAP;
+    pdf.text('SERVICE', currentX, centerY);
+    currentX += pdf.getTextWidth('SERVICE') + INDICATOR_GAP;
+  }
+
+  if (order.isBoxMyBike) {
+    drawIcon(pdf, '/label-icon-box.png', currentX, startY, ICON_SIZE);
+    currentX += ICON_SIZE + ICON_TEXT_GAP;
+    pdf.text('BOX', currentX, centerY);
+    currentX += pdf.getTextWidth('BOX') + INDICATOR_GAP;
+  }
+
+  if (order.isNorthernIreland) {
+    const niText = 'NI';
+    const niWidth = pdf.getTextWidth(niText) + 6;
+    pdf.rect(currentX, startY, niWidth, ICON_SIZE);
+    pdf.text(niText, currentX + 3, centerY);
+  }
+
+  return startY + ICON_SIZE + 8;
+};
+
 const renderLabelPage = (pdf: jsPDF, order: Order, bikeIndex: number, quantity: number, labelWidth: number) => {
-  const margin = 15;
-  let currentY = margin + 20;
+  let currentY = MARGIN + 20;
 
   // Tracking number
   pdf.setFontSize(14);
   pdf.setFont("helvetica", "bold");
   const trackingText = `Tracking: ${order.trackingNumber || 'N/A'}${quantity > 1 ? ` (${bikeIndex + 1}/${quantity})` : ''}`;
-  pdf.text(trackingText, margin, currentY);
+  pdf.text(trackingText, MARGIN, currentY);
   currentY += 30;
 
   // Bike details
   if (order.bikeBrand || order.bikeModel || order.bikeQuantity) {
     pdf.setFontSize(10);
     pdf.setFont("helvetica", "bold");
-    pdf.text('ITEM:', margin, currentY);
+    pdf.text('ITEM:', MARGIN, currentY);
     currentY += 15;
 
     pdf.setFont("helvetica", "normal");
@@ -210,80 +125,51 @@ const renderLabelPage = (pdf: jsPDF, order: Order, bikeIndex: number, quantity: 
       : `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bike";
 
     if (!isMultipleBikes && order.bikeBrand && order.bikeModel) {
-      pdf.text(`${order.bikeBrand} ${order.bikeModel}`, margin, currentY);
+      pdf.text(`${order.bikeBrand} ${order.bikeModel}`, MARGIN, currentY);
     } else {
-      pdf.text(itemName, margin, currentY);
+      pdf.text(itemName, MARGIN, currentY);
     }
     currentY += 12;
 
     if (order.bikeType) {
-      pdf.text(`Type: ${order.bikeType}`, margin, currentY);
+      pdf.text(`Type: ${order.bikeType}`, MARGIN, currentY);
     }
     currentY += 15;
   }
 
-  // Sender info (FROM)
-  pdf.setFontSize(10);
-  pdf.setFont("helvetica", "bold");
-  pdf.text('FROM:', margin, currentY);
-  currentY += 15;
-
-  pdf.setFont("helvetica", "normal");
-  if (order.sender?.name) {
-    pdf.text(order.sender.name, margin, currentY);
-    currentY += 12;
-  }
-
-  if (order.sender?.address) {
-    const address = order.sender.address;
-    if (address.street) {
-      const streetText = splitText(pdf, address.street, labelWidth - 2 * margin);
-      streetText.forEach(line => {
-        pdf.text(line, margin, currentY);
-        currentY += 12;
-      });
-    }
-    const cityLine = `${address.city || ''}, ${address.state || ''} ${address.zipCode || ''}`.trim();
-    if (cityLine.length > 2) {
-      pdf.text(cityLine, margin, currentY);
-      currentY += 12;
-    }
-  }
-
-  if (order.sender?.phone) {
-    pdf.text(order.sender.phone, margin, currentY);
-    currentY += 25;
-  }
+  // Service / Box / NI indicators
+  currentY = renderIndicatorRow(pdf, order, currentY, MARGIN);
 
   // Receiver info (TO)
+  pdf.setFontSize(10);
   pdf.setFont("helvetica", "bold");
-  pdf.text('TO:', margin, currentY);
+  pdf.text('TO:', MARGIN, currentY);
   currentY += 15;
 
   pdf.setFont("helvetica", "normal");
   if (order.receiver?.name) {
-    pdf.text(order.receiver.name, margin, currentY);
+    pdf.text(order.receiver.name, MARGIN, currentY);
     currentY += 12;
   }
 
   if (order.receiver?.address) {
     const address = order.receiver.address;
     if (address.street) {
-      const streetText = splitText(pdf, address.street, labelWidth - 2 * margin);
+      const streetText = splitText(pdf, address.street, labelWidth - 2 * MARGIN);
       streetText.forEach(line => {
-        pdf.text(line, margin, currentY);
+        pdf.text(line, MARGIN, currentY);
         currentY += 12;
       });
     }
     const cityLine = `${address.city || ''}, ${address.state || ''} ${address.zipCode || ''}`.trim();
     if (cityLine.length > 2) {
-      pdf.text(cityLine, margin, currentY);
+      pdf.text(cityLine, MARGIN, currentY);
       currentY += 12;
     }
   }
 
   if (order.receiver?.phone) {
-    pdf.text(order.receiver.phone, margin, currentY);
+    pdf.text(order.receiver.phone, MARGIN, currentY);
     currentY += 25;
   }
 
@@ -298,7 +184,7 @@ const renderLabelPage = (pdf: jsPDF, order: Order, bikeIndex: number, quantity: 
 
   // Logo
   try {
-    const logoWidth = (labelWidth - (2 * margin)) * 0.51;
+    const logoWidth = (labelWidth - (2 * MARGIN)) * 0.51;
     const logoHeight = logoWidth;
     const logoX = (labelWidth - logoWidth) / 2;
     pdf.addImage('/cycle-courier-logo.png', 'PNG', logoX, currentY, logoWidth, logoHeight);
@@ -323,7 +209,7 @@ const splitText = (pdf: jsPDF, text: string, maxWidth: number): string[] => {
   words.forEach(word => {
     const testLine = currentLine + (currentLine ? ' ' : '') + word;
     const textWidth = pdf.getTextWidth(testLine);
-    
+
     if (textWidth > maxWidth && currentLine) {
       lines.push(currentLine);
       currentLine = word;
@@ -331,10 +217,10 @@ const splitText = (pdf: jsPDF, text: string, maxWidth: number): string[] => {
       currentLine = testLine;
     }
   });
-  
+
   if (currentLine) {
     lines.push(currentLine);
   }
-  
+
   return lines;
 };
