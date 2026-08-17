@@ -245,8 +245,8 @@ const MechanicTimeslipsTab: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-        <div className="w-full sm:w-40">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="w-full min-w-0">
           <Label>Status</Label>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full">
@@ -261,13 +261,74 @@ const MechanicTimeslipsTab: React.FC = () => {
             </SelectContent>
           </Select>
         </div>
-        <Card className="w-full sm:w-auto sm:ml-auto">
-          <CardContent className="p-3 flex items-center justify-between gap-4 sm:block sm:text-right">
-            <div className="text-xs text-muted-foreground">Total pay shown</div>
-            <div className="text-xl font-bold text-green-600 tabular-nums">£{total.toFixed(2)}</div>
-          </CardContent>
-        </Card>
+
+        <div className="w-full min-w-0">
+          <Label>Mechanic</Label>
+          <Select value={mechanicFilter} onValueChange={setMechanicFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="All mechanics" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All mechanics</SelectItem>
+              {(mechanics || []).map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.name || m.email || 'Unknown'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="w-full min-w-0">
+          <Label>From</Label>
+          <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full" />
+        </div>
+
+        <div className="w-full min-w-0">
+          <Label>To</Label>
+          <Input type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)} className="w-full" />
+        </div>
       </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={() => applyPreset('this_week')}>This week</Button>
+        <Button variant="outline" size="sm" onClick={() => applyPreset('last_week')}>Last week</Button>
+        <Button variant="outline" size="sm" onClick={() => applyPreset('this_month')}>This month</Button>
+        {(dateFrom || dateTo) && (
+          <Button variant="ghost" size="sm" onClick={() => { setDateFrom(''); setDateTo(''); }}>
+            <X className="h-4 w-4 mr-1" /> Clear dates
+          </Button>
+        )}
+      </div>
+
+      <Card>
+        <CardContent className="p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
+          <div>
+            <div className="text-xs text-muted-foreground">Total hours</div>
+            <div className="font-semibold tabular-nums">{totals.hours.toFixed(2)}h</div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">Lunch hours</div>
+            <div className="font-semibold tabular-nums">{totals.lunch.toFixed(2)}h</div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">Total pay</div>
+            <div className="font-bold text-green-600 tabular-nums">£{totals.pay.toFixed(2)}</div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">Shifts</div>
+            <div className="font-semibold tabular-nums">{totals.shifts}</div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">Mechanics</div>
+            <div className="font-semibold tabular-nums">{totals.mechanics}</div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">Avg hrs/shift · £/hr</div>
+            <div className="font-semibold tabular-nums">{totals.avgHours.toFixed(2)}h · £{totals.avgRate.toFixed(2)}</div>
+          </div>
+        </CardContent>
+      </Card>
 
       {isLoading ? (
         <Card><CardContent className="p-6 text-center text-muted-foreground">Loading…</CardContent></Card>
