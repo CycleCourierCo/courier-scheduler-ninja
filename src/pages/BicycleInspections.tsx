@@ -1631,8 +1631,8 @@ const BicycleInspections = () => {
                     </div>
                   )}
 
-                  {/* Edit form (awaiting_pricing) */}
-                  {canManageInspections && isAwaitingPricing && editingIssueId === issue.id && (
+                  {/* Edit form — mechanics during pricing, admins at any stage */}
+                  {(isAdmin || (canManageInspections && isAwaitingPricing)) && editingIssueId === issue.id && (
                     <div className="mt-3 space-y-2 p-3 rounded-md border bg-background min-w-0 overflow-hidden">
                       <div>
                         <Label className="text-xs">Repair (from catalogue)</Label>
