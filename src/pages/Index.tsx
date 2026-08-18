@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import Layout from "@/components/Layout";
 import { Package, CalendarCheck, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import MyTasksPanel from "@/components/tasks/MyTasksPanel";
+import { hasAnyRole } from "@/lib/roles";
+
 
 
 const features = [{
