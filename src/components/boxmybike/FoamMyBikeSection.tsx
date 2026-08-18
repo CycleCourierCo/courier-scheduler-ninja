@@ -364,7 +364,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
             <div className="rounded-md border p-3 space-y-3">
               <div className="space-y-1">
                 <div className="text-sm font-medium">
-                  Shipping label {canEditLabel && !o.foam_label_url && <span className="text-destructive">*</span>}
+                  Shipping label {stage === "foamed_ready" && canEditLabel && !o.foam_label_url && <span className="text-destructive">*</span>}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {o.foam_label_url ? (
