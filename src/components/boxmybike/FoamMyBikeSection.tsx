@@ -475,6 +475,16 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
                   Override
                 </Button>
               )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setTaskForOrder(o);
+                  setTaskDialogOpen(true);
+                }}
+              >
+                <UserPlus className="h-4 w-4 mr-1" /> Assign
+              </Button>
               <label className="inline-flex">
                 <input
                   type="file"
