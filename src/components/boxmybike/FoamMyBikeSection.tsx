@@ -139,6 +139,13 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
   );
   const { data: inspectionStages = {} } = useInspectionStages(inspectionOrderIds);
 
+  // Task assignment
+  const orderIds = React.useMemo(() => orders.map((o) => o.id), [orders]);
+  const { data: orderTasks = {} } = useOrderTaskSummaries(orderIds, isStaff);
+  const [taskForOrder, setTaskForOrder] = React.useState<FoamOrder | null>(null);
+  const [taskDialogOpen, setTaskDialogOpen] = React.useState(false);
+  const [selectedTaskId, setSelectedTaskId] = React.useState<string | null>(null);
+
   const updateStage = useMutation({
     mutationFn: async ({
       id,
