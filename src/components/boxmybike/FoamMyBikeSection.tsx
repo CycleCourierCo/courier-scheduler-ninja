@@ -523,6 +523,25 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
 
   return (
     <>
+    {taskForOrder && (
+      <TaskDialog
+        key={taskForOrder.id}
+        open={taskDialogOpen}
+        onOpenChange={(open) => {
+          setTaskDialogOpen(open);
+          if (!open) setTaskForOrder(null);
+        }}
+        defaultOrderId={taskForOrder.id}
+        defaultTitle={`Foam up ${taskForOrder.tracking_number || taskForOrder.id.slice(0, 8)}`}
+        defaultDescription={[
+          `Stage: ${FOAM_STATUS_LABELS[(taskForOrder.foam_status || "pending_collection") as FoamStatus]}`,
+          `Bike: ${[taskForOrder.bike_brand, taskForOrder.bike_model].filter(Boolean).join(" ") || "Bicycle"}`,
+          `Location: ${formatStorageLocations(taskForOrder.storage_locations) || "Not allocated"}`,
+        ].join("\n")}
+        onSaved={() => queryClient.invalidateQueries({ queryKey: ["order-task-summaries"] })}
+      />
+    )}
+    <TaskDetailDrawer taskId={selectedTaskId} onOpenChange={(o) => !o && setSelectedTaskId(null)} />
     <ServiceOverrideDialog
       open={!!overrideFor}
       onOpenChange={(o) => !o && setOverrideFor(null)}
