@@ -532,7 +532,7 @@ const BoxMyBikePage: React.FC = () => {
             `Bike: ${[taskForOrder.bike_brand, taskForOrder.bike_model].filter(Boolean).join(" ") || "Bike"}`,
             `Location: ${formatStorageLocations(taskForOrder.storage_locations) || "Not allocated"}`,
           ].join("\n")}
-          onSaved={() => qc.invalidateQueries({ queryKey: ["order-task-summaries"] })}
+          onSaved={() => queryClient.invalidateQueries({ queryKey: ["order-task-summaries"] })}
         />
       )}
       <TaskDetailDrawer taskId={selectedTaskId} onOpenChange={(o) => !o && setSelectedTaskId(null)} />
