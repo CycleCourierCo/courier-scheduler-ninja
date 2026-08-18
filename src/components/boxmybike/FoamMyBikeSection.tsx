@@ -315,8 +315,9 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     const next = nextFoamStage(stage);
     const addr = o.receiver?.address || {};
     const isOwner = !isStaff && o.user_id === userId;
-    const canEditLabel = (isOwner || isStaff) && stage === "foamed_ready";
-    const showLabelSection = stage === "foamed_ready" || !!o.foam_label_url || !!o.foam_tracking_url;
+    const labelStages: FoamStatus[] = ["pending_collection", "pending_foaming", "foamed_ready"];
+    const canEditLabel = (isOwner || isStaff) && labelStages.includes(stage);
+    const showLabelSection = labelStages.includes(stage) || !!o.foam_label_url || !!o.foam_tracking_url;
     // Can't hand a bike to the ferry courier without a label and tracking link
     const blockedAdvance = stage === "foamed_ready" && (!o.foam_label_url || !o.foam_tracking_url);
     const serviceDone = isServiceComplete(o.needs_inspection, inspectionStages[o.id]);
@@ -363,7 +364,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
             <div className="rounded-md border p-3 space-y-3">
               <div className="space-y-1">
                 <div className="text-sm font-medium">
-                  Shipping label {canEditLabel && !o.foam_label_url && <span className="text-destructive">*</span>}
+                  Shipping label {stage === "foamed_ready" && canEditLabel && !o.foam_label_url && <span className="text-destructive">*</span>}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {o.foam_label_url ? (
