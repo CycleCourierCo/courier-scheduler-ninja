@@ -12,6 +12,9 @@ import StatusBadge from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 import DashboardHeader from "@/components/DashboardHeader";
+import MyTasksPanel from "@/components/tasks/MyTasksPanel";
+import { useTasks } from "@/hooks/useTasks";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
