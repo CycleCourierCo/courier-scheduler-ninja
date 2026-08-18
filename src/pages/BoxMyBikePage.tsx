@@ -133,6 +133,13 @@ const BoxMyBikePage: React.FC = () => {
   const isAdmin = hasRole(userProfile, "admin");
   const [overrideFor, setOverrideFor] = React.useState<BoxOrder | null>(null);
 
+  // Task assignment
+  const orderIds = React.useMemo(() => orders.map((o) => o.id), [orders]);
+  const { data: orderTasks = {} } = useOrderTaskSummaries(orderIds, isStaff);
+  const [taskForOrder, setTaskForOrder] = React.useState<BoxOrder | null>(null);
+  const [taskDialogOpen, setTaskDialogOpen] = React.useState(false);
+  const [selectedTaskId, setSelectedTaskId] = React.useState<string | null>(null);
+
   const updateStage = useMutation({
     mutationFn: async ({
       id,
