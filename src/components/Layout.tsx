@@ -130,7 +130,10 @@ const Layout: React.FC<LayoutProps> = ({
                   {navLinks}
                   {driverNavLinks}
                   {mechanicNavLinks}
+                  {loaderNavLinks}
+                  {myTasksNavLink}
                   {timeslipAdminNavLinks}
+
                   
                   {user && <>
                       <DropdownMenuSeparator className="my-2" />
