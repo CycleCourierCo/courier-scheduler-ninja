@@ -5,6 +5,8 @@ import { notify } from "@/lib/notify";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Wrench, CheckCircle, XCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search, Pencil, Trash2, Plus, Save, Truck } from "lucide-react";
 import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
+import { getCollectionPhotos } from "@/utils/collectionPhotos";
+import { ChangeStorageLocationDialog } from "@/components/loading/ChangeStorageLocationDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import StatusBadge from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
@@ -147,6 +149,10 @@ const BicycleInspections = () => {
 
   const [customerResponses, setCustomerResponses] = useState<Record<string, string>>({});
   const [sortBy, setSortBy] = useState<"oldest_collected" | "newest_collected" | "tracking_asc">("oldest_collected");
+  // Storage bay editing + bike photo lightbox (from the inspection card)
+  const [storageDialogOrder, setStorageDialogOrder] = useState<any | null>(null);
+  const [photoDialog, setPhotoDialog] = useState<{ title: string; urls: string[] } | null>(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<InspectionFilterState>({ ...EMPTY_INSPECTION_FILTERS });
 
@@ -285,7 +291,39 @@ const BicycleInspections = () => {
     },
   });
 
+  // Move bikes between storage bays directly from an inspection card
+  const updateStorageLocationsMutation = useMutation({
+    mutationFn: async ({ orderId, locations }: { orderId: string; locations: { bay: string; position: number }[] }) => {
+      const { data: current, error: fetchError } = await supabase
+        .from("orders")
+        .select("storage_locations")
+        .eq("id", orderId)
+        .single();
+      if (fetchError) throw fetchError;
+
+      const existing = Array.isArray(current?.storage_locations) ? (current!.storage_locations as any[]) : [];
+      const updated = locations.map((loc, index) => ({
+        ...(existing[index] || { id: crypto.randomUUID(), orderId, allocatedAt: new Date().toISOString(), bikeIndex: index }),
+        bay: loc.bay,
+        position: loc.position,
+      }));
+
+      const { error } = await supabase.from("orders").update({ storage_locations: updated }).eq("id", orderId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      setStorageDialogOrder(null);
+      toast.success("Storage location updated");
+    },
+    onError: (error) => {
+      toast.error("Failed to update storage location");
+      console.error(error);
+    },
+  });
+
   // Delete an issue (admin only)
+
   const deleteIssueMutation = useMutation({
     mutationFn: async (issueId: string) => deleteInspectionIssue(issueId),
     onSuccess: () => {
@@ -1203,11 +1241,31 @@ const BicycleInspections = () => {
     const partsArrivedCount = approvedIssues.filter((i: InspectionIssue) => (i.parts_arrived && i.parts_ordered) || i.status === 'repaired' || i.status === 'resolved').length;
 
 
+    const bikePhotos = getCollectionPhotos(order.tracking_events);
+    const bikeLabel = `${order.bike_brand || ""} ${order.bike_model || ""}`.trim() || "Bike";
+    const storageLocations: any[] = Array.isArray(order.storage_locations) ? order.storage_locations : [];
+
     return (
       <Card key={order.id} className="mb-4 overflow-hidden">
         <CardHeader className="pb-3 p-4 sm:p-6">
           <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 flex-1 gap-3">
+              {bikePhotos.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPhotoDialog({ title: bikeLabel, urls: bikePhotos })}
+                  className="h-16 w-16 shrink-0 overflow-hidden rounded-md border bg-muted transition-opacity hover:opacity-80"
+                  aria-label={`View collection photos for ${bikeLabel}`}
+                >
+                  <img
+                    src={bikePhotos[0]}
+                    alt={`${bikeLabel} at collection`}
+                    loading="lazy"
+                    className="h-full w-full object-cover"
+                  />
+                </button>
+              )}
+              <div className="min-w-0 flex-1">
               <CardTitle className="flex min-w-0 flex-wrap items-start gap-2 text-base sm:text-lg break-words">
                 <Wrench className="h-5 w-5 shrink-0" />
                 <span className="min-w-0 break-words">{order.bike_brand} {order.bike_model}</span>
@@ -1226,17 +1284,24 @@ const BicycleInspections = () => {
               {/* Order status and storage location badges */}
               <div className="flex min-w-0 flex-wrap gap-2 mt-2">
                 <StatusBadge status={order.status} />
-                {order.storage_locations && Array.isArray(order.storage_locations) && 
-                 order.storage_locations.length > 0 && (
+                {storageLocations.length > 0 && (
                   <>
-                    {order.storage_locations.map((location: any, idx: number) => (
-                      <Badge key={idx} variant="outline" className="flex items-center gap-1">
+                    {storageLocations.map((location: any, idx: number) => (
+                      <Badge
+                        key={idx}
+                        variant="outline"
+                        onClick={canManageInspections ? () => setStorageDialogOrder(order) : undefined}
+                        className={`flex items-center gap-1 ${canManageInspections ? "cursor-pointer hover:bg-accent" : ""}`}
+                        title={canManageInspections ? "Change storage location" : undefined}
+                      >
                         <MapPin className="h-3 w-3" />
                         {location.bay}{location.position}
+                        {canManageInspections && <Pencil className="h-3 w-3 opacity-60" />}
                       </Badge>
                     ))}
                   </>
                 )}
+
                 {(() => {
                   const hasAllocation = Array.isArray(order.storage_locations)
                     ? order.storage_locations.length > 0
@@ -1316,7 +1381,9 @@ const BicycleInspections = () => {
               </div>
 
 
+              </div>
             </div>
+
             <div className="flex w-full min-w-0 flex-col items-start gap-2 sm:w-auto sm:items-end">
               <Badge variant={badgeConfig.variant} className="max-w-full whitespace-normal text-left sm:whitespace-nowrap sm:text-center">
                 {badgeConfig.label}
@@ -2787,6 +2854,47 @@ const BicycleInspections = () => {
                 Mark as not invoiced
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Change storage bay from the inspection card */}
+        <ChangeStorageLocationDialog
+          open={!!storageDialogOrder}
+          onOpenChange={(open) => !open && setStorageDialogOrder(null)}
+          subtitle={
+            storageDialogOrder
+              ? `#${storageDialogOrder.tracking_number} • ${storageDialogOrder.bike_brand ?? ""} ${storageDialogOrder.bike_model ?? ""}`.trim()
+              : undefined
+          }
+          initialLocations={(Array.isArray(storageDialogOrder?.storage_locations)
+            ? storageDialogOrder.storage_locations
+            : []
+          ).map((loc: any) => ({ bay: loc.bay ?? "", position: Number(loc.position) || 0 }))}
+          saving={updateStorageLocationsMutation.isPending}
+          onSave={(locations) =>
+            storageDialogOrder &&
+            updateStorageLocationsMutation.mutate({ orderId: storageDialogOrder.id, locations })
+          }
+        />
+
+        {/* Bike photo lightbox */}
+        <Dialog open={!!photoDialog} onOpenChange={(open) => !open && setPhotoDialog(null)}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="break-words">Collection photos — {photoDialog?.title}</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {photoDialog?.urls.map((url, index) => (
+                <a key={index} href={url} target="_blank" rel="noopener noreferrer" className="block">
+                  <img
+                    src={url}
+                    alt={`${photoDialog.title} collection photo ${index + 1}`}
+                    loading="lazy"
+                    className="w-full rounded-md border object-cover"
+                  />
+                </a>
+              ))}
+            </div>
           </DialogContent>
         </Dialog>
 
