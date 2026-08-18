@@ -75,10 +75,7 @@ const renderIndicatorRow = (
   const centerY = startY + ICON_SIZE / 2 + 3;
 
   if (order.needsInspection) {
-    if (drawIcon(pdf, '/label-icon-cog.png', currentX, startY, ICON_SIZE)) {
-      currentX += ICON_SIZE + INDICATOR_GAP;
-    }
-    if (drawIcon(pdf, '/label-icon-spanner.png', currentX, startY, ICON_SIZE)) {
+    if (drawIcon(pdf, '/label-icon-repair.png', currentX, startY, ICON_SIZE)) {
       currentX += ICON_SIZE + INDICATOR_GAP;
     }
   }
@@ -90,17 +87,13 @@ const renderIndicatorRow = (
   }
 
   if (order.isNorthernIreland) {
-    if (!drawIcon(pdf, '/label-icon-ni.png', currentX, startY, ICON_SIZE)) {
-      pdf.setFontSize(10);
-      pdf.setFont("helvetica", "bold");
-      const niText = 'NI';
-      const niWidth = pdf.getTextWidth(niText) + 8;
-      pdf.rect(currentX, startY, niWidth, ICON_SIZE);
-      pdf.text(niText, currentX + 4, centerY);
-      currentX += niWidth + INDICATOR_GAP;
-    } else {
-      currentX += ICON_SIZE + INDICATOR_GAP;
-    }
+    pdf.setFontSize(12);
+    pdf.setFont("helvetica", "bold");
+    const niText = 'NI';
+    const niWidth = pdf.getTextWidth(niText) + 8;
+    pdf.rect(currentX, startY, niWidth, ICON_SIZE);
+    pdf.text(niText, currentX + 4, centerY);
+    currentX += niWidth + INDICATOR_GAP;
   }
 
   return startY + ICON_SIZE + 10;
