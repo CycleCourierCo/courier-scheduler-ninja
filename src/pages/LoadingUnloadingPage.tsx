@@ -11,6 +11,8 @@ import { PendingStorageAllocation } from "@/components/loading/PendingStorageAll
 import { BikeSearchSection } from "@/components/loading/BikeSearchSection";
 import { BikesInStorage } from "@/components/loading/BikesInStorage";
 import { RemoveBikesDialog } from "@/components/loading/RemoveBikesDialog";
+import MyTasksPanel from "@/components/tasks/MyTasksPanel";
+
 import { getOrders, getOrdersForLoading, getOrdersByScheduledDate } from "@/services/orderService";
 import { Order } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
@@ -1375,7 +1377,13 @@ const LoadingUnloadingPage = () => {
           </div>
         </div>
 
+        {/* My tasks */}
+        <div className="mb-6 sm:mb-8">
+          <MyTasksPanel />
+        </div>
+
         {/* Storage Unit Layout */}
+
         <Card className="mb-6 sm:mb-8">
           <CardHeader className="pb-3 sm:pb-6">
             <CardTitle className="text-lg sm:text-xl">Storage Unit Layout</CardTitle>

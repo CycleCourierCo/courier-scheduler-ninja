@@ -4,6 +4,9 @@ import { Button } from "@/components/ui/button";
 import Layout from "@/components/Layout";
 import { Package, CalendarCheck, LogIn } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import MyTasksPanel from "@/components/tasks/MyTasksPanel";
+import { hasAnyRole } from "@/lib/roles";
+
 
 
 const features = [{
@@ -17,8 +20,12 @@ const features = [{
 }];
 
 const Index = () => {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const navigate = useNavigate();
+  const isStaff = hasAnyRole(userProfile, [
+    'admin', 'loader', 'mechanic', 'driver', 'route_planner', 'sales', 'timeslip_admin', 'cs_agent',
+  ]);
+
 
   // Safety net: forward malformed reset links that land on "/" to /reset-password.
   useEffect(() => {
@@ -98,8 +105,15 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {user && isStaff && (
+        <section className="container mx-auto px-4 md:px-6 pb-10">
+          <MyTasksPanel />
+        </section>
+      )}
     </Layout>
   );
 };
+
 
 export default Index;

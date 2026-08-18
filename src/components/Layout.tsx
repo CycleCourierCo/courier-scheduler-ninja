@@ -78,6 +78,19 @@ const Layout: React.FC<LayoutProps> = ({
       </Link>
     </> : null;
 
+  const loaderNavLinks = isLoader ? <>
+      <Link to="/loading" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+        Loading &amp; Storage
+      </Link>
+    </> : null;
+
+  const myTasksNavLink = (isLoader || isMechanic) ? (
+    <Link to="/tasks" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+      My Tasks
+    </Link>
+  ) : null;
+
+
   const timeslipAdminNavLinks = isTimeslipAdmin && !isAdmin ? <>
       <Link to="/driver-timeslips" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
         Driver Timeslips
@@ -96,7 +109,10 @@ const Layout: React.FC<LayoutProps> = ({
             {navLinks}
             {driverNavLinks}
             {mechanicNavLinks}
+            {loaderNavLinks}
+            {myTasksNavLink}
             {timeslipAdminNavLinks}
+
           </nav>
           
           <div className="flex items-center space-x-2 md:hidden">
@@ -114,7 +130,10 @@ const Layout: React.FC<LayoutProps> = ({
                   {navLinks}
                   {driverNavLinks}
                   {mechanicNavLinks}
+                  {loaderNavLinks}
+                  {myTasksNavLink}
                   {timeslipAdminNavLinks}
+
                   
                   {user && <>
                       <DropdownMenuSeparator className="my-2" />
