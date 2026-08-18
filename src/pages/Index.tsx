@@ -20,8 +20,12 @@ const features = [{
 }];
 
 const Index = () => {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const navigate = useNavigate();
+  const isStaff = hasAnyRole(userProfile, [
+    'admin', 'loader', 'mechanic', 'driver', 'route_planner', 'sales', 'timeslip_admin', 'cs_agent',
+  ]);
+
 
   // Safety net: forward malformed reset links that land on "/" to /reset-password.
   useEffect(() => {
