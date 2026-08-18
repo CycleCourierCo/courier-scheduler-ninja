@@ -109,7 +109,10 @@ const Layout: React.FC<LayoutProps> = ({
             {navLinks}
             {driverNavLinks}
             {mechanicNavLinks}
+            {loaderNavLinks}
+            {myTasksNavLink}
             {timeslipAdminNavLinks}
+
           </nav>
           
           <div className="flex items-center space-x-2 md:hidden">
