@@ -120,6 +120,11 @@ const EMPTY_ISSUE: IssueEntry = {
 const BicycleInspections = () => {
   const { user, userProfile } = useAuth();
   const queryClient = useQueryClient();
+  const { data: myActiveTasks = [] } = useTasks({ assignee: "mine", userId: user?.id, status: "active" });
+  const myOverdueTasks = myActiveTasks.filter(
+    (t) => t.due_date && new Date(t.due_date) < new Date(new Date().toDateString())
+  ).length;
+
   const isAdmin = hasRole(userProfile, "admin");
   const isMechanic = hasRole(userProfile, "mechanic");
   const canManageInspections = isAdmin || isMechanic;
