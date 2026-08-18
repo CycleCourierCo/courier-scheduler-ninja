@@ -421,6 +421,16 @@ const BoxMyBikePage: React.FC = () => {
               <div className="flex items-center gap-2 flex-wrap">
                 <Button
                   size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setTaskForOrder(o);
+                    setTaskDialogOpen(true);
+                  }}
+                >
+                  <UserPlus className="h-4 w-4 mr-1" /> Assign
+                </Button>
+                <Button
+                  size="sm"
                   disabled={!next || blockedAdvance || serviceBlocked || updateStage.isPending}
                   onClick={() => next && updateStage.mutate({ id: o.id, newStage: next })}
                   title={
