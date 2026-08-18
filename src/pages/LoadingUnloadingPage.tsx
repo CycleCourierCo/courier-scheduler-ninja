@@ -1375,7 +1375,13 @@ const LoadingUnloadingPage = () => {
           </div>
         </div>
 
+        {/* My tasks */}
+        <div className="mb-6 sm:mb-8">
+          <MyTasksPanel />
+        </div>
+
         {/* Storage Unit Layout */}
+
         <Card className="mb-6 sm:mb-8">
           <CardHeader className="pb-3 sm:pb-6">
             <CardTitle className="text-lg sm:text-xl">Storage Unit Layout</CardTitle>
