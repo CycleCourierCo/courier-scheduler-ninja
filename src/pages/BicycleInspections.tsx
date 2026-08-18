@@ -147,6 +147,10 @@ const BicycleInspections = () => {
 
   const [customerResponses, setCustomerResponses] = useState<Record<string, string>>({});
   const [sortBy, setSortBy] = useState<"oldest_collected" | "newest_collected" | "tracking_asc">("oldest_collected");
+  // Storage bay editing + bike photo lightbox (from the inspection card)
+  const [storageDialogOrder, setStorageDialogOrder] = useState<any | null>(null);
+  const [photoDialog, setPhotoDialog] = useState<{ title: string; urls: string[] } | null>(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<InspectionFilterState>({ ...EMPTY_INSPECTION_FILTERS });
 
