@@ -11,6 +11,8 @@ import { PendingStorageAllocation } from "@/components/loading/PendingStorageAll
 import { BikeSearchSection } from "@/components/loading/BikeSearchSection";
 import { BikesInStorage } from "@/components/loading/BikesInStorage";
 import { RemoveBikesDialog } from "@/components/loading/RemoveBikesDialog";
+import MyTasksPanel from "@/components/tasks/MyTasksPanel";
+
 import { getOrders, getOrdersForLoading, getOrdersByScheduledDate } from "@/services/orderService";
 import { Order } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
