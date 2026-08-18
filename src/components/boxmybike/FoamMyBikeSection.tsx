@@ -1,7 +1,7 @@
 import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Camera, Image as ImageIcon, Printer, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, Camera, Image as ImageIcon, Printer, Upload, UserPlus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,9 @@ import ServiceOverrideDialog from "@/components/boxmybike/ServiceOverrideDialog"
 import { useAuth } from "@/contexts/AuthContext";
 import { hasRole } from "@/lib/roles";
 import { uploadToStorage, describeUploadError } from "@/utils/uploadFile";
+import { useOrderTaskSummaries } from "@/hooks/useOrderTaskSummaries";
+import TaskDialog from "@/components/tasks/TaskDialog";
+import TaskDetailDrawer from "@/components/tasks/TaskDetailDrawer";
 
 
 interface FoamOrder {
@@ -135,6 +138,13 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     [orders]
   );
   const { data: inspectionStages = {} } = useInspectionStages(inspectionOrderIds);
+
+  // Task assignment
+  const orderIds = React.useMemo(() => orders.map((o) => o.id), [orders]);
+  const { data: orderTasks = {} } = useOrderTaskSummaries(orderIds, isStaff);
+  const [taskForOrder, setTaskForOrder] = React.useState<FoamOrder | null>(null);
+  const [taskDialogOpen, setTaskDialogOpen] = React.useState(false);
+  const [selectedTaskId, setSelectedTaskId] = React.useState<string | null>(null);
 
   const updateStage = useMutation({
     mutationFn: async ({
@@ -343,6 +353,17 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
               {!serviceDone && (
                 <Badge variant="destructive">Service outstanding — {serviceStage}</Badge>
               )}
+              {isStaff &&
+                (orderTasks[o.id] || []).map((t) => (
+                  <Badge
+                    key={t.id}
+                    variant="outline"
+                    className="cursor-pointer"
+                    onClick={() => setSelectedTaskId(t.id)}
+                  >
+                    {t.assigneeName ? `Assigned: ${t.assigneeName}` : "Assigned"}
+                  </Badge>
+                ))}
               <Badge variant="outline">{FOAM_STATUS_LABELS[stage]}</Badge>
             </div>
           </div>
@@ -454,6 +475,16 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
                   Override
                 </Button>
               )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setTaskForOrder(o);
+                  setTaskDialogOpen(true);
+                }}
+              >
+                <UserPlus className="h-4 w-4 mr-1" /> Assign
+              </Button>
               <label className="inline-flex">
                 <input
                   type="file"
@@ -492,6 +523,25 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
 
   return (
     <>
+    {taskForOrder && (
+      <TaskDialog
+        key={taskForOrder.id}
+        open={taskDialogOpen}
+        onOpenChange={(open) => {
+          setTaskDialogOpen(open);
+          if (!open) setTaskForOrder(null);
+        }}
+        defaultOrderId={taskForOrder.id}
+        defaultTitle={`Foam up ${taskForOrder.tracking_number || taskForOrder.id.slice(0, 8)}`}
+        defaultDescription={[
+          `Stage: ${FOAM_STATUS_LABELS[(taskForOrder.foam_status || "pending_collection") as FoamStatus]}`,
+          `Bike: ${[taskForOrder.bike_brand, taskForOrder.bike_model].filter(Boolean).join(" ") || "Bicycle"}`,
+          `Location: ${formatStorageLocations(taskForOrder.storage_locations) || "Not allocated"}`,
+        ].join("\n")}
+        onSaved={() => queryClient.invalidateQueries({ queryKey: ["order-task-summaries"] })}
+      />
+    )}
+    <TaskDetailDrawer taskId={selectedTaskId} onOpenChange={(o) => !o && setSelectedTaskId(null)} />
     <ServiceOverrideDialog
       open={!!overrideFor}
       onOpenChange={(o) => !o && setOverrideFor(null)}

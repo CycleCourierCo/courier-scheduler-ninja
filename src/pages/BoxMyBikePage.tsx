@@ -1,7 +1,7 @@
 import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Upload, Printer, FileText } from "lucide-react";
+import { ChevronLeft, ChevronRight, Upload, Printer, FileText, UserPlus } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -21,6 +21,9 @@ import { isServiceComplete, serviceGateLabel } from "@/utils/servicingGate";
 import { useInspectionStages, fetchInspectionStages } from "@/hooks/useInspectionStages";
 import ServiceOverrideDialog from "@/components/boxmybike/ServiceOverrideDialog";
 import { uploadToStorage, describeUploadError } from "@/utils/uploadFile";
+import { useOrderTaskSummaries } from "@/hooks/useOrderTaskSummaries";
+import TaskDialog from "@/components/tasks/TaskDialog";
+import TaskDetailDrawer from "@/components/tasks/TaskDetailDrawer";
 
 import FoamMyBikeSection from "@/components/boxmybike/FoamMyBikeSection";
 
@@ -132,6 +135,13 @@ const BoxMyBikePage: React.FC = () => {
 
   const isAdmin = hasRole(userProfile, "admin");
   const [overrideFor, setOverrideFor] = React.useState<BoxOrder | null>(null);
+
+  // Task assignment
+  const orderIds = React.useMemo(() => orders.map((o) => o.id), [orders]);
+  const { data: orderTasks = {} } = useOrderTaskSummaries(orderIds, isStaff);
+  const [taskForOrder, setTaskForOrder] = React.useState<BoxOrder | null>(null);
+  const [taskDialogOpen, setTaskDialogOpen] = React.useState(false);
+  const [selectedTaskId, setSelectedTaskId] = React.useState<string | null>(null);
 
   const updateStage = useMutation({
     mutationFn: async ({
@@ -311,6 +321,17 @@ const BoxMyBikePage: React.FC = () => {
               {!serviceDone && (
                 <Badge variant="destructive">Service outstanding — {serviceStage}</Badge>
               )}
+              {isStaff &&
+                (orderTasks[o.id] || []).map((t) => (
+                  <Badge
+                    key={t.id}
+                    variant="outline"
+                    className="cursor-pointer"
+                    onClick={() => setSelectedTaskId(t.id)}
+                  >
+                    {t.assigneeName ? `Assigned: ${t.assigneeName}` : "Assigned"}
+                  </Badge>
+                ))}
               <Badge variant="secondary">{BOX_MY_BIKE_STATUS_LABELS[stage]}</Badge>
             </div>
           </div>
@@ -400,6 +421,16 @@ const BoxMyBikePage: React.FC = () => {
               <div className="flex items-center gap-2 flex-wrap">
                 <Button
                   size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setTaskForOrder(o);
+                    setTaskDialogOpen(true);
+                  }}
+                >
+                  <UserPlus className="h-4 w-4 mr-1" /> Assign
+                </Button>
+                <Button
+                  size="sm"
                   disabled={!next || blockedAdvance || serviceBlocked || updateStage.isPending}
                   onClick={() => next && updateStage.mutate({ id: o.id, newStage: next })}
                   title={
@@ -485,6 +516,26 @@ const BoxMyBikePage: React.FC = () => {
           orders.map(renderCard)
         )}
       </div>
+
+      {taskForOrder && (
+        <TaskDialog
+          key={taskForOrder.id}
+          open={taskDialogOpen}
+          onOpenChange={(open) => {
+            setTaskDialogOpen(open);
+            if (!open) setTaskForOrder(null);
+          }}
+          defaultOrderId={taskForOrder.id}
+          defaultTitle={`Box up ${taskForOrder.tracking_number || taskForOrder.id.slice(0, 8)}`}
+          defaultDescription={[
+            `Stage: ${BOX_MY_BIKE_STATUS_LABELS[(taskForOrder.box_my_bike_status || "awaiting_depot") as BoxMyBikeStatus]}`,
+            `Bike: ${[taskForOrder.bike_brand, taskForOrder.bike_model].filter(Boolean).join(" ") || "Bike"}`,
+            `Location: ${formatStorageLocations(taskForOrder.storage_locations) || "Not allocated"}`,
+          ].join("\n")}
+          onSaved={() => queryClient.invalidateQueries({ queryKey: ["order-task-summaries"] })}
+        />
+      )}
+      <TaskDetailDrawer taskId={selectedTaskId} onOpenChange={(o) => !o && setSelectedTaskId(null)} />
 
       <ServiceOverrideDialog
         open={!!overrideFor}
