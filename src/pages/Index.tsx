@@ -105,8 +105,15 @@ const Index = () => {
           </div>
         </div>
       </section>
+
+      {user && isStaff && (
+        <section className="container mx-auto px-4 md:px-6 pb-10">
+          <MyTasksPanel />
+        </section>
+      )}
     </Layout>
   );
 };
+
 
 export default Index;
