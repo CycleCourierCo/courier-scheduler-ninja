@@ -72,35 +72,38 @@ const renderIndicatorRow = (
   if (!hasIndicators) return startY;
 
   let currentX = margin;
-  const centerY = startY + ICON_SIZE / 2 + 2;
-
-  pdf.setFontSize(8);
-  pdf.setFont("helvetica", "bold");
+  const centerY = startY + ICON_SIZE / 2 + 3;
 
   if (order.needsInspection) {
-    drawIcon(pdf, '/label-icon-cog.png', currentX, startY, ICON_SIZE);
-    currentX += ICON_SIZE + ICON_TEXT_GAP;
-    drawIcon(pdf, '/label-icon-spanner.png', currentX, startY, ICON_SIZE);
-    currentX += ICON_SIZE + ICON_TEXT_GAP;
-    pdf.text('SERVICE', currentX, centerY);
-    currentX += pdf.getTextWidth('SERVICE') + INDICATOR_GAP;
+    if (drawIcon(pdf, '/label-icon-cog.png', currentX, startY, ICON_SIZE)) {
+      currentX += ICON_SIZE + INDICATOR_GAP;
+    }
+    if (drawIcon(pdf, '/label-icon-spanner.png', currentX, startY, ICON_SIZE)) {
+      currentX += ICON_SIZE + INDICATOR_GAP;
+    }
   }
 
   if (order.isBoxMyBike) {
-    drawIcon(pdf, '/label-icon-box.png', currentX, startY, ICON_SIZE);
-    currentX += ICON_SIZE + ICON_TEXT_GAP;
-    pdf.text('BOX', currentX, centerY);
-    currentX += pdf.getTextWidth('BOX') + INDICATOR_GAP;
+    if (drawIcon(pdf, '/label-icon-box.png', currentX, startY, ICON_SIZE)) {
+      currentX += ICON_SIZE + INDICATOR_GAP;
+    }
   }
 
   if (order.isNorthernIreland) {
-    const niText = 'NI';
-    const niWidth = pdf.getTextWidth(niText) + 6;
-    pdf.rect(currentX, startY, niWidth, ICON_SIZE);
-    pdf.text(niText, currentX + 3, centerY);
+    if (!drawIcon(pdf, '/label-icon-ni.png', currentX, startY, ICON_SIZE)) {
+      pdf.setFontSize(10);
+      pdf.setFont("helvetica", "bold");
+      const niText = 'NI';
+      const niWidth = pdf.getTextWidth(niText) + 8;
+      pdf.rect(currentX, startY, niWidth, ICON_SIZE);
+      pdf.text(niText, currentX + 4, centerY);
+      currentX += niWidth + INDICATOR_GAP;
+    } else {
+      currentX += ICON_SIZE + INDICATOR_GAP;
+    }
   }
 
-  return startY + ICON_SIZE + 8;
+  return startY + ICON_SIZE + 10;
 };
 
 const renderLabelPage = (pdf: jsPDF, order: Order, bikeIndex: number, quantity: number, labelWidth: number) => {
