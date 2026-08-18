@@ -14,22 +14,11 @@ import { getCompletedDriverName } from "@/utils/driverAssignmentUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 import { useStorageBays, getBayMaxPosition } from "@/hooks/useStorageBays";
 
-// Helper to extract collection images from tracking events
-const getCollectionImages = (order: Order | undefined): string[] => {
-  if (!order?.trackingEvents?.shipday?.updates) return [];
-  
-  const pickupId = order.trackingEvents?.shipday?.pickup_id?.toString();
-  
-  // Find collection events with POD images
-  const collectionEvent = order.trackingEvents.shipday.updates.find(
-    (update: any) => 
-      (update.event === 'ORDER_COMPLETED' || update.event === 'ORDER_POD_UPLOAD') &&
-      update.orderId === pickupId &&
-      update.podUrls && update.podUrls.length > 0
-  );
-  
-  return collectionEvent?.podUrls || [];
-};
+import { getOrderCollectionPhotos } from "@/utils/collectionPhotos";
+
+// Collection images come from the pickup-leg proof-of-delivery photos
+const getCollectionImages = (order: Order | undefined): string[] => getOrderCollectionPhotos(order);
+
 
 // Helper to extract collection date (pickup-leg completion) from tracking events
 const getCollectionDate = (order: Order | undefined): string | null => {
