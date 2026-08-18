@@ -289,7 +289,39 @@ const BicycleInspections = () => {
     },
   });
 
+  // Move bikes between storage bays directly from an inspection card
+  const updateStorageLocationsMutation = useMutation({
+    mutationFn: async ({ orderId, locations }: { orderId: string; locations: { bay: string; position: number }[] }) => {
+      const { data: current, error: fetchError } = await supabase
+        .from("orders")
+        .select("storage_locations")
+        .eq("id", orderId)
+        .single();
+      if (fetchError) throw fetchError;
+
+      const existing = Array.isArray(current?.storage_locations) ? (current!.storage_locations as any[]) : [];
+      const updated = locations.map((loc, index) => ({
+        ...(existing[index] || { id: crypto.randomUUID(), orderId, allocatedAt: new Date().toISOString(), bikeIndex: index }),
+        bay: loc.bay,
+        position: loc.position,
+      }));
+
+      const { error } = await supabase.from("orders").update({ storage_locations: updated }).eq("id", orderId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      setStorageDialogOrder(null);
+      toast.success("Storage location updated");
+    },
+    onError: (error) => {
+      toast.error("Failed to update storage location");
+      console.error(error);
+    },
+  });
+
   // Delete an issue (admin only)
+
   const deleteIssueMutation = useMutation({
     mutationFn: async (issueId: string) => deleteInspectionIssue(issueId),
     onSuccess: () => {
