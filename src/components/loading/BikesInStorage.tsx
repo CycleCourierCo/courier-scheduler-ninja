@@ -2,8 +2,6 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { Order } from "@/types/order";
@@ -13,7 +11,6 @@ import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { getCompletedDriverName, getDriverAssignment } from "@/utils/driverAssignmentUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
-import { useStorageBays, getBayMaxPosition } from "@/hooks/useStorageBays";
 
 import { ChangeStorageLocationDialog } from "@/components/loading/ChangeStorageLocationDialog";
 import { getOrderCollectionPhotos } from "@/utils/collectionPhotos";
