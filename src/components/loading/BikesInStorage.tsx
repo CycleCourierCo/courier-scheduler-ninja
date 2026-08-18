@@ -288,141 +288,22 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
       })}
       
       {/* Change Location Dialog */}
-      <Dialog open={!!editingAllocation} onOpenChange={(open) => {
-        if (!open) {
-          setEditingAllocation(null);
-          setEditingOrderAllocations([]);
-          setNewBays([]);
-          setNewPositions([]);
+      <ChangeStorageLocationDialog
+        open={!!editingAllocation}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingAllocation(null);
+            setEditingOrderAllocations([]);
+          }
+        }}
+        subtitle={
+          editingAllocation
+            ? `Order: ${editingAllocation.customerName} - ${editingAllocation.bikeBrand} ${editingAllocation.bikeModel}`
+            : undefined
         }
-      }}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingOrderAllocations.length > 1 ? 'Manage Storage Locations' : 'Change Storage Location'}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {editingAllocation && (
-              <div className="space-y-3">
-                <div className="text-sm text-muted-foreground">
-                  Order: <strong>{editingAllocation.customerName}</strong> - {editingAllocation.bikeBrand} {editingAllocation.bikeModel}
-                </div>
-                
-                {editingOrderAllocations.length > 1 ? (
-                  <div className="space-y-4">
-                    <div className="text-sm font-medium">Update all bike locations:</div>
-                    
-                    {editingOrderAllocations.map((allocation, index) => (
-                      <div key={allocation.id} className="border rounded-lg p-3 space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Package className="h-4 w-4" />
-                          <span className="font-medium">Bike {index + 1} of {editingOrderAllocations.length}</span>
-                          <Badge variant="outline" className="font-mono text-xs">
-                            Currently: {allocation.bay}{allocation.position}
-                          </Badge>
-                        </div>
-                        
-                        <div className="flex gap-3 items-end">
-                          <div className="flex-1">
-                            <Label htmlFor={`new-bay-${index}`} className="text-sm">Bay ({bayHelp})</Label>
-                            <Input
-                              id={`new-bay-${index}`}
-                              value={newBays[index] || ''}
-                              onChange={(e) => {
-                                const updatedBays = [...newBays];
-                                updatedBays[index] = e.target.value.toUpperCase();
-                                setNewBays(updatedBays);
-                              }}
-                              placeholder="A"
-                              maxLength={1}
-                              className="text-center uppercase"
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <Label htmlFor={`new-position-${index}`} className="text-sm">Position</Label>
-                            <Input
-                              id={`new-position-${index}`}
-                              value={newPositions[index] || ''}
-                              onChange={(e) => {
-                                const updatedPositions = [...newPositions];
-                                updatedPositions[index] = e.target.value;
-                                setNewPositions(updatedPositions);
-                              }}
-                              placeholder="1"
-                              type="number"
-                              min="1"
-                              
-                              className="text-center"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="text-sm font-medium">New location:</div>
-                    <div className="flex gap-3 items-end">
-                      <div className="flex-1">
-                        <Label htmlFor="new-bay" className="text-sm">Bay ({bayHelp})</Label>
-                        <Input
-                          id="new-bay"
-                          value={newBays[0] || ''}
-                          onChange={(e) => setNewBays([e.target.value.toUpperCase()])}
-                          placeholder="A"
-                          maxLength={1}
-                          className="text-center uppercase"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <Label htmlFor="new-position" className="text-sm">Position</Label>
-                        <Input
-                          id="new-position"
-                          value={newPositions[0] || ''}
-                          onChange={(e) => setNewPositions([e.target.value])}
-                          placeholder="1"
-                          type="number"
-                          min="1"
-                          
-                          className="text-center"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
-              <Button variant="outline" onClick={() => setEditingAllocation(null)} className="flex-1 min-h-[44px]">
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleChangeLocation}
-                disabled={
-                  editingOrderAllocations.length > 1 
-                    ? newBays.some(b => !b) || newPositions.some(p => !p)
-                    : !newBays[0] || !newPositions[0]
-                }
-                className="flex-1 min-h-[44px] bg-blue-600 hover:bg-blue-700"
-              >
-                <span className="hidden sm:inline">
-                  {editingOrderAllocations.length > 1 
-                    ? `Update All ${editingOrderAllocations.length} Locations` 
-                    : 'Update Location'
-                  }
-                </span>
-                <span className="sm:hidden">
-                  {editingOrderAllocations.length > 1 
-                    ? `Update All ${editingOrderAllocations.length}` 
-                    : 'Update'
-                  }
-                </span>
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+        initialLocations={editingOrderAllocations.map((a) => ({ bay: a.bay, position: a.position }))}
+        onSave={handleChangeLocation}
+      />
 
       {/* Collection Images Dialog */}
       <Dialog open={!!imageDialogOrder} onOpenChange={(open) => !open && setImageDialogOrder(null)}>
