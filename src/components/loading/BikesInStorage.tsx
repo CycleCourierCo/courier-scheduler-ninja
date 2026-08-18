@@ -31,97 +31,27 @@ interface BikesInStorageProps {
 }
 
 export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAllBikesFromOrder, onChangeLocation, isAdmin = false }: BikesInStorageProps) => {
-  const { bays } = useStorageBays();
-  const validBayLabels = bays.map((b) => b.label.toUpperCase());
-  const bayHelp = validBayLabels.length ? validBayLabels.join(", ") : "—";
   const [editingAllocation, setEditingAllocation] = useState<StorageAllocation | null>(null);
   const [editingOrderAllocations, setEditingOrderAllocations] = useState<StorageAllocation[]>([]);
-  const [newBays, setNewBays] = useState<string[]>([]);
-  const [newPositions, setNewPositions] = useState<string[]>([]);
   const [imageDialogOrder, setImageDialogOrder] = useState<Order | null>(null);
 
-  const handleChangeLocation = () => {
-    if (!editingOrderAllocations.length) return;
+  const handleChangeLocation = (locations: { bay: string; position: number }[]) => {
+    editingOrderAllocations.forEach((allocation, index) => {
+      const next = locations[index];
+      if (!next) return;
+      onChangeLocation(allocation.id, next.bay, next.position);
+    });
 
-    const isMultiBike = editingOrderAllocations.length > 1;
+    toast.success(
+      editingOrderAllocations.length > 1
+        ? `Updated locations for all ${editingOrderAllocations.length} bikes`
+        : "Location updated successfully"
+    );
 
-    if (isMultiBike) {
-      // Validate all fields are filled for multi-bike
-      for (let i = 0; i < editingOrderAllocations.length; i++) {
-        if (!newBays[i] || !newPositions[i]) {
-          toast.error(`Please enter bay and position for bike ${i + 1}`);
-          return;
-        }
-      }
-
-      // Validate all entries
-      const bayPositionSet = new Set<string>();
-      for (let i = 0; i < editingOrderAllocations.length; i++) {
-        const bayUpper = newBays[i].toUpperCase();
-        const positionNum = parseInt(newPositions[i]);
-
-        // Validate bay
-        if (!validBayLabels.includes(bayUpper)) {
-          toast.error(`Bike ${i + 1}: Bay must be one of ${bayHelp}`);
-          return;
-        }
-
-        // Validate position against this bay's slot count
-        const maxPos = getBayMaxPosition(bays, bayUpper) ?? 0;
-        if (isNaN(positionNum) || positionNum < 1 || positionNum > maxPos) {
-          toast.error(`Bike ${i + 1}: Position must be between 1 and ${maxPos} for Bay ${bayUpper}`);
-          return;
-        }
-
-        const bayPositionKey = `${bayUpper}${positionNum}`;
-
-        // Check for duplicates within this order
-        if (bayPositionSet.has(bayPositionKey)) {
-          toast.error(`Duplicate position: Bay ${bayUpper}${positionNum}`);
-          return;
-        }
-        bayPositionSet.add(bayPositionKey);
-      }
-
-      // Update all bike locations
-      editingOrderAllocations.forEach((allocation, index) => {
-        const bayUpper = newBays[index].toUpperCase();
-        const positionNum = parseInt(newPositions[index]);
-        onChangeLocation(allocation.id, bayUpper, positionNum);
-      });
-
-      toast.success(`Updated locations for all ${editingOrderAllocations.length} bikes`);
-    } else {
-      // Single bike logic
-      if (!newBays[0] || !newPositions[0]) {
-        toast.error("Please enter both bay and position");
-        return;
-      }
-
-      const bayUpper = newBays[0].toUpperCase();
-      const positionNum = parseInt(newPositions[0]);
-
-      if (!validBayLabels.includes(bayUpper)) {
-        toast.error(`Bay must be one of ${bayHelp}`);
-        return;
-      }
-
-      const maxPos = getBayMaxPosition(bays, bayUpper) ?? 0;
-      if (isNaN(positionNum) || positionNum < 1 || positionNum > maxPos) {
-        toast.error(`Position must be between 1 and ${maxPos} for Bay ${bayUpper}`);
-        return;
-      }
-
-      onChangeLocation(editingOrderAllocations[0].id, bayUpper, positionNum);
-      toast.success("Location updated successfully");
-    }
-
-    // Reset dialog
     setEditingAllocation(null);
     setEditingOrderAllocations([]);
-    setNewBays([]);
-    setNewPositions([]);
   };
+
 
   const openEditDialog = (allocation: StorageAllocation) => {
     // Find all allocations for this order
