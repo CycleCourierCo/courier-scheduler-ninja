@@ -1239,11 +1239,31 @@ const BicycleInspections = () => {
     const partsArrivedCount = approvedIssues.filter((i: InspectionIssue) => (i.parts_arrived && i.parts_ordered) || i.status === 'repaired' || i.status === 'resolved').length;
 
 
+    const bikePhotos = getCollectionPhotos(order.tracking_events);
+    const bikeLabel = `${order.bike_brand || ""} ${order.bike_model || ""}`.trim() || "Bike";
+    const storageLocations: any[] = Array.isArray(order.storage_locations) ? order.storage_locations : [];
+
     return (
       <Card key={order.id} className="mb-4 overflow-hidden">
         <CardHeader className="pb-3 p-4 sm:p-6">
           <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 flex-1 gap-3">
+              {bikePhotos.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPhotoDialog({ title: bikeLabel, urls: bikePhotos })}
+                  className="h-16 w-16 shrink-0 overflow-hidden rounded-md border bg-muted transition-opacity hover:opacity-80"
+                  aria-label={`View collection photos for ${bikeLabel}`}
+                >
+                  <img
+                    src={bikePhotos[0]}
+                    alt={`${bikeLabel} at collection`}
+                    loading="lazy"
+                    className="h-full w-full object-cover"
+                  />
+                </button>
+              )}
+              <div className="min-w-0 flex-1">
               <CardTitle className="flex min-w-0 flex-wrap items-start gap-2 text-base sm:text-lg break-words">
                 <Wrench className="h-5 w-5 shrink-0" />
                 <span className="min-w-0 break-words">{order.bike_brand} {order.bike_model}</span>
@@ -1262,17 +1282,24 @@ const BicycleInspections = () => {
               {/* Order status and storage location badges */}
               <div className="flex min-w-0 flex-wrap gap-2 mt-2">
                 <StatusBadge status={order.status} />
-                {order.storage_locations && Array.isArray(order.storage_locations) && 
-                 order.storage_locations.length > 0 && (
+                {storageLocations.length > 0 && (
                   <>
-                    {order.storage_locations.map((location: any, idx: number) => (
-                      <Badge key={idx} variant="outline" className="flex items-center gap-1">
+                    {storageLocations.map((location: any, idx: number) => (
+                      <Badge
+                        key={idx}
+                        variant="outline"
+                        onClick={canManageInspections ? () => setStorageDialogOrder(order) : undefined}
+                        className={`flex items-center gap-1 ${canManageInspections ? "cursor-pointer hover:bg-accent" : ""}`}
+                        title={canManageInspections ? "Change storage location" : undefined}
+                      >
                         <MapPin className="h-3 w-3" />
                         {location.bay}{location.position}
+                        {canManageInspections && <Pencil className="h-3 w-3 opacity-60" />}
                       </Badge>
                     ))}
                   </>
                 )}
+
                 {(() => {
                   const hasAllocation = Array.isArray(order.storage_locations)
                     ? order.storage_locations.length > 0
