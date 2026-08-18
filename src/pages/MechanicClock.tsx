@@ -150,6 +150,10 @@ const MechanicClock: React.FC = () => {
           </div>
         </DashboardHeader>
 
+        <MyTasksPanel />
+
+
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
