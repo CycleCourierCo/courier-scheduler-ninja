@@ -517,6 +517,26 @@ const BoxMyBikePage: React.FC = () => {
         )}
       </div>
 
+      {taskForOrder && (
+        <TaskDialog
+          key={taskForOrder.id}
+          open={taskDialogOpen}
+          onOpenChange={(open) => {
+            setTaskDialogOpen(open);
+            if (!open) setTaskForOrder(null);
+          }}
+          defaultOrderId={taskForOrder.id}
+          defaultTitle={`Box up ${taskForOrder.tracking_number || taskForOrder.id.slice(0, 8)}`}
+          defaultDescription={[
+            `Stage: ${BOX_MY_BIKE_STATUS_LABELS[(taskForOrder.box_my_bike_status || "awaiting_depot") as BoxMyBikeStatus]}`,
+            `Bike: ${[taskForOrder.bike_brand, taskForOrder.bike_model].filter(Boolean).join(" ") || "Bike"}`,
+            `Location: ${formatStorageLocations(taskForOrder.storage_locations) || "Not allocated"}`,
+          ].join("\n")}
+          onSaved={() => qc.invalidateQueries({ queryKey: ["order-task-summaries"] })}
+        />
+      )}
+      <TaskDetailDrawer taskId={selectedTaskId} onOpenChange={(o) => !o && setSelectedTaskId(null)} />
+
       <ServiceOverrideDialog
         open={!!overrideFor}
         onOpenChange={(o) => !o && setOverrideFor(null)}
