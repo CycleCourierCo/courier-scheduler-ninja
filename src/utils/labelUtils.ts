@@ -96,7 +96,7 @@ const renderIndicatorRow = (
     currentX += niWidth + INDICATOR_GAP;
   }
 
-  return startY + ICON_SIZE + 10;
+  return startY + ICON_SIZE + 24;
 };
 
 const renderLabelPage = (pdf: jsPDF, order: Order, bikeIndex: number, quantity: number, labelWidth: number) => {
