@@ -321,6 +321,17 @@ const BoxMyBikePage: React.FC = () => {
               {!serviceDone && (
                 <Badge variant="destructive">Service outstanding — {serviceStage}</Badge>
               )}
+              {isStaff &&
+                (orderTasks[o.id] || []).map((t) => (
+                  <Badge
+                    key={t.id}
+                    variant="outline"
+                    className="cursor-pointer"
+                    onClick={() => setSelectedTaskId(t.id)}
+                  >
+                    {t.assigneeName ? `Assigned: ${t.assigneeName}` : "Assigned"}
+                  </Badge>
+                ))}
               <Badge variant="secondary">{BOX_MY_BIKE_STATUS_LABELS[stage]}</Badge>
             </div>
           </div>
