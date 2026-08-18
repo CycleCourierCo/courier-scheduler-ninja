@@ -5,9 +5,8 @@ import type { Order } from "@/types/order";
 const LABEL_WIDTH = 288; // 4 inches in points
 const LABEL_HEIGHT = 432; // 6 inches in points
 const MARGIN = 15;
-const ICON_SIZE = 14;
-const ICON_TEXT_GAP = 4;
-const INDICATOR_GAP = 10;
+const ICON_SIZE = 20;
+const INDICATOR_GAP = 8;
 
 export const generateSingleOrderLabel = async (order: Order) => {
   try {
