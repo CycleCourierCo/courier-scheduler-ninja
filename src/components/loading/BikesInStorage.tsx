@@ -65,13 +65,8 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
     
     setEditingOrderAllocations(orderAllocations);
     setEditingAllocation(allocation);
-    
-    // Initialize arrays with current values
-    const bays = orderAllocations.map(a => a.bay);
-    const positions = orderAllocations.map(a => a.position.toString());
-    setNewBays(bays);
-    setNewPositions(positions);
   };
+
 
   if (bikesInStorage.length === 0) {
     return (
