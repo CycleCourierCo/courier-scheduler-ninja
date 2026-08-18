@@ -2617,6 +2617,11 @@ const BicycleInspections = () => {
             <TabsContent value="schedule" className="space-y-4">
               <WorkshopScheduleTab canManage={isAdmin} />
             </TabsContent>
+
+            <TabsContent value="my-tasks" className="space-y-4">
+              <MyTasksPanel title="My tasks" />
+            </TabsContent>
+
           </Tabs>
         )}
 
