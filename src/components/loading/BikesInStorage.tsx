@@ -15,22 +15,12 @@ import { getCompletedDriverName, getDriverAssignment } from "@/utils/driverAssig
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 import { useStorageBays, getBayMaxPosition } from "@/hooks/useStorageBays";
 
-// Helper to extract collection images from tracking events
-const getCollectionImages = (order: Order | undefined): string[] => {
-  if (!order?.trackingEvents?.shipday?.updates) return [];
-  
-  const pickupId = order.trackingEvents?.shipday?.pickup_id?.toString();
-  
-  // Find collection events with POD images
-  const collectionEvent = order.trackingEvents.shipday.updates.find(
-    (update: any) => 
-      (update.event === 'ORDER_COMPLETED' || update.event === 'ORDER_POD_UPLOAD') &&
-      update.orderId === pickupId &&
-      update.podUrls && update.podUrls.length > 0
-  );
-  
-  return collectionEvent?.podUrls || [];
-};
+import { ChangeStorageLocationDialog } from "@/components/loading/ChangeStorageLocationDialog";
+import { getOrderCollectionPhotos } from "@/utils/collectionPhotos";
+
+// Collection images come from the pickup-leg proof-of-delivery photos
+const getCollectionImages = (order: Order | undefined): string[] => getOrderCollectionPhotos(order);
+
 
 interface BikesInStorageProps {
   bikesInStorage: { allocation: StorageAllocation; order: Order | undefined }[];
