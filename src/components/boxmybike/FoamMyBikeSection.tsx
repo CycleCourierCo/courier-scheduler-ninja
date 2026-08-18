@@ -353,6 +353,17 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
               {!serviceDone && (
                 <Badge variant="destructive">Service outstanding — {serviceStage}</Badge>
               )}
+              {isStaff &&
+                (orderTasks[o.id] || []).map((t) => (
+                  <Badge
+                    key={t.id}
+                    variant="outline"
+                    className="cursor-pointer"
+                    onClick={() => setSelectedTaskId(t.id)}
+                  >
+                    {t.assigneeName ? `Assigned: ${t.assigneeName}` : "Assigned"}
+                  </Badge>
+                ))}
               <Badge variant="outline">{FOAM_STATUS_LABELS[stage]}</Badge>
             </div>
           </div>
