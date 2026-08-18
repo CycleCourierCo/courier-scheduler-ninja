@@ -2530,8 +2530,17 @@ const BicycleInspections = () => {
                   )}
                 </TabsTrigger>
               )}
+              <TabsTrigger value="my-tasks" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
+                My Tasks
+                {myActiveTasks.length > 0 && (
+                  <Badge variant={myOverdueTasks > 0 ? "destructive" : "secondary"} className="ml-1">
+                    {myActiveTasks.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="schedule" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Schedule
+
               </TabsTrigger>
             </TabsList>
             </div>
