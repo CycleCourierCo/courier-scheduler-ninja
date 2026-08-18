@@ -5,6 +5,8 @@ import { notify } from "@/lib/notify";
 import { formatDistanceToNowStrict } from "date-fns";
 import { Wrench, CheckCircle, XCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search, Pencil, Trash2, Plus, Save, Truck } from "lucide-react";
 import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
+import { getCollectionPhotos } from "@/utils/collectionPhotos";
+import { ChangeStorageLocationDialog } from "@/components/loading/ChangeStorageLocationDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import StatusBadge from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
@@ -2852,6 +2854,47 @@ const BicycleInspections = () => {
                 Mark as not invoiced
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Change storage bay from the inspection card */}
+        <ChangeStorageLocationDialog
+          open={!!storageDialogOrder}
+          onOpenChange={(open) => !open && setStorageDialogOrder(null)}
+          subtitle={
+            storageDialogOrder
+              ? `#${storageDialogOrder.tracking_number} • ${storageDialogOrder.bike_brand ?? ""} ${storageDialogOrder.bike_model ?? ""}`.trim()
+              : undefined
+          }
+          initialLocations={(Array.isArray(storageDialogOrder?.storage_locations)
+            ? storageDialogOrder.storage_locations
+            : []
+          ).map((loc: any) => ({ bay: loc.bay ?? "", position: Number(loc.position) || 0 }))}
+          saving={updateStorageLocationsMutation.isPending}
+          onSave={(locations) =>
+            storageDialogOrder &&
+            updateStorageLocationsMutation.mutate({ orderId: storageDialogOrder.id, locations })
+          }
+        />
+
+        {/* Bike photo lightbox */}
+        <Dialog open={!!photoDialog} onOpenChange={(open) => !open && setPhotoDialog(null)}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="break-words">Collection photos — {photoDialog?.title}</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {photoDialog?.urls.map((url, index) => (
+                <a key={index} href={url} target="_blank" rel="noopener noreferrer" className="block">
+                  <img
+                    src={url}
+                    alt={`${photoDialog.title} collection photo ${index + 1}`}
+                    loading="lazy"
+                    className="w-full rounded-md border object-cover"
+                  />
+                </a>
+              ))}
+            </div>
           </DialogContent>
         </Dialog>
 
