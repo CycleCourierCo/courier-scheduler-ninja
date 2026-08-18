@@ -1379,7 +1379,9 @@ const BicycleInspections = () => {
               </div>
 
 
+              </div>
             </div>
+
             <div className="flex w-full min-w-0 flex-col items-start gap-2 sm:w-auto sm:items-end">
               <Badge variant={badgeConfig.variant} className="max-w-full whitespace-normal text-left sm:whitespace-nowrap sm:text-center">
                 {badgeConfig.label}
