@@ -38,7 +38,10 @@ const stopKey = (name?: string, address?: string) => {
   const postcode = `${m[1]}${m[2]}`.toUpperCase();
   const beforePostcode = addr.slice(0, m.index ?? 0);
   const premiseMatch = beforePostcode.match(/\d+[a-z]?(\s*[-/]\s*\d+[a-z]?)?/i);
-  const premise = premiseMatch ? premiseMatch[0].replace(/[^a-z0-9]/gi, '').toLowerCase() : '';
+  // Drop a trailing letter suffix so "10" and "10a" at the same postcode collapse together
+  const premise = premiseMatch
+    ? premiseMatch[0].replace(/[^a-z0-9]/gi, '').toLowerCase().replace(/[a-z]+$/, '')
+    : '';
   return `${norm(name)}|${postcode}|${premise}`;
 };
 
@@ -93,7 +96,25 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
       s.sequences.sort((a, b) => a - b);
       s.candidates.sort((a, b) => b.confidence - a.confidence);
     });
-    return list.sort((a, b) => a.sequence - b.sequence);
+    list.sort((a, b) => a.sequence - b.sequence);
+
+    // A given order/leg can only belong to ONE stop — otherwise the same job gets
+    // ticked (and loaded) under several similar stops, duplicating it on the route.
+    const claimed = new Set<string>();
+    list.forEach(stop => {
+      const kept: MatchCandidate[] = [];
+      stop.candidates.forEach(c => {
+        const key = candidateKey(c);
+        if (claimed.has(key)) return;
+        kept.push(c);
+      });
+      // Only claim as many jobs as this stop actually has CSV rows for, so later
+      // stops for the same customer still have candidates left to choose from.
+      kept.slice(0, stop.rowCount).forEach(c => claimed.add(candidateKey(c)));
+      stop.candidates = kept;
+    });
+
+    return list;
   }, [matchResults]);
 
   const defaultSelection = useMemo(() => {
@@ -132,9 +153,14 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
 
   const selectedJobs: CSVSelectedJob[] = useMemo(() => {
     const jobs: CSVSelectedJob[] = [];
+    const seen = new Set<string>();
     stops.forEach(stop => {
       stop.candidates.forEach(c => {
-        if (!selectedKeys.has(candidateKey(c))) return;
+        const key = candidateKey(c);
+        if (!selectedKeys.has(key)) return;
+        // Same order/leg may appear under more than one similar stop — emit it once
+        if (seen.has(key)) return;
+        seen.add(key);
         jobs.push({ orderId: c.order.id, jobType: c.jobType, sequence: stop.sequence });
       });
     });

@@ -1577,7 +1577,20 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   };
 
   const handleCsvConfirm = (selected: { orderId: string; jobType: 'pickup' | 'delivery'; sequence: number }[]) => {
-    const matchedJobs = selected
+    // Safety net: never load the same order/leg twice, keep the earliest sequence
+    const dedupedSelection = Array.from(
+      selected
+        .slice()
+        .sort((a, b) => a.sequence - b.sequence)
+        .reduce((acc, sel) => {
+          const key = `${sel.orderId}|${sel.jobType}`;
+          if (!acc.has(key)) acc.set(key, sel);
+          return acc;
+        }, new Map<string, { orderId: string; jobType: 'pickup' | 'delivery'; sequence: number }>())
+        .values()
+    );
+
+    const matchedJobs = dedupedSelection
       .map((sel, index) => {
         const order = orderList.find(o => o.id === sel.orderId);
         if (!order) return null;
@@ -1751,8 +1764,13 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   React.useEffect(() => {
     if (initialJobs?.length && orderList.length && selectedJobs.length === 0) {
       const jobs: SelectedJob[] = [];
-      
-      initialJobs.forEach((ij, idx) => {
+      const seen = new Set<string>();
+
+      initialJobs.forEach((ij) => {
+        const key = `${ij.orderId}|${ij.type}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+
         const order = orderList.find(o => o.id === ij.orderId);
         if (!order) return;
         
@@ -1765,7 +1783,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           contactName: contact.name,
           orderData: order,
           phoneNumber: contact.phone,
-          order: idx + 1,
+          order: jobs.length + 1,
           lat: contact.lat,
           lon: contact.lon
         });
