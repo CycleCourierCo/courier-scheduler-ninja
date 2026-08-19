@@ -349,12 +349,15 @@ const BikeCountBadge: React.FC<BikeCountBadgeProps> = ({ orderData, bikeCount, v
   const hasBikes = groupedBikes.length > 0 && groupedBikes.some((b) => b.brand || b.model || b.type);
   const isMobile = useIsMobile();
 
+  const [open, setOpen] = useState(false);
+  const [pinned, setPinned] = useState(false);
+
   const badge = (
     <Badge
       variant="outline"
       aria-label="Show bike details"
       className={cn(
-        "text-xs px-1.5 py-0 whitespace-nowrap cursor-help",
+        "text-xs px-1.5 py-0 whitespace-nowrap cursor-pointer",
         bikeCount > vanCapacity ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800",
         className
       )}
@@ -379,33 +382,60 @@ const BikeCountBadge: React.FC<BikeCountBadgeProps> = ({ orderData, bikeCount, v
       ) : (
         <div className="text-xs text-muted-foreground">No bike details available</div>
       )}
+      {!isMobile && (
+        <div className="pt-1 text-[10px] text-muted-foreground">
+          {pinned ? "Click the badge again to unpin" : "Click to keep this open"}
+        </div>
+      )}
     </div>
   );
 
-  if (isMobile) {
-    return (
-      <Popover>
-        <PopoverTrigger asChild>
-          <button type="button" className="inline-flex" onClick={(e) => e.stopPropagation()}>
-            {badge}
-          </button>
-        </PopoverTrigger>
-        <PopoverContent side="top" align="start" className="w-auto max-w-[16rem] p-2 z-[60]">
-          {details}
-        </PopoverContent>
-      </Popover>
-    );
-  }
-
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>{badge}</TooltipTrigger>
-      <TooltipContent side="top" className="max-w-xs">
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setPinned(false);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex"
+          onMouseEnter={isMobile ? undefined : () => setOpen(true)}
+          onMouseLeave={isMobile ? undefined : () => { if (!pinned) setOpen(false); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isMobile) {
+              setOpen((o) => !o);
+              return;
+            }
+            if (pinned) {
+              setPinned(false);
+              setOpen(false);
+            } else {
+              setPinned(true);
+              setOpen(true);
+            }
+          }}
+        >
+          {badge}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="start"
+        className="w-auto max-w-[16rem] p-2 z-[60]"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onMouseEnter={isMobile ? undefined : () => setOpen(true)}
+        onMouseLeave={isMobile ? undefined : () => { if (!pinned) setOpen(false); }}
+      >
         {details}
-      </TooltipContent>
-    </Tooltip>
+      </PopoverContent>
+    </Popover>
   );
 };
+
 
 
 const JobItem: React.FC<JobItemProps> = ({
