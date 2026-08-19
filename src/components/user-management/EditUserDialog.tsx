@@ -462,6 +462,16 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
               </div>
             </TabsContent>
           )}
+
+          {isDriver && (
+            <TabsContent value="licence" className="space-y-4 mt-4">
+              <DriverLicenceTab
+                userId={user.id}
+                formData={formData}
+                onChange={(updates) => setFormData((prev) => ({ ...prev, ...updates }))}
+              />
+            </TabsContent>
+          )}
         </Tabs>
 
         <DialogFooter>
