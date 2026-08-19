@@ -168,6 +168,34 @@ async function applyAliasToTransactions(alias: string, vehicleId: string | null)
   if (error) throw error;
 }
 
+export interface FuelTransactionCorrection {
+  vehicle_id?: string | null;
+  quantity_litres?: number;
+  net_amount?: number;
+  gross_amount?: number;
+  trx_date?: string;
+  trx_time?: string | null;
+  correction_note?: string | null;
+}
+
+/** Applies an admin correction to a single fuel transaction and records who did it. */
+export async function updateFuelTransaction(
+  id: string,
+  updates: FuelTransactionCorrection
+): Promise<void> {
+  const { data: auth } = await supabase.auth.getUser();
+  const { error } = await supabase
+    .from("fuel_transactions")
+    .update({
+      ...updates,
+      corrected_at: new Date().toISOString(),
+      corrected_by: auth.user?.id ?? null,
+    } as never)
+    .eq("id", id);
+  if (error) throw error;
+}
+
+
 /* ----------------------------------------------------------------- upload */
 
 /** Resolves each parsed row to a fleet vehicle using exact regs then saved aliases. */
@@ -328,6 +356,12 @@ export interface FuelAnomaly {
   registration: string | null;
   date: string | null;
   amount: number | null;
+  /** Underlying fuel_transactions rows this flag refers to (empty for vehicle-wide flags). */
+  transactionIds?: string[];
+  /** Normalised registration from the invoice, when the flag is registration-driven. */
+  normalisedReg?: string | null;
+  /** Fleet vehicle the flag belongs to, when matched. */
+  vehicleId?: string | null;
 }
 
 export interface VehicleFuelStats {
@@ -486,6 +520,9 @@ export function analyseFuel(
             registration: rows[0].raw_vehicle_id ?? normalised,
             date: rows[0].trx_date,
             amount: round(netSpend),
+            transactionIds: rows.map((r) => r.id),
+            normalisedReg: normalised,
+            vehicleId: null,
           });
         }
       }
@@ -506,6 +543,8 @@ export function analyseFuel(
             registration: reg,
             date: null,
             amount: round(netSpend),
+            transactionIds: rows.map((r) => r.id),
+            vehicleId: key,
           });
       } else if (vehicleMpg > settings.expected_mpg_max) {
         const anomalyKey = `high_mpg:${key}`;
@@ -519,6 +558,8 @@ export function analyseFuel(
             registration: reg,
             date: null,
             amount: round(netSpend),
+            transactionIds: rows.map((r) => r.id),
+            vehicleId: key,
           });
       }
     } else if (litres > 0 && miles === 0) {
@@ -533,6 +574,8 @@ export function analyseFuel(
           registration: reg,
           date: null,
           amount: round(netSpend),
+          transactionIds: rows.map((r) => r.id),
+          vehicleId: key,
         });
     }
 
@@ -554,6 +597,8 @@ export function analyseFuel(
             registration: reg,
             date: row.trx_date,
             amount: round(Number(row.net_amount)),
+            transactionIds: [row.id],
+            vehicleId: key,
           });
       }
 
@@ -575,6 +620,8 @@ export function analyseFuel(
               registration: reg,
               date: row.trx_date,
               amount: round(Number(row.net_amount) + Number(previous.net_amount)),
+              transactionIds: [previous.id, row.id],
+              vehicleId: key,
             });
         }
       }
@@ -591,6 +638,8 @@ export function analyseFuel(
             registration: reg,
             date: row.trx_date,
             amount: round(Number(row.net_amount)),
+            transactionIds: [row.id],
+            vehicleId: key,
           });
       }
     });

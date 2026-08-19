@@ -29,6 +29,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { extractPdfText } from "@/lib/pdfText";
 import { parseWexInvoiceText } from "@/lib/wexInvoiceParser";
+import FixFlagDialog from "@/components/fuel/FixFlagDialog";
 import {
   analyseFuel,
   deleteFuelInvoice,
@@ -45,6 +46,7 @@ import {
   saveFuelAnalysisSettings,
   saveRegAlias,
   uploadFuelInvoice,
+  type FuelAnomaly,
   type FuelInvoiceRecord,
 } from "@/services/fuelInvoiceService";
 
@@ -70,6 +72,7 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
   const [rangeDays, setRangeDays] = useState<string>("90");
   const [uploading, setUploading] = useState(false);
   const [uploadLog, setUploadLog] = useState<string[]>([]);
+  const [fixAnomaly, setFixAnomaly] = useState<FuelAnomaly | null>(null);
 
   const range = useMemo(() => {
     if (rangeDays === "all") return {};
@@ -503,16 +506,75 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">{anomaly.detail}</p>
+
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      {anomaly.type === "unmatched_reg" ? (
+                        <>
+                          <Select
+                            onValueChange={(vehicleId) =>
+                              aliasMutation.mutate({
+                                reg: anomaly.normalisedReg ?? anomaly.registration ?? "",
+                                vehicleId,
+                              })
+                            }
+                          >
+                            <SelectTrigger className="w-full sm:w-[200px] h-8">
+                              <SelectValue placeholder="Match to vehicle" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(vehiclesQuery.data ?? []).map((vehicle) => (
+                                <SelectItem key={vehicle.id} value={vehicle.id}>
+                                  {vehicle.registration}
+                                  {vehicle.make ? ` — ${vehicle.make}` : ""}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              aliasMutation.mutate({
+                                reg: anomaly.normalisedReg ?? anomaly.registration ?? "",
+                                vehicleId: null,
+                                ignored: true,
+                              })
+                            }
+                          >
+                            Not ours
+                          </Button>
+                        </>
+                      ) : null}
+                      {anomaly.transactionIds?.length &&
+                      anomaly.type !== "unmatched_reg" &&
+                      anomaly.transactionIds.length <= 5 ? (
+                        <Button variant="outline" size="sm" onClick={() => setFixAnomaly(anomaly)}>
+                          Fix
+                        </Button>
+                      ) : null}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => dismissMutation.mutate(anomaly.key)}
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => dismissMutation.mutate(anomaly.key)}
-                  >
-                    Dismiss
-                  </Button>
                 </div>
               ))}
+
+              <FixFlagDialog
+                anomaly={fixAnomaly}
+                transactions={transactionsQuery.data ?? []}
+                vehicles={vehiclesQuery.data ?? []}
+                open={!!fixAnomaly}
+                onOpenChange={(next) => {
+                  if (!next) setFixAnomaly(null);
+                }}
+                onFixed={refreshAll}
+              />
+
             </TabsContent>
 
             {/* Invoices ------------------------------------------------- */}
