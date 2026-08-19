@@ -138,10 +138,12 @@ const Layout: React.FC<LayoutProps> = ({
                   {user && <>
                       <DropdownMenuSeparator className="my-2" />
                       {!isDriver && <>
-                        <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                          <Fuel className="mr-2 h-4 w-4" />
-                          Fuel Finder
-                        </Link>
+                        {isInternalStaff && (
+                          <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Fuel className="mr-2 h-4 w-4" />
+                            Fuel Finder
+                          </Link>
+                        )}
                         <Link to="/dashboard" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Home className="mr-2 h-4 w-4" />
                           Dashboard
