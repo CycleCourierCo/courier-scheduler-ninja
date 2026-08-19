@@ -4458,6 +4458,19 @@ export type Database = {
             }
             Returns: Json
           }
+        | {
+            Args: {
+              p_alt_location?: Json
+              p_dates: Json
+              p_lat?: number
+              p_lon?: number
+              p_notes: string
+              p_order_id: string
+              p_postcode?: string
+              p_side: string
+            }
+            Returns: Json
+          }
       submit_public_repair_offer: {
         Args: { p_approved_issue_ids: string[]; p_order_id: string }
         Returns: Json
