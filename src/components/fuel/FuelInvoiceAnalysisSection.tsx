@@ -371,7 +371,11 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <Select
                             onValueChange={(vehicleId) =>
-                              aliasMutation.mutate({ reg: item.reg, vehicleId })
+                              aliasMutation.mutate({
+                                reg: item.reg,
+                                vehicleId,
+                                anomalyKey: `unmatched_reg:${normaliseReg(item.reg)}`,
+                              })
                             }
                           >
                             <SelectTrigger className="w-[190px]">
@@ -394,11 +398,17 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() =>
-                              aliasMutation.mutate({ reg: item.reg, vehicleId: null, ignored: true })
+                              aliasMutation.mutate({
+                                reg: item.reg,
+                                vehicleId: null,
+                                ignored: true,
+                                anomalyKey: `unmatched_reg:${normaliseReg(item.reg)}`,
+                              })
                             }
                           >
-                            Ignore
+                            Not ours
                           </Button>
+
                         </div>
                       </div>
                     ))}
