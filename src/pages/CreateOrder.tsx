@@ -23,7 +23,7 @@ import { ContactSelector } from "@/components/create-order/ContactSelector";
 import { useContacts } from "@/hooks/useContacts";
 import { Contact } from "@/services/contactService";
 import { Input } from "@/components/ui/input";
-import { DEPOT_LOCATION, DEPOT_RECEIVER } from "@/constants/depot";
+import { DEPOT_RECEIVER } from "@/constants/depot";
 import { hasRole } from "@/lib/roles";
 
 
