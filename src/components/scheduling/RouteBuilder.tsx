@@ -6,9 +6,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2, Zap, Truck, ArrowUpDown } from "lucide-react";
 import { OrderData, ShipdayVerificationResults } from "@/pages/JobScheduling";
 import { toast } from "sonner";
@@ -24,7 +26,7 @@ import CSVMatchReviewDialog from './CSVMatchReviewDialog';
 import SaveRouteDialog from './SaveRouteDialog';
 import LoadRouteDialog from './LoadRouteDialog';
 import BulkRouteMessageDialog from './BulkRouteMessageDialog';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Briefcase } from 'lucide-react';
 import { z } from "zod";
 import { format, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -35,6 +37,15 @@ import { createShipdayOrder } from "@/services/shipdayService";
 import { getRevenueForRouteStops, clearSpecialRatePriceCache } from "@/services/profitabilityService";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasRole } from "@/lib/roles";
+import { BikeSpaceMap, DEFAULT_VAN_SPACES_CAPACITY, formatSpaces, getOrderSpaces, useBikeSpaces } from "@/lib/bikeSpaces";
+import { getGroupedBikes } from "@/utils/bikeSummary";
+import {
+  AddressSource,
+  formatAltAddress,
+  hasWorkAddress,
+  parseAltLocation,
+  resolveStopAddress,
+} from "@/lib/altLocation";
 
 // Profitability constants
 const COST_PER_MILE = 0.45;
@@ -113,10 +124,13 @@ interface JobItemProps {
   onSendGroupedTimeslots?: (locationGroupId: string) => void;
   onSendGroupedTimeslotsSendZen?: (locationGroupId: string) => void;
   onUpdateCoordinates: (job: SelectedJob, lat: number, lon: number) => void;
+  onToggleAddress?: (job: SelectedJob) => void;
   isSendingTimeslots: boolean;
   allJobs: SelectedJob[]; // To check for grouped locations
-  bikeCount: number; // Current bike count at this stop
-  startingBikes: number; // Starting bike count
+  bikeCount: number; // Current van load (spaces) at this stop
+  startingBikes: number; // Starting van load (spaces)
+  spaceMap: BikeSpaceMap; // Bike type -> van spaces
+  vanCapacity: number; // Spaces per van
   selectedDate: Date; // NEW: Pass the selected date for availability comparison
   adminComments?: OrderComment[];
   openingHoursMap?: Record<string, any>; // Map of user_id -> opening hours
@@ -151,7 +165,18 @@ const getAvailabilityBadge = (
       text: 'Customer Available',
       color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
     };
-  } else {
+  }
+
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const allExpired = relevantDates.every(date => format(new Date(date), 'yyyy-MM-dd') < todayStr);
+  if (allExpired) {
+    return {
+      text: 'Dates Expired',
+      color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
+    };
+  }
+
+  {
     return {
       text: 'Not Customer Date',
       color: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300'
@@ -300,7 +325,90 @@ const getInspectionStatusBadge = (
   };
 };
 
-const JobItem: React.FC<JobItemProps> = ({ 
+interface BikeCountBadgeProps {
+  orderData?: OrderData;
+  bikeCount: number;
+  vanCapacity: number;
+  className?: string;
+}
+
+const BikeCountBadge: React.FC<BikeCountBadgeProps> = ({ orderData, bikeCount, vanCapacity, className }) => {
+  const groupedBikes = getGroupedBikes({
+    bikes: orderData?.bikes?.map((bike) => ({
+      brand: bike?.brand || "",
+      model: bike?.model || "",
+      type: bike?.type || "",
+      value: bike?.value || "",
+    })) || [],
+    bikeBrand: orderData?.bike_brand || undefined,
+    bikeModel: orderData?.bike_model || undefined,
+    bikeType: orderData?.bike_type || undefined,
+    bikeQuantity: orderData?.bike_quantity || undefined,
+  } as any);
+
+  const hasBikes = groupedBikes.length > 0 && groupedBikes.some((b) => b.brand || b.model || b.type);
+  const isMobile = useIsMobile();
+
+  const badge = (
+    <Badge
+      variant="outline"
+      aria-label="Show bike details"
+      className={cn(
+        "text-xs px-1.5 py-0 whitespace-nowrap cursor-help",
+        bikeCount > vanCapacity ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800",
+        className
+      )}
+    >
+      🚲 {formatSpaces(bikeCount)}/{formatSpaces(vanCapacity)}
+    </Badge>
+  );
+
+  const details = (
+    <div className="space-y-1">
+      <div className="font-medium text-xs">Bike details</div>
+      {hasBikes ? (
+        <ul className="space-y-0.5 text-xs">
+          {groupedBikes.map((bike, index) => (
+            <li key={index}>
+              {bike.quantity > 1 && <span className="font-medium">{bike.quantity}× </span>}
+              {[bike.brand, bike.model].filter(Boolean).join(" ")}
+              {bike.type && <span className="text-muted-foreground"> — {bike.type}</span>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="text-xs text-muted-foreground">No bike details available</div>
+      )}
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <button type="button" className="inline-flex" onClick={(e) => e.stopPropagation()}>
+            {badge}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent side="top" align="start" className="w-auto max-w-[16rem] p-2 z-[60]">
+          {details}
+        </PopoverContent>
+      </Popover>
+    );
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{badge}</TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs">
+        {details}
+      </TooltipContent>
+    </Tooltip>
+  );
+};
+
+
+const JobItem: React.FC<JobItemProps> = ({
   job, 
   index, 
   onReorder, 
@@ -310,10 +418,13 @@ const JobItem: React.FC<JobItemProps> = ({
   onSendGroupedTimeslots,
   onSendGroupedTimeslotsSendZen,
   onUpdateCoordinates,
+  onToggleAddress,
   isSendingTimeslots,
   allJobs,
   bikeCount,
   startingBikes,
+  spaceMap,
+  vanCapacity,
   selectedDate,
   adminComments = [],
   openingHoursMap = {}
@@ -380,17 +491,17 @@ const JobItem: React.FC<JobItemProps> = ({
                     // bikeCount is the final count AFTER the entire stop, so work backwards
                     const totalDeliveries = groupedJobs
                       .filter(j => j.type === 'delivery')
-                      .reduce((sum, j) => sum + (j.orderData?.bike_quantity || 1), 0);
+                      .reduce((sum, j) => sum + getOrderSpaces(j.orderData, spaceMap), 0);
                     const totalPickups = groupedJobs
                       .filter(j => j.type === 'pickup')
-                      .reduce((sum, j) => sum + (j.orderData?.bike_quantity || 1), 0);
+                      .reduce((sum, j) => sum + getOrderSpaces(j.orderData, spaceMap), 0);
                     
                     let runningBikeCount = bikeCount + totalDeliveries - totalPickups;
                     
                     return sortedJobs.map((groupedJob, idx) => {
-                      const quantity = groupedJob.orderData?.bike_quantity || 1;
+                      const quantity = getOrderSpaces(groupedJob.orderData, spaceMap);
                       
-                      // Calculate bike count after this job
+                      // Calculate van load after this job
                       if (groupedJob.type === 'delivery') {
                         runningBikeCount -= quantity;
                       } else if (groupedJob.type === 'pickup') {
@@ -426,9 +537,12 @@ const JobItem: React.FC<JobItemProps> = ({
                               {groupedJob.type === 'pickup' ? 'Col' : 'Del'}
                             </Badge>
                             <span className="text-xs font-medium truncate">{groupedJob.contactName}</span>
-                            <Badge variant="outline" className="text-xs bg-green-100 text-green-800 px-1 py-0 whitespace-nowrap">
-                              🚲 {bikeCountAfterJob}
-                            </Badge>
+                            <BikeCountBadge
+                              orderData={groupedJob.orderData}
+                              bikeCount={bikeCountAfterJob}
+                              vanCapacity={vanCapacity}
+                              className="px-1 py-0"
+                            />
                           </div>
                           
                           {/* Badges row */}
@@ -515,9 +629,11 @@ const JobItem: React.FC<JobItemProps> = ({
                       </Badge>
                       
                       {/* Bike Count Badge */}
-                      <Badge variant="outline" className="text-xs bg-green-100 text-green-800 px-1.5 py-0 whitespace-nowrap">
-                        🚲 {bikeCount}
-                      </Badge>
+                      <BikeCountBadge
+                        orderData={job.orderData}
+                        bikeCount={bikeCount}
+                        vanCapacity={vanCapacity}
+                      />
                       
                       {/* Availability Badge */}
                       {(() => {
@@ -583,8 +699,37 @@ const JobItem: React.FC<JobItemProps> = ({
                           </Badge>
                         ) : null;
                       })()}
+
+                      {/* Alternative address (workplace / neighbour) */}
+                      {(job as any).addressSource === 'work' && (
+                        <Badge className="text-xs px-1.5 py-0 bg-blue-100 text-blue-800 flex items-center gap-1">
+                          <Briefcase className="h-3 w-3" />
+                          Work address
+                        </Badge>
+                      )}
+                      {(job as any).altAddressText && (job as any).addressSource !== 'work' && (
+                        <Badge variant="outline" className="text-xs px-1.5 py-0">
+                          Work address available
+                        </Badge>
+                      )}
+                      {(job as any).neighbourNumber && (
+                        <Badge className="text-xs px-1.5 py-0 bg-amber-100 text-amber-800">
+                          Neighbour: {(job as any).neighbourNumber}
+                        </Badge>
+                      )}
+                      {(job as any).altAddressText && onToggleAddress && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-[11px]"
+                          onClick={() => onToggleAddress(job)}
+                        >
+                          Use {(job as any).addressSource === 'work' ? 'home' : 'work'} address
+                        </Button>
+                      )}
                     </>
                   )}
+
                 </div>
                 {job.type !== 'break' && (
                   <>
@@ -784,6 +929,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const [startTime, setStartTime] = useState("09:00");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [startingBikes, setStartingBikes] = useState<number>(0);
+  const { data: bikeSpacesData } = useBikeSpaces();
+  const spaceMap: BikeSpaceMap = bikeSpacesData?.spaceMap ?? {};
+  const vanCapacity = bikeSpacesData?.capacity ?? DEFAULT_VAN_SPACES_CAPACITY;
   const [isSendingTimeslots, setIsSendingTimeslots] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [jobToEdit, setJobToEdit] = useState<SelectedJob | null>(null);
@@ -897,7 +1045,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       // If this order doesn't have a pickup in the route, count its delivery bikes
       if (!hasPickup) {
         deliveryJobs.forEach(job => {
-          const quantity = job.orderData?.bike_quantity || 1;
+          const quantity = getOrderSpaces(job.orderData, spaceMap);
           startingBikes += quantity;
         });
       }
@@ -910,7 +1058,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   React.useEffect(() => {
     const optimalStarting = calculateOptimalStartingBikes();
     setStartingBikes(optimalStarting);
-  }, [selectedJobs]);
+  }, [selectedJobs, spaceMap]);
 
   // Fetch admin comments for orders in the route
   React.useEffect(() => {
@@ -976,12 +1124,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     for (let i = 0; i <= jobIndex; i++) {
       const job = selectedJobs[i];
       if (job.type === 'delivery') {
-        // After a delivery, subtract the bike quantity for this order
-        const quantity = job.orderData?.bike_quantity || 1;
+        // After a delivery, subtract the van spaces for this order
+        const quantity = getOrderSpaces(job.orderData, spaceMap);
         bikeCount -= quantity;
       } else if (job.type === 'pickup') {
-        // After a pickup, add the bike quantity for this order
-        const quantity = job.orderData?.bike_quantity || 1;
+        // After a pickup, add the van spaces for this order
+        const quantity = getOrderSpaces(job.orderData, spaceMap);
         bikeCount += quantity;
       }
       // Breaks don't affect bike count
@@ -990,18 +1138,39 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     return bikeCount;
   };
 
+  // Peak van load across the route (in spaces)
+  const peakLoad = React.useMemo(() => {
+    let load = startingBikes;
+    let peak = startingBikes;
+    for (const job of selectedJobs) {
+      if (job.type === 'delivery') load -= getOrderSpaces(job.orderData, spaceMap);
+      else if (job.type === 'pickup') load += getOrderSpaces(job.orderData, spaceMap);
+      if (load > peak) peak = load;
+    }
+    return Math.round(peak * 100) / 100;
+  }, [selectedJobs, startingBikes, spaceMap]);
+
+  const capacityWarning = peakLoad > vanCapacity ? (
+    <div className="flex items-start gap-2 p-2 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive text-xs">
+      <PackageX className="h-4 w-4 flex-shrink-0 mt-0.5" />
+      <span>
+        Van overloaded: peak load {formatSpaces(peakLoad)} spaces vs capacity {formatSpaces(vanCapacity)} ({formatSpaces(peakLoad - vanCapacity)} over). Split the route or swap bikes between runs.
+      </span>
+    </div>
+  ) : null;
+
   // Calculate final bike count
   const calculateFinalBikeCount = (): number => {
     let bikeCount = startingBikes;
     
     for (const job of selectedJobs) {
       if (job.type === 'delivery') {
-        // After a delivery, subtract the bike quantity for this order
-        const quantity = job.orderData?.bike_quantity || 1;
+        // After a delivery, subtract the van spaces for this order
+        const quantity = getOrderSpaces(job.orderData, spaceMap);
         bikeCount -= quantity;
       } else if (job.type === 'pickup') {
-        // After a pickup, add the bike quantity for this order
-        const quantity = job.orderData?.bike_quantity || 1;
+        // After a pickup, add the van spaces for this order
+        const quantity = getOrderSpaces(job.orderData, spaceMap);
         bikeCount += quantity;
       }
     }
@@ -1789,6 +1958,116 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     }
   };
 
+  /** Payload telling the edge functions which stops use a work address / neighbour */
+  const buildAddressOverrides = (jobs: any[]) =>
+    jobs
+      .filter((j) => j.type !== 'break' && (j.addressSource === 'work' || j.neighbourNumber))
+      .map((j) => ({
+        orderId: j.orderId,
+        jobType: j.type === 'pickup' ? 'pickup' : 'delivery',
+        address: j.altAddressText || j.address,
+        source: j.addressSource || 'home',
+        neighbourNumber: j.neighbourNumber || null,
+      }));
+
+  // Planner overrides for which address a stop should use (home vs work)
+  const [addressOverrides, setAddressOverrides] = useState<Record<string, AddressSource>>({});
+
+  // --- Alternative (work / neighbour) address handling -----------------------
+  const stopKey = (job: any) => `${job.orderId}-${job.type}`;
+
+  const getAltForJob = (job: any) => {
+    if (!job?.orderData || job.type === 'break') return null;
+    const raw = job.type === 'pickup'
+      ? (job.orderData as any).sender_alt_location
+      : (job.orderData as any).receiver_alt_location;
+    return parseAltLocation(raw);
+  };
+
+  /**
+   * Decides whether a stop should use the home address or the customer's work
+   * address for a given arrival time, honouring any manual planner override.
+   */
+  const applyAddressChoice = (job: any, timeHHMM?: string) => {
+    if (job.type === 'break') return job;
+    const alt = getAltForJob(job);
+    if (!alt) return { ...job, altLocation: null, addressSource: 'home', altAddressText: '', neighbourNumber: null };
+
+    const override = addressOverrides[stopKey(job)];
+    const auto = resolveStopAddress(alt, selectedDate, timeHHMM);
+    const source: AddressSource = override || auto.source;
+    const workAddress = alt.work_address;
+    const canUseWork = source === 'work' && hasWorkAddress(alt) && workAddress?.lat != null && workAddress?.lon != null;
+
+    if (!canUseWork) {
+      return {
+        ...job,
+        lat: job.homeLat ?? job.lat,
+        lon: job.homeLon ?? job.lon,
+        address: job.homeAddress ?? job.address,
+        homeLat: job.homeLat ?? job.lat,
+        homeLon: job.homeLon ?? job.lon,
+        homeAddress: job.homeAddress ?? job.address,
+        altLocation: alt,
+        addressSource: 'home' as AddressSource,
+        altAddressText: formatAltAddress(workAddress),
+        neighbourNumber: alt.neighbour_number || null,
+      };
+    }
+
+    return {
+      ...job,
+      homeLat: job.homeLat ?? job.lat,
+      homeLon: job.homeLon ?? job.lon,
+      homeAddress: job.homeAddress ?? job.address,
+      lat: workAddress!.lat as number,
+      lon: workAddress!.lon as number,
+      address: formatAltAddress(workAddress),
+      altLocation: alt,
+      addressSource: 'work' as AddressSource,
+      altAddressText: formatAltAddress(workAddress),
+      neighbourNumber: alt.neighbour_number || null,
+    };
+  };
+
+  /** Planner override: force a stop to the home or work address and re-time. */
+  const toggleStopAddress = (job: any) => {
+    const key = stopKey(job);
+    const next: AddressSource = (job.addressSource === 'work' ? 'home' : 'work');
+    setAddressOverrides((prev) => ({ ...prev, [key]: next }));
+    const updated = selectedJobs.map((j: any) =>
+      stopKey(j) === key ? applyAddressChoiceWithSource(j, next) : j
+    );
+    setSelectedJobs(updated as any);
+    calculateTimeslots(updated as any);
+  };
+
+  const applyAddressChoiceWithSource = (job: any, source: AddressSource) => {
+    const alt = getAltForJob(job);
+    if (!alt) return job;
+    const workAddress = alt.work_address;
+    if (source === 'work' && workAddress?.lat != null && workAddress?.lon != null) {
+      return {
+        ...job,
+        homeLat: job.homeLat ?? job.lat,
+        homeLon: job.homeLon ?? job.lon,
+        homeAddress: job.homeAddress ?? job.address,
+        lat: workAddress.lat as number,
+        lon: workAddress.lon as number,
+        address: formatAltAddress(workAddress),
+        addressSource: 'work' as AddressSource,
+      };
+    }
+    return {
+      ...job,
+      lat: job.homeLat ?? job.lat,
+      lon: job.homeLon ?? job.lon,
+      address: job.homeAddress ?? job.address,
+      addressSource: 'home' as AddressSource,
+    };
+  };
+
+
   const calculateTimeslots = async (jobsToCalculate?: SelectedJob[]) => {
     // Use passed jobs or fall back to state
     const rawJobs = jobsToCalculate || selectedJobs;
@@ -1827,17 +2106,18 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
     const baseCoords = { lat: 52.4690197, lon: -1.8757663 }; // Birmingham coordinates for Lawden Road, B10 0AD
     
-    try {
-      const updatedJobs = [];
+    // Runs the arrival-time chain for a given ordered list of stops
+    const computeChain = async (list: any[]) => {
+      const updatedJobs: any[] = [];
       let currentTime = new Date(`2024-01-01 ${startTime}`);
       const startClock = new Date(currentTime.getTime());
       let lastLocationCoords = baseCoords;
       let processedLocationGroups = new Set<string>();
       let totalMeters = 0;
-      
-      for (let i = 0; i < groupedJobs.length; i++) {
-        const job = groupedJobs[i];
-        
+
+      for (let i = 0; i < list.length; i++) {
+        const job = list[i];
+
         if (job.type === 'break') {
           // For breaks, just add the break duration
           currentTime = new Date(currentTime.getTime() + (job.breakDuration || 15) * 60000);
@@ -1850,30 +2130,30 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         } else {
           // Check if this is a grouped location and if we've already calculated travel time for this group
           const isNewLocation = !job.locationGroupId || !processedLocationGroups.has(job.locationGroupId);
-          
+
           if (isNewLocation) {
             // Calculate travel time only for the first job at this location
             const leg = await calculateTravelTime(lastLocationCoords, { lat: job.lat!, lon: job.lon! });
             currentTime = new Date(currentTime.getTime() + leg.minutes * 60000);
             totalMeters += leg.meters;
-            
+
             // Round to next 5-minute increment for arrival time
             const roundedJobTime = roundTimeToNext5Minutes(currentTime);
-            
+
             // Mark this location group as processed
             if (job.locationGroupId) {
               processedLocationGroups.add(job.locationGroupId);
             }
-            
+
             // Update last location for next calculation
             lastLocationCoords = { lat: job.lat!, lon: job.lon! };
-            
+
             // Set the arrival time for this job
             updatedJobs.push({
               ...job,
               estimatedTime: roundedJobTime.toTimeString().slice(0, 5)
             });
-            
+
             // Add 15 minutes service time for this job
             currentTime = new Date(roundedJobTime.getTime() + 15 * 60000);
           } else {
@@ -1883,7 +2163,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
               ...job,
               estimatedTime: arrivalTime.toTimeString().slice(0, 5)
             });
-            
+
             // Add 15 minutes service time for this additional job
             currentTime = new Date(currentTime.getTime() + 15 * 60000);
           }
@@ -1897,14 +2177,37 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       const endTimeRounded = roundTimeToNext5Minutes(currentTime);
       const durationMinutes = Math.round((endTimeRounded.getTime() - startClock.getTime()) / 60000);
 
-      setRouteStats({
-        endTime: endTimeRounded.toTimeString().slice(0, 5),
-        distanceMiles: totalMeters / 1609.34,
-        durationMinutes,
-      });
+      return {
+        updatedJobs,
+        stats: {
+          endTime: endTimeRounded.toTimeString().slice(0, 5),
+          distanceMiles: totalMeters / 1609.34,
+          durationMinutes,
+        },
+      };
+    };
 
-      setSelectedJobs(updatedJobs);
+    try {
+      // First pass uses whatever address the stop already has
+      let result = await computeChain(groupedJobs);
+
+      // Second pass: some customers can be collected from / delivered to their
+      // workplace during work hours. Now that we have provisional arrival times
+      // we can pick the right address and re-time the route.
+      const withResolved = result.updatedJobs.map((job) => applyAddressChoice(job, job.estimatedTime));
+      const addressChanged = withResolved.some(
+        (job, index) => job.lat !== result.updatedJobs[index].lat || job.lon !== result.updatedJobs[index].lon
+      );
+      if (addressChanged) {
+        result = await computeChain(withResolved);
+      } else {
+        result = { ...result, updatedJobs: withResolved };
+      }
+
+      setRouteStats(result.stats);
+      setSelectedJobs(result.updatedJobs);
       setShowTimeslotDialog(true);
+
     } catch (error) {
       console.error('Error calculating timeslots:', error);
       toast.error('Failed to calculate timeslots. Please try again.');
@@ -2053,7 +2356,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           orderId: job.orderId,
           recipientType: job.type === 'pickup' ? 'sender' : 'receiver',
           deliveryTime,
-          customMessage: message
+          customMessage: message,
+          addressOverrides: buildAddressOverrides([job])
         }
       });
 
@@ -2215,7 +2519,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           recipientType: toEdgeFunctionJobType(primaryJob.type) === 'pickup' ? 'sender' : 'receiver',
           deliveryTime,
           customMessage: message,
-          relatedJobs: relatedJobs.length > 0 ? relatedJobs : undefined
+          relatedJobs: relatedJobs.length > 0 ? relatedJobs : undefined,
+          addressOverrides: buildAddressOverrides(jobsAtLocation)
         }
       });
 
@@ -2440,7 +2745,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
               recipientType: toEdgeFunctionJobType(primaryJob.type) === 'pickup' ? 'sender' : 'receiver',
               deliveryTime,
               customMessage: message,
-              relatedJobs: relatedJobs.length > 0 ? relatedJobs : undefined
+              relatedJobs: relatedJobs.length > 0 ? relatedJobs : undefined,
+              addressOverrides: buildAddressOverrides(jobsAtLocation)
             }
           });
 
@@ -2545,7 +2851,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
             body: {
               orderId: job.orderId,
               recipientType: job.type === 'pickup' ? 'sender' : 'receiver',
-              deliveryTime: job.estimatedTime
+              deliveryTime: job.estimatedTime,
+              addressOverrides: buildAddressOverrides([job])
             }
           });
 
@@ -2766,6 +3073,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
             orderId: j.orderId,
             jobType: j.type === 'pickup' ? 'pickup' : 'delivery',
           })),
+          addressOverrides: buildAddressOverrides(jobsAtLocation),
         }
       });
 
@@ -2878,6 +3186,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                 orderId: j.orderId,
                 jobType: j.type === 'pickup' ? 'pickup' : 'delivery',
               })),
+              addressOverrides: buildAddressOverrides(jobsAtLocation),
             }
           });
 
@@ -2923,6 +3232,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
               type: sendzenType,
               recipientType: job.type === 'pickup' ? 'sender' : 'receiver',
               deliveryTime: job.estimatedTime,
+              addressOverrides: buildAddressOverrides([job]),
             }
           });
 
@@ -3291,7 +3601,8 @@ Route Link: ${routeLink}`;
   const shipdayOffCount = selectedJobs.filter(j => j.type !== 'break' && j.orderData && getShipdayStatus(j.orderData, j.type as 'pickup' | 'delivery') !== 'verified').length;
 
   return (
-    <div className="space-y-6">
+    <TooltipProvider>
+      <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
@@ -3497,8 +3808,9 @@ Route Link: ${routeLink}`;
                   onClick={hasCoordinates ? () => toggleJobSelection(job) : undefined}
                 >
                   <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-2">
+                    <div className="flex justify-between items-start gap-2 flex-wrap mb-2">
+                      <div className="flex items-center flex-wrap gap-2 min-w-0">
+
                         <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'}>
                           {job.type === 'pickup' ? 'Collection' : 'Delivery'}
                         </Badge>
@@ -3542,9 +3854,9 @@ Route Link: ${routeLink}`;
                     
                     <div className="space-y-2">
                       {/* Tracking Number */}
-                      <p className="font-medium text-sm flex items-center gap-1">
-                        <Package className="h-3 w-3 text-muted-foreground" />
-                        #{job.order.tracking_number}
+                      <p className="font-medium text-sm flex flex-wrap items-center gap-1 min-w-0">
+                        <Package className="h-3 w-3 text-muted-foreground shrink-0" />
+                        <span className="break-all min-w-0">#{job.order.tracking_number}</span>
                         {(() => {
                           const days = differenceInCalendarDays(new Date(), new Date(job.order.created_at));
                           const label = days <= 0 ? 'Just added' : days === 1 ? '1 day waiting' : `${days} days waiting`;
@@ -3554,18 +3866,19 @@ Route Link: ${routeLink}`;
                             ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
                             : 'bg-muted text-muted-foreground';
                           return (
-                            <Badge className={`text-xs ml-auto flex items-center gap-1 ${tone}`}>
+                            <Badge className={`text-xs ml-auto shrink-0 flex items-center gap-1 ${tone}`}>
                               <Clock className="h-3 w-3" />
                               {label}
                             </Badge>
                           );
                         })()}
                       </p>
-                      <p className="text-sm">{job.contactName}</p>
-                      <div className="flex items-start gap-1">
+                      <p className="text-sm break-words min-w-0">{job.contactName}</p>
+                      <div className="flex items-start gap-1 min-w-0">
                         <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground" />
-                        <p className="text-xs text-muted-foreground">{job.address}</p>
+                        <p className="text-xs text-muted-foreground break-words min-w-0">{job.address}</p>
                       </div>
+
                       {(() => {
                         const foamBadge = getFoamBadge(job.order, job.type);
                         if (!foamBadge) return null;
@@ -3574,7 +3887,8 @@ Route Link: ${routeLink}`;
                           <div className="space-y-1">
                             <Badge className={`text-xs ${foamBadge.color}`}>{foamBadge.text}</Badge>
                             {r?.address && (
-                              <p className="text-[10px] text-muted-foreground">
+                              <p className="text-[10px] text-muted-foreground break-words min-w-0">
+
                                 Final destination: {r.name} — {[r.address.street, r.address.city, r.address.zipCode].filter(Boolean).join(', ')}
                               </p>
                             )}
@@ -3701,12 +4015,13 @@ Route Link: ${routeLink}`;
 
                 {/* Route */}
                 <div className="space-y-2">
+                  {capacityWarning}
                   <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
                     <MapPin className="h-3 w-3 flex-shrink-0" />
                     <span className="text-xs font-medium truncate flex-1">Start: Lawden Rd, B10 0AD</span>
                     <Badge variant="outline" className="text-xs px-1.5 py-0">{startTime}</Badge>
                     <Badge variant="outline" className="bg-green-100 text-green-800 text-xs px-1.5 py-0 whitespace-nowrap">
-                      🚲 {startingBikes}
+                      🚲 {formatSpaces(startingBikes)}/{formatSpaces(vanCapacity)}
                     </Badge>
                   </div>
 
@@ -3722,10 +4037,13 @@ Route Link: ${routeLink}`;
                       onSendGroupedTimeslots={sendGroupedTimeslots}
                       onSendGroupedTimeslotsSendZen={sendGroupedTimeslotsSendZen}
                       onUpdateCoordinates={updateCoordinates}
+                      onToggleAddress={toggleStopAddress}
                       isSendingTimeslots={isSendingTimeslots}
                       allJobs={selectedJobs}
                       bikeCount={calculateBikeCountAtJob(index)}
                       startingBikes={startingBikes}
+                      spaceMap={spaceMap}
+                      vanCapacity={vanCapacity}
                       selectedDate={selectedDate}
                       adminComments={Object.values(adminComments).flat()}
                       openingHoursMap={profileOpeningHours}
@@ -3898,12 +4216,13 @@ Route Link: ${routeLink}`;
               </div>
 
               <div className="space-y-3">
+                {capacityWarning}
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                   <MapPin className="h-4 w-4" />
                   <span className="text-sm font-medium">Start: Lawden Road, Birmingham, B10 0AD</span>
                   <Badge variant="outline">{startTime}</Badge>
                   <Badge variant="outline" className="bg-green-100 text-green-800">
-                    🚲 {startingBikes} bikes
+                    🚲 {formatSpaces(startingBikes)}/{formatSpaces(vanCapacity)} spaces
                   </Badge>
                 </div>
 
@@ -3919,10 +4238,14 @@ Route Link: ${routeLink}`;
                     onSendGroupedTimeslots={sendGroupedTimeslots}
                     onSendGroupedTimeslotsSendZen={sendGroupedTimeslotsSendZen}
                     onUpdateCoordinates={updateCoordinates}
+                    onToggleAddress={toggleStopAddress}
+
                     isSendingTimeslots={isSendingTimeslots}
                     allJobs={selectedJobs}
                     bikeCount={calculateBikeCountAtJob(index)}
                     startingBikes={startingBikes}
+                    spaceMap={spaceMap}
+                    vanCapacity={vanCapacity}
                     selectedDate={selectedDate}
                     adminComments={Object.values(adminComments).flat()}
                     openingHoursMap={profileOpeningHours}
@@ -4180,6 +4503,7 @@ Route Link: ${routeLink}`;
           })}
       />
     </div>
+    </TooltipProvider>
   );
 };
 

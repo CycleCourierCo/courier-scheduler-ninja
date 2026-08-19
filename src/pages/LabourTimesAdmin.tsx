@@ -26,6 +26,8 @@ import {
 } from "@/services/labourTimesService";
 import LabourTimeDialog from "@/components/labour-times/LabourTimeDialog";
 import MultiplierDialog from "@/components/labour-times/MultiplierDialog";
+import VanSpacesTab from "@/components/labour-times/VanSpacesTab";
+
 import {
   calculateLabourPrice,
   formatGBP,
@@ -80,12 +82,21 @@ export default function LabourTimesAdmin() {
   const { data: settings } = useWorkshopSettings();
   const hourlyRate = settings?.hourly_rate_gbp ?? 75;
   const minCharge = settings?.min_charge_gbp ?? 15;
+  const inspectionMinutes = settings?.inspection_standard_minutes ?? 30;
+  const defaultRepairMinutes = settings?.default_repair_minutes ?? 30;
 
   // Settings card local state
   const [rateInput, setRateInput] = useState<string>(String(hourlyRate));
   const [minInput, setMinInput] = useState<string>(String(minCharge));
+  const [inspMinInput, setInspMinInput] = useState<string>(String(inspectionMinutes));
+  const [defRepairInput, setDefRepairInput] = useState<string>(String(defaultRepairMinutes));
   useEffect(() => { setRateInput(String(hourlyRate)); setMinInput(String(minCharge)); }, [hourlyRate, minCharge]);
+  useEffect(() => {
+    setInspMinInput(String(inspectionMinutes));
+    setDefRepairInput(String(defaultRepairMinutes));
+  }, [inspectionMinutes, defaultRepairMinutes]);
   const updateSettings = useUpdateWorkshopSettings();
+
 
   // Filters
   const [bikeType, setBikeType] = useState("__all__");
@@ -200,7 +211,7 @@ export default function LabourTimesAdmin() {
                 Prices shown across the app are computed live from labour minutes at this rate — data isn't rewritten.
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-[1fr_1fr_auto_1fr] items-end">
+            <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 items-end">
               <div className="space-y-2">
                 <Label>Hourly rate (£)</Label>
                 <Input type="number" min={0} step="0.01" value={rateInput} onChange={(e) => setRateInput(e.target.value)} />
@@ -209,10 +220,23 @@ export default function LabourTimesAdmin() {
                 <Label>Minimum charge (£)</Label>
                 <Input type="number" min={0} step="0.01" value={minInput} onChange={(e) => setMinInput(e.target.value)} />
               </div>
+              <div className="space-y-2">
+                <Label>Standard inspection (mins)</Label>
+                <Input type="number" min={0} step="1" value={inspMinInput} onChange={(e) => setInspMinInput(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Fallback repair time (mins)</Label>
+                <Input type="number" min={0} step="1" value={defRepairInput} onChange={(e) => setDefRepairInput(e.target.value)} />
+              </div>
               <Button
                 onClick={() =>
                   updateSettings.mutate(
-                    { hourly_rate_gbp: Number(rateInput) || 0, min_charge_gbp: Number(minInput) || 0 },
+                    {
+                      hourly_rate_gbp: Number(rateInput) || 0,
+                      min_charge_gbp: Number(minInput) || 0,
+                      inspection_standard_minutes: Number(inspMinInput) || 0,
+                      default_repair_minutes: Number(defRepairInput) || 0,
+                    },
                     {
                       onSuccess: () => toast.success("Workshop settings updated"),
                       onError: (e: any) => toast.error(e?.message ?? "Failed to save"),
@@ -223,10 +247,12 @@ export default function LabourTimesAdmin() {
               >
                 {updateSettings.isPending ? "Saving…" : "Save"}
               </Button>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-muted-foreground xl:col-span-3">
                 Example: 30 min job → <span className="font-semibold text-foreground">{formatGBP(previewPrice)}</span>
                 <div className="text-xs">Formula: max(min, ceil(minutes × rate / 60 / 5) × 5)</div>
+                <div className="text-xs">Inspection & fallback minutes drive the earned-hours comparison in analytics.</div>
               </div>
+
             </CardContent>
           </Card>
         )}
@@ -235,7 +261,9 @@ export default function LabourTimesAdmin() {
           <TabsList>
             <TabsTrigger value="times">Labour times</TabsTrigger>
             <TabsTrigger value="multipliers">Multipliers</TabsTrigger>
+            <TabsTrigger value="van-spaces">Van spaces</TabsTrigger>
           </TabsList>
+
 
           {/* Labour times tab */}
           <TabsContent value="times" className="space-y-4">
@@ -452,7 +480,12 @@ export default function LabourTimesAdmin() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="van-spaces">
+            <VanSpacesTab isAdmin={isAdmin} />
+          </TabsContent>
         </Tabs>
+
       </div>
 
       <LabourTimeDialog

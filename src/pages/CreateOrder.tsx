@@ -411,7 +411,16 @@ const CreateOrder = () => {
       
       const order = await createOrder(transformedData);
       toast.success("Order created successfully!");
-      navigate(`/dashboard`);
+
+      // Business accounts go straight to setting collection availability
+      const isBusinessAccount = Boolean(userProfile?.is_business) || hasRole(userProfile, 'b2b_customer');
+      if (isBusinessAccount && order?.id) {
+        toast.info("Set your collection availability now — no need to wait for the email.");
+        navigate(`/sender-availability/${order.id}`);
+      } else {
+        navigate(`/dashboard`);
+      }
+
     } catch (error) {
       console.error("Error creating order:", error);
       toast.error("Failed to create order. Please try again.");

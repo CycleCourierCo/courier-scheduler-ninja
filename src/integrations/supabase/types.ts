@@ -249,6 +249,27 @@ export type Database = {
           },
         ]
       }
+      bike_type_spaces: {
+        Row: {
+          bike_type: string
+          spaces: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          bike_type: string
+          spaces?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          bike_type?: string
+          spaces?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       claim_evidence_files: {
         Row: {
           claim_id: string
@@ -1006,6 +1027,60 @@ export type Database = {
         }
         Relationships: []
       }
+      fuel_analysis_settings: {
+        Row: {
+          duplicate_fill_window_hours: number
+          expected_mpg_max: number
+          expected_mpg_min: number
+          id: string
+          max_litres_per_fill: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          duplicate_fill_window_hours?: number
+          expected_mpg_max?: number
+          expected_mpg_min?: number
+          id?: string
+          max_litres_per_fill?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          duplicate_fill_window_hours?: number
+          expected_mpg_max?: number
+          expected_mpg_min?: number
+          id?: string
+          max_litres_per_fill?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      fuel_anomaly_dismissals: {
+        Row: {
+          created_at: string
+          dismissed_by: string | null
+          id: string
+          note: string | null
+          scope_key: string
+        }
+        Insert: {
+          created_at?: string
+          dismissed_by?: string | null
+          id?: string
+          note?: string | null
+          scope_key: string
+        }
+        Update: {
+          created_at?: string
+          dismissed_by?: string | null
+          id?: string
+          note?: string | null
+          scope_key?: string
+        }
+        Relationships: []
+      }
       fuel_card_settings: {
         Row: {
           id: string
@@ -1057,6 +1132,60 @@ export type Database = {
         }
         Relationships: []
       }
+      fuel_invoices: {
+        Row: {
+          account_number: string | null
+          created_at: string
+          currency: string
+          due_date: string | null
+          file_path: string | null
+          gross_total: number
+          id: string
+          invoice_date: string | null
+          invoice_number: string
+          net_total: number
+          parsed_row_count: number
+          supplier: string
+          updated_at: string
+          uploaded_by: string | null
+          vat_total: number
+        }
+        Insert: {
+          account_number?: string | null
+          created_at?: string
+          currency?: string
+          due_date?: string | null
+          file_path?: string | null
+          gross_total?: number
+          id?: string
+          invoice_date?: string | null
+          invoice_number: string
+          net_total?: number
+          parsed_row_count?: number
+          supplier?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          vat_total?: number
+        }
+        Update: {
+          account_number?: string | null
+          created_at?: string
+          currency?: string
+          due_date?: string | null
+          file_path?: string | null
+          gross_total?: number
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string
+          net_total?: number
+          parsed_row_count?: number
+          supplier?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          vat_total?: number
+        }
+        Relationships: []
+      }
       fuel_station_cache: {
         Row: {
           address: string | null
@@ -1098,6 +1227,131 @@ export type Database = {
           postcode?: string | null
         }
         Relationships: []
+      }
+      fuel_transactions: {
+        Row: {
+          card_label: string | null
+          corrected_at: string | null
+          corrected_by: string | null
+          correction_note: string | null
+          created_at: string
+          gross_amount: number
+          id: string
+          invoice_id: string
+          net_amount: number
+          normalised_reg: string | null
+          odometer: number | null
+          product: string | null
+          quantity_litres: number
+          raw_vehicle_id: string | null
+          site_name: string | null
+          trx_date: string
+          trx_reference: string | null
+          trx_time: string | null
+          unit_price: number | null
+          vat_amount: number
+          vat_rate: number | null
+          vehicle_id: string | null
+        }
+        Insert: {
+          card_label?: string | null
+          corrected_at?: string | null
+          corrected_by?: string | null
+          correction_note?: string | null
+          created_at?: string
+          gross_amount?: number
+          id?: string
+          invoice_id: string
+          net_amount?: number
+          normalised_reg?: string | null
+          odometer?: number | null
+          product?: string | null
+          quantity_litres?: number
+          raw_vehicle_id?: string | null
+          site_name?: string | null
+          trx_date: string
+          trx_reference?: string | null
+          trx_time?: string | null
+          unit_price?: number | null
+          vat_amount?: number
+          vat_rate?: number | null
+          vehicle_id?: string | null
+        }
+        Update: {
+          card_label?: string | null
+          corrected_at?: string | null
+          corrected_by?: string | null
+          correction_note?: string | null
+          created_at?: string
+          gross_amount?: number
+          id?: string
+          invoice_id?: string
+          net_amount?: number
+          normalised_reg?: string | null
+          odometer?: number | null
+          product?: string | null
+          quantity_litres?: number
+          raw_vehicle_id?: string | null
+          site_name?: string | null
+          trx_date?: string
+          trx_reference?: string | null
+          trx_time?: string | null
+          unit_price?: number | null
+          vat_amount?: number
+          vat_rate?: number | null
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fuel_transactions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "fuel_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuel_transactions_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fuel_vehicle_aliases: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          ignored: boolean
+          normalised_alias: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ignored?: boolean
+          normalised_alias: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ignored?: boolean
+          normalised_alias?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fuel_vehicle_aliases_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       historical_route_stops: {
         Row: {
@@ -2201,6 +2455,7 @@ export type Database = {
           pickup_timeslot: string | null
           quickbooks_invoice_public_url: string | null
           receiver: Json
+          receiver_alt_location: Json | null
           receiver_confirmed_at: string | null
           receiver_contact_id: string | null
           receiver_notes: string | null
@@ -2208,6 +2463,7 @@ export type Database = {
           scheduled_delivery_date: string | null
           scheduled_pickup_date: string | null
           sender: Json
+          sender_alt_location: Json | null
           sender_confirmed_at: string | null
           sender_contact_id: string | null
           sender_notes: string | null
@@ -2299,6 +2555,7 @@ export type Database = {
           pickup_timeslot?: string | null
           quickbooks_invoice_public_url?: string | null
           receiver: Json
+          receiver_alt_location?: Json | null
           receiver_confirmed_at?: string | null
           receiver_contact_id?: string | null
           receiver_notes?: string | null
@@ -2306,6 +2563,7 @@ export type Database = {
           scheduled_delivery_date?: string | null
           scheduled_pickup_date?: string | null
           sender: Json
+          sender_alt_location?: Json | null
           sender_confirmed_at?: string | null
           sender_contact_id?: string | null
           sender_notes?: string | null
@@ -2397,6 +2655,7 @@ export type Database = {
           pickup_timeslot?: string | null
           quickbooks_invoice_public_url?: string | null
           receiver?: Json
+          receiver_alt_location?: Json | null
           receiver_confirmed_at?: string | null
           receiver_contact_id?: string | null
           receiver_notes?: string | null
@@ -2404,6 +2663,7 @@ export type Database = {
           scheduled_delivery_date?: string | null
           scheduled_pickup_date?: string | null
           sender?: Json
+          sender_alt_location?: Json | null
           sender_confirmed_at?: string | null
           sender_contact_id?: string | null
           sender_notes?: string | null
@@ -4014,27 +4274,36 @@ export type Database = {
       workshop_settings: {
         Row: {
           daily_capacity_minutes: number
+          default_repair_minutes: number
           hourly_rate_gbp: number
           id: number
+          inspection_standard_minutes: number
           min_charge_gbp: number
           updated_at: string
           updated_by: string | null
+          van_spaces_capacity: number
         }
         Insert: {
           daily_capacity_minutes?: number
+          default_repair_minutes?: number
           hourly_rate_gbp?: number
           id?: number
+          inspection_standard_minutes?: number
           min_charge_gbp?: number
           updated_at?: string
           updated_by?: string | null
+          van_spaces_capacity?: number
         }
         Update: {
           daily_capacity_minutes?: number
+          default_repair_minutes?: number
           hourly_rate_gbp?: number
           id?: number
+          inspection_standard_minutes?: number
           min_charge_gbp?: number
           updated_at?: string
           updated_by?: string | null
+          van_spaces_capacity?: number
         }
         Relationships: []
       }
@@ -4191,16 +4460,41 @@ export type Database = {
         }[]
       }
       next_custom_repair_id: { Args: never; Returns: string }
-      set_order_availability: {
-        Args: {
-          p_dates: Json
-          p_notes: string
-          p_order_id: string
-          p_postcode?: string
-          p_side: string
-        }
-        Returns: Json
-      }
+      set_order_availability:
+        | {
+            Args: {
+              p_dates: Json
+              p_notes: string
+              p_order_id: string
+              p_postcode?: string
+              p_side: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_alt_location?: Json
+              p_dates: Json
+              p_notes: string
+              p_order_id: string
+              p_postcode?: string
+              p_side: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_alt_location?: Json
+              p_dates: Json
+              p_lat?: number
+              p_lon?: number
+              p_notes: string
+              p_order_id: string
+              p_postcode?: string
+              p_side: string
+            }
+            Returns: Json
+          }
       submit_public_repair_offer: {
         Args: { p_approved_issue_ids: string[]; p_order_id: string }
         Returns: Json

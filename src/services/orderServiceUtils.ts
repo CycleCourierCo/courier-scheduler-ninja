@@ -37,6 +37,11 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     deliveryInstructions: dbOrder.delivery_instructions,
     senderNotes: dbOrder.sender_notes,
     receiverNotes: dbOrder.receiver_notes,
+    // Public availability links use these to offer business-hours scheduling
+    senderIsBusiness: dbOrder.sender_is_business ?? false,
+    receiverIsBusiness: dbOrder.receiver_is_business ?? false,
+    senderOpeningHours: dbOrder.sender_opening_hours ?? null,
+    receiverOpeningHours: dbOrder.receiver_opening_hours ?? null,
     senderPolygonSegment: dbOrder.sender_polygon_segment,
     receiverPolygonSegment: dbOrder.receiver_polygon_segment,
     pickupTimeslot: dbOrder.pickup_timeslot,

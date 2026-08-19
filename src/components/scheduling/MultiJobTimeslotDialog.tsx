@@ -16,6 +16,13 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { optimizeRouteWithGeoapify, computeRouteInOrder } from "@/services/routeOptimizationService";
 import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  parseAltLocation,
+  resolveStopAddress,
+  formatAltAddress,
+  hasWorkAddress,
+  type AddressSource,
+} from "@/lib/altLocation";
 
 interface Job {
   orderId: string;
@@ -53,6 +60,85 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimizedJobs, setOptimizedJobs] = useState<any[]>([]);
+  const [addressOverrides, setAddressOverrides] = useState<Record<string, AddressSource>>({});
+
+  // --- Alternate (work / neighbour) address handling ---
+  const getAltForJob = (job: any) =>
+    parseAltLocation(
+      job?.type === 'collection'
+        ? job?.order?.sender_alt_location
+        : job?.order?.receiver_alt_location,
+    );
+
+  /** Which address this stop will be visited at, honouring a planner override. */
+  const getAddressChoice = (job: any) => {
+    const alt = getAltForJob(job);
+    const key = `${job.orderId}-${job.type}`;
+    const auto = resolveStopAddress(alt, selectedDate, jobTimes[job.orderId]);
+    const source: AddressSource = addressOverrides[key] || auto.source;
+    return {
+      alt,
+      key,
+      source,
+      canUseWork: hasWorkAddress(alt),
+      workAddress: formatAltAddress(alt?.work_address),
+      neighbourNumber: alt?.neighbour_number || null,
+    };
+  };
+
+  const toggleJobAddress = (job: any) => {
+    const { key, source } = getAddressChoice(job);
+    setAddressOverrides((prev) => ({ ...prev, [key]: source === 'work' ? 'home' : 'work' }));
+  };
+
+  const buildAddressOverrides = () =>
+    jobs
+      .map((job) => {
+        const choice = getAddressChoice(job);
+        if (!choice.alt) return null;
+        if (choice.source !== 'work' && !choice.neighbourNumber) return null;
+        return {
+          orderId: job.orderId,
+          jobType: job.type === 'collection' ? 'pickup' : 'delivery',
+          address: choice.source === 'work' ? choice.workAddress : undefined,
+          source: choice.source,
+          neighbourNumber: choice.neighbourNumber,
+        };
+      })
+      .filter(Boolean);
+
+  /** Badges + toggle showing where the driver will actually arrive. */
+  const renderAddressChoice = (job: any) => {
+    const choice = getAddressChoice(job);
+    if (!choice.alt) return null;
+    return (
+      <div className="flex flex-wrap items-center gap-1 mt-1">
+        {choice.canUseWork && (
+          <Badge
+            className={`text-xs ${choice.source === 'work'
+              ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100'
+              : 'bg-muted text-muted-foreground'}`}
+          >
+            {choice.source === 'work' ? `Work: ${choice.workAddress}` : 'Work address available'}
+          </Badge>
+        )}
+        {choice.neighbourNumber && (
+          <Badge className="text-xs bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-100">
+            Neighbour: {choice.neighbourNumber}
+          </Badge>
+        )}
+        {choice.canUseWork && (
+          <button
+            type="button"
+            onClick={() => toggleJobAddress(job)}
+            className="text-xs underline text-muted-foreground hover:text-foreground"
+          >
+            Use {choice.source === 'work' ? 'home' : 'work'} address
+          </button>
+        )}
+      </div>
+    );
+  };
 
 
 
@@ -84,7 +170,18 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
         text: 'Customer Available',
         color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
       };
-    } else {
+    }
+
+    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const allExpired = relevantDates.every(date => format(new Date(date), 'yyyy-MM-dd') < todayStr);
+    if (allExpired) {
+      return {
+        text: 'Dates Expired',
+        color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
+      };
+    }
+
+    {
       return {
         text: 'Not Customer Date',
         color: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300'
@@ -272,7 +369,8 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
           body: {
             orderId: job.orderId,
             recipientType: recipientType,
-            deliveryTime: jobTimes[job.orderId]
+            deliveryTime: jobTimes[job.orderId],
+            addressOverrides: buildAddressOverrides()
           }
         });
 
@@ -410,6 +508,7 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
                       </div>
                       
                       <p className="text-xs text-muted-foreground line-clamp-2 break-words">{job.address}</p>
+                      {renderAddressChoice(job)}
                       {job.timeslotWindow && (
                         <p className="text-xs text-green-700 dark:text-green-400 mt-1">
                           {job.timeslotWindow}
@@ -484,6 +583,7 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
                       </div>
                       
                       <p className="text-xs text-muted-foreground line-clamp-2 break-words">{job.address}</p>
+                      {renderAddressChoice(job)}
                       {job.timeslotWindow && (
                         <p className="text-xs text-blue-700 dark:text-blue-400 mt-1">
                           {job.timeslotWindow}

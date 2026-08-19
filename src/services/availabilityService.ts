@@ -5,6 +5,8 @@ import { mapDbOrderToOrderType } from "./orderServiceUtils";
 import { resendReceiverAvailabilityEmail, sendSenderDatesConfirmedEmail, sendReceiverDatesConfirmedEmail } from "./emailService";
 import { fetchHolidayDates } from "./holidayService";
 import { fetchAllowedFridayDates } from "./allowedFridaysService";
+import type { AltLocation } from "@/lib/altLocation";
+import { geocodePostcodeAddress } from "@/utils/geocoding";
 
 // Format date as YYYY-MM-DD using local date parts (no timezone shift)
 const toDateString = (date: Date): string => {
@@ -13,6 +15,57 @@ const toDateString = (date: Date): string => {
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 };
+
+/**
+ * Look up coordinates for the confirmed postcode so scheduling always has a
+ * lat/long for the stop. Never throws — availability must still save if this fails.
+ */
+const resolvePostcodeCoords = async (
+  orderId: string,
+  side: "sender" | "receiver",
+  postcode?: string | null,
+): Promise<{ lat: number | null; lon: number | null }> => {
+  const empty = { lat: null, lon: null };
+  if (!postcode || !postcode.trim()) return empty;
+  try {
+    let city: string | null = null;
+    try {
+      const { data } = await supabase.rpc("get_public_order" as any, { p_identifier: orderId });
+      city = ((data as any)?.[side]?.city as string) || null;
+    } catch (e) { /* city is optional */ }
+
+    const result = await geocodePostcodeAddress({ city, postcode });
+    return result ? { lat: result.lat, lon: result.lon } : empty;
+  } catch (error) {
+    console.error("Postcode geocoding failed:", error);
+    return empty;
+  }
+};
+
+/** Fill in coordinates for a workplace address that was saved without them */
+const withGeocodedAltLocation = async (
+  altLocation?: AltLocation | null,
+): Promise<AltLocation | null> => {
+  if (!altLocation) return altLocation ?? null;
+  const work = altLocation.work_address;
+  if (!work || (work.lat && work.lon)) return altLocation;
+  try {
+    const result = await geocodePostcodeAddress({
+      street: work.street,
+      city: work.city,
+      postcode: work.zipCode,
+    });
+    if (!result) return altLocation;
+    return {
+      ...altLocation,
+      work_address: { ...work, lat: result.lat, lon: result.lon },
+    };
+  } catch (error) {
+    console.error("Workplace geocoding failed:", error);
+    return altLocation;
+  }
+};
+
 
 // Filter out disallowed Fridays and holiday dates
 const filterInvalidDates = (dates: Date[], holidayDates: string[], allowedFridayDates: string[] = []): Date[] => {
@@ -130,7 +183,7 @@ export const confirmReceiverAvailability = async (orderId: string, dateStrings: 
   }
 };
 
-export const updateSenderAvailability = async (orderId: string, dates: Date[], notes: string, postcode?: string | null): Promise<Order | null> => {
+export const updateSenderAvailability = async (orderId: string, dates: Date[], notes: string, postcode?: string | null, altLocation?: AltLocation | null): Promise<Order | null> => {
   try {
     if (!orderId || !dates || dates.length === 0) {
       console.error("Invalid parameters for updateSenderAvailability");
@@ -150,14 +203,23 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
     }
     
     const dateStrings = validDates.map(toDateString);
-    
+
+    const [coords, resolvedAlt] = await Promise.all([
+      resolvePostcodeCoords(orderId, "sender", postcode),
+      withGeocodedAltLocation(altLocation),
+    ]);
+
     const { data: rpcData, error } = await supabase.rpc("set_order_availability" as any, {
       p_order_id: orderId,
       p_side: "sender",
       p_dates: dateStrings,
       p_notes: notes.trim(),
       p_postcode: postcode ?? null,
+      p_alt_location: resolvedAlt ?? null,
+      p_lat: coords.lat,
+      p_lon: coords.lon,
     });
+
 
     if (error) {
       console.error("Error updating sender availability:", error);
@@ -193,7 +255,7 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
   }
 };
 
-export const updateReceiverAvailability = async (orderId: string, dates: Date[], notes: string, postcode?: string | null): Promise<Order | null> => {
+export const updateReceiverAvailability = async (orderId: string, dates: Date[], notes: string, postcode?: string | null, altLocation?: AltLocation | null): Promise<Order | null> => {
   try {
     if (!orderId || !dates || dates.length === 0) {
       console.error("Invalid parameters for updateReceiverAvailability");
@@ -210,14 +272,23 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
     }
     
     const dateStrings = validDates.map(toDateString);
-    
+
+    const [coords, resolvedAlt] = await Promise.all([
+      resolvePostcodeCoords(orderId, "receiver", postcode),
+      withGeocodedAltLocation(altLocation),
+    ]);
+
     const { data: rpcData, error } = await supabase.rpc("set_order_availability" as any, {
       p_order_id: orderId,
       p_side: "receiver",
       p_dates: dateStrings,
       p_notes: notes.trim(),
       p_postcode: postcode ?? null,
+      p_alt_location: resolvedAlt ?? null,
+      p_lat: coords.lat,
+      p_lon: coords.lon,
     });
+
 
     if (error) {
       console.error("Error updating receiver availability:", error);
