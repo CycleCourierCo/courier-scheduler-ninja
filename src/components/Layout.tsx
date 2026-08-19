@@ -138,10 +138,12 @@ const Layout: React.FC<LayoutProps> = ({
                   {user && <>
                       <DropdownMenuSeparator className="my-2" />
                       {!isDriver && <>
-                        <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                          <Fuel className="mr-2 h-4 w-4" />
-                          Fuel Finder
-                        </Link>
+                        {isInternalStaff && (
+                          <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Fuel className="mr-2 h-4 w-4" />
+                            Fuel Finder
+                          </Link>
+                        )}
                         <Link to="/dashboard" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Home className="mr-2 h-4 w-4" />
                           Dashboard
@@ -155,10 +157,12 @@ const Layout: React.FC<LayoutProps> = ({
                         <User className="mr-2 h-4 w-4" />
                         Your Profile
                       </Link>
-                      <Link to="/tasks" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                        <CheckSquare className="mr-2 h-4 w-4" />
-                        Tasks
-                      </Link>
+                      {isInternalStaff && (
+                        <Link to="/tasks" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <CheckSquare className="mr-2 h-4 w-4" />
+                          Tasks
+                        </Link>
+                      )}
                       {isInternalStaff && (
                         <Link to="/knowledge" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <BookOpen className="mr-2 h-4 w-4" />
@@ -368,7 +372,7 @@ const Layout: React.FC<LayoutProps> = ({
                     </Link>
                   </DropdownMenuItem>}
                   
-                  {!isDriver && <DropdownMenuItem asChild>
+                  {!isDriver && isInternalStaff && <DropdownMenuItem asChild>
                     <Link to="/fuel-finder" className="cursor-pointer flex w-full items-center">
                       <Fuel className="mr-2 h-4 w-4" />
                       <span>Fuel Finder</span>
@@ -398,12 +402,14 @@ const Layout: React.FC<LayoutProps> = ({
                     </DropdownMenuItem>
                   )}
 
-                  <DropdownMenuItem asChild>
-                    <Link to="/tasks" className="cursor-pointer flex w-full items-center">
-                      <CheckSquare className="mr-2 h-4 w-4" />
-                      <span>Tasks</span>
-                    </Link>
-                  </DropdownMenuItem>
+                  {isInternalStaff && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/tasks" className="cursor-pointer flex w-full items-center">
+                        <CheckSquare className="mr-2 h-4 w-4" />
+                        <span>Tasks</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
 
                   {isInternalStaff && (
                     <DropdownMenuItem asChild>
