@@ -856,10 +856,30 @@ const JobItem: React.FC<JobItemProps> = ({
         
         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
           {job.estimatedTime && (
-            <Badge variant="outline" className="flex items-center gap-1 text-xs px-1.5 py-0">
-              <Clock className="h-3 w-3" />
-              {job.estimatedTime}
-            </Badge>
+            onUpdateTime ? (
+              <div
+                className="flex items-center gap-1 border rounded-md px-1.5 py-0.5 bg-background"
+                title="Change this stop's time — later stops are re-timed"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Clock className="h-3 w-3 text-muted-foreground" />
+                <Input
+                  type="time"
+                  value={job.estimatedTime}
+                  disabled={!!isRetiming}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (/^\d{2}:\d{2}$/.test(v)) onUpdateTime(index, v);
+                  }}
+                  className="h-6 w-[76px] border-0 p-0 text-xs shadow-none focus-visible:ring-0"
+                />
+              </div>
+            ) : (
+              <Badge variant="outline" className="flex items-center gap-1 text-xs px-1.5 py-0">
+                <Clock className="h-3 w-3" />
+                {job.estimatedTime}
+              </Badge>
+            )
           )}
           
           <div className="flex flex-wrap gap-1 justify-end">
