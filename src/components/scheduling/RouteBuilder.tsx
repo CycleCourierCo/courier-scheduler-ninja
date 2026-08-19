@@ -3565,7 +3565,8 @@ Route Link: ${routeLink}`;
   const shipdayOffCount = selectedJobs.filter(j => j.type !== 'break' && j.orderData && getShipdayStatus(j.orderData, j.type as 'pickup' | 'delivery') !== 'verified').length;
 
   return (
-    <div className="space-y-6">
+    <TooltipProvider>
+      <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
