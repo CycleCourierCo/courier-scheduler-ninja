@@ -76,7 +76,7 @@ const BoxMyBikeConversion: React.FC<BoxMyBikeConversionProps> = ({ order, onRefr
         variant="outline"
         size="sm"
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 mt-3"
+        className="flex items-center gap-2"
       >
         <Box className="h-4 w-4" />
         {isBoxMyBike ? "Remove from Box My Bike" : "Convert to Box My Bike"}
