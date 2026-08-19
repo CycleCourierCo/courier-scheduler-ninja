@@ -190,6 +190,12 @@ const BoxMyBikePage: React.FC = () => {
       const { error } = await supabase.from("orders").update(patch).eq("id", id);
       if (error) throw error;
       await fireBoxWebhooks(id, stageWebhookEvent(newStage));
+      // Keep the end buyer in the loop at the two milestones that matter to them.
+      if (newStage === "in_depot_awaiting_boxing") {
+        await sendBoxMyBikeBoxingEmailToBuyer(id);
+      } else if (newStage === "collected_by_3p") {
+        await sendBoxMyBikeCollectedEmailToBuyer(id);
+      }
       return { releasedBay };
     },
     onSuccess: (result) => {
