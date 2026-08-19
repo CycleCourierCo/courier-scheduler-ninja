@@ -94,8 +94,10 @@ const FixFlagDialog: React.FC<FixFlagDialogProps> = ({
       for (const row of rows) {
         const draft = drafts[row.id];
         if (!draft) continue;
+        const chosen = vehicles.find((v) => v.id === draft.vehicleId);
         await updateFuelTransaction(row.id, {
           vehicle_id: draft.vehicleId === UNASSIGNED ? null : draft.vehicleId,
+          normalised_reg: chosen ? chosen.normalisedReg : row.normalised_reg,
           quantity_litres: Number(draft.litres) || 0,
           net_amount: Number(draft.net) || 0,
           gross_amount: Number(draft.gross) || 0,

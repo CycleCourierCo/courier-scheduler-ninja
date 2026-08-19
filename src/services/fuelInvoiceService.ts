@@ -190,6 +190,7 @@ async function applyAliasToTransactions(
 
 export interface FuelTransactionCorrection {
   vehicle_id?: string | null;
+  normalised_reg?: string | null;
   quantity_litres?: number;
   net_amount?: number;
   gross_amount?: number;
