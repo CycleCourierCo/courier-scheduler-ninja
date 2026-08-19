@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { extractPdfText } from "@/lib/pdfText";
-import { parseWexInvoiceText } from "@/lib/wexInvoiceParser";
+import { normaliseReg, parseWexInvoiceText } from "@/lib/wexInvoiceParser";
 import FixFlagDialog from "@/components/fuel/FixFlagDialog";
 import {
   analyseFuel,
