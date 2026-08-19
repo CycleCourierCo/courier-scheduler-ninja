@@ -161,7 +161,7 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
             </div>
 
             <div
-              className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-2"
+              className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-2 sm:mt-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {isStaff && (
