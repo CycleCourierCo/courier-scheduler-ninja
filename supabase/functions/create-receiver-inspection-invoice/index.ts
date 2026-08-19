@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { prepareInvoiceDelivery, buildInvoiceCtaHtml, buildInvoiceCtaText } from "../_shared/quickbooksInvoiceDelivery.ts";
 
 function escapeQuickBooksString(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
@@ -115,7 +116,13 @@ function splitName(fullName?: string | null) {
   return { given: parts.slice(0, -1).join(' '), family: parts[parts.length - 1] };
 }
 
-function buildReceiverInvoiceEmail(order: any, issue: any, invoiceUrl: string, totalAmount: number): { html: string; text: string; subject: string } {
+function buildReceiverInvoiceEmail(
+  order: any,
+  issue: any,
+  publicUrl: string | null,
+  hasPdf: boolean,
+  totalAmount: number
+): { html: string; text: string; subject: string } {
   const receiverName = (order.receiver as any)?.name || 'there';
   const trackingNumber = order.tracking_number || order.id;
   const bikeDesc = `${order.bike_brand || ''} ${order.bike_model || ''}`.trim() || 'your bike';
@@ -131,11 +138,8 @@ function buildReceiverInvoiceEmail(order: any, issue: any, invoiceUrl: string, t
         <p><strong>Amount:</strong> £${totalAmount.toFixed(2)} (including VAT)</p>
       </div>
       <p>This repair is to be paid by you directly to Cycle Courier Co., not by the person who booked the transport.</p>
-      <p>Please find your invoice below. We will be in touch shortly to arrange payment.</p>
       <div style="text-align: center; margin: 25px 0;">
-        <a href="${invoiceUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
-          View Invoice
-        </a>
+        ${buildInvoiceCtaHtml(publicUrl, hasPdf)}
       </div>
       <p>Thank you,<br>CCC - Cycle Courier Co.</p>
     </div>
@@ -150,12 +154,13 @@ Amount: £${totalAmount.toFixed(2)} (including VAT)
 
 This repair is to be paid by you directly to Cycle Courier Co., not by the person who booked the transport.
 
-Please view your invoice here: ${invoiceUrl}
+${buildInvoiceCtaText(publicUrl, hasPdf)}
 
 We will be in touch shortly to arrange payment.
 
 Thank you,
 CCC - Cycle Courier Co.`;
+
 
   return { html, text, subject };
 }
@@ -334,12 +339,22 @@ const handler = async (req: Request): Promise<Response> => {
     const totalAmount = Number(issue.estimated_cost || 0);
     const now = new Date().toISOString();
 
+    // Public share link + PDF so the receiver never hits a QuickBooks login wall.
+    const delivery = await prepareInvoiceDelivery(
+      tokenData.access_token,
+      tokenData.company_id,
+      invoiceId,
+      receiver.email,
+      { fetchPdf: true }
+    );
+
     const { error: updateError } = await supabase
       .from('inspection_issues')
       .update({
         invoice_number: invoiceNumber,
         invoice_id: invoiceId,
         invoice_url: invoiceUrl,
+        invoice_public_url: delivery.publicUrl,
         invoiced_at: now,
         invoiced_by_id: user.id,
         invoiced_by_name: user.user_metadata?.name || user.email || 'Staff',
@@ -355,7 +370,7 @@ const handler = async (req: Request): Promise<Response> => {
     if (resendApiKey) {
       try {
         const resend = new Resend(resendApiKey);
-        const email = buildReceiverInvoiceEmail(order, issue, invoiceUrl, totalAmount);
+        const email = buildReceiverInvoiceEmail(order, issue, delivery.publicUrl, !!delivery.pdfBase64, totalAmount);
         await resend.emails.send({
           from: 'CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>',
           to: [receiver.email],
@@ -363,6 +378,9 @@ const handler = async (req: Request): Promise<Response> => {
           subject: email.subject,
           html: email.html,
           text: email.text,
+          ...(delivery.pdfBase64
+            ? { attachments: [{ filename: `Invoice-${invoiceNumber || invoiceId}.pdf`, content: delivery.pdfBase64 }] }
+            : {}),
         });
         console.log('Receiver invoice email sent to:', receiver.email);
       } catch (emailErr) {
@@ -378,9 +396,12 @@ const handler = async (req: Request): Promise<Response> => {
       invoiceNumber,
       invoiceId,
       invoiceUrl,
+      invoicePublicUrl: delivery.publicUrl,
+      quickbooksEmailSent: delivery.quickbooksEmailSent,
       totalAmount,
       customerId: qbCustomerId,
     }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
 
   } catch (error: any) {
     console.error('Error creating receiver inspection invoice:', error);

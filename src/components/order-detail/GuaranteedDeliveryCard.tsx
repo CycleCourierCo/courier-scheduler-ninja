@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { CalendarCheck, ExternalLink, Loader2 } from "lucide-react";
+import { CalendarCheck, CheckCircle2, ExternalLink, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -26,9 +26,11 @@ import {
 interface GuaranteedDeliveryCardProps {
   order: any;
   onUpdate?: () => void;
+  /** Render without the outer card chrome (used inside the Services panel) */
+  bare?: boolean;
 }
 
-const GuaranteedDeliveryCard = ({ order, onUpdate }: GuaranteedDeliveryCardProps) => {
+const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDeliveryCardProps) => {
   const [open, setOpen] = useState(false);
   const [payer, setPayer] = useState<GuaranteedDeliveryPayer>("account");
   const [amount, setAmount] = useState<string>("0");
@@ -117,21 +119,53 @@ const GuaranteedDeliveryCard = ({ order, onUpdate }: GuaranteedDeliveryCardProps
     }
   };
 
+  const openEdit = () => {
+    setPayer((currentPayer as GuaranteedDeliveryPayer) || "account");
+    setAmount(String(currentAmount || 0));
+    setNote(order?.guaranteed_delivery_note || "");
+    setOpen(true);
+  };
+
+  const markedAt = order?.guaranteed_delivery_marked_at
+    ? new Date(order.guaranteed_delivery_marked_at).toLocaleString("en-GB", {
+        timeZone: "Europe/London",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })
+    : null;
+
+  const Shell = ({ children }: { children: React.ReactNode }) =>
+    bare ? (
+      <div>{children}</div>
+    ) : (
+      <Card className={isOn ? "overflow-hidden border-green-500/50" : "overflow-hidden"}>{children}</Card>
+    );
+
   return (
-    <Card className="overflow-hidden">
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <CalendarCheck className="h-4 w-4 shrink-0" />
-          <span className="min-w-0 break-words">Guaranteed Date Delivery</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <Shell>
+      {!bare && (
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            {isOn ? (
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
+            ) : (
+              <CalendarCheck className="h-4 w-4 shrink-0" />
+            )}
+            <span className="min-w-0 break-words">Guaranteed Date Delivery</span>
+          </CardTitle>
+        </CardHeader>
+      )}
+      <CardContent className={bare ? "space-y-3 p-0" : "space-y-3"}>
+
         {isOn ? (
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="default">Guaranteed</Badge>
-              <Badge variant="outline" className="break-all">
-                £{currentAmount.toFixed(2)} · {payerLabel(currentPayer)}
+              <Badge className="bg-green-600 hover:bg-green-600 text-white">
+                <CheckCircle2 className="mr-1 h-3 w-3" />
+                Guaranteed — confirmed
               </Badge>
               {order?.guaranteed_delivery_invoice_number && (
                 <Badge
@@ -146,19 +180,58 @@ const GuaranteedDeliveryCard = ({ order, onUpdate }: GuaranteedDeliveryCardProps
                   <ExternalLink className="ml-1 h-3 w-3" />
                 </Badge>
               )}
+              {(order as any)?.guaranteed_delivery_invoice_public_url && (
+                <Badge
+                  variant="outline"
+                  className="cursor-pointer break-all"
+                  onClick={() =>
+                    window.open((order as any).guaranteed_delivery_invoice_public_url, "_blank")
+                  }
+                >
+                  Customer link
+                  <ExternalLink className="ml-1 h-3 w-3" />
+                </Badge>
+              )}
             </div>
-            {order?.guaranteed_delivery_note && (
-              <p className="text-sm text-muted-foreground break-words">
-                {order.guaranteed_delivery_note}
-              </p>
-            )}
+
+
+            <dl className="space-y-1.5 text-sm">
+              <div className="flex flex-wrap gap-x-2">
+                <dt className="text-muted-foreground">Extra charge:</dt>
+                <dd className="font-medium break-words">
+                  £{currentAmount.toFixed(2)} <span className="text-muted-foreground font-normal">excl. VAT</span>
+                </dd>
+              </div>
+              <div className="flex flex-wrap gap-x-2">
+                <dt className="text-muted-foreground">Paid by:</dt>
+                <dd className="font-medium break-words">{payerLabel(currentPayer)}</dd>
+              </div>
+              {markedAt && (
+                <div className="flex flex-wrap gap-x-2">
+                  <dt className="text-muted-foreground">Marked:</dt>
+                  <dd className="break-words">
+                    {markedAt}
+                    {order?.guaranteed_delivery_marked_by_name
+                      ? ` by ${order.guaranteed_delivery_marked_by_name}`
+                      : ""}
+                  </dd>
+                </div>
+              )}
+              {order?.guaranteed_delivery_note && (
+                <div className="flex flex-wrap gap-x-2">
+                  <dt className="text-muted-foreground">Note:</dt>
+                  <dd className="break-words">{order.guaranteed_delivery_note}</dd>
+                </div>
+              )}
+            </dl>
+
             {currentPayer === "account" && !order?.guaranteed_delivery_invoice_number && (
               <p className="text-xs text-muted-foreground">
                 This surcharge will be added to the booking account's next weekly invoice.
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
+              <Button variant="outline" size="sm" onClick={openEdit}>
                 Edit
               </Button>
               <Button variant="destructive" size="sm" onClick={handleRemove} disabled={removing}>
@@ -253,7 +326,7 @@ const GuaranteedDeliveryCard = ({ order, onUpdate }: GuaranteedDeliveryCardProps
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </Shell>
   );
 };
 

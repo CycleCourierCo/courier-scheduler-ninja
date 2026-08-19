@@ -3,13 +3,18 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
 import { formatDistanceToNowStrict } from "date-fns";
-import { Wrench, CheckCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search, Pencil, Trash2, Plus, Save, Truck } from "lucide-react";
+import { Wrench, CheckCircle, XCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search, Pencil, Trash2, Plus, Save, Truck } from "lucide-react";
 import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
+import { getCollectionPhotos } from "@/utils/collectionPhotos";
+import { ChangeStorageLocationDialog } from "@/components/loading/ChangeStorageLocationDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import StatusBadge from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 import DashboardHeader from "@/components/DashboardHeader";
+import MyTasksPanel from "@/components/tasks/MyTasksPanel";
+import { useTasks } from "@/hooks/useTasks";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -56,6 +61,7 @@ import {
   unmarkPartsOrdered,
   updateInspectionIssue,
   deleteInspectionIssue,
+  setIssueStatusAsAdmin,
   addIssueToExistingInspection,
   adminSetInspectionStatus,
   updateInspectionBikeType,
@@ -114,6 +120,11 @@ const EMPTY_ISSUE: IssueEntry = {
 const BicycleInspections = () => {
   const { user, userProfile } = useAuth();
   const queryClient = useQueryClient();
+  const { data: myActiveTasks = [] } = useTasks({ assignee: "mine", userId: user?.id, status: "active" });
+  const myOverdueTasks = myActiveTasks.filter(
+    (t) => t.due_date && new Date(t.due_date) < new Date(new Date().toDateString())
+  ).length;
+
   const isAdmin = hasRole(userProfile, "admin");
   const isMechanic = hasRole(userProfile, "mechanic");
   const canManageInspections = isAdmin || isMechanic;
@@ -137,13 +148,19 @@ const BicycleInspections = () => {
   const [priceInputs, setPriceInputs] = useState<Record<string, { parts: string; labour: string }>>({});
   // Edit-mode state for issues during awaiting_pricing
   const [editingIssueId, setEditingIssueId] = useState<string | null>(null);
+  // Per-issue admin edit-mode toggle so admins don't see editable controls by default
+  const [adminEditingIssueIds, setAdminEditingIssueIds] = useState<Set<string>>(new Set());
   const [editIssueDraft, setEditIssueDraft] = useState<{ description: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string; repairId: string | null }>({ description: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null });
   // Add-issue inline form state, keyed by inspection id
   const [addIssueForInspectionId, setAddIssueForInspectionId] = useState<string | null>(null);
-  const [newIssueDraft, setNewIssueDraft] = useState<{ description: string; cost: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string; repairId: string | null }>({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null });
+  const [newIssueDraft, setNewIssueDraft] = useState<{ description: string; cost: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string; repairId: string | null; payer: "customer" | "receiver" }>({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null, payer: "customer" });
 
   const [customerResponses, setCustomerResponses] = useState<Record<string, string>>({});
   const [sortBy, setSortBy] = useState<"oldest_collected" | "newest_collected" | "tracking_asc">("oldest_collected");
+  // Storage bay editing + bike photo lightbox (from the inspection card)
+  const [storageDialogOrder, setStorageDialogOrder] = useState<any | null>(null);
+  const [photoDialog, setPhotoDialog] = useState<{ title: string; urls: string[] } | null>(null);
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState<InspectionFilterState>({ ...EMPTY_INSPECTION_FILTERS });
 
@@ -282,7 +299,39 @@ const BicycleInspections = () => {
     },
   });
 
+  // Move bikes between storage bays directly from an inspection card
+  const updateStorageLocationsMutation = useMutation({
+    mutationFn: async ({ orderId, locations }: { orderId: string; locations: { bay: string; position: number }[] }) => {
+      const { data: current, error: fetchError } = await supabase
+        .from("orders")
+        .select("storage_locations")
+        .eq("id", orderId)
+        .single();
+      if (fetchError) throw fetchError;
+
+      const existing = Array.isArray(current?.storage_locations) ? (current!.storage_locations as any[]) : [];
+      const updated = locations.map((loc, index) => ({
+        ...(existing[index] || { id: crypto.randomUUID(), orderId, allocatedAt: new Date().toISOString(), bikeIndex: index }),
+        bay: loc.bay,
+        position: loc.position,
+      }));
+
+      const { error } = await supabase.from("orders").update({ storage_locations: updated }).eq("id", orderId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      setStorageDialogOrder(null);
+      toast.success("Storage location updated");
+    },
+    onError: (error) => {
+      toast.error("Failed to update storage location");
+      console.error(error);
+    },
+  });
+
   // Delete an issue (admin only)
+
   const deleteIssueMutation = useMutation({
     mutationFn: async (issueId: string) => deleteInspectionIssue(issueId),
     onSuccess: () => {
@@ -295,9 +344,25 @@ const BicycleInspections = () => {
     },
   });
 
+  // Admin override of an individual issue's status
+  const overrideIssueStatusMutation = useMutation({
+    mutationFn: async ({ issueId, status }: { issueId: string; status: "pending" | "approved" | "declined" }) =>
+      setIssueStatusAsAdmin(issueId, status, userProfile?.name || user?.email || "Admin"),
+    onSuccess: (_data, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success(
+        vars.status === "pending" ? "Issue reset to pending" : `Issue marked ${vars.status}`
+      );
+    },
+    onError: (error) => {
+      toast.error("Failed to update issue status");
+      console.error(error);
+    },
+  });
+
   // Add a new issue to an existing inspection (pricing stage)
   const addIssueAtPricingMutation = useMutation({
-    mutationFn: async ({ inspectionId, orderId, draft }: { inspectionId: string; orderId: string; draft: typeof newIssueDraft }) => {
+    mutationFn: async ({ inspectionId, orderId, draft, postApproval }: { inspectionId: string; orderId: string; draft: typeof newIssueDraft; postApproval?: boolean }) => {
       if (!user?.id) throw new Error("User not authenticated");
       const parts = draft.partsCost.trim() ? parseFloat(draft.partsCost) : null;
       const labour = draft.labourCost.trim() ? parseFloat(draft.labourCost) : null;
@@ -305,7 +370,8 @@ const BicycleInspections = () => {
       const estimated = parts != null || labour != null
         ? (parts ?? 0) + (labour ?? 0)
         : fallback;
-      return addIssueToExistingInspection(
+      const billsReceiver = !!postApproval && draft.payer === "receiver";
+      const issue = await addIssueToExistingInspection(
         inspectionId,
         orderId,
         draft.description.trim(),
@@ -321,20 +387,45 @@ const BicycleInspections = () => {
           repair_id: draft.repairId,
           parts_cost: parts,
           labour_cost: labour,
+          ...(postApproval ? { status: "approved" as const } : {}),
+          billing_party: billsReceiver ? ("receiver" as const) : ("customer" as const),
         }
       );
+
+      if (billsReceiver && issue?.id) {
+        try {
+          const invoice = await createReceiverInspectionInvoice(issue.id);
+          return { issue, invoice, invoiceError: null as string | null };
+        } catch (invoiceError: any) {
+          return { issue, invoice: null, invoiceError: invoiceError?.message || "Invoice could not be created" };
+        }
+      }
+      return { issue, invoice: null, invoiceError: null as string | null };
     },
-    onSuccess: () => {
+    onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
       setAddIssueForInspectionId(null);
-      setNewIssueDraft({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null });
-      toast.success("Issue added");
+      setNewIssueDraft({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null, payer: "customer" });
+      if (result?.invoice) {
+        const already = result.invoice.alreadyExists ? " (already existed)" : "";
+        toast.success(`Issue added and receiver invoice #${result.invoice.invoiceNumber} created${already}`, {
+          action: result.invoice.invoiceUrl
+            ? { label: "Open", onClick: () => window.open(result.invoice.invoiceUrl, "_blank") }
+            : undefined,
+        });
+      } else {
+        toast.success("Issue added");
+        if (result?.invoiceError) {
+          toast.warning(`Invoice not created: ${result.invoiceError}`);
+        }
+      }
     },
     onError: (error) => {
       toast.error("Failed to add issue");
       console.error(error);
     },
   });
+
 
   // Update bike category on an inspection
   const updateBikeTypeMutation = useMutation({
@@ -1128,6 +1219,11 @@ const BicycleInspections = () => {
     const isAwaitingPricing = inspection?.status === "awaiting_pricing";
     const isAwaitingParts = inspection?.status === "awaiting_parts";
     const isAwaitingRepair = inspection?.status === "awaiting_repair" || inspection?.status === "in_repair" || inspection?.status === "cleaning";
+    // Post-approval stages: extra work found after the customer approved repairs.
+    const isPostApproval = ["awaiting_parts", "awaiting_repair", "in_repair", "cleaning", "repaired"].includes(
+      inspection?.status ?? ""
+    );
+
     const allPriced = orderIssues.length > 0 && orderIssues.every((i: InspectionIssue) => i.estimated_cost != null);
     const approvedCount = approvedIssues.length;
     const declinedCount = orderIssues.filter((i: InspectionIssue) => i.status === "declined").length;
@@ -1153,11 +1249,31 @@ const BicycleInspections = () => {
     const partsArrivedCount = approvedIssues.filter((i: InspectionIssue) => (i.parts_arrived && i.parts_ordered) || i.status === 'repaired' || i.status === 'resolved').length;
 
 
+    const bikePhotos = getCollectionPhotos(order.tracking_events);
+    const bikeLabel = `${order.bike_brand || ""} ${order.bike_model || ""}`.trim() || "Bike";
+    const storageLocations: any[] = Array.isArray(order.storage_locations) ? order.storage_locations : [];
+
     return (
       <Card key={order.id} className="mb-4 overflow-hidden">
         <CardHeader className="pb-3 p-4 sm:p-6">
           <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 flex-1 gap-3">
+              {bikePhotos.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setPhotoDialog({ title: bikeLabel, urls: bikePhotos })}
+                  className="h-16 w-16 shrink-0 overflow-hidden rounded-md border bg-muted transition-opacity hover:opacity-80"
+                  aria-label={`View collection photos for ${bikeLabel}`}
+                >
+                  <img
+                    src={bikePhotos[0]}
+                    alt={`${bikeLabel} at collection`}
+                    loading="lazy"
+                    className="h-full w-full object-cover"
+                  />
+                </button>
+              )}
+              <div className="min-w-0 flex-1">
               <CardTitle className="flex min-w-0 flex-wrap items-start gap-2 text-base sm:text-lg break-words">
                 <Wrench className="h-5 w-5 shrink-0" />
                 <span className="min-w-0 break-words">{order.bike_brand} {order.bike_model}</span>
@@ -1176,17 +1292,24 @@ const BicycleInspections = () => {
               {/* Order status and storage location badges */}
               <div className="flex min-w-0 flex-wrap gap-2 mt-2">
                 <StatusBadge status={order.status} />
-                {order.storage_locations && Array.isArray(order.storage_locations) && 
-                 order.storage_locations.length > 0 && (
+                {storageLocations.length > 0 && (
                   <>
-                    {order.storage_locations.map((location: any, idx: number) => (
-                      <Badge key={idx} variant="outline" className="flex items-center gap-1">
+                    {storageLocations.map((location: any, idx: number) => (
+                      <Badge
+                        key={idx}
+                        variant="outline"
+                        onClick={canManageInspections ? () => setStorageDialogOrder(order) : undefined}
+                        className={`flex items-center gap-1 ${canManageInspections ? "cursor-pointer hover:bg-accent" : ""}`}
+                        title={canManageInspections ? "Change storage location" : undefined}
+                      >
                         <MapPin className="h-3 w-3" />
                         {location.bay}{location.position}
+                        {canManageInspections && <Pencil className="h-3 w-3 opacity-60" />}
                       </Badge>
                     ))}
                   </>
                 )}
+
                 {(() => {
                   const hasAllocation = Array.isArray(order.storage_locations)
                     ? order.storage_locations.length > 0
@@ -1266,7 +1389,9 @@ const BicycleInspections = () => {
               </div>
 
 
+              </div>
             </div>
+
             <div className="flex w-full min-w-0 flex-col items-start gap-2 sm:w-auto sm:items-end">
               <Badge variant={badgeConfig.variant} className="max-w-full whitespace-normal text-left sm:whitespace-nowrap sm:text-center">
                 {badgeConfig.label}
@@ -1456,8 +1581,42 @@ const BicycleInspections = () => {
                     </Badge>
                   </div>
 
-                  {/* Pricing-stage edit/delete (admin+mechanic edit, admin-only delete) */}
-                  {canManageInspections && isAwaitingPricing && editingIssueId !== issue.id && (
+                  {/* Admin default: read-only with edit toggle */}
+                  {isAdmin && !adminEditingIssueIds.has(issue.id) && (
+                    <div className="mt-3">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setAdminEditingIssueIds(prev => new Set(prev).add(issue.id))}
+                      >
+                        <Pencil className="h-4 w-4 mr-1" /> Edit
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Admin edit mode: status override */}
+                  {isAdmin && adminEditingIssueIds.has(issue.id) && (issue.status === "pending" || issue.status === "approved" || issue.status === "declined") && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Admin override:</span>
+                      {(["approved", "declined", "pending"] as const).map((target) => (
+                        <Button
+                          key={target}
+                          size="sm"
+                          variant={issue.status === target ? "default" : "outline"}
+                          disabled={issue.status === target || overrideIssueStatusMutation.isPending}
+                          onClick={() => overrideIssueStatusMutation.mutate({ issueId: issue.id, status: target })}
+                        >
+                          {target === "approved" && <CheckCircle className="h-4 w-4 mr-1" />}
+                          {target === "declined" && <XCircle className="h-4 w-4 mr-1" />}
+                          {target === "pending" && <RotateCcw className="h-4 w-4 mr-1" />}
+                          {target === "approved" ? "Approve" : target === "declined" ? "Decline" : "Reset to pending"}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Edit/delete — admins only when in admin edit mode, mechanics during pricing */}
+                  {((isAdmin && adminEditingIssueIds.has(issue.id)) || (!isAdmin && canManageInspections && isAwaitingPricing)) && editingIssueId !== issue.id && (
                     <div className="mt-3 space-y-2">
                       {(() => {
                         const current = priceInputs[issue.id] ?? {
@@ -1526,7 +1685,6 @@ const BicycleInspections = () => {
                               partSpec: issue.part_spec || "",
                               partNumber: issue.part_number || "",
                               repairId: (issue as any).repair_id ?? null,
-
                             });
                           }}
                         >
@@ -1558,12 +1716,32 @@ const BicycleInspections = () => {
                             </AlertDialogContent>
                           </AlertDialog>
                         )}
+                        {isAdmin && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => {
+                              setAdminEditingIssueIds(prev => {
+                                const next = new Set(prev);
+                                next.delete(issue.id);
+                                return next;
+                              });
+                              setPriceInputs(prev => {
+                                const next = { ...prev };
+                                delete next[issue.id];
+                                return next;
+                              });
+                            }}
+                          >
+                            Cancel
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )}
 
-                  {/* Edit form (awaiting_pricing) */}
-                  {canManageInspections && isAwaitingPricing && editingIssueId === issue.id && (
+                  {/* Edit form — mechanics during pricing, admins at any stage */}
+                  {(isAdmin || (canManageInspections && isAwaitingPricing)) && editingIssueId === issue.id && (
                     <div className="mt-3 space-y-2 p-3 rounded-md border bg-background min-w-0 overflow-hidden">
                       <div>
                         <Label className="text-xs">Repair (from catalogue)</Label>
@@ -1834,6 +2012,15 @@ const BicycleInspections = () => {
                           Invoice #{(issue as any).invoice_number}
                         </Badge>
                       )}
+                      {(issue as any).invoice_public_url && (
+                        <Badge
+                          variant="outline"
+                          className="cursor-pointer"
+                          onClick={() => window.open((issue as any).invoice_public_url, "_blank")}
+                        >
+                          Customer link
+                        </Badge>
+                      )}
                       {canManageInspections && (
                         <Button
                           size="sm"
@@ -1892,11 +2079,32 @@ const BicycleInspections = () => {
             </div>
           )}
 
-          {/* Add-issue inline form (awaiting_pricing) */}
-          {canManageInspections && isAwaitingPricing && inspection && (
+          {/* Add-issue inline form (awaiting_pricing, or extra work after approval) */}
+          {canManageInspections && (isAwaitingPricing || isPostApproval) && inspection && (
             <div className="pt-1">
               {addIssueForInspectionId === inspection.id ? (
                 <div className="space-y-2 p-3 rounded-md border bg-background min-w-0 overflow-hidden">
+                  {isPostApproval && (
+                    <div>
+                      <Label className="text-xs">Who pays?</Label>
+                      <Select
+                        value={newIssueDraft.payer}
+                        onValueChange={(v) => setNewIssueDraft(prev => ({ ...prev, payer: v as "customer" | "receiver" }))}
+                      >
+                        <SelectTrigger className="text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="customer">Booking customer (account)</SelectItem>
+                          {isAdmin && <SelectItem value="receiver">Receiver (invoice now)</SelectItem>}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground mt-1">
+                        Added as approved work at the current stage. Receiver-billed repairs are invoiced immediately.
+                      </p>
+                    </div>
+                  )}
+
                   <div>
                     <Label className="text-xs">Repair (from catalogue)</Label>
                     <RepairPicker
@@ -1973,13 +2181,18 @@ const BicycleInspections = () => {
                           toast.error("Enter a valid cost");
                           return;
                         }
-                        addIssueAtPricingMutation.mutate({ inspectionId: inspection.id, orderId: order.id, draft: newIssueDraft });
+                        if (isPostApproval && !newIssueDraft.partsCost.trim() && !newIssueDraft.labourCost.trim() && costStr === "") {
+                          toast.error("Enter a parts and/or labour price — there's no pricing round after approval");
+                          return;
+                        }
+                        addIssueAtPricingMutation.mutate({ inspectionId: inspection.id, orderId: order.id, draft: newIssueDraft, postApproval: isPostApproval });
+
                       }}
                       disabled={addIssueAtPricingMutation.isPending}
                     >
                       <Plus className="h-4 w-4 mr-1" /> Add issue
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => { setAddIssueForInspectionId(null); setNewIssueDraft({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null }); }}>
+                    <Button size="sm" variant="ghost" onClick={() => { setAddIssueForInspectionId(null); setNewIssueDraft({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null, payer: "customer" }); }}>
                       Cancel
                     </Button>
                   </div>
@@ -2088,7 +2301,19 @@ const BicycleInspections = () => {
                   View
                 </a>
               )}
+              {(inspection as any).invoice_public_url && (
+                <a
+                  href={(inspection as any).invoice_public_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary hover:underline flex items-center gap-1 shrink-0"
+                >
+                  <ExternalLink className="h-3 w-3" />
+                  Customer link
+                </a>
+              )}
             </div>
+
           )}
 
           {canCreateInvoice && (
@@ -2313,8 +2538,17 @@ const BicycleInspections = () => {
                   )}
                 </TabsTrigger>
               )}
+              <TabsTrigger value="my-tasks" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
+                My Tasks
+                {myActiveTasks.length > 0 && (
+                  <Badge variant={myOverdueTasks > 0 ? "destructive" : "secondary"} className="ml-1">
+                    {myActiveTasks.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="schedule" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Schedule
+
               </TabsTrigger>
             </TabsList>
             </div>
@@ -2400,6 +2634,11 @@ const BicycleInspections = () => {
             <TabsContent value="schedule" className="space-y-4">
               <WorkshopScheduleTab canManage={isAdmin} />
             </TabsContent>
+
+            <TabsContent value="my-tasks" className="space-y-4">
+              <MyTasksPanel title="My tasks" />
+            </TabsContent>
+
           </Tabs>
         )}
 
@@ -2637,6 +2876,47 @@ const BicycleInspections = () => {
                 Mark as not invoiced
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Change storage bay from the inspection card */}
+        <ChangeStorageLocationDialog
+          open={!!storageDialogOrder}
+          onOpenChange={(open) => !open && setStorageDialogOrder(null)}
+          subtitle={
+            storageDialogOrder
+              ? `#${storageDialogOrder.tracking_number} • ${storageDialogOrder.bike_brand ?? ""} ${storageDialogOrder.bike_model ?? ""}`.trim()
+              : undefined
+          }
+          initialLocations={(Array.isArray(storageDialogOrder?.storage_locations)
+            ? storageDialogOrder.storage_locations
+            : []
+          ).map((loc: any) => ({ bay: loc.bay ?? "", position: Number(loc.position) || 0 }))}
+          saving={updateStorageLocationsMutation.isPending}
+          onSave={(locations) =>
+            storageDialogOrder &&
+            updateStorageLocationsMutation.mutate({ orderId: storageDialogOrder.id, locations })
+          }
+        />
+
+        {/* Bike photo lightbox */}
+        <Dialog open={!!photoDialog} onOpenChange={(open) => !open && setPhotoDialog(null)}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="break-words">Collection photos — {photoDialog?.title}</DialogTitle>
+            </DialogHeader>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {photoDialog?.urls.map((url, index) => (
+                <a key={index} href={url} target="_blank" rel="noopener noreferrer" className="block">
+                  <img
+                    src={url}
+                    alt={`${photoDialog.title} collection photo ${index + 1}`}
+                    loading="lazy"
+                    className="w-full rounded-md border object-cover"
+                  />
+                </a>
+              ))}
+            </div>
           </DialogContent>
         </Dialog>
 

@@ -150,6 +150,7 @@ export type Database = {
           inspected_by_name: string | null
           invoice_id: string | null
           invoice_number: string | null
+          invoice_public_url: string | null
           invoice_skip_reason: string | null
           invoice_skipped_at: string | null
           invoice_skipped_by_id: string | null
@@ -183,6 +184,7 @@ export type Database = {
           inspected_by_name?: string | null
           invoice_id?: string | null
           invoice_number?: string | null
+          invoice_public_url?: string | null
           invoice_skip_reason?: string | null
           invoice_skipped_at?: string | null
           invoice_skipped_by_id?: string | null
@@ -216,6 +218,7 @@ export type Database = {
           inspected_by_name?: string | null
           invoice_id?: string | null
           invoice_number?: string | null
+          invoice_public_url?: string | null
           invoice_skip_reason?: string | null
           invoice_skipped_at?: string | null
           invoice_skipped_by_id?: string | null
@@ -1239,6 +1242,7 @@ export type Database = {
           inspection_id: string
           invoice_id: string | null
           invoice_number: string | null
+          invoice_public_url: string | null
           invoice_url: string | null
           invoiced_at: string | null
           invoiced_by_id: string | null
@@ -1288,6 +1292,7 @@ export type Database = {
           inspection_id: string
           invoice_id?: string | null
           invoice_number?: string | null
+          invoice_public_url?: string | null
           invoice_url?: string | null
           invoiced_at?: string | null
           invoiced_by_id?: string | null
@@ -1337,6 +1342,7 @@ export type Database = {
           inspection_id?: string
           invoice_id?: string | null
           invoice_number?: string | null
+          invoice_public_url?: string | null
           invoice_url?: string | null
           invoiced_at?: string | null
           invoiced_by_id?: string | null
@@ -1424,6 +1430,7 @@ export type Database = {
           order_count: number
           quickbooks_invoice_id: string | null
           quickbooks_invoice_number: string | null
+          quickbooks_invoice_public_url: string | null
           quickbooks_invoice_url: string | null
           start_date: string
           status: string
@@ -1442,6 +1449,7 @@ export type Database = {
           order_count: number
           quickbooks_invoice_id?: string | null
           quickbooks_invoice_number?: string | null
+          quickbooks_invoice_public_url?: string | null
           quickbooks_invoice_url?: string | null
           start_date: string
           status?: string
@@ -1460,6 +1468,7 @@ export type Database = {
           order_count?: number
           quickbooks_invoice_id?: string | null
           quickbooks_invoice_number?: string | null
+          quickbooks_invoice_public_url?: string | null
           quickbooks_invoice_url?: string | null
           start_date?: string
           status?: string
@@ -2122,6 +2131,9 @@ export type Database = {
           bike_value: number | null
           bikes: Json | null
           box_boxed_at: string | null
+          box_buyer: Json | null
+          box_buyer_boxing_email_sent_at: string | null
+          box_buyer_collected_email_sent_at: string | null
           box_collected_by_3p_at: string | null
           box_delivered_by_3p_at: string | null
           box_in_depot_at: string | null
@@ -2131,6 +2143,7 @@ export type Database = {
           box_label_url: string | null
           box_my_bike_invoice_id: string | null
           box_my_bike_invoice_number: string | null
+          box_my_bike_invoice_public_url: string | null
           box_my_bike_invoice_url: string | null
           box_my_bike_status: string | null
           box_tracking_url: string | null
@@ -2147,6 +2160,7 @@ export type Database = {
           delivery_timeslot: string | null
           destination_region: string | null
           ferry_confirmation_sent_at: string | null
+          ferry_partner_notified_at: string | null
           foam_delivered_ni_at: string | null
           foam_delivered_to_ferry_at: string | null
           foam_delivery_photos: Json
@@ -2162,6 +2176,7 @@ export type Database = {
           guaranteed_delivery_amount: number
           guaranteed_delivery_invoice_id: string | null
           guaranteed_delivery_invoice_number: string | null
+          guaranteed_delivery_invoice_public_url: string | null
           guaranteed_delivery_invoice_url: string | null
           guaranteed_delivery_invoiced_at: string | null
           guaranteed_delivery_marked_at: string | null
@@ -2184,6 +2199,7 @@ export type Database = {
           payment_collection_phone: string | null
           pickup_date: Json | null
           pickup_timeslot: string | null
+          quickbooks_invoice_public_url: string | null
           receiver: Json
           receiver_confirmed_at: string | null
           receiver_contact_id: string | null
@@ -2213,6 +2229,9 @@ export type Database = {
           bike_value?: number | null
           bikes?: Json | null
           box_boxed_at?: string | null
+          box_buyer?: Json | null
+          box_buyer_boxing_email_sent_at?: string | null
+          box_buyer_collected_email_sent_at?: string | null
           box_collected_by_3p_at?: string | null
           box_delivered_by_3p_at?: string | null
           box_in_depot_at?: string | null
@@ -2222,6 +2241,7 @@ export type Database = {
           box_label_url?: string | null
           box_my_bike_invoice_id?: string | null
           box_my_bike_invoice_number?: string | null
+          box_my_bike_invoice_public_url?: string | null
           box_my_bike_invoice_url?: string | null
           box_my_bike_status?: string | null
           box_tracking_url?: string | null
@@ -2238,6 +2258,7 @@ export type Database = {
           delivery_timeslot?: string | null
           destination_region?: string | null
           ferry_confirmation_sent_at?: string | null
+          ferry_partner_notified_at?: string | null
           foam_delivered_ni_at?: string | null
           foam_delivered_to_ferry_at?: string | null
           foam_delivery_photos?: Json
@@ -2253,6 +2274,7 @@ export type Database = {
           guaranteed_delivery_amount?: number
           guaranteed_delivery_invoice_id?: string | null
           guaranteed_delivery_invoice_number?: string | null
+          guaranteed_delivery_invoice_public_url?: string | null
           guaranteed_delivery_invoice_url?: string | null
           guaranteed_delivery_invoiced_at?: string | null
           guaranteed_delivery_marked_at?: string | null
@@ -2275,6 +2297,7 @@ export type Database = {
           payment_collection_phone?: string | null
           pickup_date?: Json | null
           pickup_timeslot?: string | null
+          quickbooks_invoice_public_url?: string | null
           receiver: Json
           receiver_confirmed_at?: string | null
           receiver_contact_id?: string | null
@@ -2304,6 +2327,9 @@ export type Database = {
           bike_value?: number | null
           bikes?: Json | null
           box_boxed_at?: string | null
+          box_buyer?: Json | null
+          box_buyer_boxing_email_sent_at?: string | null
+          box_buyer_collected_email_sent_at?: string | null
           box_collected_by_3p_at?: string | null
           box_delivered_by_3p_at?: string | null
           box_in_depot_at?: string | null
@@ -2313,6 +2339,7 @@ export type Database = {
           box_label_url?: string | null
           box_my_bike_invoice_id?: string | null
           box_my_bike_invoice_number?: string | null
+          box_my_bike_invoice_public_url?: string | null
           box_my_bike_invoice_url?: string | null
           box_my_bike_status?: string | null
           box_tracking_url?: string | null
@@ -2329,6 +2356,7 @@ export type Database = {
           delivery_timeslot?: string | null
           destination_region?: string | null
           ferry_confirmation_sent_at?: string | null
+          ferry_partner_notified_at?: string | null
           foam_delivered_ni_at?: string | null
           foam_delivered_to_ferry_at?: string | null
           foam_delivery_photos?: Json
@@ -2344,6 +2372,7 @@ export type Database = {
           guaranteed_delivery_amount?: number
           guaranteed_delivery_invoice_id?: string | null
           guaranteed_delivery_invoice_number?: string | null
+          guaranteed_delivery_invoice_public_url?: string | null
           guaranteed_delivery_invoice_url?: string | null
           guaranteed_delivery_invoiced_at?: string | null
           guaranteed_delivery_marked_at?: string | null
@@ -2366,6 +2395,7 @@ export type Database = {
           payment_collection_phone?: string | null
           pickup_date?: Json | null
           pickup_timeslot?: string | null
+          quickbooks_invoice_public_url?: string | null
           receiver?: Json
           receiver_confirmed_at?: string | null
           receiver_contact_id?: string | null

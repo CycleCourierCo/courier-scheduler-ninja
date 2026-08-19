@@ -22,6 +22,7 @@ import {
   updateMechanicTimeslip,
   deleteMechanicTimeslip,
   getSignedPhotoUrl,
+  listUsersByRole,
   MechanicTimeslip,
 } from '@/services/mechanicTimeslipService';
 
@@ -118,16 +119,64 @@ interface EditState {
   clock_out_at: string;
 }
 
+const todayStr = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/London' });
+
+const shiftDays = (dateStr: string, days: number) => {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + days);
+  return dt.toISOString().slice(0, 10);
+};
+
+/** Monday-based start of the week containing dateStr. */
+const weekStart = (dateStr: string) => {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const dow = (dt.getUTCDay() + 6) % 7;
+  return shiftDays(dateStr, -dow);
+};
+
 const MechanicTimeslipsTab: React.FC = () => {
   const qc = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [mechanicFilter, setMechanicFilter] = useState<string>('all');
+  const [dateFrom, setDateFrom] = useState<string>('');
+  const [dateTo, setDateTo] = useState<string>('');
   const [editing, setEditing] = useState<EditState | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const { data: slips, isLoading } = useQuery({
-    queryKey: ['mechanic-timeslips-admin', statusFilter],
-    queryFn: () => listAllMechanicTimeslips({ status: statusFilter }),
+  const { data: mechanics } = useQuery({
+    queryKey: ['role-users', 'mechanic'],
+    queryFn: () => listUsersByRole('mechanic'),
+    staleTime: 5 * 60 * 1000,
   });
+
+  const { data: slips, isLoading } = useQuery({
+    queryKey: ['mechanic-timeslips-admin', statusFilter, mechanicFilter, dateFrom, dateTo],
+    queryFn: () =>
+      listAllMechanicTimeslips({
+        status: statusFilter,
+        driverId: mechanicFilter === 'all' ? undefined : mechanicFilter,
+        dateFrom: dateFrom || undefined,
+        dateTo: dateTo || undefined,
+      }),
+  });
+
+  const applyPreset = (preset: 'this_week' | 'last_week' | 'this_month') => {
+    const today = todayStr();
+    if (preset === 'this_week') {
+      const start = weekStart(today);
+      setDateFrom(start);
+      setDateTo(shiftDays(start, 6));
+    } else if (preset === 'last_week') {
+      const start = shiftDays(weekStart(today), -7);
+      setDateFrom(start);
+      setDateTo(shiftDays(start, 6));
+    } else {
+      setDateFrom(`${today.slice(0, 7)}-01`);
+      setDateTo(today);
+    }
+  };
 
   const updateMut = useMutation({
     mutationFn: ({ id, updates }: { id: string; updates: any }) => updateMechanicTimeslip(id, updates),
@@ -152,7 +201,22 @@ const MechanicTimeslipsTab: React.FC = () => {
   const approve = (id: string) => updateMut.mutate({ id, updates: { status: 'approved' } });
   const reject = (id: string) => updateMut.mutate({ id, updates: { status: 'rejected' } });
 
-  const total = (slips || []).reduce((s, r) => s + Number(r.total_pay || 0), 0);
+  const totals = React.useMemo(() => {
+    const rows = slips || [];
+    const hours = rows.reduce((s, r) => s + Number(r.total_hours || 0), 0);
+    const lunch = rows.reduce((s, r) => s + Number(r.lunch_hours || 0), 0);
+    const pay = rows.reduce((s, r) => s + Number(r.total_pay || 0), 0);
+    const mechanics = new Set(rows.map((r) => r.driver_id)).size;
+    return {
+      hours,
+      lunch,
+      pay,
+      shifts: rows.length,
+      mechanics,
+      avgHours: rows.length ? hours / rows.length : 0,
+      avgRate: hours > 0 ? pay / hours : 0,
+    };
+  }, [slips]);
 
   const saveEdit = () => {
     if (!editing) return;
@@ -181,8 +245,8 @@ const MechanicTimeslipsTab: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-        <div className="w-full sm:w-40">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="w-full min-w-0">
           <Label>Status</Label>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="w-full">
@@ -197,13 +261,74 @@ const MechanicTimeslipsTab: React.FC = () => {
             </SelectContent>
           </Select>
         </div>
-        <Card className="w-full sm:w-auto sm:ml-auto">
-          <CardContent className="p-3 flex items-center justify-between gap-4 sm:block sm:text-right">
-            <div className="text-xs text-muted-foreground">Total pay shown</div>
-            <div className="text-xl font-bold text-green-600 tabular-nums">£{total.toFixed(2)}</div>
-          </CardContent>
-        </Card>
+
+        <div className="w-full min-w-0">
+          <Label>Mechanic</Label>
+          <Select value={mechanicFilter} onValueChange={setMechanicFilter}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="All mechanics" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All mechanics</SelectItem>
+              {(mechanics || []).map((m) => (
+                <SelectItem key={m.id} value={m.id}>
+                  {m.name || m.email || 'Unknown'}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="w-full min-w-0">
+          <Label>From</Label>
+          <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="w-full" />
+        </div>
+
+        <div className="w-full min-w-0">
+          <Label>To</Label>
+          <Input type="date" value={dateTo} min={dateFrom || undefined} onChange={(e) => setDateTo(e.target.value)} className="w-full" />
+        </div>
       </div>
+
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" size="sm" onClick={() => applyPreset('this_week')}>This week</Button>
+        <Button variant="outline" size="sm" onClick={() => applyPreset('last_week')}>Last week</Button>
+        <Button variant="outline" size="sm" onClick={() => applyPreset('this_month')}>This month</Button>
+        {(dateFrom || dateTo) && (
+          <Button variant="ghost" size="sm" onClick={() => { setDateFrom(''); setDateTo(''); }}>
+            <X className="h-4 w-4 mr-1" /> Clear dates
+          </Button>
+        )}
+      </div>
+
+      <Card>
+        <CardContent className="p-3 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-sm">
+          <div>
+            <div className="text-xs text-muted-foreground">Total hours</div>
+            <div className="font-semibold tabular-nums">{totals.hours.toFixed(2)}h</div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">Lunch hours</div>
+            <div className="font-semibold tabular-nums">{totals.lunch.toFixed(2)}h</div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">Total pay</div>
+            <div className="font-bold text-green-600 tabular-nums">£{totals.pay.toFixed(2)}</div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">Shifts</div>
+            <div className="font-semibold tabular-nums">{totals.shifts}</div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">Mechanics</div>
+            <div className="font-semibold tabular-nums">{totals.mechanics}</div>
+          </div>
+          <div>
+            <div className="text-xs text-muted-foreground">Avg hrs/shift · £/hr</div>
+            <div className="font-semibold tabular-nums">{totals.avgHours.toFixed(2)}h · £{totals.avgRate.toFixed(2)}</div>
+          </div>
+        </CardContent>
+      </Card>
 
       {isLoading ? (
         <Card><CardContent className="p-6 text-center text-muted-foreground">Loading…</CardContent></Card>

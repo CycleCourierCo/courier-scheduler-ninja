@@ -78,6 +78,19 @@ const Layout: React.FC<LayoutProps> = ({
       </Link>
     </> : null;
 
+  const loaderNavLinks = isLoader ? <>
+      <Link to="/loading" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+        Loading &amp; Storage
+      </Link>
+    </> : null;
+
+  const myTasksNavLink = (isLoader || isMechanic) ? (
+    <Link to="/tasks" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+      My Tasks
+    </Link>
+  ) : null;
+
+
   const timeslipAdminNavLinks = isTimeslipAdmin && !isAdmin ? <>
       <Link to="/driver-timeslips" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
         Driver Timeslips
@@ -89,14 +102,17 @@ const Layout: React.FC<LayoutProps> = ({
       <header className="sticky top-0 z-50 glass border-b border-border/30">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-2 pl-4">
-            <img src="/cycle-courier-logo.png" alt="The Cycle Courier Co." className="h-20 w-auto hover:scale-105 transition-transform duration-200" />
+            <img src="/cycle-courier-logo.png" alt="The Cycle Courier Co." className="h-14 md:h-14 xl:h-20 w-auto hover:scale-105 transition-transform duration-200" />
           </Link>
           
           <nav className="hidden md:flex space-x-6">
             {navLinks}
             {driverNavLinks}
             {mechanicNavLinks}
+            {loaderNavLinks}
+            {myTasksNavLink}
             {timeslipAdminNavLinks}
+
           </nav>
           
           <div className="flex items-center space-x-2 md:hidden">
@@ -114,7 +130,10 @@ const Layout: React.FC<LayoutProps> = ({
                   {navLinks}
                   {driverNavLinks}
                   {mechanicNavLinks}
+                  {loaderNavLinks}
+                  {myTasksNavLink}
                   {timeslipAdminNavLinks}
+
                   
                   {user && <>
                       <DropdownMenuSeparator className="my-2" />

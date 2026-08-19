@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Layout from '@/components/Layout';
 import DashboardHeader from '@/components/DashboardHeader';
+import MyTasksPanel from '@/components/tasks/MyTasksPanel';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
@@ -149,6 +151,10 @@ const MechanicClock: React.FC = () => {
             <p className="text-muted-foreground">Clock in and out with a photo. Your time and pay are tracked automatically.</p>
           </div>
         </DashboardHeader>
+
+        <MyTasksPanel />
+
+
 
         <Card>
           <CardHeader>

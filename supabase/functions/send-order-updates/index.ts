@@ -364,7 +364,11 @@ async function sendUpdatesForOrder(
       continue;
     }
 
-    const contact = update.side === "sender" ? order.sender : order.receiver;
+    // Box My Bike orders deliver to our own depot, so the receiver-side updates
+    // belong to the stored end buyer rather than the depot contact.
+    const receiverContact =
+      order.is_box_my_bike && order.box_buyer?.email ? order.box_buyer : order.receiver;
+    const contact = update.side === "sender" ? order.sender : receiverContact;
     const to = contact?.email;
     if (!to) {
       skipped++;

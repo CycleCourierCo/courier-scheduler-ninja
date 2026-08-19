@@ -308,7 +308,7 @@ export const updateOrderBikes = async (
 
 export const createOrder = async (data: CreateOrderFormData): Promise<Order> => {
   try {
-    const { sender, receiver, bikeBrand, bikeModel, bikeType, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, partExchangeBikeBrand, partExchangeBikeModel, partExchangeBikeType, partExchangeBikeValue, isEbayOrder, collectionCode, deliveryInstructions, needsInspection, isBoxMyBike } = data;
+    const { sender, receiver, bikeBrand, bikeModel, bikeType, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, partExchangeBikeBrand, partExchangeBikeModel, partExchangeBikeType, partExchangeBikeValue, isEbayOrder, collectionCode, deliveryInstructions, needsInspection, isBoxMyBike, boxBuyer } = data;
 
     const {
       street: senderStreet,
@@ -463,6 +463,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         needs_inspection: needsInspection || false,
         is_box_my_bike: isBoxMyBike || false,
         box_my_bike_status: isBoxMyBike ? 'awaiting_depot' : null,
+        box_buyer: isBoxMyBike && boxBuyer?.email ? boxBuyer : null,
         destination_region: destinationRegion,
         is_northern_ireland: isNorthernIreland,
         ni_direction: niDirection,
@@ -794,11 +795,12 @@ export const clearGuaranteedDelivery = async (orderId: string): Promise<void> =>
     .update({
       guaranteed_delivery: false,
       guaranteed_delivery_payer: null,
-      guaranteed_delivery_amount: null,
+      guaranteed_delivery_amount: 0,
       guaranteed_delivery_note: null,
       guaranteed_delivery_invoice_id: null,
       guaranteed_delivery_invoice_number: null,
       guaranteed_delivery_invoice_url: null,
+      guaranteed_delivery_invoice_public_url: null,
       guaranteed_delivery_invoiced_at: null,
       guaranteed_delivery_marked_at: null,
       guaranteed_delivery_marked_by_id: null,

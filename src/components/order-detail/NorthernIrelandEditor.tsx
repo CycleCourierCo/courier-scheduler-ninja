@@ -1,6 +1,6 @@
 import React from "react";
 import { toast } from "sonner";
-import { Ship, Loader2 } from "lucide-react";
+import { Ship, Loader2, Mail } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,12 +25,39 @@ import { FOAM_STATUS_LABELS, FoamStatus, Order } from "@/types/order";
 interface Props {
   order: Order & Record<string, any>;
   onUpdate: () => void;
+  /** Render without the outer card chrome (used inside the Services panel) */
+  bare?: boolean;
 }
 
 const BLOCKED_STATUSES = ["delivered", "delivered_by_3p", "cancelled"];
 
-const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
+const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false }) => {
   const [working, setWorking] = React.useState(false);
+  const [sendingFerryEmail, setSendingFerryEmail] = React.useState(false);
+  const [ferryNotifiedAt, setFerryNotifiedAt] = React.useState<string | null>(
+    ((order as any).ferryPartnerNotifiedAt ?? (order as any).ferry_partner_notified_at ?? null) as
+      | string
+      | null
+  );
+
+  const resendFerryEmail = async () => {
+    setSendingFerryEmail(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-ferry-partner-notification", {
+        body: { orderId: order.id },
+      });
+      if (error) throw error;
+      setFerryNotifiedAt((data as any)?.notifiedAt || new Date().toISOString());
+      toast.success(`Booking email sent to ${CITY_AIR_EXPRESS.email}`);
+      onUpdate();
+    } catch (e: any) {
+      console.error("Ferry partner email resend failed", e);
+      toast.error(e?.message || "Could not send the ferry partner email");
+    } finally {
+      setSendingFerryEmail(false);
+    }
+  };
+
 
   const isNI = Boolean((order as any).isNorthernIreland ?? (order as any).is_northern_ireland);
   const foamStatus = ((order as any).foamStatus ?? (order as any).foam_status) as FoamStatus | null;
@@ -151,14 +178,19 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
     }
   };
 
+  const Shell = ({ children }: { children: React.ReactNode }) =>
+    bare ? <div>{children}</div> : <Card>{children}</Card>;
+
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Ship className="h-4 w-4" /> Northern Ireland {isInbound ? "collection" : "delivery"}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <Shell>
+      {!bare && (
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Ship className="h-4 w-4" /> Northern Ireland {isInbound ? "collection" : "delivery"}
+          </CardTitle>
+        </CardHeader>
+      )}
+      <CardContent className={bare ? "space-y-3 p-0" : "space-y-3"}>
         {isNI ? (
           <div className="space-y-2 text-sm">
             <div className="flex flex-wrap items-center gap-2">
@@ -175,7 +207,28 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
                 : `Delivery is handed over at the ferry port, ${CITY_AIR_EXPRESS.formatted}.`}{" "}
               A £120 per-bike surcharge applies at invoicing.
             </p>
+            <div className="space-y-1">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={resendFerryEmail}
+                disabled={sendingFerryEmail}
+              >
+                {sendingFerryEmail ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Mail className="h-4 w-4 mr-2" />
+                )}
+                Resend ferry partner email
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                {ferryNotifiedAt
+                  ? `Last sent ${new Date(ferryNotifiedAt).toLocaleString("en-GB")} to ${CITY_AIR_EXPRESS.email}`
+                  : `Not recorded as sent yet — sends the booking details to ${CITY_AIR_EXPRESS.email}`}
+              </p>
+            </div>
           </div>
+
         ) : (
           <p className="text-sm text-muted-foreground">
             This order is not flagged as a Northern Ireland order.
@@ -260,7 +313,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
           </AlertDialog>
         )}
       </CardContent>
-    </Card>
+    </Shell>
   );
 };
 

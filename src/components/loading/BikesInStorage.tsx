@@ -2,8 +2,6 @@ import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { Order } from "@/types/order";
@@ -13,24 +11,13 @@ import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { getCompletedDriverName, getDriverAssignment } from "@/utils/driverAssignmentUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
-import { useStorageBays, getBayMaxPosition } from "@/hooks/useStorageBays";
 
-// Helper to extract collection images from tracking events
-const getCollectionImages = (order: Order | undefined): string[] => {
-  if (!order?.trackingEvents?.shipday?.updates) return [];
-  
-  const pickupId = order.trackingEvents?.shipday?.pickup_id?.toString();
-  
-  // Find collection events with POD images
-  const collectionEvent = order.trackingEvents.shipday.updates.find(
-    (update: any) => 
-      (update.event === 'ORDER_COMPLETED' || update.event === 'ORDER_POD_UPLOAD') &&
-      update.orderId === pickupId &&
-      update.podUrls && update.podUrls.length > 0
-  );
-  
-  return collectionEvent?.podUrls || [];
-};
+import { ChangeStorageLocationDialog } from "@/components/loading/ChangeStorageLocationDialog";
+import { getOrderCollectionPhotos } from "@/utils/collectionPhotos";
+
+// Collection images come from the pickup-leg proof-of-delivery photos
+const getCollectionImages = (order: Order | undefined): string[] => getOrderCollectionPhotos(order);
+
 
 interface BikesInStorageProps {
   bikesInStorage: { allocation: StorageAllocation; order: Order | undefined }[];
@@ -41,97 +28,27 @@ interface BikesInStorageProps {
 }
 
 export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAllBikesFromOrder, onChangeLocation, isAdmin = false }: BikesInStorageProps) => {
-  const { bays } = useStorageBays();
-  const validBayLabels = bays.map((b) => b.label.toUpperCase());
-  const bayHelp = validBayLabels.length ? validBayLabels.join(", ") : "—";
   const [editingAllocation, setEditingAllocation] = useState<StorageAllocation | null>(null);
   const [editingOrderAllocations, setEditingOrderAllocations] = useState<StorageAllocation[]>([]);
-  const [newBays, setNewBays] = useState<string[]>([]);
-  const [newPositions, setNewPositions] = useState<string[]>([]);
   const [imageDialogOrder, setImageDialogOrder] = useState<Order | null>(null);
 
-  const handleChangeLocation = () => {
-    if (!editingOrderAllocations.length) return;
+  const handleChangeLocation = (locations: { bay: string; position: number }[]) => {
+    editingOrderAllocations.forEach((allocation, index) => {
+      const next = locations[index];
+      if (!next) return;
+      onChangeLocation(allocation.id, next.bay, next.position);
+    });
 
-    const isMultiBike = editingOrderAllocations.length > 1;
+    toast.success(
+      editingOrderAllocations.length > 1
+        ? `Updated locations for all ${editingOrderAllocations.length} bikes`
+        : "Location updated successfully"
+    );
 
-    if (isMultiBike) {
-      // Validate all fields are filled for multi-bike
-      for (let i = 0; i < editingOrderAllocations.length; i++) {
-        if (!newBays[i] || !newPositions[i]) {
-          toast.error(`Please enter bay and position for bike ${i + 1}`);
-          return;
-        }
-      }
-
-      // Validate all entries
-      const bayPositionSet = new Set<string>();
-      for (let i = 0; i < editingOrderAllocations.length; i++) {
-        const bayUpper = newBays[i].toUpperCase();
-        const positionNum = parseInt(newPositions[i]);
-
-        // Validate bay
-        if (!validBayLabels.includes(bayUpper)) {
-          toast.error(`Bike ${i + 1}: Bay must be one of ${bayHelp}`);
-          return;
-        }
-
-        // Validate position against this bay's slot count
-        const maxPos = getBayMaxPosition(bays, bayUpper) ?? 0;
-        if (isNaN(positionNum) || positionNum < 1 || positionNum > maxPos) {
-          toast.error(`Bike ${i + 1}: Position must be between 1 and ${maxPos} for Bay ${bayUpper}`);
-          return;
-        }
-
-        const bayPositionKey = `${bayUpper}${positionNum}`;
-
-        // Check for duplicates within this order
-        if (bayPositionSet.has(bayPositionKey)) {
-          toast.error(`Duplicate position: Bay ${bayUpper}${positionNum}`);
-          return;
-        }
-        bayPositionSet.add(bayPositionKey);
-      }
-
-      // Update all bike locations
-      editingOrderAllocations.forEach((allocation, index) => {
-        const bayUpper = newBays[index].toUpperCase();
-        const positionNum = parseInt(newPositions[index]);
-        onChangeLocation(allocation.id, bayUpper, positionNum);
-      });
-
-      toast.success(`Updated locations for all ${editingOrderAllocations.length} bikes`);
-    } else {
-      // Single bike logic
-      if (!newBays[0] || !newPositions[0]) {
-        toast.error("Please enter both bay and position");
-        return;
-      }
-
-      const bayUpper = newBays[0].toUpperCase();
-      const positionNum = parseInt(newPositions[0]);
-
-      if (!validBayLabels.includes(bayUpper)) {
-        toast.error(`Bay must be one of ${bayHelp}`);
-        return;
-      }
-
-      const maxPos = getBayMaxPosition(bays, bayUpper) ?? 0;
-      if (isNaN(positionNum) || positionNum < 1 || positionNum > maxPos) {
-        toast.error(`Position must be between 1 and ${maxPos} for Bay ${bayUpper}`);
-        return;
-      }
-
-      onChangeLocation(editingOrderAllocations[0].id, bayUpper, positionNum);
-      toast.success("Location updated successfully");
-    }
-
-    // Reset dialog
     setEditingAllocation(null);
     setEditingOrderAllocations([]);
-    setNewBays([]);
-    setNewPositions([]);
   };
+
 
   const openEditDialog = (allocation: StorageAllocation) => {
     // Find all allocations for this order
@@ -145,13 +62,8 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
     
     setEditingOrderAllocations(orderAllocations);
     setEditingAllocation(allocation);
-    
-    // Initialize arrays with current values
-    const bays = orderAllocations.map(a => a.bay);
-    const positions = orderAllocations.map(a => a.position.toString());
-    setNewBays(bays);
-    setNewPositions(positions);
   };
+
 
   if (bikesInStorage.length === 0) {
     return (
@@ -368,141 +280,22 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
       })}
       
       {/* Change Location Dialog */}
-      <Dialog open={!!editingAllocation} onOpenChange={(open) => {
-        if (!open) {
-          setEditingAllocation(null);
-          setEditingOrderAllocations([]);
-          setNewBays([]);
-          setNewPositions([]);
+      <ChangeStorageLocationDialog
+        open={!!editingAllocation}
+        onOpenChange={(open) => {
+          if (!open) {
+            setEditingAllocation(null);
+            setEditingOrderAllocations([]);
+          }
+        }}
+        subtitle={
+          editingAllocation
+            ? `Order: ${editingAllocation.customerName} - ${editingAllocation.bikeBrand} ${editingAllocation.bikeModel}`
+            : undefined
         }
-      }}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingOrderAllocations.length > 1 ? 'Manage Storage Locations' : 'Change Storage Location'}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            {editingAllocation && (
-              <div className="space-y-3">
-                <div className="text-sm text-muted-foreground">
-                  Order: <strong>{editingAllocation.customerName}</strong> - {editingAllocation.bikeBrand} {editingAllocation.bikeModel}
-                </div>
-                
-                {editingOrderAllocations.length > 1 ? (
-                  <div className="space-y-4">
-                    <div className="text-sm font-medium">Update all bike locations:</div>
-                    
-                    {editingOrderAllocations.map((allocation, index) => (
-                      <div key={allocation.id} className="border rounded-lg p-3 space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Package className="h-4 w-4" />
-                          <span className="font-medium">Bike {index + 1} of {editingOrderAllocations.length}</span>
-                          <Badge variant="outline" className="font-mono text-xs">
-                            Currently: {allocation.bay}{allocation.position}
-                          </Badge>
-                        </div>
-                        
-                        <div className="flex gap-3 items-end">
-                          <div className="flex-1">
-                            <Label htmlFor={`new-bay-${index}`} className="text-sm">Bay ({bayHelp})</Label>
-                            <Input
-                              id={`new-bay-${index}`}
-                              value={newBays[index] || ''}
-                              onChange={(e) => {
-                                const updatedBays = [...newBays];
-                                updatedBays[index] = e.target.value.toUpperCase();
-                                setNewBays(updatedBays);
-                              }}
-                              placeholder="A"
-                              maxLength={1}
-                              className="text-center uppercase"
-                            />
-                          </div>
-                          <div className="flex-1">
-                            <Label htmlFor={`new-position-${index}`} className="text-sm">Position</Label>
-                            <Input
-                              id={`new-position-${index}`}
-                              value={newPositions[index] || ''}
-                              onChange={(e) => {
-                                const updatedPositions = [...newPositions];
-                                updatedPositions[index] = e.target.value;
-                                setNewPositions(updatedPositions);
-                              }}
-                              placeholder="1"
-                              type="number"
-                              min="1"
-                              
-                              className="text-center"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div className="text-sm font-medium">New location:</div>
-                    <div className="flex gap-3 items-end">
-                      <div className="flex-1">
-                        <Label htmlFor="new-bay" className="text-sm">Bay ({bayHelp})</Label>
-                        <Input
-                          id="new-bay"
-                          value={newBays[0] || ''}
-                          onChange={(e) => setNewBays([e.target.value.toUpperCase()])}
-                          placeholder="A"
-                          maxLength={1}
-                          className="text-center uppercase"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <Label htmlFor="new-position" className="text-sm">Position</Label>
-                        <Input
-                          id="new-position"
-                          value={newPositions[0] || ''}
-                          onChange={(e) => setNewPositions([e.target.value])}
-                          placeholder="1"
-                          type="number"
-                          min="1"
-                          
-                          className="text-center"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-            <div className="flex flex-col sm:flex-row gap-2 pt-4 border-t">
-              <Button variant="outline" onClick={() => setEditingAllocation(null)} className="flex-1 min-h-[44px]">
-                Cancel
-              </Button>
-              <Button 
-                onClick={handleChangeLocation}
-                disabled={
-                  editingOrderAllocations.length > 1 
-                    ? newBays.some(b => !b) || newPositions.some(p => !p)
-                    : !newBays[0] || !newPositions[0]
-                }
-                className="flex-1 min-h-[44px] bg-blue-600 hover:bg-blue-700"
-              >
-                <span className="hidden sm:inline">
-                  {editingOrderAllocations.length > 1 
-                    ? `Update All ${editingOrderAllocations.length} Locations` 
-                    : 'Update Location'
-                  }
-                </span>
-                <span className="sm:hidden">
-                  {editingOrderAllocations.length > 1 
-                    ? `Update All ${editingOrderAllocations.length}` 
-                    : 'Update'
-                  }
-                </span>
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+        initialLocations={editingOrderAllocations.map((a) => ({ bay: a.bay, position: a.position }))}
+        onSave={handleChangeLocation}
+      />
 
       {/* Collection Images Dialog */}
       <Dialog open={!!imageDialogOrder} onOpenChange={(open) => !open && setImageDialogOrder(null)}>

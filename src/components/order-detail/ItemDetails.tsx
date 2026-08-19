@@ -1,5 +1,6 @@
 import React, { useState } from "react";
-import { Package, FileText, Wrench, Receipt, Pencil } from "lucide-react";
+import { Package, FileText, Wrench, Pencil, Box } from "lucide-react";
+
 import { Order } from "@/types/order";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +16,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { BIKE_TYPE_BY_ID } from "@/constants/bikePricing";
 
 const BIKE_TYPE_OPTIONS = Object.values(BIKE_TYPE_BY_ID);
-import { enableInspectionForOrder, createInspectionServiceInvoice } from "@/services/inspectionService";
 import { updateOrderBikes } from "@/services/orderService";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,8 +31,6 @@ interface ItemDetailsProps {
 const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
   const { userProfile } = useAuth();
   const isAdmin = hasRole(userProfile, 'admin');
-  const [isEnablingInspection, setIsEnablingInspection] = useState(false);
-  const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [savingBikes, setSavingBikes] = useState(false);
   const computeBikesFromOrder = React.useCallback(() => {
@@ -75,24 +73,6 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
   const quantity = order.bikeQuantity || 1;
   const groupedBikes = getGroupedBikes(order);
 
-
-  const handleEnableInspection = async () => {
-    if (!order.id) return;
-    
-    try {
-      setIsEnablingInspection(true);
-      await enableInspectionForOrder(order.id);
-      if (onRefresh) {
-        await onRefresh();
-      }
-      toast.success("Inspection enabled for this order");
-    } catch (error) {
-      console.error("Error enabling inspection:", error);
-      toast.error("Failed to enable inspection");
-    } finally {
-      setIsEnablingInspection(false);
-    }
-  };
 
   return (
     <div className="space-y-4">
@@ -137,44 +117,11 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
             Bike will be inspected and serviced
           </div>
         )}
-        {isAdmin && !order.needsInspection && (
-          <Button
-            onClick={handleEnableInspection}
-            disabled={isEnablingInspection}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2 mt-3"
-          >
-            <Wrench className="h-4 w-4" />
-            {isEnablingInspection ? "Enabling..." : "Inspect and Service"}
-          </Button>
-        )}
-        {isAdmin && order.needsInspection && order.id && (
-          <Button
-            onClick={async () => {
-              try {
-                setIsCreatingInvoice(true);
-                const result = await createInspectionServiceInvoice(order.id);
-                toast.success(`Inspection invoice created: ${result.invoiceNumber}`, {
-                  action: result.invoiceUrl
-                    ? { label: "Open", onClick: () => window.open(result.invoiceUrl, "_blank") }
-                    : undefined,
-                });
-              } catch (error: any) {
-                console.error("Error creating inspection invoice:", error);
-                toast.error(error?.message || "Failed to create inspection invoice");
-              } finally {
-                setIsCreatingInvoice(false);
-              }
-            }}
-            disabled={isCreatingInvoice}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-2 mt-3"
-          >
-            <Receipt className="h-4 w-4" />
-            {isCreatingInvoice ? "Creating..." : "Create Inspection Invoice"}
-          </Button>
+        {order.isBoxMyBike && (
+          <div className="flex items-center gap-2 text-courier-600 font-medium mt-2">
+            <Box className="h-4 w-4" />
+            Box My Bike order
+          </div>
         )}
       </div>
       

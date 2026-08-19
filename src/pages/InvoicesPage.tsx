@@ -57,6 +57,7 @@ type InvoiceHistory = {
   total_amount: number;
   quickbooks_invoice_number: string;
   quickbooks_invoice_url: string;
+  quickbooks_invoice_public_url?: string | null;
   status: string;
   created_at: string;
 };
@@ -977,6 +978,18 @@ export default function InvoicesPage() {
                         >
                           <Eye className="h-3 w-3" />
                           View in QuickBooks
+                        </Button>
+                      )}
+
+                      {invoice.quickbooks_invoice_public_url && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(invoice.quickbooks_invoice_public_url!, '_blank')}
+                          className="flex items-center gap-1"
+                        >
+                          <Eye className="h-3 w-3" />
+                          Customer link
                         </Button>
                       )}
                       

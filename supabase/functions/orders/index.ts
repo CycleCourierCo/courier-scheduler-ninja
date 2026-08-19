@@ -2,6 +2,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { corsHeaders } from '../_shared/cors.ts'
 import { initSentry, captureException, startSpan } from '../_shared/sentry.ts'
 import { resolveNiDirection } from '../_shared/northernIreland.ts'
+import { buildFerryPartnerEmail } from '../_shared/ferryPartnerEmail.ts'
+
 
 // Bike type numeric ID mapping
 const BIKE_TYPE_BY_ID: Record<number, string> = {
@@ -106,8 +108,30 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
       const body = await req.json()
 
 
-      // Box My Bike: auto-fill depot as receiver so caller doesn't need to provide it
+      // Box My Bike: auto-fill depot as receiver so caller doesn't need to provide it.
+      // The end buyer (who the boxed bike is going to) is captured separately so we
+      // can keep them updated by email.
       const isBoxMyBike = body.isBoxMyBike || body.is_box_my_bike || false
+      const rawBuyer = body.boxBuyer || body.box_buyer || null
+      let boxBuyer: { name: string; email: string; phone: string } | null = null
+      if (isBoxMyBike && rawBuyer && typeof rawBuyer === 'object') {
+        const name = typeof rawBuyer.name === 'string' ? rawBuyer.name.trim() : ''
+        const email = typeof rawBuyer.email === 'string' ? rawBuyer.email.trim() : ''
+        const phone = typeof rawBuyer.phone === 'string' ? rawBuyer.phone.trim() : ''
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          return new Response(
+            JSON.stringify({ error: 'boxBuyer.email must be a valid email address' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+        if (name.length > 255 || email.length > 255 || phone.length > 50) {
+          return new Response(
+            JSON.stringify({ error: 'boxBuyer fields are too long' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+        if (email) boxBuyer = { name, email, phone }
+      }
       if (isBoxMyBike) {
         body.receiver = {
           name: "Cycle Courier Depot",
@@ -309,6 +333,7 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
         needs_inspection: body.needsInspection || body.needs_inspection || false,
         is_box_my_bike: body.isBoxMyBike || body.is_box_my_bike || false,
         box_my_bike_status: (body.isBoxMyBike || body.is_box_my_bike) ? 'awaiting_depot' : null,
+        box_buyer: boxBuyer,
         is_northern_ireland: isNorthernIreland,
         ni_direction: niDirection,
         foam_status: niDirection === 'outbound' ? 'pending_collection' : null,
@@ -532,10 +557,42 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
               }
             })
           }
+
+          // Northern Ireland: the ferry partner needs the NI-side details to book their leg.
+          if (isNorthernIreland) {
+            const ferryEmail = buildFerryPartnerEmail({
+              sender: body.sender,
+              receiver: body.receiver,
+              tracking_number: order.tracking_number,
+              bike_brand: bikeBrand,
+              bike_model: bikeModel,
+              bike_quantity: body.bikeQuantity || body.bike_quantity || 1,
+              ni_direction: niDirection,
+              is_northern_ireland: true,
+            })
+            const { error: ferryError } = await supabase.functions.invoke('send-email', {
+              body: {
+                to: ferryEmail.to,
+                subject: ferryEmail.subject,
+                html: ferryEmail.html,
+                from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
+                reply_to: 'Info@cyclecourierco.com',
+              }
+            })
+            if (ferryError) {
+              console.error('Ferry partner notification failed:', ferryError.message)
+            } else {
+              await supabase
+                .from('orders')
+                .update({ ferry_partner_notified_at: new Date().toISOString() })
+                .eq('id', order.id)
+            }
+          }
         } catch (emailError) {
           console.error('Background email sending failed:', emailError)
           captureException(emailError)
         }
+
 
         // Shipday
         try {

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { prepareInvoiceDelivery } from "../_shared/quickbooksInvoiceDelivery.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -259,6 +260,15 @@ const handler = async (req: Request): Promise<Response> => {
     const invoiceNumber = qbInvoice?.DocNumber;
     const invoiceUrl = `https://qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
 
+    // Customer-facing delivery: public share link + QuickBooks' own branded invoice email.
+    const delivery = await prepareInvoiceDelivery(
+      tokenData.access_token,
+      tokenData.company_id,
+      invoiceId,
+      billingEmail,
+      { fetchPdf: false }
+    );
+
     // Persist invoice references on the order
     await supabase
       .from('orders')
@@ -266,6 +276,7 @@ const handler = async (req: Request): Promise<Response> => {
         box_my_bike_invoice_id: invoiceId,
         box_my_bike_invoice_number: invoiceNumber,
         box_my_bike_invoice_url: invoiceUrl,
+        box_my_bike_invoice_public_url: delivery.publicUrl,
         updated_at: new Date().toISOString(),
       })
       .eq('id', orderId);
@@ -277,6 +288,8 @@ const handler = async (req: Request): Promise<Response> => {
       invoiceNumber,
       invoiceId,
       invoiceUrl,
+      invoicePublicUrl: delivery.publicUrl,
+      quickbooksEmailSent: delivery.quickbooksEmailSent,
       totalAmount: boxProduct.price,
     }), {
       status: 200,
