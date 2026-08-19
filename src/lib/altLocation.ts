@@ -118,8 +118,19 @@ export const resolveStopAddress = (
     return { source: "home", workAddress: "", neighbourNumber };
   }
 
-  const useWork = windowMatches(alt.work_windows, date, timeHHMM);
+  const slotStart = toMinutes(timeHHMM);
+  const dateWindow = alt.work_dates?.[toDateKey(date)];
+  let useWork = false;
+  if (dateWindow && slotStart !== null) {
+    const start = toMinutes(dateWindow.start);
+    const end = toMinutes(dateWindow.end);
+    useWork = start === null || end === null ? true : slotStart >= start && slotStart <= end;
+  } else if (!alt.work_dates || Object.keys(alt.work_dates).length === 0) {
+    // Legacy records only have weekday windows
+    useWork = windowMatches(alt.work_windows, date, timeHHMM);
+  }
   if (!useWork) return { source: "home", workAddress: "", neighbourNumber };
+
 
   return {
     source: "work",
