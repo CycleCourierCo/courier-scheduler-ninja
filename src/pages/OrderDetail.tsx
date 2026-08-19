@@ -1614,7 +1614,15 @@ const OrderDetail = () => {
                 <ItemDetails order={order} onRefresh={handleRefreshOrder} />
                 <StorageLocation order={order} />
               </div>
-              <TrackingTimeline order={order} />
+              <div className="space-y-3">
+                {isAdmin && (
+                  <div className="flex justify-end">
+                    <AdminTrackingEditor order={order} onUpdate={handleRefreshOrder} />
+                  </div>
+                )}
+                <TrackingTimeline order={order} />
+              </div>
+
             </div>
             
             {/* Editable Notes & Instructions - admin/route_planner only */}
@@ -1680,8 +1688,8 @@ const OrderDetail = () => {
             {isAdmin && (
               <>
                 <Separator className="my-6" />
-                <AdminTrackingEditor order={order} onUpdate={handleRefreshOrder} />
-                <div className="mt-6">
+                <div>
+
                   <NorthernIrelandEditor order={order as any} onUpdate={handleRefreshOrder} />
                 </div>
                 <div className="mt-6">

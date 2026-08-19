@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { Package, FileText, Wrench, Receipt, Pencil } from "lucide-react";
+import { Package, FileText, Wrench, Receipt, Pencil, Box } from "lucide-react";
+import BoxMyBikeConversion from "./BoxMyBikeConversion";
+
 import { Order } from "@/types/order";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -137,6 +139,14 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
             Bike will be inspected and serviced
           </div>
         )}
+        {order.isBoxMyBike && (
+          <div className="flex items-center gap-2 text-courier-600 font-medium mt-2">
+            <Box className="h-4 w-4" />
+            Box My Bike order
+          </div>
+        )}
+        {isAdmin && <BoxMyBikeConversion order={order} onRefresh={onRefresh} />}
+
         {isAdmin && !order.needsInspection && (
           <Button
             onClick={handleEnableInspection}
