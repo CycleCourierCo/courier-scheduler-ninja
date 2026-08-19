@@ -645,6 +645,58 @@ const CreateOrder = () => {
                     <TabsContent value="details" className="space-y-6 mt-0">
                       <OrderDetails control={form.control} />
                       <OrderOptions control={form.control} />
+                      {isBoxMyBike && (
+                        <div className="border rounded-lg p-4 space-y-4">
+                          <div>
+                            <h3 className="text-lg font-medium">Buyer Details</h3>
+                            <p className="text-sm text-muted-foreground">
+                              The bike is delivered to our depot for boxing, so tell us who the boxed bike
+                              is ultimately going to. We'll keep them updated by email.
+                            </p>
+                          </div>
+                          <div className="grid gap-4 sm:grid-cols-3">
+                            <FormField
+                              control={form.control}
+                              name="boxBuyer.name"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Buyer name</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Full name" {...field} value={field.value || ""} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="boxBuyer.email"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Buyer email</FormLabel>
+                                  <FormControl>
+                                    <Input type="email" placeholder="buyer@example.com" {...field} value={field.value || ""} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="boxBuyer.phone"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Buyer phone</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="+447123456789" {...field} value={field.value || ""} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+                      )}
                       <DeliveryInstructions control={form.control} />
 
                       <div className="flex justify-end">
