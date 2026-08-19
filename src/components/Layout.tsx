@@ -402,12 +402,14 @@ const Layout: React.FC<LayoutProps> = ({
                     </DropdownMenuItem>
                   )}
 
-                  <DropdownMenuItem asChild>
-                    <Link to="/tasks" className="cursor-pointer flex w-full items-center">
-                      <CheckSquare className="mr-2 h-4 w-4" />
-                      <span>Tasks</span>
-                    </Link>
-                  </DropdownMenuItem>
+                  {isInternalStaff && (
+                    <DropdownMenuItem asChild>
+                      <Link to="/tasks" className="cursor-pointer flex w-full items-center">
+                        <CheckSquare className="mr-2 h-4 w-4" />
+                        <span>Tasks</span>
+                      </Link>
+                    </DropdownMenuItem>
+                  )}
 
                   {isInternalStaff && (
                     <DropdownMenuItem asChild>
