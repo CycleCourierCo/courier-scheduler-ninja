@@ -5,6 +5,17 @@ import { buildLinesFromItems, type PdfTextItem } from "@/lib/pdfLines";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
+/**
+ * Maps a glyph run's transform into reading space (x = along the line, y = up the page).
+ * WEX invoices are landscape pages with 90-degree rotated text, so the raw
+ * transform axes are swapped compared with an upright page.
+ */
+export const toReadingSpace = (transform: number[]): { x: number; y: number } => {
+  const [a, b, , , e, f] = transform;
+  const rotated = Math.abs(a) < Math.abs(b);
+  return rotated ? { x: f, y: -e } : { x: e, y: f };
+};
+
 /** Extracts layout-preserving text from a PDF file, page by page. */
 export const extractPdfText = async (file: File | ArrayBuffer): Promise<string> => {
   const data = file instanceof ArrayBuffer ? file : await file.arrayBuffer();
@@ -19,8 +30,7 @@ export const extractPdfText = async (file: File | ArrayBuffer): Promise<string> 
       )
       .map((item) => ({
         str: item.str,
-        x: item.transform[4],
-        y: item.transform[5],
+        ...toReadingSpace(item.transform),
         width: item.width,
       }));
     pages.push(buildLinesFromItems(items).join("\n"));
