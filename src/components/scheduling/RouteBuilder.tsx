@@ -3887,7 +3887,8 @@ Route Link: ${routeLink}`;
                           <div className="space-y-1">
                             <Badge className={`text-xs ${foamBadge.color}`}>{foamBadge.text}</Badge>
                             {r?.address && (
-                              <p className="text-[10px] text-muted-foreground">
+                              <p className="text-[10px] text-muted-foreground break-words min-w-0">
+
                                 Final destination: {r.name} — {[r.address.street, r.address.city, r.address.zipCode].filter(Boolean).join(', ')}
                               </p>
                             )}
