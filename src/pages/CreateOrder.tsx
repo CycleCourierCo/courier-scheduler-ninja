@@ -26,20 +26,6 @@ import { Input } from "@/components/ui/input";
 import { DEPOT_LOCATION, DEPOT_RECEIVER } from "@/constants/depot";
 import { hasRole } from "@/lib/roles";
 
-const DEPOT_RECEIVER = {
-  name: "Cycle Courier Depot",
-  email: "info@cyclecourierco.com",
-  phone: "+441217980767",
-  address: {
-    street: "Lawden Road",
-    city: "Birmingham",
-    state: "West Midlands",
-    zipCode: DEPOT_LOCATION.postcode,
-    country: "United Kingdom",
-    lat: DEPOT_LOCATION.lat,
-    lon: DEPOT_LOCATION.lon,
-  },
-};
 
 const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
