@@ -85,26 +85,23 @@ export default function SenderAvailability() {
   const { userProfile } = useAuth();
   const [mode, setMode] = useState<'unset' | 'now' | 'later'>('unset');
 
-  const openingHours = useMemo(
-    () => normaliseOpeningHours(userProfile?.opening_hours),
-    [userProfile?.opening_hours]
-  );
-
-  // The logged-in business account is the sender when the order's sender contact matches their profile
+  // The public order payload resolves this server-side, so the emailed link works
+  // even when the business isn't logged in. Fall back to the signed-in profile.
   const isBusinessSender = useMemo(() => {
-    if (!order || !userProfile) return false;
-    const isBusiness = Boolean(userProfile.is_business);
-    if (!isBusiness) return false;
-
+    if (order?.senderIsBusiness) return true;
+    if (!order || !userProfile?.is_business) return false;
     const senderEmail = (order as any)?.sender?.email?.toLowerCase?.().trim();
     if (!senderEmail) return false;
-
     const candidates = [userProfile.email, userProfile.accounts_email]
       .filter(Boolean)
       .map((value: string) => value.toLowerCase().trim());
-
     return candidates.includes(senderEmail);
   }, [order, userProfile]);
+
+  const openingHours = useMemo(
+    () => normaliseOpeningHours(order?.senderOpeningHours ?? userProfile?.opening_hours),
+    [order?.senderOpeningHours, userProfile?.opening_hours]
+  );
 
   const handleAvailableNow = () => {
     const openDays = getNextOpenDays(openingHours, 7, isDateDisabled);
@@ -198,11 +195,13 @@ export default function SenderAvailability() {
               </button>
             </CardContent>
           </Card>
-          <div className="mt-4 text-center">
-            <Button variant="ghost" onClick={() => navigate('/dashboard')}>
-              I'll do this later
-            </Button>
-          </div>
+          {userProfile && (
+            <div className="mt-4 text-center">
+              <Button variant="ghost" onClick={() => navigate('/dashboard')}>
+                I'll do this later
+              </Button>
+            </div>
+          )}
         </div>
       </Layout>
     );
@@ -210,6 +209,13 @@ export default function SenderAvailability() {
 
   return (
     <Layout>
+      {isBusinessSender && (
+        <div className="max-w-4xl mx-auto px-4 pt-4">
+          <Button variant="ghost" size="sm" onClick={() => setMode('unset')}>
+            ← Back to options
+          </Button>
+        </div>
+      )}
       <AvailabilityForm
         title={mode === 'now' ? "Confirm Collection Days" : "Confirm Your Availability"}
         description={
