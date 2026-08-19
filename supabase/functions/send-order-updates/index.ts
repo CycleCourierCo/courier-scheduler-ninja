@@ -66,7 +66,7 @@ const hasDates = (value: any): boolean => {
  * Work out which single update (if any) each side should receive right now,
  * based on where the job actually is.
  */
-function deriveUpdates(order: any, inspectionPending = false): Update[] {
+function deriveUpdates(order: any, inspectionPending = false, inspectionStatus: string | null = null): Update[] {
   const updates: Update[] = [];
   const item = itemName(order);
   const status: string = order.status || "";
