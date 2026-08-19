@@ -249,6 +249,27 @@ export type Database = {
           },
         ]
       }
+      bike_type_spaces: {
+        Row: {
+          bike_type: string
+          spaces: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          bike_type: string
+          spaces?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          bike_type?: string
+          spaces?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       claim_evidence_files: {
         Row: {
           claim_id: string
@@ -4260,6 +4281,7 @@ export type Database = {
           min_charge_gbp: number
           updated_at: string
           updated_by: string | null
+          van_spaces_capacity: number
         }
         Insert: {
           daily_capacity_minutes?: number
@@ -4270,6 +4292,7 @@ export type Database = {
           min_charge_gbp?: number
           updated_at?: string
           updated_by?: string | null
+          van_spaces_capacity?: number
         }
         Update: {
           daily_capacity_minutes?: number
@@ -4280,6 +4303,7 @@ export type Database = {
           min_charge_gbp?: number
           updated_at?: string
           updated_by?: string | null
+          van_spaces_capacity?: number
         }
         Relationships: []
       }
