@@ -115,28 +115,48 @@ const MultiJobTimeslotDialog: React.FC<MultiJobTimeslotDialogProps> = ({
       <div className="flex flex-wrap items-center gap-1 mt-1">
         {choice.canUseWork && (
           <Badge
-            className={`text-xs ${choice.source === 'work'
+            className={`text-xs flex items-center gap-1 max-w-full whitespace-normal ${choice.source === 'work'
               ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100'
               : 'bg-muted text-muted-foreground'}`}
           >
-            {choice.source === 'work' ? `Work: ${choice.workAddress}` : 'Work address available'}
+            {choice.source === 'work' ? (
+              <>
+                <Briefcase className="h-3 w-3 shrink-0" />
+                Going to: Work address — {choice.workAddress}
+              </>
+            ) : (
+              <>
+                <Home className="h-3 w-3 shrink-0" />
+                Going to: Home address
+              </>
+            )}
+          </Badge>
+        )}
+        {choice.canUseWork && choice.source !== 'work' && (
+          <Badge variant="outline" className="text-xs text-muted-foreground">
+            Work address on file
           </Badge>
         )}
         {choice.neighbourNumber && (
-          <Badge className="text-xs bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-100">
-            Neighbour: {choice.neighbourNumber}
+          <Badge className="text-xs flex items-center gap-1 bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-100">
+            <UserRound className="h-3 w-3 shrink-0" />
+            Leave with neighbour: {choice.neighbourNumber}
           </Badge>
         )}
         {choice.canUseWork && (
-          <button
+          <Button
             type="button"
+            size="sm"
+            variant="outline"
+            className="h-6 px-2 text-[11px] gap-1"
             onClick={() => toggleJobAddress(job)}
-            className="text-xs underline text-muted-foreground hover:text-foreground"
           >
-            Use {choice.source === 'work' ? 'home' : 'work'} address
-          </button>
+            <ArrowLeftRight className="h-3 w-3" />
+            Switch to {choice.source === 'work' ? 'home' : 'work'} address
+          </Button>
         )}
       </div>
+
     );
   };
 
