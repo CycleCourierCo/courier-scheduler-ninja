@@ -590,8 +590,37 @@ const JobItem: React.FC<JobItemProps> = ({
                           </Badge>
                         ) : null;
                       })()}
+
+                      {/* Alternative address (workplace / neighbour) */}
+                      {(job as any).addressSource === 'work' && (
+                        <Badge className="text-xs px-1.5 py-0 bg-blue-100 text-blue-800 flex items-center gap-1">
+                          <Briefcase className="h-3 w-3" />
+                          Work address
+                        </Badge>
+                      )}
+                      {(job as any).altAddressText && (job as any).addressSource !== 'work' && (
+                        <Badge variant="outline" className="text-xs px-1.5 py-0">
+                          Work address available
+                        </Badge>
+                      )}
+                      {(job as any).neighbourNumber && (
+                        <Badge className="text-xs px-1.5 py-0 bg-amber-100 text-amber-800">
+                          Neighbour: {(job as any).neighbourNumber}
+                        </Badge>
+                      )}
+                      {(job as any).altAddressText && onToggleAddress && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-[11px]"
+                          onClick={() => onToggleAddress(job)}
+                        >
+                          Use {(job as any).addressSource === 'work' ? 'home' : 'work'} address
+                        </Button>
+                      )}
                     </>
                   )}
+
                 </div>
                 {job.type !== 'break' && (
                   <>
