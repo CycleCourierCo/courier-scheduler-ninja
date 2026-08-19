@@ -1050,6 +1050,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const spaceMap: BikeSpaceMap = bikeSpacesData?.spaceMap ?? {};
   const vanCapacity = bikeSpacesData?.capacity ?? DEFAULT_VAN_SPACES_CAPACITY;
   const [isSendingTimeslots, setIsSendingTimeslots] = useState(false);
+  const [isRetiming, setIsRetiming] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [jobToEdit, setJobToEdit] = useState<SelectedJob | null>(null);
   const [isSendingTimeslip, setIsSendingTimeslip] = useState(false);
