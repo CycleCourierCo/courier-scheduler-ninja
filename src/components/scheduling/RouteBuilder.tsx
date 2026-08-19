@@ -593,9 +593,11 @@ const JobItem: React.FC<JobItemProps> = ({
                       </Badge>
                       
                       {/* Bike Count Badge */}
-                      <Badge variant="outline" className={`text-xs px-1.5 py-0 whitespace-nowrap ${bikeCount > vanCapacity ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                        🚲 {formatSpaces(bikeCount)}/{formatSpaces(vanCapacity)}
-                      </Badge>
+                      <BikeCountBadge
+                        orderData={job.orderData}
+                        bikeCount={bikeCount}
+                        vanCapacity={vanCapacity}
+                      />
                       
                       {/* Availability Badge */}
                       {(() => {
