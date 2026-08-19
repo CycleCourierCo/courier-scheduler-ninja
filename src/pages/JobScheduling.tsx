@@ -272,6 +272,12 @@ const JobScheduling = () => {
                 onClusterChange={setClusters}
               />
             </div>
+
+            <div className="mb-8">
+              <DriverHoursMileagePanel />
+            </div>
+            
+
             
             <div className="mb-8">
               <RouteBuilder 
