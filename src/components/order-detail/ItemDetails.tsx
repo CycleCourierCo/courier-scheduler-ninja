@@ -137,6 +137,14 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
             Bike will be inspected and serviced
           </div>
         )}
+        {order.isBoxMyBike && (
+          <div className="flex items-center gap-2 text-courier-600 font-medium mt-2">
+            <Box className="h-4 w-4" />
+            Box My Bike order
+          </div>
+        )}
+        {isAdmin && <BoxMyBikeConversion order={order} onRefresh={onRefresh} />}
+
         {isAdmin && !order.needsInspection && (
           <Button
             onClick={handleEnableInspection}
