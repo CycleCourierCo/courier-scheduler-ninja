@@ -592,6 +592,8 @@ export function analyseFuel(
               registration: reg,
               date: row.trx_date,
               amount: round(Number(row.net_amount) + Number(previous.net_amount)),
+              transactionIds: [previous.id, row.id],
+              vehicleId: key,
             });
         }
       }
