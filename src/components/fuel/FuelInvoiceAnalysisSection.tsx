@@ -72,6 +72,7 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
   const [rangeDays, setRangeDays] = useState<string>("90");
   const [uploading, setUploading] = useState(false);
   const [uploadLog, setUploadLog] = useState<string[]>([]);
+  const [fixAnomaly, setFixAnomaly] = useState<FuelAnomaly | null>(null);
 
   const range = useMemo(() => {
     if (rangeDays === "all") return {};
