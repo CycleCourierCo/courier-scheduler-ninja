@@ -333,6 +333,7 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
         needs_inspection: body.needsInspection || body.needs_inspection || false,
         is_box_my_bike: body.isBoxMyBike || body.is_box_my_bike || false,
         box_my_bike_status: (body.isBoxMyBike || body.is_box_my_bike) ? 'awaiting_depot' : null,
+        box_buyer: boxBuyer,
         is_northern_ireland: isNorthernIreland,
         ni_direction: niDirection,
         foam_status: niDirection === 'outbound' ? 'pending_collection' : null,
