@@ -1827,17 +1827,18 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
     const baseCoords = { lat: 52.4690197, lon: -1.8757663 }; // Birmingham coordinates for Lawden Road, B10 0AD
     
-    try {
-      const updatedJobs = [];
+    // Runs the arrival-time chain for a given ordered list of stops
+    const computeChain = async (list: any[]) => {
+      const updatedJobs: any[] = [];
       let currentTime = new Date(`2024-01-01 ${startTime}`);
       const startClock = new Date(currentTime.getTime());
       let lastLocationCoords = baseCoords;
       let processedLocationGroups = new Set<string>();
       let totalMeters = 0;
-      
-      for (let i = 0; i < groupedJobs.length; i++) {
-        const job = groupedJobs[i];
-        
+
+      for (let i = 0; i < list.length; i++) {
+        const job = list[i];
+
         if (job.type === 'break') {
           // For breaks, just add the break duration
           currentTime = new Date(currentTime.getTime() + (job.breakDuration || 15) * 60000);
@@ -1850,30 +1851,30 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         } else {
           // Check if this is a grouped location and if we've already calculated travel time for this group
           const isNewLocation = !job.locationGroupId || !processedLocationGroups.has(job.locationGroupId);
-          
+
           if (isNewLocation) {
             // Calculate travel time only for the first job at this location
             const leg = await calculateTravelTime(lastLocationCoords, { lat: job.lat!, lon: job.lon! });
             currentTime = new Date(currentTime.getTime() + leg.minutes * 60000);
             totalMeters += leg.meters;
-            
+
             // Round to next 5-minute increment for arrival time
             const roundedJobTime = roundTimeToNext5Minutes(currentTime);
-            
+
             // Mark this location group as processed
             if (job.locationGroupId) {
               processedLocationGroups.add(job.locationGroupId);
             }
-            
+
             // Update last location for next calculation
             lastLocationCoords = { lat: job.lat!, lon: job.lon! };
-            
+
             // Set the arrival time for this job
             updatedJobs.push({
               ...job,
               estimatedTime: roundedJobTime.toTimeString().slice(0, 5)
             });
-            
+
             // Add 15 minutes service time for this job
             currentTime = new Date(roundedJobTime.getTime() + 15 * 60000);
           } else {
@@ -1883,7 +1884,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
               ...job,
               estimatedTime: arrivalTime.toTimeString().slice(0, 5)
             });
-            
+
             // Add 15 minutes service time for this additional job
             currentTime = new Date(currentTime.getTime() + 15 * 60000);
           }
@@ -1897,14 +1898,37 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       const endTimeRounded = roundTimeToNext5Minutes(currentTime);
       const durationMinutes = Math.round((endTimeRounded.getTime() - startClock.getTime()) / 60000);
 
-      setRouteStats({
-        endTime: endTimeRounded.toTimeString().slice(0, 5),
-        distanceMiles: totalMeters / 1609.34,
-        durationMinutes,
-      });
+      return {
+        updatedJobs,
+        stats: {
+          endTime: endTimeRounded.toTimeString().slice(0, 5),
+          distanceMiles: totalMeters / 1609.34,
+          durationMinutes,
+        },
+      };
+    };
 
-      setSelectedJobs(updatedJobs);
+    try {
+      // First pass uses whatever address the stop already has
+      let result = await computeChain(groupedJobs);
+
+      // Second pass: some customers can be collected from / delivered to their
+      // workplace during work hours. Now that we have provisional arrival times
+      // we can pick the right address and re-time the route.
+      const withResolved = result.updatedJobs.map((job) => applyAddressChoice(job, job.estimatedTime));
+      const addressChanged = withResolved.some(
+        (job, index) => job.lat !== result.updatedJobs[index].lat || job.lon !== result.updatedJobs[index].lon
+      );
+      if (addressChanged) {
+        result = await computeChain(withResolved);
+      } else {
+        result = { ...result, updatedJobs: withResolved };
+      }
+
+      setRouteStats(result.stats);
+      setSelectedJobs(result.updatedJobs);
       setShowTimeslotDialog(true);
+
     } catch (error) {
       console.error('Error calculating timeslots:', error);
       toast.error('Failed to calculate timeslots. Please try again.');
