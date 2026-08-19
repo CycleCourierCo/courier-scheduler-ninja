@@ -103,7 +103,7 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
       .lte('date', dateTo),
     supabase
       .from('bicycle_inspections')
-      .select('id, inspected_at, inspected_by_id, inspected_by_name, tracking_number')
+      .select('id, inspected_at, inspected_by_id, inspected_by_name, bike_type')
       .not('inspected_at', 'is', null)
       .gte('inspected_at', fromISO)
       .lte('inspected_at', toISO),
@@ -211,7 +211,7 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
         d.jobs.push({
           id: i.id,
           type: 'inspection',
-          label: `Inspection${i.tracking_number ? ` — ${i.tracking_number}` : ''}`,
+          label: `Inspection${i.bike_type ? ` — ${i.bike_type}` : ''}`,
           minutes: inspectionMinutes,
           source: 'inspection',
         });
