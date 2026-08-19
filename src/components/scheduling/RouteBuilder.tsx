@@ -26,7 +26,7 @@ import CSVMatchReviewDialog from './CSVMatchReviewDialog';
 import SaveRouteDialog from './SaveRouteDialog';
 import LoadRouteDialog from './LoadRouteDialog';
 import BulkRouteMessageDialog from './BulkRouteMessageDialog';
-import { MessageSquare, Briefcase } from 'lucide-react';
+import { MessageSquare, Briefcase, Home, UserRound, ArrowLeftRight } from 'lucide-react';
 import { z } from "zod";
 import { format, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -349,12 +349,15 @@ const BikeCountBadge: React.FC<BikeCountBadgeProps> = ({ orderData, bikeCount, v
   const hasBikes = groupedBikes.length > 0 && groupedBikes.some((b) => b.brand || b.model || b.type);
   const isMobile = useIsMobile();
 
+  const [open, setOpen] = useState(false);
+  const [pinned, setPinned] = useState(false);
+
   const badge = (
     <Badge
       variant="outline"
       aria-label="Show bike details"
       className={cn(
-        "text-xs px-1.5 py-0 whitespace-nowrap cursor-help",
+        "text-xs px-1.5 py-0 whitespace-nowrap cursor-pointer",
         bikeCount > vanCapacity ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800",
         className
       )}
@@ -379,33 +382,60 @@ const BikeCountBadge: React.FC<BikeCountBadgeProps> = ({ orderData, bikeCount, v
       ) : (
         <div className="text-xs text-muted-foreground">No bike details available</div>
       )}
+      {!isMobile && (
+        <div className="pt-1 text-[10px] text-muted-foreground">
+          {pinned ? "Click the badge again to unpin" : "Click to keep this open"}
+        </div>
+      )}
     </div>
   );
 
-  if (isMobile) {
-    return (
-      <Popover>
-        <PopoverTrigger asChild>
-          <button type="button" className="inline-flex" onClick={(e) => e.stopPropagation()}>
-            {badge}
-          </button>
-        </PopoverTrigger>
-        <PopoverContent side="top" align="start" className="w-auto max-w-[16rem] p-2 z-[60]">
-          {details}
-        </PopoverContent>
-      </Popover>
-    );
-  }
-
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>{badge}</TooltipTrigger>
-      <TooltipContent side="top" className="max-w-xs">
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setPinned(false);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex"
+          onMouseEnter={isMobile ? undefined : () => setOpen(true)}
+          onMouseLeave={isMobile ? undefined : () => { if (!pinned) setOpen(false); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isMobile) {
+              setOpen((o) => !o);
+              return;
+            }
+            if (pinned) {
+              setPinned(false);
+              setOpen(false);
+            } else {
+              setPinned(true);
+              setOpen(true);
+            }
+          }}
+        >
+          {badge}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="start"
+        className="w-auto max-w-[16rem] p-2 z-[60]"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onMouseEnter={isMobile ? undefined : () => setOpen(true)}
+        onMouseLeave={isMobile ? undefined : () => { if (!pinned) setOpen(false); }}
+      >
         {details}
-      </TooltipContent>
-    </Tooltip>
+      </PopoverContent>
+    </Popover>
   );
 };
+
 
 
 const JobItem: React.FC<JobItemProps> = ({
@@ -701,32 +731,61 @@ const JobItem: React.FC<JobItemProps> = ({
                       })()}
 
                       {/* Alternative address (workplace / neighbour) */}
-                      {(job as any).addressSource === 'work' && (
-                        <Badge className="text-xs px-1.5 py-0 bg-blue-100 text-blue-800 flex items-center gap-1">
-                          <Briefcase className="h-3 w-3" />
-                          Work address
-                        </Badge>
+                      {(job as any).altAddressText && (
+                        (job as any).addressSource === 'work' ? (
+                          <Badge className="text-xs px-1.5 py-0 bg-blue-100 text-blue-800 flex items-center gap-1 max-w-full whitespace-normal">
+                            <Briefcase className="h-3 w-3 shrink-0" />
+                            Going to: Work address
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs px-1.5 py-0 flex items-center gap-1 max-w-full whitespace-normal">
+                            <Home className="h-3 w-3 shrink-0" />
+                            Going to: Home address
+                          </Badge>
+                        )
                       )}
                       {(job as any).altAddressText && (job as any).addressSource !== 'work' && (
-                        <Badge variant="outline" className="text-xs px-1.5 py-0">
-                          Work address available
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 text-muted-foreground">
+                          Work address on file
                         </Badge>
                       )}
                       {(job as any).neighbourNumber && (
-                        <Badge className="text-xs px-1.5 py-0 bg-amber-100 text-amber-800">
-                          Neighbour: {(job as any).neighbourNumber}
+                        <Badge className="text-xs px-1.5 py-0 bg-amber-100 text-amber-800 flex items-center gap-1">
+                          <UserRound className="h-3 w-3 shrink-0" />
+                          Leave with neighbour: {(job as any).neighbourNumber}
                         </Badge>
                       )}
                       {(job as any).altAddressText && onToggleAddress && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 px-2 text-[11px]"
-                          onClick={() => onToggleAddress(job)}
-                        >
-                          Use {(job as any).addressSource === 'work' ? 'home' : 'work'} address
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 px-2 text-[11px] gap-1"
+                              onClick={() => onToggleAddress(job)}
+                            >
+                              <ArrowLeftRight className="h-3 w-3" />
+                              Switch to {(job as any).addressSource === 'work' ? 'home' : 'work'} address
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs text-xs">
+                            {(job as any).addressSource === 'work' ? (
+                              <>
+                                <div className="font-medium">Currently visiting the work address</div>
+                                <div className="text-muted-foreground">{(job as any).altAddressText}</div>
+                                <div className="mt-1">Switch to visit the home address instead.</div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="font-medium">Currently visiting the home address</div>
+                                <div className="text-muted-foreground">Work address: {(job as any).altAddressText}</div>
+                                <div className="mt-1">The arrival time falls outside the customer's work hours for this date, so home was chosen automatically.</div>
+                              </>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
                       )}
+
                     </>
                   )}
 
