@@ -150,7 +150,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
             {isBusiness && <TabsTrigger value="business" className="shrink-0 sm:flex-1">Business</TabsTrigger>}
             <TabsTrigger value="address" className="shrink-0 sm:flex-1">Address</TabsTrigger>
             {isDriver && <TabsTrigger value="driver" className="shrink-0 sm:flex-1">Driver</TabsTrigger>}
-            {isMechanic && <TabsTrigger value="pay" className="shrink-0 sm:flex-1">Pay</TabsTrigger>}
+            {isDriver && <TabsTrigger value="licence" className="shrink-0 sm:flex-1">Licence</TabsTrigger>}
           </TabsList>
 
 
