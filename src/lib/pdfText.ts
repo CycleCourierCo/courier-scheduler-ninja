@@ -52,6 +52,6 @@ export const extractPdfText = async (file: File | ArrayBuffer): Promise<string> 
       }));
     pages.push(buildLinesFromItems(items).join("\n"));
   }
-  await pdf.destroy();
+  pdf.cleanup();
   return pages.join("\n");
 };
