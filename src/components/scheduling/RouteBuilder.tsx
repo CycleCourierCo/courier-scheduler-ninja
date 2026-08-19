@@ -26,7 +26,7 @@ import CSVMatchReviewDialog from './CSVMatchReviewDialog';
 import SaveRouteDialog from './SaveRouteDialog';
 import LoadRouteDialog from './LoadRouteDialog';
 import BulkRouteMessageDialog from './BulkRouteMessageDialog';
-import { MessageSquare, Briefcase } from 'lucide-react';
+import { MessageSquare, Briefcase, Home, UserRound, ArrowLeftRight } from 'lucide-react';
 import { z } from "zod";
 import { format, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
