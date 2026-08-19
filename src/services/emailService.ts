@@ -941,3 +941,121 @@ export const sendOrderCancellationEmails = async (orderId: string): Promise<{
     return { creatorSent: false, senderSent: false, receiverSent: false };
   }
 };
+
+// ---------------------------------------------------------------------------
+// Box My Bike — buyer updates
+// ---------------------------------------------------------------------------
+
+const boxBuyerEmailShell = (heading: string, bodyHtml: string) => `
+  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <h2>${heading}</h2>
+    ${bodyHtml}
+    <p>Thank you for using our service.</p>
+    <p>The Cycle Courier Co. Team</p>
+  </div>
+`;
+
+/** "Your bike is at our depot and is being boxed" — sent once per order. */
+export const sendBoxMyBikeBoxingEmailToBuyer = async (id: string): Promise<boolean> => {
+  try {
+    const order = await getOrder(id);
+    const buyer = boxBuyerEmail(order);
+    if (!buyer) return false;
+    if (order.boxBuyerBoxingEmailSentAt) return true;
+
+    const trackingNumber = order.trackingNumber || id;
+    const trackingUrl = `${window.location.origin}/tracking/${trackingNumber}`;
+    const bike = `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bicycle";
+
+    const response = await supabase.functions.invoke("send-email", {
+      body: {
+        to: buyer,
+        subject: "Your bicycle is being boxed - The Cycle Courier Co.",
+        html: boxBuyerEmailShell(
+          `Hello ${order.boxBuyer?.name || "there"},`,
+          `
+            <p>Good news — your bicycle has arrived at our depot and is now being boxed ready for onward shipping.</p>
+            <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>Bicycle:</strong> ${bike}</p>
+              <p><strong>Tracking Number:</strong> ${trackingNumber}</p>
+            </div>
+            <p>We'll email you again as soon as the courier collects it, along with their tracking link.</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track This Order</a>
+            </div>
+          `
+        ),
+        from: "Ccc@notification.cyclecourierco.com",
+      },
+    });
+
+    if (response.error) {
+      console.error("Error sending Box My Bike boxing email to buyer:", response.error);
+      return false;
+    }
+
+    await supabase
+      .from("orders")
+      .update({ box_buyer_boxing_email_sent_at: new Date().toISOString() } as any)
+      .eq("id", id);
+    return true;
+  } catch (error) {
+    console.error("Failed to send Box My Bike boxing email to buyer:", error);
+    return false;
+  }
+};
+
+/** "Your bike has been collected by the courier" (+ 3rd-party tracking link). */
+export const sendBoxMyBikeCollectedEmailToBuyer = async (id: string): Promise<boolean> => {
+  try {
+    const order = await getOrder(id);
+    const buyer = boxBuyerEmail(order);
+    if (!buyer) return false;
+    if (order.boxBuyerCollectedEmailSentAt) return true;
+
+    const trackingNumber = order.trackingNumber || id;
+    const bike = `${order.bikeBrand || ""} ${order.bikeModel || ""}`.trim() || "Bicycle";
+    const courierBlock = order.boxTrackingUrl
+      ? `
+        <p>You can follow the courier's progress here:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${order.boxTrackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track With The Courier</a>
+        </div>
+        <p style="word-break: break-all; color: #4a65d5;">${order.boxTrackingUrl}</p>
+      `
+      : `<p>As soon as we have the courier's tracking link we'll pass it on.</p>`;
+
+    const response = await supabase.functions.invoke("send-email", {
+      body: {
+        to: buyer,
+        subject: "Your bicycle has been collected by the courier - The Cycle Courier Co.",
+        html: boxBuyerEmailShell(
+          `Hello ${order.boxBuyer?.name || "there"},`,
+          `
+            <p>Your boxed bicycle has been collected by the third-party courier and is on its way to you.</p>
+            <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
+              <p><strong>Bicycle:</strong> ${bike}</p>
+              <p><strong>Our Reference:</strong> ${trackingNumber}</p>
+            </div>
+            ${courierBlock}
+          `
+        ),
+        from: "Ccc@notification.cyclecourierco.com",
+      },
+    });
+
+    if (response.error) {
+      console.error("Error sending Box My Bike collected email to buyer:", response.error);
+      return false;
+    }
+
+    await supabase
+      .from("orders")
+      .update({ box_buyer_collected_email_sent_at: new Date().toISOString() } as any)
+      .eq("id", id);
+    return true;
+  } catch (error) {
+    console.error("Failed to send Box My Bike collected email to buyer:", error);
+    return false;
+  }
+};
