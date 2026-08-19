@@ -29,7 +29,58 @@ const sourceLabel: Record<StandardMinutesSource, string> = {
   inspection: 'Inspection',
 };
 
+const varianceClass = (v: number) =>
+  v >= 0 ? 'text-green-600 dark:text-green-500' : 'text-destructive';
+const fmtVariance = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}h`;
+
+/** Day-by-day job breakdown for one mechanic — shared by the table and mobile cards. */
+const DayBreakdown: React.FC<{ days: any[] }> = ({ days }) => {
+  if (days.length === 0) {
+    return <p className="text-sm text-muted-foreground">No days with activity.</p>;
+  }
+  return (
+    <div className="space-y-3">
+      {days.map((d) => (
+        <div key={d.date} className="rounded-md border bg-background p-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            <span className="font-semibold">{d.label}</span>
+            <span className="text-muted-foreground">Clocked {d.hours.toFixed(1)}h</span>
+            <span className="text-muted-foreground">Earned {d.standardHours.toFixed(1)}h</span>
+            <span className={`font-medium ${varianceClass(d.varianceHours)}`}>
+              {fmtVariance(d.varianceHours)}
+            </span>
+            <span className="text-muted-foreground">{d.jobs.length} jobs</span>
+          </div>
+          {d.jobs.length > 0 && (
+            <ul className="mt-2 space-y-2">
+              {d.jobs.map((j: any) => (
+                <li key={`${j.type}-${j.id}`} className="border-t pt-2 first:border-t-0 first:pt-0 text-sm">
+                  <div className="flex items-start gap-2">
+                    {j.type === 'inspection' ? (
+                      <ClipboardCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    ) : (
+                      <Wrench className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    )}
+                    <span className="min-w-0 break-words">{j.label}</span>
+                  </div>
+                  <div className="mt-1 flex items-center gap-2 pl-5">
+                    <Badge variant="outline" className="text-[10px]">
+                      {sourceLabel[j.source as StandardMinutesSource]}
+                    </Badge>
+                    <span className="tabular-nums text-muted-foreground">{j.minutes} min</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const MechanicHoursSection: React.FC = () => {
+
   const today = new Date();
   const [from, setFrom] = useState<string>(format(subWeeks(today, 4), 'yyyy-MM-dd'));
   const [to, setTo] = useState<string>(format(today, 'yyyy-MM-dd'));
@@ -49,9 +100,7 @@ const MechanicHoursSection: React.FC = () => {
   });
 
   const totals = data?.totals;
-  const varianceClass = (v: number) =>
-    v >= 0 ? 'text-green-600 dark:text-green-500' : 'text-destructive';
-  const fmtVariance = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}h`;
+
 
   return (
     <Card>
@@ -153,99 +202,114 @@ const MechanicHoursSection: React.FC = () => {
             </div>
 
             {data.perMechanic.length > 0 && (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Mechanic</TableHead>
-                      <TableHead className="text-right">Clocked (h)</TableHead>
-                      <TableHead className="text-right">Standard (h)</TableHead>
-                      <TableHead className="text-right">Variance</TableHead>
-                      <TableHead className="text-right">Efficiency</TableHead>
-                      <TableHead className="text-right">Inspections</TableHead>
-                      <TableHead className="text-right">Repairs</TableHead>
-                      <TableHead className="text-right">Min / job</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.perMechanic.map((m) => (
-                      <React.Fragment key={m.mechanicId}>
-                        <TableRow
-                          className="cursor-pointer"
-                          onClick={() => setExpanded(expanded === m.mechanicId ? null : m.mechanicId)}
-                        >
-                          <TableCell className="font-medium">
-                            <span className="inline-flex items-center gap-1">
-                              {expanded === m.mechanicId ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                              {m.name}
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right">{m.hours.toFixed(1)}</TableCell>
-                          <TableCell className="text-right">{m.standardHours.toFixed(1)}</TableCell>
-                          <TableCell className={`text-right font-semibold ${varianceClass(m.varianceHours)}`}>
-                            {fmtVariance(m.varianceHours)}
-                          </TableCell>
-                          <TableCell className="text-right font-semibold">
-                            {m.hours > 0 ? `${m.efficiencyPct.toFixed(0)}%` : '—'}
-                          </TableCell>
-                          <TableCell className="text-right">{m.inspections}</TableCell>
-                          <TableCell className="text-right">{m.repairs}</TableCell>
-                          <TableCell className="text-right">{m.minutesPerJob > 0 ? m.minutesPerJob.toFixed(0) : '—'}</TableCell>
-                        </TableRow>
-                        {expanded === m.mechanicId && (
-                          <TableRow>
-                            <TableCell colSpan={8} className="bg-muted/40">
-                              {m.days.length === 0 ? (
-                                <p className="text-sm text-muted-foreground">No days with activity.</p>
-                              ) : (
-                                <div className="space-y-3">
-                                  {m.days.map((d) => (
-                                    <div key={d.date} className="rounded-md border bg-background p-3">
-                                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                                        <span className="font-semibold">{d.label}</span>
-                                        <span className="text-muted-foreground">Clocked {d.hours.toFixed(1)}h</span>
-                                        <span className="text-muted-foreground">Earned {d.standardHours.toFixed(1)}h</span>
-                                        <span className={`font-medium ${varianceClass(d.varianceHours)}`}>
-                                          {fmtVariance(d.varianceHours)}
-                                        </span>
-                                        <span className="text-muted-foreground">{d.jobs.length} jobs</span>
-                                      </div>
-                                      {d.jobs.length > 0 && (
-                                        <ul className="mt-2 space-y-1">
-                                          {d.jobs.map((j) => (
-                                            <li key={`${j.type}-${j.id}`} className="flex items-center justify-between gap-2 text-sm">
-                                              <span className="flex min-w-0 items-center gap-2">
-                                                {j.type === 'inspection' ? (
-                                                  <ClipboardCheck className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                                ) : (
-                                                  <Wrench className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                                )}
-                                                <span className="truncate">{j.label}</span>
-                                                <Badge variant="outline" className="shrink-0 text-[10px]">
-                                                  {sourceLabel[j.source]}
-                                                </Badge>
-                                              </span>
-                                              <span className="shrink-0 tabular-nums text-muted-foreground">{j.minutes} min</span>
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
+              <div className="space-y-2">
+                {/* Desktop: full table */}
+                <div className="hidden md:block overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Mechanic</TableHead>
+                        <TableHead className="text-right">Clocked (h)</TableHead>
+                        <TableHead className="text-right">Standard (h)</TableHead>
+                        <TableHead className="text-right">Variance</TableHead>
+                        <TableHead className="text-right">Efficiency</TableHead>
+                        <TableHead className="text-right">Inspections</TableHead>
+                        <TableHead className="text-right">Repairs</TableHead>
+                        <TableHead className="text-right">Min / job</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.perMechanic.map((m) => (
+                        <React.Fragment key={m.mechanicId}>
+                          <TableRow
+                            className="cursor-pointer"
+                            onClick={() => setExpanded(expanded === m.mechanicId ? null : m.mechanicId)}
+                          >
+                            <TableCell className="font-medium">
+                              <span className="inline-flex items-center gap-1">
+                                {expanded === m.mechanicId ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                                {m.name}
+                              </span>
                             </TableCell>
+                            <TableCell className="text-right">{m.hours.toFixed(1)}</TableCell>
+                            <TableCell className="text-right">{m.standardHours.toFixed(1)}</TableCell>
+                            <TableCell className={`text-right font-semibold ${varianceClass(m.varianceHours)}`}>
+                              {fmtVariance(m.varianceHours)}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold">
+                              {m.hours > 0 ? `${m.efficiencyPct.toFixed(0)}%` : '—'}
+                            </TableCell>
+                            <TableCell className="text-right">{m.inspections}</TableCell>
+                            <TableCell className="text-right">{m.repairs}</TableCell>
+                            <TableCell className="text-right">{m.minutesPerJob > 0 ? m.minutesPerJob.toFixed(0) : '—'}</TableCell>
                           </TableRow>
+                          {expanded === m.mechanicId && (
+                            <TableRow>
+                              <TableCell colSpan={8} className="bg-muted/40">
+                                <DayBreakdown days={m.days} />
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+
+                {/* Mobile: stacked cards, no sideways scrolling */}
+                <div className="md:hidden space-y-2">
+                  {data.perMechanic.map((m) => (
+                    <div key={m.mechanicId} className="rounded-lg border">
+                      <button
+                        type="button"
+                        onClick={() => setExpanded(expanded === m.mechanicId ? null : m.mechanicId)}
+                        className="flex w-full items-center gap-2 p-3 text-left"
+                      >
+                        {expanded === m.mechanicId ? (
+                          <ChevronDown className="h-4 w-4 shrink-0" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 shrink-0" />
                         )}
-                      </React.Fragment>
-                    ))}
-                  </TableBody>
-                </Table>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Click a mechanic to see the day-by-day breakdown and the jobs that made up their earned hours.
+                        <span className="min-w-0 flex-1 break-words font-medium">{m.name}</span>
+                        <span className={`shrink-0 text-sm font-semibold ${varianceClass(m.varianceHours)}`}>
+                          {fmtVariance(m.varianceHours)}
+                        </span>
+                      </button>
+
+                      <dl className="grid grid-cols-2 gap-x-3 gap-y-1 border-t px-3 py-2 text-sm">
+                        <dt className="text-muted-foreground">Clocked</dt>
+                        <dd className="text-right tabular-nums">{m.hours.toFixed(1)}h</dd>
+                        <dt className="text-muted-foreground">Earned</dt>
+                        <dd className="text-right tabular-nums">{m.standardHours.toFixed(1)}h</dd>
+                        <dt className="text-muted-foreground">Efficiency</dt>
+                        <dd className="text-right font-semibold tabular-nums">
+                          {m.hours > 0 ? `${m.efficiencyPct.toFixed(0)}%` : '—'}
+                        </dd>
+                        <dt className="text-muted-foreground">Inspections</dt>
+                        <dd className="text-right tabular-nums">{m.inspections}</dd>
+                        <dt className="text-muted-foreground">Repairs</dt>
+                        <dd className="text-right tabular-nums">{m.repairs}</dd>
+                        <dt className="text-muted-foreground">Min / job</dt>
+                        <dd className="text-right tabular-nums">
+                          {m.minutesPerJob > 0 ? m.minutesPerJob.toFixed(0) : '—'}
+                        </dd>
+                      </dl>
+
+                      {expanded === m.mechanicId && (
+                        <div className="border-t bg-muted/40 p-3">
+                          <DayBreakdown days={m.days} />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <p className="text-xs text-muted-foreground">
+                  Tap a mechanic to see the day-by-day breakdown and the jobs that made up their earned hours.
                   Efficiency above 100% means they completed more standard time than they clocked.
                 </p>
               </div>
+
             )}
           </>
         )}
