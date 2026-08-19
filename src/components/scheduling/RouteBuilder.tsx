@@ -335,42 +335,66 @@ const BikeCountBadge: React.FC<BikeCountBadgeProps> = ({ orderData, bikeCount, v
   } as any);
 
   const hasBikes = groupedBikes.length > 0 && groupedBikes.some((b) => b.brand || b.model || b.type);
+  const isMobile = useIsMobile();
+
+  const badge = (
+    <Badge
+      variant="outline"
+      aria-label="Show bike details"
+      className={cn(
+        "text-xs px-1.5 py-0 whitespace-nowrap cursor-help",
+        bikeCount > vanCapacity ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800",
+        className
+      )}
+    >
+      🚲 {formatSpaces(bikeCount)}/{formatSpaces(vanCapacity)}
+    </Badge>
+  );
+
+  const details = (
+    <div className="space-y-1">
+      <div className="font-medium text-xs">Bike details</div>
+      {hasBikes ? (
+        <ul className="space-y-0.5 text-xs">
+          {groupedBikes.map((bike, index) => (
+            <li key={index}>
+              {bike.quantity > 1 && <span className="font-medium">{bike.quantity}× </span>}
+              {[bike.brand, bike.model].filter(Boolean).join(" ")}
+              {bike.type && <span className="text-muted-foreground"> — {bike.type}</span>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="text-xs text-muted-foreground">No bike details available</div>
+      )}
+    </div>
+  );
+
+  if (isMobile) {
+    return (
+      <Popover>
+        <PopoverTrigger asChild>
+          <button type="button" className="inline-flex" onClick={(e) => e.stopPropagation()}>
+            {badge}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent side="top" align="start" className="w-auto max-w-[16rem] p-2 z-[60]">
+          {details}
+        </PopoverContent>
+      </Popover>
+    );
+  }
 
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <Badge
-          variant="outline"
-          className={cn(
-            "text-xs px-1.5 py-0 whitespace-nowrap cursor-help",
-            bikeCount > vanCapacity ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800",
-            className
-          )}
-        >
-          🚲 {formatSpaces(bikeCount)}/{formatSpaces(vanCapacity)}
-        </Badge>
-      </TooltipTrigger>
+      <TooltipTrigger asChild>{badge}</TooltipTrigger>
       <TooltipContent side="top" className="max-w-xs">
-        <div className="space-y-1">
-          <p className="font-medium text-xs">Bike details</p>
-          {hasBikes ? (
-            <ul className="space-y-0.5 text-xs">
-              {groupedBikes.map((bike, index) => (
-                <li key={index}>
-                  {bike.quantity > 1 && <span className="font-medium">{bike.quantity}× </span>}
-                  {[bike.brand, bike.model].filter(Boolean).join(" ")}
-                  {bike.type && <span className="text-muted-foreground"> — {bike.type}</span>}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-xs text-muted-foreground">No bike details available</p>
-          )}
-        </div>
+        {details}
       </TooltipContent>
     </Tooltip>
   );
 };
+
 
 const JobItem: React.FC<JobItemProps> = ({
   job, 
