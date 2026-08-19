@@ -272,15 +272,23 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
     }
     
     const dateStrings = validDates.map(toDateString);
-    
+
+    const [coords, resolvedAlt] = await Promise.all([
+      resolvePostcodeCoords(orderId, "receiver", postcode),
+      withGeocodedAltLocation(altLocation),
+    ]);
+
     const { data: rpcData, error } = await supabase.rpc("set_order_availability" as any, {
       p_order_id: orderId,
       p_side: "receiver",
       p_dates: dateStrings,
       p_notes: notes.trim(),
       p_postcode: postcode ?? null,
-      p_alt_location: altLocation ?? null,
+      p_alt_location: resolvedAlt ?? null,
+      p_lat: coords.lat,
+      p_lon: coords.lon,
     });
+
 
     if (error) {
       console.error("Error updating receiver availability:", error);
