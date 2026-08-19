@@ -22,7 +22,8 @@ import DeliveryInstructions from "@/components/create-order/DeliveryInstructions
 import { ContactSelector } from "@/components/create-order/ContactSelector";
 import { useContacts } from "@/hooks/useContacts";
 import { Contact } from "@/services/contactService";
-import { DEPOT_LOCATION } from "@/constants/depot";
+import { Input } from "@/components/ui/input";
+import { DEPOT_LOCATION, DEPOT_RECEIVER } from "@/constants/depot";
 import { hasRole } from "@/lib/roles";
 
 const DEPOT_RECEIVER = {
