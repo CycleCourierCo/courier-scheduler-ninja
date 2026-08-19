@@ -1577,7 +1577,20 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   };
 
   const handleCsvConfirm = (selected: { orderId: string; jobType: 'pickup' | 'delivery'; sequence: number }[]) => {
-    const matchedJobs = selected
+    // Safety net: never load the same order/leg twice, keep the earliest sequence
+    const dedupedSelection = Array.from(
+      selected
+        .slice()
+        .sort((a, b) => a.sequence - b.sequence)
+        .reduce((acc, sel) => {
+          const key = `${sel.orderId}|${sel.jobType}`;
+          if (!acc.has(key)) acc.set(key, sel);
+          return acc;
+        }, new Map<string, { orderId: string; jobType: 'pickup' | 'delivery'; sequence: number }>())
+        .values()
+    );
+
+    const matchedJobs = dedupedSelection
       .map((sel, index) => {
         const order = orderList.find(o => o.id === sel.orderId);
         if (!order) return null;
