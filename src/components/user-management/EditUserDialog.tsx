@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { UserProfile, UserRole, DEFAULT_OPENING_HOURS } from "@/types/user";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OpeningHoursEditor from "./OpeningHoursEditor";
+import DriverLicenceTab from "./DriverLicenceTab";
 import { listVehicles, type Vehicle } from "@/services/vehicleService";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
