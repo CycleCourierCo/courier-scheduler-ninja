@@ -701,32 +701,61 @@ const JobItem: React.FC<JobItemProps> = ({
                       })()}
 
                       {/* Alternative address (workplace / neighbour) */}
-                      {(job as any).addressSource === 'work' && (
-                        <Badge className="text-xs px-1.5 py-0 bg-blue-100 text-blue-800 flex items-center gap-1">
-                          <Briefcase className="h-3 w-3" />
-                          Work address
-                        </Badge>
+                      {(job as any).altAddressText && (
+                        (job as any).addressSource === 'work' ? (
+                          <Badge className="text-xs px-1.5 py-0 bg-blue-100 text-blue-800 flex items-center gap-1 max-w-full whitespace-normal">
+                            <Briefcase className="h-3 w-3 shrink-0" />
+                            Going to: Work address
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs px-1.5 py-0 flex items-center gap-1 max-w-full whitespace-normal">
+                            <Home className="h-3 w-3 shrink-0" />
+                            Going to: Home address
+                          </Badge>
+                        )
                       )}
                       {(job as any).altAddressText && (job as any).addressSource !== 'work' && (
-                        <Badge variant="outline" className="text-xs px-1.5 py-0">
-                          Work address available
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 text-muted-foreground">
+                          Work address on file
                         </Badge>
                       )}
                       {(job as any).neighbourNumber && (
-                        <Badge className="text-xs px-1.5 py-0 bg-amber-100 text-amber-800">
-                          Neighbour: {(job as any).neighbourNumber}
+                        <Badge className="text-xs px-1.5 py-0 bg-amber-100 text-amber-800 flex items-center gap-1">
+                          <UserRound className="h-3 w-3 shrink-0" />
+                          Leave with neighbour: {(job as any).neighbourNumber}
                         </Badge>
                       )}
                       {(job as any).altAddressText && onToggleAddress && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 px-2 text-[11px]"
-                          onClick={() => onToggleAddress(job)}
-                        >
-                          Use {(job as any).addressSource === 'work' ? 'home' : 'work'} address
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 px-2 text-[11px] gap-1"
+                              onClick={() => onToggleAddress(job)}
+                            >
+                              <ArrowLeftRight className="h-3 w-3" />
+                              Switch to {(job as any).addressSource === 'work' ? 'home' : 'work'} address
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs text-xs">
+                            {(job as any).addressSource === 'work' ? (
+                              <>
+                                <div className="font-medium">Currently visiting the work address</div>
+                                <div className="text-muted-foreground">{(job as any).altAddressText}</div>
+                                <div className="mt-1">Switch to visit the home address instead.</div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="font-medium">Currently visiting the home address</div>
+                                <div className="text-muted-foreground">Work address: {(job as any).altAddressText}</div>
+                                <div className="mt-1">The arrival time falls outside the customer's work hours for this date, so home was chosen automatically.</div>
+                              </>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
                       )}
+
                     </>
                   )}
 
