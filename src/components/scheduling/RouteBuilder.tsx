@@ -118,6 +118,11 @@ interface JobItemProps {
   job: SelectedJob;
   index: number;
   onReorder: (dragIndex: number, hoverIndex: number) => void;
+  onMove?: (index: number, direction: 'up' | 'down') => void;
+  onUpdateTime?: (index: number, time: string) => void;
+  isFirstStop?: boolean;
+  isLastStop?: boolean;
+  isRetiming?: boolean;
   onAddBreak: (afterIndex: number, breakType: 'lunch' | 'stop') => void;
   onRemove: (job: SelectedJob) => void;
   onSendTimeslot: (job: SelectedJob) => void;
