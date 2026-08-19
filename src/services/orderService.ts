@@ -308,7 +308,7 @@ export const updateOrderBikes = async (
 
 export const createOrder = async (data: CreateOrderFormData): Promise<Order> => {
   try {
-    const { sender, receiver, bikeBrand, bikeModel, bikeType, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, partExchangeBikeBrand, partExchangeBikeModel, partExchangeBikeType, partExchangeBikeValue, isEbayOrder, collectionCode, deliveryInstructions, needsInspection, isBoxMyBike } = data;
+    const { sender, receiver, bikeBrand, bikeModel, bikeType, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, partExchangeBikeBrand, partExchangeBikeModel, partExchangeBikeType, partExchangeBikeValue, isEbayOrder, collectionCode, deliveryInstructions, needsInspection, isBoxMyBike, boxBuyer } = data;
 
     const {
       street: senderStreet,
