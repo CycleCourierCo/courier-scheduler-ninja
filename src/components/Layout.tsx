@@ -157,10 +157,12 @@ const Layout: React.FC<LayoutProps> = ({
                         <User className="mr-2 h-4 w-4" />
                         Your Profile
                       </Link>
-                      <Link to="/tasks" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                        <CheckSquare className="mr-2 h-4 w-4" />
-                        Tasks
-                      </Link>
+                      {isInternalStaff && (
+                        <Link to="/tasks" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <CheckSquare className="mr-2 h-4 w-4" />
+                          Tasks
+                        </Link>
+                      )}
                       {isInternalStaff && (
                         <Link to="/knowledge" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <BookOpen className="mr-2 h-4 w-4" />
