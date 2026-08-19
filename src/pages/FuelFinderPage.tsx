@@ -21,6 +21,7 @@ import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { hasRole } from "@/lib/roles";
+import FuelInvoiceAnalysisSection from "@/components/fuel/FuelInvoiceAnalysisSection";
 
 // Fix Leaflet default icon
 const fixLeafletIcon = () => {
@@ -362,6 +363,8 @@ const FuelFinderPage: React.FC = () => {
             <p className="text-muted-foreground">Find the cheapest diesel near you</p>
           </div>
         </div>
+
+        {isAdmin && <FuelInvoiceAnalysisSection />}
 
         {/* Admin Fuel Cards Management */}
         {isAdmin && (
