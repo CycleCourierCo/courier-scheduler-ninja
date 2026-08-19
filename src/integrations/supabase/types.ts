@@ -2837,6 +2837,12 @@ export type Database = {
           is_business: boolean | null
           is_test_account: boolean
           latitude: number | null
+          licence_back_path: string | null
+          licence_check_code_path: string | null
+          licence_expiry: string | null
+          licence_front_path: string | null
+          licence_number: string | null
+          licence_updated_at: string | null
           longitude: number | null
           name: string | null
           opening_hours: Json | null
@@ -2876,6 +2882,12 @@ export type Database = {
           is_business?: boolean | null
           is_test_account?: boolean
           latitude?: number | null
+          licence_back_path?: string | null
+          licence_check_code_path?: string | null
+          licence_expiry?: string | null
+          licence_front_path?: string | null
+          licence_number?: string | null
+          licence_updated_at?: string | null
           longitude?: number | null
           name?: string | null
           opening_hours?: Json | null
@@ -2915,6 +2927,12 @@ export type Database = {
           is_business?: boolean | null
           is_test_account?: boolean
           latitude?: number | null
+          licence_back_path?: string | null
+          licence_check_code_path?: string | null
+          licence_expiry?: string | null
+          licence_front_path?: string | null
+          licence_number?: string | null
+          licence_updated_at?: string | null
           longitude?: number | null
           name?: string | null
           opening_hours?: Json | null
@@ -4372,6 +4390,12 @@ export type Database = {
           is_business: boolean | null
           is_test_account: boolean
           latitude: number | null
+          licence_back_path: string | null
+          licence_check_code_path: string | null
+          licence_expiry: string | null
+          licence_front_path: string | null
+          licence_number: string | null
+          licence_updated_at: string | null
           longitude: number | null
           name: string | null
           opening_hours: Json | null
@@ -4522,6 +4546,12 @@ export type Database = {
           is_business: boolean | null
           is_test_account: boolean
           latitude: number | null
+          licence_back_path: string | null
+          licence_check_code_path: string | null
+          licence_expiry: string | null
+          licence_front_path: string | null
+          licence_number: string | null
+          licence_updated_at: string | null
           longitude: number | null
           name: string | null
           opening_hours: Json | null
