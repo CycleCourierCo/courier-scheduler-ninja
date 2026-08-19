@@ -38,7 +38,10 @@ const stopKey = (name?: string, address?: string) => {
   const postcode = `${m[1]}${m[2]}`.toUpperCase();
   const beforePostcode = addr.slice(0, m.index ?? 0);
   const premiseMatch = beforePostcode.match(/\d+[a-z]?(\s*[-/]\s*\d+[a-z]?)?/i);
-  const premise = premiseMatch ? premiseMatch[0].replace(/[^a-z0-9]/gi, '').toLowerCase() : '';
+  // Drop a trailing letter suffix so "10" and "10a" at the same postcode collapse together
+  const premise = premiseMatch
+    ? premiseMatch[0].replace(/[^a-z0-9]/gi, '').toLowerCase().replace(/[a-z]+$/, '')
+    : '';
   return `${norm(name)}|${postcode}|${premise}`;
 };
 
