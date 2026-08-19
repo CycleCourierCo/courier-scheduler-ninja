@@ -373,61 +373,64 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
           {isDriver && (
             <TabsContent value="driver" className="space-y-4 mt-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label htmlFor="edit-hourly-rate">Driver Hourly Rate (£)</Label>
                   <Input
                     id="edit-hourly-rate"
+                    className="w-full"
                     type="number"
                     step="0.01"
                     value={formData.hourly_rate || ''}
                     onChange={(e) => setFormData({ ...formData, hourly_rate: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
-                <>
-
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label htmlFor="edit-van-allowance">Van Allowance (£)</Label>
                   <Input
                     id="edit-van-allowance"
+                    className="w-full"
                     type="number"
                     step="0.01"
                     value={formData.van_allowance || ''}
                     onChange={(e) => setFormData({ ...formData, van_allowance: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label htmlFor="edit-available-hours">Available Hours/Day</Label>
                   <Input
                     id="edit-available-hours"
+                    className="w-full"
                     type="number"
                     value={formData.available_hours || ''}
                     onChange={(e) => setFormData({ ...formData, available_hours: parseInt(e.target.value) || 0 })}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label htmlFor="edit-shipday-id">Shipday Driver ID</Label>
                   <Input
                     id="edit-shipday-id"
+                    className="w-full"
                     value={formData.shipday_driver_id || ''}
                     onChange={(e) => setFormData({ ...formData, shipday_driver_id: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0 sm:col-span-2">
                   <Label htmlFor="edit-shipday-name">Shipday Driver Name</Label>
                   <Input
                     id="edit-shipday-name"
+                    className="w-full"
                     placeholder="e.g., Hass, Maj, Sal"
                     value={formData.shipday_driver_name || ''}
                     onChange={(e) => setFormData({ ...formData, shipday_driver_name: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2 col-span-2">
+                <div className="space-y-2 min-w-0 sm:col-span-2">
                   <Label htmlFor="edit-default-vehicle">Default Vehicle</Label>
                   <Select
                     value={formData.default_vehicle_id ?? 'none'}
                     onValueChange={(value) => setFormData({ ...formData, default_vehicle_id: value === 'none' ? null : value })}
                   >
-                    <SelectTrigger id="edit-default-vehicle">
+                    <SelectTrigger id="edit-default-vehicle" className="w-full">
                       <SelectValue placeholder="None" />
                     </SelectTrigger>
                     <SelectContent>
@@ -443,26 +446,26 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     Auto-assigned to new timeslips generated for this driver.
                   </p>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center justify-between gap-3 rounded-md border p-3 min-w-0 sm:col-span-2">
+                  <Label htmlFor="edit-uses-van" className="cursor-pointer">Uses Own Van</Label>
                   <Switch
                     id="edit-uses-van"
                     checked={formData.uses_own_van || false}
                     onCheckedChange={(checked) => setFormData({ ...formData, uses_own_van: checked })}
                   />
-                  <Label htmlFor="edit-uses-van">Uses Own Van</Label>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center justify-between gap-3 rounded-md border p-3 min-w-0 sm:col-span-2">
+                  <Label htmlFor="edit-is-active" className="cursor-pointer">Active</Label>
                   <Switch
                     id="edit-is-active"
                     checked={formData.is_active !== false}
                     onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
                   />
-                  <Label htmlFor="edit-is-active">Active</Label>
                 </div>
-                </>
               </div>
             </TabsContent>
           )}
+
 
           {isDriver && (
             <TabsContent value="licence" className="space-y-4 mt-4">
