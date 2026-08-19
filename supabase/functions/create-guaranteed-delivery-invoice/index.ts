@@ -268,12 +268,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!qbCustomerId) throw new Error(`Could not resolve a QuickBooks customer for the ${payer}`);
 
-    let description = `Guaranteed delivery date – ${order.tracking_number || order.id}`;
-    if (order.customer_order_number) description += ` (Order #${order.customer_order_number})`;
-    if (order.bike_brand || order.bike_model) {
-      description += ` - ${order.bike_brand || ''} ${order.bike_model || ''}`.trim();
-    }
-    if (order.guaranteed_delivery_note) description += ` - ${order.guaranteed_delivery_note}`;
+    let description = `Guaranteed delivery date – ${sanitiseQbString(order.tracking_number) || order.id}`;
+    const customerOrderNumber = sanitiseQbString(order.customer_order_number);
+    if (customerOrderNumber) description += ` (Order #${customerOrderNumber})`;
+    const bikeLabel = sanitiseQbString(`${order.bike_brand || ''} ${order.bike_model || ''}`);
+    if (bikeLabel) description += ` - ${bikeLabel}`;
+    const guaranteeNote = sanitiseQbString(order.guaranteed_delivery_note);
+    if (guaranteeNote) description += ` - ${guaranteeNote}`;
 
     const serviceDate = new Date().toISOString().split('T')[0];
 
