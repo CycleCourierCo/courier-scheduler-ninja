@@ -3808,8 +3808,9 @@ Route Link: ${routeLink}`;
                   onClick={hasCoordinates ? () => toggleJobSelection(job) : undefined}
                 >
                   <CardContent className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-2">
+                    <div className="flex justify-between items-start gap-2 flex-wrap mb-2">
+                      <div className="flex items-center flex-wrap gap-2 min-w-0">
+
                         <Badge variant={job.type === 'pickup' ? 'default' : 'secondary'}>
                           {job.type === 'pickup' ? 'Collection' : 'Delivery'}
                         </Badge>
