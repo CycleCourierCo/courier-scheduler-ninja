@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { addDays, format, startOfWeek, subWeeks } from "date-fns";
+import { addDays, format, startOfWeek } from "date-fns";
 import { CalendarDays, Gauge, RotateCcw, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
