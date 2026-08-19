@@ -135,19 +135,29 @@ const GuaranteedDeliveryCard = ({ order, onUpdate }: GuaranteedDeliveryCardProps
       })
     : null;
 
+  const Shell = ({ children }: { children: React.ReactNode }) =>
+    bare ? (
+      <div>{children}</div>
+    ) : (
+      <Card className={isOn ? "overflow-hidden border-green-500/50" : "overflow-hidden"}>{children}</Card>
+    );
+
   return (
-    <Card className={isOn ? "overflow-hidden border-green-500/50" : "overflow-hidden"}>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          {isOn ? (
-            <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
-          ) : (
-            <CalendarCheck className="h-4 w-4 shrink-0" />
-          )}
-          <span className="min-w-0 break-words">Guaranteed Date Delivery</span>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <Shell>
+      {!bare && (
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            {isOn ? (
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />
+            ) : (
+              <CalendarCheck className="h-4 w-4 shrink-0" />
+            )}
+            <span className="min-w-0 break-words">Guaranteed Date Delivery</span>
+          </CardTitle>
+        </CardHeader>
+      )}
+      <CardContent className={bare ? "space-y-3 p-0" : "space-y-3"}>
+
         {isOn ? (
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
