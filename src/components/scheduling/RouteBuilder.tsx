@@ -1789,6 +1789,101 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     }
   };
 
+  // --- Alternative (work / neighbour) address handling -----------------------
+  const stopKey = (job: any) => `${job.orderId}-${job.type}`;
+
+  const getAltForJob = (job: any) => {
+    if (!job?.orderData || job.type === 'break') return null;
+    const raw = job.type === 'pickup'
+      ? (job.orderData as any).sender_alt_location
+      : (job.orderData as any).receiver_alt_location;
+    return parseAltLocation(raw);
+  };
+
+  /**
+   * Decides whether a stop should use the home address or the customer's work
+   * address for a given arrival time, honouring any manual planner override.
+   */
+  const applyAddressChoice = (job: any, timeHHMM?: string) => {
+    if (job.type === 'break') return job;
+    const alt = getAltForJob(job);
+    if (!alt) return { ...job, altLocation: null, addressSource: 'home', altAddressText: '', neighbourNumber: null };
+
+    const override = addressOverrides[stopKey(job)];
+    const auto = resolveStopAddress(alt, selectedDate, timeHHMM);
+    const source: AddressSource = override || auto.source;
+    const workAddress = alt.work_address;
+    const canUseWork = source === 'work' && hasWorkAddress(alt) && workAddress?.lat != null && workAddress?.lon != null;
+
+    if (!canUseWork) {
+      return {
+        ...job,
+        lat: job.homeLat ?? job.lat,
+        lon: job.homeLon ?? job.lon,
+        address: job.homeAddress ?? job.address,
+        homeLat: job.homeLat ?? job.lat,
+        homeLon: job.homeLon ?? job.lon,
+        homeAddress: job.homeAddress ?? job.address,
+        altLocation: alt,
+        addressSource: 'home' as AddressSource,
+        altAddressText: formatAltAddress(workAddress),
+        neighbourNumber: alt.neighbour_number || null,
+      };
+    }
+
+    return {
+      ...job,
+      homeLat: job.homeLat ?? job.lat,
+      homeLon: job.homeLon ?? job.lon,
+      homeAddress: job.homeAddress ?? job.address,
+      lat: workAddress!.lat as number,
+      lon: workAddress!.lon as number,
+      address: formatAltAddress(workAddress),
+      altLocation: alt,
+      addressSource: 'work' as AddressSource,
+      altAddressText: formatAltAddress(workAddress),
+      neighbourNumber: alt.neighbour_number || null,
+    };
+  };
+
+  /** Planner override: force a stop to the home or work address and re-time. */
+  const toggleStopAddress = (job: any) => {
+    const key = stopKey(job);
+    const next: AddressSource = (job.addressSource === 'work' ? 'home' : 'work');
+    setAddressOverrides((prev) => ({ ...prev, [key]: next }));
+    const updated = selectedJobs.map((j: any) =>
+      stopKey(j) === key ? applyAddressChoiceWithSource(j, next) : j
+    );
+    setSelectedJobs(updated as any);
+    calculateTimeslots(updated as any);
+  };
+
+  const applyAddressChoiceWithSource = (job: any, source: AddressSource) => {
+    const alt = getAltForJob(job);
+    if (!alt) return job;
+    const workAddress = alt.work_address;
+    if (source === 'work' && workAddress?.lat != null && workAddress?.lon != null) {
+      return {
+        ...job,
+        homeLat: job.homeLat ?? job.lat,
+        homeLon: job.homeLon ?? job.lon,
+        homeAddress: job.homeAddress ?? job.address,
+        lat: workAddress.lat as number,
+        lon: workAddress.lon as number,
+        address: formatAltAddress(workAddress),
+        addressSource: 'work' as AddressSource,
+      };
+    }
+    return {
+      ...job,
+      lat: job.homeLat ?? job.lat,
+      lon: job.homeLon ?? job.lon,
+      address: job.homeAddress ?? job.address,
+      addressSource: 'home' as AddressSource,
+    };
+  };
+
+
   const calculateTimeslots = async (jobsToCalculate?: SelectedJob[]) => {
     // Use passed jobs or fall back to state
     const rawJobs = jobsToCalculate || selectedJobs;
