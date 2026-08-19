@@ -26,6 +26,8 @@ import {
 } from "@/services/labourTimesService";
 import LabourTimeDialog from "@/components/labour-times/LabourTimeDialog";
 import MultiplierDialog from "@/components/labour-times/MultiplierDialog";
+import VanSpacesTab from "@/components/labour-times/VanSpacesTab";
+
 import {
   calculateLabourPrice,
   formatGBP,
