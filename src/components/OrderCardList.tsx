@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Order } from "@/types/order";
 import StatusBadge from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 import { resendSenderAvailabilityEmail } from "@/services/orderService";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
