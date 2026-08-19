@@ -175,9 +175,10 @@ const OrderServicesPanel: React.FC<OrderServicesPanelProps> = ({ order, onRefres
             <div className="space-y-3">
               <p className="text-sm text-muted-foreground">
                 {isBoxMyBike
-                  ? "This order is in the Box My Bike pipeline and appears on the Box My Bike page."
+                  ? "This order is in the Box My Bike pipeline and appears on the Box My Bike page. Delivery goes to our depot, so the buyer below receives the updates."
                   : "Convert this order so the bike is packed by us and handed to a third-party courier."}
               </p>
+              {isBoxMyBike && <BoxBuyerDetails order={order} onRefresh={refresh} />}
               <BoxMyBikeConversion order={order} onRefresh={refresh} />
             </div>
           )}
