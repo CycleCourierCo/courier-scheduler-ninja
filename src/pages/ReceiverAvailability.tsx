@@ -88,25 +88,23 @@ export default function ReceiverAvailability() {
   const { userProfile } = useAuth();
   const [mode, setMode] = useState<'unset' | 'now' | 'later'>('unset');
 
-  const openingHours = useMemo(
-    () => normaliseOpeningHours(userProfile?.opening_hours),
-    [userProfile?.opening_hours]
-  );
-
-  // The logged-in business account is the receiver when the order's receiver contact matches their profile
+  // Resolved server-side in the public order payload so the emailed link works
+  // without signing in. Falls back to the signed-in profile.
   const isBusinessReceiver = useMemo(() => {
-    if (!order || !userProfile) return false;
-    if (!userProfile.is_business) return false;
-
+    if (order?.receiverIsBusiness) return true;
+    if (!order || !userProfile?.is_business) return false;
     const receiverEmail = (order as any)?.receiver?.email?.toLowerCase?.().trim();
     if (!receiverEmail) return false;
-
     const candidates = [userProfile.email, userProfile.accounts_email]
       .filter(Boolean)
       .map((value: string) => value.toLowerCase().trim());
-
     return candidates.includes(receiverEmail);
   }, [order, userProfile]);
+
+  const openingHours = useMemo(
+    () => normaliseOpeningHours(order?.receiverOpeningHours ?? userProfile?.opening_hours),
+    [order?.receiverOpeningHours, userProfile?.opening_hours]
+  );
 
   const handleBusinessHours = () => {
     const openDays = getNextOpenDays(openingHours, 7, isDateDisabled);
