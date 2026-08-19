@@ -478,7 +478,12 @@ export default function LabourTimesAdmin() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="van-spaces">
+            <VanSpacesTab isAdmin={isAdmin} />
+          </TabsContent>
         </Tabs>
+
       </div>
 
       <LabourTimeDialog
