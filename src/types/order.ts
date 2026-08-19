@@ -178,6 +178,11 @@ export type Order = {
   deliveryInstructions?: string;
   senderNotes?: string;
   receiverNotes?: string;
+  /** Set by the public order payload when that side belongs to a business account */
+  senderIsBusiness?: boolean;
+  receiverIsBusiness?: boolean;
+  senderOpeningHours?: any | null;
+  receiverOpeningHours?: any | null;
   senderPolygonSegment?: number;  // Changed from polygonSegment to senderPolygonSegment
   receiverPolygonSegment?: number; // Added receiverPolygonSegment for delivery addresses
   storage_locations?: any; // Add storage_locations field for database storage
