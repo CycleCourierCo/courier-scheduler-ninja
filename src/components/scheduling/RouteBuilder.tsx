@@ -35,6 +35,13 @@ import { createShipdayOrder } from "@/services/shipdayService";
 import { getRevenueForRouteStops, clearSpecialRatePriceCache } from "@/services/profitabilityService";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasRole } from "@/lib/roles";
+import {
+  AddressSource,
+  formatAltAddress,
+  hasWorkAddress,
+  parseAltLocation,
+  resolveStopAddress,
+} from "@/lib/altLocation";
 
 // Profitability constants
 const COST_PER_MILE = 0.45;
@@ -1788,6 +1795,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       toast.error(`Failed to flip route: ${err?.message || err}`);
     }
   };
+
+  // Planner overrides for which address a stop should use (home vs work)
+  const [addressOverrides, setAddressOverrides] = useState<Record<string, AddressSource>>({});
 
   // --- Alternative (work / neighbour) address handling -----------------------
   const stopKey = (job: any) => `${job.orderId}-${job.type}`;
