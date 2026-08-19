@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2, Zap, Truck, ArrowUpDown } from "lucide-react";
 import { OrderData, ShipdayVerificationResults } from "@/pages/JobScheduling";
 import { toast } from "sonner";
@@ -36,6 +37,7 @@ import { getRevenueForRouteStops, clearSpecialRatePriceCache } from "@/services/
 import { useAuth } from "@/contexts/AuthContext";
 import { hasRole } from "@/lib/roles";
 import { BikeSpaceMap, DEFAULT_VAN_SPACES_CAPACITY, formatSpaces, getOrderSpaces, useBikeSpaces } from "@/lib/bikeSpaces";
+import { getGroupedBikes } from "@/utils/bikeSummary";
 import {
   AddressSource,
   formatAltAddress,
