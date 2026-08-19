@@ -104,13 +104,14 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
 
   const analysis = useMemo(() => {
     if (!settingsQuery.data) return null;
+    const hidden = new Set([...(dismissedQuery.data ?? new Set<string>()), ...resolvedKeys]);
     return analyseFuel(
       transactionsQuery.data ?? [],
       mileageQuery.data ?? [],
       vehiclesQuery.data ?? [],
       aliasesQuery.data ?? [],
       settingsQuery.data,
-      dismissedQuery.data ?? new Set()
+      hidden
     );
   }, [
     transactionsQuery.data,
@@ -119,6 +120,7 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
     aliasesQuery.data,
     settingsQuery.data,
     dismissedQuery.data,
+    resolvedKeys,
   ]);
 
   const refreshAll = () => {
