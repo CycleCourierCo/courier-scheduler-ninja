@@ -1036,6 +1036,27 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     return bikeCount;
   };
 
+  // Peak van load across the route (in spaces)
+  const peakLoad = React.useMemo(() => {
+    let load = startingBikes;
+    let peak = startingBikes;
+    for (const job of selectedJobs) {
+      if (job.type === 'delivery') load -= getOrderSpaces(job.orderData, spaceMap);
+      else if (job.type === 'pickup') load += getOrderSpaces(job.orderData, spaceMap);
+      if (load > peak) peak = load;
+    }
+    return Math.round(peak * 100) / 100;
+  }, [selectedJobs, startingBikes, spaceMap]);
+
+  const capacityWarning = peakLoad > vanCapacity ? (
+    <div className="flex items-start gap-2 p-2 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive text-xs">
+      <PackageX className="h-4 w-4 flex-shrink-0 mt-0.5" />
+      <span>
+        Van overloaded: peak load {formatSpaces(peakLoad)} spaces vs capacity {formatSpaces(vanCapacity)} ({formatSpaces(peakLoad - vanCapacity)} over). Split the route or swap bikes between runs.
+      </span>
+    </div>
+  ) : null;
+
   // Calculate final bike count
   const calculateFinalBikeCount = (): number => {
     let bikeCount = startingBikes;
@@ -3888,6 +3909,7 @@ Route Link: ${routeLink}`;
 
                 {/* Route */}
                 <div className="space-y-2">
+                  {capacityWarning}
                   <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
                     <MapPin className="h-3 w-3 flex-shrink-0" />
                     <span className="text-xs font-medium truncate flex-1">Start: Lawden Rd, B10 0AD</span>
@@ -4088,6 +4110,7 @@ Route Link: ${routeLink}`;
               </div>
 
               <div className="space-y-3">
+                {capacityWarning}
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                   <MapPin className="h-4 w-4" />
                   <span className="text-sm font-medium">Start: Lawden Road, Birmingham, B10 0AD</span>
