@@ -1,12 +1,11 @@
 import React, { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { addDays, format, startOfWeek } from "date-fns";
-import { CalendarDays, Gauge, RotateCcw, Clock } from "lucide-react";
+import { Clock, RotateCcw } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -17,6 +16,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { timeslipService } from "@/services/timeslipService";
 
 type DriverTotals = {
@@ -40,7 +45,6 @@ const getDefaultRange = (): { from: string; to: string } => {
     to: format(addDays(sunday, 4), "yyyy-MM-dd"),
   };
 };
-
 
 const fmtHours = (h: number) => `${h.toFixed(2)}h`;
 const fmtMiles = (m: number) => `${Math.round(m).toLocaleString()} mi`;
@@ -102,23 +106,37 @@ const DriverHoursMileagePanel: React.FC = () => {
 
   const isDefaultRange = dateFrom === defaults.from && dateTo === defaults.to;
 
+  const MissingMileageHint = ({ count }: { count: number }) =>
+    count > 0 ? (
+      <TooltipProvider delayDuration={100}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="ml-0.5 cursor-help text-amber-500">*</span>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="text-xs">
+            {count} day{count === 1 ? "" : "s"} with no mileage recorded
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    ) : null;
+
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
+      <CardHeader className="pb-2 pt-3 px-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-2 min-w-0">
+            <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <CardTitle className="text-sm font-semibold whitespace-nowrap">
               Driver hours &amp; mileage
             </CardTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Totals from driver timeslips ({format(new Date(dateFrom), "d MMM")} –{" "}
-              {format(new Date(dateTo), "d MMM yyyy")})
-            </p>
+            <span className="hidden sm:inline text-xs text-muted-foreground truncate">
+              {format(new Date(dateFrom), "d MMM")} –{" "}
+              {format(new Date(dateTo), "d MMM yyyy")}
+            </span>
           </div>
-          <div className="flex flex-wrap items-end gap-2">
-            <div className="space-y-1">
-              <Label htmlFor="dhm-from" className="text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="dhm-from" className="text-[10px] text-muted-foreground whitespace-nowrap">
                 From
               </Label>
               <Input
@@ -126,11 +144,11 @@ const DriverHoursMileagePanel: React.FC = () => {
                 type="date"
                 value={dateFrom}
                 onChange={(e) => setDateFrom(e.target.value)}
-                className="h-9 w-[9.5rem]"
+                className="h-7 w-[8.5rem] text-xs px-2 py-0"
               />
             </div>
-            <div className="space-y-1">
-              <Label htmlFor="dhm-to" className="text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <Label htmlFor="dhm-to" className="text-[10px] text-muted-foreground whitespace-nowrap">
                 To
               </Label>
               <Input
@@ -138,35 +156,35 @@ const DriverHoursMileagePanel: React.FC = () => {
                 type="date"
                 value={dateTo}
                 onChange={(e) => setDateTo(e.target.value)}
-                className="h-9 w-[9.5rem]"
+                className="h-7 w-[8.5rem] text-xs px-2 py-0"
               />
             </div>
             <Button
               variant="outline"
               size="sm"
-              className="h-9"
+              className="h-7 text-xs px-2"
               disabled={isDefaultRange}
               onClick={() => {
                 setDateFrom(defaults.from);
                 setDateTo(defaults.to);
               }}
             >
-              <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
-              Reset to Sun–Thu
+              <RotateCcw className="h-3 w-3 mr-1" />
+              Reset
             </Button>
           </div>
         </div>
       </CardHeader>
 
-      <CardContent>
+      <CardContent className="px-3 pb-3 pt-0">
         {isLoading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-full" />
+          <div className="space-y-1.5">
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-full" />
+            <Skeleton className="h-6 w-full" />
           </div>
         ) : rows.length === 0 ? (
-          <div className="text-sm text-muted-foreground text-center py-6">
+          <div className="text-xs text-muted-foreground text-center py-3">
             No timeslips found for this date range.
           </div>
         ) : (
@@ -175,98 +193,104 @@ const DriverHoursMileagePanel: React.FC = () => {
             <div className="hidden md:block overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Driver</TableHead>
-                    <TableHead className="text-right">Total hours</TableHead>
-                    <TableHead className="text-right">Driving / Stops</TableHead>
-                    <TableHead className="text-right">Mileage</TableHead>
-                    <TableHead className="text-right">Days</TableHead>
-                    <TableHead className="text-right">Stops</TableHead>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="h-6 py-0 text-[10px] uppercase tracking-wide">Driver</TableHead>
+                    <TableHead className="h-6 py-0 text-[10px] uppercase tracking-wide text-right">Hours</TableHead>
+                    <TableHead className="h-6 py-0 text-[10px] uppercase tracking-wide text-right">Mileage</TableHead>
+                    <TableHead className="h-6 py-0 text-[10px] uppercase tracking-wide text-right">Days</TableHead>
+                    <TableHead className="h-6 py-0 text-[10px] uppercase tracking-wide text-right">Stops</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {rows.map((r) => (
-                    <TableRow key={r.driverId}>
-                      <TableCell className="font-medium">{r.name}</TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {fmtHours(r.totalHours)}
+                    <TableRow key={r.driverId} className="h-7">
+                      <TableCell className="py-0 text-xs font-medium truncate max-w-[14rem]">
+                        {r.name}
                       </TableCell>
-                      <TableCell className="text-right text-muted-foreground text-sm">
-                        {fmtHours(r.drivingHours)} / {fmtHours(r.stopHours)}
+                      <TableCell className="py-0 text-xs text-right whitespace-nowrap">
+                        <TooltipProvider delayDuration={100}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="cursor-help">
+                                <span className="font-semibold">{fmtHours(r.totalHours)}</span>
+                                <span className="text-muted-foreground ml-1 text-[10px]">
+                                  ({fmtHours(r.drivingHours)}/{fmtHours(r.stopHours)})
+                                </span>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              Driving {fmtHours(r.drivingHours)} · Stops {fmtHours(r.stopHours)}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </TableCell>
-                      <TableCell className="text-right">
+                      <TableCell className="py-0 text-xs text-right whitespace-nowrap">
                         {r.mileage > 0 ? fmtMiles(r.mileage) : "—"}
-                        {r.missingMileageDays > 0 && (
-                          <Badge variant="outline" className="ml-2 text-[10px]">
-                            {r.missingMileageDays} day
-                            {r.missingMileageDays === 1 ? "" : "s"} no mileage
-                          </Badge>
-                        )}
+                        <MissingMileageHint count={r.missingMileageDays} />
                       </TableCell>
-                      <TableCell className="text-right">{r.days}</TableCell>
-                      <TableCell className="text-right">{r.stops}</TableCell>
+                      <TableCell className="py-0 text-xs text-right">{r.days}</TableCell>
+                      <TableCell className="py-0 text-xs text-right">{r.stops}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
                 <TableFooter>
-                  <TableRow>
-                    <TableCell className="font-semibold">All drivers</TableCell>
-                    <TableCell className="text-right font-semibold">
+                  <TableRow className="h-7 hover:bg-transparent">
+                    <TableCell className="py-0 text-xs font-semibold">Total</TableCell>
+                    <TableCell className="py-0 text-xs text-right font-semibold whitespace-nowrap">
                       {fmtHours(grand.totalHours)}
+                      <span className="text-muted-foreground ml-1 text-[10px]">
+                        ({fmtHours(grand.drivingHours)}/{fmtHours(grand.stopHours)})
+                      </span>
                     </TableCell>
-                    <TableCell className="text-right text-sm">
-                      {fmtHours(grand.drivingHours)} / {fmtHours(grand.stopHours)}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold">
+                    <TableCell className="py-0 text-xs text-right font-semibold whitespace-nowrap">
                       {grand.mileage > 0 ? fmtMiles(grand.mileage) : "—"}
                     </TableCell>
-                    <TableCell className="text-right">{grand.days}</TableCell>
-                    <TableCell className="text-right">{grand.stops}</TableCell>
+                    <TableCell className="py-0 text-xs text-right font-semibold">{grand.days}</TableCell>
+                    <TableCell className="py-0 text-xs text-right font-semibold">{grand.stops}</TableCell>
                   </TableRow>
                 </TableFooter>
               </Table>
             </div>
 
-            {/* Mobile cards */}
-            <div className="md:hidden space-y-3">
+            {/* Mobile list */}
+            <div className="md:hidden">
               {rows.map((r) => (
-                <div key={r.driverId} className="rounded-md border p-3">
-                  <div className="font-medium break-words">{r.name}</div>
-                  <div className="mt-2 grid grid-cols-2 gap-2 text-sm">
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span className="font-semibold">{fmtHours(r.totalHours)}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Gauge className="h-3.5 w-3.5 text-muted-foreground" />
-                      <span>{r.mileage > 0 ? fmtMiles(r.mileage) : "—"}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-muted-foreground">
-                      <CalendarDays className="h-3.5 w-3.5" />
-                      <span>
-                        {r.days} day{r.days === 1 ? "" : "s"} · {r.stops} stops
-                      </span>
-                    </div>
-                    <div className="text-muted-foreground">
-                      Drive {fmtHours(r.drivingHours)} · Stops {fmtHours(r.stopHours)}
-                    </div>
+                <div
+                  key={r.driverId}
+                  className="flex items-center justify-between py-1.5 border-b last:border-b-0 text-xs"
+                >
+                  <div className="font-medium truncate pr-2 min-w-0">{r.name}</div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <TooltipProvider delayDuration={100}>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="font-semibold cursor-help whitespace-nowrap">
+                            {fmtHours(r.totalHours)}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">
+                          Driving {fmtHours(r.drivingHours)} · Stops {fmtHours(r.stopHours)}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                    <span className="text-muted-foreground whitespace-nowrap w-12 text-right">
+                      {r.mileage > 0 ? fmtMiles(r.mileage) : "—"}
+                      <MissingMileageHint count={r.missingMileageDays} />
+                    </span>
+                    <span className="text-muted-foreground w-6 text-right">{r.days}d</span>
+                    <span className="text-muted-foreground w-6 text-right">{r.stops}s</span>
                   </div>
-                  {r.missingMileageDays > 0 && (
-                    <Badge variant="outline" className="mt-2 text-[10px]">
-                      {r.missingMileageDays} day{r.missingMileageDays === 1 ? "" : "s"} no mileage
-                    </Badge>
-                  )}
                 </div>
               ))}
-              <div className="rounded-md border bg-muted/40 p-3 text-sm">
-                <div className="font-semibold mb-1">All drivers</div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1">
-                  <span>{fmtHours(grand.totalHours)} total</span>
-                  <span>{grand.mileage > 0 ? fmtMiles(grand.mileage) : "—"}</span>
-                  <span>
-                    {grand.days} day{grand.days === 1 ? "" : "s"}
+              <div className="flex items-center justify-between py-1.5 border-t mt-1 font-semibold text-xs">
+                <div>Total</div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="whitespace-nowrap">{fmtHours(grand.totalHours)}</span>
+                  <span className="whitespace-nowrap w-12 text-right">
+                    {grand.mileage > 0 ? fmtMiles(grand.mileage) : "—"}
                   </span>
-                  <span>{grand.stops} stops</span>
+                  <span className="w-6 text-right">{grand.days}d</span>
+                  <span className="w-6 text-right">{grand.stops}s</span>
                 </div>
               </div>
             </div>
