@@ -506,16 +506,75 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
                       )}
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">{anomaly.detail}</p>
+
+                    <div className="flex flex-wrap items-center gap-2 mt-2">
+                      {anomaly.type === "unmatched_reg" ? (
+                        <>
+                          <Select
+                            onValueChange={(vehicleId) =>
+                              aliasMutation.mutate({
+                                reg: anomaly.normalisedReg ?? anomaly.registration ?? "",
+                                vehicleId,
+                              })
+                            }
+                          >
+                            <SelectTrigger className="w-full sm:w-[200px] h-8">
+                              <SelectValue placeholder="Match to vehicle" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {(vehiclesQuery.data ?? []).map((vehicle) => (
+                                <SelectItem key={vehicle.id} value={vehicle.id}>
+                                  {vehicle.registration}
+                                  {vehicle.make ? ` — ${vehicle.make}` : ""}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              aliasMutation.mutate({
+                                reg: anomaly.normalisedReg ?? anomaly.registration ?? "",
+                                vehicleId: null,
+                                ignored: true,
+                              })
+                            }
+                          >
+                            Not ours
+                          </Button>
+                        </>
+                      ) : null}
+                      {anomaly.transactionIds?.length &&
+                      anomaly.type !== "unmatched_reg" &&
+                      anomaly.transactionIds.length <= 5 ? (
+                        <Button variant="outline" size="sm" onClick={() => setFixAnomaly(anomaly)}>
+                          Fix
+                        </Button>
+                      ) : null}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => dismissMutation.mutate(anomaly.key)}
+                      >
+                        Dismiss
+                      </Button>
+                    </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => dismissMutation.mutate(anomaly.key)}
-                  >
-                    Dismiss
-                  </Button>
                 </div>
               ))}
+
+              <FixFlagDialog
+                anomaly={fixAnomaly}
+                transactions={transactionsQuery.data ?? []}
+                vehicles={vehiclesQuery.data ?? []}
+                open={!!fixAnomaly}
+                onOpenChange={(next) => {
+                  if (!next) setFixAnomaly(null);
+                }}
+                onFixed={refreshAll}
+              />
+
             </TabsContent>
 
             {/* Invoices ------------------------------------------------- */}
