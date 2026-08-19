@@ -3854,9 +3854,9 @@ Route Link: ${routeLink}`;
                     
                     <div className="space-y-2">
                       {/* Tracking Number */}
-                      <p className="font-medium text-sm flex items-center gap-1">
-                        <Package className="h-3 w-3 text-muted-foreground" />
-                        #{job.order.tracking_number}
+                      <p className="font-medium text-sm flex flex-wrap items-center gap-1 min-w-0">
+                        <Package className="h-3 w-3 text-muted-foreground shrink-0" />
+                        <span className="break-all min-w-0">#{job.order.tracking_number}</span>
                         {(() => {
                           const days = differenceInCalendarDays(new Date(), new Date(job.order.created_at));
                           const label = days <= 0 ? 'Just added' : days === 1 ? '1 day waiting' : `${days} days waiting`;
@@ -3866,18 +3866,19 @@ Route Link: ${routeLink}`;
                             ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
                             : 'bg-muted text-muted-foreground';
                           return (
-                            <Badge className={`text-xs ml-auto flex items-center gap-1 ${tone}`}>
+                            <Badge className={`text-xs ml-auto shrink-0 flex items-center gap-1 ${tone}`}>
                               <Clock className="h-3 w-3" />
                               {label}
                             </Badge>
                           );
                         })()}
                       </p>
-                      <p className="text-sm">{job.contactName}</p>
-                      <div className="flex items-start gap-1">
+                      <p className="text-sm break-words min-w-0">{job.contactName}</p>
+                      <div className="flex items-start gap-1 min-w-0">
                         <MapPin className="h-3 w-3 mt-0.5 flex-shrink-0 text-muted-foreground" />
-                        <p className="text-xs text-muted-foreground">{job.address}</p>
+                        <p className="text-xs text-muted-foreground break-words min-w-0">{job.address}</p>
                       </div>
+
                       {(() => {
                         const foamBadge = getFoamBadge(job.order, job.type);
                         if (!foamBadge) return null;
