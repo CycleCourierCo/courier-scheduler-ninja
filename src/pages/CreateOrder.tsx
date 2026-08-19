@@ -412,9 +412,16 @@ const CreateOrder = () => {
       const order = await createOrder(transformedData);
       toast.success("Order created successfully!");
 
-      // Business accounts go straight to setting collection availability
+      // Business accounts go straight to setting collection availability — only when they are the sender
       const isBusinessAccount = Boolean(userProfile?.is_business) || hasRole(userProfile, 'b2b_customer');
-      if (isBusinessAccount && order?.id) {
+      const norm = (v?: string | null) => (v || "").trim().toLowerCase();
+      const orderSenderEmail = norm(data.sender?.email);
+      const isSenderOnOrder =
+        !!orderSenderEmail &&
+        (orderSenderEmail === norm(userProfile?.email) ||
+          orderSenderEmail === norm((userProfile as any)?.accounts_email));
+
+      if (isBusinessAccount && isSenderOnOrder && order?.id) {
         toast.info("Set your collection availability now — no need to wait for the email.");
         navigate(`/sender-availability/${order.id}`);
       } else {
