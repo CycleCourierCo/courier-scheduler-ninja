@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 
 import BoxMyBikeConversion from "./BoxMyBikeConversion";
+import BoxBuyerDetails from "./BoxBuyerDetails";
 import NorthernIrelandEditor from "./NorthernIrelandEditor";
 import GuaranteedDeliveryCard from "./GuaranteedDeliveryCard";
 import {
