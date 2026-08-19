@@ -4247,24 +4247,30 @@ export type Database = {
       workshop_settings: {
         Row: {
           daily_capacity_minutes: number
+          default_repair_minutes: number
           hourly_rate_gbp: number
           id: number
+          inspection_standard_minutes: number
           min_charge_gbp: number
           updated_at: string
           updated_by: string | null
         }
         Insert: {
           daily_capacity_minutes?: number
+          default_repair_minutes?: number
           hourly_rate_gbp?: number
           id?: number
+          inspection_standard_minutes?: number
           min_charge_gbp?: number
           updated_at?: string
           updated_by?: string | null
         }
         Update: {
           daily_capacity_minutes?: number
+          default_repair_minutes?: number
           hourly_rate_gbp?: number
           id?: number
+          inspection_standard_minutes?: number
           min_charge_gbp?: number
           updated_at?: string
           updated_by?: string | null
