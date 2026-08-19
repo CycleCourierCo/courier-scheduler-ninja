@@ -328,6 +328,12 @@ export interface FuelAnomaly {
   registration: string | null;
   date: string | null;
   amount: number | null;
+  /** Underlying fuel_transactions rows this flag refers to (empty for vehicle-wide flags). */
+  transactionIds?: string[];
+  /** Normalised registration from the invoice, when the flag is registration-driven. */
+  normalisedReg?: string | null;
+  /** Fleet vehicle the flag belongs to, when matched. */
+  vehicleId?: string | null;
 }
 
 export interface VehicleFuelStats {
