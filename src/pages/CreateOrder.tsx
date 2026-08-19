@@ -129,6 +129,11 @@ const orderSchema = z.object({
   deliveryInstructions: z.string().optional(),
   needsInspection: z.boolean().default(false),
   isBoxMyBike: z.boolean().default(false),
+  boxBuyer: z.object({
+    name: z.string().optional(),
+    email: z.string().optional(),
+    phone: z.string().optional(),
+  }).optional(),
   // Legacy fields for backward compatibility
   bikeBrand: z.string().optional(),
   bikeModel: z.string().optional(),
