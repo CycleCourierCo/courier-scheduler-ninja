@@ -138,6 +138,21 @@ const orderSchema = z.object({
   bikeBrand: z.string().optional(),
   bikeModel: z.string().optional(),
 }).superRefine((data, ctx) => {
+  // Box My Bike: the delivery address is our depot, so we capture the end buyer
+  // separately in order to keep them updated.
+  if (data.isBoxMyBike) {
+    const b = data.boxBuyer;
+    if (!b?.name || b.name.trim().length < 2) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Buyer name is required", path: ["boxBuyer", "name"] });
+    }
+    if (!b?.email || !EMAIL_REGEX.test(b.email)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Valid buyer email is required", path: ["boxBuyer", "email"] });
+    }
+    if (!b?.phone || !/^\+44[0-9]{10}$/.test(b.phone)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Phone number must be +44 followed by 10 digits", path: ["boxBuyer", "phone"] });
+    }
+  }
+
   // Validate receiver only when NOT Box My Bike (depot is auto-filled in that case)
   if (!data.isBoxMyBike) {
     const r = data.receiver;
