@@ -162,6 +162,7 @@ Idempotency-Key: unique_request_id (optional)`}
                     <div><strong>collectionCode:</strong> <em>(optional)</em> eBay collection code or similar reference</div>
                     <div><strong>needsInspection:</strong> <em>(optional)</em> Whether the bicycle requires inspection before delivery</div>
                     <div><strong>isBoxMyBike:</strong> <em>(optional)</em> Boxing service for international shipping. When true, the <code>receiver</code> field is optional and will be auto-filled with the Cycle Courier depot. You must arrange a 3rd-party courier and upload the shipping label once the bike is boxed.</div>
+                    <div><strong>boxBuyer:</strong> <em>(optional, Box My Bike only)</em> The end buyer the boxed bike is going to, as <code>{`{ "name": "...", "email": "...", "phone": "..." }`}</code>. Since the receiver becomes our depot, this is who receives boxing and courier-collection updates.</div>
                     <div><strong>deliveryInstructions:</strong> <em>(optional)</em> Special delivery instructions</div>
                   </div>
                 </div>
