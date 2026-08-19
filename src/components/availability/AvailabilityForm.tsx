@@ -9,6 +9,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { AltLocationFields } from './AltLocationFields';
+import type { AltLocation } from '@/lib/altLocation';
 
 interface DateRange {
   from: Date;
@@ -32,7 +34,12 @@ interface AvailabilityFormProps {
   isDateDisabled?: (date: Date) => boolean;
   calendarEndDate?: Date;
   bufferNotice?: string;
+  altLocation?: AltLocation | null;
+  setAltLocation?: (value: AltLocation | null) => void;
+  showAltLocation?: boolean;
+  altMode?: 'collection' | 'delivery';
 }
+
 
 
 export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
