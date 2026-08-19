@@ -296,7 +296,9 @@ export const useAvailability = ({
     setNotes,
     postcode,
     setPostcode,
-    isLoading,
+    altLocation,
+    setAltLocation,
+
     isSubmitting,
     order,
     error,
