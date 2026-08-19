@@ -29,7 +29,58 @@ const sourceLabel: Record<StandardMinutesSource, string> = {
   inspection: 'Inspection',
 };
 
+const varianceClass = (v: number) =>
+  v >= 0 ? 'text-green-600 dark:text-green-500' : 'text-destructive';
+const fmtVariance = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}h`;
+
+/** Day-by-day job breakdown for one mechanic — shared by the table and mobile cards. */
+const DayBreakdown: React.FC<{ days: any[] }> = ({ days }) => {
+  if (days.length === 0) {
+    return <p className="text-sm text-muted-foreground">No days with activity.</p>;
+  }
+  return (
+    <div className="space-y-3">
+      {days.map((d) => (
+        <div key={d.date} className="rounded-md border bg-background p-3">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+            <span className="font-semibold">{d.label}</span>
+            <span className="text-muted-foreground">Clocked {d.hours.toFixed(1)}h</span>
+            <span className="text-muted-foreground">Earned {d.standardHours.toFixed(1)}h</span>
+            <span className={`font-medium ${varianceClass(d.varianceHours)}`}>
+              {fmtVariance(d.varianceHours)}
+            </span>
+            <span className="text-muted-foreground">{d.jobs.length} jobs</span>
+          </div>
+          {d.jobs.length > 0 && (
+            <ul className="mt-2 space-y-2">
+              {d.jobs.map((j: any) => (
+                <li key={`${j.type}-${j.id}`} className="border-t pt-2 first:border-t-0 first:pt-0 text-sm">
+                  <div className="flex items-start gap-2">
+                    {j.type === 'inspection' ? (
+                      <ClipboardCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    ) : (
+                      <Wrench className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    )}
+                    <span className="min-w-0 break-words">{j.label}</span>
+                  </div>
+                  <div className="mt-1 flex items-center gap-2 pl-5">
+                    <Badge variant="outline" className="text-[10px]">
+                      {sourceLabel[j.source as StandardMinutesSource]}
+                    </Badge>
+                    <span className="tabular-nums text-muted-foreground">{j.minutes} min</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+};
+
 const MechanicHoursSection: React.FC = () => {
+
   const today = new Date();
   const [from, setFrom] = useState<string>(format(subWeeks(today, 4), 'yyyy-MM-dd'));
   const [to, setTo] = useState<string>(format(today, 'yyyy-MM-dd'));
