@@ -69,7 +69,7 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
   };
 
   return (
-    <div className="space-y-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {orders.map((order) => {
         const isStaff = userRole === "admin" || userRole === "route_planner";
         return (
@@ -84,7 +84,7 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
                 openOrder(order.id);
               }
             }}
-            className="w-full min-w-0 rounded-lg border border-border bg-card p-3 text-left shadow-sm transition-colors active:bg-accent/50"
+            className="flex h-full w-full min-w-0 flex-col rounded-lg border border-border bg-card p-3 text-left shadow-sm transition-colors hover:bg-accent/40 active:bg-accent/50 sm:p-4"
           >
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-foreground">
@@ -161,7 +161,7 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
             </div>
 
             <div
-              className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-2"
+              className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-2 sm:mt-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {isStaff && (

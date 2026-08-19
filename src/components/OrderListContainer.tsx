@@ -1,5 +1,5 @@
 import { memo } from "react";
-import OrderTable from "./OrderTable";
+
 import OrderCardList from "./OrderCardList";
 import EmptyOrdersState from "./EmptyOrdersState";
 import { Order } from "@/types/order";
@@ -36,16 +36,9 @@ const OrderListContainer = memo(({
     );
   }
 
-  return (
-    <>
-      <div className="md:hidden">
-        <OrderCardList orders={orders} userRole={userRole} />
-      </div>
-      <div className="hidden md:block">
-        <OrderTable orders={orders} userRole={userRole} />
-      </div>
-    </>
-  );
+  return <OrderCardList orders={orders} userRole={userRole} />;
+
+
 });
 
 OrderListContainer.displayName = 'OrderListContainer';
