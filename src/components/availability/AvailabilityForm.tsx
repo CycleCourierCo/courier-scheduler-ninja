@@ -239,6 +239,12 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
             </div>
 
           </div>
+
+          {showAltLocation && setAltLocation && (
+            <AltLocationFields value={altLocation} onChange={setAltLocation} mode={altMode} />
+          )}
+
+
           
           <Button 
             type="submit" 
