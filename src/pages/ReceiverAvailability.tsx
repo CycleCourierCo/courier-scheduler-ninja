@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { updateReceiverAvailability } from '@/services/availabilityService';
@@ -9,6 +9,11 @@ import { LoadingState, ErrorState } from '@/components/availability/Availability
 import { ConfirmedDatesView } from '@/components/availability/ConfirmedDatesView';
 import { toast } from 'sonner';
 import { getPublicOrder } from '@/services/fetchOrderService';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Clock, CalendarClock } from 'lucide-react';
+import { describeOpeningWindows, getNextOpenDays, normaliseOpeningHours } from '@/lib/businessAvailability';
 
 export default function ReceiverAvailability() {
   const params = useParams<{ id: string }>();
@@ -53,6 +58,8 @@ export default function ReceiverAvailability() {
     setNotes,
     postcode,
     setPostcode,
+    altLocation,
+    setAltLocation,
 
     isLoading,
     isSubmitting,
@@ -77,6 +84,37 @@ export default function ReceiverAvailability() {
               Array.isArray(order.deliveryDate) && order.deliveryDate.length > 0);
     }
   });
+
+  const { userProfile } = useAuth();
+  const [mode, setMode] = useState<'unset' | 'now' | 'later'>('unset');
+
+  const openingHours = useMemo(
+    () => normaliseOpeningHours(userProfile?.opening_hours),
+    [userProfile?.opening_hours]
+  );
+
+  // The logged-in business account is the receiver when the order's receiver contact matches their profile
+  const isBusinessReceiver = useMemo(() => {
+    if (!order || !userProfile) return false;
+    if (!userProfile.is_business) return false;
+
+    const receiverEmail = (order as any)?.receiver?.email?.toLowerCase?.().trim();
+    if (!receiverEmail) return false;
+
+    const candidates = [userProfile.email, userProfile.accounts_email]
+      .filter(Boolean)
+      .map((value: string) => value.toLowerCase().trim());
+
+    return candidates.includes(receiverEmail);
+  }, [order, userProfile]);
+
+  const handleBusinessHours = () => {
+    const openDays = getNextOpenDays(openingHours, 7, isDateDisabled);
+    setDates(openDays);
+    const summary = describeOpeningWindows(openingHours, openDays);
+    setNotes(notes ? `${notes}\n\n${summary}` : summary);
+    setMode('now');
+  };
 
   if (paramError) {
     return (
@@ -149,11 +187,67 @@ export default function ReceiverAvailability() {
     );
   }
 
+  if (isBusinessReceiver && mode === 'unset') {
+    return (
+      <Layout>
+        <div className="max-w-4xl mx-auto py-8 px-4">
+          <Card className="shadow-lg border-slate-200">
+            <CardHeader className="space-y-1 bg-slate-50 rounded-t-lg border-b">
+              <CardTitle className="text-2xl">When can we deliver?</CardTitle>
+              <CardDescription>
+                Choose an option so we can schedule the delivery straight away.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4 pt-6 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={handleBusinessHours}
+                className="text-left rounded-lg border p-4 transition-colors hover:border-primary hover:bg-accent"
+              >
+                <div className="flex items-center gap-2 font-medium">
+                  <Clock className="h-4 w-4 text-primary" />
+                  Deliver during business hours
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  We'll use your opening hours to pick the next 7 available days — you can adjust
+                  them before submitting.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setMode('later')}
+                className="text-left rounded-lg border p-4 transition-colors hover:border-primary hover:bg-accent"
+              >
+                <div className="flex items-center gap-2 font-medium">
+                  <CalendarClock className="h-4 w-4 text-primary" />
+                  Pick specific dates
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Choose the exact dates you can take the delivery.
+                </p>
+              </button>
+            </CardContent>
+          </Card>
+          <div className="mt-4 text-center">
+            <Button variant="ghost" onClick={() => navigate('/dashboard')}>
+              I'll do this later
+            </Button>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <AvailabilityForm
-        title="Confirm Your Availability"
-        description="Select dates when you will be available for package delivery"
+        title={mode === 'now' ? 'Confirm Delivery Days' : 'Confirm Your Availability'}
+        description={
+          mode === 'now'
+            ? "These days come from your business opening hours — adjust them if needed, then submit."
+            : "Select dates when you will be available for package delivery"
+        }
         dates={dates}
         setDates={setDates}
         notes={notes}
@@ -168,6 +262,10 @@ export default function ReceiverAvailability() {
         onSubmit={handleSubmit}
         isDateDisabled={isDateDisabled}
         calendarEndDate={calendarEndDate}
+        altLocation={altLocation}
+        setAltLocation={setAltLocation}
+        showAltLocation={!isBusinessReceiver}
+        altMode="delivery"
         bufferNotice={hasInspectionBuffer
           ? "This bike will be inspected and serviced before delivery, so we've added a short gap between collection and delivery dates. Please pick dates from the earliest available."
           : undefined}
