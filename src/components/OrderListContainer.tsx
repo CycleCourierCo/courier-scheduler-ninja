@@ -1,5 +1,6 @@
 import { memo } from "react";
 import OrderTable from "./OrderTable";
+import OrderCardList from "./OrderCardList";
 import EmptyOrdersState from "./EmptyOrdersState";
 import { Order } from "@/types/order";
 
