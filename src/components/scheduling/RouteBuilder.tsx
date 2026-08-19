@@ -501,9 +501,12 @@ const JobItem: React.FC<JobItemProps> = ({
                               {groupedJob.type === 'pickup' ? 'Col' : 'Del'}
                             </Badge>
                             <span className="text-xs font-medium truncate">{groupedJob.contactName}</span>
-                            <Badge variant="outline" className={`text-xs px-1 py-0 whitespace-nowrap ${bikeCountAfterJob > vanCapacity ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                              🚲 {formatSpaces(bikeCountAfterJob)}/{formatSpaces(vanCapacity)}
-                            </Badge>
+                            <BikeCountBadge
+                              orderData={groupedJob.orderData}
+                              bikeCount={bikeCountAfterJob}
+                              vanCapacity={vanCapacity}
+                              className="px-1 py-0"
+                            />
                           </div>
                           
                           {/* Badges row */}
