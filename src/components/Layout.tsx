@@ -372,7 +372,7 @@ const Layout: React.FC<LayoutProps> = ({
                     </Link>
                   </DropdownMenuItem>}
                   
-                  {!isDriver && <DropdownMenuItem asChild>
+                  {!isDriver && isInternalStaff && <DropdownMenuItem asChild>
                     <Link to="/fuel-finder" className="cursor-pointer flex w-full items-center">
                       <Fuel className="mr-2 h-4 w-4" />
                       <span>Fuel Finder</span>
