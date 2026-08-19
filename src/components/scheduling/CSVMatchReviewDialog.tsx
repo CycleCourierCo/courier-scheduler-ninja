@@ -96,7 +96,25 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
       s.sequences.sort((a, b) => a - b);
       s.candidates.sort((a, b) => b.confidence - a.confidence);
     });
-    return list.sort((a, b) => a.sequence - b.sequence);
+    list.sort((a, b) => a.sequence - b.sequence);
+
+    // A given order/leg can only belong to ONE stop — otherwise the same job gets
+    // ticked (and loaded) under several similar stops, duplicating it on the route.
+    const claimed = new Set<string>();
+    list.forEach(stop => {
+      const kept: MatchCandidate[] = [];
+      stop.candidates.forEach(c => {
+        const key = candidateKey(c);
+        if (claimed.has(key)) return;
+        kept.push(c);
+      });
+      // Only claim as many jobs as this stop actually has CSV rows for, so later
+      // stops for the same customer still have candidates left to choose from.
+      kept.slice(0, stop.rowCount).forEach(c => claimed.add(candidateKey(c)));
+      stop.candidates = kept;
+    });
+
+    return list;
   }, [matchResults]);
 
   const defaultSelection = useMemo(() => {
