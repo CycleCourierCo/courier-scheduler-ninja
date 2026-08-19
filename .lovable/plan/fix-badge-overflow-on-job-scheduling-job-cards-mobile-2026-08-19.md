@@ -7,11 +7,11 @@ On narrow screens the status badges on each available-job card (Delivery / Colle
 In the available-jobs card grid in the Route Builder:
 
 1. Badge row (Collection/Delivery, collection status, inspection status, Shipday icon)
-   - Allow the row to wrap onto multiple lines and stop it from forcing the card wider than its container.
+  - Allow the row to wrap onto multiple lines and stop it from forcing the card wider than its container.
 2. Tracking-number line
-   - Let the "N days waiting" badge wrap below the tracking number when there isn't room, keep the tracking number itself from being pushed off-screen, and allow long tracking numbers to break.
+  - Let the "N days waiting" badge wrap below the tracking number when there isn't room, keep the tracking number itself from being pushed off-screen, and allow long tracking numbers to break.
 3. Address and "Final destination" text
-   - Ensure long addresses wrap rather than pushing the card out.
+  - Ensure long addresses wrap rather than pushing the card out.
 
 No logic, data, or filter behaviour changes — presentation only.
 
