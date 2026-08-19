@@ -6,6 +6,8 @@ import DashboardHeader from "@/components/DashboardHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ContactInfo, Address, OrderStatus } from "@/types/order";
 import ClusterMap from "@/components/scheduling/ClusterMap";
+import DriverHoursMileagePanel from "@/components/scheduling/DriverHoursMileagePanel";
+
 import RouteBuilder from "@/components/scheduling/RouteBuilder";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -272,6 +274,12 @@ const JobScheduling = () => {
                 onClusterChange={setClusters}
               />
             </div>
+
+            <div className="mb-8">
+              <DriverHoursMileagePanel />
+            </div>
+            
+
             
             <div className="mb-8">
               <RouteBuilder 
