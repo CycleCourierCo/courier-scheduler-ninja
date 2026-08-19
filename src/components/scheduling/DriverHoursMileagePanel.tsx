@@ -31,22 +31,16 @@ type DriverTotals = {
   missingMileageDays: number;
 };
 
-// Default range: Sunday -> Thursday of the current working week.
-// On Friday/Saturday, show the week that has just finished.
+// Default range: Sunday -> Thursday of the current week.
+// On Friday/Saturday this is the working week that has just finished.
 const getDefaultRange = (): { from: string; to: string } => {
-  const today = new Date();
-  const dow = today.getDay(); // 0 = Sunday
-  const base = dow === 5 || dow === 6 ? subWeeks(today, 0) : today;
-  let sunday = startOfWeek(base, { weekStartsOn: 0 });
-  if (dow === 5 || dow === 6) {
-    // week just finished still starts on the same Sunday
-    sunday = startOfWeek(base, { weekStartsOn: 0 });
-  }
+  const sunday = startOfWeek(new Date(), { weekStartsOn: 0 });
   return {
     from: format(sunday, "yyyy-MM-dd"),
     to: format(addDays(sunday, 4), "yyyy-MM-dd"),
   };
 };
+
 
 const fmtHours = (h: number) => `${h.toFixed(2)}h`;
 const fmtMiles = (m: number) => `${Math.round(m).toLocaleString()} mi`;
