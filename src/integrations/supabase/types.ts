@@ -2131,6 +2131,9 @@ export type Database = {
           bike_value: number | null
           bikes: Json | null
           box_boxed_at: string | null
+          box_buyer: Json | null
+          box_buyer_boxing_email_sent_at: string | null
+          box_buyer_collected_email_sent_at: string | null
           box_collected_by_3p_at: string | null
           box_delivered_by_3p_at: string | null
           box_in_depot_at: string | null
@@ -2226,6 +2229,9 @@ export type Database = {
           bike_value?: number | null
           bikes?: Json | null
           box_boxed_at?: string | null
+          box_buyer?: Json | null
+          box_buyer_boxing_email_sent_at?: string | null
+          box_buyer_collected_email_sent_at?: string | null
           box_collected_by_3p_at?: string | null
           box_delivered_by_3p_at?: string | null
           box_in_depot_at?: string | null
@@ -2321,6 +2327,9 @@ export type Database = {
           bike_value?: number | null
           bikes?: Json | null
           box_boxed_at?: string | null
+          box_buyer?: Json | null
+          box_buyer_boxing_email_sent_at?: string | null
+          box_buyer_collected_email_sent_at?: string | null
           box_collected_by_3p_at?: string | null
           box_delivered_by_3p_at?: string | null
           box_in_depot_at?: string | null
