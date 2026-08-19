@@ -120,6 +120,7 @@ interface JobItemProps {
   onSendGroupedTimeslots?: (locationGroupId: string) => void;
   onSendGroupedTimeslotsSendZen?: (locationGroupId: string) => void;
   onUpdateCoordinates: (job: SelectedJob, lat: number, lon: number) => void;
+  onToggleAddress?: (job: SelectedJob) => void;
   isSendingTimeslots: boolean;
   allJobs: SelectedJob[]; // To check for grouped locations
   bikeCount: number; // Current bike count at this stop
@@ -317,6 +318,7 @@ const JobItem: React.FC<JobItemProps> = ({
   onSendGroupedTimeslots,
   onSendGroupedTimeslotsSendZen,
   onUpdateCoordinates,
+  onToggleAddress,
   isSendingTimeslots,
   allJobs,
   bikeCount,
@@ -3880,6 +3882,7 @@ Route Link: ${routeLink}`;
                       onSendGroupedTimeslots={sendGroupedTimeslots}
                       onSendGroupedTimeslotsSendZen={sendGroupedTimeslotsSendZen}
                       onUpdateCoordinates={updateCoordinates}
+                      onToggleAddress={toggleStopAddress}
                       isSendingTimeslots={isSendingTimeslots}
                       allJobs={selectedJobs}
                       bikeCount={calculateBikeCountAtJob(index)}
