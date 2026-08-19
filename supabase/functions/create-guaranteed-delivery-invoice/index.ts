@@ -13,6 +13,16 @@ function escapeQuickBooksString(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
+/** Strip control chars (tab/newline/etc), collapse whitespace and trim — QuickBooks rejects them. */
+function sanitiseQbString(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    // deno-lint-ignore no-control-regex
+    .replace(/[\u0000-\u001F\u007F]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 async function refreshQuickBooksToken(
   supabase: any,
   userId: string,
@@ -148,8 +158,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const party = (payer === 'sender' ? order.sender : order.receiver) as any;
-    const partyName: string = party?.name || '';
-    const partyEmail: string = party?.email || '';
+    const partyName: string = sanitiseQbString(party?.name);
+    const partyEmail: string = sanitiseQbString(party?.email);
     if (!partyName) throw new Error(`The ${payer} has no name on this order`);
 
     const tokenData = await getValidQuickBooksToken(supabase, user.id);
@@ -214,16 +224,23 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!qbCustomerId) {
       const addr = party?.address || {};
+      const line1 = sanitiseQbString(addr.street);
+      const city = sanitiseQbString(addr.city);
+      const region = sanitiseQbString(addr.county || addr.state);
+      const postal = sanitiseQbString(addr.zipCode || addr.postcode);
+      const country = sanitiseQbString(addr.country);
+      const phone = sanitiseQbString(party?.phone);
+
       const createPayload: Record<string, unknown> = {
         DisplayName: partyName,
         ...(partyEmail ? { PrimaryEmailAddr: { Address: partyEmail } } : {}),
-        ...(party?.phone ? { PrimaryPhone: { FreeFormNumber: String(party.phone) } } : {}),
+        ...(phone ? { PrimaryPhone: { FreeFormNumber: phone } } : {}),
         BillAddr: {
-          ...(addr.street ? { Line1: String(addr.street) } : {}),
-          ...(addr.city ? { City: String(addr.city) } : {}),
-          ...(addr.county || addr.state ? { CountrySubDivisionCode: String(addr.county || addr.state) } : {}),
-          ...(addr.zipCode || addr.postcode ? { PostalCode: String(addr.zipCode || addr.postcode) } : {}),
-          ...(addr.country ? { Country: String(addr.country) } : {}),
+          ...(line1 ? { Line1: line1 } : {}),
+          ...(city ? { City: city } : {}),
+          ...(region ? { CountrySubDivisionCode: region } : {}),
+          ...(postal ? { PostalCode: postal } : {}),
+          ...(country ? { Country: country } : {}),
         },
       };
 
@@ -235,19 +252,29 @@ const handler = async (req: Request): Promise<Response> => {
       if (!createRes.ok) {
         const errText = await createRes.text();
         console.error('QuickBooks customer creation failed:', errText);
-        throw new Error(`Could not create a QuickBooks customer for the ${payer}`);
+        let qbMessage = '';
+        try {
+          const fault = JSON.parse(errText)?.Fault?.Error?.[0];
+          qbMessage = [fault?.Message, fault?.Detail].filter(Boolean).join(' — ');
+        } catch (_) {
+          qbMessage = '';
+        }
+        throw new Error(
+          `Could not create a QuickBooks customer for the ${payer}${qbMessage ? `: ${qbMessage}` : ''}`
+        );
       }
       qbCustomerId = (await createRes.json()).Customer?.Id;
     }
 
     if (!qbCustomerId) throw new Error(`Could not resolve a QuickBooks customer for the ${payer}`);
 
-    let description = `Guaranteed delivery date – ${order.tracking_number || order.id}`;
-    if (order.customer_order_number) description += ` (Order #${order.customer_order_number})`;
-    if (order.bike_brand || order.bike_model) {
-      description += ` - ${order.bike_brand || ''} ${order.bike_model || ''}`.trim();
-    }
-    if (order.guaranteed_delivery_note) description += ` - ${order.guaranteed_delivery_note}`;
+    let description = `Guaranteed delivery date – ${sanitiseQbString(order.tracking_number) || order.id}`;
+    const customerOrderNumber = sanitiseQbString(order.customer_order_number);
+    if (customerOrderNumber) description += ` (Order #${customerOrderNumber})`;
+    const bikeLabel = sanitiseQbString(`${order.bike_brand || ''} ${order.bike_model || ''}`);
+    if (bikeLabel) description += ` - ${bikeLabel}`;
+    const guaranteeNote = sanitiseQbString(order.guaranteed_delivery_note);
+    if (guaranteeNote) description += ` - ${guaranteeNote}`;
 
     const serviceDate = new Date().toISOString().split('T')[0];
 

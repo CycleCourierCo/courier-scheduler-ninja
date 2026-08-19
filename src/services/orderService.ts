@@ -794,11 +794,12 @@ export const clearGuaranteedDelivery = async (orderId: string): Promise<void> =>
     .update({
       guaranteed_delivery: false,
       guaranteed_delivery_payer: null,
-      guaranteed_delivery_amount: null,
+      guaranteed_delivery_amount: 0,
       guaranteed_delivery_note: null,
       guaranteed_delivery_invoice_id: null,
       guaranteed_delivery_invoice_number: null,
       guaranteed_delivery_invoice_url: null,
+      guaranteed_delivery_invoice_public_url: null,
       guaranteed_delivery_invoiced_at: null,
       guaranteed_delivery_marked_at: null,
       guaranteed_delivery_marked_by_id: null,
