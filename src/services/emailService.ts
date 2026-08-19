@@ -2,6 +2,28 @@ import { supabase } from "@/integrations/supabase/client";
 import { getOrder } from "./orderService";
 import { isNorthernIrelandAddress } from "@/utils/northernIreland";
 import { CITY_AIR_EXPRESS } from "@/constants/depot";
+import { Order } from "@/types/order";
+
+/**
+ * Box My Bike orders deliver to our depot, so the receiver on the order is the
+ * depot. The end buyer is stored separately and must be kept in the loop.
+ */
+const boxBuyerEmail = (order: Order): string | null => {
+  if (!order?.isBoxMyBike) return null;
+  const email = order.boxBuyer?.email?.trim();
+  return email ? email : null;
+};
+
+/** Receiver-facing recipients, including the ferry hand-off and Box My Bike buyer. */
+const buildReceiverRecipients = (order: Order, isNI: boolean): string | string[] => {
+  const extras: string[] = [];
+  if (isNI) extras.push(CITY_AIR_EXPRESS.email);
+  const buyer = boxBuyerEmail(order);
+  if (buyer && buyer.toLowerCase() !== order.receiver?.email?.toLowerCase()) extras.push(buyer);
+  return extras.length ? [order.receiver.email, ...extras] : order.receiver.email;
+};
+
+
 
 
 export const sendBusinessAccountCreationEmail = async (email: string, name: string): Promise<boolean> => {
