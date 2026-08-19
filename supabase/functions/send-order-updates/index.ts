@@ -580,7 +580,11 @@ async function runScan(admin: any, singleOrderId?: string, offset = 0) {
       continue;
     }
 
-    const updates = deriveUpdates(order, isInspectionPending(order));
+    const updates = deriveUpdates(
+      order,
+      isInspectionPending(order),
+      inspectionStatusByOrder.get(order.id) || null
+    );
     if (updates.length === 0) {
       skipped++;
       continue;
