@@ -36,7 +36,16 @@ const OrderListContainer = memo(({
     );
   }
 
-  return <OrderTable orders={orders} userRole={userRole} />;
+  return (
+    <>
+      <div className="md:hidden">
+        <OrderCardList orders={orders} userRole={userRole} />
+      </div>
+      <div className="hidden md:block">
+        <OrderTable orders={orders} userRole={userRole} />
+      </div>
+    </>
+  );
 });
 
 OrderListContainer.displayName = 'OrderListContainer';
