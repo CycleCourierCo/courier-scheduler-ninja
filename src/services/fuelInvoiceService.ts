@@ -168,6 +168,34 @@ async function applyAliasToTransactions(alias: string, vehicleId: string | null)
   if (error) throw error;
 }
 
+export interface FuelTransactionCorrection {
+  vehicle_id?: string | null;
+  quantity_litres?: number;
+  net_amount?: number;
+  gross_amount?: number;
+  trx_date?: string;
+  trx_time?: string | null;
+  correction_note?: string | null;
+}
+
+/** Applies an admin correction to a single fuel transaction and records who did it. */
+export async function updateFuelTransaction(
+  id: string,
+  updates: FuelTransactionCorrection
+): Promise<void> {
+  const { data: auth } = await supabase.auth.getUser();
+  const { error } = await supabase
+    .from("fuel_transactions")
+    .update({
+      ...updates,
+      corrected_at: new Date().toISOString(),
+      corrected_by: auth.user?.id ?? null,
+    } as never)
+    .eq("id", id);
+  if (error) throw error;
+}
+
+
 /* ----------------------------------------------------------------- upload */
 
 /** Resolves each parsed row to a fleet vehicle using exact regs then saved aliases. */
