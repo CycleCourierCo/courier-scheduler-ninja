@@ -224,16 +224,23 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!qbCustomerId) {
       const addr = party?.address || {};
+      const line1 = sanitiseQbString(addr.street);
+      const city = sanitiseQbString(addr.city);
+      const region = sanitiseQbString(addr.county || addr.state);
+      const postal = sanitiseQbString(addr.zipCode || addr.postcode);
+      const country = sanitiseQbString(addr.country);
+      const phone = sanitiseQbString(party?.phone);
+
       const createPayload: Record<string, unknown> = {
         DisplayName: partyName,
         ...(partyEmail ? { PrimaryEmailAddr: { Address: partyEmail } } : {}),
-        ...(party?.phone ? { PrimaryPhone: { FreeFormNumber: String(party.phone) } } : {}),
+        ...(phone ? { PrimaryPhone: { FreeFormNumber: phone } } : {}),
         BillAddr: {
-          ...(addr.street ? { Line1: String(addr.street) } : {}),
-          ...(addr.city ? { City: String(addr.city) } : {}),
-          ...(addr.county || addr.state ? { CountrySubDivisionCode: String(addr.county || addr.state) } : {}),
-          ...(addr.zipCode || addr.postcode ? { PostalCode: String(addr.zipCode || addr.postcode) } : {}),
-          ...(addr.country ? { Country: String(addr.country) } : {}),
+          ...(line1 ? { Line1: line1 } : {}),
+          ...(city ? { City: city } : {}),
+          ...(region ? { CountrySubDivisionCode: region } : {}),
+          ...(postal ? { PostalCode: postal } : {}),
+          ...(country ? { Country: country } : {}),
         },
       };
 
@@ -245,7 +252,16 @@ const handler = async (req: Request): Promise<Response> => {
       if (!createRes.ok) {
         const errText = await createRes.text();
         console.error('QuickBooks customer creation failed:', errText);
-        throw new Error(`Could not create a QuickBooks customer for the ${payer}`);
+        let qbMessage = '';
+        try {
+          const fault = JSON.parse(errText)?.Fault?.Error?.[0];
+          qbMessage = [fault?.Message, fault?.Detail].filter(Boolean).join(' — ');
+        } catch (_) {
+          qbMessage = '';
+        }
+        throw new Error(
+          `Could not create a QuickBooks customer for the ${payer}${qbMessage ? `: ${qbMessage}` : ''}`
+        );
       }
       qbCustomerId = (await createRes.json()).Customer?.Id;
     }
