@@ -69,7 +69,7 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
   };
 
   return (
-    <div className="space-y-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {orders.map((order) => {
         const isStaff = userRole === "admin" || userRole === "route_planner";
         return (
