@@ -463,6 +463,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         needs_inspection: needsInspection || false,
         is_box_my_bike: isBoxMyBike || false,
         box_my_bike_status: isBoxMyBike ? 'awaiting_depot' : null,
+        box_buyer: isBoxMyBike && boxBuyer?.email ? boxBuyer : null,
         destination_region: destinationRegion,
         is_northern_ireland: isNorthernIreland,
         ni_direction: niDirection,
