@@ -298,6 +298,8 @@ export const useAvailability = ({
     setPostcode,
     altLocation,
     setAltLocation,
+    isLoading,
+
 
     isSubmitting,
     order,
