@@ -1827,6 +1827,18 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     }
   };
 
+  /** Payload telling the edge functions which stops use a work address / neighbour */
+  const buildAddressOverrides = (jobs: any[]) =>
+    jobs
+      .filter((j) => j.type !== 'break' && (j.addressSource === 'work' || j.neighbourNumber))
+      .map((j) => ({
+        orderId: j.orderId,
+        jobType: j.type === 'pickup' ? 'pickup' : 'delivery',
+        address: j.altAddressText || j.address,
+        source: j.addressSource || 'home',
+        neighbourNumber: j.neighbourNumber || null,
+      }));
+
   // Planner overrides for which address a stop should use (home vs work)
   const [addressOverrides, setAddressOverrides] = useState<Record<string, AddressSource>>({});
 
@@ -2213,7 +2225,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           orderId: job.orderId,
           recipientType: job.type === 'pickup' ? 'sender' : 'receiver',
           deliveryTime,
-          customMessage: message
+          customMessage: message,
+          addressOverrides: buildAddressOverrides([job])
         }
       });
 
@@ -2375,7 +2388,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           recipientType: toEdgeFunctionJobType(primaryJob.type) === 'pickup' ? 'sender' : 'receiver',
           deliveryTime,
           customMessage: message,
-          relatedJobs: relatedJobs.length > 0 ? relatedJobs : undefined
+          relatedJobs: relatedJobs.length > 0 ? relatedJobs : undefined,
+          addressOverrides: buildAddressOverrides(jobsAtLocation)
         }
       });
 
@@ -2600,7 +2614,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
               recipientType: toEdgeFunctionJobType(primaryJob.type) === 'pickup' ? 'sender' : 'receiver',
               deliveryTime,
               customMessage: message,
-              relatedJobs: relatedJobs.length > 0 ? relatedJobs : undefined
+              relatedJobs: relatedJobs.length > 0 ? relatedJobs : undefined,
+              addressOverrides: buildAddressOverrides(jobsAtLocation)
             }
           });
 
@@ -2705,7 +2720,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
             body: {
               orderId: job.orderId,
               recipientType: job.type === 'pickup' ? 'sender' : 'receiver',
-              deliveryTime: job.estimatedTime
+              deliveryTime: job.estimatedTime,
+              addressOverrides: buildAddressOverrides([job])
             }
           });
 
@@ -2926,6 +2942,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
             orderId: j.orderId,
             jobType: j.type === 'pickup' ? 'pickup' : 'delivery',
           })),
+          addressOverrides: buildAddressOverrides(jobsAtLocation),
         }
       });
 
@@ -3038,6 +3055,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                 orderId: j.orderId,
                 jobType: j.type === 'pickup' ? 'pickup' : 'delivery',
               })),
+              addressOverrides: buildAddressOverrides(jobsAtLocation),
             }
           });
 
@@ -3083,6 +3101,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
               type: sendzenType,
               recipientType: job.type === 'pickup' ? 'sender' : 'receiver',
               deliveryTime: job.estimatedTime,
+              addressOverrides: buildAddressOverrides([job]),
             }
           });
 
