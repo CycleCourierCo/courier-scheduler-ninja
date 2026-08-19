@@ -89,6 +89,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
         path === '/driver-timeslips' ||
         path === '/ai-routing' ||
         path === '/fuel-finder' ||
+        path === '/tasks' ||
+        path.startsWith('/tasks/') ||
         path.startsWith('/dispatch') ||
         path.startsWith('/knowledge');
       if (b2bBlocked) {
