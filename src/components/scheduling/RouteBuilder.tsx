@@ -1793,6 +1793,129 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     // Starting bikes will auto-update via useEffect
   };
 
+  /** Indices of every job that belongs to the same physical stop as `index`. */
+  const getStopBlock = (list: SelectedJob[], index: number): number[] => {
+    const groupId = (list[index] as any)?.locationGroupId;
+    if (!groupId) return [index];
+    const block: number[] = [];
+    for (let i = 0; i < list.length; i++) {
+      if ((list[i] as any).locationGroupId === groupId) block.push(i);
+    }
+    return block.length ? block : [index];
+  };
+
+  /** Move a whole stop (all jobs at that location) up or down one position. */
+  const moveStop = (index: number, direction: 'up' | 'down') => {
+    const list = [...selectedJobs];
+    const block = getStopBlock(list, index);
+    const start = block[0];
+    const end = block[block.length - 1];
+
+    if (direction === 'up' && start === 0) return;
+    if (direction === 'down' && end === list.length - 1) return;
+
+    const moving = list.slice(start, end + 1);
+    const rest = [...list.slice(0, start), ...list.slice(end + 1)];
+
+    let insertAt: number;
+    if (direction === 'up') {
+      const neighbourBlock = getStopBlock(list, start - 1);
+      insertAt = neighbourBlock[0];
+    } else {
+      const neighbourBlock = getStopBlock(list, end + 1);
+      const neighbourEnd = neighbourBlock[neighbourBlock.length - 1];
+      insertAt = neighbourEnd + 1 - moving.length;
+    }
+
+    rest.splice(insertAt, 0, ...moving);
+    const updated = rest.map((job, i) => ({ ...job, order: i + 1 }));
+    setSelectedJobs(updated);
+    calculateTimeslots(updated);
+  };
+
+  /**
+   * Planner typed a time for one stop: keep that time, then re-time every later
+   * stop from there using real travel times. Earlier stops stay untouched.
+   */
+  const updateStopTime = async (index: number, newTime: string) => {
+    if (!/^\d{2}:\d{2}$/.test(newTime)) return;
+    const list = [...selectedJobs];
+    if (!list[index]) return;
+
+    setIsRetiming(true);
+    try {
+      const baseCoords = { lat: 52.4690197, lon: -1.8757663 };
+      let currentTime = new Date(`2024-01-01 ${newTime}`);
+      let lastLocationCoords: { lat: number; lon: number } | null = null;
+      const processedLocationGroups = new Set<string>();
+
+      for (let i = index; i < list.length; i++) {
+        const job: any = list[i];
+
+        if (job.type === 'break') {
+          currentTime = new Date(currentTime.getTime() + (job.breakDuration || 15) * 60000);
+          const rounded = roundTimeToNext5Minutes(currentTime);
+          list[i] = { ...job, estimatedTime: rounded.toTimeString().slice(0, 5) };
+          currentTime = rounded;
+          continue;
+        }
+
+        const isNewLocation = !job.locationGroupId || !processedLocationGroups.has(job.locationGroupId);
+
+        if (isNewLocation) {
+          let arrival: Date;
+          if (lastLocationCoords === null) {
+            // The edited stop keeps exactly the time the planner typed
+            arrival = new Date(`2024-01-01 ${newTime}`);
+          } else if (job.lat && job.lon) {
+            const leg = await calculateTravelTime(lastLocationCoords, { lat: job.lat, lon: job.lon });
+            arrival = roundTimeToNext5Minutes(new Date(currentTime.getTime() + leg.minutes * 60000));
+          } else {
+            arrival = roundTimeToNext5Minutes(new Date(currentTime.getTime() + 15 * 60000));
+          }
+
+          if (job.locationGroupId) processedLocationGroups.add(job.locationGroupId);
+          if (job.lat && job.lon) lastLocationCoords = { lat: job.lat, lon: job.lon };
+
+          list[i] = { ...job, estimatedTime: arrival.toTimeString().slice(0, 5) };
+          currentTime = new Date(arrival.getTime() + 15 * 60000);
+        } else {
+          const arrival = new Date(currentTime.getTime() - 15 * 60000);
+          list[i] = { ...job, estimatedTime: arrival.toTimeString().slice(0, 5) };
+          currentTime = new Date(currentTime.getTime() + 15 * 60000);
+        }
+      }
+
+      setSelectedJobs(list);
+
+      // Refresh the end-of-day ETA / route length using the new times
+      if (lastLocationCoords) {
+        const returnLeg = await calculateTravelTime(lastLocationCoords, baseCoords);
+        const endTimeRounded = roundTimeToNext5Minutes(
+          new Date(currentTime.getTime() + returnLeg.minutes * 60000)
+        );
+        const startClock = new Date(`2024-01-01 ${startTime}`);
+        setRouteStats(prev =>
+          prev
+            ? {
+                ...prev,
+                endTime: endTimeRounded.toTimeString().slice(0, 5),
+                durationMinutes: Math.max(
+                  0,
+                  Math.round((endTimeRounded.getTime() - startClock.getTime()) / 60000)
+                ),
+              }
+            : prev
+        );
+      }
+    } catch (error) {
+      console.error('Error re-timing route from manual time:', error);
+      toast.error('Failed to re-time later stops');
+    } finally {
+      setIsRetiming(false);
+    }
+  };
+
   const addBreak = (afterIndex: number, breakType: 'lunch' | 'stop') => {
     const newBreak: SelectedJob = {
       orderId: `break-${Date.now()}`,
