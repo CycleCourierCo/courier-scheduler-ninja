@@ -241,7 +241,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
           </div>
 
           {showAltLocation && setAltLocation && (
-            <AltLocationFields value={altLocation} onChange={setAltLocation} mode={altMode} />
+            <AltLocationFields value={altLocation} onChange={setAltLocation} mode={altMode} dates={dates} />
           )}
 
 
