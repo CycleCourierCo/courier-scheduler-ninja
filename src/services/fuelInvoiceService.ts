@@ -734,10 +734,23 @@ export function analyseFuel(
 
 /* ------------------------------------------------------- anomaly dismissal */
 
+export const RESOLVED_PREFIX = "RESOLVED:";
+
 export async function fetchDismissedAnomalies(): Promise<Set<string>> {
   const { data, error } = await supabase.from("fuel_anomaly_dismissals").select("scope_key");
   if (error) throw error;
   return new Set((data ?? []).map((r) => r.scope_key));
+}
+
+/** Keys that were closed by a manual dismiss (not by an actual fix). */
+export async function fetchManuallyDismissedKeys(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("fuel_anomaly_dismissals")
+    .select("scope_key, note");
+  if (error) throw error;
+  return (data ?? [])
+    .filter((r) => !(r.note ?? "").startsWith(RESOLVED_PREFIX))
+    .map((r) => r.scope_key);
 }
 
 export async function dismissAnomaly(key: string, note?: string): Promise<void> {
@@ -750,6 +763,12 @@ export async function dismissAnomaly(key: string, note?: string): Promise<void> 
     );
   if (error) throw error;
 }
+
+/** Closes a flag because it was actually fixed, so "restore dismissed" won't bring it back. */
+export async function resolveAnomaly(key: string, note: string): Promise<void> {
+  await dismissAnomaly(key, `${RESOLVED_PREFIX} ${note}`);
+}
+
 
 export async function restoreAnomaly(key: string): Promise<void> {
   const { error } = await supabase
