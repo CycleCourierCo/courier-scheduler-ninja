@@ -550,6 +550,7 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
                               aliasMutation.mutate({
                                 reg: anomaly.normalisedReg ?? anomaly.registration ?? "",
                                 vehicleId,
+                                anomalyKey: anomaly.key,
                               })
                             }
                           >
@@ -573,9 +574,11 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
                                 reg: anomaly.normalisedReg ?? anomaly.registration ?? "",
                                 vehicleId: null,
                                 ignored: true,
+                                anomalyKey: anomaly.key,
                               })
                             }
                           >
+
                             Not ours
                           </Button>
                         </>
