@@ -313,7 +313,66 @@ const getInspectionStatusBadge = (
   };
 };
 
-const JobItem: React.FC<JobItemProps> = ({ 
+interface BikeCountBadgeProps {
+  orderData?: OrderData;
+  bikeCount: number;
+  vanCapacity: number;
+  className?: string;
+}
+
+const BikeCountBadge: React.FC<BikeCountBadgeProps> = ({ orderData, bikeCount, vanCapacity, className }) => {
+  const groupedBikes = getGroupedBikes({
+    bikes: orderData?.bikes?.map((bike) => ({
+      brand: bike?.brand || "",
+      model: bike?.model || "",
+      type: bike?.type || "",
+      value: bike?.value || "",
+    })) || [],
+    bikeBrand: orderData?.bike_brand || undefined,
+    bikeModel: orderData?.bike_model || undefined,
+    bikeType: orderData?.bike_type || undefined,
+    bikeQuantity: orderData?.bike_quantity || undefined,
+  } as any);
+
+  const hasBikes = groupedBikes.length > 0 && groupedBikes.some((b) => b.brand || b.model || b.type);
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge
+          variant="outline"
+          className={cn(
+            "text-xs px-1.5 py-0 whitespace-nowrap cursor-help",
+            bikeCount > vanCapacity ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800",
+            className
+          )}
+        >
+          🚲 {formatSpaces(bikeCount)}/{formatSpaces(vanCapacity)}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs">
+        <div className="space-y-1">
+          <p className="font-medium text-xs">Bike details</p>
+          {hasBikes ? (
+            <ul className="space-y-0.5 text-xs">
+              {groupedBikes.map((bike, index) => (
+                <li key={index}>
+                  {bike.quantity > 1 && <span className="font-medium">{bike.quantity}× </span>}
+                  {[bike.brand, bike.model].filter(Boolean).join(" ")}
+                  {bike.type && <span className="text-muted-foreground"> — {bike.type}</span>}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-muted-foreground">No bike details available</p>
+          )}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+};
+
+const JobItem: React.FC<JobItemProps> = ({
   job, 
   index, 
   onReorder, 
