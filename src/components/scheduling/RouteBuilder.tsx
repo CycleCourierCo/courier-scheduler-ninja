@@ -1410,6 +1410,56 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     }
   };
 
+  // Silently create a saved_routes row named from the route date + short id
+  const createSavedRouteRow = async (): Promise<{ id: string; name: string } | null> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+
+      const jobData = selectedJobs.map(job => {
+        const coords = job.orderData
+          ? resolveStopCoords(job.orderData, job.type)
+          : { lat: null, lon: null };
+        return {
+          orderId: job.orderId,
+          type: job.type,
+          address: job.address,
+          contactName: job.contactName,
+          phoneNumber: job.phoneNumber,
+          order: job.order,
+          estimatedTime: job.estimatedTime,
+          lat: coords.lat ?? job.lat,
+          lon: coords.lon ?? job.lon,
+          breakDuration: job.breakDuration,
+          breakType: job.breakType,
+        };
+      });
+
+      const id = crypto.randomUUID();
+      const name = `${format(selectedDate, 'yyyy-MM-dd')} — ${id.slice(0, 8)}`;
+
+      const { error } = await supabase
+        .from('saved_routes')
+        .insert({
+          id,
+          name,
+          job_data: jobData,
+          start_time: startTime,
+          starting_bikes: startingBikes,
+          created_by: user.id,
+        });
+      if (error) throw error;
+
+      return { id, name };
+    } catch (err: any) {
+      console.error('Failed to auto-save route:', err);
+      toast.warning(`Couldn't auto-save route: ${err.message}`);
+      return null;
+    }
+  };
+
+
+
   // Handle initial jobs from URL parameters
   React.useEffect(() => {
     if (initialJobs?.length && orderList.length && selectedJobs.length === 0) {
