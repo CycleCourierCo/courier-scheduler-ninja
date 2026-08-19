@@ -35,8 +35,7 @@ import { StorageLocation } from "@/components/order-detail/StorageLocation";
 import ContactDetails from "@/components/order-detail/ContactDetails";
 import AdminContactEditor from "@/components/order-detail/AdminContactEditor";
 import AdminTrackingEditor from "@/components/order-detail/AdminTrackingEditor";
-import NorthernIrelandEditor from "@/components/order-detail/NorthernIrelandEditor";
-import GuaranteedDeliveryCard from "@/components/order-detail/GuaranteedDeliveryCard";
+import OrderServicesPanel from "@/components/order-detail/OrderServicesPanel";
 
 
 import SchedulingButtons from "@/components/order-detail/SchedulingButtons";
@@ -1624,6 +1623,13 @@ const OrderDetail = () => {
               </div>
 
             </div>
+
+            {isAdmin && (
+              <>
+                <Separator className="my-6" />
+                <OrderServicesPanel order={order as any} onRefresh={handleRefreshOrder} />
+              </>
+            )}
             
             {/* Editable Notes & Instructions - admin/route_planner only */}
             {isAdminOrRoutePlanner && (
@@ -1685,18 +1691,6 @@ const OrderDetail = () => {
               </div>
             </div>
             
-            {isAdmin && (
-              <>
-                <Separator className="my-6" />
-                <div>
-
-                  <NorthernIrelandEditor order={order as any} onUpdate={handleRefreshOrder} />
-                </div>
-                <div className="mt-6">
-                  <GuaranteedDeliveryCard order={order as any} onUpdate={handleRefreshOrder} />
-                </div>
-              </>
-            )}
 
 
             
