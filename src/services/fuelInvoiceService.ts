@@ -492,6 +492,9 @@ export function analyseFuel(
             registration: rows[0].raw_vehicle_id ?? normalised,
             date: rows[0].trx_date,
             amount: round(netSpend),
+            transactionIds: rows.map((r) => r.id),
+            normalisedReg: normalised,
+            vehicleId: null,
           });
         }
       }
