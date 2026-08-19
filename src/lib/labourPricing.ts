@@ -20,9 +20,16 @@ export function formatGBP(n: number): string {
 export interface WorkshopSettings {
   hourly_rate_gbp: number;
   min_charge_gbp: number;
+  inspection_standard_minutes: number;
+  default_repair_minutes: number;
 }
 
-const DEFAULT_SETTINGS: WorkshopSettings = { hourly_rate_gbp: 75, min_charge_gbp: 15 };
+const DEFAULT_SETTINGS: WorkshopSettings = {
+  hourly_rate_gbp: 75,
+  min_charge_gbp: 15,
+  inspection_standard_minutes: 30,
+  default_repair_minutes: 30,
+};
 
 export function useWorkshopSettings() {
   return useQuery({
@@ -31,7 +38,7 @@ export function useWorkshopSettings() {
     queryFn: async (): Promise<WorkshopSettings> => {
       const { data, error } = await supabase
         .from("workshop_settings")
-        .select("hourly_rate_gbp,min_charge_gbp")
+        .select("hourly_rate_gbp,min_charge_gbp,inspection_standard_minutes,default_repair_minutes")
         .eq("id", 1)
         .maybeSingle();
       if (error) throw error;
@@ -39,6 +46,8 @@ export function useWorkshopSettings() {
       return {
         hourly_rate_gbp: Number(data.hourly_rate_gbp),
         min_charge_gbp: Number(data.min_charge_gbp),
+        inspection_standard_minutes: Number(data.inspection_standard_minutes ?? 30),
+        default_repair_minutes: Number(data.default_repair_minutes ?? 30),
       };
     },
   });
@@ -53,6 +62,8 @@ export function useUpdateWorkshopSettings() {
         .update({
           hourly_rate_gbp: settings.hourly_rate_gbp,
           min_charge_gbp: settings.min_charge_gbp,
+          inspection_standard_minutes: settings.inspection_standard_minutes,
+          default_repair_minutes: settings.default_repair_minutes,
           updated_at: new Date().toISOString(),
         })
         .eq("id", 1);
@@ -63,3 +74,4 @@ export function useUpdateWorkshopSettings() {
     },
   });
 }
+
