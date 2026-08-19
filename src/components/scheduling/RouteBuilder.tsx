@@ -4080,6 +4080,8 @@ Route Link: ${routeLink}`;
                     onSendGroupedTimeslots={sendGroupedTimeslots}
                     onSendGroupedTimeslotsSendZen={sendGroupedTimeslotsSendZen}
                     onUpdateCoordinates={updateCoordinates}
+                    onToggleAddress={toggleStopAddress}
+
                     isSendingTimeslots={isSendingTimeslots}
                     allJobs={selectedJobs}
                     bikeCount={calculateBikeCountAtJob(index)}
