@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  resolveAnomaly,
   updateFuelTransaction,
   type FleetVehicleLite,
   type FuelAnomaly,
@@ -34,7 +35,7 @@ interface FixFlagDialogProps {
   vehicles: FleetVehicleLite[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onFixed: () => void;
+  onFixed: (resolvedKey?: string) => void;
 }
 
 interface RowDraft {
@@ -103,11 +104,15 @@ const FixFlagDialog: React.FC<FixFlagDialogProps> = ({
           correction_note: note.trim() ? note.trim() : null,
         });
       }
+      if (anomaly) {
+        await resolveAnomaly(anomaly.key, note.trim() || "fill corrected");
+      }
+      return anomaly?.key;
     },
-    onSuccess: () => {
+    onSuccess: (resolvedKey) => {
       toast.success(rows.length > 1 ? "Fills corrected" : "Fill corrected");
       queryClient.invalidateQueries({ queryKey: ["fuel-transactions"] });
-      onFixed();
+      onFixed(resolvedKey);
       onOpenChange(false);
     },
     onError: (error: Error) => toast.error(error.message),
