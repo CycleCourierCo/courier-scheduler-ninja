@@ -25,11 +25,13 @@ import { FOAM_STATUS_LABELS, FoamStatus, Order } from "@/types/order";
 interface Props {
   order: Order & Record<string, any>;
   onUpdate: () => void;
+  /** Render without the outer card chrome (used inside the Services panel) */
+  bare?: boolean;
 }
 
 const BLOCKED_STATUSES = ["delivered", "delivered_by_3p", "cancelled"];
 
-const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
+const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false }) => {
   const [working, setWorking] = React.useState(false);
   const [sendingFerryEmail, setSendingFerryEmail] = React.useState(false);
   const [ferryNotifiedAt, setFerryNotifiedAt] = React.useState<string | null>(
@@ -176,14 +178,19 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
     }
   };
 
+  const Shell = ({ children }: { children: React.ReactNode }) =>
+    bare ? <div>{children}</div> : <Card>{children}</Card>;
+
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Ship className="h-4 w-4" /> Northern Ireland {isInbound ? "collection" : "delivery"}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
+    <Shell>
+      {!bare && (
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Ship className="h-4 w-4" /> Northern Ireland {isInbound ? "collection" : "delivery"}
+          </CardTitle>
+        </CardHeader>
+      )}
+      <CardContent className={bare ? "space-y-3 p-0" : "space-y-3"}>
         {isNI ? (
           <div className="space-y-2 text-sm">
             <div className="flex flex-wrap items-center gap-2">
@@ -306,7 +313,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate }) => {
           </AlertDialog>
         )}
       </CardContent>
-    </Card>
+    </Shell>
   );
 };
 
