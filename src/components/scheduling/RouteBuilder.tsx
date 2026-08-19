@@ -510,7 +510,35 @@ const JobItem: React.FC<JobItemProps> = ({
         } hover:shadow-md cursor-move gap-2`}
       >
         <div className="flex items-start gap-2 min-w-0 flex-1">
-          <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab flex-shrink-0 mt-0.5" />
+          <div className="flex flex-col items-center flex-shrink-0">
+            <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab mt-0.5" />
+            {onMove && (
+              <div className="flex flex-col">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label="Move stop up"
+                  title="Move stop up"
+                  className="h-5 w-5 p-0"
+                  disabled={!!isFirstStop || !!isRetiming}
+                  onClick={(e) => { e.stopPropagation(); onMove(index, 'up'); }}
+                >
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label="Move stop down"
+                  title="Move stop down"
+                  className="h-5 w-5 p-0"
+                  disabled={!!isLastStop || !!isRetiming}
+                  onClick={(e) => { e.stopPropagation(); onMove(index, 'down'); }}
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+          </div>
           <Badge variant="outline" className="flex-shrink-0 text-xs">#{job.order}</Badge>
           <div className="flex-1 min-w-0">
             {groupedJobs.length > 1 ? (
