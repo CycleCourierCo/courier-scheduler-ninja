@@ -16,15 +16,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Clock, ClipboardCheck, Wrench, Gauge } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Clock, ClipboardCheck, Wrench, Gauge, Timer, ChevronDown, ChevronRight } from 'lucide-react';
 import { format, subWeeks } from 'date-fns';
 import StatsCard from './StatsCard';
-import { getMechanicHours } from '@/services/mechanicHoursService';
+import { getMechanicHours, type StandardMinutesSource } from '@/services/mechanicHoursService';
+
+const sourceLabel: Record<StandardMinutesSource, string> = {
+  catalogue: 'Book time',
+  labour_cost: 'From price',
+  default: 'Fallback',
+  inspection: 'Inspection',
+};
 
 const MechanicHoursSection: React.FC = () => {
   const today = new Date();
   const [from, setFrom] = useState<string>(format(subWeeks(today, 4), 'yyyy-MM-dd'));
   const [to, setTo] = useState<string>(format(today, 'yyyy-MM-dd'));
+  const [expanded, setExpanded] = useState<string | null>(null);
 
   const setWeeks = (weeks: number) => {
     setFrom(format(subWeeks(new Date(), weeks), 'yyyy-MM-dd'));
@@ -40,16 +49,20 @@ const MechanicHoursSection: React.FC = () => {
   });
 
   const totals = data?.totals;
+  const varianceClass = (v: number) =>
+    v >= 0 ? 'text-green-600 dark:text-green-500' : 'text-destructive';
+  const fmtVariance = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}h`;
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Clock className="h-5 w-5" />
-          Mechanic Hours
+          Mechanic Hours vs. Work Done
         </CardTitle>
         <CardDescription>
-          Hours clocked on mechanic timeslips each day compared with inspections and repairs completed that day.
+          Hours clocked on mechanic timeslips compared with the standard (book) time the jobs completed are worth — so
+          10 jobs worth 7 hours can be matched against the 7 hours clocked.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -70,17 +83,50 @@ const MechanicHoursSection: React.FC = () => {
         </div>
 
         {totals && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
-            <StatsCard title="Hours Clocked" value={totals.hours.toFixed(1)} description="Closed & approved timeslips" icon={Clock} />
-            <StatsCard title="Inspections Done" value={totals.inspections} description="Completed in range" icon={ClipboardCheck} />
-            <StatsCard title="Repairs Done" value={totals.repairs} description="Issues resolved in range" icon={Wrench} />
-            <StatsCard
-              title="Jobs / Hour"
-              value={totals.jobsPerHour.toFixed(2)}
-              description={totals.minutesPerJob > 0 ? `${totals.minutesPerJob.toFixed(0)} min per job` : 'No jobs in range'}
-              icon={Gauge}
-            />
-          </div>
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+              <StatsCard title="Hours Clocked" value={totals.hours.toFixed(1)} description="Closed & approved timeslips" icon={Clock} />
+              <StatsCard
+                title="Standard Hours Earned"
+                value={totals.standardHours.toFixed(1)}
+                description={`${totals.inspections + totals.repairs} jobs completed`}
+                icon={Timer}
+              />
+              <StatsCard
+                title="Variance"
+                value={fmtVariance(totals.varianceHours)}
+                description={totals.varianceHours >= 0 ? 'Earned at or above clocked time' : 'Less earned than clocked'}
+                icon={Gauge}
+              />
+              <StatsCard
+                title="Efficiency"
+                value={totals.hours > 0 ? `${totals.efficiencyPct.toFixed(0)}%` : '—'}
+                description="Earned ÷ clocked hours"
+                icon={Gauge}
+              />
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+              <StatsCard title="Inspections Done" value={totals.inspections} description="Completed in range" icon={ClipboardCheck} />
+              <StatsCard title="Repairs Done" value={totals.repairs} description="Issues resolved in range" icon={Wrench} />
+              <StatsCard
+                title="Jobs / Hour"
+                value={totals.jobsPerHour.toFixed(2)}
+                description={totals.minutesPerJob > 0 ? `${totals.minutesPerJob.toFixed(0)} min per job` : 'No jobs in range'}
+                icon={Gauge}
+              />
+              <StatsCard
+                title="Book-time Coverage"
+                value={`${totals.catalogueCoveragePct.toFixed(0)}%`}
+                description="Repairs priced from the labour catalogue"
+                icon={Timer}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Standard time uses labour catalogue book times where a repair is linked, otherwise it's estimated from the
+              repair's labour price (at £{data?.settings.hourlyRate}/hr) or the workshop fallback of{' '}
+              {data?.settings.defaultRepairMinutes} min. Each inspection counts as {data?.settings.inspectionMinutes} min.
+            </p>
+          </>
         )}
 
         {isLoading ? (
@@ -99,6 +145,7 @@ const MechanicHoursSection: React.FC = () => {
                   <Tooltip />
                   <Legend />
                   <Bar yAxisId="left" dataKey="hours" name="Hours clocked" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  <Bar yAxisId="left" dataKey="standardHours" name="Standard hours earned" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
                   <Line yAxisId="right" type="monotone" dataKey="inspections" name="Inspections done" stroke="hsl(var(--chart-2, var(--accent)))" strokeWidth={2} />
                   <Line yAxisId="right" type="monotone" dataKey="repairs" name="Repairs done" stroke="hsl(var(--destructive))" strokeWidth={2} />
                 </ComposedChart>
@@ -111,28 +158,92 @@ const MechanicHoursSection: React.FC = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Mechanic</TableHead>
-                      <TableHead className="text-right">Hours</TableHead>
+                      <TableHead className="text-right">Clocked (h)</TableHead>
+                      <TableHead className="text-right">Standard (h)</TableHead>
+                      <TableHead className="text-right">Variance</TableHead>
+                      <TableHead className="text-right">Efficiency</TableHead>
                       <TableHead className="text-right">Inspections</TableHead>
                       <TableHead className="text-right">Repairs</TableHead>
-                      <TableHead className="text-right">Jobs / hour</TableHead>
                       <TableHead className="text-right">Min / job</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {data.perMechanic.map((m) => (
-                      <TableRow key={m.mechanicId}>
-                        <TableCell className="font-medium">{m.name}</TableCell>
-                        <TableCell className="text-right">{m.hours.toFixed(1)}</TableCell>
-                        <TableCell className="text-right">{m.inspections}</TableCell>
-                        <TableCell className="text-right">{m.repairs}</TableCell>
-                        <TableCell className="text-right font-semibold">{m.hours > 0 ? m.jobsPerHour.toFixed(2) : '—'}</TableCell>
-                        <TableCell className="text-right">{m.minutesPerJob > 0 ? m.minutesPerJob.toFixed(0) : '—'}</TableCell>
-                      </TableRow>
+                      <React.Fragment key={m.mechanicId}>
+                        <TableRow
+                          className="cursor-pointer"
+                          onClick={() => setExpanded(expanded === m.mechanicId ? null : m.mechanicId)}
+                        >
+                          <TableCell className="font-medium">
+                            <span className="inline-flex items-center gap-1">
+                              {expanded === m.mechanicId ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                              {m.name}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-right">{m.hours.toFixed(1)}</TableCell>
+                          <TableCell className="text-right">{m.standardHours.toFixed(1)}</TableCell>
+                          <TableCell className={`text-right font-semibold ${varianceClass(m.varianceHours)}`}>
+                            {fmtVariance(m.varianceHours)}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            {m.hours > 0 ? `${m.efficiencyPct.toFixed(0)}%` : '—'}
+                          </TableCell>
+                          <TableCell className="text-right">{m.inspections}</TableCell>
+                          <TableCell className="text-right">{m.repairs}</TableCell>
+                          <TableCell className="text-right">{m.minutesPerJob > 0 ? m.minutesPerJob.toFixed(0) : '—'}</TableCell>
+                        </TableRow>
+                        {expanded === m.mechanicId && (
+                          <TableRow>
+                            <TableCell colSpan={8} className="bg-muted/40">
+                              {m.days.length === 0 ? (
+                                <p className="text-sm text-muted-foreground">No days with activity.</p>
+                              ) : (
+                                <div className="space-y-3">
+                                  {m.days.map((d) => (
+                                    <div key={d.date} className="rounded-md border bg-background p-3">
+                                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                                        <span className="font-semibold">{d.label}</span>
+                                        <span className="text-muted-foreground">Clocked {d.hours.toFixed(1)}h</span>
+                                        <span className="text-muted-foreground">Earned {d.standardHours.toFixed(1)}h</span>
+                                        <span className={`font-medium ${varianceClass(d.varianceHours)}`}>
+                                          {fmtVariance(d.varianceHours)}
+                                        </span>
+                                        <span className="text-muted-foreground">{d.jobs.length} jobs</span>
+                                      </div>
+                                      {d.jobs.length > 0 && (
+                                        <ul className="mt-2 space-y-1">
+                                          {d.jobs.map((j) => (
+                                            <li key={`${j.type}-${j.id}`} className="flex items-center justify-between gap-2 text-sm">
+                                              <span className="flex min-w-0 items-center gap-2">
+                                                {j.type === 'inspection' ? (
+                                                  <ClipboardCheck className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                                ) : (
+                                                  <Wrench className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                                )}
+                                                <span className="truncate">{j.label}</span>
+                                                <Badge variant="outline" className="shrink-0 text-[10px]">
+                                                  {sourceLabel[j.source]}
+                                                </Badge>
+                                              </span>
+                                              <span className="shrink-0 tabular-nums text-muted-foreground">{j.minutes} min</span>
+                                            </li>
+                                          ))}
+                                        </ul>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </React.Fragment>
                     ))}
                   </TableBody>
                 </Table>
                 <p className="text-xs text-muted-foreground mt-2">
-                  Jobs = inspections completed + repairs resolved. Mechanics with hours but no jobs show as “—”.
+                  Click a mechanic to see the day-by-day breakdown and the jobs that made up their earned hours.
+                  Efficiency above 100% means they completed more standard time than they clocked.
                 </p>
               </div>
             )}
