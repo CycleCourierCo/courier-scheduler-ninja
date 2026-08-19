@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { updateSenderAvailability } from '@/services/availabilityService';
@@ -8,6 +8,12 @@ import { AvailabilityForm } from '@/components/availability/AvailabilityForm';
 import { LoadingState, ErrorState } from '@/components/availability/AvailabilityStatus';
 import { ConfirmedDatesView } from '@/components/availability/ConfirmedDatesView';
 import { getPublicOrder } from '@/services/fetchOrderService';
+import { useAuth } from '@/contexts/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Clock, CalendarClock } from 'lucide-react';
+import { describeOpeningWindows, getNextOpenDays, normaliseOpeningHours } from '@/lib/businessAvailability';
+
 
 export default function SenderAvailability() {
   const params = useParams<{ id: string }>();
