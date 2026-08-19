@@ -22,16 +22,34 @@ export interface AltWindow {
   end: string;
 }
 
+export interface AltDateWindow {
+  /** HH:MM */
+  start: string;
+  /** HH:MM */
+  end: string;
+}
+
 export interface AltLocation {
   neighbour_number?: string | null;
   work_address?: AltWorkAddress | null;
+  /** Date-keyed (YYYY-MM-DD) work windows, tied to the selected availability dates */
+  work_dates?: Record<string, AltDateWindow>;
+  /** @deprecated legacy weekday windows kept for previously submitted orders */
   work_windows?: AltWindow[];
+  /** @deprecated no longer captured — anything outside work hours is home */
   home_windows?: AltWindow[];
 }
 
 export const EMPTY_ALT_WINDOW: AltWindow = { days: [], start: "09:00", end: "17:00" };
 
 export const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+export const toDateKey = (date: Date): string => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+};
 
 export const formatAltAddress = (address?: AltWorkAddress | null): string => {
   if (!address) return "";
@@ -44,12 +62,13 @@ export const parseAltLocation = (raw: any): AltLocation | null => {
   const alt: AltLocation = {
     neighbour_number: typeof raw.neighbour_number === "string" ? raw.neighbour_number : null,
     work_address: raw.work_address && typeof raw.work_address === "object" ? raw.work_address : null,
+    work_dates: raw.work_dates && typeof raw.work_dates === "object" ? raw.work_dates : {},
     work_windows: Array.isArray(raw.work_windows) ? raw.work_windows : [],
-    home_windows: Array.isArray(raw.home_windows) ? raw.home_windows : [],
   };
   if (!alt.neighbour_number && !alt.work_address) return null;
   return alt;
 };
+
 
 export const hasWorkAddress = (alt?: AltLocation | null): boolean =>
   Boolean(alt?.work_address && (alt.work_address.street || alt.work_address.zipCode));
@@ -99,8 +118,19 @@ export const resolveStopAddress = (
     return { source: "home", workAddress: "", neighbourNumber };
   }
 
-  const useWork = windowMatches(alt.work_windows, date, timeHHMM);
+  const slotStart = toMinutes(timeHHMM);
+  const dateWindow = alt.work_dates?.[toDateKey(date)];
+  let useWork = false;
+  if (dateWindow && slotStart !== null) {
+    const start = toMinutes(dateWindow.start);
+    const end = toMinutes(dateWindow.end);
+    useWork = start === null || end === null ? true : slotStart >= start && slotStart <= end;
+  } else if (!alt.work_dates || Object.keys(alt.work_dates).length === 0) {
+    // Legacy records only have weekday windows
+    useWork = windowMatches(alt.work_windows, date, timeHHMM);
+  }
   if (!useWork) return { source: "home", workAddress: "", neighbourNumber };
+
 
   return {
     source: "work",
