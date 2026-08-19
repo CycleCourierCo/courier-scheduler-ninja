@@ -209,7 +209,7 @@ export default function LabourTimesAdmin() {
                 Prices shown across the app are computed live from labour minutes at this rate — data isn't rewritten.
               </CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-[1fr_1fr_auto_1fr] items-end">
+            <CardContent className="grid gap-4 md:grid-cols-2 xl:grid-cols-4 items-end">
               <div className="space-y-2">
                 <Label>Hourly rate (£)</Label>
                 <Input type="number" min={0} step="0.01" value={rateInput} onChange={(e) => setRateInput(e.target.value)} />
@@ -218,10 +218,23 @@ export default function LabourTimesAdmin() {
                 <Label>Minimum charge (£)</Label>
                 <Input type="number" min={0} step="0.01" value={minInput} onChange={(e) => setMinInput(e.target.value)} />
               </div>
+              <div className="space-y-2">
+                <Label>Standard inspection (mins)</Label>
+                <Input type="number" min={0} step="1" value={inspMinInput} onChange={(e) => setInspMinInput(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Fallback repair time (mins)</Label>
+                <Input type="number" min={0} step="1" value={defRepairInput} onChange={(e) => setDefRepairInput(e.target.value)} />
+              </div>
               <Button
                 onClick={() =>
                   updateSettings.mutate(
-                    { hourly_rate_gbp: Number(rateInput) || 0, min_charge_gbp: Number(minInput) || 0 },
+                    {
+                      hourly_rate_gbp: Number(rateInput) || 0,
+                      min_charge_gbp: Number(minInput) || 0,
+                      inspection_standard_minutes: Number(inspMinInput) || 0,
+                      default_repair_minutes: Number(defRepairInput) || 0,
+                    },
                     {
                       onSuccess: () => toast.success("Workshop settings updated"),
                       onError: (e: any) => toast.error(e?.message ?? "Failed to save"),
@@ -232,10 +245,12 @@ export default function LabourTimesAdmin() {
               >
                 {updateSettings.isPending ? "Saving…" : "Save"}
               </Button>
-              <div className="text-sm text-muted-foreground">
+              <div className="text-sm text-muted-foreground xl:col-span-3">
                 Example: 30 min job → <span className="font-semibold text-foreground">{formatGBP(previewPrice)}</span>
                 <div className="text-xs">Formula: max(min, ceil(minutes × rate / 60 / 5) × 5)</div>
+                <div className="text-xs">Inspection & fallback minutes drive the earned-hours comparison in analytics.</div>
               </div>
+
             </CardContent>
           </Card>
         )}
