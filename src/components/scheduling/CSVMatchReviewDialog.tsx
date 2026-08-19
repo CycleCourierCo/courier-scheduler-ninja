@@ -153,9 +153,14 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
 
   const selectedJobs: CSVSelectedJob[] = useMemo(() => {
     const jobs: CSVSelectedJob[] = [];
+    const seen = new Set<string>();
     stops.forEach(stop => {
       stop.candidates.forEach(c => {
-        if (!selectedKeys.has(candidateKey(c))) return;
+        const key = candidateKey(c);
+        if (!selectedKeys.has(key)) return;
+        // Same order/leg may appear under more than one similar stop — emit it once
+        if (seen.has(key)) return;
+        seen.add(key);
         jobs.push({ orderId: c.order.id, jobType: c.jobType, sequence: stop.sequence });
       });
     });
