@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2, Zap, Truck, ArrowUpDown } from "lucide-react";
+import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2, Zap, Truck, ArrowUpDown, ChevronUp, ChevronDown } from "lucide-react";
 import { OrderData, ShipdayVerificationResults } from "@/pages/JobScheduling";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
@@ -26,7 +26,7 @@ import CSVMatchReviewDialog from './CSVMatchReviewDialog';
 import SaveRouteDialog from './SaveRouteDialog';
 import LoadRouteDialog from './LoadRouteDialog';
 import BulkRouteMessageDialog from './BulkRouteMessageDialog';
-import { MessageSquare, Briefcase } from 'lucide-react';
+import { MessageSquare, Briefcase, Home, UserRound, ArrowLeftRight } from 'lucide-react';
 import { z } from "zod";
 import { format, differenceInCalendarDays } from "date-fns";
 import { cn } from "@/lib/utils";
@@ -118,6 +118,11 @@ interface JobItemProps {
   job: SelectedJob;
   index: number;
   onReorder: (dragIndex: number, hoverIndex: number) => void;
+  onMove?: (index: number, direction: 'up' | 'down') => void;
+  onUpdateTime?: (index: number, time: string) => void;
+  isFirstStop?: boolean;
+  isLastStop?: boolean;
+  isRetiming?: boolean;
   onAddBreak: (afterIndex: number, breakType: 'lunch' | 'stop') => void;
   onRemove: (job: SelectedJob) => void;
   onSendTimeslot: (job: SelectedJob) => void;
@@ -349,12 +354,15 @@ const BikeCountBadge: React.FC<BikeCountBadgeProps> = ({ orderData, bikeCount, v
   const hasBikes = groupedBikes.length > 0 && groupedBikes.some((b) => b.brand || b.model || b.type);
   const isMobile = useIsMobile();
 
+  const [open, setOpen] = useState(false);
+  const [pinned, setPinned] = useState(false);
+
   const badge = (
     <Badge
       variant="outline"
       aria-label="Show bike details"
       className={cn(
-        "text-xs px-1.5 py-0 whitespace-nowrap cursor-help",
+        "text-xs px-1.5 py-0 whitespace-nowrap cursor-pointer",
         bikeCount > vanCapacity ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800",
         className
       )}
@@ -379,39 +387,71 @@ const BikeCountBadge: React.FC<BikeCountBadgeProps> = ({ orderData, bikeCount, v
       ) : (
         <div className="text-xs text-muted-foreground">No bike details available</div>
       )}
+      {!isMobile && (
+        <div className="pt-1 text-[10px] text-muted-foreground">
+          {pinned ? "Click the badge again to unpin" : "Click to keep this open"}
+        </div>
+      )}
     </div>
   );
 
-  if (isMobile) {
-    return (
-      <Popover>
-        <PopoverTrigger asChild>
-          <button type="button" className="inline-flex" onClick={(e) => e.stopPropagation()}>
-            {badge}
-          </button>
-        </PopoverTrigger>
-        <PopoverContent side="top" align="start" className="w-auto max-w-[16rem] p-2 z-[60]">
-          {details}
-        </PopoverContent>
-      </Popover>
-    );
-  }
-
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>{badge}</TooltipTrigger>
-      <TooltipContent side="top" className="max-w-xs">
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setPinned(false);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex"
+          onMouseEnter={isMobile ? undefined : () => setOpen(true)}
+          onMouseLeave={isMobile ? undefined : () => { if (!pinned) setOpen(false); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isMobile) {
+              setOpen((o) => !o);
+              return;
+            }
+            if (pinned) {
+              setPinned(false);
+              setOpen(false);
+            } else {
+              setPinned(true);
+              setOpen(true);
+            }
+          }}
+        >
+          {badge}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="start"
+        className="w-auto max-w-[16rem] p-2 z-[60]"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onMouseEnter={isMobile ? undefined : () => setOpen(true)}
+        onMouseLeave={isMobile ? undefined : () => { if (!pinned) setOpen(false); }}
+      >
         {details}
-      </TooltipContent>
-    </Tooltip>
+      </PopoverContent>
+    </Popover>
   );
 };
+
 
 
 const JobItem: React.FC<JobItemProps> = ({
   job, 
   index, 
   onReorder, 
+  onMove,
+  onUpdateTime,
+  isFirstStop,
+  isLastStop,
+  isRetiming,
   onAddBreak, 
   onRemove, 
   onSendTimeslot, 
@@ -470,7 +510,35 @@ const JobItem: React.FC<JobItemProps> = ({
         } hover:shadow-md cursor-move gap-2`}
       >
         <div className="flex items-start gap-2 min-w-0 flex-1">
-          <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab flex-shrink-0 mt-0.5" />
+          <div className="flex flex-col items-center flex-shrink-0">
+            <GripVertical className="h-4 w-4 text-muted-foreground cursor-grab mt-0.5" />
+            {onMove && (
+              <div className="flex flex-col">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label="Move stop up"
+                  title="Move stop up"
+                  className="h-5 w-5 p-0"
+                  disabled={!!isFirstStop || !!isRetiming}
+                  onClick={(e) => { e.stopPropagation(); onMove(index, 'up'); }}
+                >
+                  <ChevronUp className="h-3.5 w-3.5" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  aria-label="Move stop down"
+                  title="Move stop down"
+                  className="h-5 w-5 p-0"
+                  disabled={!!isLastStop || !!isRetiming}
+                  onClick={(e) => { e.stopPropagation(); onMove(index, 'down'); }}
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </Button>
+              </div>
+            )}
+          </div>
           <Badge variant="outline" className="flex-shrink-0 text-xs">#{job.order}</Badge>
           <div className="flex-1 min-w-0">
             {groupedJobs.length > 1 ? (
@@ -701,32 +769,61 @@ const JobItem: React.FC<JobItemProps> = ({
                       })()}
 
                       {/* Alternative address (workplace / neighbour) */}
-                      {(job as any).addressSource === 'work' && (
-                        <Badge className="text-xs px-1.5 py-0 bg-blue-100 text-blue-800 flex items-center gap-1">
-                          <Briefcase className="h-3 w-3" />
-                          Work address
-                        </Badge>
+                      {(job as any).altAddressText && (
+                        (job as any).addressSource === 'work' ? (
+                          <Badge className="text-xs px-1.5 py-0 bg-blue-100 text-blue-800 flex items-center gap-1 max-w-full whitespace-normal">
+                            <Briefcase className="h-3 w-3 shrink-0" />
+                            Going to: Work address
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs px-1.5 py-0 flex items-center gap-1 max-w-full whitespace-normal">
+                            <Home className="h-3 w-3 shrink-0" />
+                            Going to: Home address
+                          </Badge>
+                        )
                       )}
                       {(job as any).altAddressText && (job as any).addressSource !== 'work' && (
-                        <Badge variant="outline" className="text-xs px-1.5 py-0">
-                          Work address available
+                        <Badge variant="outline" className="text-xs px-1.5 py-0 text-muted-foreground">
+                          Work address on file
                         </Badge>
                       )}
                       {(job as any).neighbourNumber && (
-                        <Badge className="text-xs px-1.5 py-0 bg-amber-100 text-amber-800">
-                          Neighbour: {(job as any).neighbourNumber}
+                        <Badge className="text-xs px-1.5 py-0 bg-amber-100 text-amber-800 flex items-center gap-1">
+                          <UserRound className="h-3 w-3 shrink-0" />
+                          Leave with neighbour: {(job as any).neighbourNumber}
                         </Badge>
                       )}
                       {(job as any).altAddressText && onToggleAddress && (
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-6 px-2 text-[11px]"
-                          onClick={() => onToggleAddress(job)}
-                        >
-                          Use {(job as any).addressSource === 'work' ? 'home' : 'work'} address
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 px-2 text-[11px] gap-1"
+                              onClick={() => onToggleAddress(job)}
+                            >
+                              <ArrowLeftRight className="h-3 w-3" />
+                              Switch to {(job as any).addressSource === 'work' ? 'home' : 'work'} address
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-xs text-xs">
+                            {(job as any).addressSource === 'work' ? (
+                              <>
+                                <div className="font-medium">Currently visiting the work address</div>
+                                <div className="text-muted-foreground">{(job as any).altAddressText}</div>
+                                <div className="mt-1">Switch to visit the home address instead.</div>
+                              </>
+                            ) : (
+                              <>
+                                <div className="font-medium">Currently visiting the home address</div>
+                                <div className="text-muted-foreground">Work address: {(job as any).altAddressText}</div>
+                                <div className="mt-1">The arrival time falls outside the customer's work hours for this date, so home was chosen automatically.</div>
+                              </>
+                            )}
+                          </TooltipContent>
+                        </Tooltip>
                       )}
+
                     </>
                   )}
 
@@ -759,10 +856,30 @@ const JobItem: React.FC<JobItemProps> = ({
         
         <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
           {job.estimatedTime && (
-            <Badge variant="outline" className="flex items-center gap-1 text-xs px-1.5 py-0">
-              <Clock className="h-3 w-3" />
-              {job.estimatedTime}
-            </Badge>
+            onUpdateTime ? (
+              <div
+                className="flex items-center gap-1 border rounded-md px-1.5 py-0.5 bg-background"
+                title="Change this stop's time — later stops are re-timed"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Clock className="h-3 w-3 text-muted-foreground" />
+                <Input
+                  type="time"
+                  value={job.estimatedTime}
+                  disabled={!!isRetiming}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (/^\d{2}:\d{2}$/.test(v)) onUpdateTime(index, v);
+                  }}
+                  className="h-6 w-[76px] border-0 p-0 text-xs shadow-none focus-visible:ring-0"
+                />
+              </div>
+            ) : (
+              <Badge variant="outline" className="flex items-center gap-1 text-xs px-1.5 py-0">
+                <Clock className="h-3 w-3" />
+                {job.estimatedTime}
+              </Badge>
+            )
           )}
           
           <div className="flex flex-wrap gap-1 justify-end">
@@ -933,6 +1050,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const spaceMap: BikeSpaceMap = bikeSpacesData?.spaceMap ?? {};
   const vanCapacity = bikeSpacesData?.capacity ?? DEFAULT_VAN_SPACES_CAPACITY;
   const [isSendingTimeslots, setIsSendingTimeslots] = useState(false);
+  const [isRetiming, setIsRetiming] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [jobToEdit, setJobToEdit] = useState<SelectedJob | null>(null);
   const [isSendingTimeslip, setIsSendingTimeslip] = useState(false);
@@ -1459,7 +1577,20 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   };
 
   const handleCsvConfirm = (selected: { orderId: string; jobType: 'pickup' | 'delivery'; sequence: number }[]) => {
-    const matchedJobs = selected
+    // Safety net: never load the same order/leg twice, keep the earliest sequence
+    const dedupedSelection = Array.from(
+      selected
+        .slice()
+        .sort((a, b) => a.sequence - b.sequence)
+        .reduce((acc, sel) => {
+          const key = `${sel.orderId}|${sel.jobType}`;
+          if (!acc.has(key)) acc.set(key, sel);
+          return acc;
+        }, new Map<string, { orderId: string; jobType: 'pickup' | 'delivery'; sequence: number }>())
+        .values()
+    );
+
+    const matchedJobs = dedupedSelection
       .map((sel, index) => {
         const order = orderList.find(o => o.id === sel.orderId);
         if (!order) return null;
@@ -1633,8 +1764,13 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   React.useEffect(() => {
     if (initialJobs?.length && orderList.length && selectedJobs.length === 0) {
       const jobs: SelectedJob[] = [];
-      
-      initialJobs.forEach((ij, idx) => {
+      const seen = new Set<string>();
+
+      initialJobs.forEach((ij) => {
+        const key = `${ij.orderId}|${ij.type}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+
         const order = orderList.find(o => o.id === ij.orderId);
         if (!order) return;
         
@@ -1647,7 +1783,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           contactName: contact.name,
           orderData: order,
           phoneNumber: contact.phone,
-          order: idx + 1,
+          order: jobs.length + 1,
           lat: contact.lat,
           lon: contact.lon
         });
@@ -1674,6 +1810,129 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     
     setSelectedJobs(updatedJobs);
     // Starting bikes will auto-update via useEffect
+  };
+
+  /** Indices of every job that belongs to the same physical stop as `index`. */
+  const getStopBlock = (list: SelectedJob[], index: number): number[] => {
+    const groupId = (list[index] as any)?.locationGroupId;
+    if (!groupId) return [index];
+    const block: number[] = [];
+    for (let i = 0; i < list.length; i++) {
+      if ((list[i] as any).locationGroupId === groupId) block.push(i);
+    }
+    return block.length ? block : [index];
+  };
+
+  /** Move a whole stop (all jobs at that location) up or down one position. */
+  const moveStop = (index: number, direction: 'up' | 'down') => {
+    const list = [...selectedJobs];
+    const block = getStopBlock(list, index);
+    const start = block[0];
+    const end = block[block.length - 1];
+
+    if (direction === 'up' && start === 0) return;
+    if (direction === 'down' && end === list.length - 1) return;
+
+    const moving = list.slice(start, end + 1);
+    const rest = [...list.slice(0, start), ...list.slice(end + 1)];
+
+    let insertAt: number;
+    if (direction === 'up') {
+      const neighbourBlock = getStopBlock(list, start - 1);
+      insertAt = neighbourBlock[0];
+    } else {
+      const neighbourBlock = getStopBlock(list, end + 1);
+      const neighbourEnd = neighbourBlock[neighbourBlock.length - 1];
+      insertAt = neighbourEnd + 1 - moving.length;
+    }
+
+    rest.splice(insertAt, 0, ...moving);
+    const updated = rest.map((job, i) => ({ ...job, order: i + 1 }));
+    setSelectedJobs(updated);
+    calculateTimeslots(updated);
+  };
+
+  /**
+   * Planner typed a time for one stop: keep that time, then re-time every later
+   * stop from there using real travel times. Earlier stops stay untouched.
+   */
+  const updateStopTime = async (index: number, newTime: string) => {
+    if (!/^\d{2}:\d{2}$/.test(newTime)) return;
+    const list = [...selectedJobs];
+    if (!list[index]) return;
+
+    setIsRetiming(true);
+    try {
+      const baseCoords = { lat: 52.4690197, lon: -1.8757663 };
+      let currentTime = new Date(`2024-01-01 ${newTime}`);
+      let lastLocationCoords: { lat: number; lon: number } | null = null;
+      const processedLocationGroups = new Set<string>();
+
+      for (let i = index; i < list.length; i++) {
+        const job: any = list[i];
+
+        if (job.type === 'break') {
+          currentTime = new Date(currentTime.getTime() + (job.breakDuration || 15) * 60000);
+          const rounded = roundTimeToNext5Minutes(currentTime);
+          list[i] = { ...job, estimatedTime: rounded.toTimeString().slice(0, 5) };
+          currentTime = rounded;
+          continue;
+        }
+
+        const isNewLocation = !job.locationGroupId || !processedLocationGroups.has(job.locationGroupId);
+
+        if (isNewLocation) {
+          let arrival: Date;
+          if (lastLocationCoords === null) {
+            // The edited stop keeps exactly the time the planner typed
+            arrival = new Date(`2024-01-01 ${newTime}`);
+          } else if (job.lat && job.lon) {
+            const leg = await calculateTravelTime(lastLocationCoords, { lat: job.lat, lon: job.lon });
+            arrival = roundTimeToNext5Minutes(new Date(currentTime.getTime() + leg.minutes * 60000));
+          } else {
+            arrival = roundTimeToNext5Minutes(new Date(currentTime.getTime() + 15 * 60000));
+          }
+
+          if (job.locationGroupId) processedLocationGroups.add(job.locationGroupId);
+          if (job.lat && job.lon) lastLocationCoords = { lat: job.lat, lon: job.lon };
+
+          list[i] = { ...job, estimatedTime: arrival.toTimeString().slice(0, 5) };
+          currentTime = new Date(arrival.getTime() + 15 * 60000);
+        } else {
+          const arrival = new Date(currentTime.getTime() - 15 * 60000);
+          list[i] = { ...job, estimatedTime: arrival.toTimeString().slice(0, 5) };
+          currentTime = new Date(currentTime.getTime() + 15 * 60000);
+        }
+      }
+
+      setSelectedJobs(list);
+
+      // Refresh the end-of-day ETA / route length using the new times
+      if (lastLocationCoords) {
+        const returnLeg = await calculateTravelTime(lastLocationCoords, baseCoords);
+        const endTimeRounded = roundTimeToNext5Minutes(
+          new Date(currentTime.getTime() + returnLeg.minutes * 60000)
+        );
+        const startClock = new Date(`2024-01-01 ${startTime}`);
+        setRouteStats(prev =>
+          prev
+            ? {
+                ...prev,
+                endTime: endTimeRounded.toTimeString().slice(0, 5),
+                durationMinutes: Math.max(
+                  0,
+                  Math.round((endTimeRounded.getTime() - startClock.getTime()) / 60000)
+                ),
+              }
+            : prev
+        );
+      }
+    } catch (error) {
+      console.error('Error re-timing route from manual time:', error);
+      toast.error('Failed to re-time later stops');
+    } finally {
+      setIsRetiming(false);
+    }
   };
 
   const addBreak = (afterIndex: number, breakType: 'lunch' | 'stop') => {
@@ -4031,6 +4290,11 @@ Route Link: ${routeLink}`;
                       job={job}
                       index={index}
                       onReorder={reorderJobs}
+                      onMove={moveStop}
+                      onUpdateTime={updateStopTime}
+                      isFirstStop={index === 0}
+                      isLastStop={index === selectedJobs.length - 1}
+                      isRetiming={isRetiming}
                       onAddBreak={addBreak}
                       onRemove={removeJob}
                       onSendTimeslot={openTimeslotEditDialog}
@@ -4232,6 +4496,11 @@ Route Link: ${routeLink}`;
                     job={job}
                     index={index}
                     onReorder={reorderJobs}
+                    onMove={moveStop}
+                    onUpdateTime={updateStopTime}
+                    isFirstStop={index === 0}
+                    isLastStop={index === selectedJobs.length - 1}
+                    isRetiming={isRetiming}
                     onAddBreak={addBreak}
                     onRemove={removeJob}
                     onSendTimeslot={openTimeslotEditDialog}

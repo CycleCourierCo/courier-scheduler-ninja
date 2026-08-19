@@ -66,7 +66,7 @@ const hasDates = (value: any): boolean => {
  * Work out which single update (if any) each side should receive right now,
  * based on where the job actually is.
  */
-function deriveUpdates(order: any, inspectionPending = false): Update[] {
+function deriveUpdates(order: any, inspectionPending = false, inspectionStatus: string | null = null): Update[] {
   const updates: Update[] = [];
   const item = itemName(order);
   const status: string = order.status || "";
@@ -262,30 +262,91 @@ function deriveUpdates(order: any, inspectionPending = false): Update[] {
   }
 
   // ---- With us: depot / inspection / repair ------------------------------
+  // The buyer (receiver) gets the workshop detail; the seller (sender) only
+  // needs to know the bike left them and is on its way to the buyer.
   const withUs =
     order.order_collected &&
     !order.order_delivered &&
     !order.scheduled_delivery_date;
 
   if (withUs) {
-    const inspectionLine = order.needs_inspection
-      ? "Our workshop is working through its inspection and any agreed work before it moves on."
-      : "It's with us at our depot and being prepared for onward delivery.";
-    for (const side of ["sender", "receiver"] as Side[]) {
-      push({
-        side,
-        stageKey: "in_depot",
-        subject: `${item} is safely with us`,
-        headline: "Your bike is safely at our depot",
-        lines: [
-          inspectionLine,
-          order.receiver_confirmed_at
-            ? "We're arranging the delivery around the dates already given to us."
-            : "We'll be in touch to arrange delivery dates shortly.",
-        ],
-      });
-    }
+    const workshop: { key: string; head: string; line: string } = (() => {
+      if (order.needs_inspection !== true) {
+        return {
+          key: "in_depot",
+          head: "Your bike is safely at our depot",
+          line: "It's with us at our depot being prepared for onward delivery.",
+        };
+      }
+      switch (inspectionStatus) {
+        case "inspected":
+        case "cleaning":
+          return {
+            key: "in_depot_inspected",
+            head: "Inspection done - no issues found",
+            line: "Your bike has passed its inspection. It's being cleaned and prepared for delivery.",
+          };
+        case "issues_found":
+        case "awaiting_pricing":
+          return {
+            key: "in_depot_issues_found",
+            head: "Our workshop has inspected your bike",
+            line: "Our mechanics found a few things worth doing - we'll be in touch about them shortly.",
+          };
+        case "awaiting_parts":
+        case "awaiting_repair":
+        case "in_repair":
+          return {
+            key: "in_depot_in_repair",
+            head: "The agreed work is underway",
+            line: "Your bike is in our workshop while the agreed work is carried out.",
+          };
+        case "repaired":
+          return {
+            key: "in_depot_service_complete",
+            head: "Work and cleaning are complete",
+            line: "Your bike's service is finished and it's ready to come to you.",
+          };
+        default:
+          return {
+            key: "in_depot_awaiting_inspection",
+            head: "Your bike is safely at our depot",
+            line: "It's with us at our depot and booked in for its inspection.",
+          };
+      }
+    })();
+
+    push({
+      side: "receiver",
+      stageKey: workshop.key,
+      subject: `${item} is safely with us`,
+      headline: workshop.head,
+      lines: [
+        workshop.line,
+        order.receiver_confirmed_at
+          ? "We're arranging the delivery around the dates already given to us."
+          : "We'll be in touch to arrange delivery dates shortly.",
+      ],
+    });
+
+    const buyerName = (() => {
+      const raw = (order.receiver?.name || "").trim();
+      if (!raw) return "the buyer";
+      return raw.split(/\s+/)[0];
+    })();
+
+    push({
+      side: "sender",
+      stageKey: "sender_bike_on_way",
+      subject: `${item} is on its way to ${buyerName === "the buyer" ? "the buyer" : buyerName}`,
+      headline: "Your bike is on its way to the buyer",
+      lines: [
+        `Your bike has been collected and is safely with us on its way to ${buyerName}.`,
+        "We'll take it from here - there's nothing else you need to do.",
+      ],
+    });
   }
+
 
   // ---- Delivery scheduled -------------------------------------------------
   if (order.scheduled_delivery_date && !order.order_delivered && deliveryDay && deliveryDay >= today && !order.is_northern_ireland) {
@@ -468,6 +529,7 @@ async function runScan(admin: any, singleOrderId?: string, offset = 0) {
     .filter((o) => o.needs_inspection === true)
     .map((o) => o.id);
   const inspectionComplete = new Set<string>();
+  const inspectionStatusByOrder = new Map<string, string>();
   if (inspectionOrderIds.length > 0) {
     for (let i = 0; i < inspectionOrderIds.length; i += 200) {
       const chunk = inspectionOrderIds.slice(i, i + 200);
@@ -477,6 +539,7 @@ async function runScan(admin: any, singleOrderId?: string, offset = 0) {
         .in("order_id", chunk);
       if (inspErr) throw inspErr;
       for (const insp of insps || []) {
+        if (insp.status) inspectionStatusByOrder.set(insp.order_id, insp.status);
         if (insp.status === "repaired" || insp.status === "inspected") {
           inspectionComplete.add(insp.order_id);
         }
@@ -517,7 +580,11 @@ async function runScan(admin: any, singleOrderId?: string, offset = 0) {
       continue;
     }
 
-    const updates = deriveUpdates(order, isInspectionPending(order));
+    const updates = deriveUpdates(
+      order,
+      isInspectionPending(order),
+      inspectionStatusByOrder.get(order.id) || null
+    );
     if (updates.length === 0) {
       skipped++;
       continue;
