@@ -529,6 +529,7 @@ async function runScan(admin: any, singleOrderId?: string, offset = 0) {
     .filter((o) => o.needs_inspection === true)
     .map((o) => o.id);
   const inspectionComplete = new Set<string>();
+  const inspectionStatusByOrder = new Map<string, string>();
   if (inspectionOrderIds.length > 0) {
     for (let i = 0; i < inspectionOrderIds.length; i += 200) {
       const chunk = inspectionOrderIds.slice(i, i + 200);
@@ -538,6 +539,7 @@ async function runScan(admin: any, singleOrderId?: string, offset = 0) {
         .in("order_id", chunk);
       if (inspErr) throw inspErr;
       for (const insp of insps || []) {
+        if (insp.status) inspectionStatusByOrder.set(insp.order_id, insp.status);
         if (insp.status === "repaired" || insp.status === "inspected") {
           inspectionComplete.add(insp.order_id);
         }
