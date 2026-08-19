@@ -145,6 +145,10 @@ export type Order = {
   isEbayOrder?: boolean;
   isBoxMyBike?: boolean;
   boxMyBikeStatus?: BoxMyBikeStatus | null;
+  /** Box My Bike: the end buyer the boxed bike is ultimately going to. */
+  boxBuyer?: ContactInfo | null;
+  boxBuyerBoxingEmailSentAt?: string | null;
+  boxBuyerCollectedEmailSentAt?: string | null;
   boxLabelUrl?: string | null;
   boxTrackingUrl?: string | null;
   boxLabelUploadedAt?: Date | null;
@@ -270,6 +274,7 @@ export type CreateOrderFormData = {
   deliveryInstructions?: string;
   needsInspection: boolean;
   isBoxMyBike?: boolean;
+  boxBuyer?: { name: string; email: string; phone: string };
   // Legacy fields for backward compatibility
   bikeBrand?: string;
   bikeModel?: string;

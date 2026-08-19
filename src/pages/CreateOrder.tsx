@@ -22,23 +22,10 @@ import DeliveryInstructions from "@/components/create-order/DeliveryInstructions
 import { ContactSelector } from "@/components/create-order/ContactSelector";
 import { useContacts } from "@/hooks/useContacts";
 import { Contact } from "@/services/contactService";
-import { DEPOT_LOCATION } from "@/constants/depot";
+import { Input } from "@/components/ui/input";
+import { DEPOT_RECEIVER } from "@/constants/depot";
 import { hasRole } from "@/lib/roles";
 
-const DEPOT_RECEIVER = {
-  name: "Cycle Courier Depot",
-  email: "info@cyclecourierco.com",
-  phone: "+441217980767",
-  address: {
-    street: "Lawden Road",
-    city: "Birmingham",
-    state: "West Midlands",
-    zipCode: DEPOT_LOCATION.postcode,
-    country: "United Kingdom",
-    lat: DEPOT_LOCATION.lat,
-    lon: DEPOT_LOCATION.lon,
-  },
-};
 
 const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
@@ -129,10 +116,30 @@ const orderSchema = z.object({
   deliveryInstructions: z.string().optional(),
   needsInspection: z.boolean().default(false),
   isBoxMyBike: z.boolean().default(false),
+  boxBuyer: z.object({
+    name: z.string().optional(),
+    email: z.string().optional(),
+    phone: z.string().optional(),
+  }).optional(),
   // Legacy fields for backward compatibility
   bikeBrand: z.string().optional(),
   bikeModel: z.string().optional(),
 }).superRefine((data, ctx) => {
+  // Box My Bike: the delivery address is our depot, so we capture the end buyer
+  // separately in order to keep them updated.
+  if (data.isBoxMyBike) {
+    const b = data.boxBuyer;
+    if (!b?.name || b.name.trim().length < 2) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Buyer name is required", path: ["boxBuyer", "name"] });
+    }
+    if (!b?.email || !EMAIL_REGEX.test(b.email)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Valid buyer email is required", path: ["boxBuyer", "email"] });
+    }
+    if (!b?.phone || !/^\+44[0-9]{10}$/.test(b.phone)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Phone number must be +44 followed by 10 digits", path: ["boxBuyer", "phone"] });
+    }
+  }
+
   // Validate receiver only when NOT Box My Bike (depot is auto-filled in that case)
   if (!data.isBoxMyBike) {
     const r = data.receiver;
@@ -250,6 +257,7 @@ const CreateOrder = () => {
       deliveryInstructions: "",
       needsInspection: false,
       isBoxMyBike: false,
+      boxBuyer: { name: "", email: "", phone: "+44" },
       // Legacy fields for backward compatibility
       bikeBrand: "",
       bikeModel: "",
@@ -624,6 +632,58 @@ const CreateOrder = () => {
                     <TabsContent value="details" className="space-y-6 mt-0">
                       <OrderDetails control={form.control} />
                       <OrderOptions control={form.control} />
+                      {isBoxMyBike && (
+                        <div className="border rounded-lg p-4 space-y-4">
+                          <div>
+                            <h3 className="text-lg font-medium">Buyer Details</h3>
+                            <p className="text-sm text-muted-foreground">
+                              The bike is delivered to our depot for boxing, so tell us who the boxed bike
+                              is ultimately going to. We'll keep them updated by email.
+                            </p>
+                          </div>
+                          <div className="grid gap-4 sm:grid-cols-3">
+                            <FormField
+                              control={form.control}
+                              name="boxBuyer.name"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Buyer name</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="Full name" {...field} value={field.value || ""} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="boxBuyer.email"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Buyer email</FormLabel>
+                                  <FormControl>
+                                    <Input type="email" placeholder="buyer@example.com" {...field} value={field.value || ""} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            <FormField
+                              control={form.control}
+                              name="boxBuyer.phone"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Buyer phone</FormLabel>
+                                  <FormControl>
+                                    <Input placeholder="+447123456789" {...field} value={field.value || ""} />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                          </div>
+                        </div>
+                      )}
                       <DeliveryInstructions control={form.control} />
 
                       <div className="flex justify-end">

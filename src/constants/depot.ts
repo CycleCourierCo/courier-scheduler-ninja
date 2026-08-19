@@ -7,6 +7,23 @@ export const DEPOT_LOCATION = {
   lon: -1.8757663
 };
 
+// Receiver block used for Box My Bike orders: the bike is delivered to our depot
+// and boxed there, so the depot becomes the delivery contact/address.
+export const DEPOT_RECEIVER = {
+  name: 'Cycle Courier Depot',
+  email: 'info@cyclecourierco.com',
+  phone: '+441217980767',
+  address: {
+    street: 'Lawden Road',
+    city: 'Birmingham',
+    state: 'West Midlands',
+    zipCode: DEPOT_LOCATION.postcode,
+    country: 'United Kingdom',
+    lat: DEPOT_LOCATION.lat,
+    lon: DEPOT_LOCATION.lon,
+  },
+};
+
 // Northern Ireland ferry hand-off point. NI deliveries are dropped here instead
 // of the customer address for onward transport to Northern Ireland.
 export const CITY_AIR_EXPRESS = {

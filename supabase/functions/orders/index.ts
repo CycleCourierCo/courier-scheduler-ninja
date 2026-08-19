@@ -108,8 +108,30 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
       const body = await req.json()
 
 
-      // Box My Bike: auto-fill depot as receiver so caller doesn't need to provide it
+      // Box My Bike: auto-fill depot as receiver so caller doesn't need to provide it.
+      // The end buyer (who the boxed bike is going to) is captured separately so we
+      // can keep them updated by email.
       const isBoxMyBike = body.isBoxMyBike || body.is_box_my_bike || false
+      const rawBuyer = body.boxBuyer || body.box_buyer || null
+      let boxBuyer: { name: string; email: string; phone: string } | null = null
+      if (isBoxMyBike && rawBuyer && typeof rawBuyer === 'object') {
+        const name = typeof rawBuyer.name === 'string' ? rawBuyer.name.trim() : ''
+        const email = typeof rawBuyer.email === 'string' ? rawBuyer.email.trim() : ''
+        const phone = typeof rawBuyer.phone === 'string' ? rawBuyer.phone.trim() : ''
+        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          return new Response(
+            JSON.stringify({ error: 'boxBuyer.email must be a valid email address' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+        if (name.length > 255 || email.length > 255 || phone.length > 50) {
+          return new Response(
+            JSON.stringify({ error: 'boxBuyer fields are too long' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+        if (email) boxBuyer = { name, email, phone }
+      }
       if (isBoxMyBike) {
         body.receiver = {
           name: "Cycle Courier Depot",
@@ -311,6 +333,7 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
         needs_inspection: body.needsInspection || body.needs_inspection || false,
         is_box_my_bike: body.isBoxMyBike || body.is_box_my_bike || false,
         box_my_bike_status: (body.isBoxMyBike || body.is_box_my_bike) ? 'awaiting_depot' : null,
+        box_buyer: boxBuyer,
         is_northern_ireland: isNorthernIreland,
         ni_direction: niDirection,
         foam_status: niDirection === 'outbound' ? 'pending_collection' : null,
