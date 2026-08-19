@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,9 +26,11 @@ import {
 interface GuaranteedDeliveryCardProps {
   order: any;
   onUpdate?: () => void;
+  /** Render without the outer card chrome (used inside the Services panel) */
+  bare?: boolean;
 }
 
-const GuaranteedDeliveryCard = ({ order, onUpdate }: GuaranteedDeliveryCardProps) => {
+const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDeliveryCardProps) => {
   const [open, setOpen] = useState(false);
   const [payer, setPayer] = useState<GuaranteedDeliveryPayer>("account");
   const [amount, setAmount] = useState<string>("0");
@@ -324,7 +326,7 @@ const GuaranteedDeliveryCard = ({ order, onUpdate }: GuaranteedDeliveryCardProps
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </Shell>
   );
 };
 
