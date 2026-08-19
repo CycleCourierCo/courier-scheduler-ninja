@@ -259,7 +259,9 @@ export default function LabourTimesAdmin() {
           <TabsList>
             <TabsTrigger value="times">Labour times</TabsTrigger>
             <TabsTrigger value="multipliers">Multipliers</TabsTrigger>
+            <TabsTrigger value="van-spaces">Van spaces</TabsTrigger>
           </TabsList>
+
 
           {/* Labour times tab */}
           <TabsContent value="times" className="space-y-4">
