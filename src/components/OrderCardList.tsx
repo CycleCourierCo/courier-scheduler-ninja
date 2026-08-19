@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Order } from "@/types/order";
 import StatusBadge from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 import { resendSenderAvailabilityEmail } from "@/services/orderService";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
@@ -95,6 +96,30 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
               <div className="mt-1">
                 <StatusBadge status={order.status} />
               </div>
+              {(order.isNorthernIreland || order.guaranteedDelivery || order.isBoxMyBike || order.needsInspection) && (
+                <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                  {order.isNorthernIreland && (
+                    <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-[10px] px-1.5 py-0">
+                      NI
+                    </Badge>
+                  )}
+                  {order.guaranteedDelivery && (
+                    <Badge variant="secondary" className="bg-purple-100 text-purple-700 hover:bg-purple-100 text-[10px] px-1.5 py-0">
+                      Guaranteed
+                    </Badge>
+                  )}
+                  {order.isBoxMyBike && (
+                    <Badge variant="secondary" className="bg-courier-100 text-courier-700 hover:bg-courier-100 text-[10px] px-1.5 py-0">
+                      Box
+                    </Badge>
+                  )}
+                  {order.needsInspection && (
+                    <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100 text-[10px] px-1.5 py-0">
+                      Inspect
+                    </Badge>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="mt-2 flex items-center gap-1 min-w-0 text-xs text-foreground">
