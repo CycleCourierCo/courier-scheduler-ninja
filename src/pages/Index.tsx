@@ -53,24 +53,24 @@ const Index = () => {
   return (
     <Layout>
       {/* Hero Section with stunning gradient background filling entire space */}
-      <section className="relative flex-1 flex items-center justify-center overflow-hidden py-12 md:py-0">
+      <section className="relative flex-1 flex items-center justify-center overflow-hidden py-12 md:py-16 min-h-[70vh] md:min-h-[60vh]">
         <div className="absolute inset-0 bg-gradient-hero opacity-90"></div>
         <div className="absolute inset-0">
-          <div className="absolute top-20 left-10 w-72 h-72 bg-primary/20 rounded-full blur-3xl animate-float"></div>
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-primary-glow/10 rounded-full blur-3xl animate-float" style={{
+          <div className="absolute top-10 left-10 w-56 h-56 xl:w-72 xl:h-72 bg-primary/20 rounded-full blur-3xl animate-float"></div>
+          <div className="absolute bottom-10 right-10 w-64 h-64 xl:w-96 xl:h-96 bg-primary-glow/10 rounded-full blur-3xl animate-float" style={{
             animationDelay: '-3s'
           }}></div>
         </div>
         
         <div className="container px-4 md:px-6 relative z-10 mx-auto">
-          <div className="flex flex-col items-center space-y-8 text-center justify-center">
-            <div className="space-y-6 animate-fade-in">
-              <h1 className="text-5xl font-bold tracking-tight sm:text-6xl md:text-7xl lg:text-8xl text-gradient">
+          <div className="flex flex-col items-center space-y-6 lg:space-y-8 text-center justify-center">
+            <div className="space-y-4 lg:space-y-6 animate-fade-in">
+              <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl xl:text-7xl 2xl:text-8xl text-gradient">
                 Book your Bike 
                 <br />
                 <span className="text-primary">Delivery</span> now!
               </h1>
-              <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed">
+              <p className="text-lg md:text-xl xl:text-2xl text-muted-foreground max-w-2xl xl:max-w-3xl mx-auto leading-relaxed">
                 Streamlining Bike Transport
                 Fast, friendly and reliable courier services for your business needs
               </p>
