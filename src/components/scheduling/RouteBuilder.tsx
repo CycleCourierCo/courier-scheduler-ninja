@@ -4478,6 +4478,11 @@ Route Link: ${routeLink}`;
                     job={job}
                     index={index}
                     onReorder={reorderJobs}
+                    onMove={moveStop}
+                    onUpdateTime={updateStopTime}
+                    isFirstStop={index === 0}
+                    isLastStop={index === selectedJobs.length - 1}
+                    isRetiming={isRetiming}
                     onAddBreak={addBreak}
                     onRemove={removeJob}
                     onSendTimeslot={openTimeslotEditDialog}
