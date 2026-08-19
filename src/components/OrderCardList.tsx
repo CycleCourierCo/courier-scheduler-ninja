@@ -85,16 +85,14 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
             }}
             className="w-full min-w-0 rounded-lg border border-border bg-card p-3 text-left shadow-sm transition-colors active:bg-accent/50"
           >
-            <div className="flex items-start justify-between gap-2 min-w-0">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-foreground">
-                  {order.trackingNumber || `${order.id.substring(0, 8)}…`}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {creatorNames[order.user_id] || "Unknown"}
-                </p>
-              </div>
-              <div className="shrink-0">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-semibold text-foreground">
+                {order.trackingNumber || `${order.id.substring(0, 8)}…`}
+              </p>
+              <p className="truncate text-xs text-muted-foreground">
+                {creatorNames[order.user_id] || "Unknown"}
+              </p>
+              <div className="mt-1">
                 <StatusBadge status={order.status} />
               </div>
             </div>
