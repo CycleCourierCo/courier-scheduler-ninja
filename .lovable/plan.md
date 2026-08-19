@@ -1,29 +1,31 @@
-# Availability confirmation rejected with "postcode incorrect" (CCC754175211460DARSW9)
+# Clearer home/work address badges + click-to-pin bike details
 
-## What the checks show so far
+## 1. Home / work address badges and button (Route Timeslots)
 
-- The order's stored collection postcode is `BD6 3RG`, and the server normalises both sides to `bd63rg`, so `Bd6 3rg` should match.
-- Calling the availability endpoint directly as an anonymous visitor with a deliberately wrong postcode returns the expected "Postcode does not match", so the server path itself is working.
-- Failed attempts roll back, so there is no stored record of what the customer actually submitted.
+Currently a stop shows either a blue "Work address" badge, a plain outline "Work address available" badge, or nothing — and a faint ghost button reading "Use work address". It isn't obvious which address is actually being visited or what the button does.
 
-Conclusion: the exact reason this customer was blocked is **not yet confirmed**. The frontend currently shows "That postcode doesn't match the one on this order" for *any* server error whose text happens to contain the word "postcode" — including unrelated failures (permission errors on the attempts table, missing-function/schema errors, rate limiting). So the message the customer saw may not reflect the real problem. Step 1 is to make the real error visible.
+Changes in the timeslot job rows:
 
-## Plan
+- Always show an explicit address badge for stops that have an alternative address:
+  - Visiting work: blue badge, briefcase icon, "Going to: Work address"
+  - Visiting home: neutral badge, house icon, "Going to: Home address"
+- When a work address exists but home is being used, add a small muted hint badge "Work address on file" so the planner knows a switch is possible.
+- Replace the ghost button with a clearly labelled outline button with a swap icon: "Switch to work address" / "Switch to home address", plus a tooltip/popover showing the address it would switch to and why the current one was auto-chosen (work hours on that date vs outside them).
+- Neighbour badge keeps its amber styling but gains a person icon and reads "Leave with neighbour: 42".
+- Badges wrap on mobile (no overflow) and the switch button stays full-width-friendly on narrow cards.
 
-1. Stop guessing the error
-   - Surface the actual server error on the availability pages instead of pattern-matching on the word "postcode": show a specific message for a genuine postcode mismatch (matched on the error code, not the text), a separate one for rate limiting, and a generic "couldn't save your dates" message plus the raw reason in the console for anything else.
-   - Log the failure (order id, side, error code/message — no personal data) so the next occurrence is diagnosable.
+## 2. Bike details: hover on desktop, click to pin
 
-2. Make the postcode check harder to fail by accident
-   - Compare only letters and digits (strip spaces, punctuation, case) on both sides.
-   - Also accept the postcode held on the *order-level* address fields and, for a sender link, a match against the collection address in any of the stored shapes — same tolerant comparison.
-   - Treat an empty/whitespace submission as "please enter your postcode" rather than "doesn't match".
+Desktop hover works today via a Radix tooltip, but a tooltip closes as soon as the pointer leaves, so it can't be read while scrolling or compared between stops.
 
-3. Unblock this order
-   - After the fix, confirm the sender availability for CCC754175211460DARSW9 works end to end, using the customer's dates if they resend them, or confirm it internally from the order page.
+- Replace the desktop tooltip with a single Popover that opens on hover and can be pinned open by clicking the badge; clicking again (or outside) unpins/closes.
+- Mobile keeps tap-to-open behaviour (same component, no hover).
+- Same bike list content in both modes; badge styling and overload colouring unchanged.
 
 ## Technical notes
 
-- Frontend: `src/services/availabilityService.ts` (`updateSenderAvailability` / `updateReceiverAvailability`) — replace the `message.includes("postcode")` branches with checks on the Postgres error code (`23514` for the raised check violations) plus distinct handling for rate limiting; pass the real message through to the console. `src/hooks/useAvailability.tsx` keeps the empty-postcode guard.
-- Database: new migration replacing `public.set_order_availability` so `_normalise_postcode` (or an inline expression) strips all non-alphanumerics rather than only whitespace, and the sender/receiver postcode lookup falls back to every stored shape already listed plus the top-level order address. Distinct error codes/messages for "postcode missing" vs "postcode mismatch" vs "rate limited".
-- No change to statuses, emails, or the coordinate backfill behaviour.
+- `src/components/scheduling/RouteBuilder.tsx`
+  - `BikeCountBadge`: drop the split Tooltip/Popover branches for a controlled `Popover` with `open` state; on desktop add `onMouseEnter`/`onMouseLeave` (ignored when pinned) and `onClick` to toggle `pinned`; `PopoverContent` gets `onOpenAutoFocus={e => e.preventDefault()}` so hover-open doesn't steal focus, and keeps `z-[60]`. Keep `useIsMobile` only to disable hover handlers on touch.
+  - Address badge block (around lines 703-730): render a single resolved-address badge from `job.addressSource` using `Briefcase` / `Home` icons from lucide-react, an "on file" hint badge, and an outline `Button` with `ArrowLeftRight` icon and explicit label calling the existing `onToggleAddress(job)`.
+  - No changes to `applyAddressChoice`, `toggleStopAddress`, or `resolveStopAddress` — resolution logic stays as-is; this is presentation only.
+- Mirror the same badge/button labelling in `src/components/scheduling/MultiJobTimeslotDialog.tsx` if it renders the same address badges.
