@@ -530,6 +530,8 @@ export function analyseFuel(
             registration: reg,
             date: null,
             amount: round(netSpend),
+            transactionIds: rows.map((r) => r.id),
+            vehicleId: key,
           });
       }
     } else if (litres > 0 && miles === 0) {
