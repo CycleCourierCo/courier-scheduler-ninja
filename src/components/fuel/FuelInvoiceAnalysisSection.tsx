@@ -207,9 +207,6 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ["fuel-anomaly-dismissals"] });
     },
   });
-      queryClient.invalidateQueries({ queryKey: ["fuel-anomaly-dismissals"] });
-    },
-  });
 
   const deleteMutation = useMutation({
     mutationFn: (invoice: FuelInvoiceRecord) => deleteFuelInvoice(invoice),
