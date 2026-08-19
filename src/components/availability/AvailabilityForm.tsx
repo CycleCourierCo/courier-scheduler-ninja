@@ -59,6 +59,11 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
   isDateDisabled,
   calendarEndDate,
   bufferNotice,
+  altLocation = null,
+  setAltLocation,
+  showAltLocation = false,
+  altMode = 'delivery',
+
 }) => {
 
   const today = startOfDay(new Date());
