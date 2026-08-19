@@ -188,7 +188,7 @@ const parseTransactionLine = (line: string): WexTransactionRow | null => {
 
 const parseCardTotalLine = (line: string): WexCardTotal | null => {
   const m = line.match(
-    /^([\d*]{10,})\s+([A-Z0-9 ]{5,10}?)\s{2,}.*?Total card:\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/
+    /^\s*([\d*]{10,})\s+([A-Z0-9 ]{4,12}?)\s{2,}.*?Total card:\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d,]+\.\d{2})/
   );
   if (!m) return null;
   const [, cardMask, cardLabel, net, vat, gross] = m;
