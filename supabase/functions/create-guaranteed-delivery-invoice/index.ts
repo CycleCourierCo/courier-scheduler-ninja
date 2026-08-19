@@ -158,8 +158,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     const party = (payer === 'sender' ? order.sender : order.receiver) as any;
-    const partyName: string = party?.name || '';
-    const partyEmail: string = party?.email || '';
+    const partyName: string = sanitiseQbString(party?.name);
+    const partyEmail: string = sanitiseQbString(party?.email);
     if (!partyName) throw new Error(`The ${payer} has no name on this order`);
 
     const tokenData = await getValidQuickBooksToken(supabase, user.id);
