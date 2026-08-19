@@ -515,6 +515,8 @@ export function analyseFuel(
             registration: reg,
             date: null,
             amount: round(netSpend),
+            transactionIds: rows.map((r) => r.id),
+            vehicleId: key,
           });
       } else if (vehicleMpg > settings.expected_mpg_max) {
         const anomalyKey = `high_mpg:${key}`;
