@@ -98,14 +98,14 @@ export async function fetchFuelTransactions(range?: {
 export async function fetchFleetVehicles(): Promise<FleetVehicleLite[]> {
   const { data, error } = await supabase
     .from("vehicles")
-    .select("id, registration, make, model")
+    .select("id, registration, make")
     .order("registration");
   if (error) throw error;
   return (data ?? []).map((v) => ({
     id: v.id,
     registration: v.registration,
     make: v.make ?? null,
-    model: (v as { model?: string | null }).model ?? null,
+    model: null,
     normalisedReg: normaliseReg(v.registration),
   }));
 }
