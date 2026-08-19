@@ -3025,9 +3025,14 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           await updateSavedRouteRow(currentRouteId);
           toast.success(`Saved route "${currentRouteName ?? ''}" updated`);
         } else {
-          toast.info('Name and save this route to keep it for next time');
-          setShowSaveRouteDialog(true);
+          const created = await createSavedRouteRow();
+          if (created) {
+            setCurrentRouteId(created.id);
+            setCurrentRouteName(created.name);
+            toast.success(`Route saved as "${created.name}"`);
+          }
         }
+
       }
     } catch (error) {
       console.error('Error in SendZen bulk send:', error);
