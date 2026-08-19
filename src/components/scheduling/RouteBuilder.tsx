@@ -35,6 +35,7 @@ import { createShipdayOrder } from "@/services/shipdayService";
 import { getRevenueForRouteStops, clearSpecialRatePriceCache } from "@/services/profitabilityService";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasRole } from "@/lib/roles";
+import { BikeSpaceMap, DEFAULT_VAN_SPACES_CAPACITY, formatSpaces, getOrderSpaces, useBikeSpaces } from "@/lib/bikeSpaces";
 import {
   AddressSource,
   formatAltAddress,
@@ -123,8 +124,10 @@ interface JobItemProps {
   onToggleAddress?: (job: SelectedJob) => void;
   isSendingTimeslots: boolean;
   allJobs: SelectedJob[]; // To check for grouped locations
-  bikeCount: number; // Current bike count at this stop
-  startingBikes: number; // Starting bike count
+  bikeCount: number; // Current van load (spaces) at this stop
+  startingBikes: number; // Starting van load (spaces)
+  spaceMap: BikeSpaceMap; // Bike type -> van spaces
+  vanCapacity: number; // Spaces per van
   selectedDate: Date; // NEW: Pass the selected date for availability comparison
   adminComments?: OrderComment[];
   openingHoursMap?: Record<string, any>; // Map of user_id -> opening hours
@@ -323,6 +326,8 @@ const JobItem: React.FC<JobItemProps> = ({
   allJobs,
   bikeCount,
   startingBikes,
+  spaceMap,
+  vanCapacity,
   selectedDate,
   adminComments = [],
   openingHoursMap = {}
@@ -389,17 +394,17 @@ const JobItem: React.FC<JobItemProps> = ({
                     // bikeCount is the final count AFTER the entire stop, so work backwards
                     const totalDeliveries = groupedJobs
                       .filter(j => j.type === 'delivery')
-                      .reduce((sum, j) => sum + (j.orderData?.bike_quantity || 1), 0);
+                      .reduce((sum, j) => sum + getOrderSpaces(j.orderData, spaceMap), 0);
                     const totalPickups = groupedJobs
                       .filter(j => j.type === 'pickup')
-                      .reduce((sum, j) => sum + (j.orderData?.bike_quantity || 1), 0);
+                      .reduce((sum, j) => sum + getOrderSpaces(j.orderData, spaceMap), 0);
                     
                     let runningBikeCount = bikeCount + totalDeliveries - totalPickups;
                     
                     return sortedJobs.map((groupedJob, idx) => {
-                      const quantity = groupedJob.orderData?.bike_quantity || 1;
+                      const quantity = getOrderSpaces(groupedJob.orderData, spaceMap);
                       
-                      // Calculate bike count after this job
+                      // Calculate van load after this job
                       if (groupedJob.type === 'delivery') {
                         runningBikeCount -= quantity;
                       } else if (groupedJob.type === 'pickup') {
@@ -435,8 +440,8 @@ const JobItem: React.FC<JobItemProps> = ({
                               {groupedJob.type === 'pickup' ? 'Col' : 'Del'}
                             </Badge>
                             <span className="text-xs font-medium truncate">{groupedJob.contactName}</span>
-                            <Badge variant="outline" className="text-xs bg-green-100 text-green-800 px-1 py-0 whitespace-nowrap">
-                              🚲 {bikeCountAfterJob}
+                            <Badge variant="outline" className={`text-xs px-1 py-0 whitespace-nowrap ${bikeCountAfterJob > vanCapacity ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                              🚲 {formatSpaces(bikeCountAfterJob)}/{formatSpaces(vanCapacity)}
                             </Badge>
                           </div>
                           
@@ -524,8 +529,8 @@ const JobItem: React.FC<JobItemProps> = ({
                       </Badge>
                       
                       {/* Bike Count Badge */}
-                      <Badge variant="outline" className="text-xs bg-green-100 text-green-800 px-1.5 py-0 whitespace-nowrap">
-                        🚲 {bikeCount}
+                      <Badge variant="outline" className={`text-xs px-1.5 py-0 whitespace-nowrap ${bikeCount > vanCapacity ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                        🚲 {formatSpaces(bikeCount)}/{formatSpaces(vanCapacity)}
                       </Badge>
                       
                       {/* Availability Badge */}
@@ -822,6 +827,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const [startTime, setStartTime] = useState("09:00");
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [startingBikes, setStartingBikes] = useState<number>(0);
+  const { data: bikeSpacesData } = useBikeSpaces();
+  const spaceMap: BikeSpaceMap = bikeSpacesData?.spaceMap ?? {};
+  const vanCapacity = bikeSpacesData?.capacity ?? DEFAULT_VAN_SPACES_CAPACITY;
   const [isSendingTimeslots, setIsSendingTimeslots] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [jobToEdit, setJobToEdit] = useState<SelectedJob | null>(null);
@@ -935,7 +943,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       // If this order doesn't have a pickup in the route, count its delivery bikes
       if (!hasPickup) {
         deliveryJobs.forEach(job => {
-          const quantity = job.orderData?.bike_quantity || 1;
+          const quantity = getOrderSpaces(job.orderData, spaceMap);
           startingBikes += quantity;
         });
       }
@@ -948,7 +956,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   React.useEffect(() => {
     const optimalStarting = calculateOptimalStartingBikes();
     setStartingBikes(optimalStarting);
-  }, [selectedJobs]);
+  }, [selectedJobs, spaceMap]);
 
   // Fetch admin comments for orders in the route
   React.useEffect(() => {
@@ -1014,12 +1022,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     for (let i = 0; i <= jobIndex; i++) {
       const job = selectedJobs[i];
       if (job.type === 'delivery') {
-        // After a delivery, subtract the bike quantity for this order
-        const quantity = job.orderData?.bike_quantity || 1;
+        // After a delivery, subtract the van spaces for this order
+        const quantity = getOrderSpaces(job.orderData, spaceMap);
         bikeCount -= quantity;
       } else if (job.type === 'pickup') {
-        // After a pickup, add the bike quantity for this order
-        const quantity = job.orderData?.bike_quantity || 1;
+        // After a pickup, add the van spaces for this order
+        const quantity = getOrderSpaces(job.orderData, spaceMap);
         bikeCount += quantity;
       }
       // Breaks don't affect bike count
@@ -1028,18 +1036,39 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     return bikeCount;
   };
 
+  // Peak van load across the route (in spaces)
+  const peakLoad = React.useMemo(() => {
+    let load = startingBikes;
+    let peak = startingBikes;
+    for (const job of selectedJobs) {
+      if (job.type === 'delivery') load -= getOrderSpaces(job.orderData, spaceMap);
+      else if (job.type === 'pickup') load += getOrderSpaces(job.orderData, spaceMap);
+      if (load > peak) peak = load;
+    }
+    return Math.round(peak * 100) / 100;
+  }, [selectedJobs, startingBikes, spaceMap]);
+
+  const capacityWarning = peakLoad > vanCapacity ? (
+    <div className="flex items-start gap-2 p-2 rounded-lg border border-destructive/40 bg-destructive/10 text-destructive text-xs">
+      <PackageX className="h-4 w-4 flex-shrink-0 mt-0.5" />
+      <span>
+        Van overloaded: peak load {formatSpaces(peakLoad)} spaces vs capacity {formatSpaces(vanCapacity)} ({formatSpaces(peakLoad - vanCapacity)} over). Split the route or swap bikes between runs.
+      </span>
+    </div>
+  ) : null;
+
   // Calculate final bike count
   const calculateFinalBikeCount = (): number => {
     let bikeCount = startingBikes;
     
     for (const job of selectedJobs) {
       if (job.type === 'delivery') {
-        // After a delivery, subtract the bike quantity for this order
-        const quantity = job.orderData?.bike_quantity || 1;
+        // After a delivery, subtract the van spaces for this order
+        const quantity = getOrderSpaces(job.orderData, spaceMap);
         bikeCount -= quantity;
       } else if (job.type === 'pickup') {
-        // After a pickup, add the bike quantity for this order
-        const quantity = job.orderData?.bike_quantity || 1;
+        // After a pickup, add the van spaces for this order
+        const quantity = getOrderSpaces(job.orderData, spaceMap);
         bikeCount += quantity;
       }
     }
@@ -3880,12 +3909,13 @@ Route Link: ${routeLink}`;
 
                 {/* Route */}
                 <div className="space-y-2">
+                  {capacityWarning}
                   <div className="flex items-center gap-2 p-2 bg-muted rounded-lg">
                     <MapPin className="h-3 w-3 flex-shrink-0" />
                     <span className="text-xs font-medium truncate flex-1">Start: Lawden Rd, B10 0AD</span>
                     <Badge variant="outline" className="text-xs px-1.5 py-0">{startTime}</Badge>
                     <Badge variant="outline" className="bg-green-100 text-green-800 text-xs px-1.5 py-0 whitespace-nowrap">
-                      🚲 {startingBikes}
+                      🚲 {formatSpaces(startingBikes)}/{formatSpaces(vanCapacity)}
                     </Badge>
                   </div>
 
@@ -3906,6 +3936,8 @@ Route Link: ${routeLink}`;
                       allJobs={selectedJobs}
                       bikeCount={calculateBikeCountAtJob(index)}
                       startingBikes={startingBikes}
+                      spaceMap={spaceMap}
+                      vanCapacity={vanCapacity}
                       selectedDate={selectedDate}
                       adminComments={Object.values(adminComments).flat()}
                       openingHoursMap={profileOpeningHours}
@@ -4078,12 +4110,13 @@ Route Link: ${routeLink}`;
               </div>
 
               <div className="space-y-3">
+                {capacityWarning}
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                   <MapPin className="h-4 w-4" />
                   <span className="text-sm font-medium">Start: Lawden Road, Birmingham, B10 0AD</span>
                   <Badge variant="outline">{startTime}</Badge>
                   <Badge variant="outline" className="bg-green-100 text-green-800">
-                    🚲 {startingBikes} bikes
+                    🚲 {formatSpaces(startingBikes)}/{formatSpaces(vanCapacity)} spaces
                   </Badge>
                 </div>
 
@@ -4105,6 +4138,8 @@ Route Link: ${routeLink}`;
                     allJobs={selectedJobs}
                     bikeCount={calculateBikeCountAtJob(index)}
                     startingBikes={startingBikes}
+                    spaceMap={spaceMap}
+                    vanCapacity={vanCapacity}
                     selectedDate={selectedDate}
                     adminComments={Object.values(adminComments).flat()}
                     openingHoursMap={profileOpeningHours}

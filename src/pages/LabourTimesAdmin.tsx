@@ -26,6 +26,8 @@ import {
 } from "@/services/labourTimesService";
 import LabourTimeDialog from "@/components/labour-times/LabourTimeDialog";
 import MultiplierDialog from "@/components/labour-times/MultiplierDialog";
+import VanSpacesTab from "@/components/labour-times/VanSpacesTab";
+
 import {
   calculateLabourPrice,
   formatGBP,
@@ -259,7 +261,9 @@ export default function LabourTimesAdmin() {
           <TabsList>
             <TabsTrigger value="times">Labour times</TabsTrigger>
             <TabsTrigger value="multipliers">Multipliers</TabsTrigger>
+            <TabsTrigger value="van-spaces">Van spaces</TabsTrigger>
           </TabsList>
+
 
           {/* Labour times tab */}
           <TabsContent value="times" className="space-y-4">
@@ -476,7 +480,12 @@ export default function LabourTimesAdmin() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="van-spaces">
+            <VanSpacesTab isAdmin={isAdmin} />
+          </TabsContent>
         </Tabs>
+
       </div>
 
       <LabourTimeDialog

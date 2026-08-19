@@ -24,6 +24,9 @@ export interface OrderData {
   bike_brand: string | null;
   bike_model: string | null;
   bike_quantity: number | null;
+  bike_type?: string | null;
+  bikes?: any[] | null;
+
   created_at: string;
   sender: ContactInfo & { address: Address };
   receiver: ContactInfo & { address: Address };
