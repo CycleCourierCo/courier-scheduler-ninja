@@ -80,12 +80,21 @@ export default function LabourTimesAdmin() {
   const { data: settings } = useWorkshopSettings();
   const hourlyRate = settings?.hourly_rate_gbp ?? 75;
   const minCharge = settings?.min_charge_gbp ?? 15;
+  const inspectionMinutes = settings?.inspection_standard_minutes ?? 30;
+  const defaultRepairMinutes = settings?.default_repair_minutes ?? 30;
 
   // Settings card local state
   const [rateInput, setRateInput] = useState<string>(String(hourlyRate));
   const [minInput, setMinInput] = useState<string>(String(minCharge));
+  const [inspMinInput, setInspMinInput] = useState<string>(String(inspectionMinutes));
+  const [defRepairInput, setDefRepairInput] = useState<string>(String(defaultRepairMinutes));
   useEffect(() => { setRateInput(String(hourlyRate)); setMinInput(String(minCharge)); }, [hourlyRate, minCharge]);
+  useEffect(() => {
+    setInspMinInput(String(inspectionMinutes));
+    setDefRepairInput(String(defaultRepairMinutes));
+  }, [inspectionMinutes, defaultRepairMinutes]);
   const updateSettings = useUpdateWorkshopSettings();
+
 
   // Filters
   const [bikeType, setBikeType] = useState("__all__");
