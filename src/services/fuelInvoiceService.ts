@@ -148,28 +148,49 @@ export async function fetchRegAliases(): Promise<RegAliasRecord[]> {
 export async function saveRegAlias(
   alias: string,
   vehicleId: string | null,
-  ignored = false
+  ignored = false,
+  replacementReg?: string | null
 ): Promise<void> {
+  const normalised = normaliseReg(alias);
   const { error } = await supabase
     .from("fuel_vehicle_aliases")
     .upsert(
-      { normalised_alias: normaliseReg(alias), vehicle_id: vehicleId, ignored },
+      { normalised_alias: normalised, vehicle_id: vehicleId, ignored },
       { onConflict: "normalised_alias" }
     );
   if (error) throw error;
-  await applyAliasToTransactions(normaliseReg(alias), vehicleId);
+  await applyAliasToTransactions(normalised, vehicleId, replacementReg ?? null);
 }
 
-async function applyAliasToTransactions(alias: string, vehicleId: string | null) {
+/**
+ * Points the affected fills at the chosen vehicle and, when a fleet registration is
+ * supplied, rewrites their working reg so the mis-typed one stops surfacing anywhere.
+ * The original invoice text stays in `raw_vehicle_id` for audit.
+ */
+async function applyAliasToTransactions(
+  alias: string,
+  vehicleId: string | null,
+  replacementReg: string | null
+) {
+  const { data: auth } = await supabase.auth.getUser();
+  const updates: Record<string, unknown> = { vehicle_id: vehicleId };
+  if (replacementReg) {
+    updates.normalised_reg = normaliseReg(replacementReg);
+    updates.correction_note = `Registration corrected from "${alias}" to ${replacementReg}`;
+    updates.corrected_at = new Date().toISOString();
+    updates.corrected_by = auth.user?.id ?? null;
+  }
   const { error } = await supabase
     .from("fuel_transactions")
-    .update({ vehicle_id: vehicleId })
+    .update(updates as never)
     .eq("normalised_reg", alias);
   if (error) throw error;
 }
 
+
 export interface FuelTransactionCorrection {
   vehicle_id?: string | null;
+  normalised_reg?: string | null;
   quantity_litres?: number;
   net_amount?: number;
   gross_amount?: number;
@@ -714,10 +735,23 @@ export function analyseFuel(
 
 /* ------------------------------------------------------- anomaly dismissal */
 
+export const RESOLVED_PREFIX = "RESOLVED:";
+
 export async function fetchDismissedAnomalies(): Promise<Set<string>> {
   const { data, error } = await supabase.from("fuel_anomaly_dismissals").select("scope_key");
   if (error) throw error;
   return new Set((data ?? []).map((r) => r.scope_key));
+}
+
+/** Keys that were closed by a manual dismiss (not by an actual fix). */
+export async function fetchManuallyDismissedKeys(): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("fuel_anomaly_dismissals")
+    .select("scope_key, note");
+  if (error) throw error;
+  return (data ?? [])
+    .filter((r) => !(r.note ?? "").startsWith(RESOLVED_PREFIX))
+    .map((r) => r.scope_key);
 }
 
 export async function dismissAnomaly(key: string, note?: string): Promise<void> {
@@ -730,6 +764,12 @@ export async function dismissAnomaly(key: string, note?: string): Promise<void> 
     );
   if (error) throw error;
 }
+
+/** Closes a flag because it was actually fixed, so "restore dismissed" won't bring it back. */
+export async function resolveAnomaly(key: string, note: string): Promise<void> {
+  await dismissAnomaly(key, `${RESOLVED_PREFIX} ${note}`);
+}
+
 
 export async function restoreAnomaly(key: string): Promise<void> {
   const { error } = await supabase

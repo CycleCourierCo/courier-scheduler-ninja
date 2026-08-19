@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { extractPdfText } from "@/lib/pdfText";
-import { parseWexInvoiceText } from "@/lib/wexInvoiceParser";
+import { normaliseReg, parseWexInvoiceText } from "@/lib/wexInvoiceParser";
 import FixFlagDialog from "@/components/fuel/FixFlagDialog";
 import {
   analyseFuel,
@@ -39,9 +39,11 @@ import {
   fetchFuelAnalysisSettings,
   fetchFuelInvoices,
   fetchFuelTransactions,
+  fetchManuallyDismissedKeys,
   fetchMileage,
   fetchRegAliases,
   getInvoiceDownloadUrl,
+  resolveAnomaly,
   restoreAnomaly,
   saveFuelAnalysisSettings,
   saveRegAlias,
@@ -73,6 +75,7 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadLog, setUploadLog] = useState<string[]>([]);
   const [fixAnomaly, setFixAnomaly] = useState<FuelAnomaly | null>(null);
+  const [resolvedKeys, setResolvedKeys] = useState<Set<string>>(new Set());
 
   const range = useMemo(() => {
     if (rangeDays === "all") return {};
@@ -101,13 +104,14 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
 
   const analysis = useMemo(() => {
     if (!settingsQuery.data) return null;
+    const hidden = new Set([...(dismissedQuery.data ?? new Set<string>()), ...resolvedKeys]);
     return analyseFuel(
       transactionsQuery.data ?? [],
       mileageQuery.data ?? [],
       vehiclesQuery.data ?? [],
       aliasesQuery.data ?? [],
       settingsQuery.data,
-      dismissedQuery.data ?? new Set()
+      hidden
     );
   }, [
     transactionsQuery.data,
@@ -116,6 +120,7 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
     aliasesQuery.data,
     settingsQuery.data,
     dismissedQuery.data,
+    resolvedKeys,
   ]);
 
   const refreshAll = () => {
@@ -154,10 +159,30 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
   };
 
   const aliasMutation = useMutation({
-    mutationFn: ({ reg, vehicleId, ignored }: { reg: string; vehicleId: string | null; ignored?: boolean }) =>
-      saveRegAlias(reg, vehicleId, ignored ?? false),
-    onSuccess: () => {
-      toast.success("Registration mapping saved");
+    mutationFn: async ({
+      reg,
+      vehicleId,
+      ignored,
+      anomalyKey,
+    }: {
+      reg: string;
+      vehicleId: string | null;
+      ignored?: boolean;
+      anomalyKey?: string;
+    }) => {
+      const vehicle = (vehiclesQuery.data ?? []).find((v) => v.id === vehicleId);
+      await saveRegAlias(reg, vehicleId, ignored ?? false, vehicle?.registration ?? null);
+      if (anomalyKey) {
+        await resolveAnomaly(
+          anomalyKey,
+          vehicle ? `matched to ${vehicle.registration}` : "marked as not our vehicle"
+        );
+      }
+      return { anomalyKey, vehicleReg: vehicle?.registration ?? null };
+    },
+    onSuccess: ({ anomalyKey, vehicleReg }) => {
+      if (anomalyKey) setResolvedKeys((prev) => new Set(prev).add(anomalyKey));
+      toast.success(vehicleReg ? `Fills reassigned to ${vehicleReg}` : "Registration marked as not ours");
       refreshAll();
     },
     onError: (error: Error) => toast.error(error.message),
@@ -174,7 +199,7 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
 
   const clearDismissalsMutation = useMutation({
     mutationFn: async () => {
-      const keys = [...(dismissedQuery.data ?? new Set<string>())];
+      const keys = await fetchManuallyDismissedKeys();
       await Promise.all(keys.map((key) => restoreAnomaly(key)));
     },
     onSuccess: () => {
@@ -346,7 +371,11 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
                         <div className="flex items-center gap-2">
                           <Select
                             onValueChange={(vehicleId) =>
-                              aliasMutation.mutate({ reg: item.reg, vehicleId })
+                              aliasMutation.mutate({
+                                reg: item.reg,
+                                vehicleId,
+                                anomalyKey: `unmatched_reg:${normaliseReg(item.reg)}`,
+                              })
                             }
                           >
                             <SelectTrigger className="w-[190px]">
@@ -369,11 +398,17 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() =>
-                              aliasMutation.mutate({ reg: item.reg, vehicleId: null, ignored: true })
+                              aliasMutation.mutate({
+                                reg: item.reg,
+                                vehicleId: null,
+                                ignored: true,
+                                anomalyKey: `unmatched_reg:${normaliseReg(item.reg)}`,
+                              })
                             }
                           >
-                            Ignore
+                            Not ours
                           </Button>
+
                         </div>
                       </div>
                     ))}
@@ -515,6 +550,7 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
                               aliasMutation.mutate({
                                 reg: anomaly.normalisedReg ?? anomaly.registration ?? "",
                                 vehicleId,
+                                anomalyKey: anomaly.key,
                               })
                             }
                           >
@@ -538,9 +574,11 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
                                 reg: anomaly.normalisedReg ?? anomaly.registration ?? "",
                                 vehicleId: null,
                                 ignored: true,
+                                anomalyKey: anomaly.key,
                               })
                             }
                           >
+
                             Not ours
                           </Button>
                         </>
@@ -572,8 +610,12 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
                 onOpenChange={(next) => {
                   if (!next) setFixAnomaly(null);
                 }}
-                onFixed={refreshAll}
+                onFixed={(key) => {
+                  if (key) setResolvedKeys((prev) => new Set(prev).add(key));
+                  refreshAll();
+                }}
               />
+
 
             </TabsContent>
 
