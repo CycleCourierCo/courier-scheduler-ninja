@@ -9,6 +9,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2, Zap, Truck, ArrowUpDown } from "lucide-react";
 import { OrderData, ShipdayVerificationResults } from "@/pages/JobScheduling";
 import { toast } from "sonner";
@@ -36,6 +37,7 @@ import { getRevenueForRouteStops, clearSpecialRatePriceCache } from "@/services/
 import { useAuth } from "@/contexts/AuthContext";
 import { hasRole } from "@/lib/roles";
 import { BikeSpaceMap, DEFAULT_VAN_SPACES_CAPACITY, formatSpaces, getOrderSpaces, useBikeSpaces } from "@/lib/bikeSpaces";
+import { getGroupedBikes } from "@/utils/bikeSummary";
 import {
   AddressSource,
   formatAltAddress,
@@ -311,7 +313,66 @@ const getInspectionStatusBadge = (
   };
 };
 
-const JobItem: React.FC<JobItemProps> = ({ 
+interface BikeCountBadgeProps {
+  orderData?: OrderData;
+  bikeCount: number;
+  vanCapacity: number;
+  className?: string;
+}
+
+const BikeCountBadge: React.FC<BikeCountBadgeProps> = ({ orderData, bikeCount, vanCapacity, className }) => {
+  const groupedBikes = getGroupedBikes({
+    bikes: orderData?.bikes?.map((bike) => ({
+      brand: bike?.brand || "",
+      model: bike?.model || "",
+      type: bike?.type || "",
+      value: bike?.value || "",
+    })) || [],
+    bikeBrand: orderData?.bike_brand || undefined,
+    bikeModel: orderData?.bike_model || undefined,
+    bikeType: orderData?.bike_type || undefined,
+    bikeQuantity: orderData?.bike_quantity || undefined,
+  } as any);
+
+  const hasBikes = groupedBikes.length > 0 && groupedBikes.some((b) => b.brand || b.model || b.type);
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Badge
+          variant="outline"
+          className={cn(
+            "text-xs px-1.5 py-0 whitespace-nowrap cursor-help",
+            bikeCount > vanCapacity ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800",
+            className
+          )}
+        >
+          🚲 {formatSpaces(bikeCount)}/{formatSpaces(vanCapacity)}
+        </Badge>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs">
+        <div className="space-y-1">
+          <p className="font-medium text-xs">Bike details</p>
+          {hasBikes ? (
+            <ul className="space-y-0.5 text-xs">
+              {groupedBikes.map((bike, index) => (
+                <li key={index}>
+                  {bike.quantity > 1 && <span className="font-medium">{bike.quantity}× </span>}
+                  {[bike.brand, bike.model].filter(Boolean).join(" ")}
+                  {bike.type && <span className="text-muted-foreground"> — {bike.type}</span>}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-muted-foreground">No bike details available</p>
+          )}
+        </div>
+      </TooltipContent>
+    </Tooltip>
+  );
+};
+
+const JobItem: React.FC<JobItemProps> = ({
   job, 
   index, 
   onReorder, 
@@ -440,9 +501,12 @@ const JobItem: React.FC<JobItemProps> = ({
                               {groupedJob.type === 'pickup' ? 'Col' : 'Del'}
                             </Badge>
                             <span className="text-xs font-medium truncate">{groupedJob.contactName}</span>
-                            <Badge variant="outline" className={`text-xs px-1 py-0 whitespace-nowrap ${bikeCountAfterJob > vanCapacity ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                              🚲 {formatSpaces(bikeCountAfterJob)}/{formatSpaces(vanCapacity)}
-                            </Badge>
+                            <BikeCountBadge
+                              orderData={groupedJob.orderData}
+                              bikeCount={bikeCountAfterJob}
+                              vanCapacity={vanCapacity}
+                              className="px-1 py-0"
+                            />
                           </div>
                           
                           {/* Badges row */}
@@ -529,9 +593,11 @@ const JobItem: React.FC<JobItemProps> = ({
                       </Badge>
                       
                       {/* Bike Count Badge */}
-                      <Badge variant="outline" className={`text-xs px-1.5 py-0 whitespace-nowrap ${bikeCount > vanCapacity ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
-                        🚲 {formatSpaces(bikeCount)}/{formatSpaces(vanCapacity)}
-                      </Badge>
+                      <BikeCountBadge
+                        orderData={job.orderData}
+                        bikeCount={bikeCount}
+                        vanCapacity={vanCapacity}
+                      />
                       
                       {/* Availability Badge */}
                       {(() => {
@@ -3499,7 +3565,8 @@ Route Link: ${routeLink}`;
   const shipdayOffCount = selectedJobs.filter(j => j.type !== 'break' && j.orderData && getShipdayStatus(j.orderData, j.type as 'pickup' | 'delivery') !== 'verified').length;
 
   return (
-    <div className="space-y-6">
+    <TooltipProvider>
+      <div className="space-y-6">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
@@ -4397,6 +4464,7 @@ Route Link: ${routeLink}`;
           })}
       />
     </div>
+    </TooltipProvider>
   );
 };
 
