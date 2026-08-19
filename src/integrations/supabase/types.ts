@@ -1210,6 +1210,9 @@ export type Database = {
       fuel_transactions: {
         Row: {
           card_label: string | null
+          corrected_at: string | null
+          corrected_by: string | null
+          correction_note: string | null
           created_at: string
           gross_amount: number
           id: string
@@ -1231,6 +1234,9 @@ export type Database = {
         }
         Insert: {
           card_label?: string | null
+          corrected_at?: string | null
+          corrected_by?: string | null
+          correction_note?: string | null
           created_at?: string
           gross_amount?: number
           id?: string
@@ -1252,6 +1258,9 @@ export type Database = {
         }
         Update: {
           card_label?: string | null
+          corrected_at?: string | null
+          corrected_by?: string | null
+          correction_note?: string | null
           created_at?: string
           gross_amount?: number
           id?: string
