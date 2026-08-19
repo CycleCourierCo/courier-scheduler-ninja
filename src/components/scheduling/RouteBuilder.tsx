@@ -165,7 +165,18 @@ const getAvailabilityBadge = (
       text: 'Customer Available',
       color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
     };
-  } else {
+  }
+
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const allExpired = relevantDates.every(date => format(new Date(date), 'yyyy-MM-dd') < todayStr);
+  if (allExpired) {
+    return {
+      text: 'Dates Expired',
+      color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
+    };
+  }
+
+  {
     return {
       text: 'Not Customer Date',
       color: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300'
