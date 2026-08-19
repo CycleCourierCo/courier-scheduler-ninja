@@ -275,7 +275,7 @@ const JobScheduling = () => {
               />
             </div>
 
-            <div className="mb-8">
+            <div className="mb-4">
               <DriverHoursMileagePanel />
             </div>
             
