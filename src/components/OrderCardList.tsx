@@ -84,7 +84,7 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
                 openOrder(order.id);
               }
             }}
-            className="w-full min-w-0 rounded-lg border border-border bg-card p-3 text-left shadow-sm transition-colors active:bg-accent/50"
+            className="flex h-full w-full min-w-0 flex-col rounded-lg border border-border bg-card p-3 text-left shadow-sm transition-colors hover:bg-accent/40 active:bg-accent/50 sm:p-4"
           >
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-foreground">
