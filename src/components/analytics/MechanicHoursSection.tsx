@@ -100,9 +100,7 @@ const MechanicHoursSection: React.FC = () => {
   });
 
   const totals = data?.totals;
-  const varianceClass = (v: number) =>
-    v >= 0 ? 'text-green-600 dark:text-green-500' : 'text-destructive';
-  const fmtVariance = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}h`;
+
 
   return (
     <Card>
