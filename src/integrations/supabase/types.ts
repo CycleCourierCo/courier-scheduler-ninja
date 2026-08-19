@@ -1006,6 +1006,60 @@ export type Database = {
         }
         Relationships: []
       }
+      fuel_analysis_settings: {
+        Row: {
+          duplicate_fill_window_hours: number
+          expected_mpg_max: number
+          expected_mpg_min: number
+          id: string
+          max_litres_per_fill: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          duplicate_fill_window_hours?: number
+          expected_mpg_max?: number
+          expected_mpg_min?: number
+          id?: string
+          max_litres_per_fill?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          duplicate_fill_window_hours?: number
+          expected_mpg_max?: number
+          expected_mpg_min?: number
+          id?: string
+          max_litres_per_fill?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      fuel_anomaly_dismissals: {
+        Row: {
+          created_at: string
+          dismissed_by: string | null
+          id: string
+          note: string | null
+          scope_key: string
+        }
+        Insert: {
+          created_at?: string
+          dismissed_by?: string | null
+          id?: string
+          note?: string | null
+          scope_key: string
+        }
+        Update: {
+          created_at?: string
+          dismissed_by?: string | null
+          id?: string
+          note?: string | null
+          scope_key?: string
+        }
+        Relationships: []
+      }
       fuel_card_settings: {
         Row: {
           id: string
@@ -1057,6 +1111,60 @@ export type Database = {
         }
         Relationships: []
       }
+      fuel_invoices: {
+        Row: {
+          account_number: string | null
+          created_at: string
+          currency: string
+          due_date: string | null
+          file_path: string | null
+          gross_total: number
+          id: string
+          invoice_date: string | null
+          invoice_number: string
+          net_total: number
+          parsed_row_count: number
+          supplier: string
+          updated_at: string
+          uploaded_by: string | null
+          vat_total: number
+        }
+        Insert: {
+          account_number?: string | null
+          created_at?: string
+          currency?: string
+          due_date?: string | null
+          file_path?: string | null
+          gross_total?: number
+          id?: string
+          invoice_date?: string | null
+          invoice_number: string
+          net_total?: number
+          parsed_row_count?: number
+          supplier?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          vat_total?: number
+        }
+        Update: {
+          account_number?: string | null
+          created_at?: string
+          currency?: string
+          due_date?: string | null
+          file_path?: string | null
+          gross_total?: number
+          id?: string
+          invoice_date?: string | null
+          invoice_number?: string
+          net_total?: number
+          parsed_row_count?: number
+          supplier?: string
+          updated_at?: string
+          uploaded_by?: string | null
+          vat_total?: number
+        }
+        Relationships: []
+      }
       fuel_station_cache: {
         Row: {
           address: string | null
@@ -1098,6 +1206,122 @@ export type Database = {
           postcode?: string | null
         }
         Relationships: []
+      }
+      fuel_transactions: {
+        Row: {
+          card_label: string | null
+          created_at: string
+          gross_amount: number
+          id: string
+          invoice_id: string
+          net_amount: number
+          normalised_reg: string | null
+          odometer: number | null
+          product: string | null
+          quantity_litres: number
+          raw_vehicle_id: string | null
+          site_name: string | null
+          trx_date: string
+          trx_reference: string | null
+          trx_time: string | null
+          unit_price: number | null
+          vat_amount: number
+          vat_rate: number | null
+          vehicle_id: string | null
+        }
+        Insert: {
+          card_label?: string | null
+          created_at?: string
+          gross_amount?: number
+          id?: string
+          invoice_id: string
+          net_amount?: number
+          normalised_reg?: string | null
+          odometer?: number | null
+          product?: string | null
+          quantity_litres?: number
+          raw_vehicle_id?: string | null
+          site_name?: string | null
+          trx_date: string
+          trx_reference?: string | null
+          trx_time?: string | null
+          unit_price?: number | null
+          vat_amount?: number
+          vat_rate?: number | null
+          vehicle_id?: string | null
+        }
+        Update: {
+          card_label?: string | null
+          created_at?: string
+          gross_amount?: number
+          id?: string
+          invoice_id?: string
+          net_amount?: number
+          normalised_reg?: string | null
+          odometer?: number | null
+          product?: string | null
+          quantity_litres?: number
+          raw_vehicle_id?: string | null
+          site_name?: string | null
+          trx_date?: string
+          trx_reference?: string | null
+          trx_time?: string | null
+          unit_price?: number | null
+          vat_amount?: number
+          vat_rate?: number | null
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fuel_transactions_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "fuel_invoices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fuel_transactions_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fuel_vehicle_aliases: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          ignored: boolean
+          normalised_alias: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ignored?: boolean
+          normalised_alias: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          ignored?: boolean
+          normalised_alias?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fuel_vehicle_aliases_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       historical_route_stops: {
         Row: {
