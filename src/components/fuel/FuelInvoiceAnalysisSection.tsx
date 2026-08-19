@@ -610,8 +610,12 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
                 onOpenChange={(next) => {
                   if (!next) setFixAnomaly(null);
                 }}
-                onFixed={refreshAll}
+                onFixed={(key) => {
+                  if (key) setResolvedKeys((prev) => new Set(prev).add(key));
+                  refreshAll();
+                }}
               />
+
 
             </TabsContent>
 
