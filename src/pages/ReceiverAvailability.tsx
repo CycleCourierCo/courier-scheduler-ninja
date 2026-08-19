@@ -106,13 +106,35 @@ export default function ReceiverAvailability() {
     [order?.receiverOpeningHours, userProfile?.opening_hours]
   );
 
+  const [autoNote, setAutoNote] = useState<string>('');
+
+  const clearPrefill = () => {
+    setDates([]);
+    if (autoNote) {
+      setNotes((notes || '').split(autoNote).join('').replace(/\n{3,}/g, '\n\n').trim());
+      setAutoNote('');
+    }
+  };
+
   const handleBusinessHours = () => {
     const openDays = getNextOpenDays(openingHours, 7, isDateDisabled);
     setDates(openDays);
     const summary = describeOpeningWindows(openingHours, openDays);
     setNotes(notes ? `${notes}\n\n${summary}` : summary);
+    setAutoNote(summary);
     setMode('now');
   };
+
+  const handleChooseLater = () => {
+    clearPrefill();
+    setMode('later');
+  };
+
+  const handleBackToOptions = () => {
+    clearPrefill();
+    setMode('unset');
+  };
+
 
   if (paramError) {
     return (
@@ -214,7 +236,7 @@ export default function ReceiverAvailability() {
 
               <button
                 type="button"
-                onClick={() => setMode('later')}
+                onClick={handleChooseLater}
                 className="text-left rounded-lg border p-4 transition-colors hover:border-primary hover:bg-accent"
               >
                 <div className="flex items-center gap-2 font-medium">
@@ -243,7 +265,7 @@ export default function ReceiverAvailability() {
     <Layout>
       {isBusinessReceiver && (
         <div className="max-w-4xl mx-auto px-4 pt-4">
-          <Button variant="ghost" size="sm" onClick={() => setMode('unset')}>
+          <Button variant="ghost" size="sm" onClick={handleBackToOptions}>
             ← Back to options
           </Button>
         </div>
