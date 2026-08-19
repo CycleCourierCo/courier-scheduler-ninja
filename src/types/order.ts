@@ -274,6 +274,7 @@ export type CreateOrderFormData = {
   deliveryInstructions?: string;
   needsInspection: boolean;
   isBoxMyBike?: boolean;
+  boxBuyer?: { name: string; email: string; phone: string };
   // Legacy fields for backward compatibility
   bikeBrand?: string;
   bikeModel?: string;
