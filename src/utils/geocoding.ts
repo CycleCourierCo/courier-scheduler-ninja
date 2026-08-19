@@ -48,6 +48,30 @@ export async function geocodeAddress(addressString: string): Promise<GeocodingRe
 }
 
 /**
+ * Geocode a postcode (optionally narrowed by street/city). Falls back to a
+ * postcode-only lookup when the fuller address returns nothing.
+ */
+export async function geocodePostcodeAddress(parts: {
+  street?: string | null;
+  city?: string | null;
+  postcode?: string | null;
+}): Promise<GeocodingResult | null> {
+  const postcode = parts.postcode?.trim();
+  if (!postcode) return null;
+
+  const full = [parts.street, parts.city, postcode, 'United Kingdom']
+    .map((p) => (p || '').trim())
+    .filter(Boolean)
+    .join(', ');
+
+  const detailed = await geocodeAddress(full);
+  if (detailed) return detailed;
+
+  return geocodeAddress(`${postcode}, United Kingdom`);
+}
+
+/**
+
  * Build a full address string from address components
  */
 export function buildAddressString(address: {
