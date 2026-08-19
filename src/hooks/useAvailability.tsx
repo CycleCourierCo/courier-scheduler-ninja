@@ -7,12 +7,19 @@ import { Order } from "@/types/order";
 import { format, addDays, startOfDay } from "date-fns";
 import { fetchHolidayDates } from "@/services/holidayService";
 import { fetchAllowedFridayDates } from "@/services/allowedFridaysService";
+import { AltLocation, parseAltLocation } from "@/lib/altLocation";
 
 type AvailabilityType = 'sender' | 'receiver';
 
 interface UseAvailabilityProps {
   type: AvailabilityType;
-  updateFunction: (id: string, dates: Date[], notes: string, postcode?: string | null) => Promise<Order | null>;
+  updateFunction: (
+    id: string,
+    dates: Date[],
+    notes: string,
+    postcode?: string | null,
+    altLocation?: AltLocation | null
+  ) => Promise<Order | null>;
   getMinDate: () => Date;
   isAlreadyConfirmed: (order: Order | null) => boolean;
 }
@@ -29,6 +36,7 @@ export const useAvailability = ({
   const [dates, setDates] = useState<Date[]>([]);
   const [notes, setNotes] = useState<string>("");
   const [postcode, setPostcode] = useState<string>("");
+  const [altLocation, setAltLocation] = useState<AltLocation | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -180,6 +188,13 @@ export const useAvailability = ({
           if (noteValue) setConfirmedNotes(noteValue);
         }
         
+        // Initialize any previously saved alternate location details
+        const savedAlt = parseAltLocation(
+          (fetchedOrder as any)?.[type === 'sender' ? 'senderAltLocation' : 'receiverAltLocation'] ??
+          (fetchedOrder as any)?.[type === 'sender' ? 'sender_alt_location' : 'receiver_alt_location']
+        );
+        if (savedAlt) setAltLocation(savedAlt);
+
         // Initialize notes from the order if available
         if (type === 'sender' && fetchedOrder.senderNotes) {
           setNotes(fetchedOrder.senderNotes);
@@ -241,7 +256,7 @@ export const useAvailability = ({
       setIsSubmitting(true);
       console.log(`Submitting ${type} availability for order: ${id}`);
       
-      const updatedOrder = await updateFunction(id, validDates, notes, postcode);
+      const updatedOrder = await updateFunction(id, validDates, notes, postcode, altLocation);
 
 
       if (updatedOrder) {

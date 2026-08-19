@@ -5,6 +5,7 @@ import { mapDbOrderToOrderType } from "./orderServiceUtils";
 import { resendReceiverAvailabilityEmail, sendSenderDatesConfirmedEmail, sendReceiverDatesConfirmedEmail } from "./emailService";
 import { fetchHolidayDates } from "./holidayService";
 import { fetchAllowedFridayDates } from "./allowedFridaysService";
+import type { AltLocation } from "@/lib/altLocation";
 
 // Format date as YYYY-MM-DD using local date parts (no timezone shift)
 const toDateString = (date: Date): string => {
@@ -130,7 +131,7 @@ export const confirmReceiverAvailability = async (orderId: string, dateStrings: 
   }
 };
 
-export const updateSenderAvailability = async (orderId: string, dates: Date[], notes: string, postcode?: string | null): Promise<Order | null> => {
+export const updateSenderAvailability = async (orderId: string, dates: Date[], notes: string, postcode?: string | null, altLocation?: AltLocation | null): Promise<Order | null> => {
   try {
     if (!orderId || !dates || dates.length === 0) {
       console.error("Invalid parameters for updateSenderAvailability");
@@ -157,6 +158,7 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
       p_dates: dateStrings,
       p_notes: notes.trim(),
       p_postcode: postcode ?? null,
+      p_alt_location: altLocation ?? null,
     });
 
     if (error) {
@@ -193,7 +195,7 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
   }
 };
 
-export const updateReceiverAvailability = async (orderId: string, dates: Date[], notes: string, postcode?: string | null): Promise<Order | null> => {
+export const updateReceiverAvailability = async (orderId: string, dates: Date[], notes: string, postcode?: string | null, altLocation?: AltLocation | null): Promise<Order | null> => {
   try {
     if (!orderId || !dates || dates.length === 0) {
       console.error("Invalid parameters for updateReceiverAvailability");
@@ -217,6 +219,7 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
       p_dates: dateStrings,
       p_notes: notes.trim(),
       p_postcode: postcode ?? null,
+      p_alt_location: altLocation ?? null,
     });
 
     if (error) {
