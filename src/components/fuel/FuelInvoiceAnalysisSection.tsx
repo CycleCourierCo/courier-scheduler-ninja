@@ -159,10 +159,30 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
   };
 
   const aliasMutation = useMutation({
-    mutationFn: ({ reg, vehicleId, ignored }: { reg: string; vehicleId: string | null; ignored?: boolean }) =>
-      saveRegAlias(reg, vehicleId, ignored ?? false),
-    onSuccess: () => {
-      toast.success("Registration mapping saved");
+    mutationFn: async ({
+      reg,
+      vehicleId,
+      ignored,
+      anomalyKey,
+    }: {
+      reg: string;
+      vehicleId: string | null;
+      ignored?: boolean;
+      anomalyKey?: string;
+    }) => {
+      const vehicle = (vehiclesQuery.data ?? []).find((v) => v.id === vehicleId);
+      await saveRegAlias(reg, vehicleId, ignored ?? false, vehicle?.registration ?? null);
+      if (anomalyKey) {
+        await resolveAnomaly(
+          anomalyKey,
+          vehicle ? `matched to ${vehicle.registration}` : "marked as not our vehicle"
+        );
+      }
+      return { anomalyKey, vehicleReg: vehicle?.registration ?? null };
+    },
+    onSuccess: ({ anomalyKey, vehicleReg }) => {
+      if (anomalyKey) setResolvedKeys((prev) => new Set(prev).add(anomalyKey));
+      toast.success(vehicleReg ? `Fills reassigned to ${vehicleReg}` : "Registration marked as not ours");
       refreshAll();
     },
     onError: (error: Error) => toast.error(error.message),
@@ -179,11 +199,14 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
 
   const clearDismissalsMutation = useMutation({
     mutationFn: async () => {
-      const keys = [...(dismissedQuery.data ?? new Set<string>())];
+      const keys = await fetchManuallyDismissedKeys();
       await Promise.all(keys.map((key) => restoreAnomaly(key)));
     },
     onSuccess: () => {
       toast.success("Dismissed flags restored");
+      queryClient.invalidateQueries({ queryKey: ["fuel-anomaly-dismissals"] });
+    },
+  });
       queryClient.invalidateQueries({ queryKey: ["fuel-anomaly-dismissals"] });
     },
   });
