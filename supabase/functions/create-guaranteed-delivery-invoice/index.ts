@@ -13,6 +13,16 @@ function escapeQuickBooksString(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
+/** Strip control chars (tab/newline/etc), collapse whitespace and trim — QuickBooks rejects them. */
+function sanitiseQbString(value: unknown): string {
+  if (value === null || value === undefined) return '';
+  return String(value)
+    // deno-lint-ignore no-control-regex
+    .replace(/[\u0000-\u001F\u007F]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 async function refreshQuickBooksToken(
   supabase: any,
   userId: string,
