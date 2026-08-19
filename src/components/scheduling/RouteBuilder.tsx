@@ -1764,8 +1764,13 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   React.useEffect(() => {
     if (initialJobs?.length && orderList.length && selectedJobs.length === 0) {
       const jobs: SelectedJob[] = [];
-      
-      initialJobs.forEach((ij, idx) => {
+      const seen = new Set<string>();
+
+      initialJobs.forEach((ij) => {
+        const key = `${ij.orderId}|${ij.type}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+
         const order = orderList.find(o => o.id === ij.orderId);
         if (!order) return;
         
@@ -1778,7 +1783,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           contactName: contact.name,
           orderData: order,
           phoneNumber: contact.phone,
-          order: idx + 1,
+          order: jobs.length + 1,
           lat: contact.lat,
           lon: contact.lon
         });
