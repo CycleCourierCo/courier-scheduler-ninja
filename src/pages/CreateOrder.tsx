@@ -270,6 +270,7 @@ const CreateOrder = () => {
       deliveryInstructions: "",
       needsInspection: false,
       isBoxMyBike: false,
+      boxBuyer: { name: "", email: "", phone: "+44" },
       // Legacy fields for backward compatibility
       bikeBrand: "",
       bikeModel: "",
