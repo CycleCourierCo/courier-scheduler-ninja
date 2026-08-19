@@ -315,7 +315,7 @@ const OrderTable: React.FC<OrderTableProps> = memo(({ orders, userRole }) => {
 
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden dark:bg-background">
-      <div className="flex justify-end p-2 border-b">
+      <div className="hidden md:flex justify-end p-2 border-b">
         <TableColumnSettings 
           columns={(userRole === "admin" || userRole === "route_planner") ? ALL_COLUMNS : ALL_COLUMNS.filter(col => col.id !== "actions")} 
           visibleColumns={visibleColumns} 
