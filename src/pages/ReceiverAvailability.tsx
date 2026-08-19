@@ -227,11 +227,13 @@ export default function ReceiverAvailability() {
               </button>
             </CardContent>
           </Card>
-          <div className="mt-4 text-center">
-            <Button variant="ghost" onClick={() => navigate('/dashboard')}>
-              I'll do this later
-            </Button>
-          </div>
+          {userProfile && (
+            <div className="mt-4 text-center">
+              <Button variant="ghost" onClick={() => navigate('/dashboard')}>
+                I'll do this later
+              </Button>
+            </div>
+          )}
         </div>
       </Layout>
     );
@@ -239,6 +241,13 @@ export default function ReceiverAvailability() {
 
   return (
     <Layout>
+      {isBusinessReceiver && (
+        <div className="max-w-4xl mx-auto px-4 pt-4">
+          <Button variant="ghost" size="sm" onClick={() => setMode('unset')}>
+            ← Back to options
+          </Button>
+        </div>
+      )}
       <AvailabilityForm
         title={mode === 'now' ? 'Confirm Delivery Days' : 'Confirm Your Availability'}
         description={
