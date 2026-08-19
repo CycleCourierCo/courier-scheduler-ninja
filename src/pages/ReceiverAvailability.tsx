@@ -106,13 +106,35 @@ export default function ReceiverAvailability() {
     [order?.receiverOpeningHours, userProfile?.opening_hours]
   );
 
+  const [autoNote, setAutoNote] = useState<string>('');
+
+  const clearPrefill = () => {
+    setDates([]);
+    if (autoNote) {
+      setNotes((notes || '').split(autoNote).join('').replace(/\n{3,}/g, '\n\n').trim());
+      setAutoNote('');
+    }
+  };
+
   const handleBusinessHours = () => {
     const openDays = getNextOpenDays(openingHours, 7, isDateDisabled);
     setDates(openDays);
     const summary = describeOpeningWindows(openingHours, openDays);
     setNotes(notes ? `${notes}\n\n${summary}` : summary);
+    setAutoNote(summary);
     setMode('now');
   };
+
+  const handleChooseLater = () => {
+    clearPrefill();
+    setMode('later');
+  };
+
+  const handleBackToOptions = () => {
+    clearPrefill();
+    setMode('unset');
+  };
+
 
   if (paramError) {
     return (

@@ -204,7 +204,7 @@ export default function SenderAvailability() {
 
               <button
                 type="button"
-                onClick={() => setMode('later')}
+                onClick={handleAvailableLater}
                 className="text-left rounded-lg border p-4 transition-colors hover:border-primary hover:bg-accent"
               >
                 <div className="flex items-center gap-2 font-medium">
@@ -233,7 +233,7 @@ export default function SenderAvailability() {
     <Layout>
       {isBusinessSender && (
         <div className="max-w-4xl mx-auto px-4 pt-4">
-          <Button variant="ghost" size="sm" onClick={() => setMode('unset')}>
+          <Button variant="ghost" size="sm" onClick={handleBackToOptions}>
             ← Back to options
           </Button>
         </div>
