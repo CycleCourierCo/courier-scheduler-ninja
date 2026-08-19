@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { UserProfile, UserRole, DEFAULT_OPENING_HOURS } from "@/types/user";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OpeningHoursEditor from "./OpeningHoursEditor";
+import DriverLicenceTab from "./DriverLicenceTab";
 import { listVehicles, type Vehicle } from "@/services/vehicleService";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -65,6 +66,12 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         shipday_driver_name: user.shipday_driver_name,
         default_vehicle_id: user.default_vehicle_id,
         quickbooks_customer_id: user.quickbooks_customer_id,
+        licence_front_path: user.licence_front_path ?? null,
+        licence_back_path: user.licence_back_path ?? null,
+        licence_check_code_path: user.licence_check_code_path ?? null,
+        licence_number: user.licence_number ?? null,
+        licence_expiry: user.licence_expiry ?? null,
+        licence_updated_at: user.licence_updated_at ?? null,
       });
     }
   }, [user]);
@@ -144,6 +151,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
             {isBusiness && <TabsTrigger value="business" className="shrink-0 sm:flex-1">Business</TabsTrigger>}
             <TabsTrigger value="address" className="shrink-0 sm:flex-1">Address</TabsTrigger>
             {isDriver && <TabsTrigger value="driver" className="shrink-0 sm:flex-1">Driver</TabsTrigger>}
+            {isDriver && <TabsTrigger value="licence" className="shrink-0 sm:flex-1">Licence</TabsTrigger>}
             {isMechanic && <TabsTrigger value="pay" className="shrink-0 sm:flex-1">Pay</TabsTrigger>}
           </TabsList>
 
@@ -453,6 +461,16 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                 </div>
                 </>
               </div>
+            </TabsContent>
+          )}
+
+          {isDriver && (
+            <TabsContent value="licence" className="space-y-4 mt-4">
+              <DriverLicenceTab
+                userId={user.id}
+                formData={formData}
+                onChange={(updates) => setFormData((prev) => ({ ...prev, ...updates }))}
+              />
             </TabsContent>
           )}
         </Tabs>
