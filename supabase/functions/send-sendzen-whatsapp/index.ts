@@ -54,6 +54,24 @@ interface SendZenRequest {
   collectionJobList?: string;
   deliveryJobList?: string;
   relatedJobs?: RelatedJob[];
+  /** Alternate (work) address / neighbour details chosen for these stops */
+  addressOverrides?: AddressOverride[];
+}
+
+interface AddressOverride {
+  orderId: string;
+  jobType: JobType;
+  address?: string;
+  source?: "home" | "work";
+  neighbourNumber?: string | null;
+}
+
+function findOverride(
+  overrides: AddressOverride[] | undefined,
+  orderId: string,
+  jobType: JobType,
+): AddressOverride | undefined {
+  return overrides?.find((o) => o.orderId === orderId && o.jobType === jobType);
 }
 
 function formatDateForTemplate(dateStr: string): string {
@@ -164,6 +182,7 @@ async function updateShipday(
   deliveryTime: string,
   relatedJobs: RelatedJob[] | undefined,
   supabase: any,
+  addressOverrides?: AddressOverride[],
 ) {
   console.log("--- Starting Shipday operation ---");
 
@@ -277,12 +296,22 @@ async function updateShipday(
       .filter(Boolean)
       .join(" | ");
 
+    const jobOverride = findOverride(addressOverrides, orderToUpdate.id, jobType);
+    const overrideAddress =
+      jobOverride?.source === "work" && jobOverride.address ? jobOverride.address : null;
+    const overrideInstructions = [
+      overrideAddress ? `WORK ADDRESS: ${overrideAddress}` : "",
+      jobOverride?.neighbourNumber
+        ? `If no answer, try neighbour at ${jobOverride.neighbourNumber}`
+        : "",
+    ].filter(Boolean).join(" | ");
+
     const requestBody = {
       orderNumber:
         orderToUpdate.tracking_number ||
         `${orderToUpdate.id.substring(0, 8)}-UPDATE`,
       customerName: jobContact?.name,
-      customerAddress: normalizeAddress(jobContact),
+      customerAddress: overrideAddress || normalizeAddress(jobContact),
       customerEmail: jobContact?.email,
       customerPhoneNumber: jobContact?.phone,
       restaurantName: "Cycle Courier Co.",
@@ -290,7 +319,7 @@ async function updateShipday(
       expectedPickupTime: adjustTimeForShipday(expectedPickupTime, expectedDeliveryDate),
       expectedDeliveryTime: adjustTimeForShipday(expectedDeliveryTime, expectedDeliveryDate),
       expectedDeliveryDate,
-      deliveryInstruction: allInstructions,
+      deliveryInstruction: [overrideInstructions, allInstructions].filter(Boolean).join(" | "),
     };
 
     console.log("Shipday update payload:", {
@@ -552,6 +581,7 @@ serve(async (req: Request): Promise<Response> => {
       collectionJobList,
       deliveryJobList,
       relatedJobs,
+      addressOverrides,
     }: SendZenRequest = await req.json();
 
     console.log(`SendZen request: type=${type}, orderId=${orderId}, recipientType=${recipientType}`);
@@ -764,7 +794,7 @@ serve(async (req: Request): Promise<Response> => {
       Promise.allSettled([
         // Shipday update (skip for review)
         type !== "review" && deliveryTime
-          ? updateShipday(order, recipientType, deliveryTime, relatedJobs, supabase)
+          ? updateShipday(order, recipientType, deliveryTime, relatedJobs, supabase, addressOverrides)
           : Promise.resolve(),
 
         // Email via Resend (skip for review)

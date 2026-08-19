@@ -58,6 +58,8 @@ export default function SenderAvailability() {
     setNotes,
     postcode,
     setPostcode,
+    altLocation,
+    setAltLocation,
     isLoading,
     isSubmitting,
     order,
@@ -228,6 +230,10 @@ export default function SenderAvailability() {
         onSubmit={handleSubmit}
         isDateDisabled={isDateDisabled}
         calendarEndDate={calendarEndDate}
+        altLocation={altLocation}
+        setAltLocation={setAltLocation}
+        showAltLocation={!isBusinessSender}
+        altMode="collection"
       />
     </Layout>
 

@@ -2434,6 +2434,7 @@ export type Database = {
           pickup_timeslot: string | null
           quickbooks_invoice_public_url: string | null
           receiver: Json
+          receiver_alt_location: Json | null
           receiver_confirmed_at: string | null
           receiver_contact_id: string | null
           receiver_notes: string | null
@@ -2441,6 +2442,7 @@ export type Database = {
           scheduled_delivery_date: string | null
           scheduled_pickup_date: string | null
           sender: Json
+          sender_alt_location: Json | null
           sender_confirmed_at: string | null
           sender_contact_id: string | null
           sender_notes: string | null
@@ -2532,6 +2534,7 @@ export type Database = {
           pickup_timeslot?: string | null
           quickbooks_invoice_public_url?: string | null
           receiver: Json
+          receiver_alt_location?: Json | null
           receiver_confirmed_at?: string | null
           receiver_contact_id?: string | null
           receiver_notes?: string | null
@@ -2539,6 +2542,7 @@ export type Database = {
           scheduled_delivery_date?: string | null
           scheduled_pickup_date?: string | null
           sender: Json
+          sender_alt_location?: Json | null
           sender_confirmed_at?: string | null
           sender_contact_id?: string | null
           sender_notes?: string | null
@@ -2630,6 +2634,7 @@ export type Database = {
           pickup_timeslot?: string | null
           quickbooks_invoice_public_url?: string | null
           receiver?: Json
+          receiver_alt_location?: Json | null
           receiver_confirmed_at?: string | null
           receiver_contact_id?: string | null
           receiver_notes?: string | null
@@ -2637,6 +2642,7 @@ export type Database = {
           scheduled_delivery_date?: string | null
           scheduled_pickup_date?: string | null
           sender?: Json
+          sender_alt_location?: Json | null
           sender_confirmed_at?: string | null
           sender_contact_id?: string | null
           sender_notes?: string | null
@@ -4430,16 +4436,28 @@ export type Database = {
         }[]
       }
       next_custom_repair_id: { Args: never; Returns: string }
-      set_order_availability: {
-        Args: {
-          p_dates: Json
-          p_notes: string
-          p_order_id: string
-          p_postcode?: string
-          p_side: string
-        }
-        Returns: Json
-      }
+      set_order_availability:
+        | {
+            Args: {
+              p_dates: Json
+              p_notes: string
+              p_order_id: string
+              p_postcode?: string
+              p_side: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_alt_location?: Json
+              p_dates: Json
+              p_notes: string
+              p_order_id: string
+              p_postcode?: string
+              p_side: string
+            }
+            Returns: Json
+          }
       submit_public_repair_offer: {
         Args: { p_approved_issue_ids: string[]; p_order_id: string }
         Returns: Json

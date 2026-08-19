@@ -47,12 +47,31 @@ interface RelatedJob {
   jobType: JobType;
 }
 
+interface AddressOverride {
+  orderId: string;
+  jobType: JobType;
+  /** Full address text to visit instead of the stored one (work address) */
+  address?: string;
+  source?: "home" | "work";
+  neighbourNumber?: string | null;
+}
+
 interface TimeslotRequest {
   orderId: string;
   recipientType: "sender" | "receiver";
   deliveryTime: string; // "HH:MM"
   customMessage?: string;
   relatedJobs?: RelatedJob[]; // ✅ Option A
+  /** Alternate (work) address / neighbour details chosen for these stops */
+  addressOverrides?: AddressOverride[];
+}
+
+function findOverride(
+  overrides: AddressOverride[] | undefined,
+  orderId: string,
+  jobType: JobType,
+): AddressOverride | undefined {
+  return overrides?.find((o) => o.orderId === orderId && o.jobType === jobType);
 }
 
 function toUTCYYYYMMDD(dateStr: string): string {
@@ -163,6 +182,7 @@ const serve_handler = async (req: Request): Promise<Response> => {
       deliveryTime,
       customMessage,
       relatedJobs,
+      addressOverrides,
     }: TimeslotRequest = await req.json();
 
     console.log(
@@ -284,6 +304,19 @@ Thank you!
 Cycle Courier Co.`;
     }
 
+
+    // Alternate address / neighbour notes for the primary stop
+    const primaryOverride = findOverride(
+      addressOverrides,
+      orderId,
+      determinePrimaryJobType(recipientType),
+    );
+    if (primaryOverride?.source === "work" && primaryOverride.address) {
+      message += `\n\nWe'll be coming to your work address: ${primaryOverride.address}`;
+    }
+    if (primaryOverride?.neighbourNumber) {
+      message += `\n\nIf you're not in, we'll try your neighbour at ${primaryOverride.neighbourNumber}.`;
+    }
 
     // Initialize Resend
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
@@ -480,12 +513,22 @@ Cycle Courier Co.`;
           .filter(Boolean)
           .join(" | ");
 
+        const jobOverride = findOverride(addressOverrides, orderToUpdate.id, jobType);
+        const overrideAddress =
+          jobOverride?.source === "work" && jobOverride.address ? jobOverride.address : null;
+        const overrideInstructions = [
+          overrideAddress ? `WORK ADDRESS: ${overrideAddress}` : "",
+          jobOverride?.neighbourNumber
+            ? `If no answer, try neighbour at ${jobOverride.neighbourNumber}`
+            : "",
+        ].filter(Boolean).join(" | ");
+
         const requestBody = {
           orderNumber:
             orderToUpdate.tracking_number ||
             `${orderToUpdate.id.substring(0, 8)}-UPDATE`,
           customerName: jobContact?.name,
-          customerAddress: normalizeAddress(jobContact),
+          customerAddress: overrideAddress || normalizeAddress(jobContact),
           customerEmail: jobContact?.email,
           customerPhoneNumber: jobContact?.phone,
           restaurantName: "Cycle Courier Co.",
@@ -493,7 +536,7 @@ Cycle Courier Co.`;
           expectedPickupTime: adjustTimeForShipday(expectedPickupTime, expectedDeliveryDate),
           expectedDeliveryTime: adjustTimeForShipday(expectedDeliveryTime, expectedDeliveryDate),
           expectedDeliveryDate,
-          deliveryInstruction: allInstructions,
+          deliveryInstruction: [overrideInstructions, allInstructions].filter(Boolean).join(" | "),
         };
 
         console.log("Shipday update payload:", {
