@@ -21,6 +21,7 @@ import { Truck, Printer, CalendarIcon, Package, Send } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import jsPDF from 'jspdf';
+import { renderLabelPage } from "@/utils/labelUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasRole } from "@/lib/roles";
 import { Label } from "@/components/ui/label";
