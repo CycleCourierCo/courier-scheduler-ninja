@@ -56,7 +56,7 @@ serve(async (req) => {
 
     const { data: order, error: orderError } = await admin
       .from("orders")
-      .select("id, tracking_number, bike_brand, bike_model, receiver, is_test_account")
+      .select("id, tracking_number, bike_brand, bike_model, receiver, user_id")
       .eq("id", orderId)
       .maybeSingle();
     if (orderError) throw orderError;
