@@ -2867,6 +2867,7 @@ export type Database = {
           special_rate_code: string | null
           special_rate_price: number | null
           table_preferences: Json | null
+          task_notifications_seen_at: string | null
           updated_at: string
           uses_own_van: boolean | null
           van_allowance: number | null
@@ -2912,6 +2913,7 @@ export type Database = {
           special_rate_code?: string | null
           special_rate_price?: number | null
           table_preferences?: Json | null
+          task_notifications_seen_at?: string | null
           updated_at?: string
           uses_own_van?: boolean | null
           van_allowance?: number | null
@@ -2957,6 +2959,7 @@ export type Database = {
           special_rate_code?: string | null
           special_rate_price?: number | null
           table_preferences?: Json | null
+          task_notifications_seen_at?: string | null
           updated_at?: string
           uses_own_van?: boolean | null
           van_allowance?: number | null
@@ -4420,6 +4423,7 @@ export type Database = {
           special_rate_code: string | null
           special_rate_price: number | null
           table_preferences: Json | null
+          task_notifications_seen_at: string | null
           updated_at: string
           uses_own_van: boolean | null
           van_allowance: number | null
@@ -4576,6 +4580,7 @@ export type Database = {
           special_rate_code: string | null
           special_rate_price: number | null
           table_preferences: Json | null
+          task_notifications_seen_at: string | null
           updated_at: string
           uses_own_van: boolean | null
           van_allowance: number | null
