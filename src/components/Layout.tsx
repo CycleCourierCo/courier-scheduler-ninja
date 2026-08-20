@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import ThemeToggle from "./ThemeToggle";
+import TaskNotificationBell from "./tasks/TaskNotificationBell";
 import { hasRole } from "@/lib/roles";
 interface LayoutProps {
   children: React.ReactNode;
@@ -117,6 +118,8 @@ const Layout: React.FC<LayoutProps> = ({
           
           <div className="flex items-center space-x-2 md:hidden">
             <ThemeToggle />
+            {user && isInternalStaff && <TaskNotificationBell />}
+            
             
             <Sheet open={open} onOpenChange={setOpen}>
               <SheetTrigger asChild>
@@ -352,6 +355,8 @@ const Layout: React.FC<LayoutProps> = ({
           
           <div className="hidden md:flex items-center space-x-2">
             <ThemeToggle />
+            {user && isInternalStaff && <TaskNotificationBell />}
+            
             
             {user && <DropdownMenu>
                 <DropdownMenuTrigger asChild>
