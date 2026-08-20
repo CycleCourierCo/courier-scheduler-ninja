@@ -66,6 +66,11 @@ export interface InspectionIssue {
   parts_arrived_at: string | null;
   parts_arrived_by_id: string | null;
   parts_arrived_by_name: string | null;
+  // Part already held in stock (no ordering needed)
+  parts_in_stock?: boolean;
+  parts_in_stock_at?: string | null;
+  parts_in_stock_by_id?: string | null;
+  parts_in_stock_by_name?: string | null;
   customer_response: string | null;
   customer_responded_at: string | null;
   status: IssueStatus;
