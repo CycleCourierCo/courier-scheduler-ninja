@@ -1515,6 +1515,10 @@ export type Database = {
           parts_arrived_by_id: string | null
           parts_arrived_by_name: string | null
           parts_cost: number | null
+          parts_in_stock: boolean
+          parts_in_stock_at: string | null
+          parts_in_stock_by_id: string | null
+          parts_in_stock_by_name: string | null
           parts_ordered: boolean
           parts_ordered_at: string | null
           parts_ordered_by_id: string | null
@@ -1565,6 +1569,10 @@ export type Database = {
           parts_arrived_by_id?: string | null
           parts_arrived_by_name?: string | null
           parts_cost?: number | null
+          parts_in_stock?: boolean
+          parts_in_stock_at?: string | null
+          parts_in_stock_by_id?: string | null
+          parts_in_stock_by_name?: string | null
           parts_ordered?: boolean
           parts_ordered_at?: string | null
           parts_ordered_by_id?: string | null
@@ -1615,6 +1623,10 @@ export type Database = {
           parts_arrived_by_id?: string | null
           parts_arrived_by_name?: string | null
           parts_cost?: number | null
+          parts_in_stock?: boolean
+          parts_in_stock_at?: string | null
+          parts_in_stock_by_id?: string | null
+          parts_in_stock_by_name?: string | null
           parts_ordered?: boolean
           parts_ordered_at?: string | null
           parts_ordered_by_id?: string | null
