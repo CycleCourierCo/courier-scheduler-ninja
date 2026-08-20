@@ -2,8 +2,8 @@ import jsPDF from 'jspdf';
 import { format } from "date-fns";
 import type { Order } from "@/types/order";
 
-const LABEL_WIDTH = 288; // 4 inches in points
-const LABEL_HEIGHT = 432; // 6 inches in points
+export const LABEL_WIDTH = 288; // 4 inches in points
+export const LABEL_HEIGHT = 432; // 6 inches in points
 const MARGIN = 15;
 const ICON_SIZE = 20;
 const INDICATOR_GAP = 8;
@@ -99,7 +99,7 @@ const renderIndicatorRow = (
   return startY + ICON_SIZE + 24;
 };
 
-const renderLabelPage = (pdf: jsPDF, order: Order, bikeIndex: number, quantity: number, labelWidth: number) => {
+export const renderLabelPage = (pdf: jsPDF, order: Order, bikeIndex: number, quantity: number, labelWidth: number = LABEL_WIDTH) => {
   let currentY = MARGIN + 20;
 
   // Tracking number
