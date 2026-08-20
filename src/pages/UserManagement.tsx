@@ -17,6 +17,7 @@ import ShipdayCarriersDialog from "@/components/user-management/ShipdayCarriersD
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ALL_ROLES } from "@/lib/roles";
+import { daysUntil } from "@/components/user-management/DriverLicenceTab";
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -356,7 +357,24 @@ const UserManagement: React.FC = () => {
                 <TableBody>
                   {filteredUsers.map((user) => (
                     <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.name || "N/A"}</TableCell>
+                      <TableCell className="font-medium">
+                        <span className="inline-flex items-center gap-1.5">
+                          {user.name || "N/A"}
+                          {(() => {
+                            if (!getUserRoles(user).includes('driver')) return null;
+                            const missing = !user.licence_front_path || !user.licence_back_path || !user.licence_check_code_path;
+                            const days = daysUntil(user.licence_expiry);
+                            const expired = days !== null && days < 0;
+                            if (!missing && !expired) return null;
+                            return (
+                              <span
+                                title={expired ? "Driving licence has expired" : "Driving licence documents missing"}
+                                className={`inline-block h-2 w-2 rounded-full ${expired ? 'bg-destructive' : 'bg-amber-500'}`}
+                              />
+                            );
+                          })()}
+                        </span>
+                      </TableCell>
                       <TableCell>{user.email || "N/A"}</TableCell>
                       <TableCell>{user.phone || "—"}</TableCell>
                       <TableCell>

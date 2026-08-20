@@ -59,6 +59,7 @@ import {
   unmarkPartsArrived,
   markPartsOrdered,
   unmarkPartsOrdered,
+  setIssuePartsInStock,
   updateInspectionIssue,
   deleteInspectionIssue,
   setIssueStatusAsAdmin,
@@ -98,6 +99,7 @@ interface IssueEntry {
   partName: string;
   partSpec: string;
   partNumber: string;
+  partsInStock: boolean;
   repairId: string | null;
 }
 
@@ -113,7 +115,7 @@ const INSPECTION_ITEMS = [
 
 const EMPTY_ISSUE: IssueEntry = {
   description: "", estimatedCost: "", partsCost: "", labourCost: "",
-  partName: "", partSpec: "", partNumber: "", repairId: null,
+  partName: "", partSpec: "", partNumber: "", partsInStock: false, repairId: null,
 };
 
 
@@ -150,10 +152,10 @@ const BicycleInspections = () => {
   const [editingIssueId, setEditingIssueId] = useState<string | null>(null);
   // Per-issue admin edit-mode toggle so admins don't see editable controls by default
   const [adminEditingIssueIds, setAdminEditingIssueIds] = useState<Set<string>>(new Set());
-  const [editIssueDraft, setEditIssueDraft] = useState<{ description: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string; repairId: string | null }>({ description: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null });
+  const [editIssueDraft, setEditIssueDraft] = useState<{ description: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string; partsInStock: boolean; repairId: string | null }>({ description: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", partsInStock: false, repairId: null });
   // Add-issue inline form state, keyed by inspection id
   const [addIssueForInspectionId, setAddIssueForInspectionId] = useState<string | null>(null);
-  const [newIssueDraft, setNewIssueDraft] = useState<{ description: string; cost: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string; repairId: string | null; payer: "customer" | "receiver" }>({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null, payer: "customer" });
+  const [newIssueDraft, setNewIssueDraft] = useState<{ description: string; cost: string; partsCost: string; labourCost: string; partName: string; partSpec: string; partNumber: string; partsInStock: boolean; repairId: string | null; payer: "customer" | "receiver" }>({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", partsInStock: false, repairId: null, payer: "customer" });
 
   const [customerResponses, setCustomerResponses] = useState<Record<string, string>>({});
   const [sortBy, setSortBy] = useState<"oldest_collected" | "newest_collected" | "tracking_asc">("oldest_collected");
@@ -235,6 +237,7 @@ const BicycleInspections = () => {
               part_name: issue.partName?.trim() || null,
               part_spec: issue.partSpec?.trim() || null,
               part_number: issue.partNumber?.trim() || null,
+              parts_in_stock: !!issue.partsInStock,
             },
             {
               bike_type: bikeType ?? null,
@@ -382,6 +385,7 @@ const BicycleInspections = () => {
           part_name: draft.partName.trim() || null,
           part_spec: draft.partSpec.trim() || null,
           part_number: draft.partNumber.trim() || null,
+          parts_in_stock: !!draft.partsInStock,
         },
         {
           repair_id: draft.repairId,
@@ -405,7 +409,7 @@ const BicycleInspections = () => {
     onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
       setAddIssueForInspectionId(null);
-      setNewIssueDraft({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null, payer: "customer" });
+      setNewIssueDraft({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", partsInStock: false, repairId: null, payer: "customer" });
       if (result?.invoice) {
         const already = result.invoice.alreadyExists ? " (already existed)" : "";
         toast.success(`Issue added and receiver invoice #${result.invoice.invoiceNumber} created${already}`, {
@@ -519,6 +523,23 @@ const BicycleInspections = () => {
       console.error(error);
     },
   });
+
+  // "Part already in stock" toggle — lets a bike skip the awaiting-parts stage
+  const togglePartsInStockMutation = useMutation({
+    mutationFn: async ({ issueId, inStock }: { issueId: string; inStock: boolean }) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      return setIssuePartsInStock(issueId, inStock, user.id, userProfile?.name || user.email || "Mechanic");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+    },
+    onError: (error) => {
+      toast.error("Failed to update stock status");
+      console.error(error);
+    },
+  });
+
+
 
   // Accept issue mutation
   const acceptIssueMutation = useMutation({
@@ -1684,6 +1705,7 @@ const BicycleInspections = () => {
                               partName: issue.part_name || "",
                               partSpec: issue.part_spec || "",
                               partNumber: issue.part_number || "",
+                              partsInStock: !!(issue as any).parts_in_stock,
                               repairId: (issue as any).repair_id ?? null,
                             });
                           }}
@@ -1805,7 +1827,17 @@ const BicycleInspections = () => {
                           <Label className="text-xs">Part #</Label>
                           <Input value={editIssueDraft.partNumber} onChange={(e) => setEditIssueDraft(prev => ({ ...prev, partNumber: e.target.value }))} className="text-sm" />
                         </div>
-                      </div>
+                       </div>
+                       <div className="flex items-center gap-2">
+                         <Checkbox
+                           id={`edit-in-stock-${issue.id}`}
+                           checked={editIssueDraft.partsInStock}
+                           onCheckedChange={(checked) => setEditIssueDraft(prev => ({ ...prev, partsInStock: !!checked }))}
+                         />
+                         <Label htmlFor={`edit-in-stock-${issue.id}`} className="text-xs cursor-pointer">
+                           Part already in stock (no ordering needed)
+                         </Label>
+                       </div>
                       <div className="flex flex-col gap-2 pt-1 sm:flex-row">
                         <Button
                           size="sm"
@@ -1834,8 +1866,9 @@ const BicycleInspections = () => {
                                 labour_cost: labourVal,
                                 part_name: editIssueDraft.partName.trim() || null,
                                 part_spec: editIssueDraft.partSpec.trim() || null,
-                                part_number: editIssueDraft.partNumber.trim() || null,
-                                repair_id: editIssueDraft.repairId,
+                                 part_number: editIssueDraft.partNumber.trim() || null,
+                                 parts_in_stock: editIssueDraft.partsInStock,
+                                 repair_id: editIssueDraft.repairId,
                               },
 
                             });
@@ -1854,8 +1887,26 @@ const BicycleInspections = () => {
 
                   {/* Parts ordered + arrived toggles (awaiting_parts stage, approved issues) */}
                   {(isAdmin || isMechanic) && isAwaitingParts && (issue.status === "approved") && (
-                    <div className="mt-3 flex min-w-0 flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                      <div className="flex min-w-0 items-center gap-2">
+                     <div className="mt-3 flex min-w-0 flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                       <div className="flex min-w-0 items-center gap-2">
+                         <Checkbox
+                           id={`in-stock-${issue.id}`}
+                           checked={!!(issue as any).parts_in_stock}
+                           onCheckedChange={(checked) =>
+                             togglePartsInStockMutation.mutate({ issueId: issue.id, inStock: !!checked })
+                           }
+                         />
+                         <Label htmlFor={`in-stock-${issue.id}`} className="text-sm cursor-pointer flex min-w-0 flex-wrap items-center gap-1">
+                           <PackageCheck className="h-4 w-4 shrink-0" />
+                           In stock
+                           {(issue as any).parts_in_stock && (issue as any).parts_in_stock_by_name && (
+                             <span className="text-xs text-muted-foreground ml-2">
+                               by {(issue as any).parts_in_stock_by_name}
+                             </span>
+                           )}
+                         </Label>
+                       </div>
+                       <div className="flex min-w-0 items-center gap-2">
                         <Checkbox
                           id={`ordered-${issue.id}`}
                           checked={!!issue.parts_ordered}
@@ -2168,6 +2219,16 @@ const BicycleInspections = () => {
                       <Input value={newIssueDraft.partNumber} onChange={(e) => setNewIssueDraft(prev => ({ ...prev, partNumber: e.target.value }))} className="text-sm" />
                     </div>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id={`new-issue-in-stock-${inspection.id}`}
+                      checked={newIssueDraft.partsInStock}
+                      onCheckedChange={(checked) => setNewIssueDraft(prev => ({ ...prev, partsInStock: !!checked }))}
+                    />
+                    <Label htmlFor={`new-issue-in-stock-${inspection.id}`} className="text-xs cursor-pointer">
+                      Part already in stock (no ordering needed)
+                    </Label>
+                  </div>
                   <div className="flex flex-col gap-2 pt-1 sm:flex-row">
                     <Button
                       size="sm"
@@ -2192,7 +2253,7 @@ const BicycleInspections = () => {
                     >
                       <Plus className="h-4 w-4 mr-1" /> Add issue
                     </Button>
-                    <Button size="sm" variant="ghost" onClick={() => { setAddIssueForInspectionId(null); setNewIssueDraft({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", repairId: null, payer: "customer" }); }}>
+                    <Button size="sm" variant="ghost" onClick={() => { setAddIssueForInspectionId(null); setNewIssueDraft({ description: "", cost: "", partsCost: "", labourCost: "", partName: "", partSpec: "", partNumber: "", partsInStock: false, repairId: null, payer: "customer" }); }}>
                       Cancel
                     </Button>
                   </div>
@@ -2780,7 +2841,17 @@ const BicycleInspections = () => {
                                   onChange={(e) => handleUpdateChecklistIssue(item.id, idx, 'partNumber', e.target.value)}
                                   className="text-sm"
                                 />
-                              </div>
+                                 <div className="flex items-center gap-2">
+                                   <Checkbox
+                                     id={`checklist-in-stock-${item.id}-${idx}`}
+                                     checked={issue.partsInStock}
+                                     onCheckedChange={(checked) => patchChecklistIssue(item.id, idx, { partsInStock: !!checked })}
+                                   />
+                                   <Label htmlFor={`checklist-in-stock-${item.id}-${idx}`} className="text-xs cursor-pointer">
+                                     Part already in stock (no ordering needed)
+                                   </Label>
+                                 </div>
+                               </div>
                             )}
                           </div>
                         ))}

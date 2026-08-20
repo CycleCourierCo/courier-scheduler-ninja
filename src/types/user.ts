@@ -67,4 +67,11 @@ export interface UserProfile {
   is_test_account: boolean | null;
   default_vehicle_id: string | null;
   quickbooks_customer_id: string | null;
+  // Driver licence documents
+  licence_front_path?: string | null;
+  licence_back_path?: string | null;
+  licence_check_code_path?: string | null;
+  licence_number?: string | null;
+  licence_expiry?: string | null;
+  licence_updated_at?: string | null;
 }

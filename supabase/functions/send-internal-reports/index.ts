@@ -16,6 +16,7 @@ import {
   addDays,
   buildCustomerUpdateReport,
   buildDailyOpsReport,
+  buildPartsToOrderReport,
   buildWeeklyDriverReport,
   buildWeeklyVanReport,
   buildWeeklyWorkshopReport,
@@ -34,7 +35,7 @@ const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY")!;
 
 const RECIPIENTS = ["Info@cyclecourierco.com"];
 
-const REPORTS = ["customer-updates", "daily-ops", "weekly-driver", "weekly-van", "weekly-workshop"] as const;
+const REPORTS = ["customer-updates", "daily-ops", "parts-to-order", "weekly-driver", "weekly-van", "weekly-workshop"] as const;
 type ReportName = (typeof REPORTS)[number];
 
 const sendEmail = async (subject: string, html: string) => {
@@ -102,7 +103,7 @@ serve(async (req) => {
 
     // --- date window --------------------------------------------------------
     const today = londonDate();
-    const date: string = body?.date || (report === "customer-updates" ? today : addDays(today, -1));
+    const date: string = body?.date || (report === "customer-updates" || report === "parts-to-order" ? today : addDays(today, -1));
     const week = body?.start && body?.end ? { start: body.start, end: body.end } : lastWeek(today);
 
     let built: { subject: string; html: string };
@@ -112,6 +113,9 @@ serve(async (req) => {
         break;
       case "daily-ops":
         built = await buildDailyOpsReport(admin, date);
+        break;
+      case "parts-to-order":
+        built = await buildPartsToOrderReport(admin, date);
         break;
       case "weekly-driver":
         built = await buildWeeklyDriverReport(admin, week.start, week.end);

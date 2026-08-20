@@ -792,3 +792,80 @@ export const buildWeeklyWorkshopReport = async (admin: any, start: string, end: 
     html: wrap("Weekly workshop report", `${fmtDate(start)} – ${fmtDate(end)}`, body),
   };
 };
+
+// ---------- 6. daily parts-to-order list ----------
+
+/**
+ * Lists approved repair parts that we do not hold in stock and have not yet
+ * ordered, so the office can place orders before the end of the day.
+ */
+export const buildPartsToOrderReport = async (admin: any, date: string) => {
+  const issues = await pageAll((from: number) =>
+    admin
+      .from("inspection_issues")
+      .select(
+        "id,inspection_id,order_id,issue_description,part_name,part_spec,part_number,parts_cost,status,parts_ordered,parts_arrived,parts_in_stock,created_at",
+      )
+      .eq("status", "approved")
+      .eq("parts_ordered", false)
+      .or("parts_in_stock.is.null,parts_in_stock.eq.false"),
+  );
+
+  const needsPart = issues.filter(
+    (i: any) => i.part_name || i.part_number || i.part_spec,
+  );
+
+  const orderIds = Array.from(new Set(needsPart.map((i: any) => i.order_id).filter(Boolean)));
+  const orderById = new Map<string, any>();
+  for (let i = 0; i < orderIds.length; i += 200) {
+    const { data } = await admin
+      .from("orders")
+      .select("id,tracking_number,bike_brand,bike_model,created_at")
+      .in("id", orderIds.slice(i, i + 200));
+    for (const o of data || []) orderById.set(o.id, o);
+  }
+
+  const rows: (string | number)[][] = needsPart
+    .map((i: any) => {
+      const o = orderById.get(i.order_id) || {};
+      const bike = [o.bike_brand, o.bike_model].filter(Boolean).join(" ") || "—";
+      const waiting = daysUntil(String(i.created_at).slice(0, 10), date);
+      return {
+        sort: waiting == null ? 0 : waiting,
+        row: [
+          o.tracking_number || "—",
+          bike,
+          esc(i.part_name || "—"),
+          esc(i.part_spec || "—"),
+          esc(i.part_number || "—"),
+          i.parts_cost != null ? money(num(i.parts_cost)) : "—",
+          waiting == null ? "—" : `${Math.abs(waiting)}d`,
+        ] as (string | number)[],
+      };
+    })
+    .sort((a, b) => a.sort - b.sort)
+    .map((r) => r.row);
+
+  const totalValue = needsPart.reduce((a: number, i: any) => a + num(i.parts_cost), 0);
+  const bikeCount = new Set(needsPart.map((i: any) => i.order_id)).size;
+
+  const body =
+    statGrid([
+      { label: "Parts to order", value: needsPart.length, tone: needsPart.length > 0 ? "warn" : "good" },
+      { label: "Bikes affected", value: bikeCount },
+      { label: "Estimated parts spend", value: money(totalValue) },
+    ]) +
+    section(
+      "Parts needed",
+      table(
+        ["Tracking", "Bike", "Part", "Spec", "Part #", "Est. cost", "Waiting"],
+        rows,
+        "Nothing to order — every approved repair has its parts in stock or on order.",
+      ),
+    );
+
+  return {
+    subject: `Parts to order — ${fmtDate(date)} (${needsPart.length})`,
+    html: wrap("Parts to order", fmtDate(date), body),
+  };
+};

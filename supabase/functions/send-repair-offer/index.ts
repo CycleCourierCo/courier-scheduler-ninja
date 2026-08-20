@@ -56,7 +56,7 @@ serve(async (req) => {
 
     const { data: order, error: orderError } = await admin
       .from("orders")
-      .select("id, tracking_number, bike_brand, bike_model, receiver, is_test_account")
+      .select("id, tracking_number, bike_brand, bike_model, receiver, user_id")
       .eq("id", orderId)
       .maybeSingle();
     if (orderError) throw orderError;
@@ -105,7 +105,16 @@ serve(async (req) => {
     if (stampError) throw stampError;
 
     // Test accounts: record the offer but don't message anyone.
-    if ((order as any).is_test_account === true) {
+    let isTestAccount = false;
+    if ((order as any).user_id) {
+      const { data: profile } = await admin
+        .from("profiles")
+        .select("is_test_account")
+        .eq("id", (order as any).user_id)
+        .maybeSingle();
+      isTestAccount = profile?.is_test_account === true;
+    }
+    if (isTestAccount) {
       return json({ success: true, skipped: "test_account", offered: declined.length, link });
     }
 

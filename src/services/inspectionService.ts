@@ -112,7 +112,7 @@ export const reconcileInspectionStatuses = async (): Promise<number> => {
   try {
     const { data: inspections, error } = await supabase
       .from('bicycle_inspections')
-      .select('id, status, inspection_issues(status, parts_arrived, parts_ordered)')
+      .select('id, status, inspection_issues(status, parts_arrived, parts_ordered, parts_in_stock)')
       .in('status', ['issues_found', 'awaiting_parts', 'awaiting_repair', 'in_repair']);
 
     if (error) throw error;
@@ -121,7 +121,7 @@ export const reconcileInspectionStatuses = async (): Promise<number> => {
     let updatedCount = 0;
 
     for (const inspection of inspections) {
-      const issues = (inspection.inspection_issues as { status: string; parts_arrived: boolean; parts_ordered: boolean }[]) || [];
+      const issues = (inspection.inspection_issues as { status: string; parts_arrived: boolean; parts_ordered: boolean; parts_in_stock?: boolean }[]) || [];
       if (issues.length === 0) continue;
 
       let nextStatus: InspectionStatus | null = null;
@@ -136,12 +136,20 @@ export const reconcileInspectionStatuses = async (): Promise<number> => {
       const allApprovedRepaired =
         approved.length > 0 && approved.every(i => i.status === 'repaired' || i.status === 'resolved');
       const allPartsReady =
-        approved.length > 0 && approved.every(i => i.parts_arrived === true && i.parts_ordered === true);
+        approved.length > 0 &&
+        approved.every(
+          i =>
+            i.parts_in_stock === true ||
+            i.status === 'repaired' ||
+            i.status === 'resolved' ||
+            (i.parts_arrived === true && i.parts_ordered === true)
+        );
 
       const currentStatus = inspection.status as InspectionStatus;
 
       if (currentStatus === 'issues_found' && allResponded) {
-        nextStatus = allDeclined ? 'repaired' : 'awaiting_parts';
+        // Every approved repair already has its parts in stock → skip the wait.
+        nextStatus = allDeclined ? 'repaired' : allPartsReady ? 'awaiting_repair' : 'awaiting_parts';
       } else if (currentStatus === 'awaiting_parts' && allPartsReady) {
         nextStatus = 'awaiting_repair';
       } else if (
@@ -442,7 +450,7 @@ export const addInspectionIssue = async (
   estimatedCost: number | null,
   requestedById: string,
   requestedByName: string,
-  partInfo?: { part_name?: string | null; part_spec?: string | null; part_number?: string | null },
+  partInfo?: { part_name?: string | null; part_spec?: string | null; part_number?: string | null; parts_in_stock?: boolean },
   extra?: {
     bike_type?: string | null;
     repair_id?: string | null;
@@ -483,6 +491,10 @@ export const addInspectionIssue = async (
         part_name: partInfo?.part_name || null,
         part_spec: partInfo?.part_spec || null,
         part_number: partInfo?.part_number || null,
+        parts_in_stock: !!partInfo?.parts_in_stock,
+        parts_in_stock_at: partInfo?.parts_in_stock ? now : null,
+        parts_in_stock_by_id: partInfo?.parts_in_stock ? requestedById : null,
+        parts_in_stock_by_name: partInfo?.parts_in_stock ? requestedByName : null,
         priced_at: hasAnyPrice ? now : null,
         priced_by_id: hasAnyPrice ? requestedById : null,
         priced_by_name: hasAnyPrice ? requestedByName : null,
@@ -845,6 +857,40 @@ export const unmarkPartsArrived = async (issueId: string): Promise<InspectionIss
   }
 };
 
+// Mark/unmark that we already hold the part in stock — no ordering needed.
+// In-stock parts count as ready, so the bike can go straight to awaiting repair.
+export const setIssuePartsInStock = async (
+  issueId: string,
+  inStock: boolean,
+  byId?: string,
+  byName?: string
+): Promise<InspectionIssue | null> => {
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from('inspection_issues')
+      .update({
+        parts_in_stock: inStock,
+        parts_in_stock_at: inStock ? now : null,
+        parts_in_stock_by_id: inStock ? byId ?? null : null,
+        parts_in_stock_by_name: inStock ? byName ?? null : null,
+      } as any)
+      .eq('id', issueId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    // Let the shared reconciler pull the bike forward/back as appropriate.
+    await reconcileInspectionStatuses();
+    return data as InspectionIssue;
+  } catch (error) {
+    console.error('Error setting parts in stock:', error);
+    throw error;
+  }
+};
+
+
+
 // Mark an inspection as deliberately not invoiced (admin decision)
 export const markInvoiceNotNeeded = async (
   inspectionId: string,
@@ -988,12 +1034,13 @@ export const checkAllApprovedRepaired = (issues: InspectionIssue[]): boolean => 
   return approvedIssues.every(issue => issue.status === 'repaired');
 };
 
-// Check if all approved issues are ready (parts ordered AND arrived)
+// Check if all approved issues are ready (in stock, or parts ordered AND arrived)
 export const checkAllPartsArrived = (issues: InspectionIssue[]): boolean => {
   const approvedIssues = issues.filter(i => i.status === 'approved' || i.status === 'repaired' || i.status === 'resolved');
   if (approvedIssues.length === 0) return false;
   return approvedIssues.every(issue =>
     issue.status === 'repaired' || issue.status === 'resolved' ||
+    !!issue.parts_in_stock ||
     (!!issue.parts_arrived && !!issue.parts_ordered)
   );
 };
@@ -1043,6 +1090,7 @@ export const updateInspectionIssue = async (
     part_spec?: string | null;
     part_number?: string | null;
     repair_id?: string | null;
+    parts_in_stock?: boolean;
   },
 
   actorId?: string,
@@ -1050,6 +1098,12 @@ export const updateInspectionIssue = async (
 ): Promise<InspectionIssue | null> => {
   try {
     const update: Record<string, any> = { ...fields };
+    if (Object.prototype.hasOwnProperty.call(fields, 'parts_in_stock')) {
+      const inStock = !!fields.parts_in_stock;
+      update.parts_in_stock_at = inStock ? new Date().toISOString() : null;
+      update.parts_in_stock_by_id = inStock ? actorId ?? null : null;
+      update.parts_in_stock_by_name = inStock ? actorName ?? null : null;
+    }
     const priceChanged =
       Object.prototype.hasOwnProperty.call(fields, 'estimated_cost') ||
       Object.prototype.hasOwnProperty.call(fields, 'parts_cost') ||
@@ -1108,7 +1162,7 @@ export const addIssueToExistingInspection = async (
   estimatedCost: number | null,
   requestedById: string,
   requestedByName: string,
-  partInfo?: { part_name?: string | null; part_spec?: string | null; part_number?: string | null },
+  partInfo?: { part_name?: string | null; part_spec?: string | null; part_number?: string | null; parts_in_stock?: boolean },
   extra?: {
     repair_id?: string | null;
     parts_cost?: number | null;
@@ -1143,6 +1197,10 @@ export const addIssueToExistingInspection = async (
         part_name: partInfo?.part_name || null,
         part_spec: partInfo?.part_spec || null,
         part_number: partInfo?.part_number || null,
+        parts_in_stock: !!partInfo?.parts_in_stock,
+        parts_in_stock_at: partInfo?.parts_in_stock ? now : null,
+        parts_in_stock_by_id: partInfo?.parts_in_stock ? requestedById : null,
+        parts_in_stock_by_name: partInfo?.parts_in_stock ? requestedByName : null,
         priced_at: hasAnyPrice ? now : null,
         priced_by_id: hasAnyPrice ? requestedById : null,
         priced_by_name: hasAnyPrice ? requestedByName : null,

@@ -1515,6 +1515,10 @@ export type Database = {
           parts_arrived_by_id: string | null
           parts_arrived_by_name: string | null
           parts_cost: number | null
+          parts_in_stock: boolean
+          parts_in_stock_at: string | null
+          parts_in_stock_by_id: string | null
+          parts_in_stock_by_name: string | null
           parts_ordered: boolean
           parts_ordered_at: string | null
           parts_ordered_by_id: string | null
@@ -1565,6 +1569,10 @@ export type Database = {
           parts_arrived_by_id?: string | null
           parts_arrived_by_name?: string | null
           parts_cost?: number | null
+          parts_in_stock?: boolean
+          parts_in_stock_at?: string | null
+          parts_in_stock_by_id?: string | null
+          parts_in_stock_by_name?: string | null
           parts_ordered?: boolean
           parts_ordered_at?: string | null
           parts_ordered_by_id?: string | null
@@ -1615,6 +1623,10 @@ export type Database = {
           parts_arrived_by_id?: string | null
           parts_arrived_by_name?: string | null
           parts_cost?: number | null
+          parts_in_stock?: boolean
+          parts_in_stock_at?: string | null
+          parts_in_stock_by_id?: string | null
+          parts_in_stock_by_name?: string | null
           parts_ordered?: boolean
           parts_ordered_at?: string | null
           parts_ordered_by_id?: string | null
@@ -2837,6 +2849,12 @@ export type Database = {
           is_business: boolean | null
           is_test_account: boolean
           latitude: number | null
+          licence_back_path: string | null
+          licence_check_code_path: string | null
+          licence_expiry: string | null
+          licence_front_path: string | null
+          licence_number: string | null
+          licence_updated_at: string | null
           longitude: number | null
           name: string | null
           opening_hours: Json | null
@@ -2876,6 +2894,12 @@ export type Database = {
           is_business?: boolean | null
           is_test_account?: boolean
           latitude?: number | null
+          licence_back_path?: string | null
+          licence_check_code_path?: string | null
+          licence_expiry?: string | null
+          licence_front_path?: string | null
+          licence_number?: string | null
+          licence_updated_at?: string | null
           longitude?: number | null
           name?: string | null
           opening_hours?: Json | null
@@ -2915,6 +2939,12 @@ export type Database = {
           is_business?: boolean | null
           is_test_account?: boolean
           latitude?: number | null
+          licence_back_path?: string | null
+          licence_check_code_path?: string | null
+          licence_expiry?: string | null
+          licence_front_path?: string | null
+          licence_number?: string | null
+          licence_updated_at?: string | null
           longitude?: number | null
           name?: string | null
           opening_hours?: Json | null
@@ -4372,6 +4402,12 @@ export type Database = {
           is_business: boolean | null
           is_test_account: boolean
           latitude: number | null
+          licence_back_path: string | null
+          licence_check_code_path: string | null
+          licence_expiry: string | null
+          licence_front_path: string | null
+          licence_number: string | null
+          licence_updated_at: string | null
           longitude: number | null
           name: string | null
           opening_hours: Json | null
@@ -4522,6 +4558,12 @@ export type Database = {
           is_business: boolean | null
           is_test_account: boolean
           latitude: number | null
+          licence_back_path: string | null
+          licence_check_code_path: string | null
+          licence_expiry: string | null
+          licence_front_path: string | null
+          licence_number: string | null
+          licence_updated_at: string | null
           longitude: number | null
           name: string | null
           opening_hours: Json | null

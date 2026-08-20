@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { UserProfile, UserRole, DEFAULT_OPENING_HOURS } from "@/types/user";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OpeningHoursEditor from "./OpeningHoursEditor";
+import DriverLicenceTab from "./DriverLicenceTab";
 import { listVehicles, type Vehicle } from "@/services/vehicleService";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -65,6 +66,12 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         shipday_driver_name: user.shipday_driver_name,
         default_vehicle_id: user.default_vehicle_id,
         quickbooks_customer_id: user.quickbooks_customer_id,
+        licence_front_path: user.licence_front_path ?? null,
+        licence_back_path: user.licence_back_path ?? null,
+        licence_check_code_path: user.licence_check_code_path ?? null,
+        licence_number: user.licence_number ?? null,
+        licence_expiry: user.licence_expiry ?? null,
+        licence_updated_at: user.licence_updated_at ?? null,
       });
     }
   }, [user]);
@@ -130,7 +137,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit User Profile</DialogTitle>
           <DialogDescription>
@@ -140,17 +147,18 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
 
         <Tabs defaultValue="basic" className="w-full">
           <TabsList className="flex w-full h-auto flex-nowrap justify-start gap-1 overflow-x-auto">
-            <TabsTrigger value="basic" className="shrink-0 sm:flex-1">Basic</TabsTrigger>
-            {isBusiness && <TabsTrigger value="business" className="shrink-0 sm:flex-1">Business</TabsTrigger>}
-            <TabsTrigger value="address" className="shrink-0 sm:flex-1">Address</TabsTrigger>
-            {isDriver && <TabsTrigger value="driver" className="shrink-0 sm:flex-1">Driver</TabsTrigger>}
-            {isMechanic && <TabsTrigger value="pay" className="shrink-0 sm:flex-1">Pay</TabsTrigger>}
+            <TabsTrigger value="basic" className="shrink-0 px-3 sm:flex-1">Basic</TabsTrigger>
+            {isBusiness && <TabsTrigger value="business" className="shrink-0 px-3 sm:flex-1">Business</TabsTrigger>}
+            <TabsTrigger value="address" className="shrink-0 px-3 sm:flex-1">Address</TabsTrigger>
+            {isDriver && <TabsTrigger value="driver" className="shrink-0 px-3 sm:flex-1">Driver</TabsTrigger>}
+            {isDriver && <TabsTrigger value="licence" className="shrink-0 px-3 sm:flex-1">Licence</TabsTrigger>}
+            {isMechanic && <TabsTrigger value="pay" className="shrink-0 px-3 sm:flex-1">Pay</TabsTrigger>}
           </TabsList>
 
 
           <TabsContent value="basic" className="space-y-4 mt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2 min-w-0">
                 <Label htmlFor="edit-name">Name</Label>
                 <Input
                   id="edit-name"
@@ -158,7 +166,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 min-w-0">
                 <Label htmlFor="edit-email">Email</Label>
                 <Input
                   id="edit-email"
@@ -167,7 +175,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 min-w-0">
                 <Label htmlFor="edit-phone">Phone</Label>
                 <Input
                   id="edit-phone"
@@ -175,7 +183,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 min-w-0">
                 <Label htmlFor="edit-status">Account Status</Label>
                 <Select 
                   value={formData.account_status || 'pending'} 
@@ -229,9 +237,9 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                   </Button>
                 )}
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label htmlFor="edit-company">Company Name</Label>
                   <Input
                     id="edit-company"
@@ -239,7 +247,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label htmlFor="edit-website">Website</Label>
                   <Input
                     id="edit-website"
@@ -247,7 +255,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2 col-span-2">
+                <div className="space-y-2 min-w-0 sm:col-span-2">
                   <Label htmlFor="edit-accounts-email">Accounts Email</Label>
                   <Input
                     id="edit-accounts-email"
@@ -256,7 +264,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     onChange={(e) => setFormData({ ...formData, accounts_email: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2 col-span-2">
+                <div className="space-y-2 min-w-0 sm:col-span-2">
                   <Label htmlFor="edit-special-rate-code">Special Rate Code</Label>
                   <Input
                     id="edit-special-rate-code"
@@ -268,7 +276,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     If set, all bikes will be invoiced using: "Collection and Delivery within England and Wales - Special Rate - {'{code}'}"
                   </p>
                 </div>
-                <div className="space-y-2 col-span-2">
+                <div className="space-y-2 min-w-0 sm:col-span-2">
                   <Label htmlFor="edit-special-rate-price">Special Rate Price (£ per delivery)</Label>
                   <Input
                     id="edit-special-rate-price"
@@ -282,13 +290,13 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     If set, this price per delivery will be used in profitability calculations instead of the standard bike-type pricing.
                   </p>
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <OpeningHoursEditor
                     value={formData.opening_hours || DEFAULT_OPENING_HOURS}
                     onChange={(hours) => setFormData({ ...formData, opening_hours: hours })}
                   />
                 </div>
-                <div className="col-span-2 flex items-center space-x-2 pt-2 border-t">
+                <div className="sm:col-span-2 flex items-center space-x-2 pt-2 border-t">
                   <Switch
                     id="edit-test-account"
                     checked={formData.is_test_account || false}
@@ -306,8 +314,8 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
           )}
 
           <TabsContent value="address" className="space-y-4 mt-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2 col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2 min-w-0 sm:col-span-2">
                 <Label htmlFor="edit-address1">Address Line 1</Label>
                 <Input
                   id="edit-address1"
@@ -315,7 +323,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                   onChange={(e) => setFormData({ ...formData, address_line_1: e.target.value })}
                 />
               </div>
-              <div className="space-y-2 col-span-2">
+              <div className="space-y-2 min-w-0 sm:col-span-2">
                 <Label htmlFor="edit-address2">Address Line 2</Label>
                 <Input
                   id="edit-address2"
@@ -323,7 +331,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                   onChange={(e) => setFormData({ ...formData, address_line_2: e.target.value })}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 min-w-0">
                 <Label htmlFor="edit-city">City</Label>
                 <Input
                   id="edit-city"
@@ -331,7 +339,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                   onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 min-w-0">
                 <Label htmlFor="edit-postal">Postal Code</Label>
                 <Input
                   id="edit-postal"
@@ -345,7 +353,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
           {isMechanic && (
             <TabsContent value="pay" className="space-y-4 mt-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label htmlFor="edit-workshop-rate">Workshop Hourly Rate (£)</Label>
                   <Input
                     id="edit-workshop-rate"
@@ -365,61 +373,64 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
           {isDriver && (
             <TabsContent value="driver" className="space-y-4 mt-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label htmlFor="edit-hourly-rate">Driver Hourly Rate (£)</Label>
                   <Input
                     id="edit-hourly-rate"
+                    className="w-full"
                     type="number"
                     step="0.01"
                     value={formData.hourly_rate || ''}
                     onChange={(e) => setFormData({ ...formData, hourly_rate: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
-                <>
-
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label htmlFor="edit-van-allowance">Van Allowance (£)</Label>
                   <Input
                     id="edit-van-allowance"
+                    className="w-full"
                     type="number"
                     step="0.01"
                     value={formData.van_allowance || ''}
                     onChange={(e) => setFormData({ ...formData, van_allowance: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label htmlFor="edit-available-hours">Available Hours/Day</Label>
                   <Input
                     id="edit-available-hours"
+                    className="w-full"
                     type="number"
                     value={formData.available_hours || ''}
                     onChange={(e) => setFormData({ ...formData, available_hours: parseInt(e.target.value) || 0 })}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <Label htmlFor="edit-shipday-id">Shipday Driver ID</Label>
                   <Input
                     id="edit-shipday-id"
+                    className="w-full"
                     value={formData.shipday_driver_id || ''}
                     onChange={(e) => setFormData({ ...formData, shipday_driver_id: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0 sm:col-span-2">
                   <Label htmlFor="edit-shipday-name">Shipday Driver Name</Label>
                   <Input
                     id="edit-shipday-name"
+                    className="w-full"
                     placeholder="e.g., Hass, Maj, Sal"
                     value={formData.shipday_driver_name || ''}
                     onChange={(e) => setFormData({ ...formData, shipday_driver_name: e.target.value })}
                   />
                 </div>
-                <div className="space-y-2 col-span-2">
+                <div className="space-y-2 min-w-0 sm:col-span-2">
                   <Label htmlFor="edit-default-vehicle">Default Vehicle</Label>
                   <Select
                     value={formData.default_vehicle_id ?? 'none'}
                     onValueChange={(value) => setFormData({ ...formData, default_vehicle_id: value === 'none' ? null : value })}
                   >
-                    <SelectTrigger id="edit-default-vehicle">
+                    <SelectTrigger id="edit-default-vehicle" className="w-full">
                       <SelectValue placeholder="None" />
                     </SelectTrigger>
                     <SelectContent>
@@ -435,24 +446,34 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     Auto-assigned to new timeslips generated for this driver.
                   </p>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center justify-between gap-3 rounded-md border p-3 min-w-0 sm:col-span-2">
+                  <Label htmlFor="edit-uses-van" className="cursor-pointer">Uses Own Van</Label>
                   <Switch
                     id="edit-uses-van"
                     checked={formData.uses_own_van || false}
                     onCheckedChange={(checked) => setFormData({ ...formData, uses_own_van: checked })}
                   />
-                  <Label htmlFor="edit-uses-van">Uses Own Van</Label>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center justify-between gap-3 rounded-md border p-3 min-w-0 sm:col-span-2">
+                  <Label htmlFor="edit-is-active" className="cursor-pointer">Active</Label>
                   <Switch
                     id="edit-is-active"
                     checked={formData.is_active !== false}
                     onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
                   />
-                  <Label htmlFor="edit-is-active">Active</Label>
                 </div>
-                </>
               </div>
+            </TabsContent>
+          )}
+
+
+          {isDriver && (
+            <TabsContent value="licence" className="space-y-4 mt-4">
+              <DriverLicenceTab
+                userId={user.id}
+                formData={formData}
+                onChange={(updates) => setFormData((prev) => ({ ...prev, ...updates }))}
+              />
             </TabsContent>
           )}
         </Tabs>

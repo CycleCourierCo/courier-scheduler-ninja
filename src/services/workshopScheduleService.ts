@@ -70,7 +70,7 @@ export async function fetchWorkshopSchedule(
     const { data: issueRows, error: isErr } = await supabase
       .from("inspection_issues")
       .select(
-        "id, inspection_id, status, labour_cost, parts_arrived, part_name, part_number, repair_id",
+        "id, inspection_id, status, labour_cost, parts_arrived, parts_in_stock, part_name, part_number, repair_id",
       )
       .in("inspection_id", inspectionIds);
     if (isErr) throw isErr;
@@ -174,7 +174,7 @@ export async function fetchWorkshopSchedule(
 
     // Do any pending-approved issues still need parts?
     const missingPart = pendingApproved.find(
-      (i) => issueNeedsPart(i) && !i.parts_arrived,
+      (i) => issueNeedsPart(i) && !i.parts_arrived && !i.parts_in_stock,
     );
 
     const totalMinutes =
