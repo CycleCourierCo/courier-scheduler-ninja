@@ -69,6 +69,13 @@ export interface CreateTaskInput {
   linked_conversation_id?: string | null;
 }
 
+/** Fire-and-forget assignment email — never blocks or fails the caller. */
+function notifyAssignee(taskId: string) {
+  void supabase.functions
+    .invoke('send-task-assignment-email', { body: { taskId } })
+    .catch((e) => console.warn('Task assignment email failed', e));
+}
+
 export async function createTask(input: CreateTaskInput, createdBy: string): Promise<Task> {
   const payload = {
     title: input.title,
@@ -83,12 +90,22 @@ export async function createTask(input: CreateTaskInput, createdBy: string): Pro
   };
   const { data, error } = await T().insert(payload).select(TASK_SELECT).single();
   if (error) throw error;
-  return data as Task;
+  const task = data as Task;
+  if (task.assignee_id && task.assignee_id !== createdBy) notifyAssignee(task.id);
+  return task;
 }
 
 export async function updateTask(id: string, patch: Partial<Task>): Promise<void> {
+  let previousAssignee: string | null | undefined;
+  if ('assignee_id' in patch) {
+    const { data } = await T().select('assignee_id').eq('id', id).maybeSingle();
+    previousAssignee = data?.assignee_id ?? null;
+  }
   const { error } = await T().update(patch).eq('id', id);
   if (error) throw error;
+  if ('assignee_id' in patch && patch.assignee_id && patch.assignee_id !== previousAssignee) {
+    notifyAssignee(id);
+  }
 }
 
 export async function deleteTask(id: string): Promise<void> {
