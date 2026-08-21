@@ -3017,9 +3017,22 @@ const BicycleInspections = () => {
                         </Button>
                       </div>
                     )}
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">General notes</Label>
+                <Textarea
+                  placeholder="Anything else worth recording about this bike…"
+                  value={checklistGeneralNotes}
+                  onChange={(e) => setChecklistGeneralNotes(e.target.value)}
+                  className="text-sm min-h-[60px]"
+                />
+              </div>
 
               {hasIssues && (
                 <div className="p-3 bg-muted rounded-md">
