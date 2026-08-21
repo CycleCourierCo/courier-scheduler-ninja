@@ -49,7 +49,8 @@ As soon as an inspection is released and is awaiting approval, an email goes to 
 - Extend the existing `get_public_inspection_summary` and `get_public_order` SQL functions to include `report_url` in the returned summary so tracking can render the link without exposing anything else.
 
 **Release flow** — `src/services/inspectionService.ts`:
-- `releaseInspectionToCustomer` gains a post-step: generate the PDF client-side, upload to `inspection-reports/<order_id>.pdf` (upsert), save `report_url`/`report_generated_at`, then invoke the new edge function.
+- Shared `regenerateInspectionReport(inspectionId)` helper: builds the PDF, uploads to `inspection-reports/<order_id>.pdf` (upsert, stable link), saves `report_url`/`report_generated_at`.
+- Called from `releaseInspectionToCustomer` (then invokes the approval email), from the approve/decline handlers, from the receiver repair-offer submission path (`submit_public_repair_offer` follow-up in `src/pages/RepairOffer.tsx`), and when repairs are marked complete.
 - New `requestInspectionApproval(inspectionId)` helper for the manual resend button.
 
 **Email** — new edge function `supabase/functions/send-inspection-approval` (CORS headers, JWT-authenticated with admin/mechanic role check, service-role client, `EdgeRuntime.waitUntil` for the send):
