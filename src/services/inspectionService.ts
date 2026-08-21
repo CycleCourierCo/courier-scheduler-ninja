@@ -1432,6 +1432,8 @@ export const submitPublicRepairOffer = async (
     p_approved_issue_ids: approvedIssueIds,
   });
   if (error) throw error;
+  // Refresh the customer-facing report so it reflects the receiver's decisions.
+  void regenerateInspectionReport({ orderId });
   return (data || { success: false }) as any;
 };
 
