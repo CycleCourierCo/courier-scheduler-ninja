@@ -1537,4 +1537,5 @@ export const reinstateDeclinedIssue = async (
     .eq('id', issueId);
   if (error) throw error;
   pushIssueStatusToInspectaBike(issueId);
+  void refreshReportForIssue(issueId);
 };
