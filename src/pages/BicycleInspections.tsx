@@ -2881,22 +2881,63 @@ const BicycleInspections = () => {
                 </p>
               </div>
 
-              {activeInspectionItems.map((item) => {
-                const itemIssues = checklistIssues[item.id] || [];
+              <div className="text-xs text-muted-foreground">
+                {ratedCount} of {activeInspectionItems.length} items rated
+              </div>
+
+              {activeSections.map((section) => {
+                const counts = sectionCounts(section);
                 return (
-                  <div key={item.id} className="space-y-3 p-2 sm:p-3 border rounded-lg min-w-0">
-                    <div className="flex items-start gap-3">
-                      <Checkbox
-                        id={item.id}
-                        checked={inspectionChecklist[item.id] || false}
-                        onCheckedChange={() => handleChecklistItemToggle(item.id)}
-                      />
-                      <Label htmlFor={item.id} className="text-sm font-medium cursor-pointer leading-tight">
-                        {item.label}
-                      </Label>
+                  <div key={section.id} className="border rounded-lg p-2 sm:p-3 space-y-3 min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">{section.title}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {counts.pass} pass · {counts.advisory} advisory · {counts.fail} fail
+                          {counts.unrated > 0 ? ` · ${counts.unrated} to rate` : ""}
+                        </p>
+                      </div>
+                      {counts.unrated > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs"
+                          onClick={() => handleSectionQuickPass(section)}
+                        >
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Pass all
+                        </Button>
+                      )}
                     </div>
-                    {inspectionChecklist[item.id] && (
-                      <div className="ml-4 sm:ml-7 space-y-3 min-w-0">
+
+                    {section.items.map((item) => {
+                      const itemIssues = checklistIssues[item.id] || [];
+                      const result = inspectionChecklist[item.id];
+                      return (
+                        <div key={item.id} className="space-y-2 rounded-md border border-dashed p-2 min-w-0">
+                          <p className="text-sm font-medium leading-tight">{item.label}</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {(['pass', 'advisory', 'fail'] as ItemResult[]).map((option) => (
+                              <Button
+                                key={option}
+                                size="sm"
+                                variant={
+                                  result === option
+                                    ? option === 'fail'
+                                      ? 'destructive'
+                                      : 'default'
+                                    : 'outline'
+                                }
+                                className="h-9 min-w-[80px] flex-1 text-xs capitalize"
+                                onClick={() => handleChecklistItemResult(item.id, option)}
+                              >
+                                {option}
+                              </Button>
+                            ))}
+                          </div>
+                    {(result === 'advisory' || result === 'fail') && (
+                      <div className="space-y-3 min-w-0">
+
                         <Input
                           placeholder="Optional: Add notes..."
                           value={inspectionComments[item.id] || ""}
