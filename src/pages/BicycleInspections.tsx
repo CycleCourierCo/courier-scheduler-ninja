@@ -2479,6 +2479,47 @@ const BicycleInspections = () => {
             </div>
           )}
 
+          {/* PDI report: download / re-send the approval request (staff only) */}
+          {canManageInspections && inspection?.id && inspection.status !== "pending" && (
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => reportMutation.mutate(inspection.id)}
+                disabled={reportMutation.isPending && reportingInspectionId === inspection.id}
+              >
+                {reportMutation.isPending && reportingInspectionId === inspection.id ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="mr-1 h-4 w-4" />
+                )}
+                Download report
+              </Button>
+              {isAdmin && inspection.status === "issues_found" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => approvalEmailMutation.mutate(inspection.id)}
+                  disabled={approvalEmailMutation.isPending}
+                >
+                  {approvalEmailMutation.isPending ? (
+                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="mr-1 h-4 w-4" />
+                  )}
+                  Resend approval email
+                </Button>
+              )}
+              {(inspection as any).approval_email_sent_at && (
+                <span className="text-xs text-muted-foreground">
+                  Approval email sent {new Date((inspection as any).approval_email_sent_at).toLocaleDateString("en-GB")}
+                </span>
+              )}
+            </div>
+          )}
+
+
+
           {/* Complete Repairs Button (admin/mechanic for awaiting_repair when all approved are repaired) */}
           {(isAdmin || isMechanic) && isAwaitingRepair && allApprovedRepaired && (
             <div className="pt-2">
