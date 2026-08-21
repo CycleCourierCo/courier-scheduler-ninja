@@ -105,22 +105,101 @@ interface IssueEntry {
 
 interface ChecklistIssue extends IssueEntry {}
 
-// Standard inspection checklist items
-const INSPECTION_ITEMS = [
-  { id: 'brakes_gears', label: 'Brake and gear tuning' },
-  { id: 'safety_inspection', label: 'Full safety inspection (frame, wheels, drivetrain, tyres)' },
-  { id: 'tyre_pressure', label: 'Tyre pressure check and adjustment' },
-  { id: 'cleaning_bolts', label: 'Light cleaning and bolt tightening' },
+// PDI-style inspection sheet — grouped sections, each item rated pass/advisory/fail
+type ItemResult = 'pass' | 'advisory' | 'fail';
+
+interface InspectionSection {
+  id: string;
+  title: string;
+  electricOnly?: boolean;
+  items: { id: string; label: string }[];
+}
+
+const INSPECTION_SECTIONS: InspectionSection[] = [
+  {
+    id: 'frame',
+    title: 'Frame & forks',
+    items: [
+      { id: 'frame_condition', label: 'Frame condition (cracks, dents, alignment)' },
+      { id: 'forks_headset', label: 'Forks & headset (play, movement, seals)' },
+      { id: 'paint_damage', label: 'Paint / crash damage' },
+    ],
+  },
+  {
+    id: 'wheels',
+    title: 'Wheels & tyres',
+    items: [
+      { id: 'wheel_true', label: 'Wheels true, spokes tensioned' },
+      { id: 'hubs_bearings', label: 'Hubs & bearings (play, roughness)' },
+      { id: 'tyre_tread', label: 'Tyre tread & sidewalls' },
+      { id: 'tyre_pressure', label: 'Tyre pressure set' },
+    ],
+  },
+  {
+    id: 'brakes',
+    title: 'Brakes',
+    items: [
+      { id: 'brake_pads', label: 'Pads & rotors (or blocks & rims)' },
+      { id: 'brake_lever', label: 'Lever feel & bite point' },
+      { id: 'brake_cables', label: 'Cables / hoses condition' },
+    ],
+  },
+  {
+    id: 'drivetrain',
+    title: 'Drivetrain',
+    items: [
+      { id: 'chain_wear', label: 'Chain wear' },
+      { id: 'cassette_chainrings', label: 'Cassette & chainrings' },
+      { id: 'gear_shifting', label: 'Gear shifting & indexing' },
+      { id: 'cranks_bb', label: 'Cranks & bottom bracket' },
+    ],
+  },
+  {
+    id: 'contact',
+    title: 'Contact points',
+    items: [
+      { id: 'bars_stem', label: 'Bars & stem secure' },
+      { id: 'seatpost_saddle', label: 'Seatpost & saddle' },
+      { id: 'pedals', label: 'Pedals' },
+      { id: 'bolts_torqued', label: 'All bolts torqued' },
+    ],
+  },
+  {
+    id: 'extras',
+    title: 'Extras & accessories',
+    items: [
+      { id: 'lights_guards', label: 'Lights, mudguards, rack' },
+      { id: 'accessories_present', label: 'Accessories present as listed' },
+      { id: 'bell_reflectors', label: 'Bell & reflectors' },
+    ],
+  },
+  {
+    id: 'electric',
+    title: 'Electric system',
+    electricOnly: true,
+    items: [
+      { id: 'ebike_battery', label: 'Battery condition & holds charge' },
+      { id: 'ebike_mount', label: 'Battery mount / latch secure' },
+      { id: 'ebike_motor', label: 'Motor & assist levels' },
+      { id: 'ebike_display', label: 'Display / no error codes' },
+      { id: 'ebike_key', label: 'Key present' },
+      { id: 'ebike_charger', label: 'Charger supplied' },
+    ],
+  },
+  {
+    id: 'finishing',
+    title: 'Finishing',
+    items: [
+      { id: 'lubed', label: 'Drivetrain lubed' },
+      { id: 'cleaned', label: 'Bike cleaned' },
+      { id: 'test_ridden', label: 'Test ridden' },
+    ],
+  },
 ];
 
-// Extra items shown only for electric bikes
-const ELECTRIC_INSPECTION_ITEMS = [
-  { id: 'ebike_battery', label: 'Battery check (condition, holds charge, mount/latch secure)' },
-  { id: 'ebike_motor', label: 'Motor check (runs through assist levels, no noise or errors)' },
-  { id: 'ebike_key', label: 'Key present (battery/lock key supplied with the bike)' },
-];
-
-const ELECTRIC_ITEM_IDS = ELECTRIC_INSPECTION_ITEMS.map((i) => i.id);
+const ELECTRIC_ITEM_IDS = INSPECTION_SECTIONS
+  .filter((s) => s.electricOnly)
+  .flatMap((s) => s.items.map((i) => i.id));
 
 const isElectricCategory = (category?: string | null) => {
   const v = (category || "").toLowerCase();
@@ -184,10 +263,11 @@ const BicycleInspections = () => {
   // Inspection checklist dialog state
   const [inspectionChecklistOpen, setInspectionChecklistOpen] = useState(false);
   const [selectedOrderForInspection, setSelectedOrderForInspection] = useState<string | null>(null);
-  const [inspectionChecklist, setInspectionChecklist] = useState<Record<string, boolean>>({});
+  const [inspectionChecklist, setInspectionChecklist] = useState<Record<string, ItemResult>>({});
   const [inspectionComments, setInspectionComments] = useState<Record<string, string>>({});
   const [checklistIssues, setChecklistIssues] = useState<Record<string, ChecklistIssue[]>>({});
   const [checklistBikeType, setChecklistBikeType] = useState<string | null>(null);
+  const [checklistGeneralNotes, setChecklistGeneralNotes] = useState("");
   // Workshop settings are consumed inside RepairPicker for live labour pricing.
 
 
@@ -880,6 +960,7 @@ const BicycleInspections = () => {
     setInspectionChecklist({});
     setInspectionComments({});
     setChecklistIssues({});
+    setChecklistGeneralNotes("");
     // Prefill bike category from any existing inspection, else leave blank so
     // the mechanic classifies it before pricing/labour lookup.
     const order = (inspections as any[]).find((o) => o.id === orderId);
@@ -889,11 +970,21 @@ const BicycleInspections = () => {
   };
 
 
-  const handleChecklistItemToggle = (itemId: string) => {
+  const handleChecklistItemResult = (itemId: string, result: ItemResult) => {
     setInspectionChecklist(prev => ({
       ...prev,
-      [itemId]: !prev[itemId]
+      [itemId]: result,
     }));
+  };
+
+  const handleSectionQuickPass = (section: InspectionSection) => {
+    setInspectionChecklist(prev => {
+      const next = { ...prev };
+      section.items.forEach((item) => {
+        if (!next[item.id]) next[item.id] = 'pass';
+      });
+      return next;
+    });
   };
 
   const handleChecklistCommentChange = (itemId: string, comment: string) => {
@@ -937,9 +1028,13 @@ const BicycleInspections = () => {
 
 
   const isElectricChecklist = isElectricCategory(checklistBikeType);
-  const activeInspectionItems = useMemo(
-    () => (isElectricChecklist ? [...INSPECTION_ITEMS, ...ELECTRIC_INSPECTION_ITEMS] : INSPECTION_ITEMS),
+  const activeSections = useMemo(
+    () => INSPECTION_SECTIONS.filter((s) => !s.electricOnly || isElectricChecklist),
     [isElectricChecklist]
+  );
+  const activeInspectionItems = useMemo(
+    () => activeSections.flatMap((s) => s.items),
+    [activeSections]
   );
 
   // Drop any electric-only answers if the category is switched away from electric
@@ -956,9 +1051,18 @@ const BicycleInspections = () => {
     setChecklistIssues((prev) => strip(prev));
   }, [isElectricChecklist]);
 
-  const allItemsChecked = activeInspectionItems.every(
-    item => inspectionChecklist[item.id]
-  );
+  const ratedCount = activeInspectionItems.filter((item) => inspectionChecklist[item.id]).length;
+  const allItemsChecked = ratedCount === activeInspectionItems.length;
+
+  const sectionCounts = (section: InspectionSection) => {
+    const results = section.items.map((i) => inspectionChecklist[i.id]);
+    return {
+      pass: results.filter((r) => r === 'pass').length,
+      advisory: results.filter((r) => r === 'advisory').length,
+      fail: results.filter((r) => r === 'fail').length,
+      unrated: results.filter((r) => !r).length,
+    };
+  };
 
   // Collect all issues across all checklist items
   const allChecklistIssues: IssueEntry[] = Object.entries(checklistIssues).flatMap(([itemId, issues]) => {
@@ -973,6 +1077,23 @@ const BicycleInspections = () => {
 
 
   const hasIssues = allChecklistIssues.length > 0;
+
+  const buildPdiNotes = () => {
+    const lines: string[] = [];
+    activeSections.forEach((section) => {
+      lines.push(`— ${section.title} —`);
+      section.items.forEach((item) => {
+        const result = (inspectionChecklist[item.id] || 'pass').toUpperCase();
+        const comment = inspectionComments[item.id]?.trim();
+        lines.push(comment ? `${result}  ${item.label}: ${comment}` : `${result}  ${item.label}`);
+      });
+    });
+    const general = checklistGeneralNotes.trim();
+    if (general) {
+      lines.push('', `Notes: ${general}`);
+    }
+    return lines.join('\n');
+  };
 
   const handleConfirmInspection = async () => {
     if (!selectedOrderForInspection || !allItemsChecked) return;
@@ -989,15 +1110,11 @@ const BicycleInspections = () => {
       });
       setInspectionChecklistOpen(false);
     } else {
-      // No issues - mark as inspected
-      const notes = activeInspectionItems.map(item => {
-        const comment = inspectionComments[item.id];
-        return comment
-          ? `✓ ${item.label}: ${comment}`
-          : `✓ ${item.label}`;
-      }).join('\n');
-
-      markInspectedMutation.mutate({ orderId: selectedOrderForInspection, notes });
+      // No issues - mark as inspected with the full PDI summary
+      markInspectedMutation.mutate({
+        orderId: selectedOrderForInspection,
+        notes: buildPdiNotes(),
+      });
       setInspectionChecklistOpen(false);
     }
   };
@@ -2765,22 +2882,63 @@ const BicycleInspections = () => {
                 </p>
               </div>
 
-              {activeInspectionItems.map((item) => {
-                const itemIssues = checklistIssues[item.id] || [];
+              <div className="text-xs text-muted-foreground">
+                {ratedCount} of {activeInspectionItems.length} items rated
+              </div>
+
+              {activeSections.map((section) => {
+                const counts = sectionCounts(section);
                 return (
-                  <div key={item.id} className="space-y-3 p-2 sm:p-3 border rounded-lg min-w-0">
-                    <div className="flex items-start gap-3">
-                      <Checkbox
-                        id={item.id}
-                        checked={inspectionChecklist[item.id] || false}
-                        onCheckedChange={() => handleChecklistItemToggle(item.id)}
-                      />
-                      <Label htmlFor={item.id} className="text-sm font-medium cursor-pointer leading-tight">
-                        {item.label}
-                      </Label>
+                  <div key={section.id} className="border rounded-lg p-2 sm:p-3 space-y-3 min-w-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-semibold">{section.title}</p>
+                        <p className="text-[11px] text-muted-foreground">
+                          {counts.pass} pass · {counts.advisory} advisory · {counts.fail} fail
+                          {counts.unrated > 0 ? ` · ${counts.unrated} to rate` : ""}
+                        </p>
+                      </div>
+                      {counts.unrated > 0 && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-xs"
+                          onClick={() => handleSectionQuickPass(section)}
+                        >
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Pass all
+                        </Button>
+                      )}
                     </div>
-                    {inspectionChecklist[item.id] && (
-                      <div className="ml-4 sm:ml-7 space-y-3 min-w-0">
+
+                    {section.items.map((item) => {
+                      const itemIssues = checklistIssues[item.id] || [];
+                      const result = inspectionChecklist[item.id];
+                      return (
+                        <div key={item.id} className="space-y-2 rounded-md border border-dashed p-2 min-w-0">
+                          <p className="text-sm font-medium leading-tight">{item.label}</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {(['pass', 'advisory', 'fail'] as ItemResult[]).map((option) => (
+                              <Button
+                                key={option}
+                                size="sm"
+                                variant={
+                                  result === option
+                                    ? option === 'fail'
+                                      ? 'destructive'
+                                      : 'default'
+                                    : 'outline'
+                                }
+                                className="h-9 min-w-[80px] flex-1 text-xs capitalize"
+                                onClick={() => handleChecklistItemResult(item.id, option)}
+                              >
+                                {option}
+                              </Button>
+                            ))}
+                          </div>
+                    {(result === 'advisory' || result === 'fail') && (
+                      <div className="space-y-3 min-w-0">
+
                         <Input
                           placeholder="Optional: Add notes..."
                           value={inspectionComments[item.id] || ""}
@@ -2901,9 +3059,22 @@ const BicycleInspections = () => {
                         </Button>
                       </div>
                     )}
+                        </div>
+                      );
+                    })}
                   </div>
                 );
               })}
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">General notes</Label>
+                <Textarea
+                  placeholder="Anything else worth recording about this bike…"
+                  value={checklistGeneralNotes}
+                  onChange={(e) => setChecklistGeneralNotes(e.target.value)}
+                  className="text-sm min-h-[60px]"
+                />
+              </div>
 
               {hasIssues && (
                 <div className="p-3 bg-muted rounded-md">
