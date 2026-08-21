@@ -131,6 +131,7 @@ export type Database = {
       }
       bicycle_inspections: {
         Row: {
+          approval_email_sent_at: string | null
           bike_type: string | null
           created_at: string
           drivetrain_degreased_at: string | null
@@ -161,10 +162,13 @@ export type Database = {
           released_by_id: string | null
           released_by_name: string | null
           released_to_customer_at: string | null
+          report_generated_at: string | null
+          report_url: string | null
           status: string
           updated_at: string
         }
         Insert: {
+          approval_email_sent_at?: string | null
           bike_type?: string | null
           created_at?: string
           drivetrain_degreased_at?: string | null
@@ -195,10 +199,13 @@ export type Database = {
           released_by_id?: string | null
           released_by_name?: string | null
           released_to_customer_at?: string | null
+          report_generated_at?: string | null
+          report_url?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
+          approval_email_sent_at?: string | null
           bike_type?: string | null
           created_at?: string
           drivetrain_degreased_at?: string | null
@@ -229,6 +236,8 @@ export type Database = {
           released_by_id?: string | null
           released_by_name?: string | null
           released_to_customer_at?: string | null
+          report_generated_at?: string | null
+          report_url?: string | null
           status?: string
           updated_at?: string
         }

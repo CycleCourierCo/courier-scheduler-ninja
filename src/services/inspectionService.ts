@@ -3,6 +3,60 @@ import { supabase } from "@/integrations/supabase/client";
 import { BicycleInspection, InspectionIssue, InspectionStatus, IssueStatus } from "@/types/inspection";
 import { resendReceiverAvailabilityEmail } from "./emailService";
 
+// ---- PDI report helpers -----------------------------------------------------
+// Regenerates the printable inspection report PDF (no pricing) and stores the
+// link on the inspection row. Safe to call on any milestone; failures are
+// non-fatal so they never block a status change.
+export const regenerateInspectionReport = async (
+  args: { inspectionId?: string; orderId?: string }
+): Promise<string | null> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('inspection-report', { body: args });
+    if (error) throw error;
+    return (data as any)?.url ?? null;
+  } catch (error) {
+    console.error('Error generating inspection report:', error);
+    return null;
+  }
+};
+
+// Fire-and-forget refresh used by milestone handlers.
+const refreshReport = (inspectionId?: string | null) => {
+  if (!inspectionId) return;
+  void regenerateInspectionReport({ inspectionId });
+};
+
+const refreshReportForIssue = async (issueId: string) => {
+  try {
+    const { data } = await supabase
+      .from('inspection_issues')
+      .select('inspection_id')
+      .eq('id', issueId)
+      .maybeSingle();
+    refreshReport((data as any)?.inspection_id);
+  } catch (error) {
+    console.error('Error resolving inspection for report refresh:', error);
+  }
+};
+
+// Emails the booking account asking them to approve the identified repairs.
+export const sendInspectionApprovalEmail = async (
+  inspectionId: string,
+  force = false
+): Promise<{ success: boolean; skipped?: string }> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-inspection-approval', {
+      body: { inspectionId, force },
+    });
+    if (error) throw error;
+    return { success: true, skipped: (data as any)?.skipped };
+  } catch (error) {
+    console.error('Error sending inspection approval email:', error);
+    throw error;
+  }
+};
+
+
 // Returns true when the receiver availability flow should be deferred because
 // the bike still needs inspection / repair. Used by every code path that would
 // otherwise email the receiver or move the order into receiver_availability_pending.
@@ -433,6 +487,7 @@ export const markAsInspected = async (
       // No-issues + clean path completes the inspection; trigger any deferred
       // receiver availability email now.
       await triggerReceiverAvailabilityIfDeferred(inspection.id);
+      refreshReport(inspection.id);
     }
 
     return data as BicycleInspection;
@@ -456,6 +511,7 @@ export const addInspectionIssue = async (
     repair_id?: string | null;
     parts_cost?: number | null;
     labour_cost?: number | null;
+    inspection_notes?: string | null;
   }
 ): Promise<InspectionIssue | null> => {
   try {
@@ -469,6 +525,7 @@ export const addInspectionIssue = async (
         inspected_at: new Date().toISOString(),
         inspected_by_id: requestedById,
         inspected_by_name: requestedByName,
+        ...(extra?.inspection_notes ? { notes: extra.inspection_notes } : {}),
       })
       .eq('id', inspection.id);
 
@@ -582,6 +639,13 @@ export const releaseInspectionToCustomer = async (
       .single();
 
     if (error) throw error;
+    // Generate the customer-facing report, then ask the booking account to approve.
+    await regenerateInspectionReport({ inspectionId });
+    try {
+      await sendInspectionApprovalEmail(inspectionId);
+    } catch (emailError) {
+      console.error('Approval email failed after release:', emailError);
+    }
     return data as BicycleInspection;
   } catch (error) {
     console.error('Error releasing inspection to customer:', error);
@@ -685,6 +749,7 @@ export const acceptIssue = async (issueId: string): Promise<InspectionIssue | nu
 
     if (error) throw error;
     pushIssueStatusToInspectaBike(issueId);
+    void refreshReportForIssue(issueId);
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error accepting issue:', error);
@@ -711,6 +776,7 @@ export const declineIssue = async (
 
     if (error) throw error;
     pushIssueStatusToInspectaBike(issueId);
+    void refreshReportForIssue(issueId);
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error declining issue:', error);
@@ -969,6 +1035,7 @@ export const markIssueRepaired = async (
       .single();
 
     if (error) throw error;
+    void refreshReportForIssue(issueId);
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error marking issue as repaired:', error);
@@ -1001,6 +1068,7 @@ export const moveToRepaired = async (inspectionId: string): Promise<BicycleInspe
     if (nextStatus === 'repaired') {
       await triggerReceiverAvailabilityIfDeferred(inspectionId);
     }
+    refreshReport(inspectionId);
     return data as BicycleInspection;
   } catch (error) {
     console.error('Error moving to repaired:', error);
@@ -1366,6 +1434,8 @@ export const submitPublicRepairOffer = async (
     p_approved_issue_ids: approvedIssueIds,
   });
   if (error) throw error;
+  // Refresh the customer-facing report so it reflects the receiver's decisions.
+  void regenerateInspectionReport({ orderId });
   return (data || { success: false }) as any;
 };
 
@@ -1396,6 +1466,7 @@ export const markIssueReceiverApproved = async (
     })
     .eq('id', issueId);
   if (error) throw error;
+  void refreshReportForIssue(issueId);
 };
 
 /**
@@ -1471,4 +1542,5 @@ export const reinstateDeclinedIssue = async (
     .eq('id', issueId);
   if (error) throw error;
   pushIssueStatusToInspectaBike(issueId);
+  void refreshReportForIssue(issueId);
 };
