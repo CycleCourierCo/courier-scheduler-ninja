@@ -1032,6 +1032,7 @@ export const markIssueRepaired = async (
       .single();
 
     if (error) throw error;
+    void refreshReportForIssue(issueId);
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error marking issue as repaired:', error);
