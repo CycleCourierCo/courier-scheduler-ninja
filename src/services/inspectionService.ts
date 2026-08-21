@@ -3,6 +3,60 @@ import { supabase } from "@/integrations/supabase/client";
 import { BicycleInspection, InspectionIssue, InspectionStatus, IssueStatus } from "@/types/inspection";
 import { resendReceiverAvailabilityEmail } from "./emailService";
 
+// ---- PDI report helpers -----------------------------------------------------
+// Regenerates the printable inspection report PDF (no pricing) and stores the
+// link on the inspection row. Safe to call on any milestone; failures are
+// non-fatal so they never block a status change.
+export const regenerateInspectionReport = async (
+  args: { inspectionId?: string; orderId?: string }
+): Promise<string | null> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('inspection-report', { body: args });
+    if (error) throw error;
+    return (data as any)?.url ?? null;
+  } catch (error) {
+    console.error('Error generating inspection report:', error);
+    return null;
+  }
+};
+
+// Fire-and-forget refresh used by milestone handlers.
+const refreshReport = (inspectionId?: string | null) => {
+  if (!inspectionId) return;
+  void regenerateInspectionReport({ inspectionId });
+};
+
+const refreshReportForIssue = async (issueId: string) => {
+  try {
+    const { data } = await supabase
+      .from('inspection_issues')
+      .select('inspection_id')
+      .eq('id', issueId)
+      .maybeSingle();
+    refreshReport((data as any)?.inspection_id);
+  } catch (error) {
+    console.error('Error resolving inspection for report refresh:', error);
+  }
+};
+
+// Emails the booking account asking them to approve the identified repairs.
+export const sendInspectionApprovalEmail = async (
+  inspectionId: string,
+  force = false
+): Promise<{ success: boolean; skipped?: string }> => {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-inspection-approval', {
+      body: { inspectionId, force },
+    });
+    if (error) throw error;
+    return { success: true, skipped: (data as any)?.skipped };
+  } catch (error) {
+    console.error('Error sending inspection approval email:', error);
+    throw error;
+  }
+};
+
+
 // Returns true when the receiver availability flow should be deferred because
 // the bike still needs inspection / repair. Used by every code path that would
 // otherwise email the receiver or move the order into receiver_availability_pending.
