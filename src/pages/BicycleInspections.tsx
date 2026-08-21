@@ -263,10 +263,11 @@ const BicycleInspections = () => {
   // Inspection checklist dialog state
   const [inspectionChecklistOpen, setInspectionChecklistOpen] = useState(false);
   const [selectedOrderForInspection, setSelectedOrderForInspection] = useState<string | null>(null);
-  const [inspectionChecklist, setInspectionChecklist] = useState<Record<string, boolean>>({});
+  const [inspectionChecklist, setInspectionChecklist] = useState<Record<string, ItemResult>>({});
   const [inspectionComments, setInspectionComments] = useState<Record<string, string>>({});
   const [checklistIssues, setChecklistIssues] = useState<Record<string, ChecklistIssue[]>>({});
   const [checklistBikeType, setChecklistBikeType] = useState<string | null>(null);
+  const [checklistGeneralNotes, setChecklistGeneralNotes] = useState("");
   // Workshop settings are consumed inside RepairPicker for live labour pricing.
 
 
