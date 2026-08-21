@@ -960,6 +960,7 @@ const BicycleInspections = () => {
     setInspectionChecklist({});
     setInspectionComments({});
     setChecklistIssues({});
+    setChecklistGeneralNotes("");
     // Prefill bike category from any existing inspection, else leave blank so
     // the mechanic classifies it before pricing/labour lookup.
     const order = (inspections as any[]).find((o) => o.id === orderId);
