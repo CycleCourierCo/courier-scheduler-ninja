@@ -1462,6 +1462,7 @@ export const markIssueReceiverApproved = async (
     })
     .eq('id', issueId);
   if (error) throw error;
+  void refreshReportForIssue(issueId);
 };
 
 /**
