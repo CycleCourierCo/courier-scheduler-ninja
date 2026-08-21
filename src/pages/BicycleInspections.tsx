@@ -936,13 +936,33 @@ const BicycleInspections = () => {
   };
 
 
-  const allItemsChecked = INSPECTION_ITEMS.every(
+  const isElectricChecklist = isElectricCategory(checklistBikeType);
+  const activeInspectionItems = useMemo(
+    () => (isElectricChecklist ? [...INSPECTION_ITEMS, ...ELECTRIC_INSPECTION_ITEMS] : INSPECTION_ITEMS),
+    [isElectricChecklist]
+  );
+
+  // Drop any electric-only answers if the category is switched away from electric
+  useEffect(() => {
+    if (isElectricChecklist) return;
+    const strip = <T,>(obj: Record<string, T>) => {
+      if (!ELECTRIC_ITEM_IDS.some((id) => id in obj)) return obj;
+      const next = { ...obj };
+      ELECTRIC_ITEM_IDS.forEach((id) => delete next[id]);
+      return next;
+    };
+    setInspectionChecklist((prev) => strip(prev));
+    setInspectionComments((prev) => strip(prev));
+    setChecklistIssues((prev) => strip(prev));
+  }, [isElectricChecklist]);
+
+  const allItemsChecked = activeInspectionItems.every(
     item => inspectionChecklist[item.id]
   );
 
   // Collect all issues across all checklist items
   const allChecklistIssues: IssueEntry[] = Object.entries(checklistIssues).flatMap(([itemId, issues]) => {
-    const itemLabel = INSPECTION_ITEMS.find(i => i.id === itemId)?.label || itemId;
+    const itemLabel = activeInspectionItems.find(i => i.id === itemId)?.label || itemId;
     return issues
       .filter(issue => issue.description.trim())
       .map(issue => ({
