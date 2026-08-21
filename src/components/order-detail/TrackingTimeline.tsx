@@ -654,7 +654,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
                       rel="noopener noreferrer"
                       className="mt-1 inline-flex items-center gap-1 text-xs sm:text-sm text-primary underline break-all"
                     >
-                      Track with courier
+                      {(ev as any).linkLabel || "Track with courier"}
                     </a>
                   )}
 
