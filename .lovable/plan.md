@@ -40,7 +40,7 @@ As soon as an inspection is released and is awaiting approval, an email goes to 
 ## Technical notes
 
 **PDF generation** — new `src/utils/inspectionReportPdf.ts` using the existing `jspdf` dependency (already used by `labelUtils.ts`):
-- `buildInspectionReportPdf(order, inspection, issues): jsPDF` — parses the stored PDI notes text back into section/item/result rows, draws the tables manually (no autotable dependency), returns the document.
+- `buildInspectionReportPdf(order, inspection, issues): jsPDF` — parses the stored PDI notes text back into section/item/result rows and draws the tables manually (no autotable dependency). Deliberately omits all pricing fields; issue rows render a decision label derived from each issue's approval/completion state.
 - `downloadInspectionReport(...)` for the client button, and `inspectionReportBlob(...)` for upload.
 
 **Storage + database** — one migration:
