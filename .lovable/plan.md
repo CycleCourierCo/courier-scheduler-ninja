@@ -17,12 +17,15 @@ The button is available for any inspection that has been carried out (inspected 
 
 ## 2. Tracking link when issues are found
 
-When an inspection is released to the customer (moves into "issues found"), the report is also uploaded to storage and its link is saved on the inspection. The public tracking page then shows an "Inspection report" card with:
+When an inspection is released to the customer (moves into "issues found"), the report is uploaded to storage and its link is saved on the inspection. The public tracking page then shows an "Inspection report" card with:
 
 - A short line: "Our workshop found N item(s) needing attention."
 - A "View inspection report (PDF)" button opening the stored PDF.
 
-The link only appears once issues have been released to the customer — never while pricing is still in progress. Regenerating on release replaces the previous file so the link always points to the current report.
+The link only appears once issues have been released to the customer — never while pricing is still in progress.
+
+The report is regenerated (replacing the stored file, same link) whenever the picture changes: on release, after the booking account approves or declines, after a receiver repair offer is accepted or declined, and when repairs are marked complete. So the tracking link always shows the current decisions, and once repairs are finished — including repairs the receiver paid for via the repair offer — the tracking link exposes the full completed report with every issue marked Approved / Declined / Completed.
+
 
 ## 3. Approval request email to the booking account
 
