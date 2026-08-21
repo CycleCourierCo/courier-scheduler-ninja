@@ -215,6 +215,7 @@ const MechanicHoursSection: React.FC = () => {
                   <Legend />
                   <Bar yAxisId="left" dataKey="hours" name="Hours clocked" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                   <Bar yAxisId="left" dataKey="standardHours" name="Standard hours earned" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
+                  <Line yAxisId="left" type="monotone" dataKey="hoursPossible" name="Hours possible (queue)" stroke="hsl(var(--primary))" strokeDasharray="4 3" strokeWidth={2} dot={false} />
                   <Line yAxisId="right" type="monotone" dataKey="inspections" name="Inspections done" stroke="hsl(var(--chart-2, var(--accent)))" strokeWidth={2} />
                   <Line yAxisId="right" type="monotone" dataKey="repairs" name="Repairs done" stroke="hsl(var(--destructive))" strokeWidth={2} />
                 </ComposedChart>
