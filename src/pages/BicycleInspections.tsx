@@ -310,7 +310,7 @@ const BicycleInspections = () => {
 
   // Add multiple issues mutation
   const addMultipleIssuesMutation = useMutation({
-    mutationFn: async ({ orderId, issues, bikeType }: { orderId: string; issues: IssueEntry[]; bikeType?: string | null }) => {
+    mutationFn: async ({ orderId, issues, bikeType, pdiNotes }: { orderId: string; issues: IssueEntry[]; bikeType?: string | null; pdiNotes?: string | null }) => {
       if (!user?.id || !userProfile?.name) {
         throw new Error("User not authenticated");
       }
