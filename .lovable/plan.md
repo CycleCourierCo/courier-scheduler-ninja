@@ -9,7 +9,8 @@ A one-tap "Download report" / "PDF" action on each inspection card in Bicycle In
 - Header: Cycle Courier Co. branding, tracking number, bike brand/model/type, bike category, sender and receiver names.
 - Inspection details: who inspected it, date/time (Europe/London), and current stage.
 - PDI summary table: every section with each item's result (Pass / Advisory / Fail) and any note, taken from the inspection notes saved at completion.
-- Issues table: description, part name/number where present, parts cost, labour cost, total, and status (pending / approved / declined / resolved), with a grand total.
+- Issues list: description and part name/number where present — no parts cost, labour cost, totals or grand total anywhere on the PDF.
+- Issue decision state: while awaiting approval each issue is marked "Pending". Once decisions are made, each issue instead shows "Approved" or "Declined" (and "Completed" once the repair is done), so a regenerated report always reflects the latest decisions.
 - Footer: generated timestamp, page numbers, and company registration details.
 
 The button is available for any inspection that has been carried out (inspected or later), for admins and mechanics.
