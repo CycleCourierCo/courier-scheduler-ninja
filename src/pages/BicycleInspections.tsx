@@ -1147,6 +1147,7 @@ const BicycleInspections = () => {
         orderId: selectedOrderForInspection,
         issues: allChecklistIssues,
         bikeType: checklistBikeType,
+        pdiNotes: buildPdiNotes(),
       });
       setInspectionChecklistOpen(false);
     } else {
