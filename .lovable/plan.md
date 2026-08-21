@@ -27,7 +27,7 @@ Electric section only appears for electric categories (unchanged rule), and its 
 
 - Default state is unanswered; Confirm stays disabled until every visible item is rated.
 - **Quick pass** button per section marks all its items Pass, for speed.
-- Advisory and Fail both open a note field. Fail additionally prompts "Report issue" (the existing repair picker, parts/labour pricing, part details and in-stock tick — unchanged).
+- Advisory and Fail both open a note field and both allow "Report issue" (the existing repair picker, parts/labour pricing, part details and in-stock tick — unchanged), so an advisory can be quoted as an optional repair. Fail prompts for an issue more strongly; on advisory it is optional.
 - Each section shows a small counter (e.g. "6 pass · 1 advisory · 1 fail") and the header shows overall progress.
 - Optional free-text "General notes" box at the bottom, plus test-ride confirmation.
 - On confirm:
