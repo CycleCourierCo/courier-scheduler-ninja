@@ -234,6 +234,9 @@ const MechanicHoursSection: React.FC = () => {
                         <TableHead className="text-right">Standard (h)</TableHead>
                         <TableHead className="text-right">Variance</TableHead>
                         <TableHead className="text-right">Efficiency</TableHead>
+                        <TableHead className="text-right">Jobs avail.</TableHead>
+                        <TableHead className="text-right">Hours poss.</TableHead>
+                        <TableHead className="text-right">Utilisation</TableHead>
                         <TableHead className="text-right">Inspections</TableHead>
                         <TableHead className="text-right">Repairs</TableHead>
                         <TableHead className="text-right">Min / job</TableHead>
