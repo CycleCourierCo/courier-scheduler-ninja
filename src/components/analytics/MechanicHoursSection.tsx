@@ -342,7 +342,9 @@ const MechanicHoursSection: React.FC = () => {
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                  Tap a mechanic to see the day-by-day breakdown and the jobs that made up their earned hours.
+                  Jobs available and hours possible are each day's workshop queue (bikes awaiting inspection, plus approved
+                  repairs whose parts are ready) split evenly between the mechanics clocked in that day; utilisation is
+                  earned hours ÷ hours possible. Tap a mechanic to see the day-by-day breakdown and the jobs that made up their earned hours.
                   Efficiency above 100% means they completed more standard time than they clocked.
                 </p>
               </div>
