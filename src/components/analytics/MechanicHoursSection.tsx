@@ -314,6 +314,14 @@ const MechanicHoursSection: React.FC = () => {
                         <dd className="text-right font-semibold tabular-nums">
                           {m.hours > 0 ? `${m.efficiencyPct.toFixed(0)}%` : '—'}
                         </dd>
+                        <dt className="text-muted-foreground">Jobs available</dt>
+                        <dd className="text-right tabular-nums">{m.availableJobsShare.toFixed(1)}</dd>
+                        <dt className="text-muted-foreground">Hours possible</dt>
+                        <dd className="text-right tabular-nums">{m.hoursPossibleShare.toFixed(1)}h</dd>
+                        <dt className="text-muted-foreground">Utilisation</dt>
+                        <dd className="text-right font-semibold tabular-nums">
+                          {m.hoursPossibleShare > 0 ? `${m.utilisationPct.toFixed(0)}%` : '—'}
+                        </dd>
                         <dt className="text-muted-foreground">Inspections</dt>
                         <dd className="text-right tabular-nums">{m.inspections}</dd>
                         <dt className="text-muted-foreground">Repairs</dt>
