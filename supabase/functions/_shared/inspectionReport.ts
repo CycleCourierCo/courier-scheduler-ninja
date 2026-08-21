@@ -70,7 +70,6 @@ export const parsePdiNotes = (notes?: string | null) => {
     if (itemMatch && current) {
       const rest = itemMatch[2];
       const sep = rest.indexOf(":");
-      sections.push; // no-op keeps tree-shakers honest
       current.items.push({
         result: itemMatch[1].toUpperCase(),
         label: sep >= 0 ? rest.slice(0, sep).trim() : rest.trim(),
