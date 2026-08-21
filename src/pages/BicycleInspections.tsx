@@ -74,6 +74,9 @@ import {
   undoIssueReceiverApproval,
   reinstateDeclinedIssue,
   createReceiverInspectionInvoice,
+  regenerateInspectionReport,
+  sendInspectionApprovalEmail,
+
 
 } from "@/services/inspectionService";
 import { InspectionIssue, InspectionStatus } from "@/types/inspection";
