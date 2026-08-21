@@ -1065,6 +1065,7 @@ export const moveToRepaired = async (inspectionId: string): Promise<BicycleInspe
     if (nextStatus === 'repaired') {
       await triggerReceiverAvailabilityIfDeferred(inspectionId);
     }
+    refreshReport(inspectionId);
     return data as BicycleInspection;
   } catch (error) {
     console.error('Error moving to repaired:', error);
