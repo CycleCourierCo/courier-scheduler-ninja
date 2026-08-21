@@ -636,6 +636,13 @@ export const releaseInspectionToCustomer = async (
       .single();
 
     if (error) throw error;
+    // Generate the customer-facing report, then ask the booking account to approve.
+    await regenerateInspectionReport({ inspectionId });
+    try {
+      await sendInspectionApprovalEmail(inspectionId);
+    } catch (emailError) {
+      console.error('Approval email failed after release:', emailError);
+    }
     return data as BicycleInspection;
   } catch (error) {
     console.error('Error releasing inspection to customer:', error);
