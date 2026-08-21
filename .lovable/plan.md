@@ -9,19 +9,23 @@ A one-tap "Download report" / "PDF" action on each inspection card in Bicycle In
 - Header: Cycle Courier Co. branding, tracking number, bike brand/model/type, bike category, sender and receiver names.
 - Inspection details: who inspected it, date/time (Europe/London), and current stage.
 - PDI summary table: every section with each item's result (Pass / Advisory / Fail) and any note, taken from the inspection notes saved at completion.
-- Issues table: description, part name/number where present, parts cost, labour cost, total, and status (pending / approved / declined / resolved), with a grand total.
+- Issues list: description and part name/number where present — no parts cost, labour cost, totals or grand total anywhere on the PDF.
+- Issue decision state: while awaiting approval each issue is marked "Pending". Once decisions are made, each issue instead shows "Approved" or "Declined" (and "Completed" once the repair is done), so a regenerated report always reflects the latest decisions.
 - Footer: generated timestamp, page numbers, and company registration details.
 
 The button is available for any inspection that has been carried out (inspected or later), for admins and mechanics.
 
 ## 2. Tracking link when issues are found
 
-When an inspection is released to the customer (moves into "issues found"), the report is also uploaded to storage and its link is saved on the inspection. The public tracking page then shows an "Inspection report" card with:
+When an inspection is released to the customer (moves into "issues found"), the report is uploaded to storage and its link is saved on the inspection. The public tracking page then shows an "Inspection report" card with:
 
 - A short line: "Our workshop found N item(s) needing attention."
 - A "View inspection report (PDF)" button opening the stored PDF.
 
-The link only appears once issues have been released to the customer — never while pricing is still in progress. Regenerating on release replaces the previous file so the link always points to the current report.
+The link only appears once issues have been released to the customer — never while pricing is still in progress.
+
+The report is regenerated (replacing the stored file, same link) whenever the picture changes: on release, after the booking account approves or declines, after a receiver repair offer is accepted or declined, and when repairs are marked complete. So the tracking link always shows the current decisions, and once repairs are finished — including repairs the receiver paid for via the repair offer — the tracking link exposes the full completed report with every issue marked Approved / Declined / Completed.
+
 
 ## 3. Approval request email to the booking account
 
@@ -36,7 +40,7 @@ As soon as an inspection is released and is awaiting approval, an email goes to 
 ## Technical notes
 
 **PDF generation** — new `src/utils/inspectionReportPdf.ts` using the existing `jspdf` dependency (already used by `labelUtils.ts`):
-- `buildInspectionReportPdf(order, inspection, issues): jsPDF` — parses the stored PDI notes text back into section/item/result rows, draws the tables manually (no autotable dependency), returns the document.
+- `buildInspectionReportPdf(order, inspection, issues): jsPDF` — parses the stored PDI notes text back into section/item/result rows and draws the tables manually (no autotable dependency). Deliberately omits all pricing fields; issue rows render a decision label derived from each issue's approval/completion state.
 - `downloadInspectionReport(...)` for the client button, and `inspectionReportBlob(...)` for upload.
 
 **Storage + database** — one migration:
@@ -45,7 +49,8 @@ As soon as an inspection is released and is awaiting approval, an email goes to 
 - Extend the existing `get_public_inspection_summary` and `get_public_order` SQL functions to include `report_url` in the returned summary so tracking can render the link without exposing anything else.
 
 **Release flow** — `src/services/inspectionService.ts`:
-- `releaseInspectionToCustomer` gains a post-step: generate the PDF client-side, upload to `inspection-reports/<order_id>.pdf` (upsert), save `report_url`/`report_generated_at`, then invoke the new edge function.
+- Shared `regenerateInspectionReport(inspectionId)` helper: builds the PDF, uploads to `inspection-reports/<order_id>.pdf` (upsert, stable link), saves `report_url`/`report_generated_at`.
+- Called from `releaseInspectionToCustomer` (then invokes the approval email), from the approve/decline handlers, from the receiver repair-offer submission path (`submit_public_repair_offer` follow-up in `src/pages/RepairOffer.tsx`), and when repairs are marked complete.
 - New `requestInspectionApproval(inspectionId)` helper for the manual resend button.
 
 **Email** — new edge function `supabase/functions/send-inspection-approval` (CORS headers, JWT-authenticated with admin/mechanic role check, service-role client, `EdgeRuntime.waitUntil` for the send):
