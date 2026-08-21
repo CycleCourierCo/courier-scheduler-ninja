@@ -558,8 +558,44 @@ const BicycleInspections = () => {
     onSettled: () => setSendingInspectaBikeOrderId(null),
   });
 
+  // PDI report: regenerate the PDF and open it in a new tab
+  const [reportingInspectionId, setReportingInspectionId] = useState<string | null>(null);
+  const reportMutation = useMutation({
+    mutationFn: async (inspectionId: string) => {
+      setReportingInspectionId(inspectionId);
+      return regenerateInspectionReport({ inspectionId });
+    },
+    onSuccess: (url) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      if (url) {
+        window.open(url, "_blank", "noopener");
+      } else {
+        toast.error("Could not generate the inspection report");
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to generate the inspection report");
+      console.error(error);
+    },
+    onSettled: () => setReportingInspectionId(null),
+  });
 
-
+  // Re-send the approval request email to the booking account
+  const approvalEmailMutation = useMutation({
+    mutationFn: async (inspectionId: string) => sendInspectionApprovalEmail(inspectionId, true),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      if (result?.skipped) {
+        toast.info("Nothing to approve — email not sent");
+      } else {
+        toast.success("Approval request emailed to the booking account");
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to send the approval email");
+      console.error(error);
+    },
+  });
 
 
   // Release inspection to customer (admin gate)
