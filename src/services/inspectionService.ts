@@ -511,6 +511,7 @@ export const addInspectionIssue = async (
     repair_id?: string | null;
     parts_cost?: number | null;
     labour_cost?: number | null;
+    inspection_notes?: string | null;
   }
 ): Promise<InspectionIssue | null> => {
   try {
@@ -524,6 +525,7 @@ export const addInspectionIssue = async (
         inspected_at: new Date().toISOString(),
         inspected_by_id: requestedById,
         inspected_by_name: requestedByName,
+        ...(extra?.inspection_notes ? { notes: extra.inspection_notes } : {}),
       })
       .eq('id', inspection.id);
 
