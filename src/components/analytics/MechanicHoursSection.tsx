@@ -51,6 +51,12 @@ const DayBreakdown: React.FC<{ days: any[] }> = ({ days }) => {
             </span>
             <span className="text-muted-foreground">{d.jobs.length} jobs</span>
           </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Queue that day: {d.availableJobs} jobs / {d.hoursPossible.toFixed(1)}h
+            {d.availableJobs > 0 && (
+              <> (your share: {d.availableJobsShare.toFixed(1)} jobs / {d.hoursPossibleShare.toFixed(1)}h)</>
+            )}
+          </p>
           {d.jobs.length > 0 && (
             <ul className="mt-2 space-y-2">
               {d.jobs.map((j: any) => (
