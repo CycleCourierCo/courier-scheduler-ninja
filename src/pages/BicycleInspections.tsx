@@ -969,11 +969,21 @@ const BicycleInspections = () => {
   };
 
 
-  const handleChecklistItemToggle = (itemId: string) => {
+  const handleChecklistItemResult = (itemId: string, result: ItemResult) => {
     setInspectionChecklist(prev => ({
       ...prev,
-      [itemId]: !prev[itemId]
+      [itemId]: result,
     }));
+  };
+
+  const handleSectionQuickPass = (section: InspectionSection) => {
+    setInspectionChecklist(prev => {
+      const next = { ...prev };
+      section.items.forEach((item) => {
+        if (!next[item.id]) next[item.id] = 'pass';
+      });
+      return next;
+    });
   };
 
   const handleChecklistCommentChange = (itemId: string, comment: string) => {
