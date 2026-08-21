@@ -1,50 +1,59 @@
-# Collection readiness score
+# PDI inspection report PDF, tracking link, and approval email
 
-Give every order a 0–100 "ready for collection" score based on how complete its data is, so planners can spot problem jobs before a driver is sent out.
+Three connected pieces: a printable inspection report, a customer-visible link to it on tracking when issues are found, and an automatic approval request email to the booking account.
 
-## What the score measures
+## 1. Printable PDI report PDF
 
-Each order is checked against a set of weighted readiness checks, all derived from data already on the order:
+A one-tap "Download report" / "PDF" action on each inspection card in Bicycle Inspections produces an A4 PDF containing:
 
-| Check | Weight | Passes when |
-| --- | --- | --- |
-| Sender contact | 15 | Sender name, email and phone all present |
-| Receiver contact | 15 | Receiver name, email and phone all present |
-| Collection address | 15 | Street, city and postcode present |
-| Address geocoded | 15 | Sender address has lat and lon |
-| Delivery address | 10 | Receiver street, city and postcode present |
-| Bike details | 10 | Every bike has a brand, model and type |
-| Bike value | 5 | At least one bike has a value (needed for insurance) |
-| Collection availability | 10 | Sender has confirmed dates (or the order is already scheduled) |
-| Payment details | 5 | If payment on collection is required, a payment phone is set (auto-pass otherwise) |
-| Instructions | 5 | Delivery instructions or notes provided (auto-pass when a collection code exists) |
+- Header: Cycle Courier Co. branding, tracking number, bike brand/model/type, bike category, sender and receiver names.
+- Inspection details: who inspected it, date/time (Europe/London), and current stage.
+- PDI summary table: every section with each item's result (Pass / Advisory / Fail) and any note, taken from the inspection notes saved at completion.
+- Issues table: description, part name/number where present, parts cost, labour cost, total, and status (pending / approved / declined / resolved), with a grand total.
+- Footer: generated timestamp, page numbers, and company registration details.
 
-Score = sum of passed weights, capped at 100. Bands:
+The button is available for any inspection that has been carried out (inspected or later), for admins and mechanics.
 
-- **90–100 Ready** — green
-- **60–89 Almost ready** — amber
-- **Below 60 Not ready** — red
+## 2. Tracking link when issues are found
 
-Checks that don't apply to an order (e.g. payment phone when no payment is needed) pass automatically so scores stay comparable.
+When an inspection is released to the customer (moves into "issues found"), the report is also uploaded to storage and its link is saved on the inspection. The public tracking page then shows an "Inspection report" card with:
 
-## Where it shows
+- A short line: "Our workshop found N item(s) needing attention."
+- A "View inspection report (PDF)" button opening the stored PDF.
 
-1. **Order cards (dashboard/order list)** — a compact circular progress ring with the number, colour-coded by band, next to the status badge. Tapping/hovering it shows which checks are failing.
-2. **Order detail page** — a "Collection readiness" card listing every check with a tick or cross, the failing reason, and the total score, placed near the top of the admin view.
-3. **Order filters** — an optional "Readiness" filter so staff can list only orders scoring under a threshold ("needs attention").
+The link only appears once issues have been released to the customer — never while pricing is still in progress. Regenerating on release replaces the previous file so the link always points to the current report.
 
-Staff-only: customers and B2B accounts don't see the ring or card.
+## 3. Approval request email to the booking account
+
+As soon as an inspection is released and is awaiting approval, an email goes to the account that booked the order (the order's owning account, not the receiver):
+
+- Subject: repairs needed on the bike, with the tracking number.
+- Body: bike details, a table of each issue with parts/labour/total, the overall total, a "Review and approve repairs" button linking to the approval page, and the inspection report PDF link.
+- Sent from `notification.cyclecourierco.com` with reply-to `Info@cyclecourierco.com`.
+- Sent once per release, recorded on the inspection so re-releasing doesn't spam; a manual "Resend approval email" button is available to admins.
+- Suppressed for test accounts, matching existing behaviour.
 
 ## Technical notes
 
-- New `src/utils/collectionReadiness.ts` exporting:
-  - `type ReadinessCheck = { id, label, weight, passed, reason?, applicable }`
-  - `type ReadinessResult = { score, band, checks, failing }`
-  - `calculateCollectionReadiness(order: Order): ReadinessResult` — pure function, no DB or network access, using existing `Order` fields (`sender`/`receiver` contact + address incl. `lat`/`lon`, `bikes`, `bikeValue`, `pickupDate`, `scheduledPickupDate`, `senderConfirmedAt`, `needsPaymentOnCollection`, `paymentCollectionPhone`, `deliveryInstructions`, `senderNotes`, `collectionCode`).
-- New `src/components/orders/CollectionReadinessRing.tsx` — small SVG ring (no new dependency) with the score inside, wrapped in a `Popover` (tap on mobile, hover on desktop) listing failing checks. Colours come from semantic tokens, not hardcoded utilities.
-- New `src/components/order-detail/CollectionReadinessCard.tsx` — full checklist view using the same result object.
-- `src/components/OrderCardList.tsx` — render the ring for staff roles only (`admin`, `route_planner`), in the header row beside `StatusBadge`.
-- `src/pages/OrderDetail.tsx` — render the readiness card in the admin layout.
-- `src/components/OrderFilters.tsx` — add a readiness select ("Any", "Needs attention < 60", "Almost ready < 90"), filtering client-side with the same helper.
+**PDF generation** — new `src/utils/inspectionReportPdf.ts` using the existing `jspdf` dependency (already used by `labelUtils.ts`):
+- `buildInspectionReportPdf(order, inspection, issues): jsPDF` — parses the stored PDI notes text back into section/item/result rows, draws the tables manually (no autotable dependency), returns the document.
+- `downloadInspectionReport(...)` for the client button, and `inspectionReportBlob(...)` for upload.
 
-No database migration or service change: the score is computed from data already loaded with each order.
+**Storage + database** — one migration:
+- Public storage bucket `inspection-reports` with read access for everyone and write restricted to service role / staff.
+- New columns on `bicycle_inspections`: `report_url text`, `report_generated_at timestamptz`, `approval_email_sent_at timestamptz`.
+- Extend the existing `get_public_inspection_summary` and `get_public_order` SQL functions to include `report_url` in the returned summary so tracking can render the link without exposing anything else.
+
+**Release flow** — `src/services/inspectionService.ts`:
+- `releaseInspectionToCustomer` gains a post-step: generate the PDF client-side, upload to `inspection-reports/<order_id>.pdf` (upsert), save `report_url`/`report_generated_at`, then invoke the new edge function.
+- New `requestInspectionApproval(inspectionId)` helper for the manual resend button.
+
+**Email** — new edge function `supabase/functions/send-inspection-approval` (CORS headers, JWT-authenticated with admin/mechanic role check, service-role client, `EdgeRuntime.waitUntil` for the send):
+- Loads order, inspection and pending issues; resolves the booking account email from `orders.user_id` → `profiles`.
+- Renders the issue table and sends via Resend, then stamps `approval_email_sent_at`.
+- No PII in logs.
+
+**UI**
+- `src/pages/BicycleInspections.tsx`: "PDF" button on inspected/later cards; "Resend approval email" for admins on issues-found inspections.
+- `src/pages/TrackingPage.tsx`: inspection report card driven by `inspectionSummary.has_issues` + `report_url`.
+- `src/types/inspection.ts`: add the three new fields and `report_url` on `InspectionSummary`.
