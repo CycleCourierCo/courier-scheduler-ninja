@@ -105,22 +105,101 @@ interface IssueEntry {
 
 interface ChecklistIssue extends IssueEntry {}
 
-// Standard inspection checklist items
-const INSPECTION_ITEMS = [
-  { id: 'brakes_gears', label: 'Brake and gear tuning' },
-  { id: 'safety_inspection', label: 'Full safety inspection (frame, wheels, drivetrain, tyres)' },
-  { id: 'tyre_pressure', label: 'Tyre pressure check and adjustment' },
-  { id: 'cleaning_bolts', label: 'Light cleaning and bolt tightening' },
+// PDI-style inspection sheet — grouped sections, each item rated pass/advisory/fail
+type ItemResult = 'pass' | 'advisory' | 'fail';
+
+interface InspectionSection {
+  id: string;
+  title: string;
+  electricOnly?: boolean;
+  items: { id: string; label: string }[];
+}
+
+const INSPECTION_SECTIONS: InspectionSection[] = [
+  {
+    id: 'frame',
+    title: 'Frame & forks',
+    items: [
+      { id: 'frame_condition', label: 'Frame condition (cracks, dents, alignment)' },
+      { id: 'forks_headset', label: 'Forks & headset (play, movement, seals)' },
+      { id: 'paint_damage', label: 'Paint / crash damage' },
+    ],
+  },
+  {
+    id: 'wheels',
+    title: 'Wheels & tyres',
+    items: [
+      { id: 'wheel_true', label: 'Wheels true, spokes tensioned' },
+      { id: 'hubs_bearings', label: 'Hubs & bearings (play, roughness)' },
+      { id: 'tyre_tread', label: 'Tyre tread & sidewalls' },
+      { id: 'tyre_pressure', label: 'Tyre pressure set' },
+    ],
+  },
+  {
+    id: 'brakes',
+    title: 'Brakes',
+    items: [
+      { id: 'brake_pads', label: 'Pads & rotors (or blocks & rims)' },
+      { id: 'brake_lever', label: 'Lever feel & bite point' },
+      { id: 'brake_cables', label: 'Cables / hoses condition' },
+    ],
+  },
+  {
+    id: 'drivetrain',
+    title: 'Drivetrain',
+    items: [
+      { id: 'chain_wear', label: 'Chain wear' },
+      { id: 'cassette_chainrings', label: 'Cassette & chainrings' },
+      { id: 'gear_shifting', label: 'Gear shifting & indexing' },
+      { id: 'cranks_bb', label: 'Cranks & bottom bracket' },
+    ],
+  },
+  {
+    id: 'contact',
+    title: 'Contact points',
+    items: [
+      { id: 'bars_stem', label: 'Bars & stem secure' },
+      { id: 'seatpost_saddle', label: 'Seatpost & saddle' },
+      { id: 'pedals', label: 'Pedals' },
+      { id: 'bolts_torqued', label: 'All bolts torqued' },
+    ],
+  },
+  {
+    id: 'extras',
+    title: 'Extras & accessories',
+    items: [
+      { id: 'lights_guards', label: 'Lights, mudguards, rack' },
+      { id: 'accessories_present', label: 'Accessories present as listed' },
+      { id: 'bell_reflectors', label: 'Bell & reflectors' },
+    ],
+  },
+  {
+    id: 'electric',
+    title: 'Electric system',
+    electricOnly: true,
+    items: [
+      { id: 'ebike_battery', label: 'Battery condition & holds charge' },
+      { id: 'ebike_mount', label: 'Battery mount / latch secure' },
+      { id: 'ebike_motor', label: 'Motor & assist levels' },
+      { id: 'ebike_display', label: 'Display / no error codes' },
+      { id: 'ebike_key', label: 'Key present' },
+      { id: 'ebike_charger', label: 'Charger supplied' },
+    ],
+  },
+  {
+    id: 'finishing',
+    title: 'Finishing',
+    items: [
+      { id: 'lubed', label: 'Drivetrain lubed' },
+      { id: 'cleaned', label: 'Bike cleaned' },
+      { id: 'test_ridden', label: 'Test ridden' },
+    ],
+  },
 ];
 
-// Extra items shown only for electric bikes
-const ELECTRIC_INSPECTION_ITEMS = [
-  { id: 'ebike_battery', label: 'Battery check (condition, holds charge, mount/latch secure)' },
-  { id: 'ebike_motor', label: 'Motor check (runs through assist levels, no noise or errors)' },
-  { id: 'ebike_key', label: 'Key present (battery/lock key supplied with the bike)' },
-];
-
-const ELECTRIC_ITEM_IDS = ELECTRIC_INSPECTION_ITEMS.map((i) => i.id);
+const ELECTRIC_ITEM_IDS = INSPECTION_SECTIONS
+  .filter((s) => s.electricOnly)
+  .flatMap((s) => s.items.map((i) => i.id));
 
 const isElectricCategory = (category?: string | null) => {
   const v = (category || "").toLowerCase();
