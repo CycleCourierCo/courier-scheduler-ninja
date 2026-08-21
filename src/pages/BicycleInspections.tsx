@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
@@ -112,6 +112,20 @@ const INSPECTION_ITEMS = [
   { id: 'tyre_pressure', label: 'Tyre pressure check and adjustment' },
   { id: 'cleaning_bolts', label: 'Light cleaning and bolt tightening' },
 ];
+
+// Extra items shown only for electric bikes
+const ELECTRIC_INSPECTION_ITEMS = [
+  { id: 'ebike_battery', label: 'Battery check (condition, holds charge, mount/latch secure)' },
+  { id: 'ebike_motor', label: 'Motor check (runs through assist levels, no noise or errors)' },
+  { id: 'ebike_key', label: 'Key present (battery/lock key supplied with the bike)' },
+];
+
+const ELECTRIC_ITEM_IDS = ELECTRIC_INSPECTION_ITEMS.map((i) => i.id);
+
+const isElectricCategory = (category?: string | null) => {
+  const v = (category || "").toLowerCase();
+  return v.includes("electric") || v.includes("e-bike") || v.includes("ebike");
+};
 
 const EMPTY_ISSUE: IssueEntry = {
   description: "", estimatedCost: "", partsCost: "", labourCost: "",
