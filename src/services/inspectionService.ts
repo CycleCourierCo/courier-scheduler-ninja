@@ -773,6 +773,7 @@ export const declineIssue = async (
 
     if (error) throw error;
     pushIssueStatusToInspectaBike(issueId);
+    void refreshReportForIssue(issueId);
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error declining issue:', error);
