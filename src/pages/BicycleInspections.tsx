@@ -341,6 +341,7 @@ const BicycleInspections = () => {
               repair_id: issue.repairId,
               parts_cost: parts,
               labour_cost: labour,
+              inspection_notes: pdiNotes ?? null,
             }
           );
           results.push(result);
