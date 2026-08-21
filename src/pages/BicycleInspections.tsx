@@ -1016,9 +1016,13 @@ const BicycleInspections = () => {
 
 
   const isElectricChecklist = isElectricCategory(checklistBikeType);
-  const activeInspectionItems = useMemo(
-    () => (isElectricChecklist ? [...INSPECTION_ITEMS, ...ELECTRIC_INSPECTION_ITEMS] : INSPECTION_ITEMS),
+  const activeSections = useMemo(
+    () => INSPECTION_SECTIONS.filter((s) => !s.electricOnly || isElectricChecklist),
     [isElectricChecklist]
+  );
+  const activeInspectionItems = useMemo(
+    () => activeSections.flatMap((s) => s.items),
+    [activeSections]
   );
 
   // Drop any electric-only answers if the category is switched away from electric
@@ -1035,9 +1039,18 @@ const BicycleInspections = () => {
     setChecklistIssues((prev) => strip(prev));
   }, [isElectricChecklist]);
 
-  const allItemsChecked = activeInspectionItems.every(
-    item => inspectionChecklist[item.id]
-  );
+  const ratedCount = activeInspectionItems.filter((item) => inspectionChecklist[item.id]).length;
+  const allItemsChecked = ratedCount === activeInspectionItems.length;
+
+  const sectionCounts = (section: InspectionSection) => {
+    const results = section.items.map((i) => inspectionChecklist[i.id]);
+    return {
+      pass: results.filter((r) => r === 'pass').length,
+      advisory: results.filter((r) => r === 'advisory').length,
+      fail: results.filter((r) => r === 'fail').length,
+      unrated: results.filter((r) => !r).length,
+    };
+  };
 
   // Collect all issues across all checklist items
   const allChecklistIssues: IssueEntry[] = Object.entries(checklistIssues).flatMap(([itemId, issues]) => {
@@ -1052,6 +1065,23 @@ const BicycleInspections = () => {
 
 
   const hasIssues = allChecklistIssues.length > 0;
+
+  const buildPdiNotes = () => {
+    const lines: string[] = [];
+    activeSections.forEach((section) => {
+      lines.push(`— ${section.title} —`);
+      section.items.forEach((item) => {
+        const result = (inspectionChecklist[item.id] || 'pass').toUpperCase();
+        const comment = inspectionComments[item.id]?.trim();
+        lines.push(comment ? `${result}  ${item.label}: ${comment}` : `${result}  ${item.label}`);
+      });
+    });
+    const general = checklistGeneralNotes.trim();
+    if (general) {
+      lines.push('', `Notes: ${general}`);
+    }
+    return lines.join('\n');
+  };
 
   const handleConfirmInspection = async () => {
     if (!selectedOrderForInspection || !allItemsChecked) return;
@@ -1068,15 +1098,11 @@ const BicycleInspections = () => {
       });
       setInspectionChecklistOpen(false);
     } else {
-      // No issues - mark as inspected
-      const notes = activeInspectionItems.map(item => {
-        const comment = inspectionComments[item.id];
-        return comment
-          ? `✓ ${item.label}: ${comment}`
-          : `✓ ${item.label}`;
-      }).join('\n');
-
-      markInspectedMutation.mutate({ orderId: selectedOrderForInspection, notes });
+      // No issues - mark as inspected with the full PDI summary
+      markInspectedMutation.mutate({
+        orderId: selectedOrderForInspection,
+        notes: buildPdiNotes(),
+      });
       setInspectionChecklistOpen(false);
     }
   };
