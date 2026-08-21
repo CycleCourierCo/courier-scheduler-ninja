@@ -990,7 +990,7 @@ const BicycleInspections = () => {
       setInspectionChecklistOpen(false);
     } else {
       // No issues - mark as inspected
-      const notes = INSPECTION_ITEMS.map(item => {
+      const notes = activeInspectionItems.map(item => {
         const comment = inspectionComments[item.id];
         return comment
           ? `✓ ${item.label}: ${comment}`
@@ -2765,7 +2765,7 @@ const BicycleInspections = () => {
                 </p>
               </div>
 
-              {INSPECTION_ITEMS.map((item) => {
+              {activeInspectionItems.map((item) => {
                 const itemIssues = checklistIssues[item.id] || [];
                 return (
                   <div key={item.id} className="space-y-3 p-2 sm:p-3 border rounded-lg min-w-0">
