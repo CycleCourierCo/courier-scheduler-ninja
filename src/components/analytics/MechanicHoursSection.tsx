@@ -263,13 +263,18 @@ const MechanicHoursSection: React.FC = () => {
                             <TableCell className="text-right font-semibold">
                               {m.hours > 0 ? `${m.efficiencyPct.toFixed(0)}%` : '—'}
                             </TableCell>
+                            <TableCell className="text-right">{m.availableJobsShare.toFixed(1)}</TableCell>
+                            <TableCell className="text-right">{m.hoursPossibleShare.toFixed(1)}</TableCell>
+                            <TableCell className="text-right font-semibold">
+                              {m.hoursPossibleShare > 0 ? `${m.utilisationPct.toFixed(0)}%` : '—'}
+                            </TableCell>
                             <TableCell className="text-right">{m.inspections}</TableCell>
                             <TableCell className="text-right">{m.repairs}</TableCell>
                             <TableCell className="text-right">{m.minutesPerJob > 0 ? m.minutesPerJob.toFixed(0) : '—'}</TableCell>
                           </TableRow>
                           {expanded === m.mechanicId && (
                             <TableRow>
-                              <TableCell colSpan={8} className="bg-muted/40">
+                              <TableCell colSpan={11} className="bg-muted/40">
                                 <DayBreakdown days={m.days} />
                               </TableCell>
                             </TableRow>
