@@ -359,20 +359,25 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
         }
       } else {
         const inspectedAt = summary.inspected_at;
+        const reportUrl: string | null = summary.report_url || null;
         if (!summary.has_issues) {
           events.push({
             title: "Inspection Complete — No Issues Found",
             date: inspectedAt,
             icon: <Check className="h-4 w-4 text-green-600" />,
-            description: "Inspection completed — no issues identified"
-          });
+            description: "Inspection completed — no issues identified",
+            link: reportUrl,
+            linkLabel: "View inspection report (PDF)",
+          } as any);
         } else {
           events.push({
             title: "Inspection Complete — Issues Found",
             date: inspectedAt,
             icon: <AlertCircle className="h-4 w-4 text-amber-600" />,
-            description: "Issues identified during inspection — awaiting customer approval"
-          });
+            description: "Issues identified during inspection — awaiting customer approval",
+            link: reportUrl,
+            linkLabel: "View inspection report (PDF)",
+          } as any);
 
           if (summary.repairs_approved_at) {
             events.push({
@@ -415,8 +420,10 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
               title: "Repairs Completed",
               date: summary.repairs_completed_at,
               icon: <Check className="h-4 w-4 text-green-600" />,
-              description: "All approved repairs have been completed"
-            });
+              description: "All approved repairs have been completed",
+              link: reportUrl,
+              linkLabel: "View full inspection report (PDF)",
+            } as any);
           }
         }
       }
