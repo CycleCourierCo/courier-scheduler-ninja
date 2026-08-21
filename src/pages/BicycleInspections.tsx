@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
@@ -112,6 +112,20 @@ const INSPECTION_ITEMS = [
   { id: 'tyre_pressure', label: 'Tyre pressure check and adjustment' },
   { id: 'cleaning_bolts', label: 'Light cleaning and bolt tightening' },
 ];
+
+// Extra items shown only for electric bikes
+const ELECTRIC_INSPECTION_ITEMS = [
+  { id: 'ebike_battery', label: 'Battery check (condition, holds charge, mount/latch secure)' },
+  { id: 'ebike_motor', label: 'Motor check (runs through assist levels, no noise or errors)' },
+  { id: 'ebike_key', label: 'Key present (battery/lock key supplied with the bike)' },
+];
+
+const ELECTRIC_ITEM_IDS = ELECTRIC_INSPECTION_ITEMS.map((i) => i.id);
+
+const isElectricCategory = (category?: string | null) => {
+  const v = (category || "").toLowerCase();
+  return v.includes("electric") || v.includes("e-bike") || v.includes("ebike");
+};
 
 const EMPTY_ISSUE: IssueEntry = {
   description: "", estimatedCost: "", partsCost: "", labourCost: "",
@@ -922,13 +936,33 @@ const BicycleInspections = () => {
   };
 
 
-  const allItemsChecked = INSPECTION_ITEMS.every(
+  const isElectricChecklist = isElectricCategory(checklistBikeType);
+  const activeInspectionItems = useMemo(
+    () => (isElectricChecklist ? [...INSPECTION_ITEMS, ...ELECTRIC_INSPECTION_ITEMS] : INSPECTION_ITEMS),
+    [isElectricChecklist]
+  );
+
+  // Drop any electric-only answers if the category is switched away from electric
+  useEffect(() => {
+    if (isElectricChecklist) return;
+    const strip = <T,>(obj: Record<string, T>) => {
+      if (!ELECTRIC_ITEM_IDS.some((id) => id in obj)) return obj;
+      const next = { ...obj };
+      ELECTRIC_ITEM_IDS.forEach((id) => delete next[id]);
+      return next;
+    };
+    setInspectionChecklist((prev) => strip(prev));
+    setInspectionComments((prev) => strip(prev));
+    setChecklistIssues((prev) => strip(prev));
+  }, [isElectricChecklist]);
+
+  const allItemsChecked = activeInspectionItems.every(
     item => inspectionChecklist[item.id]
   );
 
   // Collect all issues across all checklist items
   const allChecklistIssues: IssueEntry[] = Object.entries(checklistIssues).flatMap(([itemId, issues]) => {
-    const itemLabel = INSPECTION_ITEMS.find(i => i.id === itemId)?.label || itemId;
+    const itemLabel = activeInspectionItems.find(i => i.id === itemId)?.label || itemId;
     return issues
       .filter(issue => issue.description.trim())
       .map(issue => ({
@@ -956,7 +990,7 @@ const BicycleInspections = () => {
       setInspectionChecklistOpen(false);
     } else {
       // No issues - mark as inspected
-      const notes = INSPECTION_ITEMS.map(item => {
+      const notes = activeInspectionItems.map(item => {
         const comment = inspectionComments[item.id];
         return comment
           ? `✓ ${item.label}: ${comment}`
@@ -2731,7 +2765,7 @@ const BicycleInspections = () => {
                 </p>
               </div>
 
-              {INSPECTION_ITEMS.map((item) => {
+              {activeInspectionItems.map((item) => {
                 const itemIssues = checklistIssues[item.id] || [];
                 return (
                   <div key={item.id} className="space-y-3 p-2 sm:p-3 border rounded-lg min-w-0">
