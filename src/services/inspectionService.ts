@@ -487,6 +487,7 @@ export const markAsInspected = async (
       // No-issues + clean path completes the inspection; trigger any deferred
       // receiver availability email now.
       await triggerReceiverAvailabilityIfDeferred(inspection.id);
+      refreshReport(inspection.id);
     }
 
     return data as BicycleInspection;
