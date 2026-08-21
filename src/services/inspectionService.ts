@@ -746,6 +746,7 @@ export const acceptIssue = async (issueId: string): Promise<InspectionIssue | nu
 
     if (error) throw error;
     pushIssueStatusToInspectaBike(issueId);
+    void refreshReportForIssue(issueId);
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error accepting issue:', error);
