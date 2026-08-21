@@ -176,6 +176,20 @@ const MechanicHoursSection: React.FC = () => {
                 icon={Timer}
               />
             </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+              <StatsCard
+                title="Jobs Available (peak)"
+                value={totals.availableJobs}
+                description="Busiest day's queue: awaiting inspection or repair"
+                icon={ClipboardCheck}
+              />
+              <StatsCard
+                title="Hours Possible"
+                value={totals.hoursPossible.toFixed(1)}
+                description="Standard time in the queue across the period"
+                icon={Timer}
+              />
+            </div>
             <p className="text-xs text-muted-foreground">
               Standard time uses labour catalogue book times where a repair is linked, otherwise it's estimated from the
               repair's labour price (at £{data?.settings.hourlyRate}/hr) or the workshop fallback of{' '}
