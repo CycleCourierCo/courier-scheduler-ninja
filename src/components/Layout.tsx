@@ -73,6 +73,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
     items: [
       { to: "/analytics", label: "Analytics", icon: BarChart3 },
       { to: "/route-profitability", label: "Route Profitability", icon: TrendingUp },
+      { to: "/mechanic-profitability", label: "Mechanic Profitability", icon: Wrench },
     ],
   },
   {
