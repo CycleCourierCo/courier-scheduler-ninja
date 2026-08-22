@@ -204,46 +204,11 @@ const Layout: React.FC<LayoutProps> = ({
                   
                   {user && <>
                       <DropdownMenuSeparator className="my-2" />
-                      {!isDriver && !isAdmin && <>
-                        {isInternalStaff && (
-                          <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Fuel className="mr-2 h-4 w-4" />
-                            Fuel Finder
-                          </Link>
-                        )}
-                        <Link to="/dashboard" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                          <Home className="mr-2 h-4 w-4" />
-                          Dashboard
-                        </Link>
-                      </>}
                       {!isAdmin && <Link to="/profile" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                         <User className="mr-2 h-4 w-4" />
                         Your Profile
                       </Link>}
-                      {isInternalStaff && !isAdmin && (
-                        <Link to="/tasks" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                          <CheckSquare className="mr-2 h-4 w-4" />
-                          Tasks
-                        </Link>
-                      )}
-                      {isInternalStaff && !isAdmin && (
-                        <Link to="/knowledge" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                          <BookOpen className="mr-2 h-4 w-4" />
-                          Knowledge Base
-                        </Link>
-                      )}
-                      {(isMechanic || isB2B || isB2C) && !isAdmin && (
-                        <Link to="/box-my-bike" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                          <Package2 className="mr-2 h-4 w-4" />
-                          Box My Bike
-                        </Link>
-                      )}
-                      {isSales && !isAdmin && (
-                          <Link to="/users" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Users className="mr-2 h-4 w-4" />
-                            User Management
-                          </Link>
-                        )}
+
                       {isAdmin && <>
                           {ADMIN_MENU_SECTIONS.map(section => <div key={section.label} className="space-y-2">
                             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">
