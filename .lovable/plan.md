@@ -1,23 +1,31 @@
-# Split Mechanic Profitability into its own page
+# Dedicated Mechanic Profitability page
 
-Move workshop/mechanic profitability off the Route Profitability page and give it a dedicated page with its own menu item.
+Pull all mechanic/workshop performance out of Route Profitability and Analytics into one dedicated page with its own menu item.
 
 ## What changes
 
 1. **New page: Mechanic Profitability (`/mechanic-profitability`)**
-   - Own page shell (Layout + heading "Mechanic Profitability" with a short description).
-   - Renders the existing mechanic profitability panel (date range pickers, per-mechanic table, totals) unchanged, plus the mechanic comparison chart already used elsewhere for revenue/profit comparison.
+   - Page shell with heading "Mechanic Profitability" and a short description.
+   - Sections, in order:
+     - Mechanic profitability panel (date range, per-mechanic table, totals) — moved from Route Profitability.
+     - Mechanic comparison chart (revenue / profit / jobs per mechanic) — moved from Analytics.
+     - Mechanic hours: hours clocked vs earned hours, hours possible and jobs available — moved from Analytics.
 
 2. **Route Profitability page**
-   - Remove the mechanic profitability panel and its import so the page is purely route/driver economics.
+   - Remove the mechanic profitability panel so the page stays purely route/driver economics.
 
-3. **Menu + access**
-   - Register the route in the central route registry under the "Insight" section (icon: wrench) so it appears automatically in the admin sidebar.
-   - Default access: admin only, matching Route Profitability. Admins can widen it to other roles via Admin > Route Permissions.
+3. **Analytics page**
+   - Remove the mechanic comparison chart and the whole "Mechanic Hours" block from the Inspections tab.
+   - Everything else on that tab (inspection stats, inspections over time, stage durations, parts/labour averages) stays as is.
+
+4. **Menu + access**
+   - Register the new route in the central route registry under the "Insight" section (wrench icon) so it shows up automatically in the sidebar and in Admin > Route Permissions.
+   - Default access: admin only, matching Route Profitability; admins can grant it to mechanics or other roles later.
 
 ## Technical notes
 
-- New file `src/pages/MechanicProfitabilityPage.tsx` reusing `MechanicProfitabilityPanel` and `MechanicComparisonChart`.
+- New `src/pages/MechanicProfitabilityPage.tsx` reusing the existing `MechanicProfitabilityPanel`, `MechanicComparisonChart` and `MechanicHoursSection` components — no changes to their internals or to `mechanicProfitabilityService`.
 - `src/App.tsx`: add the route wrapped in `ProtectedRoute adminOnly`.
-- `src/config/routes.ts`: add entry `mechanic-profitability` (section "Insight", `defaultRoles: []`), which drives the sidebar menu and the route-permissions admin UI.
-- `src/pages/RouteProfitabilityPage.tsx`: delete the `<MechanicProfitabilityPanel />` block and its import; no other logic touched.
+- `src/config/routes.ts`: add entry `mechanic-profitability` (section "Insight", `defaultRoles: []`).
+- `src/pages/RouteProfitabilityPage.tsx`: remove the `<MechanicProfitabilityPanel />` block and its import.
+- `src/pages/AnalyticsPage.tsx`: remove the two component usages, their imports, and the now-empty "Mechanic Hours" heading/wrapper.
