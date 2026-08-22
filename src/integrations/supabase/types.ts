@@ -2427,6 +2427,7 @@ export type Database = {
           collection_driver_name: string | null
           created_at: string
           created_via_api: boolean
+          current_site_id: string | null
           customer_order_number: string | null
           delivery_confirmation_sent_at: string | null
           delivery_date: Json | null
@@ -2464,6 +2465,7 @@ export type Database = {
           is_box_my_bike: boolean
           is_ebay_order: boolean | null
           is_northern_ireland: boolean
+          is_scotland: boolean
           loaded_onto_van: boolean | null
           loaded_onto_van_at: string | null
           needs_inspection: boolean | null
@@ -2483,6 +2485,8 @@ export type Database = {
           scheduled_at: string | null
           scheduled_delivery_date: string | null
           scheduled_pickup_date: string | null
+          scotland_direction: string | null
+          scotland_override: boolean | null
           sender: Json
           sender_alt_location: Json | null
           sender_confirmed_at: string | null
@@ -2527,6 +2531,7 @@ export type Database = {
           collection_driver_name?: string | null
           created_at?: string
           created_via_api?: boolean
+          current_site_id?: string | null
           customer_order_number?: string | null
           delivery_confirmation_sent_at?: string | null
           delivery_date?: Json | null
@@ -2564,6 +2569,7 @@ export type Database = {
           is_box_my_bike?: boolean
           is_ebay_order?: boolean | null
           is_northern_ireland?: boolean
+          is_scotland?: boolean
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
           needs_inspection?: boolean | null
@@ -2583,6 +2589,8 @@ export type Database = {
           scheduled_at?: string | null
           scheduled_delivery_date?: string | null
           scheduled_pickup_date?: string | null
+          scotland_direction?: string | null
+          scotland_override?: boolean | null
           sender: Json
           sender_alt_location?: Json | null
           sender_confirmed_at?: string | null
@@ -2627,6 +2635,7 @@ export type Database = {
           collection_driver_name?: string | null
           created_at?: string
           created_via_api?: boolean
+          current_site_id?: string | null
           customer_order_number?: string | null
           delivery_confirmation_sent_at?: string | null
           delivery_date?: Json | null
@@ -2664,6 +2673,7 @@ export type Database = {
           is_box_my_bike?: boolean
           is_ebay_order?: boolean | null
           is_northern_ireland?: boolean
+          is_scotland?: boolean
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
           needs_inspection?: boolean | null
@@ -2683,6 +2693,8 @@ export type Database = {
           scheduled_at?: string | null
           scheduled_delivery_date?: string | null
           scheduled_pickup_date?: string | null
+          scotland_direction?: string | null
+          scotland_override?: boolean | null
           sender?: Json
           sender_alt_location?: Json | null
           sender_confirmed_at?: string | null
@@ -2699,6 +2711,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_current_site_id_fkey"
+            columns: ["current_site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_receiver_contact_id_fkey"
             columns: ["receiver_contact_id"]
@@ -3406,6 +3425,51 @@ export type Database = {
         }
         Relationships: []
       }
+      sites: {
+        Row: {
+          address: string | null
+          code: string
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          is_default: boolean
+          lat: number | null
+          lon: number | null
+          name: string
+          postcode: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          code: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          lat?: number | null
+          lon?: number | null
+          name: string
+          postcode?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          code?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          lat?: number | null
+          lon?: number | null
+          name?: string
+          postcode?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       storage_bays: {
         Row: {
           created_at: string
@@ -3414,6 +3478,7 @@ export type Database = {
           is_active: boolean
           label: string
           position_count: number
+          site_id: string | null
           updated_at: string
         }
         Insert: {
@@ -3423,6 +3488,7 @@ export type Database = {
           is_active?: boolean
           label: string
           position_count: number
+          site_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -3432,9 +3498,18 @@ export type Database = {
           is_active?: boolean
           label?: string
           position_count?: number
+          site_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "storage_bays_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       task_comments: {
         Row: {
@@ -3719,6 +3794,148 @@ export type Database = {
           order_id?: string
         }
         Relationships: []
+      }
+      trunk_run_items: {
+        Row: {
+          created_at: string
+          destination_bay: string | null
+          destination_position: number | null
+          id: string
+          notes: string | null
+          order_id: string | null
+          origin_bay: string | null
+          origin_position: number | null
+          run_id: string
+          spaces: number
+          status: string
+          stock_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          destination_bay?: string | null
+          destination_position?: number | null
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          origin_bay?: string | null
+          origin_position?: number | null
+          run_id: string
+          spaces?: number
+          status?: string
+          stock_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          destination_bay?: string | null
+          destination_position?: number | null
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          origin_bay?: string | null
+          origin_position?: number | null
+          run_id?: string
+          spaces?: number
+          status?: string
+          stock_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trunk_run_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trunk_run_items_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "trunk_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trunk_run_items_stock_id_fkey"
+            columns: ["stock_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_stock"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trunk_runs: {
+        Row: {
+          arrived_at: string | null
+          capacity_spaces: number
+          created_at: string
+          created_by: string | null
+          departed_at: string | null
+          destination_site_id: string | null
+          direction: string
+          driver_id: string | null
+          driver_mode: string
+          id: string
+          notes: string | null
+          origin_site_id: string | null
+          run_date: string
+          status: string
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          arrived_at?: string | null
+          capacity_spaces?: number
+          created_at?: string
+          created_by?: string | null
+          departed_at?: string | null
+          destination_site_id?: string | null
+          direction?: string
+          driver_id?: string | null
+          driver_mode?: string
+          id?: string
+          notes?: string | null
+          origin_site_id?: string | null
+          run_date: string
+          status?: string
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          arrived_at?: string | null
+          capacity_spaces?: number
+          created_at?: string
+          created_by?: string | null
+          departed_at?: string | null
+          destination_site_id?: string | null
+          direction?: string
+          driver_id?: string | null
+          driver_mode?: string
+          id?: string
+          notes?: string | null
+          origin_site_id?: string | null
+          run_date?: string
+          status?: string
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trunk_runs_destination_site_id_fkey"
+            columns: ["destination_site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trunk_runs_origin_site_id_fkey"
+            columns: ["origin_site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -4050,6 +4267,7 @@ export type Database = {
           item_notes: string | null
           linked_order_id: string | null
           position: number
+          site_id: string | null
           sku: string | null
           status: Database["public"]["Enums"]["warehouse_stock_status"]
           updated_at: string
@@ -4069,6 +4287,7 @@ export type Database = {
           item_notes?: string | null
           linked_order_id?: string | null
           position: number
+          site_id?: string | null
           sku?: string | null
           status?: Database["public"]["Enums"]["warehouse_stock_status"]
           updated_at?: string
@@ -4088,12 +4307,21 @@ export type Database = {
           item_notes?: string | null
           linked_order_id?: string | null
           position?: number
+          site_id?: string | null
           sku?: string | null
           status?: Database["public"]["Enums"]["warehouse_stock_status"]
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "warehouse_stock_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       webhook_configurations: {
         Row: {
@@ -4653,6 +4881,11 @@ export type Database = {
         | "collected_by_3p"
         | "delivered_by_3p"
         | "delivered_to_ferry"
+        | "awaiting_trunk_to_scotland"
+        | "in_transit_to_scotland"
+        | "at_scotland_depot"
+        | "awaiting_trunk_to_depot"
+        | "in_transit_to_depot"
       task_priority: "low" | "normal" | "high" | "urgent"
       task_status: "open" | "in_progress" | "blocked" | "done" | "cancelled"
       user_role:
@@ -4869,6 +5102,11 @@ export const Constants = {
         "collected_by_3p",
         "delivered_by_3p",
         "delivered_to_ferry",
+        "awaiting_trunk_to_scotland",
+        "in_transit_to_scotland",
+        "at_scotland_depot",
+        "awaiting_trunk_to_depot",
+        "in_transit_to_depot",
       ],
       task_priority: ["low", "normal", "high", "urgent"],
       task_status: ["open", "in_progress", "blocked", "done", "cancelled"],
