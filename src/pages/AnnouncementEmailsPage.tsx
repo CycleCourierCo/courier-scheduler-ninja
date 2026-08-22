@@ -85,6 +85,8 @@ const ROLE_LABELS: Record<RecipientRole, string> = {
   sales: "Sales",
   timeslip_admin: "Timeslip Admin",
   cs_agent: "Customer Service",
+  fleet_manager: "Fleet Manager",
+  tech: "Tech",
 };
 
 
