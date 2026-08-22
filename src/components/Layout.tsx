@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling, Megaphone, Sparkles, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare, BookOpen, Store, Route as RouteIcon, ClipboardList } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling, Megaphone, Sparkles, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare, BookOpen, Store, Route as RouteIcon, ClipboardList, Lock } from "lucide-react";
 import NoticeBanner from "./NoticeBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -10,7 +10,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import ThemeToggle from "./ThemeToggle";
 import TaskNotificationBell from "./tasks/TaskNotificationBell";
-import { hasRole } from "@/lib/roles";
+import { hasRole, getRoles } from "@/lib/roles";
+import { useRoutePermissions } from "@/hooks/useRoutePermissions";
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -94,6 +95,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
       { to: "/api-keys", label: "API Keys", icon: Key },
       { to: "/webhooks", label: "Webhooks", icon: Webhook },
       { to: "/shopify-integration", label: "Shopify Integration", icon: Store },
+      { to: "/admin/route-permissions", label: "Route Permissions", icon: Lock },
       { to: "/api-docs", label: "API Documentation", icon: FileText },
     ],
   },
@@ -118,6 +120,7 @@ const Layout: React.FC<LayoutProps> = ({
   const isB2C = hasRole(userProfile, 'b2c_customer');
   const isTimeslipAdmin = hasRole(userProfile, 'timeslip_admin');
   const isCsAgent = hasRole(userProfile, 'cs_agent');
+  const { isAllowedKey, allowedPages } = useRoutePermissions(getRoles(userProfile));
   const isInternalStaff = isAdmin || isLoader || isRoutePlanner || isSales || isDriver || isMechanic || isTimeslipAdmin || isCsAgent;
 
 
@@ -134,53 +137,39 @@ const Layout: React.FC<LayoutProps> = ({
         Track Order
       </Link>
       {user ? <>
-          <Link to="/create-order" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+          {(isAdmin || isAllowedKey('create-order')) && <Link to="/create-order" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
             Create Order
-          </Link>
-          <Link to="/bulk-upload" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+          </Link>}
+          {(isAdmin || isAllowedKey('bulk-upload')) && <Link to="/bulk-upload" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
             Bulk Upload
-          </Link>
+          </Link>}
         </> : <Link to="/auth/login" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
           Sign In
         </Link>}
     </> : null;
 
-  const driverNavLinks = isDriver ? <>
-      <Link to="/driver-timeslips" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-        My Timeslips
-      </Link>
+  // Pages this (non-admin) user is permitted to see, from the role/route matrix
+  const permittedPages = allowedPages.filter(
+    p => !['profile', 'create-order', 'bulk-upload'].includes(p.key)
+  );
+
+  const staffNavLinks = user && !isAdmin ? <>
+      {permittedPages.slice(0, 6).map(page => (
+        <Link key={page.key} to={page.path} onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+          {page.label}
+        </Link>
+      ))}
     </> : null;
 
-  const mechanicNavLinks = isMechanic ? <>
-      <Link to="/bicycle-inspections" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-        Bicycle Inspections
-      </Link>
-      <Link to="/mechanic-clock" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-        Clock In/Out
-      </Link>
-      <Link to="/admin/labour-times" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-        Labour Times
-      </Link>
+  const staffMenuLinks = user && !isAdmin ? <>
+      {permittedPages.map(page => (
+        <Link key={page.key} to={page.path} onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+          <page.icon className="mr-2 h-4 w-4" />
+          {page.label}
+        </Link>
+      ))}
     </> : null;
 
-  const loaderNavLinks = isLoader ? <>
-      <Link to="/loading" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-        Loading &amp; Storage
-      </Link>
-    </> : null;
-
-  const myTasksNavLink = (isLoader || isMechanic) ? (
-    <Link to="/tasks" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-      My Tasks
-    </Link>
-  ) : null;
-
-
-  const timeslipAdminNavLinks = isTimeslipAdmin && !isAdmin ? <>
-      <Link to="/driver-timeslips" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-        Driver Timeslips
-      </Link>
-    </> : null;
 
   return <div className="min-h-screen flex flex-col">
       <NoticeBanner />
@@ -192,11 +181,7 @@ const Layout: React.FC<LayoutProps> = ({
           
           <nav className="hidden md:flex space-x-6">
             {navLinks}
-            {driverNavLinks}
-            {mechanicNavLinks}
-            {loaderNavLinks}
-            {myTasksNavLink}
-            {timeslipAdminNavLinks}
+            {staffNavLinks}
 
           </nav>
           
@@ -215,55 +200,16 @@ const Layout: React.FC<LayoutProps> = ({
               <SheetContent side="right" className="w-[250px] overflow-hidden">
                 <div className="flex flex-col space-y-4 py-4 h-full overflow-y-auto">
                   {navLinks}
-                  {driverNavLinks}
-                  {mechanicNavLinks}
-                  {loaderNavLinks}
-                  {myTasksNavLink}
-                  {timeslipAdminNavLinks}
-
+                  {staffMenuLinks}
+                              
                   
                   {user && <>
                       <DropdownMenuSeparator className="my-2" />
-                      {!isDriver && !isAdmin && <>
-                        {isInternalStaff && (
-                          <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Fuel className="mr-2 h-4 w-4" />
-                            Fuel Finder
-                          </Link>
-                        )}
-                        <Link to="/dashboard" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                          <Home className="mr-2 h-4 w-4" />
-                          Dashboard
-                        </Link>
-                      </>}
                       {!isAdmin && <Link to="/profile" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                         <User className="mr-2 h-4 w-4" />
                         Your Profile
                       </Link>}
-                      {isInternalStaff && !isAdmin && (
-                        <Link to="/tasks" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                          <CheckSquare className="mr-2 h-4 w-4" />
-                          Tasks
-                        </Link>
-                      )}
-                      {isInternalStaff && !isAdmin && (
-                        <Link to="/knowledge" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                          <BookOpen className="mr-2 h-4 w-4" />
-                          Knowledge Base
-                        </Link>
-                      )}
-                      {(isMechanic || isB2B || isB2C) && !isAdmin && (
-                        <Link to="/box-my-bike" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                          <Package2 className="mr-2 h-4 w-4" />
-                          Box My Bike
-                        </Link>
-                      )}
-                      {isSales && !isAdmin && (
-                          <Link to="/users" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Users className="mr-2 h-4 w-4" />
-                            User Management
-                          </Link>
-                        )}
+
                       {isAdmin && <>
                           {ADMIN_MENU_SECTIONS.map(section => <div key={section.label} className="space-y-2">
                             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">
@@ -388,20 +334,6 @@ const Layout: React.FC<LayoutProps> = ({
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   
-                  {!isDriver && !isAdmin && <DropdownMenuItem asChild>
-                    <Link to="/dashboard" className="cursor-pointer flex w-full items-center">
-                      <Home className="mr-2 h-4 w-4" />
-                      <span>Dashboard</span>
-                    </Link>
-                  </DropdownMenuItem>}
-                  
-                  {!isDriver && isInternalStaff && !isAdmin && <DropdownMenuItem asChild>
-                    <Link to="/fuel-finder" className="cursor-pointer flex w-full items-center">
-                      <Fuel className="mr-2 h-4 w-4" />
-                      <span>Fuel Finder</span>
-                    </Link>
-                  </DropdownMenuItem>}
-                  
                   {!isAdmin && <DropdownMenuItem asChild>
                     <Link to="/profile" className="cursor-pointer flex w-full items-center">
                       <User className="mr-2 h-4 w-4" />
@@ -409,53 +341,15 @@ const Layout: React.FC<LayoutProps> = ({
                     </Link>
                   </DropdownMenuItem>}
 
-                  {isCsAgent && !isAdmin && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/inbox" className="cursor-pointer flex w-full items-center">
-                        <Inbox className="mr-2 h-4 w-4" />
-                        <span>Customer Service Inbox</span>
+                  {!isAdmin && permittedPages.map(page => (
+                    <DropdownMenuItem key={page.key} asChild>
+                      <Link to={page.path} className="cursor-pointer flex w-full items-center">
+                        <page.icon className="mr-2 h-4 w-4" />
+                        <span>{page.label}</span>
                       </Link>
                     </DropdownMenuItem>
-                  )}
+                  ))}
 
-                  {isInternalStaff && !isAdmin && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/tasks" className="cursor-pointer flex w-full items-center">
-                        <CheckSquare className="mr-2 h-4 w-4" />
-                        <span>Tasks</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-
-                  {isInternalStaff && !isAdmin && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/knowledge" className="cursor-pointer flex w-full items-center">
-                        <BookOpen className="mr-2 h-4 w-4" />
-                        <span>Knowledge Base</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-
-                  {(isMechanic || isB2B || isB2C) && !isAdmin && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/box-my-bike" className="cursor-pointer flex w-full items-center">
-                        <Package2 className="mr-2 h-4 w-4" />
-                        <span>Box My Bike</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  
-                  {isSales && !isAdmin && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link to="/users" className="cursor-pointer flex w-full items-center">
-                          <Users className="mr-2 h-4 w-4" />
-                          <span>User Management</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
                   {isAdmin && <>
                       {ADMIN_MENU_SECTIONS.map(section => <React.Fragment key={section.label}>
                         <DropdownMenuSeparator />

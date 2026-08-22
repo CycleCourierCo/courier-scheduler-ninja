@@ -1,8 +1,11 @@
-
 import React, { useState, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasRole, getRoles } from "@/lib/roles";
+import { useRoutePermissions } from "@/hooks/useRoutePermissions";
+
+import { Button } from "@/components/ui/button";
+import { Lock } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,39 +13,53 @@ interface ProtectedRouteProps {
   noB2CAccess?: boolean;
 }
 
+const NoAccessScreen: React.FC = () => {
+  const { signOut } = useAuth();
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
+      <div className="rounded-full bg-muted p-4">
+        <Lock className="h-8 w-8 text-muted-foreground" />
+      </div>
+      <h1 className="text-2xl font-semibold">Access unavailable</h1>
+      <p className="max-w-md text-muted-foreground">
+        Your account doesn't have access to this portal. If you need help with an order,
+        please contact us at info@cyclecourierco.com or +44 121 798 0767.
+      </p>
+      <Button variant="outline" onClick={() => signOut()}>Sign out</Button>
+    </div>
+  );
+};
+
 /**
- * ProtectedRoute handles all route authorization logic
- * It implements strict rules to prevent unauthorized access
+ * ProtectedRoute handles all route authorization.
+ * Admins always have full access. Every other role's access is driven by the
+ * role/route permission matrix (admin-editable at /admin/route-permissions).
  */
-const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
-  children, 
+const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
+  children,
   adminOnly = false,
-  noB2CAccess = false
 }) => {
   const { user, isLoading, userProfile } = useAuth();
   const location = useLocation();
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
-  
-  // Check if the current path is a public page that skips authentication
+
+  const roles = getRoles(userProfile);
+  const { isLoading: permsLoading, canAccess, allowedPages } = useRoutePermissions(roles);
+
+  // Public pages that skip authentication entirely
   const isSenderAvailabilityPage = location.pathname.includes('/sender-availability/');
   const isReceiverAvailabilityPage = location.pathname.includes('/receiver-availability/');
-  const isLoadingPage = location.pathname === '/loading';
-  
 
-  // Set initialLoadComplete after the first profile load
   useEffect(() => {
     if (userProfile !== null || !isLoading) {
       setInitialLoadComplete(true);
     }
   }, [userProfile, isLoading]);
 
-  // 0. Public routes skip all authorization
   if (isSenderAvailabilityPage || isReceiverAvailabilityPage) {
     return <>{children}</>;
   }
 
-  // 1. Show loading state while initial auth check is in progress
-  // This prevents any redirects during the initial loading
   if (isLoading || !initialLoadComplete) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -51,138 +68,44 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
-  // 2. No authenticated user - must redirect to login
   if (!user) {
-    return <Navigate to="/auth" replace />;
-  }
-
-  // 3. Business account status check - if not approved, redirect to dashboard
-  if (userProfile?.is_business && userProfile?.account_status !== 'approved' && !hasRole(userProfile, 'admin')) {
     return <Navigate to="/auth" replace />;
   }
 
   // Admin short-circuit — full access
   if (hasRole(userProfile, 'admin')) {
-    if (noB2CAccess && getRoles(userProfile).every(r => r === 'b2c_customer')) {
-      return <Navigate to="/dashboard" replace />;
-    }
     return <>{children}</>;
   }
 
-  // User Management is limited to admin and sales users.
-  if (location.pathname === '/users' && !hasRole(userProfile, 'sales')) {
-    return <Navigate to="/dashboard" replace />;
+  // B2C-only accounts have no portal access at all
+  if (roles.length === 0 || roles.every(r => r === 'b2c_customer')) {
+    return <NoAccessScreen />;
   }
 
-  // B2B-only users: block operational/admin pages even if reached via direct URL
-  {
-    const operationalRoles = ['admin','route_planner','sales','driver','loader','mechanic'] as const;
-    const isPureB2B = hasRole(userProfile, 'b2b_customer')
-      && !operationalRoles.some(r => hasRole(userProfile, r));
-    if (isPureB2B) {
-      const path = location.pathname;
-      const b2bBlocked =
-        path === '/scheduling' ||
-        path === '/account-approvals' ||
-        path === '/invoices' ||
-        path === '/loading' ||
-        path === '/driver-timeslips' ||
-        path === '/ai-routing' ||
-        path === '/fuel-finder' ||
-        path === '/tasks' ||
-        path.startsWith('/tasks/') ||
-        path.startsWith('/dispatch') ||
-        path.startsWith('/knowledge');
-      if (b2bBlocked) {
-        return <Navigate to="/dashboard" replace />;
-      }
-    }
+  // Business accounts must be approved
+  if (userProfile?.is_business && userProfile?.account_status !== 'approved') {
+    return <Navigate to="/auth" replace />;
   }
 
-  // Compute which restricted-role pages are allowed for this user (union)
-  const isLoadingPg = location.pathname === '/loading';
-  const isBicycleInspectionsPage = location.pathname === '/bicycle-inspections';
-  const isSchedulingPage = location.pathname === '/scheduling';
-  const isDashboardPage = location.pathname === '/dashboard';
-  const isCreateOrderPage = location.pathname === '/create-order';
-  const isOrderDetailPage = location.pathname.startsWith('/orders/');
-  const isCustomerOrderDetailPage = location.pathname.startsWith('/customer-orders/');
-  const isAIRoutingPage = location.pathname === '/ai-routing';
-  const isApprovalsPage = location.pathname === '/account-approvals';
-  const isInvoicesPage = location.pathname === '/invoices';
-  const isTimeslipsPage = location.pathname === '/driver-timeslips';
-  const isProfilePage = location.pathname === '/profile';
-  const isFuelFinderPage = location.pathname === '/fuel-finder';
-  const isUsersPage = location.pathname === '/users';
-  const isEmailsPage = location.pathname === '/emails';
-  const isBoxMyBikePage = location.pathname === '/box-my-bike';
-  const isMyStockPage = location.pathname === '/my-stock';
-  const isPricingPage = location.pathname === '/pricing';
-  const isBulkAvailabilityPage = location.pathname === '/bulk-availability';
-  const isBulkUploadPage = location.pathname === '/bulk-upload';
-  const isMechanicClockPage = location.pathname === '/mechanic-clock';
-  const isLabourTimesPage = location.pathname === '/admin/labour-times';
-  const isInboxPage = location.pathname === '/inbox' || location.pathname.startsWith('/inbox/');
-  const isTasksPage = location.pathname === '/tasks' || location.pathname.startsWith('/tasks/');
-  const isKnowledgePage = location.pathname === '/knowledge' || location.pathname.startsWith('/knowledge/');
-  const hasCustomerRole = hasRole(userProfile, 'b2b_customer') || hasRole(userProfile, 'b2c_customer');
-  const isCustomerPage =
-    isDashboardPage ||
-    isCreateOrderPage ||
-    isCustomerOrderDetailPage ||
-    isProfilePage ||
-    isBoxMyBikePage ||
-    isBulkUploadPage ||
-    (hasRole(userProfile, 'b2b_customer') && (isMyStockPage || isPricingPage || isBulkAvailabilityPage));
+  if (permsLoading) {
 
-  const restrictedRoles = ['loader','mechanic','route_planner','sales','driver','timeslip_admin','cs_agent'] as const;
-  const userRestricted = restrictedRoles.filter(r => hasRole(userProfile, r));
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600"></div>
+      </div>
+    );
+  }
 
-  if (userRestricted.length > 0) {
-    let anyAllowed = false;
-
-    // Knowledge base / SOPs are open to all internal staff roles
-    if (isKnowledgePage) anyAllowed = true;
-
-
-    if (hasCustomerRole && isCustomerPage) anyAllowed = true;
-
-    for (const r of userRestricted) {
-      if (r === 'loader' && (isLoadingPg || isTasksPage || isBoxMyBikePage)) anyAllowed = true;
-      if (r === 'mechanic' && (isBicycleInspectionsPage || isBoxMyBikePage || isTasksPage || isMechanicClockPage || isLabourTimesPage || isProfilePage)) anyAllowed = true;
-      if (r === 'route_planner' && (isSchedulingPage || isDashboardPage || isOrderDetailPage || isCustomerOrderDetailPage || isAIRoutingPage || isTasksPage)) anyAllowed = true;
-      if (r === 'sales' && (isApprovalsPage || isInvoicesPage || isDashboardPage || isUsersPage || isProfilePage || isEmailsPage || isTasksPage)) anyAllowed = true;
-      if (r === 'driver' && (isTimeslipsPage || isProfilePage || isFuelFinderPage || isTasksPage)) anyAllowed = true;
-      if (r === 'timeslip_admin' && (isTimeslipsPage || isProfilePage || isTasksPage)) anyAllowed = true;
-      if (r === 'cs_agent' && (isInboxPage || isProfilePage || isOrderDetailPage || isCustomerOrderDetailPage || isDashboardPage || isTasksPage)) anyAllowed = true;
-    }
-
-    if (!anyAllowed) {
-      // Pick a sensible default landing page based on first restricted role
-      const fallback =
-        userRestricted.includes('loader' as any) ? '/loading' :
-        userRestricted.includes('mechanic' as any) ? '/bicycle-inspections' :
-        userRestricted.includes('driver' as any) ? '/driver-timeslips' :
-        userRestricted.includes('timeslip_admin' as any) ? '/driver-timeslips' :
-        userRestricted.includes('cs_agent' as any) ? '/inbox' :
-        '/dashboard';
-      return <Navigate to={fallback} replace />;
-    }
+  if (canAccess(location.pathname)) {
     return <>{children}</>;
   }
 
-  // 9. Block B2C users from admin-only pages
-  if (noB2CAccess && hasRole(userProfile, 'b2c_customer')) {
-    return <Navigate to="/dashboard" replace />;
+  // Not allowed — send them to their first permitted page, else show no-access
+  const fallback = allowedPages[0]?.path;
+  if (fallback && fallback !== location.pathname) {
+    return <Navigate to={fallback} replace />;
   }
-
-  // 10. Admin-only route protection
-  if (adminOnly && !hasRole(userProfile, 'admin')) {
-    return <Navigate to="/dashboard" replace />;
-  }
-
-  // All checks passed, render the protected content
-  return <>{children}</>;
+  return <NoAccessScreen />;
 };
 
 export default ProtectedRoute;

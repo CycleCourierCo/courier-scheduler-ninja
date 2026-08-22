@@ -59,6 +59,7 @@ import DispatchRoutesPage from "./pages/DispatchRoutesPage";
 import BoxMyBikePage from "./pages/BoxMyBikePage";
 import CustomerServiceInbox from "./pages/CustomerServiceInbox";
 import Tasks from "./pages/Tasks";
+import RoutePermissionsPage from "./pages/RoutePermissionsPage";
 import LabourTimesAdmin from "./pages/LabourTimesAdmin";
 import KnowledgeBase from "./pages/KnowledgeBase";
 
@@ -297,6 +298,11 @@ function App() {
               <Route path="/admin/labour-times" element={
                 <ProtectedRoute>
                   <LabourTimesAdmin />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/route-permissions" element={
+                <ProtectedRoute adminOnly>
+                  <RoutePermissionsPage />
                 </ProtectedRoute>
               } />
               <Route path="/tracking" element={<TrackingPage />} />

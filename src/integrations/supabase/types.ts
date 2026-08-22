@@ -3043,6 +3043,33 @@ export type Database = {
         }
         Relationships: []
       }
+      role_route_permissions: {
+        Row: {
+          allowed: boolean
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+          route_key: string
+          updated_at: string
+        }
+        Insert: {
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["user_role"]
+          route_key: string
+          updated_at?: string
+        }
+        Update: {
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          route_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       route_archetype_members: {
         Row: {
           archetype_id: string
