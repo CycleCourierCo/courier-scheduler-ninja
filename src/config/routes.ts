@@ -94,6 +94,8 @@ export const APP_ROUTES: AppRoute[] = [
     defaultRoles: [] },
   { key: "route-profitability", path: "/route-profitability", label: "Route Profitability", section: "Insight", icon: TrendingUp,
     defaultRoles: [] },
+  { key: "mechanic-profitability", path: "/mechanic-profitability", label: "Mechanic Profitability", section: "Insight", icon: Wrench,
+    defaultRoles: [] },
 
   // Comms
   { key: "inbox", path: "/inbox", label: "Customer Service Inbox", section: "Comms", icon: Inbox,

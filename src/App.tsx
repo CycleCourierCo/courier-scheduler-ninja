@@ -37,6 +37,7 @@ import BulkAvailabilityPage from "./pages/BulkAvailabilityPage";
 import DriverTimeslips from "./pages/DriverTimeslips";
 import MechanicClock from "./pages/MechanicClock";
 import RouteProfitabilityPage from "./pages/RouteProfitabilityPage";
+import MechanicProfitabilityPage from "./pages/MechanicProfitabilityPage";
 import BicycleInspections from "./pages/BicycleInspections";
 import HolidaysPage from "./pages/HolidaysPage";
 import PricingPage from "./pages/PricingPage";
@@ -169,6 +170,12 @@ function App() {
                   <RouteProfitabilityPage />
                 </ProtectedRoute>
               } />
+              <Route path="/mechanic-profitability" element={
+                <ProtectedRoute adminOnly={true}>
+                  <MechanicProfitabilityPage />
+                </ProtectedRoute>
+              } />
+
               <Route path="/bicycle-inspections" element={
                 <ProtectedRoute>
                   <BicycleInspections />
