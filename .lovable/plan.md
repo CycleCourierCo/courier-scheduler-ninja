@@ -11,7 +11,7 @@ Birmingham stays the primary depot. Scotland becomes a second site with its own 
 - Loading page and Warehouse Stock page get a site switcher; Birmingham is the default so nothing changes for existing users until they switch.
 
 ### 2. Scotland order classification (mirrors the Northern Ireland flow)
-- Scottish postcode detection at booking (AB, DD, DG, EH, FK, G, HS, IV, KA, KW, KY, ML, PA, PH, TD, ZE), plus a manual override on the order.
+- Detection uses the geocoded region already captured on the address (Geoapify `properties.state`, normalised to England / Scotland / Wales / Northern Ireland by the existing `resolveRegion` helper) — the same mechanism NI uses, so no postcode list to maintain. Manual override on the order stays available for odd cases, and addresses with no geocode result simply fall through to the override.
 - Optional Scotland surcharge, configurable like the NI ferry surcharge.
 - New milestone statuses so tracking tells the truth: `awaiting_trunk_to_scotland`, `in_transit_to_scotland`, `at_scotland_depot`, and the reverse for southbound bikes.
 - Scottish orders show a "Scotland" badge on order lists, labels, and scheduling cards.
