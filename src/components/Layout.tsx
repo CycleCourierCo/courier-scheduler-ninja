@@ -90,6 +90,8 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
     label: "Admin",
     items: [
       { to: "/profile", label: "Your Profile", icon: User },
+      { to: "/reviews", label: "Employee Reviews", icon: ClipboardCheck },
+      { to: "/my-reviews", label: "My Reviews", icon: ClipboardCheck },
       { to: "/users", label: "User Management", icon: Users },
       { to: "/account-approvals", label: "Account Approvals", icon: Shield },
       { to: "/holidays", label: "Holidays", icon: CalendarOff },
