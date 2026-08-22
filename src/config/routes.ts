@@ -17,7 +17,7 @@ export interface AppRoute {
   path: string;
   label: string;
   section: AppRouteSection;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: ComponentType<{ className?: string }>;
   /** Extra path prefixes covered by this key (detail pages, sub-routes) */
   prefixes?: string[];
   /** Default roles allowed (admin always allowed, never listed) */
