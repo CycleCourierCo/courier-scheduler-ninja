@@ -2,6 +2,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Order } from "@/types/order";
 import { mapDbOrderToOrderType } from "./orderServiceUtils";
+import { canonicalBrand } from "@/lib/brandNormalise";
+
 
 // Fetch all orders for analytics with pagination to avoid 1000 record limit
 export const fetchOrdersForAnalytics = async (): Promise<Order[]> => {
