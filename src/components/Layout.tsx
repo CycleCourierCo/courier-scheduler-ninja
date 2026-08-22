@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/react";
 import React, { useState } from "react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling, Megaphone, Sparkles, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare, BookOpen } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, AlertTriangle, PoundSterling, Megaphone, Sparkles, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare, BookOpen, Store, Route as RouteIcon, ClipboardList } from "lucide-react";
 import NoticeBanner from "./NoticeBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,90 @@ import { hasRole } from "@/lib/roles";
 interface LayoutProps {
   children: React.ReactNode;
 }
+
+type AdminMenuItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }> };
+type AdminMenuSection = { label: string; items: AdminMenuItem[] };
+
+/**
+ * Single source of truth for the admin menu, rendered in both the desktop
+ * dropdown and the mobile sheet so the two can't drift apart.
+ */
+const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
+  {
+    label: "Orders",
+    items: [
+      { to: "/dashboard", label: "Dashboard", icon: Home },
+      { to: "/create-order", label: "Create Order", icon: Package },
+      { to: "/bulk-upload", label: "Bulk Upload", icon: Upload },
+      { to: "/tracking", label: "Track Order", icon: Truck },
+      { to: "/invoices", label: "Invoices", icon: FileText },
+      { to: "/pricing", label: "Pricing", icon: PoundSterling },
+    ],
+  },
+  {
+    label: "Operations",
+    items: [
+      { to: "/scheduling", label: "Job Scheduling", icon: Calendar },
+      { to: "/ai-routing", label: "AI Routing", icon: Sparkles },
+      { to: "/dispatch/orders", label: "Dispatch Orders", icon: ClipboardList },
+      { to: "/dispatch/routes", label: "Dispatch Routes", icon: RouteIcon },
+      { to: "/loading", label: "Loading & Storage", icon: Package },
+      { to: "/warehouse-stock", label: "Warehouse Stock", icon: Warehouse },
+      { to: "/storage-bays", label: "Storage Bays", icon: Warehouse },
+      { to: "/trunk-runs", label: "Trunk Runs", icon: Truck },
+      { to: "/bulk-availability", label: "Bulk Availability", icon: Clock },
+      { to: "/my-stock", label: "My Stock", icon: Warehouse },
+    ],
+  },
+  {
+    label: "Workshop",
+    items: [
+      { to: "/bicycle-inspections", label: "Bicycle Inspections", icon: Wrench },
+      { to: "/admin/labour-times", label: "Labour Times", icon: Wrench },
+      { to: "/mechanic-clock", label: "Mechanic Clock", icon: Clock },
+      { to: "/box-my-bike", label: "Box My Bike", icon: Package2 },
+    ],
+  },
+  {
+    label: "Fleet",
+    items: [
+      { to: "/vehicles", label: "Vehicles", icon: Car },
+      { to: "/driver-timeslips", label: "Driver Timeslips", icon: Clock },
+      { to: "/fuel-finder", label: "Fuel Finder", icon: Fuel },
+      { to: "/claims", label: "Damage Claims", icon: ShieldAlert },
+    ],
+  },
+  {
+    label: "Insight",
+    items: [
+      { to: "/analytics", label: "Analytics", icon: BarChart3 },
+      { to: "/route-profitability", label: "Route Profitability", icon: TrendingUp },
+    ],
+  },
+  {
+    label: "Comms",
+    items: [
+      { to: "/inbox", label: "Customer Service Inbox", icon: Inbox },
+      { to: "/tasks", label: "Tasks", icon: CheckSquare },
+      { to: "/notices", label: "Notice Bars", icon: Megaphone },
+      { to: "/emails", label: "Announcement Emails", icon: Mail },
+      { to: "/knowledge", label: "Knowledge Base", icon: BookOpen },
+    ],
+  },
+  {
+    label: "Admin",
+    items: [
+      { to: "/profile", label: "Your Profile", icon: User },
+      { to: "/users", label: "User Management", icon: Users },
+      { to: "/account-approvals", label: "Account Approvals", icon: Shield },
+      { to: "/holidays", label: "Holidays", icon: CalendarOff },
+      { to: "/api-keys", label: "API Keys", icon: Key },
+      { to: "/webhooks", label: "Webhooks", icon: Webhook },
+      { to: "/shopify-integration", label: "Shopify Integration", icon: Store },
+      { to: "/api-docs", label: "API Documentation", icon: FileText },
+    ],
+  },
+];
 const Layout: React.FC<LayoutProps> = ({
   children
 }) => {
