@@ -56,6 +56,16 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
         return { label: "Delivered by 3rd-party courier", className: "bg-green-600" };
       case "delivered_to_ferry":
         return { label: "Delivered to ferry — awaiting transport across the Irish Sea", className: "bg-cyan-600" };
+      case "awaiting_trunk_to_scotland":
+        return { label: "At depot — awaiting transport to Scotland", className: "bg-amber-500" };
+      case "in_transit_to_scotland":
+        return { label: "In transit to our Scotland depot", className: "bg-blue-600" };
+      case "at_scotland_depot":
+        return { label: "At our Scotland depot", className: "bg-indigo-500" };
+      case "awaiting_trunk_to_depot":
+        return { label: "At Scotland depot — awaiting transport south", className: "bg-amber-500" };
+      case "in_transit_to_depot":
+        return { label: "In transit to our main depot", className: "bg-blue-600" };
 
       default:
         return { label: status, className: "bg-gray-500" };
