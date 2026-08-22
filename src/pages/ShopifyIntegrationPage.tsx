@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import CustomerSkuManager from "@/components/shopify/CustomerSkuManager";
+
 import { formatDistanceToNow } from "date-fns";
 
 const WEBHOOK_URL = `https://api.cyclecourierco.com/functions/v1/customer-shopify-webhook`;
