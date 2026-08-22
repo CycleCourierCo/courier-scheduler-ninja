@@ -46,6 +46,7 @@ import AIRouting from "./pages/AIRouting";
 import BulkOrderUpload from "./pages/BulkOrderUpload";
 import WarehouseStockPage from "./pages/WarehouseStockPage";
 import StorageBaysPage from "./pages/StorageBaysPage";
+import TrunkRunsPage from "./pages/TrunkRunsPage";
 import MyStockPage from "./pages/MyStockPage";
 import ShopifyIntegrationPage from "./pages/ShopifyIntegrationPage";
 import FuelFinderPage from "./pages/FuelFinderPage";
