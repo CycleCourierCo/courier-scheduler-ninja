@@ -133,25 +133,21 @@ const Layout: React.FC<LayoutProps> = ({
       <Link to="/" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
         Home
       </Link>
-      <Link to="/tracking" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-        Track Order
-      </Link>
-      {user ? <>
-          {(isAdmin || isAllowedKey('create-order')) && <Link to="/create-order" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-            Create Order
-          </Link>}
-          {(isAdmin || isAllowedKey('bulk-upload')) && <Link to="/bulk-upload" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-            Bulk Upload
-          </Link>}
-        </> : <Link to="/auth/login" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-          Sign In
-        </Link>}
+      {!user && <>
+          <Link to="/tracking" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+            Track Order
+          </Link>
+          <Link to="/auth/login" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+            Sign In
+          </Link>
+        </>}
     </> : null;
 
   // Pages this (non-admin) user is permitted to see, from the role/route matrix
   const permittedPages = allowedPages.filter(
-    p => !['profile', 'create-order', 'bulk-upload'].includes(p.key)
+    p => !['profile'].includes(p.key)
   );
+
 
   const staffNavLinks = user && !isAdmin ? <>
       {permittedPages.slice(0, 6).map(page => (
