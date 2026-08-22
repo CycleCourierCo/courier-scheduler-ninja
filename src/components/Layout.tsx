@@ -6,7 +6,7 @@ import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, Info, FileText, 
 import NoticeBanner from "./NoticeBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import ThemeToggle from "./ThemeToggle";
 import TaskNotificationBell from "./tasks/TaskNotificationBell";
@@ -224,7 +224,7 @@ const Layout: React.FC<LayoutProps> = ({
                   
                   {user && <>
                       <DropdownMenuSeparator className="my-2" />
-                      {!isDriver && <>
+                      {!isDriver && !isAdmin && <>
                         {isInternalStaff && (
                           <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Fuel className="mr-2 h-4 w-4" />
@@ -236,117 +236,47 @@ const Layout: React.FC<LayoutProps> = ({
                           Dashboard
                         </Link>
                       </>}
-                      {isAdmin && <Link to="/analytics" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                          <BarChart3 className="mr-2 h-4 w-4" />
-                          Analytics
-                        </Link>}
-                      <Link to="/profile" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                      {!isAdmin && <Link to="/profile" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                         <User className="mr-2 h-4 w-4" />
                         Your Profile
-                      </Link>
-                      {isInternalStaff && (
+                      </Link>}
+                      {isInternalStaff && !isAdmin && (
                         <Link to="/tasks" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <CheckSquare className="mr-2 h-4 w-4" />
                           Tasks
                         </Link>
                       )}
-                      {isInternalStaff && (
+                      {isInternalStaff && !isAdmin && (
                         <Link to="/knowledge" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <BookOpen className="mr-2 h-4 w-4" />
                           Knowledge Base
                         </Link>
                       )}
-                      {(isAdmin || isMechanic || isB2B || isB2C) && (
+                      {(isMechanic || isB2B || isB2C) && !isAdmin && (
                         <Link to="/box-my-bike" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Package2 className="mr-2 h-4 w-4" />
                           Box My Bike
                         </Link>
                       )}
-                      {(isAdmin || isSales) && (
+                      {isSales && !isAdmin && (
                           <Link to="/users" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Users className="mr-2 h-4 w-4" />
                             User Management
                           </Link>
                         )}
                       {isAdmin && <>
-                          <Link to="/vehicles" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Car className="mr-2 h-4 w-4" />
-                            Vehicles
-                          </Link>
-                          <Link to="/claims" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <ShieldAlert className="mr-2 h-4 w-4" />
-                            Damage Claims
-                          </Link>
-                          <Link to="/loading" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Package className="mr-2 h-4 w-4" />
-                            Loading & Storage
-                          </Link>
-                          <Link to="/warehouse-stock" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Warehouse className="mr-2 h-4 w-4" />
-                            Warehouse Stock
-                          </Link>
-                          <Link to="/storage-bays" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Warehouse className="mr-2 h-4 w-4" />
-                            Storage Bays
-                          </Link>
-                          <Link to="/trunk-runs" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Truck className="mr-2 h-4 w-4" />
-                            Trunk Runs
-                          </Link>
-                          <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Calendar className="mr-2 h-4 w-4" />
-                            Job Scheduling
-                          </Link>
-                          <Link to="/ai-routing" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Sparkles className="mr-2 h-4 w-4" />
-                            AI Routing
-                          </Link>
-                          <Link to="/driver-timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Clock className="mr-2 h-4 w-4" />
-                            Driver Timeslips
-                          </Link>
-                          <Link to="/route-profitability" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <TrendingUp className="mr-2 h-4 w-4" />
-                            Route Profitability
-                          </Link>
-                          <Link to="/account-approvals" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Shield className="mr-2 h-4 w-4" />
-                            Account Approvals
-                          </Link>
-                          <Link to="/api-keys" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Key className="mr-2 h-4 w-4" />
-                            API Keys
-                          </Link>
-                          <Link to="/webhooks" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Webhook className="mr-2 h-4 w-4" />
-                            Webhooks
-                          </Link>
-                          <Link to="/invoices" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <FileText className="mr-2 h-4 w-4" />
-                            Invoices
-                          </Link>
-                          <Link to="/bicycle-inspections" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Wrench className="mr-2 h-4 w-4" />
-                            Bicycle Inspections
-                          </Link>
-                          <Link to="/admin/labour-times" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Wrench className="mr-2 h-4 w-4" />
-                            Labour Times
-                          </Link>
-                          <Link to="/holidays" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <CalendarOff className="mr-2 h-4 w-4" />
-                            Holidays
-                          </Link>
-                          <Link to="/notices" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Megaphone className="mr-2 h-4 w-4" />
-                            Notice Bars
-                          </Link>
-                           {(isAdmin || isSales) && (
-                             <Link to="/emails" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                               <Mail className="mr-2 h-4 w-4" />
-                               Announcement Emails
-                             </Link>
-                           )}
+                          {ADMIN_MENU_SECTIONS.map(section => <div key={section.label} className="space-y-2">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">
+                              {section.label}
+                            </p>
+                            {section.items.map(item => <Link key={item.to} to={item.to} onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                              <item.icon className="mr-2 h-4 w-4" />
+                              {item.label}
+                            </Link>)}
+                          </div>)}
+                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">
+                            Developer
+                          </p>
                           <button 
                             onClick={() => {
                               const error = new Error('Sentry Test Error - Triggered by admin');
@@ -458,35 +388,28 @@ const Layout: React.FC<LayoutProps> = ({
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   
-                  {!isDriver && <DropdownMenuItem asChild>
+                  {!isDriver && !isAdmin && <DropdownMenuItem asChild>
                     <Link to="/dashboard" className="cursor-pointer flex w-full items-center">
                       <Home className="mr-2 h-4 w-4" />
                       <span>Dashboard</span>
                     </Link>
                   </DropdownMenuItem>}
                   
-                  {!isDriver && isInternalStaff && <DropdownMenuItem asChild>
+                  {!isDriver && isInternalStaff && !isAdmin && <DropdownMenuItem asChild>
                     <Link to="/fuel-finder" className="cursor-pointer flex w-full items-center">
                       <Fuel className="mr-2 h-4 w-4" />
                       <span>Fuel Finder</span>
                     </Link>
                   </DropdownMenuItem>}
                   
-                  {isAdmin && <DropdownMenuItem asChild>
-                      <Link to="/analytics" className="cursor-pointer flex w-full items-center">
-                        <BarChart3 className="mr-2 h-4 w-4" />
-                        <span>Analytics</span>
-                      </Link>
-                    </DropdownMenuItem>}
-                  
-                  <DropdownMenuItem asChild>
+                  {!isAdmin && <DropdownMenuItem asChild>
                     <Link to="/profile" className="cursor-pointer flex w-full items-center">
                       <User className="mr-2 h-4 w-4" />
                       <span>Your Profile</span>
                     </Link>
-                  </DropdownMenuItem>
+                  </DropdownMenuItem>}
 
-                  {(isAdmin || isCsAgent) && (
+                  {isCsAgent && !isAdmin && (
                     <DropdownMenuItem asChild>
                       <Link to="/inbox" className="cursor-pointer flex w-full items-center">
                         <Inbox className="mr-2 h-4 w-4" />
@@ -495,7 +418,7 @@ const Layout: React.FC<LayoutProps> = ({
                     </DropdownMenuItem>
                   )}
 
-                  {isInternalStaff && (
+                  {isInternalStaff && !isAdmin && (
                     <DropdownMenuItem asChild>
                       <Link to="/tasks" className="cursor-pointer flex w-full items-center">
                         <CheckSquare className="mr-2 h-4 w-4" />
@@ -504,7 +427,7 @@ const Layout: React.FC<LayoutProps> = ({
                     </DropdownMenuItem>
                   )}
 
-                  {isInternalStaff && (
+                  {isInternalStaff && !isAdmin && (
                     <DropdownMenuItem asChild>
                       <Link to="/knowledge" className="cursor-pointer flex w-full items-center">
                         <BookOpen className="mr-2 h-4 w-4" />
@@ -513,7 +436,7 @@ const Layout: React.FC<LayoutProps> = ({
                     </DropdownMenuItem>
                   )}
 
-                  {(isAdmin || isMechanic || isB2B || isB2C) && (
+                  {(isMechanic || isB2B || isB2C) && !isAdmin && (
                     <DropdownMenuItem asChild>
                       <Link to="/box-my-bike" className="cursor-pointer flex w-full items-center">
                         <Package2 className="mr-2 h-4 w-4" />
@@ -522,7 +445,7 @@ const Layout: React.FC<LayoutProps> = ({
                     </DropdownMenuItem>
                   )}
                   
-                  {(isAdmin || isSales) && (
+                  {isSales && !isAdmin && (
                     <>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem asChild>
@@ -534,122 +457,22 @@ const Layout: React.FC<LayoutProps> = ({
                     </>
                   )}
                   {isAdmin && <>
-                      <DropdownMenuItem asChild>
-                        <Link to="/vehicles" className="cursor-pointer flex w-full items-center">
-                          <Car className="mr-2 h-4 w-4" />
-                          <span>Vehicles</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/claims" className="cursor-pointer flex w-full items-center">
-                          <ShieldAlert className="mr-2 h-4 w-4" />
-                          <span>Damage Claims</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/loading" className="cursor-pointer flex w-full items-center">
-                          <Package className="mr-2 h-4 w-4" />
-                          <span>Loading & Storage</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/warehouse-stock" className="cursor-pointer flex w-full items-center">
-                          <Warehouse className="mr-2 h-4 w-4" />
-                          <span>Warehouse Stock</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/storage-bays" className="cursor-pointer flex w-full items-center">
-                          <Warehouse className="mr-2 h-4 w-4" />
-                          <span>Storage Bays</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/trunk-runs" className="cursor-pointer flex w-full items-center">
-                          <Truck className="mr-2 h-4 w-4" />
-                          <span>Trunk Runs</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/scheduling" className="cursor-pointer flex w-full items-center">
-                          <Calendar className="mr-2 h-4 w-4" />
-                          <span>Job Scheduling</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/ai-routing" className="cursor-pointer flex w-full items-center">
-                          <Sparkles className="mr-2 h-4 w-4" />
-                          <span>AI Routing</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/driver-timeslips" className="cursor-pointer flex w-full items-center">
-                          <Clock className="mr-2 h-4 w-4" />
-                          <span>Driver Timeslips</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/route-profitability" className="cursor-pointer flex w-full items-center">
-                          <TrendingUp className="mr-2 h-4 w-4" />
-                          <span>Route Profitability</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/account-approvals" className="cursor-pointer flex w-full items-center">
-                          <Shield className="mr-2 h-4 w-4" />
-                          <span>Account Approvals</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/api-keys" className="cursor-pointer flex w-full items-center">
-                          <Key className="mr-2 h-4 w-4" />
-                          <span>API Keys</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/webhooks" className="cursor-pointer flex w-full items-center">
-                          <Webhook className="mr-2 h-4 w-4" />
-                          <span>Webhooks</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/invoices" className="cursor-pointer flex w-full items-center">
-                          <FileText className="mr-2 h-4 w-4" />
-                          <span>Invoices</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/bicycle-inspections" className="cursor-pointer flex w-full items-center">
-                          <Wrench className="mr-2 h-4 w-4" />
-                          <span>Bicycle Inspections</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/admin/labour-times" className="cursor-pointer flex w-full items-center">
-                          <Wrench className="mr-2 h-4 w-4" />
-                          <span>Labour Times</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/holidays" className="cursor-pointer flex w-full items-center">
-                          <CalendarOff className="mr-2 h-4 w-4" />
-                          <span>Holidays</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/notices" className="cursor-pointer flex w-full items-center">
-                          <Megaphone className="mr-2 h-4 w-4" />
-                          <span>Notice Bars</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      {(isAdmin || isSales) && (
-                        <DropdownMenuItem asChild>
-                          <Link to="/emails" className="cursor-pointer flex w-full items-center">
-                            <Mail className="mr-2 h-4 w-4" />
-                            <span>Announcement Emails</span>
+                      {ADMIN_MENU_SECTIONS.map(section => <React.Fragment key={section.label}>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuLabel className="text-xs uppercase tracking-wide text-muted-foreground">
+                          {section.label}
+                        </DropdownMenuLabel>
+                        {section.items.map(item => <DropdownMenuItem key={item.to} asChild>
+                          <Link to={item.to} className="cursor-pointer flex w-full items-center">
+                            <item.icon className="mr-2 h-4 w-4" />
+                            <span>{item.label}</span>
                           </Link>
-                        </DropdownMenuItem>
-                      )}
+                        </DropdownMenuItem>)}
+                      </React.Fragment>)}
+                      <DropdownMenuSeparator />
+                      <DropdownMenuLabel className="text-xs uppercase tracking-wide text-muted-foreground">
+                        Developer
+                      </DropdownMenuLabel>
                       <DropdownMenuItem
                         onClick={() => {
                           const error = new Error('Sentry Test Error - Triggered by admin');
