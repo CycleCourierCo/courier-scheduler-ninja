@@ -170,6 +170,12 @@ function App() {
                   <RouteProfitabilityPage />
                 </ProtectedRoute>
               } />
+              <Route path="/mechanic-profitability" element={
+                <ProtectedRoute adminOnly={true}>
+                  <MechanicProfitabilityPage />
+                </ProtectedRoute>
+              } />
+
               <Route path="/bicycle-inspections" element={
                 <ProtectedRoute>
                   <BicycleInspections />
