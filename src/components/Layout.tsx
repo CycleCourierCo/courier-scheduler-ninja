@@ -333,20 +333,6 @@ const Layout: React.FC<LayoutProps> = ({
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   
-                  {!isDriver && !isAdmin && <DropdownMenuItem asChild>
-                    <Link to="/dashboard" className="cursor-pointer flex w-full items-center">
-                      <Home className="mr-2 h-4 w-4" />
-                      <span>Dashboard</span>
-                    </Link>
-                  </DropdownMenuItem>}
-                  
-                  {!isDriver && isInternalStaff && !isAdmin && <DropdownMenuItem asChild>
-                    <Link to="/fuel-finder" className="cursor-pointer flex w-full items-center">
-                      <Fuel className="mr-2 h-4 w-4" />
-                      <span>Fuel Finder</span>
-                    </Link>
-                  </DropdownMenuItem>}
-                  
                   {!isAdmin && <DropdownMenuItem asChild>
                     <Link to="/profile" className="cursor-pointer flex w-full items-center">
                       <User className="mr-2 h-4 w-4" />
@@ -354,53 +340,15 @@ const Layout: React.FC<LayoutProps> = ({
                     </Link>
                   </DropdownMenuItem>}
 
-                  {isCsAgent && !isAdmin && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/inbox" className="cursor-pointer flex w-full items-center">
-                        <Inbox className="mr-2 h-4 w-4" />
-                        <span>Customer Service Inbox</span>
+                  {!isAdmin && permittedPages.map(page => (
+                    <DropdownMenuItem key={page.key} asChild>
+                      <Link to={page.path} className="cursor-pointer flex w-full items-center">
+                        <page.icon className="mr-2 h-4 w-4" />
+                        <span>{page.label}</span>
                       </Link>
                     </DropdownMenuItem>
-                  )}
+                  ))}
 
-                  {isInternalStaff && !isAdmin && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/tasks" className="cursor-pointer flex w-full items-center">
-                        <CheckSquare className="mr-2 h-4 w-4" />
-                        <span>Tasks</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-
-                  {isInternalStaff && !isAdmin && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/knowledge" className="cursor-pointer flex w-full items-center">
-                        <BookOpen className="mr-2 h-4 w-4" />
-                        <span>Knowledge Base</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-
-                  {(isMechanic || isB2B || isB2C) && !isAdmin && (
-                    <DropdownMenuItem asChild>
-                      <Link to="/box-my-bike" className="cursor-pointer flex w-full items-center">
-                        <Package2 className="mr-2 h-4 w-4" />
-                        <span>Box My Bike</span>
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  
-                  {isSales && !isAdmin && (
-                    <>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem asChild>
-                        <Link to="/users" className="cursor-pointer flex w-full items-center">
-                          <Users className="mr-2 h-4 w-4" />
-                          <span>User Management</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
                   {isAdmin && <>
                       {ADMIN_MENU_SECTIONS.map(section => <React.Fragment key={section.label}>
                         <DropdownMenuSeparator />
