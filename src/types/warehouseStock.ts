@@ -12,6 +12,7 @@ export type WarehouseStock = {
   item_notes: string | null;
   bay: string;
   position: number;
+  site_id: string | null;
   status: WarehouseStockStatus;
   linked_order_id: string | null;
   deposited_at: string;
@@ -33,4 +34,5 @@ export type WarehouseStockFormData = {
   item_notes: string;
   bay: string;
   position: number;
+  site_id?: string | null;
 };

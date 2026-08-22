@@ -5,11 +5,12 @@ import { sendOrderCreationConfirmationToUser, sendOrderNotificationToReceiver, s
 import { createShipdayOrder } from "@/services/shipdayService";
 import { isReceiverAvailabilityBlockedByInspection } from "@/services/inspectionService";
 
-export const getWarehouseStock = async (): Promise<WarehouseStock[]> => {
-  const { data, error } = await supabase
-    .from("warehouse_stock" as any)
+export const getWarehouseStock = async (siteId?: string | null): Promise<WarehouseStock[]> => {
+  let stockQuery = (supabase.from("warehouse_stock" as any) as any)
     .select("*")
     .order("created_at", { ascending: false });
+  if (siteId) stockQuery = stockQuery.eq("site_id", siteId);
+  const { data, error } = await stockQuery;
 
   if (error) throw error;
 
@@ -53,6 +54,7 @@ export const addWarehouseStock = async (
       item_notes: data.item_notes || null,
       bay: data.bay,
       position: data.position,
+      site_id: data.site_id || null,
     } as any);
 
 
@@ -87,13 +89,18 @@ export const removeWarehouseStock = async (id: string): Promise<void> => {
 export const checkLocationConflict = async (
   bay: string,
   position: number,
-  excludeId?: string
+  excludeId?: string,
+  siteId?: string | null
 ): Promise<boolean> => {
   let query = (supabase.from("warehouse_stock" as any) as any)
     .select("id")
     .eq("bay", bay)
     .eq("position", position)
     .in("status", ["stored", "reserved"]);
+
+  if (siteId) {
+    query = query.eq("site_id", siteId);
+  }
 
   if (excludeId) {
     query = query.neq("id", excludeId);

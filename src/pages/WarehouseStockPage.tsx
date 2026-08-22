@@ -24,6 +24,8 @@ import {
 import type { WarehouseStock, WarehouseStockFormData } from "@/types/warehouseStock";
 import { format } from "date-fns";
 import { useStorageBays } from "@/hooks/useStorageBays";
+import { useSites, defaultSite } from "@/hooks/useSites";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const statusColors: Record<string, string> = {
   stored: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
@@ -46,7 +48,10 @@ const emptyForm: WarehouseStockFormData = {
 
 const WarehouseStockPage: React.FC = () => {
   const { user } = useAuth();
-  const { bays } = useStorageBays();
+  const { data: sites = [] } = useSites();
+  const [siteId, setSiteId] = useState<string | null>(null);
+  const activeSiteId = siteId ?? defaultSite(sites)?.id ?? null;
+  const { bays } = useStorageBays(false, activeSiteId);
   const [stock, setStock] = useState<WarehouseStock[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,7 +65,7 @@ const WarehouseStockPage: React.FC = () => {
     try {
       setLoading(true);
       const [stockData, customerData] = await Promise.all([
-        getWarehouseStock(),
+        getWarehouseStock(activeSiteId),
         getCustomerList(),
       ]);
       setStock(stockData);
@@ -75,7 +80,8 @@ const WarehouseStockPage: React.FC = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeSiteId]);
 
   const handleSubmit = async () => {
     if (!formData.user_id) {
@@ -89,14 +95,14 @@ const WarehouseStockPage: React.FC = () => {
 
     setSubmitting(true);
     try {
-      const conflict = await checkLocationConflict(formData.bay, formData.position);
+      const conflict = await checkLocationConflict(formData.bay, formData.position, undefined, activeSiteId);
       if (conflict) {
         toast.error(`Bay ${formData.bay} Position ${formData.position} is already occupied`);
         setSubmitting(false);
         return;
       }
 
-      await addWarehouseStock(formData, user?.id || "");
+      await addWarehouseStock({ ...formData, site_id: activeSiteId }, user?.id || "");
       toast.success("Stock added successfully");
       setDialogOpen(false);
       setFormData(emptyForm);
@@ -148,6 +154,17 @@ const WarehouseStockPage: React.FC = () => {
             <p className="text-muted-foreground text-sm mt-1">
               Manage customer inventory stored at the depot
             </p>
+            {sites.length > 1 && (
+              <Tabs value={activeSiteId ?? ""} onValueChange={setSiteId} className="mt-3">
+                <TabsList>
+                  {sites.map((site) => (
+                    <TabsTrigger key={site.id} value={site.id}>
+                      {site.name}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            )}
           </div>
           <Button onClick={() => { setFormData(emptyForm); setDialogOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> Add Stock
