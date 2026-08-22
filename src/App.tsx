@@ -243,6 +243,11 @@ function App() {
                   <StorageBaysPage />
                 </ProtectedRoute>
               } />
+              <Route path="/trunk-runs" element={
+                <ProtectedRoute adminOnly={true}>
+                  <TrunkRunsPage />
+                </ProtectedRoute>
+              } />
               <Route path="/my-stock" element={
                 <ProtectedRoute>
                   <MyStockPage />
