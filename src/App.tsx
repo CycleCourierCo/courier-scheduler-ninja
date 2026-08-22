@@ -209,6 +209,21 @@ function App() {
                   <KnowledgeBase />
                 </ProtectedRoute>
               } />
+              <Route path="/reviews" element={
+                <ProtectedRoute noB2CAccess={true}>
+                  <ReviewsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/reviews/:id" element={
+                <ProtectedRoute noB2CAccess={true}>
+                  <ReviewDetailPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/my-reviews" element={
+                <ProtectedRoute noB2CAccess={true}>
+                  <MyReviewsPage />
+                </ProtectedRoute>
+              } />
               <Route path="/knowledge/:slug" element={
                 <ProtectedRoute noB2CAccess={true}>
                   <KnowledgeBase />
