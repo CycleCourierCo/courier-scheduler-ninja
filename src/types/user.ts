@@ -1,5 +1,5 @@
 
-export type UserRole = 'admin' | 'b2b_customer' | 'b2c_customer' | 'driver' | 'loader' | 'mechanic' | 'route_planner' | 'sales' | 'timeslip_admin' | 'cs_agent';
+export type UserRole = 'admin' | 'b2b_customer' | 'b2c_customer' | 'driver' | 'loader' | 'mechanic' | 'route_planner' | 'sales' | 'timeslip_admin' | 'cs_agent' | 'fleet_manager' | 'tech';
 
 export interface DayHours {
   open: boolean;
