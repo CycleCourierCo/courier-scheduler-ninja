@@ -219,31 +219,6 @@ const Layout: React.FC<LayoutProps> = ({
                               {item.label}
                             </Link>)}
                           </div>)}
-                          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">
-                            Developer
-                          </p>
-                          <button 
-                            onClick={() => {
-                              const error = new Error('Sentry Test Error - Triggered by admin');
-                              Sentry.captureException(error);
-                              throw error;
-                            }}
-                            className="flex items-center text-destructive hover:text-destructive/80 transition-colors"
-                          >
-                            <AlertTriangle className="mr-2 h-4 w-4" />
-                            Test Sentry Error
-                          </button>
-                          <button 
-                            onClick={() => {
-                              const { logger } = Sentry;
-                              logger.info('User triggered test log', { log_source: 'sentry_test' });
-                              toast.success('Test log sent to Sentry');
-                            }}
-                            className="flex items-center text-amber-600 hover:text-amber-500 transition-colors"
-                          >
-                            <Info className="mr-2 h-4 w-4" />
-                            Test Sentry Log
-                          </button>
                         </>}
                       {isB2B && (
                         <>
