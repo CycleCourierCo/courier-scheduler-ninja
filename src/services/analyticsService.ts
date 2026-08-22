@@ -99,6 +99,18 @@ export type BikeAnalytics = {
   percentage: number;
 };
 
+export type BikeBrandAnalytics = {
+  /** Cleaned, canonical brands sorted by bike count (descending). */
+  brands: BikeAnalytics[];
+  /** Total bikes that had a usable brand. */
+  totalBikes: number;
+  /** Bikes whose brand was blank or a placeholder ("Multiple bikes", "N/A"...). */
+  unspecifiedCount: number;
+  /** Distinct brands after normalisation. */
+  distinctBrands: number;
+};
+
+
 // Transform orders to analytics data
 export const getOrderStatusAnalytics = (orders: Order[]): OrderCountByStatus[] => {
   const statusCounts: Record<string, number> = {};
