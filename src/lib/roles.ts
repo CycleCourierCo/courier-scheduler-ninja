@@ -28,6 +28,8 @@ export const ALL_ROLES: { value: UserRole; label: string }[] = [
   { value: "timeslip_admin", label: "Timeslip Admin" },
   { value: "cs_agent", label: "Customer Service" },
   { value: "driver", label: "Driver" },
+  { value: "fleet_manager", label: "Fleet Manager" },
+  { value: "tech", label: "Tech" },
   { value: "b2b_customer", label: "B2B Customer" },
   { value: "b2c_customer", label: "B2C Customer" },
 ];
