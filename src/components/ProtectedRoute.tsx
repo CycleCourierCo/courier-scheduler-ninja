@@ -3,7 +3,7 @@ import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasRole, getRoles } from "@/lib/roles";
 import { useRoutePermissions } from "@/hooks/useRoutePermissions";
-import { findRouteForPath } from "@/config/routes";
+
 import { Button } from "@/components/ui/button";
 import { Lock } from "lucide-react";
 
