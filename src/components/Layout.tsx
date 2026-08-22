@@ -362,32 +362,6 @@ const Layout: React.FC<LayoutProps> = ({
                           </Link>
                         </DropdownMenuItem>)}
                       </React.Fragment>)}
-                      <DropdownMenuSeparator />
-                      <DropdownMenuLabel className="text-xs uppercase tracking-wide text-muted-foreground">
-                        Developer
-                      </DropdownMenuLabel>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          const error = new Error('Sentry Test Error - Triggered by admin');
-                          Sentry.captureException(error);
-                          throw error;
-                        }}
-                        className="text-destructive hover:text-destructive/80 cursor-pointer"
-                      >
-                        <AlertTriangle className="mr-2 h-4 w-4" />
-                        <span>Test Sentry Error</span>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          const { logger } = Sentry;
-                          logger.info('User triggered test log', { log_source: 'sentry_test' });
-                          toast.success('Test log sent to Sentry');
-                        }}
-                        className="text-amber-600 hover:text-amber-500 cursor-pointer"
-                      >
-                        <Info className="mr-2 h-4 w-4" />
-                        <span>Test Sentry Log</span>
-                      </DropdownMenuItem>
                     </>}
                   
                   {isB2B && (
