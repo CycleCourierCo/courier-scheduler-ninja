@@ -1,97 +1,143 @@
-
-import { BikeAnalytics } from "@/services/analyticsService";
-import { 
-  PieChart, 
-  Pie, 
-  Cell, 
-  Tooltip, 
-  Legend, 
-  ResponsiveContainer 
+import { useMemo, useState } from "react";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from "recharts";
+import { BikeBrandAnalytics } from "@/services/analyticsService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface BikeBrandsChartProps {
-  data: BikeAnalytics[];
+  data: BikeBrandAnalytics;
 }
 
-const COLORS = ['#4a65d5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#0ea5e9', '#ec4899', '#14b8a6', '#f43f5e', '#8b5cf6'];
+const TOP_OPTIONS = ["10", "20", "50", "all"] as const;
 
 const BikeBrandsChart = ({ data }: BikeBrandsChartProps) => {
-  // Limit to top 10 brands and group the rest as "Other"
-  const processedData = [...data];
-  
-  if (processedData.length > 10) {
-    const topBrands = processedData.slice(0, 9);
-    const otherBrands = processedData.slice(9);
-    
-    const otherCount = otherBrands.reduce((sum, item) => sum + item.count, 0);
-    const otherPercentage = otherBrands.reduce((sum, item) => sum + item.percentage, 0);
-    
-    topBrands.push({
-      brand: 'Other',
-      count: otherCount,
-      percentage: otherPercentage
-    });
-    
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Bike Brands Distribution</CardTitle>
-        </CardHeader>
-        <CardContent className="h-96">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={topBrands}
-                cx="50%"
-                cy="50%"
-                labelLine={true}
-                outerRadius={120}
-                fill="#8884d8"
-                dataKey="count"
-                nameKey="brand"
-                label={({ brand, percentage }) => `${brand} (${percentage.toFixed(1)}%)`}
-              >
-                {topBrands.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip formatter={(value, name, props) => [`${value} (${props.payload.percentage.toFixed(1)}%)`, props.payload.brand]} />
-              <Legend />
-            </PieChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-    );
-  }
+  const [topN, setTopN] = useState<string>("10");
+
+  const { brands, totalBikes, unspecifiedCount, distinctBrands } = data;
+
+  const { rows, tailBrandCount } = useMemo(() => {
+    if (topN === "all") return { rows: brands, tailBrandCount: 0 };
+    const limit = Number(topN);
+    if (brands.length <= limit) return { rows: brands, tailBrandCount: 0 };
+
+    const head = brands.slice(0, limit);
+    const tail = brands.slice(limit);
+    const tailCount = tail.reduce((sum, item) => sum + item.count, 0);
+    const tailPercentage = tail.reduce((sum, item) => sum + item.percentage, 0);
+
+    return {
+      rows: [
+        ...head,
+        {
+          brand: `Other brands (${tail.length})`,
+          count: tailCount,
+          percentage: tailPercentage,
+        },
+      ],
+      tailBrandCount: tail.length,
+    };
+  }, [brands, topN]);
+
+  const chartHeight = Math.max(280, rows.length * 28 + 40);
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Bike Brands Distribution</CardTitle>
-      </CardHeader>
-      <CardContent className="h-96">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={processedData}
-              cx="50%"
-              cy="50%"
-              labelLine={true}
-              outerRadius={120}
-              fill="#8884d8"
-              dataKey="count"
-              nameKey="brand"
-              label={({ brand, percentage }) => `${brand} (${percentage.toFixed(1)}%)`}
-            >
-              {processedData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+      <CardHeader className="pb-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle className="text-base sm:text-lg">Bike Brands Distribution</CardTitle>
+          <Select value={topN} onValueChange={setTopN}>
+            <SelectTrigger className="h-8 w-[120px] text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TOP_OPTIONS.map((option) => (
+                <SelectItem key={option} value={option} className="text-xs">
+                  {option === "all" ? "All brands" : `Top ${option}`}
+                </SelectItem>
               ))}
-            </Pie>
-            <Tooltip formatter={(value, name, props) => [`${value} (${props.payload.percentage.toFixed(1)}%)`, props.payload.brand]} />
-            <Legend />
-          </PieChart>
-        </ResponsiveContainer>
+            </SelectContent>
+          </Select>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-8 text-center">
+            No bike brands recorded yet.
+          </p>
+        ) : (
+          <div className="overflow-y-auto" style={{ maxHeight: 420 }}>
+            <ResponsiveContainer width="100%" height={chartHeight}>
+              <BarChart
+                data={rows}
+                layout="vertical"
+                margin={{ top: 4, right: 24, bottom: 4, left: 8 }}
+                barCategoryGap={4}
+              >
+                <CartesianGrid horizontal={false} stroke="hsl(var(--border))" />
+                <XAxis
+                  type="number"
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  allowDecimals={false}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="brand"
+                  width={110}
+                  tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  interval={0}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: "hsl(var(--popover))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 8,
+                    fontSize: 12,
+                    color: "hsl(var(--popover-foreground))",
+                  }}
+                  formatter={(value: number, _name, props: any) => [
+                    `${value} bike${value === 1 ? "" : "s"} (${props.payload.percentage.toFixed(1)}%)`,
+                    props.payload.brand,
+                  ]}
+                />
+                <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                  {rows.map((row) => (
+                    <Cell
+                      key={row.brand}
+                      fill={
+                        row.brand.startsWith("Other brands")
+                          ? "hsl(var(--muted-foreground))"
+                          : "hsl(var(--primary))"
+                      }
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+
+        <p className="text-xs text-muted-foreground mt-3 leading-relaxed">
+          {totalBikes.toLocaleString()} bikes across {distinctBrands.toLocaleString()} brands after
+          cleaning
+          {tailBrandCount > 0 && ` · ${tailBrandCount.toLocaleString()} brands grouped as Other`}
+          {unspecifiedCount > 0 &&
+            ` · ${unspecifiedCount.toLocaleString()} bikes with no brand recorded (excluded)`}
+        </p>
       </CardContent>
     </Card>
   );
