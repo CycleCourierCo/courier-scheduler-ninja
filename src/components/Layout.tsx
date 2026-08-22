@@ -134,53 +134,39 @@ const Layout: React.FC<LayoutProps> = ({
         Track Order
       </Link>
       {user ? <>
-          <Link to="/create-order" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+          {(isAdmin || isAllowedKey('create-order')) && <Link to="/create-order" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
             Create Order
-          </Link>
-          <Link to="/bulk-upload" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+          </Link>}
+          {(isAdmin || isAllowedKey('bulk-upload')) && <Link to="/bulk-upload" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
             Bulk Upload
-          </Link>
+          </Link>}
         </> : <Link to="/auth/login" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
           Sign In
         </Link>}
     </> : null;
 
-  const driverNavLinks = isDriver ? <>
-      <Link to="/driver-timeslips" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-        My Timeslips
-      </Link>
+  // Pages this (non-admin) user is permitted to see, from the role/route matrix
+  const permittedPages = allowedPages.filter(
+    p => !['profile', 'create-order', 'bulk-upload'].includes(p.key)
+  );
+
+  const staffNavLinks = user && !isAdmin ? <>
+      {permittedPages.slice(0, 6).map(page => (
+        <Link key={page.key} to={page.path} onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+          {page.label}
+        </Link>
+      ))}
     </> : null;
 
-  const mechanicNavLinks = isMechanic ? <>
-      <Link to="/bicycle-inspections" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-        Bicycle Inspections
-      </Link>
-      <Link to="/mechanic-clock" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-        Clock In/Out
-      </Link>
-      <Link to="/admin/labour-times" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-        Labour Times
-      </Link>
+  const staffMenuLinks = user && !isAdmin ? <>
+      {permittedPages.map(page => (
+        <Link key={page.key} to={page.path} onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+          <page.icon className="mr-2 h-4 w-4" />
+          {page.label}
+        </Link>
+      ))}
     </> : null;
 
-  const loaderNavLinks = isLoader ? <>
-      <Link to="/loading" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-        Loading &amp; Storage
-      </Link>
-    </> : null;
-
-  const myTasksNavLink = (isLoader || isMechanic) ? (
-    <Link to="/tasks" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-      My Tasks
-    </Link>
-  ) : null;
-
-
-  const timeslipAdminNavLinks = isTimeslipAdmin && !isAdmin ? <>
-      <Link to="/driver-timeslips" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
-        Driver Timeslips
-      </Link>
-    </> : null;
 
   return <div className="min-h-screen flex flex-col">
       <NoticeBanner />
