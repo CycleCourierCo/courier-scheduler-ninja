@@ -95,6 +95,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
       { to: "/api-keys", label: "API Keys", icon: Key },
       { to: "/webhooks", label: "Webhooks", icon: Webhook },
       { to: "/shopify-integration", label: "Shopify Integration", icon: Store },
+      { to: "/admin/route-permissions", label: "Route Permissions", icon: Lock },
       { to: "/api-docs", label: "API Documentation", icon: FileText },
     ],
   },
