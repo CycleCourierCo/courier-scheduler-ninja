@@ -129,10 +129,13 @@ const ShopifyIntegrationPage = () => {
   const statusBadge = (s: string) => {
     if (s === "matched" || s === "fulfilled")
       return <Badge className="bg-green-600"><CheckCircle2 className="h-3 w-3 mr-1" />{s}</Badge>;
+    if (s === "matched_customer_stock")
+      return <Badge className="bg-blue-600"><CheckCircle2 className="h-3 w-3 mr-1" />collection booked</Badge>;
     if (s === "unmatched_sku")
       return <Badge variant="secondary"><AlertCircle className="h-3 w-3 mr-1" />unmatched SKU</Badge>;
     return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />{s}</Badge>;
   };
+
 
   return (
     <Layout>
