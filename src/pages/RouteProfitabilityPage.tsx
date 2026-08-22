@@ -338,8 +338,8 @@ const RouteProfitabilityPage = () => {
           useBikeTypePricing={useBikeTypePricing}
         />
 
-        {/* Mechanic Profitability */}
-        <MechanicProfitabilityPanel />
+
+
 
 
         {/* Settings Section */}
