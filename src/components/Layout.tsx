@@ -10,7 +10,8 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import ThemeToggle from "./ThemeToggle";
 import TaskNotificationBell from "./tasks/TaskNotificationBell";
-import { hasRole } from "@/lib/roles";
+import { hasRole, getRoles } from "@/lib/roles";
+import { useRoutePermissions } from "@/hooks/useRoutePermissions";
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -118,6 +119,7 @@ const Layout: React.FC<LayoutProps> = ({
   const isB2C = hasRole(userProfile, 'b2c_customer');
   const isTimeslipAdmin = hasRole(userProfile, 'timeslip_admin');
   const isCsAgent = hasRole(userProfile, 'cs_agent');
+  const { isAllowedKey, allowedPages } = useRoutePermissions(getRoles(userProfile));
   const isInternalStaff = isAdmin || isLoader || isRoutePlanner || isSales || isDriver || isMechanic || isTimeslipAdmin || isCsAgent;
 
 
@@ -178,11 +180,7 @@ const Layout: React.FC<LayoutProps> = ({
           
           <nav className="hidden md:flex space-x-6">
             {navLinks}
-            {driverNavLinks}
-            {mechanicNavLinks}
-            {loaderNavLinks}
-            {myTasksNavLink}
-            {timeslipAdminNavLinks}
+            {staffNavLinks}
 
           </nav>
           
@@ -201,12 +199,8 @@ const Layout: React.FC<LayoutProps> = ({
               <SheetContent side="right" className="w-[250px] overflow-hidden">
                 <div className="flex flex-col space-y-4 py-4 h-full overflow-y-auto">
                   {navLinks}
-                  {driverNavLinks}
-                  {mechanicNavLinks}
-                  {loaderNavLinks}
-                  {myTasksNavLink}
-                  {timeslipAdminNavLinks}
-
+                  {staffMenuLinks}
+                              
                   
                   {user && <>
                       <DropdownMenuSeparator className="my-2" />
