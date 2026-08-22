@@ -544,13 +544,8 @@ const AnalyticsPage = () => {
                 <div className="grid grid-cols-1 gap-2 sm:gap-4">
                   <InspectionsOverTimeChart data={inspectionsOverTime} />
                   <InspectionStageDurationsChart data={stageDurations} />
-                  <MechanicComparisonChart />
                 </div>
 
-                <h2 className="text-lg sm:text-xl font-semibold mt-4 sm:mt-6 mb-2 sm:mb-4">Mechanic Hours</h2>
-                <div className="grid grid-cols-1 gap-2 sm:gap-4">
-                  <MechanicHoursSection />
-                </div>
 
               </TabsContent>
 
