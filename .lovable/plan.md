@@ -7,7 +7,9 @@ Today the Shopify webhook only matches a sold line item against bikes physically
 New "My SKUs (not stored with us)" card on the Shopify Integration page:
 - Add a SKU and pick a bike type from a dropdown — that's the only detail needed.
 - List of SKUs with edit and delete.
+- **Bulk upload**: paste or upload a CSV of `sku,bike_type` to add many SKUs at once, with a downloadable template, a preview of valid/invalid rows before import, and an "Import from Shopify" option that pulls every product variant SKU from the connected store so the customer only has to set bike types. Existing SKUs are updated rather than duplicated.
 - Note explaining brand, model and value are read from the Shopify order itself, and that a sale on one of these SKUs books a collection from their own address rather than our warehouse.
+
 
 Existing behaviour is unchanged: stored stock still matches first.
 
