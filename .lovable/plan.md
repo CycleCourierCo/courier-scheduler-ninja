@@ -5,24 +5,30 @@ Today the Shopify webhook only matches a sold line item against bikes physically
 ## What the customer sees
 
 New "My SKUs (not stored with us)" card on the Shopify Integration page:
-- Add a SKU with bike brand, model, type and value.
-- List of existing SKUs with edit and delete.
-- Short note explaining that a sale on one of these SKUs books a collection from their own address, not from our warehouse.
+- Add a SKU and pick a bike type from a dropdown — that's the only detail needed.
+- List of SKUs with edit and delete.
+- Note explaining brand, model and value are read from the Shopify order itself, and that a sale on one of these SKUs books a collection from their own address rather than our warehouse.
 
 Existing behaviour is unchanged: stored stock still matches first.
+
+## Where the bike details come from
+
+- **Brand and model**: from the Shopify line item title. First word (or the Shopify vendor when present, which is more reliable) becomes the brand, the remainder becomes the model. Variant title is appended to the model when it adds detail.
+- **Value**: the line item price times quantity (falls back to the order total when the line price is missing).
+- **Bike type**: from the SKU record the customer registered, since Shopify has no reliable field for it. This drives pricing and van-space weighting, so it stays an explicit choice.
 
 ## What happens on a sale
 
 Webhook match order per line item:
 1. Stored stock with that SKU (FIFO) → current warehouse dispatch flow.
-2. Otherwise a registered non-stored SKU → create an order with the customer's own profile address as the **collection** address and the Shopify buyer as the receiver, using the SKU's bike brand/model/type/value. Order starts in the normal new-order state so availability/scheduling emails run as usual.
+2. Otherwise a registered non-stored SKU → create an order with the customer's own profile address as the **collection** address and the Shopify buyer as the receiver, bike details derived as above. Order starts in the normal new-order state so availability/scheduling emails run as usual.
 3. Otherwise → unchanged "unmatched SKU" log.
 
-Activity log gets a distinct status for these so the customer can tell warehouse dispatch from own-stock collections. Tracking generation and the Shopify fulfilment push work the same way as for stored stock.
+Activity log gets a distinct status so the customer can tell warehouse dispatch from own-stock collections. Tracking generation and the Shopify fulfilment push work the same way as for stored stock.
 
 ## Technical notes
 
-- New table `customer_shopify_skus`: `id`, `user_id`, `store_id` (nullable), `sku` (unique per user, case-insensitive), `bike_brand`, `bike_model`, `bike_type`, `bike_value`, `is_active`, timestamps. GRANTs for `authenticated`/`service_role`, RLS: owner full access, admins read/manage, service role for the webhook.
-- `supabase/functions/customer-shopify-webhook/index.ts`: after the `warehouse_stock` lookup misses, look up `customer_shopify_skus`; on a hit build the order with sender = customer profile address and log status `matched_customer_stock`; keep the existing dedupe key and the fulfilment/tracking block shared between both paths.
-- `src/pages/ShopifyIntegrationPage.tsx`: new SKU manager card (table + add/edit dialog) reading and writing `customer_shopify_skus` directly via the Supabase client; badge handling in `statusBadge` for the new status.
+- New table `customer_shopify_skus`: `id`, `user_id`, `store_id` (nullable), `sku` (unique per user, case-insensitive), `bike_type`, `is_active`, timestamps. GRANTs for `authenticated`/`service_role`; RLS: owner full access, admins manage, service role for the webhook.
+- `supabase/functions/customer-shopify-webhook/index.ts`: after the `warehouse_stock` miss, look up `customer_shopify_skus`; on a hit derive brand/model from `item.vendor`/`item.title`/`item.variant_title` and value from `item.price * item.quantity`, build the order with sender = customer profile address, and log status `matched_customer_stock`. Keep the existing dedupe key and share the tracking/fulfilment block between both paths.
+- `src/pages/ShopifyIntegrationPage.tsx`: SKU manager card (list + add/edit dialog) reading and writing `customer_shopify_skus` via the Supabase client; bike-type dropdown sourced from the same bike-type list used in order creation; badge handling for the new log status.
 - Setup instructions on the page updated to mention both SKU sources.
