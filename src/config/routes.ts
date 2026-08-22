@@ -1,3 +1,4 @@
+import type { ComponentType } from "react";
 import type { UserRole } from "@/types/user";
 import {
   Home, Package, Package2, Upload, Truck, FileText, PoundSterling, Calendar, Sparkles,
