@@ -63,6 +63,9 @@ import Tasks from "./pages/Tasks";
 import RoutePermissionsPage from "./pages/RoutePermissionsPage";
 import LabourTimesAdmin from "./pages/LabourTimesAdmin";
 import KnowledgeBase from "./pages/KnowledgeBase";
+import ReviewsPage from "./pages/ReviewsPage";
+import ReviewDetailPage from "./pages/ReviewDetailPage";
+import MyReviewsPage from "./pages/MyReviewsPage";
 
 const queryClient = new QueryClient();
 
