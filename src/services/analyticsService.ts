@@ -408,26 +408,59 @@ export const getPaymentRequiredAnalytics = (orders: Order[]) => {
   ];
 };
 
-export const getBikeBrandAnalytics = (orders: Order[]): BikeAnalytics[] => {
-  const brandCounts: Record<string, number> = {};
+/**
+ * Bike brand distribution, counted per bike and normalised so casing variants
+ * and misspellings collapse into one canonical brand. Placeholder brands are
+ * reported separately instead of polluting the chart.
+ */
+export const getBikeBrandAnalytics = (orders: Order[]): BikeBrandAnalytics => {
+  const brandCounts = new Map<string, { label: string; count: number }>();
   let totalBikes = 0;
-  
-  orders.forEach(order => {
-    if (order.bikeBrand) {
-      const brand = order.bikeBrand.trim() || 'Unknown';
-      brandCounts[brand] = (brandCounts[brand] || 0) + 1;
-      totalBikes++;
+  let unspecifiedCount = 0;
+
+  const record = (raw: string | null | undefined) => {
+    const canonical = canonicalBrand(raw);
+    if (!canonical) {
+      unspecifiedCount++;
+      return;
+    }
+    const existing = brandCounts.get(canonical.key);
+    if (existing) {
+      existing.count++;
+    } else {
+      brandCounts.set(canonical.key, { label: canonical.label, count: 1 });
+    }
+    totalBikes++;
+  };
+
+  orders.forEach((order) => {
+    // The bikes snapshot is the source of truth when present.
+    if (Array.isArray(order.bikes) && order.bikes.length > 0) {
+      order.bikes.forEach((bike) => record(bike?.brand));
+      return;
+    }
+    const quantity = Math.max(1, Number(order.bikeQuantity) || 1);
+    for (let i = 0; i < quantity; i++) {
+      record(order.bikeBrand);
     }
   });
-  
-  return Object.entries(brandCounts)
-    .map(([brand, count]) => ({
-      brand,
+
+  const brands = Array.from(brandCounts.values())
+    .map(({ label, count }) => ({
+      brand: label,
       count,
-      percentage: totalBikes > 0 ? (count / totalBikes) * 100 : 0
+      percentage: totalBikes > 0 ? (count / totalBikes) * 100 : 0,
     }))
-    .sort((a, b) => b.count - a.count);
+    .sort((a, b) => b.count - a.count || a.brand.localeCompare(b.brand));
+
+  return {
+    brands,
+    totalBikes,
+    unspecifiedCount,
+    distinctBrands: brands.length,
+  };
 };
+
 
 // Types for timing analytics
 export type CollectionTimeAnalytics = {
