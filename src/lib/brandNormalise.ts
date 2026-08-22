@@ -203,6 +203,10 @@ export const canonicalBrand = (raw: string | null | undefined): CanonicalBrand |
   if (!key) return null;
   if (PLACEHOLDER_PATTERNS.some((re) => re.test(key))) return null;
 
-  const label = ALIASES[key] ?? titleCase(cleaned);
-  return { key, label };
+  const alias = ALIASES[key];
+  const label = alias ?? titleCase(cleaned);
+  // Aliases collapse to the canonical label's key so variants aggregate together.
+  const canonicalKey = alias ? alias.toLowerCase().replace(/[^a-z0-9]/g, "") : key;
+  return { key: canonicalKey || key, label };
+
 };
