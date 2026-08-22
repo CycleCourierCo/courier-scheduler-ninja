@@ -80,7 +80,73 @@ serve(async (req) => {
       });
     }
 
+    if (action === "list_products") {
+      const { data: store } = await admin
+        .from("customer_shopify_stores")
+        .select("shop_domain, access_token_vault_key, is_active")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (!store || !store.is_active) {
+        return new Response(JSON.stringify({ error: "No connected Shopify store" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: tokenVal } = await admin.rpc("get_vault_secret", {
+        secret_name: store.access_token_vault_key,
+      });
+      const token = tokenVal as string | null;
+      if (!token) {
+        return new Response(JSON.stringify({ error: "Missing stored access token" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const variants: { sku: string; title: string }[] = [];
+      let url =
+        `https://${store.shop_domain}/admin/api/2024-10/products.json?limit=250&fields=id,title,vendor,variants`;
+      for (let page = 0; page < 10 && url; page++) {
+        const res = await fetch(url, { headers: { "X-Shopify-Access-Token": token } });
+        if (!res.ok) {
+          return new Response(
+            JSON.stringify({ error: `Shopify returned ${res.status}` }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+          );
+        }
+        const data = await res.json();
+        for (const p of data.products ?? []) {
+          for (const v of p.variants ?? []) {
+            const sku = String(v.sku || "").trim();
+            if (!sku) continue;
+            const variantTitle = String(v.title || "").trim();
+            const label = variantTitle && variantTitle.toLowerCase() !== "default title"
+              ? `${p.title} - ${variantTitle}`
+              : p.title;
+            variants.push({ sku, title: label });
+          }
+        }
+        const link = res.headers.get("link") || "";
+        const next = link.split(",").find((s) => s.includes('rel="next"'));
+        const match = next?.match(/<([^>]+)>/);
+        url = match ? match[1] : "";
+      }
+
+      const seen = new Set<string>();
+      const unique = variants.filter((v) => {
+        const key = v.sku.toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      return new Response(JSON.stringify({ success: true, products: unique }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // save
+
     const shopDomain = (body?.shop_domain as string)?.trim().toLowerCase();
     const accessToken = body?.access_token as string;
     const webhookSecret = body?.webhook_secret as string;

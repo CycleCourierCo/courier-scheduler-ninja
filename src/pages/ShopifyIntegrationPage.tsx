@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import CustomerSkuManager from "@/components/shopify/CustomerSkuManager";
+
 import { formatDistanceToNow } from "date-fns";
 
 const WEBHOOK_URL = `https://api.cyclecourierco.com/functions/v1/customer-shopify-webhook`;
@@ -129,10 +131,13 @@ const ShopifyIntegrationPage = () => {
   const statusBadge = (s: string) => {
     if (s === "matched" || s === "fulfilled")
       return <Badge className="bg-green-600"><CheckCircle2 className="h-3 w-3 mr-1" />{s}</Badge>;
+    if (s === "matched_customer_stock")
+      return <Badge className="bg-blue-600"><CheckCircle2 className="h-3 w-3 mr-1" />collection booked</Badge>;
     if (s === "unmatched_sku")
       return <Badge variant="secondary"><AlertCircle className="h-3 w-3 mr-1" />unmatched SKU</Badge>;
     return <Badge variant="destructive"><XCircle className="h-3 w-3 mr-1" />{s}</Badge>;
   };
+
 
   return (
     <Layout>
@@ -148,12 +153,14 @@ const ShopifyIntegrationPage = () => {
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>How it works</AlertTitle>
             <AlertDescription>
-              Connect your Shopify store and we'll automatically book delivery from our warehouse
-              when one of your products sells. Match happens on <strong>SKU</strong> — each bike
-              stored with us must have the same SKU as your Shopify product variant.
+              Connect your Shopify store and we'll automatically book delivery when one of your
+              products sells. Match happens on <strong>SKU</strong>: bikes stored with us are
+              dispatched from our warehouse, and SKUs you register below as your own stock get a
+              collection booked from your premises.
             </AlertDescription>
           </Alert>
         )}
+
 
         <Card className="mb-6">
           <CardHeader>
@@ -251,6 +258,10 @@ const ShopifyIntegrationPage = () => {
             )}
           </CardContent>
         </Card>
+
+        <CustomerSkuManager userId={user?.id} storeId={store?.id ?? null} hasStore={!!store?.is_active} />
+
+
 
         <Card>
           <CardHeader>
