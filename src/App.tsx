@@ -63,6 +63,9 @@ import Tasks from "./pages/Tasks";
 import RoutePermissionsPage from "./pages/RoutePermissionsPage";
 import LabourTimesAdmin from "./pages/LabourTimesAdmin";
 import KnowledgeBase from "./pages/KnowledgeBase";
+import ReviewsPage from "./pages/ReviewsPage";
+import ReviewDetailPage from "./pages/ReviewDetailPage";
+import MyReviewsPage from "./pages/MyReviewsPage";
 
 const queryClient = new QueryClient();
 
@@ -204,6 +207,21 @@ function App() {
               <Route path="/knowledge" element={
                 <ProtectedRoute noB2CAccess={true}>
                   <KnowledgeBase />
+                </ProtectedRoute>
+              } />
+              <Route path="/reviews" element={
+                <ProtectedRoute noB2CAccess={true}>
+                  <ReviewsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/reviews/:id" element={
+                <ProtectedRoute noB2CAccess={true}>
+                  <ReviewDetailPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/my-reviews" element={
+                <ProtectedRoute noB2CAccess={true}>
+                  <MyReviewsPage />
                 </ProtectedRoute>
               } />
               <Route path="/knowledge/:slug" element={

@@ -3084,6 +3084,234 @@ export type Database = {
         }
         Relationships: []
       }
+      review_actions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          cycle_id: string
+          description: string
+          due_date: string | null
+          id: string
+          owner: Database["public"]["Enums"]["review_action_owner"]
+          status: Database["public"]["Enums"]["review_action_status"]
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          cycle_id: string
+          description: string
+          due_date?: string | null
+          id?: string
+          owner?: Database["public"]["Enums"]["review_action_owner"]
+          status?: Database["public"]["Enums"]["review_action_status"]
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          cycle_id?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          owner?: Database["public"]["Enums"]["review_action_owner"]
+          status?: Database["public"]["Enums"]["review_action_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_actions_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "review_cycles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_cycles: {
+        Row: {
+          behaviour_score: number | null
+          created_at: string
+          created_by: string | null
+          employee_acknowledged_at: string | null
+          employee_agreement:
+            | Database["public"]["Enums"]["review_agreement"]
+            | null
+          employee_comments: string | null
+          employee_id: string
+          employee_requests_discussion: boolean
+          id: string
+          manager_submitted_at: string | null
+          meeting_notes: string | null
+          overall_score: number | null
+          performance_score: number | null
+          period_end: string
+          period_start: string
+          review_date: string | null
+          review_type: Database["public"]["Enums"]["review_type"]
+          reviewer_id: string | null
+          self_overall_score: number | null
+          self_submitted_at: string | null
+          signed_off_at: string | null
+          signed_off_by: string | null
+          stage: Database["public"]["Enums"]["review_stage"]
+          updated_at: string
+        }
+        Insert: {
+          behaviour_score?: number | null
+          created_at?: string
+          created_by?: string | null
+          employee_acknowledged_at?: string | null
+          employee_agreement?:
+            | Database["public"]["Enums"]["review_agreement"]
+            | null
+          employee_comments?: string | null
+          employee_id: string
+          employee_requests_discussion?: boolean
+          id?: string
+          manager_submitted_at?: string | null
+          meeting_notes?: string | null
+          overall_score?: number | null
+          performance_score?: number | null
+          period_end: string
+          period_start: string
+          review_date?: string | null
+          review_type?: Database["public"]["Enums"]["review_type"]
+          reviewer_id?: string | null
+          self_overall_score?: number | null
+          self_submitted_at?: string | null
+          signed_off_at?: string | null
+          signed_off_by?: string | null
+          stage?: Database["public"]["Enums"]["review_stage"]
+          updated_at?: string
+        }
+        Update: {
+          behaviour_score?: number | null
+          created_at?: string
+          created_by?: string | null
+          employee_acknowledged_at?: string | null
+          employee_agreement?:
+            | Database["public"]["Enums"]["review_agreement"]
+            | null
+          employee_comments?: string | null
+          employee_id?: string
+          employee_requests_discussion?: boolean
+          id?: string
+          manager_submitted_at?: string | null
+          meeting_notes?: string | null
+          overall_score?: number | null
+          performance_score?: number | null
+          period_end?: string
+          period_start?: string
+          review_date?: string | null
+          review_type?: Database["public"]["Enums"]["review_type"]
+          reviewer_id?: string | null
+          self_overall_score?: number | null
+          self_submitted_at?: string | null
+          signed_off_at?: string | null
+          signed_off_by?: string | null
+          stage?: Database["public"]["Enums"]["review_stage"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_cycles_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_cycles_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_ratings: {
+        Row: {
+          category: Database["public"]["Enums"]["review_category"]
+          comment: string | null
+          competency_key: string
+          created_at: string
+          cycle_id: string
+          id: string
+          score: number | null
+          source: Database["public"]["Enums"]["review_source"]
+          updated_at: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["review_category"]
+          comment?: string | null
+          competency_key: string
+          created_at?: string
+          cycle_id: string
+          id?: string
+          score?: number | null
+          source: Database["public"]["Enums"]["review_source"]
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["review_category"]
+          comment?: string | null
+          competency_key?: string
+          created_at?: string
+          cycle_id?: string
+          id?: string
+          score?: number | null
+          source?: Database["public"]["Enums"]["review_source"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_ratings_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "review_cycles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_responses: {
+        Row: {
+          answer: string | null
+          created_at: string
+          cycle_id: string
+          id: string
+          question_key: string
+          source: Database["public"]["Enums"]["review_source"]
+          updated_at: string
+        }
+        Insert: {
+          answer?: string | null
+          created_at?: string
+          cycle_id: string
+          id?: string
+          question_key: string
+          source: Database["public"]["Enums"]["review_source"]
+          updated_at?: string
+        }
+        Update: {
+          answer?: string | null
+          created_at?: string
+          cycle_id?: string
+          id?: string
+          question_key?: string
+          source?: Database["public"]["Enums"]["review_source"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_responses_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "review_cycles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_route_permissions: {
         Row: {
           allowed: boolean
@@ -4683,6 +4911,8 @@ export type Database = {
         Args: { status: string; user_id: string }
         Returns: boolean
       }
+      can_manage_review: { Args: { _cycle_id: string }; Returns: boolean }
+      can_view_review: { Args: { _cycle_id: string }; Returns: boolean }
       create_webhook_secret: {
         Args: { p_name: string; p_secret: string }
         Returns: string
@@ -4795,6 +5025,13 @@ export type Database = {
       is_admin_or_sales: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
       is_internal_staff: { Args: { _user_id: string }; Returns: boolean }
+      is_review_employee_stage: {
+        Args: {
+          _cycle_id: string
+          _stages: Database["public"]["Enums"]["review_stage"][]
+        }
+        Returns: boolean
+      }
       is_timeslip_admin: { Args: never; Returns: boolean }
       list_internal_users: {
         Args: never
@@ -4954,6 +5191,26 @@ export type Database = {
         | "at_scotland_depot"
         | "awaiting_trunk_to_depot"
         | "in_transit_to_depot"
+      review_action_owner: "employee" | "manager"
+      review_action_status: "not_started" | "in_progress" | "complete"
+      review_agreement: "agree" | "agree_with_comments" | "disagree"
+      review_category: "performance" | "behaviour"
+      review_source: "self" | "manager"
+      review_stage:
+        | "draft"
+        | "self_assessment"
+        | "manager_assessment"
+        | "review_meeting"
+        | "objectives"
+        | "employee_response"
+        | "signed_off"
+      review_type:
+        | "probation"
+        | "monthly"
+        | "quarterly"
+        | "six_month"
+        | "annual"
+        | "ad_hoc"
       task_priority: "low" | "normal" | "high" | "urgent"
       task_status: "open" | "in_progress" | "blocked" | "done" | "cancelled"
       user_role:
@@ -5177,6 +5434,28 @@ export const Constants = {
         "at_scotland_depot",
         "awaiting_trunk_to_depot",
         "in_transit_to_depot",
+      ],
+      review_action_owner: ["employee", "manager"],
+      review_action_status: ["not_started", "in_progress", "complete"],
+      review_agreement: ["agree", "agree_with_comments", "disagree"],
+      review_category: ["performance", "behaviour"],
+      review_source: ["self", "manager"],
+      review_stage: [
+        "draft",
+        "self_assessment",
+        "manager_assessment",
+        "review_meeting",
+        "objectives",
+        "employee_response",
+        "signed_off",
+      ],
+      review_type: [
+        "probation",
+        "monthly",
+        "quarterly",
+        "six_month",
+        "annual",
+        "ad_hoc",
       ],
       task_priority: ["low", "normal", "high", "urgent"],
       task_status: ["open", "in_progress", "blocked", "done", "cancelled"],

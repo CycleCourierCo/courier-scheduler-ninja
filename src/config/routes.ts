@@ -2,7 +2,7 @@ import type { ComponentType } from "react";
 import type { UserRole } from "@/types/user";
 import {
   Home, Package, Package2, Upload, Truck, FileText, PoundSterling, Calendar, Sparkles,
-  ClipboardList, Route as RouteIcon, Warehouse, Clock, Wrench, Car, Fuel, ShieldAlert,
+  ClipboardList, ClipboardCheck, Route as RouteIcon, Warehouse, Clock, Wrench, Car, Fuel, ShieldAlert,
   BarChart3, TrendingUp, Inbox, CheckSquare, Megaphone, Mail, BookOpen, User, Users,
   Shield, CalendarOff, Key, Webhook, Store, Lock,
 } from "lucide-react";
@@ -114,6 +114,10 @@ export const APP_ROUTES: AppRoute[] = [
   // Admin
   { key: "profile", path: "/profile", label: "Your Profile", section: "Admin", icon: User,
     defaultRoles: ["route_planner", "sales", "loader", "mechanic", "driver", "timeslip_admin", "cs_agent", "fleet_manager", "tech", ...CUSTOMERS] },
+  { key: "reviews", path: "/reviews", label: "Employee Reviews", section: "Admin", icon: ClipboardCheck,
+    prefixes: ["/reviews/"], defaultRoles: [] },
+  { key: "my-reviews", path: "/my-reviews", label: "My Reviews", section: "Admin", icon: ClipboardCheck,
+    defaultRoles: ["route_planner", "sales", "loader", "mechanic", "driver", "timeslip_admin", "cs_agent", "fleet_manager", "tech"] },
   { key: "users", path: "/users", label: "User Management", section: "Admin", icon: Users,
     defaultRoles: [] },
   { key: "account-approvals", path: "/account-approvals", label: "Account Approvals", section: "Admin", icon: Shield,
