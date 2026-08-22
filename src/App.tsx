@@ -46,6 +46,7 @@ import AIRouting from "./pages/AIRouting";
 import BulkOrderUpload from "./pages/BulkOrderUpload";
 import WarehouseStockPage from "./pages/WarehouseStockPage";
 import StorageBaysPage from "./pages/StorageBaysPage";
+import TrunkRunsPage from "./pages/TrunkRunsPage";
 import MyStockPage from "./pages/MyStockPage";
 import ShopifyIntegrationPage from "./pages/ShopifyIntegrationPage";
 import FuelFinderPage from "./pages/FuelFinderPage";
@@ -241,6 +242,11 @@ function App() {
               <Route path="/storage-bays" element={
                 <ProtectedRoute adminOnly={true}>
                   <StorageBaysPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/trunk-runs" element={
+                <ProtectedRoute adminOnly={true}>
+                  <TrunkRunsPage />
                 </ProtectedRoute>
               } />
               <Route path="/my-stock" element={

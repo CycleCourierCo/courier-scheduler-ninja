@@ -7,11 +7,16 @@ export type StorageBay = {
   position_count: number;
   display_order: number;
   is_active: boolean;
+  site_id: string | null;
   created_at: string;
   updated_at: string;
 };
 
-export const useStorageBays = (includeInactive = false) => {
+/**
+ * Storage bays, optionally scoped to a depot site.
+ * `siteId` undefined = all sites (previous behaviour).
+ */
+export const useStorageBays = (includeInactive = false, siteId?: string | null) => {
   const [bays, setBays] = useState<StorageBay[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -21,10 +26,11 @@ export const useStorageBays = (includeInactive = false) => {
       .select("*")
       .order("display_order", { ascending: true });
     if (!includeInactive) query = query.eq("is_active", true);
+    if (siteId) query = query.eq("site_id", siteId);
     const { data, error } = await query;
     if (!error) setBays((data as StorageBay[]) || []);
     setLoading(false);
-  }, [includeInactive]);
+  }, [includeInactive, siteId]);
 
   useEffect(() => {
     refresh();

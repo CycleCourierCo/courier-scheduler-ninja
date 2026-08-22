@@ -205,6 +205,10 @@ const Layout: React.FC<LayoutProps> = ({
                             <Warehouse className="mr-2 h-4 w-4" />
                             Storage Bays
                           </Link>
+                          <Link to="/trunk-runs" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            <Truck className="mr-2 h-4 w-4" />
+                            Trunk Runs
+                          </Link>
                           <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Calendar className="mr-2 h-4 w-4" />
                             Job Scheduling
@@ -474,6 +478,12 @@ const Layout: React.FC<LayoutProps> = ({
                         <Link to="/storage-bays" className="cursor-pointer flex w-full items-center">
                           <Warehouse className="mr-2 h-4 w-4" />
                           <span>Storage Bays</span>
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/trunk-runs" className="cursor-pointer flex w-full items-center">
+                          <Truck className="mr-2 h-4 w-4" />
+                          <span>Trunk Runs</span>
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
