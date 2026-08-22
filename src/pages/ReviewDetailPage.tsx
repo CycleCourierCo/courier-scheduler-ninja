@@ -294,12 +294,12 @@ const ReviewDetailPage: React.FC = () => {
         )}
 
         <Tabs defaultValue={isEmployee && !isAdmin && !isReviewer ? "self" : "manager"}>
-          <TabsList className="flex w-full flex-wrap justify-start">
-            <TabsTrigger value="self">Self-assessment</TabsTrigger>
-            <TabsTrigger value="manager">Manager assessment</TabsTrigger>
-            <TabsTrigger value="meeting">Meeting & objectives</TabsTrigger>
-            <TabsTrigger value="response">Employee response</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
+          <TabsList className="flex h-auto w-full justify-start overflow-x-auto whitespace-nowrap">
+            <TabsTrigger value="self" className="shrink-0 px-2 text-xs sm:px-3 sm:text-sm">Self-assessment</TabsTrigger>
+            <TabsTrigger value="manager" className="shrink-0 px-2 text-xs sm:px-3 sm:text-sm">Manager assessment</TabsTrigger>
+            <TabsTrigger value="meeting" className="shrink-0 px-2 text-xs sm:px-3 sm:text-sm">Meeting &amp; objectives</TabsTrigger>
+            <TabsTrigger value="response" className="shrink-0 px-2 text-xs sm:px-3 sm:text-sm">Employee response</TabsTrigger>
+            <TabsTrigger value="history" className="shrink-0 px-2 text-xs sm:px-3 sm:text-sm">History</TabsTrigger>
           </TabsList>
 
           <TabsContent value="self" className="space-y-4 pt-4">
