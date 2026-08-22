@@ -90,7 +90,6 @@ const ALIASES: Record<string, string> = {
   riese: "Riese & Müller",
   riesemuller: "Riese & Müller",
   rieseandmuller: "Riese & Müller",
-  riesemuller2: "Riese & Müller",
   rm: "Riese & Müller",
   super73: "Super 73",
   sworks: "S-Works",
@@ -98,8 +97,7 @@ const ALIASES: Record<string, string> = {
   islabike: "Islabikes",
   planetx: "Planet X",
   onone: "On-One",
-  argon18: "Argon 18",
-  santacruz2: "Santa Cruz",
+
 
   vanmoof: "VanMoof",
   cowboy: "Cowboy",
