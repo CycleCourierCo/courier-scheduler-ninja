@@ -63,8 +63,6 @@ import PerformanceTrendChart from "@/components/analytics/PerformanceTrendChart"
 import PerformanceLeaderboard from "@/components/analytics/PerformanceLeaderboard";
 import TimeSeriesFilters from "@/components/analytics/TimeSeriesFilters";
 import InspectionsOverTimeChart from "@/components/analytics/InspectionsOverTimeChart";
-import MechanicComparisonChart from "@/components/analytics/MechanicComparisonChart";
-import MechanicHoursSection from "@/components/analytics/MechanicHoursSection";
 import DriverAnalyticsSection from "@/components/analytics/DriverAnalyticsSection";
 import StatsCard from "@/components/analytics/StatsCard";
 import ApiWebhookSection from "@/components/analytics/ApiWebhookSection";
