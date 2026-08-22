@@ -87,15 +87,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     return <Navigate to="/auth" replace />;
   }
 
-  // Admin-only routes
-  if (adminOnly) {
-    const route = findRouteForPath(location.pathname);
-    if (!route || !canAccess(location.pathname)) {
-      return <NoAccessScreen />;
-    }
-  }
-
   if (permsLoading) {
+
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600"></div>
