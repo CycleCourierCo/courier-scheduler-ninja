@@ -2,7 +2,7 @@ import type { ComponentType } from "react";
 import type { UserRole } from "@/types/user";
 import {
   Home, Package, Package2, Upload, Truck, FileText, PoundSterling, Calendar, Sparkles,
-  ClipboardList, Route as RouteIcon, Warehouse, Clock, Wrench, Car, Fuel, ShieldAlert,
+  ClipboardList, ClipboardCheck, Route as RouteIcon, Warehouse, Clock, Wrench, Car, Fuel, ShieldAlert,
   BarChart3, TrendingUp, Inbox, CheckSquare, Megaphone, Mail, BookOpen, User, Users,
   Shield, CalendarOff, Key, Webhook, Store, Lock,
 } from "lucide-react";
