@@ -37,8 +37,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { notify } from "@/lib/notify";
-import { useBikeSpaces } from "@/lib/bikeSpaces";
-import { formatSpaces } from "@/lib/bikeSpaces";
+import { useBikeSpaces, formatSpaces } from "@/lib/bikeSpaces";
 import { useSites, findSite, DEFAULT_SITE_CODE, SCOTLAND_SITE_CODE } from "@/hooks/useSites";
 import {
   addItemsToRun,
