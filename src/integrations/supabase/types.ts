@@ -857,6 +857,47 @@ export type Database = {
           },
         ]
       }
+      customer_shopify_skus: {
+        Row: {
+          bike_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          sku: string
+          store_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bike_type: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          sku: string
+          store_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bike_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          sku?: string
+          store_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_shopify_skus_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "customer_shopify_stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_shopify_stores: {
         Row: {
           access_token_vault_key: string
