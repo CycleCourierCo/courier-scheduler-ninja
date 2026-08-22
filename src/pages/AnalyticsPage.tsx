@@ -328,27 +328,30 @@ const AnalyticsPage = () => {
                 </section>
               </TabsContent>
               
-              <TabsContent value="customers" className="space-y-2 sm:space-y-4">
+              <TabsContent value="customers" className="space-y-4 sm:space-y-6">
                 <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Customer Analysis</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
-                  <CustomerTypeChart data={customerTypeData} title="B2B vs B2C Orders" />
-                  <CustomerTypeChart data={partExchangeData} title="Part Exchange Orders" />
-                </div>
-                <div className="grid grid-cols-1 gap-2 sm:gap-4">
+                <section>
+                  <h3 className="text-base font-semibold mb-3">Customer Mix</h3>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
+                    <CustomerTypeChart data={customerTypeData} title="B2B vs B2C Orders" />
+                    <CustomerTypeChart data={partExchangeData} title="Part Exchange Orders" />
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4 mt-2 sm:mt-4">
+                    <CustomerTypeChart data={paymentRequiredData} title="Payment Required on Delivery" />
+                  </div>
+                </section>
+                <Separator />
+                <section>
+                  <h3 className="text-base font-semibold mb-3">Top Customers</h3>
                   <TopCustomersChart data={topCustomersData} />
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="business" className="space-y-2 sm:space-y-4">
-                <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Business Customer Analysis</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
-                  <CustomerTypeChart data={customerTypeData} title="B2B vs B2C Distribution" />
-                  <CustomerTypeChart data={paymentRequiredData} title="Payment Required on Delivery" />
-                </div>
-                <div className="grid grid-cols-1 gap-2 sm:gap-4">
+                </section>
+                <Separator />
+                <section>
+                  <h3 className="text-base font-semibold mb-3">Business Customers</h3>
                   <B2BLeaderboard customers={b2bCustomers} orders={orders} />
-                </div>
+                </section>
               </TabsContent>
+
               
               <TabsContent value="products" className="space-y-2 sm:space-y-4">
                 <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Bike & Product Analysis</h2>
