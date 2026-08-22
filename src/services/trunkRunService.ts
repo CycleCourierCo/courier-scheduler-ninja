@@ -92,8 +92,7 @@ const destinationOf = (order: any): string => {
 };
 
 const toCandidate = (order: any, spaceMap: BikeSpaceMap): TrunkCandidate => {
-  const waitingSince =
-    order.collected_at || order.updated_at || order.created_at || null;
+  const waitingSince = order.updated_at || order.created_at || null;
   return {
     id: order.id,
     tracking_number: order.tracking_number ?? null,
@@ -140,7 +139,7 @@ export const listTrunkCandidates = async (
   const { data, error } = await supabase
     .from("orders")
     .select(
-      "id,tracking_number,status,sender,receiver,bikes,bike_brand,bike_model,bike_type,bike_quantity,storage_locations,collected_at,scheduled_delivery_date,created_at,updated_at,is_scotland,scotland_direction,scotland_override,current_site_id",
+      "id,tracking_number,status,sender,receiver,bikes,bike_brand,bike_model,bike_type,bike_quantity,storage_locations,scheduled_delivery_date,created_at,updated_at,is_scotland,scotland_direction,scotland_override,current_site_id",
     )
     .eq("is_scotland", true)
     .not("status", "in", `(${FINISHED_ORDER_STATUSES.join(",")})`)
