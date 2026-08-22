@@ -256,7 +256,7 @@ const AnalyticsPage = () => {
             
             <Tabs 
               defaultValue="overview" 
-              value={activeTab}
+              value={activeTab === "business" ? "customers" : activeTab}
               onValueChange={setActiveTab}
               className="mb-4 sm:mb-8"
             >
