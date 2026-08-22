@@ -151,12 +151,14 @@ const ShopifyIntegrationPage = () => {
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>How it works</AlertTitle>
             <AlertDescription>
-              Connect your Shopify store and we'll automatically book delivery from our warehouse
-              when one of your products sells. Match happens on <strong>SKU</strong> — each bike
-              stored with us must have the same SKU as your Shopify product variant.
+              Connect your Shopify store and we'll automatically book delivery when one of your
+              products sells. Match happens on <strong>SKU</strong>: bikes stored with us are
+              dispatched from our warehouse, and SKUs you register below as your own stock get a
+              collection booked from your premises.
             </AlertDescription>
           </Alert>
         )}
+
 
         <Card className="mb-6">
           <CardHeader>
