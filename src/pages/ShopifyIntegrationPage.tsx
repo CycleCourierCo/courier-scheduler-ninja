@@ -257,6 +257,10 @@ const ShopifyIntegrationPage = () => {
           </CardContent>
         </Card>
 
+        <CustomerSkuManager userId={user?.id} storeId={store?.id ?? null} hasStore={!!store?.is_active} />
+
+
+
         <Card>
           <CardHeader>
             <CardTitle>Recent activity</CardTitle>
