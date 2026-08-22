@@ -48,3 +48,20 @@ Admin keeps full access to everything, unchanged.
 6. **`src/components/Layout.tsx`**: role-specific menus for fleet manager and tech; drop invoices/users/approvals/timeslips from the sales menu and add notices; add trunk runs to the planner menu; add claims to the CS menu. Admin grouped menu untouched.
 7. **`src/pages/NoticeBarManagement.tsx`** and other admin-gated pages reached by these roles: any in-page `isAdmin` gating that would blank the page for the newly allowed role is relaxed to the role check (notices for sales, vehicles for fleet manager, api keys/webhooks for tech, claims for cs_agent).
 8. **RLS**: check policies on `vehicles`, `api_keys`, `webhook_configurations`, `notice_bars`, `claims` and extend them so the newly permitted roles can actually read/write, using `has_role(auth.uid(), ...)` in the same style as existing policies.
+
+## Admin: Route Permissions manager
+
+A new admin-only page `/admin/route-permissions` where an admin ticks which roles can reach which page, instead of permissions being hardcoded.
+
+- Grid: one row per app page (label + path, grouped by section like the admin menu), one column per role (admin column locked on — admin always has everything).
+- Toggle a checkbox to grant/revoke; Save writes the changes. A "Reset to defaults" button restores the built-in matrix above.
+- The nav menu for each role is driven by the same matrix, so granting a page also makes it appear in that user's menu.
+
+### Technical notes
+
+9. **Migration**: new table `role_route_permissions` (`id`, `role user_role`, `route_key text`, `allowed boolean`, timestamps, unique on `role + route_key`), with GRANTs (`select` to `authenticated`, all to `service_role`), RLS on: all internal staff can read, only admins can insert/update/delete. Seeded from the default matrix above.
+10. **`src/config/routes.ts`** (new): single registry of app pages — `key`, `path`, `label`, `section`, `icon`, plus `matches(pathname)` for dynamic segments (`/orders/:id`, `/claims/:id`, `/tasks/*`, `/knowledge/*`) and the default allowed roles per page. Used by the permissions page, `ProtectedRoute` and `Layout` so there is one source of truth.
+11. **`src/hooks/useRoutePermissions.ts`** (new): loads the matrix once (React Query, cached) and exposes `canAccess(pathname)` and `allowedPagesForUser()`. Falls back to the defaults in the registry if the table can't be read.
+12. **`ProtectedRoute.tsx`**: after the admin short-circuit and the B2C block, resolve the current pathname to a route key and allow it when any of the user's roles is granted; otherwise redirect to that user's first allowed page. Public-page bypasses stay as they are.
+13. **`Layout.tsx`**: non-admin menus render from `allowedPagesForUser()`; admin keeps the full grouped menu.
+14. **`src/pages/RoutePermissions.tsx`** (new) + route registration in `App.tsx` with `adminOnly`, and a link in the admin menu's Admin section.
