@@ -32,5 +32,7 @@ Activity log gets a distinct status so the customer can tell warehouse dispatch 
 
 - New table `customer_shopify_skus`: `id`, `user_id`, `store_id` (nullable), `sku` (unique per user, case-insensitive), `bike_type`, `is_active`, timestamps. GRANTs for `authenticated`/`service_role`; RLS: owner full access, admins manage, service role for the webhook.
 - `supabase/functions/customer-shopify-webhook/index.ts`: after the `warehouse_stock` miss, look up `customer_shopify_skus`; on a hit derive brand/model from `item.vendor`/`item.title`/`item.variant_title` and value from `item.price * item.quantity`, build the order with sender = customer profile address, and log status `matched_customer_stock`. Keep the existing dedupe key and share the tracking/fulfilment block between both paths.
-- `src/pages/ShopifyIntegrationPage.tsx`: SKU manager card (list + add/edit dialog) reading and writing `customer_shopify_skus` via the Supabase client; bike-type dropdown sourced from the same bike-type list used in order creation; badge handling for the new log status.
+- `src/pages/ShopifyIntegrationPage.tsx`: SKU manager card (list + add/edit dialog + bulk upload dialog) reading and writing `customer_shopify_skus` via the Supabase client; CSV parsed client-side and written with an upsert on (`user_id`, `sku`); bike-type dropdown sourced from the same bike-type list used in order creation; badge handling for the new log status.
+- `supabase/functions/customer-shopify-connect/index.ts`: new `list_products` action that uses the stored access token to fetch product variant SKUs from Shopify for the bulk-import picker.
 - Setup instructions on the page updated to mention both SKU sources.
+
