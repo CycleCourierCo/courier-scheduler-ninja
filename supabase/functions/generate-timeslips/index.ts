@@ -388,7 +388,7 @@ const handler = async (req: Request): Promise<Response> => {
     const status = createdTimeslips.length > 0 ? (warnings.length > 0 ? 'partial' : 'success') : 'failed';
     
     try {
-      const resend = trackResend(new Resend(Deno.env.get('RESEND_API_KEY'), "timeslip email"));
+      const resend = trackResend(new Resend(Deno.env.get('RESEND_API_KEY')), "timeslip email");
       
       // Fetch driver details for the email
       const driverDetails = createdTimeslips.length > 0 ? await Promise.all(
