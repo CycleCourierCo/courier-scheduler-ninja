@@ -154,6 +154,7 @@ const orderSchema = z.object({
     }
     if (!r?.address?.street) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Street address is required", path: ["receiver", "address", "street"] });
     if (!r?.address?.city) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "City is required", path: ["receiver", "address", "city"] });
+    if (!r?.address?.state || r.address.state.trim() === "") ctx.addIssue({ code: z.ZodIssueCode.custom, message: "County is required", path: ["receiver", "address", "state"] });
     if (!r?.address?.zipCode) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Postcode is required", path: ["receiver", "address", "zipCode"] });
     if (!r?.address?.country) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Country is required", path: ["receiver", "address", "country"] });
   }
