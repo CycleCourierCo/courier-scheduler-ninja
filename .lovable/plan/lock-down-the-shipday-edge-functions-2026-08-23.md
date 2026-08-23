@@ -39,4 +39,4 @@ So anyone with the URL can create, delete or edit Shipday jobs today.
 
 ## Out of scope (still open, tell me if you want them next)
 
-Other unauthenticated endpoints flagged by the scanner: the public orders GET endpoint, QuickBooks bill creation, webhook trigger, the exposed Geoapify and TrackPod keys, the sales-role privilege escalation, and the delivery-photo read policy.
+Other unauthenticated endpoints flagged by the scanner: the public orders GET endpoint, QuickBooks bill creation, webhook trigger, the exposed Geoapify key, the sales-role privilege escalation, and the delivery-photo read policy.
