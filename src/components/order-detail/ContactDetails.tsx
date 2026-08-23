@@ -35,9 +35,9 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({ type, contact, notes, o
       }
 
       if (data?.success) {
-        toast.success(`Review request sent to ${contact.name} via SendZen`);
+        toast.success(`Review request sent to ${contact.name} via WhatsApp`);
       } else {
-        toast.error(`SendZen failed: ${data?.error || 'Unknown error'}`);
+        toast.error(`WhatsApp failed: ${data?.error || 'Unknown error'}`);
       }
     } catch (error) {
       toast.error(`Failed: ${error instanceof Error ? error.message : "Unknown error"}`);
