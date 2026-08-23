@@ -48,9 +48,6 @@ verify_jwt = false
 [functions.create-webhook-config]
 verify_jwt = false
 
-[functions.create-quickbooks-bill]
-verify_jwt = false
-
 [functions.query-database-completed-jobs]
 verify_jwt = false
 
