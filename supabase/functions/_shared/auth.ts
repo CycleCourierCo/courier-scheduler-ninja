@@ -217,6 +217,57 @@ export async function requireLoadingListAuth(req: Request): Promise<AuthResult> 
   return { success: false, error: 'Forbidden: Admin, route planner or loader access required', status: 403 };
 }
 
+export type OpsRole = 'admin' | 'route_planner' | 'loader' | 'driver';
+
+/**
+ * Gate for operational endpoints (e.g. Shipday mutations).
+ * Accepts either an internal edge-function call made with the service role key,
+ * or a signed-in staff member holding one of the supplied roles.
+ */
+export async function requireOpsAuth(
+  req: Request,
+  roles: OpsRole[] = ['admin', 'route_planner'],
+): Promise<AuthResult> {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader?.startsWith('Bearer ')) {
+    console.error('Auth failed: No bearer token provided', { timestamp: new Date().toISOString() });
+    return { success: false, error: 'Unauthorized', status: 401 };
+  }
+
+  const token = authHeader.replace('Bearer ', '').trim();
+
+  // Internal service-to-service invocation
+  if (serviceRoleKey && token === serviceRoleKey) {
+    return { success: true, authType: 'admin' };
+  }
+
+  const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey);
+  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+  if (authError || !user) {
+    console.error('Auth failed: Invalid or expired token', {
+      timestamp: new Date().toISOString(),
+      errorType: authError?.name,
+    });
+    return { success: false, error: 'Unauthorized', status: 401 };
+  }
+
+  for (const role of roles) {
+    const { data: ok } = await supabaseAdmin.rpc('has_role', { _user_id: user.id, _role: role });
+    if (ok) {
+      return { success: true, userId: user.id, authType: role === 'admin' ? 'admin' : 'user' };
+    }
+  }
+
+  console.error('Auth failed: User lacks required operations role', {
+    timestamp: new Date().toISOString(),
+    userId: user.id,
+  });
+  return { success: false, error: 'Forbidden: Staff access required', status: 403 };
+}
+
 
 /**
  * Create standardized error response with CORS headers
