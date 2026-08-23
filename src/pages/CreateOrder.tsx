@@ -62,8 +62,8 @@ const phoneValidation = z
 const addressSchema = z.object({
   street: z.string().min(2, "Street address is required"),
   city: z.string().min(2, "City is required"),
-  state: z.string().min(1, "State is required"),
-  zipCode: z.string().min(1, "Zip code is required"),
+  state: z.string().min(1, "County is required"),
+  zipCode: z.string().min(1, "Postcode is required"),
   country: z.string().min(2, "Country is required"),
   region: z.string().optional(),
   lat: z.number().optional(),
