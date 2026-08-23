@@ -93,7 +93,7 @@ serve(async (req) => {
       conversation_id: conversationId,
       direction: 'in',
       body_text: body.text || null,
-      body_html: body.html || null,
+      body_html: sanitizeInboundHtml(body.html) || null,
       attachments: body.attachments || [],
       email_message_id: body.message_id || null,
       in_reply_to: body.in_reply_to || null,

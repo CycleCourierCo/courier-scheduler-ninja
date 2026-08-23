@@ -9,6 +9,22 @@ interface Props {
   messages: CsMessage[];
 }
 
+// Force safe link behaviour on any rendered anchor
+DOMPurify.addHook('afterSanitizeAttributes', (node) => {
+  if (node instanceof Element && node.tagName === 'A') {
+    node.setAttribute('target', '_blank');
+    node.setAttribute('rel', 'noopener noreferrer');
+  }
+});
+
+const sanitizeMessageHtml = (html: string) =>
+  DOMPurify.sanitize(html, {
+    USE_PROFILES: { html: true },
+    FORBID_TAGS: ['style', 'script', 'iframe', 'object', 'embed', 'form', 'link', 'meta', 'base', 'noscript', 'template'],
+    FORBID_ATTR: ['style', 'srcdoc', 'formaction', 'onerror', 'onload', 'onclick'],
+    ALLOW_DATA_ATTR: false,
+  });
+
 const MessageThread: React.FC<Props> = ({ messages }) => {
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
