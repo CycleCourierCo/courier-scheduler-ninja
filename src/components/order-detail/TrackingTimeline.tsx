@@ -82,6 +82,10 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
     ? (order as any).foamDeliveryPhotos
     : [];
   const [foamPhotoUrls, setFoamPhotoUrls] = useState<string[]>([]);
+  // Postcode the visitor proved on this page (public tracking only). Used to
+  // ask the server for signed photo links, since anonymous visitors have no
+  // direct read access to the private photo bucket.
+  const [verifiedPostcode, setVerifiedPostcode] = useState<string | null>(null);
 
   // Foam delivery photos live in a private bucket, so swap the stored paths for
   // short-lived signed URLs before rendering them.
@@ -92,20 +96,37 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
       return;
     }
     (async () => {
-      const { data, error } = await supabase.storage
-        .from("foam-delivery-photos")
-        .createSignedUrls(foamPhotoPaths, 60 * 60);
-      if (cancelled) return;
-      if (error) {
-        setFoamPhotoUrls([]);
+      const { data: sessionData } = await supabase.auth.getSession();
+
+      // Signed-in owners/staff can sign the paths themselves via storage RLS.
+      if (sessionData?.session) {
+        const { data, error } = await supabase.storage
+          .from("foam-delivery-photos")
+          .createSignedUrls(foamPhotoPaths, 60 * 30);
+        if (cancelled) return;
+        setFoamPhotoUrls(
+          error ? [] : ((data || []).map((d) => d.signedUrl).filter(Boolean) as string[]),
+        );
         return;
       }
-      setFoamPhotoUrls((data || []).map((d) => d.signedUrl).filter(Boolean) as string[]);
+
+      // Public tracking: the server re-checks the delivery postcode before signing.
+      if (!verifiedPostcode) {
+        if (!cancelled) setFoamPhotoUrls([]);
+        return;
+      }
+      const identifier = orderIdentifier || order.trackingNumber || order.id;
+      const { data, error } = await supabase.functions.invoke("get-foam-photo-urls", {
+        body: { identifier, postcode: verifiedPostcode },
+      });
+      if (cancelled) return;
+      const urls = Array.isArray((data as any)?.urls) ? ((data as any).urls as string[]) : [];
+      setFoamPhotoUrls(error ? [] : urls);
     })();
     return () => {
       cancelled = true;
     };
-  }, [foamPhotoPaths.join(",")]);
+  }, [foamPhotoPaths.join(","), verifiedPostcode, orderIdentifier, order.id, order.trackingNumber]);
 
   console.log("TrackingTimeline rendering with order:", order.id);
 
