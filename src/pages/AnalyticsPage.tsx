@@ -66,6 +66,7 @@ import InspectionsOverTimeChart from "@/components/analytics/InspectionsOverTime
 import DriverAnalyticsSection from "@/components/analytics/DriverAnalyticsSection";
 import StatsCard from "@/components/analytics/StatsCard";
 import ApiWebhookSection from "@/components/analytics/ApiWebhookSection";
+import IntegrationsSection from "@/components/analytics/IntegrationsSection";
 import { Bike, Calendar as CalendarLucide, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer, ClipboardCheck, AlertTriangle, PoundSterling, ThumbsUp, Route, Users, Webhook, PlugZap } from "lucide-react";
 
 import {
