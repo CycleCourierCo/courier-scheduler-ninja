@@ -652,6 +652,13 @@ const AnalyticsPage = () => {
                 <ApiWebhookSection />
               </TabsContent>
 
+              <TabsContent value="integrations" className="space-y-2 sm:space-y-4">
+                <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Third-Party Integration Analytics</h2>
+                <IntegrationsSection />
+              </TabsContent>
+
+
+
             </Tabs>
           </>
         )}
