@@ -18,7 +18,6 @@ import { notify } from "@/lib/notify";
 import { supabase } from "@/integrations/supabase/client";
 import { useDraggable } from "@/hooks/useDraggable";
 import { useDroppable } from "@/hooks/useDroppable";
-import TimeslotEditDialog from './TimeslotEditDialog';
 import CSVUploadButton from './CSVUploadButton';
 import MultiCSVUploadButton, { UploadedFile } from './MultiCSVUploadButton';
 import RouteComparisonDialog from './RouteComparisonDialog';
@@ -2511,8 +2510,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
 
 
-  // SendZen: Send grouped timeslots for a single location
-  const sendGroupedTimeslotsSendZen = async (locationGroupId: string) => {
+  // WhatsApp: Send grouped timeslots for a single location
+  const sendGroupedTimeslotsWhatsApp = async (locationGroupId: string) => {
     const jobsAtLocation = selectedJobs.filter(job => 
       job.locationGroupId === locationGroupId && job.type !== 'break'
     );
@@ -2568,7 +2567,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         await supabase.from('orders').update({ status: newStatus }).eq('id', job.orderId);
       }
       
-      // Send via SendZen grouped_timeslot template
+      // Send via WhatsApp grouped_timeslot template
       const { data, error } = await supabase.functions.invoke('send-sendzen-whatsapp', {
         body: {
           orderId: primaryJob.orderId,
@@ -2586,22 +2585,22 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       });
 
       if (error) {
-        toast.error(`SendZen failed: ${error.message}`);
+        toast.error(`WhatsApp failed: ${error.message}`);
       } else if (data?.success) {
-        toast.success(`SendZen grouped timeslot sent for ${jobsAtLocation.length} jobs`);
+        toast.success(`WhatsApp grouped timeslot sent for ${jobsAtLocation.length} jobs`);
       } else {
-        toast.error(`SendZen failed: ${data?.error || 'Unknown error'}`);
+        toast.error(`WhatsApp failed: ${data?.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Error sending SendZen grouped timeslots:', error);
-      toast.error('Failed to send SendZen grouped timeslots');
+      console.error('Error sending WhatsApp grouped timeslots:', error);
+      toast.error('Failed to send WhatsApp grouped timeslots');
     } finally {
       setIsSendingTimeslots(false);
     }
   };
 
-  // SendZen: Send all timeslots (no 4-minute delay)
-  const sendAllTimeslotsSendZen = async () => {
+  // WhatsApp: Send all timeslots (no 4-minute delay)
+  const sendAllTimeslotsWhatsApp = async () => {
     const jobsToSend = selectedJobs.filter(job => 
       job.type !== 'break' && job.estimatedTime && job.lat && job.lon
     );
@@ -2681,7 +2680,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
             await supabase.from('orders').update({ status: newStatus }).eq('id', job.orderId);
           }
           
-          // Send grouped SendZen message
+          // Send grouped WhatsApp message
           const { data, error } = await supabase.functions.invoke('send-sendzen-whatsapp', {
             body: {
               orderId: primaryJob.orderId,
@@ -2703,7 +2702,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           else successCount++;
           jobsAtLocation.forEach(j => jobSendResults.set(`${j.orderId}-${j.type}`, wasSuccess));
           
-          // Throttle to prevent SendZen rate limiting
+          // Throttle to prevent WhatsApp rate limiting
           await new Promise(resolve => setTimeout(resolve, 500));
         } catch {
           failureCount++;
@@ -2749,7 +2748,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           else successCount++;
           jobSendResults.set(`${job.orderId}-${job.type}`, wasSuccess);
           
-          // Throttle to prevent SendZen rate limiting
+          // Throttle to prevent WhatsApp rate limiting
           await new Promise(resolve => setTimeout(resolve, 500));
         } catch {
           failureCount++;
@@ -2830,11 +2829,11 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       }
 
       if (successCount > 0 && failureCount === 0) {
-        toast.success(`All ${successCount} SendZen messages sent!`);
+        toast.success(`All ${successCount} WhatsApp messages sent!`);
       } else if (successCount > 0) {
-        toast.success(`${successCount} sent, ${failureCount} failed via SendZen`);
+        toast.success(`${successCount} sent, ${failureCount} failed via WhatsApp`);
       } else {
-        toast.error(`All ${failureCount} SendZen messages failed`);
+        toast.error(`All ${failureCount} WhatsApp messages failed`);
       }
 
       // Persist the route so it can be re-loaded later
@@ -2853,8 +2852,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
       }
     } catch (error) {
-      console.error('Error in SendZen bulk send:', error);
-      toast.error('Failed to send SendZen timeslots');
+      console.error('Error in WhatsApp bulk send:', error);
+      toast.error('Failed to send WhatsApp timeslots');
     } finally {
       setIsSendingTimeslots(false);
     }
