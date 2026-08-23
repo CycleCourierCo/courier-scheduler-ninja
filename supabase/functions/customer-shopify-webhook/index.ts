@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { logInboundWebhook } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -75,6 +76,7 @@ serve(async (req) => {
 
     if (!secretVal || !(await verifyHmac(rawBody, signature, secretVal as string))) {
       console.warn("Invalid HMAC for shop", shopDomain);
+      logInboundWebhook("shopify", "customer order webhook", { success: false, statusCode: 401, errorLabel: "invalid_hmac" });
       return new Response("Unauthorized", { status: 401, headers: corsHeaders });
     }
 

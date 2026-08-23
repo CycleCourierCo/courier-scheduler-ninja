@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import {
+import { logInboundWebhook } from "../_shared/integrationLog.ts";
   calculateLabourPrice,
   getSyncSecret,
   loadWorkshopRates,
@@ -46,6 +47,7 @@ serve(async (req) => {
 
     if (!(await verifySignature(rawBody, signature, secret))) {
       console.error("inspectabike-fault-webhook: invalid signature");
+      logInboundWebhook("inspectabike", "fault webhook", { success: false, statusCode: 401, errorLabel: "invalid_signature" });
       return json({ error: "Invalid signature" }, 401);
     }
 

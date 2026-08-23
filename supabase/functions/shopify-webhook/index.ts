@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
-import { trackedFetch } from "../_shared/integrationLog.ts";
+import { trackedFetch, logInboundWebhook } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -139,6 +139,7 @@ const handler = async (req: Request): Promise<Response> => {
     const isValid = await verifyShopifyWebhook(body, signature, shopifyWebhookSecret);
     if (!isValid) {
       console.log('Invalid webhook signature');
+      logInboundWebhook("shopify", "order webhook", { success: false, statusCode: 401, errorLabel: "invalid_signature" });
       return new Response('Unauthorized', { 
         status: 401, 
         headers: corsHeaders 
