@@ -48,7 +48,11 @@ serve(async (req) => {
     }
 
     const payload = await req.json();
-    console.log("Received Shipday webhook payload:", JSON.stringify(payload, null, 2));
+    console.log("Received Shipday webhook", {
+      event: payload?.event ?? null,
+      orderNumber: payload?.order?.order_number ?? null,
+    });
+
 
     const { order, event } = payload;
     
