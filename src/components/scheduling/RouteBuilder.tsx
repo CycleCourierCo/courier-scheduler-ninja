@@ -453,9 +453,8 @@ const JobItem: React.FC<JobItemProps> = ({
   isRetiming,
   onAddBreak, 
   onRemove, 
-  onSendTimeslot, 
-  onSendGroupedTimeslots,
-  onSendGroupedTimeslotsSendZen,
+  onSendGroupedTimeslotsWhatsApp,
+
   onUpdateCoordinates,
   onToggleAddress,
   isSendingTimeslots,
