@@ -162,16 +162,7 @@ export const timeslipService = {
   // Approve timeslip
   async approveTimeslip(id: string, adminNotes?: string) {
     const { data: { user } } = await supabase.auth.getUser();
-    
-    // Get the full timeslip data first for QuickBooks bill creation
-    const { data: timeslip, error: fetchError } = await supabase
-      .from('timeslips')
-      .select('*, driver:profiles!timeslips_driver_id_fkey(*)')
-      .eq('id', id)
-      .single();
-    
-    if (fetchError) throw fetchError;
-    
+
     // Approve the timeslip
     const { data, error } = await supabase
       .from('timeslips')
@@ -186,6 +177,8 @@ export const timeslipService = {
       .single();
     
     if (error) throw error;
+    
+
     
 
     
