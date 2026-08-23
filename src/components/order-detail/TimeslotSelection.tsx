@@ -21,123 +21,15 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
 
 
-  const handleSendTimeslot = async () => {
+  const handleSendWhatsApp = async () => {
     if (!selectedTime) {
       toast.error("Please select a delivery time");
       return;
     }
 
     try {
-      setIsSending(true);
-      
-      // First save the timeslot to the database
-      const updateField = type === "sender" ? "pickup_timeslot" : "delivery_timeslot";
-      const { error: updateError } = await supabase
-        .from('orders')
-        .update({ [updateField]: selectedTime })
-        .eq('id', orderId);
+      setIsSendingWhatsApp(true);
 
-      if (updateError) {
-        console.error("Error saving timeslot:", updateError);
-        toast.error(`Failed to save timeslot: ${updateError.message}`);
-        return;
-      }
-
-      // Determine the new status based on timeslot type and dates
-      let newStatus = order.status;
-      if (type === "sender") {
-        newStatus = "collection_scheduled";
-      } else if (type === "receiver") {
-        // Check if delivery is on same date as collection
-        const pickupDate = order?.scheduledPickupDate;
-        const deliveryDate = order?.scheduledDeliveryDate;
-        
-        if (pickupDate && deliveryDate) {
-          const pickupDateOnly = new Date(pickupDate).toDateString();
-          const deliveryDateOnly = new Date(deliveryDate).toDateString();
-          
-          if (pickupDateOnly === deliveryDateOnly) {
-            newStatus = "scheduled";
-          } else {
-            newStatus = "delivery_scheduled";
-          }
-        } else {
-          newStatus = "delivery_scheduled";
-        }
-      }
-
-      // Update the order status
-      const { error: statusUpdateError } = await supabase
-        .from('orders')
-        .update({ status: newStatus })
-        .eq('id', orderId);
-
-      if (statusUpdateError) {
-        console.error("Error updating order status:", statusUpdateError);
-        toast.error(`Failed to update order status: ${statusUpdateError.message}`);
-        return;
-      }
-
-      // Send the WhatsApp message with the selected start time
-      const { data, error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
-        body: {
-          orderId,
-          recipientType: type,
-          deliveryTime: selectedTime
-        }
-      });
-
-      if (error) {
-        console.error("Error sending timeslot:", error);
-        toast.error(`Failed to send timeslot: ${error.message}`);
-        return;
-      }
-
-      // Handle individual operation results
-      if (data?.results) {
-        const { whatsapp, shipday, email } = data.results;
-        
-        // Show specific successes
-        if (whatsapp?.success) {
-          toast.success("WhatsApp message sent");
-        }
-        if (email?.success) {
-          toast.success("Email sent");
-        }
-        if (shipday?.success) {
-          toast.success("Shipday updated");
-        }
-        
-        // Show specific failures
-        if (!whatsapp?.success) {
-          toast.error(`WhatsApp failed: ${whatsapp?.error || 'Unknown error'}`);
-        }
-        if (!email?.success && email?.error) {
-          toast.warning(`Email failed: ${email.error}`);
-        }
-        if (!shipday?.success && shipday?.error) {
-          toast.warning(`Shipday failed: ${shipday.error}`);
-        }
-      } else {
-        toast.success(`Timeslot sent to ${type} successfully!`);
-      }
-    } catch (error) {
-      console.error("Error sending timeslot:", error);
-      toast.error(`Failed to send timeslot: ${error instanceof Error ? error.message : "Unknown error"}`);
-    } finally {
-      setIsSending(false);
-    }
-  };
-
-  const handleSendViaSendZen = async () => {
-    if (!selectedTime) {
-      toast.error("Please select a delivery time");
-      return;
-    }
-
-    try {
-      setIsSendingSendZen(true);
-      
       // Save the timeslot to the database
       const updateField = type === "sender" ? "pickup_timeslot" : "delivery_timeslot";
       const { error: updateError } = await supabase
@@ -150,7 +42,7 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
         return;
       }
 
-      // Determine and update status (same logic as existing)
+      // Determine and update status
       let newStatus = order.status;
       if (type === "sender") {
         newStatus = "collection_scheduled";
@@ -171,33 +63,34 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
         .update({ status: newStatus })
         .eq('id', orderId);
 
-      // Send via SendZen
-      const sendzenType = type === "sender" ? "collection_timeslots" : "delivery_timeslot";
+      // Send the WhatsApp message
+      const messageType = type === "sender" ? "collection_timeslots" : "delivery_timeslot";
       const { data, error } = await supabase.functions.invoke('send-sendzen-whatsapp', {
         body: {
           orderId,
-          type: sendzenType,
+          type: messageType,
           recipientType: type,
           deliveryTime: selectedTime
         }
       });
 
       if (error) {
-        toast.error(`SendZen failed: ${error.message}`);
+        toast.error(`WhatsApp failed: ${error.message}`);
         return;
       }
 
       if (data?.success) {
-        toast.success(`Timeslot sent via SendZen to ${type}!`);
+        toast.success(`Timeslot sent via WhatsApp to ${type}!`);
       } else {
-        toast.error(`SendZen failed: ${data?.error || 'Unknown error'}`);
+        toast.error(`WhatsApp failed: ${data?.error || 'Unknown error'}`);
       }
     } catch (error) {
       toast.error(`Failed: ${error instanceof Error ? error.message : "Unknown error"}`);
     } finally {
-      setIsSendingSendZen(false);
+      setIsSendingWhatsApp(false);
     }
   };
+
   const contact = type === "sender" ? order?.sender : order?.receiver;
   const scheduledDate = type === "sender" ? order?.scheduledPickupDate : order?.scheduledDeliveryDate;
   const currentTimeslot = type === "sender" ? order?.pickupTimeslot : order?.deliveryTimeslot;
