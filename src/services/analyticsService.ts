@@ -464,18 +464,24 @@ export const getBikeBrandAnalytics = (orders: Order[]): BikeBrandAnalytics => {
 };
 
 
+// SLA targets (hours). Collection and delivery legs are each a 4-day maximum,
+// so the end-to-end order → delivery target is the sum of the two legs.
+export const COLLECTION_SLA_HOURS = 96; // 4 days from order creation to collection
+export const DELIVERY_SLA_HOURS = 96; // 4 days from collection to delivery
+export const TOTAL_DURATION_SLA_HOURS = COLLECTION_SLA_HOURS + DELIVERY_SLA_HOURS; // 8 days
+
 // Types for timing analytics
 export type CollectionTimeAnalytics = {
   averageTimeToCollect: number; // hours
-  collectionSLA: number; // percentage within 24h
+  collectionSLA: number; // % creation→collection within COLLECTION_SLA_HOURS
   byCustomer: Array<{ customer: string; avgTime: number }>;
 };
 
 export type DeliveryTimeAnalytics = {
   averageCollectionToDelivery: number; // hours
   averageTotalDuration: number; // hours from creation to delivery
-  deliverySLA: number; // % collection→delivery within 48h
-  totalDurationSLA: number; // % creation→delivery within 72h
+  deliverySLA: number; // % collection→delivery within DELIVERY_SLA_HOURS
+  totalDurationSLA: number; // % creation→delivery within TOTAL_DURATION_SLA_HOURS
   byCustomer: Array<{ customer: string; avgCollectionToDelivery: number; avgTotal: number }>;
 };
 
