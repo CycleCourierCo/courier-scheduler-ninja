@@ -470,10 +470,15 @@ const CreateOrder = () => {
       toast.error("Phone number is too short — must be +44 followed by exactly 10 digits.");
     } else if (!senderPhone.startsWith('+44')) {
       toast.error("Phone number must start with +44.");
-    } else if (!address?.street || !address?.city || !address?.zipCode) {
-      toast.error("Please complete the sender's address (street, city, and postcode are required).");
     } else {
-      toast.error("Please fill in all required fields in Collection Information.");
+      const missing = missingAddressLabels(address);
+      if (missing.length > 0) {
+        // Surface the inline errors on the address block as well as the toast
+        form.trigger("sender.address");
+        toast.error(`Collection address: ${missing.join(", ")} ${missing.length > 1 ? "are" : "is"} required.`);
+      } else {
+        toast.error("Please fill in all required fields in Collection Information.");
+      }
     }
   };
 
