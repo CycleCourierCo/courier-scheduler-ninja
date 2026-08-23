@@ -447,7 +447,7 @@ const AnalyticsPage = () => {
                   <StatsCard
                     title="Collection SLA"
                     value={`${collectionTimeData.collectionSLA.toFixed(0)}%`}
-                    description="Within 24 hours"
+                    description="Within 4 days"
                     icon={CheckCircle2}
                   />
                   <StatsCard
@@ -459,7 +459,7 @@ const AnalyticsPage = () => {
                   <StatsCard
                     title="Delivery SLA"
                     value={`${deliveryTimeData.deliverySLA.toFixed(0)}%`}
-                    description="Within 48 hours"
+                    description="Within 4 days"
                     icon={Target}
                   />
                   <StatsCard
@@ -471,7 +471,7 @@ const AnalyticsPage = () => {
                   <StatsCard
                     title="Order → Delivery SLA"
                     value={`${deliveryTimeData.totalDurationSLA.toFixed(0)}%`}
-                    description="Within 72 hours"
+                    description="Within 8 days"
                     icon={Target}
                   />
                   <StatsCard
