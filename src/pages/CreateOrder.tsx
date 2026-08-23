@@ -589,37 +589,60 @@ const CreateOrder = () => {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
-                // Handle validation errors with user feedback
-                console.log("Form validation errors:", errors);
-                
-                // Check which tab has errors and navigate there
-                const hasDetailsErrors = errors.bikes || errors.bikeQuantity || errors.isEbayOrder || 
-                  errors.collectionCode || errors.needsPaymentOnCollection || 
-                  errors.paymentCollectionPhone || errors.isBikeSwap || 
-                  errors.partExchangeBikeBrand || errors.partExchangeBikeModel || errors.partExchangeBikeType;
-                
-                const hasSenderErrors = errors.sender;
-                const hasReceiverErrors = errors.receiver;
-                
+                // Flatten the error tree into dotted paths + messages so we can
+                // both name the exact fields and focus the first offender.
+                const flatten = (node: any, path: string[] = []): { path: string; message: string }[] => {
+                  if (!node || typeof node !== "object") return [];
+                  if (typeof node.message === "string" && !("type" in node && node.type === undefined && !node.message)) {
+                    if (node.message) return [{ path: path.join("."), message: node.message }];
+                  }
+                  return Object.keys(node)
+                    .filter((k) => !["message", "type", "ref", "types", "root"].includes(k))
+                    .flatMap((k) => flatten(node[k], [...path, k]));
+                };
+
+                const flat = flatten(errors);
+                const first = flat[0];
+
+                const groupLabel = (p: string) =>
+                  p.startsWith("sender.address") ? "Collection address"
+                  : p.startsWith("receiver.address") ? "Delivery address"
+                  : p.startsWith("sender") ? "Collection details"
+                  : p.startsWith("receiver") ? "Delivery details"
+                  : p.startsWith("boxBuyer") ? "Buyer details"
+                  : "Bike details";
+
+                const hasDetailsErrors = errors.bikes || errors.bikeQuantity || errors.isEbayOrder ||
+                  errors.collectionCode || errors.needsPaymentOnCollection ||
+                  errors.paymentCollectionPhone || errors.isBikeSwap ||
+                  errors.partExchangeBikeBrand || errors.partExchangeBikeModel || errors.partExchangeBikeType ||
+                  errors.boxBuyer;
+
                 if (hasDetailsErrors) {
                   setActiveTab("details");
-                  toast.error("Please complete all required fields in Bike Details.");
-                } else if (hasSenderErrors) {
+                } else if (errors.sender) {
                   setActiveTab("sender");
-                  toast.error("Please complete all required fields in Collection Information.");
-                } else if (hasReceiverErrors) {
+                } else if (errors.receiver) {
                   setActiveTab("receiver");
-                  toast.error("Please complete all required fields in Delivery Information.");
+                }
+
+                if (first) {
+                  const sameGroup = flat.filter((e) => groupLabel(e.path) === groupLabel(first.path));
+                  const messages = Array.from(new Set(sameGroup.map((e) => e.message)));
+                  toast.error(`${groupLabel(first.path)}: ${messages.join(" · ")}`);
+                  // Expand the relevant section and focus the offending input
+                  setTimeout(() => {
+                    try {
+                      form.setFocus(first.path as any, { shouldSelect: true });
+                    } catch {
+                      /* field may not be mounted yet */
+                    }
+                  }, 120);
                 } else {
-                  // Generic error for any other validation failure
-                  const firstErrorKey = Object.keys(errors)[0];
-                  const firstError = errors[firstErrorKey as keyof typeof errors];
-                  const errorMessage = typeof firstError === 'object' && firstError && 'message' in firstError 
-                    ? String(firstError.message) 
-                    : "Please complete all required fields.";
-                  toast.error(errorMessage);
+                  toast.error("Please complete all required fields.");
                 }
               })} className="space-y-6">
+
                 <Tabs value={activeTab} onValueChange={(value) => {
                   if (value === "sender" && !isDetailsValid) {
                     toast.error("Please complete Bike Details first.");
