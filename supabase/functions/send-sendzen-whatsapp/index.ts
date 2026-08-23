@@ -760,7 +760,7 @@ serve(async (req: Request): Promise<Response> => {
     let sendzenSuccess = false;
     let sendzenResponseText = "";
     try {
-      const sendzenRes = await fetch("https://api.sendzen.io/v1/messages", {
+      const sendzenRes = await trackedFetch("whatsapp", "send template", "https://api.sendzen.io/v1/messages", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
