@@ -131,6 +131,7 @@ export type Database = {
       }
       bicycle_inspections: {
         Row: {
+          approval_email_sent_at: string | null
           bike_type: string | null
           created_at: string
           drivetrain_degreased_at: string | null
@@ -161,10 +162,13 @@ export type Database = {
           released_by_id: string | null
           released_by_name: string | null
           released_to_customer_at: string | null
+          report_generated_at: string | null
+          report_url: string | null
           status: string
           updated_at: string
         }
         Insert: {
+          approval_email_sent_at?: string | null
           bike_type?: string | null
           created_at?: string
           drivetrain_degreased_at?: string | null
@@ -195,10 +199,13 @@ export type Database = {
           released_by_id?: string | null
           released_by_name?: string | null
           released_to_customer_at?: string | null
+          report_generated_at?: string | null
+          report_url?: string | null
           status?: string
           updated_at?: string
         }
         Update: {
+          approval_email_sent_at?: string | null
           bike_type?: string | null
           created_at?: string
           drivetrain_degreased_at?: string | null
@@ -229,6 +236,8 @@ export type Database = {
           released_by_id?: string | null
           released_by_name?: string | null
           released_to_customer_at?: string | null
+          report_generated_at?: string | null
+          report_url?: string | null
           status?: string
           updated_at?: string
         }
@@ -841,6 +850,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "customer_shopify_order_log_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "customer_shopify_stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_shopify_skus: {
+        Row: {
+          bike_type: string
+          created_at: string
+          id: string
+          is_active: boolean
+          sku: string
+          store_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bike_type: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          sku: string
+          store_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bike_type?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          sku?: string
+          store_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_shopify_skus_store_id_fkey"
             columns: ["store_id"]
             isOneToOne: false
             referencedRelation: "customer_shopify_stores"
@@ -2418,6 +2468,7 @@ export type Database = {
           collection_driver_name: string | null
           created_at: string
           created_via_api: boolean
+          current_site_id: string | null
           customer_order_number: string | null
           delivery_confirmation_sent_at: string | null
           delivery_date: Json | null
@@ -2455,6 +2506,7 @@ export type Database = {
           is_box_my_bike: boolean
           is_ebay_order: boolean | null
           is_northern_ireland: boolean
+          is_scotland: boolean
           loaded_onto_van: boolean | null
           loaded_onto_van_at: string | null
           needs_inspection: boolean | null
@@ -2474,6 +2526,8 @@ export type Database = {
           scheduled_at: string | null
           scheduled_delivery_date: string | null
           scheduled_pickup_date: string | null
+          scotland_direction: string | null
+          scotland_override: boolean | null
           sender: Json
           sender_alt_location: Json | null
           sender_confirmed_at: string | null
@@ -2518,6 +2572,7 @@ export type Database = {
           collection_driver_name?: string | null
           created_at?: string
           created_via_api?: boolean
+          current_site_id?: string | null
           customer_order_number?: string | null
           delivery_confirmation_sent_at?: string | null
           delivery_date?: Json | null
@@ -2555,6 +2610,7 @@ export type Database = {
           is_box_my_bike?: boolean
           is_ebay_order?: boolean | null
           is_northern_ireland?: boolean
+          is_scotland?: boolean
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
           needs_inspection?: boolean | null
@@ -2574,6 +2630,8 @@ export type Database = {
           scheduled_at?: string | null
           scheduled_delivery_date?: string | null
           scheduled_pickup_date?: string | null
+          scotland_direction?: string | null
+          scotland_override?: boolean | null
           sender: Json
           sender_alt_location?: Json | null
           sender_confirmed_at?: string | null
@@ -2618,6 +2676,7 @@ export type Database = {
           collection_driver_name?: string | null
           created_at?: string
           created_via_api?: boolean
+          current_site_id?: string | null
           customer_order_number?: string | null
           delivery_confirmation_sent_at?: string | null
           delivery_date?: Json | null
@@ -2655,6 +2714,7 @@ export type Database = {
           is_box_my_bike?: boolean
           is_ebay_order?: boolean | null
           is_northern_ireland?: boolean
+          is_scotland?: boolean
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
           needs_inspection?: boolean | null
@@ -2674,6 +2734,8 @@ export type Database = {
           scheduled_at?: string | null
           scheduled_delivery_date?: string | null
           scheduled_pickup_date?: string | null
+          scotland_direction?: string | null
+          scotland_override?: boolean | null
           sender?: Json
           sender_alt_location?: Json | null
           sender_confirmed_at?: string | null
@@ -2690,6 +2752,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "orders_current_site_id_fkey"
+            columns: ["current_site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "orders_receiver_contact_id_fkey"
             columns: ["receiver_contact_id"]
@@ -3012,6 +3081,261 @@ export type Database = {
           token_type?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      review_actions: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          cycle_id: string
+          description: string
+          due_date: string | null
+          id: string
+          owner: Database["public"]["Enums"]["review_action_owner"]
+          status: Database["public"]["Enums"]["review_action_status"]
+          updated_at: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          cycle_id: string
+          description: string
+          due_date?: string | null
+          id?: string
+          owner?: Database["public"]["Enums"]["review_action_owner"]
+          status?: Database["public"]["Enums"]["review_action_status"]
+          updated_at?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          cycle_id?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          owner?: Database["public"]["Enums"]["review_action_owner"]
+          status?: Database["public"]["Enums"]["review_action_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_actions_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "review_cycles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_cycles: {
+        Row: {
+          behaviour_score: number | null
+          created_at: string
+          created_by: string | null
+          employee_acknowledged_at: string | null
+          employee_agreement:
+            | Database["public"]["Enums"]["review_agreement"]
+            | null
+          employee_comments: string | null
+          employee_id: string
+          employee_requests_discussion: boolean
+          id: string
+          manager_submitted_at: string | null
+          meeting_notes: string | null
+          overall_score: number | null
+          performance_score: number | null
+          period_end: string
+          period_start: string
+          review_date: string | null
+          review_type: Database["public"]["Enums"]["review_type"]
+          reviewer_id: string | null
+          self_overall_score: number | null
+          self_submitted_at: string | null
+          signed_off_at: string | null
+          signed_off_by: string | null
+          stage: Database["public"]["Enums"]["review_stage"]
+          updated_at: string
+        }
+        Insert: {
+          behaviour_score?: number | null
+          created_at?: string
+          created_by?: string | null
+          employee_acknowledged_at?: string | null
+          employee_agreement?:
+            | Database["public"]["Enums"]["review_agreement"]
+            | null
+          employee_comments?: string | null
+          employee_id: string
+          employee_requests_discussion?: boolean
+          id?: string
+          manager_submitted_at?: string | null
+          meeting_notes?: string | null
+          overall_score?: number | null
+          performance_score?: number | null
+          period_end: string
+          period_start: string
+          review_date?: string | null
+          review_type?: Database["public"]["Enums"]["review_type"]
+          reviewer_id?: string | null
+          self_overall_score?: number | null
+          self_submitted_at?: string | null
+          signed_off_at?: string | null
+          signed_off_by?: string | null
+          stage?: Database["public"]["Enums"]["review_stage"]
+          updated_at?: string
+        }
+        Update: {
+          behaviour_score?: number | null
+          created_at?: string
+          created_by?: string | null
+          employee_acknowledged_at?: string | null
+          employee_agreement?:
+            | Database["public"]["Enums"]["review_agreement"]
+            | null
+          employee_comments?: string | null
+          employee_id?: string
+          employee_requests_discussion?: boolean
+          id?: string
+          manager_submitted_at?: string | null
+          meeting_notes?: string | null
+          overall_score?: number | null
+          performance_score?: number | null
+          period_end?: string
+          period_start?: string
+          review_date?: string | null
+          review_type?: Database["public"]["Enums"]["review_type"]
+          reviewer_id?: string | null
+          self_overall_score?: number | null
+          self_submitted_at?: string | null
+          signed_off_at?: string | null
+          signed_off_by?: string | null
+          stage?: Database["public"]["Enums"]["review_stage"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_cycles_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "review_cycles_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_ratings: {
+        Row: {
+          category: Database["public"]["Enums"]["review_category"]
+          comment: string | null
+          competency_key: string
+          created_at: string
+          cycle_id: string
+          id: string
+          score: number | null
+          source: Database["public"]["Enums"]["review_source"]
+          updated_at: string
+        }
+        Insert: {
+          category?: Database["public"]["Enums"]["review_category"]
+          comment?: string | null
+          competency_key: string
+          created_at?: string
+          cycle_id: string
+          id?: string
+          score?: number | null
+          source: Database["public"]["Enums"]["review_source"]
+          updated_at?: string
+        }
+        Update: {
+          category?: Database["public"]["Enums"]["review_category"]
+          comment?: string | null
+          competency_key?: string
+          created_at?: string
+          cycle_id?: string
+          id?: string
+          score?: number | null
+          source?: Database["public"]["Enums"]["review_source"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_ratings_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "review_cycles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      review_responses: {
+        Row: {
+          answer: string | null
+          created_at: string
+          cycle_id: string
+          id: string
+          question_key: string
+          source: Database["public"]["Enums"]["review_source"]
+          updated_at: string
+        }
+        Insert: {
+          answer?: string | null
+          created_at?: string
+          cycle_id: string
+          id?: string
+          question_key: string
+          source: Database["public"]["Enums"]["review_source"]
+          updated_at?: string
+        }
+        Update: {
+          answer?: string | null
+          created_at?: string
+          cycle_id?: string
+          id?: string
+          question_key?: string
+          source?: Database["public"]["Enums"]["review_source"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "review_responses_cycle_id_fkey"
+            columns: ["cycle_id"]
+            isOneToOne: false
+            referencedRelation: "review_cycles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      role_route_permissions: {
+        Row: {
+          allowed: boolean
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["user_role"]
+          route_key: string
+          updated_at: string
+        }
+        Insert: {
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["user_role"]
+          route_key: string
+          updated_at?: string
+        }
+        Update: {
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["user_role"]
+          route_key?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -3397,6 +3721,51 @@ export type Database = {
         }
         Relationships: []
       }
+      sites: {
+        Row: {
+          address: string | null
+          code: string
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          is_default: boolean
+          lat: number | null
+          lon: number | null
+          name: string
+          postcode: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          code: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          lat?: number | null
+          lon?: number | null
+          name: string
+          postcode?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          code?: string
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          lat?: number | null
+          lon?: number | null
+          name?: string
+          postcode?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       storage_bays: {
         Row: {
           created_at: string
@@ -3405,6 +3774,7 @@ export type Database = {
           is_active: boolean
           label: string
           position_count: number
+          site_id: string | null
           updated_at: string
         }
         Insert: {
@@ -3414,6 +3784,7 @@ export type Database = {
           is_active?: boolean
           label: string
           position_count: number
+          site_id?: string | null
           updated_at?: string
         }
         Update: {
@@ -3423,9 +3794,18 @@ export type Database = {
           is_active?: boolean
           label?: string
           position_count?: number
+          site_id?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "storage_bays_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       task_comments: {
         Row: {
@@ -3710,6 +4090,148 @@ export type Database = {
           order_id?: string
         }
         Relationships: []
+      }
+      trunk_run_items: {
+        Row: {
+          created_at: string
+          destination_bay: string | null
+          destination_position: number | null
+          id: string
+          notes: string | null
+          order_id: string | null
+          origin_bay: string | null
+          origin_position: number | null
+          run_id: string
+          spaces: number
+          status: string
+          stock_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          destination_bay?: string | null
+          destination_position?: number | null
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          origin_bay?: string | null
+          origin_position?: number | null
+          run_id: string
+          spaces?: number
+          status?: string
+          stock_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          destination_bay?: string | null
+          destination_position?: number | null
+          id?: string
+          notes?: string | null
+          order_id?: string | null
+          origin_bay?: string | null
+          origin_position?: number | null
+          run_id?: string
+          spaces?: number
+          status?: string
+          stock_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trunk_run_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trunk_run_items_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "trunk_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trunk_run_items_stock_id_fkey"
+            columns: ["stock_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_stock"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trunk_runs: {
+        Row: {
+          arrived_at: string | null
+          capacity_spaces: number
+          created_at: string
+          created_by: string | null
+          departed_at: string | null
+          destination_site_id: string | null
+          direction: string
+          driver_id: string | null
+          driver_mode: string
+          id: string
+          notes: string | null
+          origin_site_id: string | null
+          run_date: string
+          status: string
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          arrived_at?: string | null
+          capacity_spaces?: number
+          created_at?: string
+          created_by?: string | null
+          departed_at?: string | null
+          destination_site_id?: string | null
+          direction?: string
+          driver_id?: string | null
+          driver_mode?: string
+          id?: string
+          notes?: string | null
+          origin_site_id?: string | null
+          run_date: string
+          status?: string
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          arrived_at?: string | null
+          capacity_spaces?: number
+          created_at?: string
+          created_by?: string | null
+          departed_at?: string | null
+          destination_site_id?: string | null
+          direction?: string
+          driver_id?: string | null
+          driver_mode?: string
+          id?: string
+          notes?: string | null
+          origin_site_id?: string | null
+          run_date?: string
+          status?: string
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trunk_runs_destination_site_id_fkey"
+            columns: ["destination_site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trunk_runs_origin_site_id_fkey"
+            columns: ["origin_site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -4041,6 +4563,7 @@ export type Database = {
           item_notes: string | null
           linked_order_id: string | null
           position: number
+          site_id: string | null
           sku: string | null
           status: Database["public"]["Enums"]["warehouse_stock_status"]
           updated_at: string
@@ -4060,6 +4583,7 @@ export type Database = {
           item_notes?: string | null
           linked_order_id?: string | null
           position: number
+          site_id?: string | null
           sku?: string | null
           status?: Database["public"]["Enums"]["warehouse_stock_status"]
           updated_at?: string
@@ -4079,12 +4603,21 @@ export type Database = {
           item_notes?: string | null
           linked_order_id?: string | null
           position?: number
+          site_id?: string | null
           sku?: string | null
           status?: Database["public"]["Enums"]["warehouse_stock_status"]
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "warehouse_stock_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       webhook_configurations: {
         Row: {
@@ -4378,6 +4911,8 @@ export type Database = {
         Args: { status: string; user_id: string }
         Returns: boolean
       }
+      can_manage_review: { Args: { _cycle_id: string }; Returns: boolean }
+      can_view_review: { Args: { _cycle_id: string }; Returns: boolean }
       create_webhook_secret: {
         Args: { p_name: string; p_secret: string }
         Returns: string
@@ -4490,6 +5025,13 @@ export type Database = {
       is_admin_or_sales: { Args: never; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
       is_internal_staff: { Args: { _user_id: string }; Returns: boolean }
+      is_review_employee_stage: {
+        Args: {
+          _cycle_id: string
+          _stages: Database["public"]["Enums"]["review_stage"][]
+        }
+        Returns: boolean
+      }
       is_timeslip_admin: { Args: never; Returns: boolean }
       list_internal_users: {
         Args: never
@@ -4644,6 +5186,31 @@ export type Database = {
         | "collected_by_3p"
         | "delivered_by_3p"
         | "delivered_to_ferry"
+        | "awaiting_trunk_to_scotland"
+        | "in_transit_to_scotland"
+        | "at_scotland_depot"
+        | "awaiting_trunk_to_depot"
+        | "in_transit_to_depot"
+      review_action_owner: "employee" | "manager"
+      review_action_status: "not_started" | "in_progress" | "complete"
+      review_agreement: "agree" | "agree_with_comments" | "disagree"
+      review_category: "performance" | "behaviour"
+      review_source: "self" | "manager"
+      review_stage:
+        | "draft"
+        | "self_assessment"
+        | "manager_assessment"
+        | "review_meeting"
+        | "objectives"
+        | "employee_response"
+        | "signed_off"
+      review_type:
+        | "probation"
+        | "monthly"
+        | "quarterly"
+        | "six_month"
+        | "annual"
+        | "ad_hoc"
       task_priority: "low" | "normal" | "high" | "urgent"
       task_status: "open" | "in_progress" | "blocked" | "done" | "cancelled"
       user_role:
@@ -4657,6 +5224,8 @@ export type Database = {
         | "mechanic"
         | "timeslip_admin"
         | "cs_agent"
+        | "fleet_manager"
+        | "tech"
       vehicle_service_position:
         | "front_left"
         | "front_right"
@@ -4860,6 +5429,33 @@ export const Constants = {
         "collected_by_3p",
         "delivered_by_3p",
         "delivered_to_ferry",
+        "awaiting_trunk_to_scotland",
+        "in_transit_to_scotland",
+        "at_scotland_depot",
+        "awaiting_trunk_to_depot",
+        "in_transit_to_depot",
+      ],
+      review_action_owner: ["employee", "manager"],
+      review_action_status: ["not_started", "in_progress", "complete"],
+      review_agreement: ["agree", "agree_with_comments", "disagree"],
+      review_category: ["performance", "behaviour"],
+      review_source: ["self", "manager"],
+      review_stage: [
+        "draft",
+        "self_assessment",
+        "manager_assessment",
+        "review_meeting",
+        "objectives",
+        "employee_response",
+        "signed_off",
+      ],
+      review_type: [
+        "probation",
+        "monthly",
+        "quarterly",
+        "six_month",
+        "annual",
+        "ad_hoc",
       ],
       task_priority: ["low", "normal", "high", "urgent"],
       task_status: ["open", "in_progress", "blocked", "done", "cancelled"],
@@ -4874,6 +5470,8 @@ export const Constants = {
         "mechanic",
         "timeslip_admin",
         "cs_agent",
+        "fleet_manager",
+        "tech",
       ],
       vehicle_service_position: [
         "front_left",

@@ -51,6 +51,12 @@ const DayBreakdown: React.FC<{ days: any[] }> = ({ days }) => {
             </span>
             <span className="text-muted-foreground">{d.jobs.length} jobs</span>
           </div>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Queue that day: {d.availableJobs} jobs / {d.hoursPossible.toFixed(1)}h
+            {d.availableJobs > 0 && (
+              <> (your share: {d.availableJobsShare.toFixed(1)} jobs / {d.hoursPossibleShare.toFixed(1)}h)</>
+            )}
+          </p>
           {d.jobs.length > 0 && (
             <ul className="mt-2 space-y-2">
               {d.jobs.map((j: any) => (
@@ -170,6 +176,20 @@ const MechanicHoursSection: React.FC = () => {
                 icon={Timer}
               />
             </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+              <StatsCard
+                title="Jobs Available (peak)"
+                value={totals.availableJobs}
+                description="Busiest day's queue: awaiting inspection or repair"
+                icon={ClipboardCheck}
+              />
+              <StatsCard
+                title="Hours Possible"
+                value={totals.hoursPossible.toFixed(1)}
+                description="Standard time in the queue across the period"
+                icon={Timer}
+              />
+            </div>
             <p className="text-xs text-muted-foreground">
               Standard time uses labour catalogue book times where a repair is linked, otherwise it's estimated from the
               repair's labour price (at £{data?.settings.hourlyRate}/hr) or the workshop fallback of{' '}
@@ -195,6 +215,7 @@ const MechanicHoursSection: React.FC = () => {
                   <Legend />
                   <Bar yAxisId="left" dataKey="hours" name="Hours clocked" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                   <Bar yAxisId="left" dataKey="standardHours" name="Standard hours earned" fill="hsl(var(--muted-foreground))" radius={[4, 4, 0, 0]} />
+                  <Line yAxisId="left" type="monotone" dataKey="hoursPossible" name="Hours possible (queue)" stroke="hsl(var(--primary))" strokeDasharray="4 3" strokeWidth={2} dot={false} />
                   <Line yAxisId="right" type="monotone" dataKey="inspections" name="Inspections done" stroke="hsl(var(--chart-2, var(--accent)))" strokeWidth={2} />
                   <Line yAxisId="right" type="monotone" dataKey="repairs" name="Repairs done" stroke="hsl(var(--destructive))" strokeWidth={2} />
                 </ComposedChart>
@@ -213,6 +234,9 @@ const MechanicHoursSection: React.FC = () => {
                         <TableHead className="text-right">Standard (h)</TableHead>
                         <TableHead className="text-right">Variance</TableHead>
                         <TableHead className="text-right">Efficiency</TableHead>
+                        <TableHead className="text-right">Jobs avail.</TableHead>
+                        <TableHead className="text-right">Hours poss.</TableHead>
+                        <TableHead className="text-right">Utilisation</TableHead>
                         <TableHead className="text-right">Inspections</TableHead>
                         <TableHead className="text-right">Repairs</TableHead>
                         <TableHead className="text-right">Min / job</TableHead>
@@ -239,13 +263,18 @@ const MechanicHoursSection: React.FC = () => {
                             <TableCell className="text-right font-semibold">
                               {m.hours > 0 ? `${m.efficiencyPct.toFixed(0)}%` : '—'}
                             </TableCell>
+                            <TableCell className="text-right">{m.availableJobsShare.toFixed(1)}</TableCell>
+                            <TableCell className="text-right">{m.hoursPossibleShare.toFixed(1)}</TableCell>
+                            <TableCell className="text-right font-semibold">
+                              {m.hoursPossibleShare > 0 ? `${m.utilisationPct.toFixed(0)}%` : '—'}
+                            </TableCell>
                             <TableCell className="text-right">{m.inspections}</TableCell>
                             <TableCell className="text-right">{m.repairs}</TableCell>
                             <TableCell className="text-right">{m.minutesPerJob > 0 ? m.minutesPerJob.toFixed(0) : '—'}</TableCell>
                           </TableRow>
                           {expanded === m.mechanicId && (
                             <TableRow>
-                              <TableCell colSpan={8} className="bg-muted/40">
+                              <TableCell colSpan={11} className="bg-muted/40">
                                 <DayBreakdown days={m.days} />
                               </TableCell>
                             </TableRow>
@@ -285,6 +314,14 @@ const MechanicHoursSection: React.FC = () => {
                         <dd className="text-right font-semibold tabular-nums">
                           {m.hours > 0 ? `${m.efficiencyPct.toFixed(0)}%` : '—'}
                         </dd>
+                        <dt className="text-muted-foreground">Jobs available</dt>
+                        <dd className="text-right tabular-nums">{m.availableJobsShare.toFixed(1)}</dd>
+                        <dt className="text-muted-foreground">Hours possible</dt>
+                        <dd className="text-right tabular-nums">{m.hoursPossibleShare.toFixed(1)}h</dd>
+                        <dt className="text-muted-foreground">Utilisation</dt>
+                        <dd className="text-right font-semibold tabular-nums">
+                          {m.hoursPossibleShare > 0 ? `${m.utilisationPct.toFixed(0)}%` : '—'}
+                        </dd>
                         <dt className="text-muted-foreground">Inspections</dt>
                         <dd className="text-right tabular-nums">{m.inspections}</dd>
                         <dt className="text-muted-foreground">Repairs</dt>
@@ -305,7 +342,9 @@ const MechanicHoursSection: React.FC = () => {
                 </div>
 
                 <p className="text-xs text-muted-foreground">
-                  Tap a mechanic to see the day-by-day breakdown and the jobs that made up their earned hours.
+                  Jobs available and hours possible are each day's workshop queue (bikes awaiting inspection, plus approved
+                  repairs whose parts are ready) split evenly between the mechanics clocked in that day; utilisation is
+                  earned hours ÷ hours possible. Tap a mechanic to see the day-by-day breakdown and the jobs that made up their earned hours.
                   Efficiency above 100% means they completed more standard time than they clocked.
                 </p>
               </div>

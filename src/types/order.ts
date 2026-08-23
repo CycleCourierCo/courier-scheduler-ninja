@@ -42,7 +42,13 @@ export type OrderStatus =
   | 'awaiting_3p_collection'
   | 'collected_by_3p'
   | 'delivered_by_3p'
-  | 'delivered_to_ferry';
+  | 'delivered_to_ferry'
+  // Scotland trunk-run milestones
+  | 'awaiting_trunk_to_scotland'
+  | 'in_transit_to_scotland'
+  | 'at_scotland_depot'
+  | 'awaiting_trunk_to_depot'
+  | 'in_transit_to_depot';
 
 export type BoxMyBikeStatus =
   | 'awaiting_depot'

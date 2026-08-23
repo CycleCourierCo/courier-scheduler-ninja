@@ -14,6 +14,7 @@ import { generateTrackingNumber } from "@/services/trackingService";
 import { upsertContact } from "@/services/contactService";
 import { geocodeAddress, buildAddressString } from "@/utils/geocoding";
 import { resolveRegion, isNorthernIrelandAddress } from "@/utils/northernIreland";
+import { resolveScotlandDirection } from "@/utils/scotland";
 
 
 const attachInspectionSummary = async (order: Order, orderIdentifier: string): Promise<Order> => {
@@ -411,6 +412,12 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       ? 'outbound'
       : (senderIsNi ? 'inbound' : null);
     const isNorthernIreland = niDirection !== null;
+
+    // Scotland can also be either end of the journey. Detection uses the same
+    // geocoded region as NI (no postcode list), so a Scottish leg is flagged for
+    // the trunk-run planner between our two depots.
+    const scotlandDirection = resolveScotlandDirection(senderRegionInput, receiverRegionInput);
+    const isScotland = !isNorthernIreland && scotlandDirection !== null;
 
     const { data: order, error } = await supabase
       .from("orders")

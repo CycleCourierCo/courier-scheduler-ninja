@@ -145,7 +145,20 @@ serve(async (req) => {
           .limit(1)
           .maybeSingle();
 
+        // Fallback: SKU registered by the customer as sold-but-not-stored-with-us
+        let registeredSku: any = null;
         if (!stockMatch) {
+          const { data: skuRow } = await admin
+            .from("customer_shopify_skus")
+            .select("*")
+            .eq("user_id", store.user_id)
+            .eq("sku", sku)
+            .eq("is_active", true)
+            .maybeSingle();
+          registeredSku = skuRow;
+        }
+
+        if (!stockMatch && !registeredSku) {
           await admin.from("customer_shopify_order_log").insert({
             store_id: store.id,
             user_id: store.user_id,
@@ -154,16 +167,60 @@ serve(async (req) => {
             shopify_order_number: orderNumber,
             line_item_sku: sku,
             status: "unmatched_sku",
-            message: `No stored bike found for SKU "${sku}"`,
+            message: `No stored bike or registered SKU found for "${sku}"`,
             raw_payload: item,
           });
           continue;
         }
 
+        // Derive bike details for own-stock sales from the Shopify line item
+        const deriveFromLineItem = () => {
+          const title = String(item.title || "").trim();
+          const vendor = String(item.vendor || "").trim();
+          let brand = vendor;
+          let model = title;
+          if (!brand) {
+            const parts = title.split(/\s+/);
+            brand = parts[0] || "";
+            model = parts.slice(1).join(" ");
+          } else if (title.toLowerCase().startsWith(vendor.toLowerCase())) {
+            model = title.slice(vendor.length).trim();
+          }
+          const variant = String(item.variant_title || "").trim();
+          if (variant && variant.toLowerCase() !== "default title") {
+            model = [model, variant].filter(Boolean).join(" - ");
+          }
+          const qty = Number(item.quantity || 1) || 1;
+          const linePrice = Number(item.price ?? NaN);
+          const value = Number.isFinite(linePrice) && linePrice > 0
+            ? linePrice * qty
+            : Number(order.total_price ?? 0) || null;
+          return {
+            bike_brand: brand || null,
+            bike_model: model || title || null,
+            bike_value: value,
+          };
+        };
+
+        const derived = stockMatch ? null : deriveFromLineItem();
+        const bikeDetails = stockMatch
+          ? {
+              bike_brand: stockMatch.bike_brand,
+              bike_model: stockMatch.bike_model,
+              bike_type: stockMatch.bike_type,
+              bike_value: stockMatch.bike_value,
+            }
+          : {
+              bike_brand: derived!.bike_brand,
+              bike_model: derived!.bike_model,
+              bike_type: registeredSku.bike_type,
+              bike_value: derived!.bike_value,
+            };
+
         // Get customer profile
         const { data: profile } = await admin
           .from("profiles")
-          .select("name, email, phone, address_line_1, city, postal_code")
+          .select("name, email, phone, address_line_1, address_line_2, city, postal_code")
           .eq("id", store.user_id)
           .single();
 
@@ -174,11 +231,13 @@ serve(async (req) => {
           .insert({
             user_id: store.user_id,
             sender: {
-              name: profile?.name || "Warehouse",
+              name: profile?.name || (stockMatch ? "Warehouse" : "Customer"),
               email: profile?.email || "",
               phone: profile?.phone || "",
               address: {
-                street: profile?.address_line_1 || "Depot",
+                street: stockMatch
+                  ? profile?.address_line_1 || "Depot"
+                  : [profile?.address_line_1, profile?.address_line_2].filter(Boolean).join(", "),
                 city: profile?.city || "",
                 state: "",
                 zipCode: profile?.postal_code || "",
@@ -197,10 +256,7 @@ serve(async (req) => {
                 country: receiverDetails.country,
               },
             },
-            bike_brand: stockMatch.bike_brand,
-            bike_model: stockMatch.bike_model,
-            bike_type: stockMatch.bike_type,
-            bike_value: stockMatch.bike_value,
+            ...bikeDetails,
             bike_quantity: 1,
             status: "created",
             customer_order_number: `SH-${orderNumber}-${sku}`,
@@ -220,16 +276,18 @@ serve(async (req) => {
             line_item_sku: sku,
             status: "error",
             message: `Failed to create order: ${orderErr?.message}`,
-            warehouse_stock_id: stockMatch.id,
+            warehouse_stock_id: stockMatch?.id ?? null,
           });
           continue;
         }
 
-        // Reserve stock
-        await admin
-          .from("warehouse_stock")
-          .update({ status: "reserved", linked_order_id: newOrder.id })
-          .eq("id", stockMatch.id);
+        // Reserve stock (warehouse path only)
+        if (stockMatch) {
+          await admin
+            .from("warehouse_stock")
+            .update({ status: "reserved", linked_order_id: newOrder.id })
+            .eq("id", stockMatch.id);
+        }
 
         // Log success
         await admin.from("customer_shopify_order_log").insert({
@@ -239,11 +297,14 @@ serve(async (req) => {
           shopify_order_id: shopifyOrderId,
           shopify_order_number: orderNumber,
           line_item_sku: sku,
-          status: "matched",
-          message: `Created order for ${stockMatch.bike_brand || ""} ${stockMatch.bike_model || ""}`.trim(),
-          warehouse_stock_id: stockMatch.id,
+          status: stockMatch ? "matched" : "matched_customer_stock",
+          message: stockMatch
+            ? `Created order for ${stockMatch.bike_brand || ""} ${stockMatch.bike_model || ""}`.trim()
+            : `Booked collection from you for ${bikeDetails.bike_brand || ""} ${bikeDetails.bike_model || ""}`.trim(),
+          warehouse_stock_id: stockMatch?.id ?? null,
           linked_order_id: newOrder.id,
         });
+
 
         // Generate tracking + push fulfilment to Shopify (best effort)
         try {

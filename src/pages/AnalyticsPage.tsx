@@ -63,8 +63,6 @@ import PerformanceTrendChart from "@/components/analytics/PerformanceTrendChart"
 import PerformanceLeaderboard from "@/components/analytics/PerformanceLeaderboard";
 import TimeSeriesFilters from "@/components/analytics/TimeSeriesFilters";
 import InspectionsOverTimeChart from "@/components/analytics/InspectionsOverTimeChart";
-import MechanicComparisonChart from "@/components/analytics/MechanicComparisonChart";
-import MechanicHoursSection from "@/components/analytics/MechanicHoursSection";
 import DriverAnalyticsSection from "@/components/analytics/DriverAnalyticsSection";
 import StatsCard from "@/components/analytics/StatsCard";
 import ApiWebhookSection from "@/components/analytics/ApiWebhookSection";
@@ -256,11 +254,11 @@ const AnalyticsPage = () => {
             
             <Tabs 
               defaultValue="overview" 
-              value={activeTab}
+              value={activeTab === "business" ? "customers" : activeTab}
               onValueChange={setActiveTab}
               className="mb-4 sm:mb-8"
             >
-              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-10 gap-1 h-auto mb-4 sm:mb-8">
+              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-9 gap-1 h-auto mb-4 sm:mb-8">
                 <TabsTrigger value="bike-value" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
                   <PoundSterling className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Bike Value</span>
@@ -276,11 +274,7 @@ const AnalyticsPage = () => {
                   <span className="hidden sm:inline">Customers</span>
                   <span className="sm:hidden">Cust</span>
                 </TabsTrigger>
-                <TabsTrigger value="business" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
-                  <LineChart className="h-3 w-3 sm:h-4 sm:w-4" />
-                  <span className="hidden sm:inline">Business</span>
-                  <span className="sm:hidden">Biz</span>
-                </TabsTrigger>
+
                 <TabsTrigger value="products" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
                   <Bike className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Products</span>
@@ -332,27 +326,30 @@ const AnalyticsPage = () => {
                 </section>
               </TabsContent>
               
-              <TabsContent value="customers" className="space-y-2 sm:space-y-4">
+              <TabsContent value="customers" className="space-y-4 sm:space-y-6">
                 <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Customer Analysis</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
-                  <CustomerTypeChart data={customerTypeData} title="B2B vs B2C Orders" />
-                  <CustomerTypeChart data={partExchangeData} title="Part Exchange Orders" />
-                </div>
-                <div className="grid grid-cols-1 gap-2 sm:gap-4">
+                <section>
+                  <h3 className="text-base font-semibold mb-3">Customer Mix</h3>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
+                    <CustomerTypeChart data={customerTypeData} title="B2B vs B2C Orders" />
+                    <CustomerTypeChart data={partExchangeData} title="Part Exchange Orders" />
+                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4 mt-2 sm:mt-4">
+                    <CustomerTypeChart data={paymentRequiredData} title="Payment Required on Delivery" />
+                  </div>
+                </section>
+                <Separator />
+                <section>
+                  <h3 className="text-base font-semibold mb-3">Top Customers</h3>
                   <TopCustomersChart data={topCustomersData} />
-                </div>
-              </TabsContent>
-              
-              <TabsContent value="business" className="space-y-2 sm:space-y-4">
-                <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Business Customer Analysis</h2>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-4">
-                  <CustomerTypeChart data={customerTypeData} title="B2B vs B2C Distribution" />
-                  <CustomerTypeChart data={paymentRequiredData} title="Payment Required on Delivery" />
-                </div>
-                <div className="grid grid-cols-1 gap-2 sm:gap-4">
+                </section>
+                <Separator />
+                <section>
+                  <h3 className="text-base font-semibold mb-3">Business Customers</h3>
                   <B2BLeaderboard customers={b2bCustomers} orders={orders} />
-                </div>
+                </section>
               </TabsContent>
+
               
               <TabsContent value="products" className="space-y-2 sm:space-y-4">
                 <h2 className="text-lg sm:text-xl font-semibold mb-2 sm:mb-4">Bike & Product Analysis</h2>
@@ -545,13 +542,8 @@ const AnalyticsPage = () => {
                 <div className="grid grid-cols-1 gap-2 sm:gap-4">
                   <InspectionsOverTimeChart data={inspectionsOverTime} />
                   <InspectionStageDurationsChart data={stageDurations} />
-                  <MechanicComparisonChart />
                 </div>
 
-                <h2 className="text-lg sm:text-xl font-semibold mt-4 sm:mt-6 mb-2 sm:mb-4">Mechanic Hours</h2>
-                <div className="grid grid-cols-1 gap-2 sm:gap-4">
-                  <MechanicHoursSection />
-                </div>
 
               </TabsContent>
 

@@ -20,6 +20,10 @@ export interface MechanicHoursDaily {
   inspections: number;
   repairs: number;
   jobsPerHour: number;
+  /** Jobs sitting in the workshop queue that day (awaiting inspection / awaiting repair). */
+  availableJobs: number;
+  /** Standard hours those queued jobs were worth. */
+  hoursPossible: number;
 }
 
 export interface MechanicDayBreakdown {
@@ -29,6 +33,12 @@ export interface MechanicDayBreakdown {
   standardHours: number;
   varianceHours: number;
   jobs: MechanicJobRow[];
+  /** Workshop-wide queue that day. */
+  availableJobs: number;
+  hoursPossible: number;
+  /** This mechanic's even share of that day's queue. */
+  availableJobsShare: number;
+  hoursPossibleShare: number;
 }
 
 export interface MechanicHoursPerMechanic {
@@ -42,6 +52,9 @@ export interface MechanicHoursPerMechanic {
   repairs: number;
   jobsPerHour: number;
   minutesPerJob: number;
+  availableJobsShare: number;
+  hoursPossibleShare: number;
+  utilisationPct: number;
   days: MechanicDayBreakdown[];
 }
 
@@ -58,6 +71,8 @@ export interface MechanicHoursResult {
     jobsPerHour: number;
     minutesPerJob: number;
     catalogueCoveragePct: number;
+    availableJobs: number;
+    hoursPossible: number;
   };
   settings: {
     hourlyRate: number;
@@ -85,16 +100,49 @@ const labelFor = (dayKey: string): string => {
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
+/** Inclusive list of YYYY-MM-DD keys between two day keys. */
+const dayKeysBetween = (fromKey: string, toKey: string): string[] => {
+  const keys: string[] = [];
+  const [fy, fm, fd] = fromKey.split('-').map(Number);
+  const cursor = new Date(Date.UTC(fy, (fm || 1) - 1, fd || 1));
+  let guard = 0;
+  while (guard++ < 1000) {
+    const key = cursor.toISOString().slice(0, 10);
+    if (key > toKey) break;
+    keys.push(key);
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return keys;
+};
+
+/** Fetch every row of a query, paging past the 1,000-row cap. */
+const fetchAll = async <T>(build: (from: number, to: number) => any): Promise<T[]> => {
+  const pageSize = 1000;
+  const out: T[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await build(from, from + pageSize - 1);
+    if (error) throw error;
+    const rows = (data || []) as T[];
+    out.push(...rows);
+    if (rows.length < pageSize) break;
+    from += pageSize;
+  }
+  return out;
+};
+
+const sel = (s: string): string => s;
+
 /**
  * Compare mechanic clocked hours per day with the "standard" (earned) hours the
- * work completed that day is worth, so 10 jobs worth 7 hours can be matched
- * against the 7 hours actually clocked.
+ * work completed that day is worth, plus the work that was actually available
+ * (awaiting inspection / awaiting repair) on each day.
  */
 export async function getMechanicHours(fromISO: string, toISO: string): Promise<MechanicHoursResult> {
   const dateFrom = fromISO.slice(0, 10);
   const dateTo = toISO.slice(0, 10);
 
-  const [slipsRes, inspectionsRes, issuesRes, settingsRes] = await Promise.all([
+  const [slipsRes, inspectionsRes, issuesRes, settingsRes, openInspections, openIssues] = await Promise.all([
     supabase
       .from('mechanic_timeslips')
       .select('driver_id, date, total_hours, status, driver:profiles!mechanic_timeslips_driver_id_fkey(id,name,email)')
@@ -119,6 +167,29 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
       .select('hourly_rate_gbp, inspection_standard_minutes, default_repair_minutes')
       .eq('id', 1)
       .maybeSingle(),
+    // Inspections that were open (created, not yet inspected) at some point in range
+    fetchAll<any>((f, t) =>
+      supabase
+        .from('bicycle_inspections')
+        .select(sel('id, created_at, inspected_at'))
+        .lte('created_at', toISO)
+        .or(`inspected_at.is.null,inspected_at.gte.${fromISO}`)
+        .order('created_at', { ascending: true })
+        .range(f, t),
+    ),
+    // Approved issues whose parts were ready and that were open at some point in range
+    fetchAll<any>((f, t) =>
+      supabase
+        .from('inspection_issues')
+        .select(
+          sel('id, status, parts_arrived_at, parts_in_stock_at, resolved_at, repair_id, labour_cost, labour:labour_times!inspection_issues_repair_id_fkey(labour_minutes)'),
+        )
+        .in('status', ['approved', 'resolved', 'repaired'])
+        .or(`resolved_at.is.null,resolved_at.gte.${fromISO}`)
+        .or('parts_arrived_at.not.is.null,parts_in_stock_at.not.is.null')
+        .order('id', { ascending: true })
+        .range(f, t),
+    ),
   ]);
 
   if (slipsRes.error) throw slipsRes.error;
@@ -129,21 +200,65 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
   const inspectionMinutes = Number(settingsRes.data?.inspection_standard_minutes ?? 30) || 0;
   const defaultRepairMinutes = Number(settingsRes.data?.default_repair_minutes ?? 30) || 0;
 
+  const repairMinutesFor = (row: any): { minutes: number; source: StandardMinutesSource } => {
+    const catalogueMinutes = Number(row.labour?.labour_minutes ?? 0);
+    const labourCost = Number(row.labour_cost ?? 0);
+    if (catalogueMinutes > 0) return { minutes: catalogueMinutes, source: 'catalogue' };
+    if (labourCost > 0 && hourlyRate > 0) return { minutes: (labourCost / hourlyRate) * 60, source: 'labour_cost' };
+    return { minutes: defaultRepairMinutes, source: 'default' };
+  };
+
   interface DayAgg {
     hours: number;
     standardMinutes: number;
     inspections: number;
     repairs: number;
+    availableJobs: number;
+    availableMinutes: number;
   }
   const dayMap = new Map<string, DayAgg>();
   const ensureDay = (key: string): DayAgg => {
     let entry = dayMap.get(key);
     if (!entry) {
-      entry = { hours: 0, standardMinutes: 0, inspections: 0, repairs: 0 };
+      entry = { hours: 0, standardMinutes: 0, inspections: 0, repairs: 0, availableJobs: 0, availableMinutes: 0 };
       dayMap.set(key, entry);
     }
     return entry;
   };
+
+  // Seed every day in the requested range so queue-only days still appear.
+  const rangeDays = dayKeysBetween(dateFrom, dateTo);
+  rangeDays.forEach((k) => ensureDay(k));
+
+  // ---- Available work per day (queue) ----
+  const addAvailability = (
+    openedDay: string | null,
+    closedDay: string | null,
+    minutes: number,
+  ) => {
+    if (!openedDay) return;
+    for (const key of rangeDays) {
+      if (key < openedDay) continue;
+      if (closedDay && key > closedDay) continue;
+      const d = ensureDay(key);
+      d.availableJobs += 1;
+      d.availableMinutes += minutes;
+    }
+  };
+
+  (openInspections || []).forEach((i: any) => {
+    addAvailability(londonDay(i.created_at), londonDay(i.inspected_at), inspectionMinutes);
+  });
+
+  (openIssues || []).forEach((iss: any) => {
+    const readyCandidates = [iss.parts_arrived_at, iss.parts_in_stock_at]
+      .map((v) => londonDay(v))
+      .filter((v): v is string => !!v);
+    if (readyCandidates.length === 0) return;
+    const readyDay = readyCandidates.sort()[0];
+    const { minutes } = repairMinutesFor(iss);
+    addAvailability(readyDay, londonDay(iss.resolved_at), minutes);
+  });
 
   interface MechAgg extends Omit<MechanicHoursPerMechanic, 'days'> {
     standardMinutes: number;
@@ -164,6 +279,9 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
         repairs: 0,
         jobsPerHour: 0,
         minutesPerJob: 0,
+        availableJobsShare: 0,
+        hoursPossibleShare: 0,
+        utilisationPct: 0,
         standardMinutes: 0,
         dayMap: new Map(),
       };
@@ -226,21 +344,8 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
     const key = londonDay(iss.resolved_at);
     totalRepairRows += 1;
 
-    const catalogueMinutes = Number(iss.labour?.labour_minutes ?? 0);
-    const labourCost = Number(iss.labour_cost ?? 0);
-    let minutes = 0;
-    let source: StandardMinutesSource = 'default';
-    if (catalogueMinutes > 0) {
-      minutes = catalogueMinutes;
-      source = 'catalogue';
-      catalogueRepairs += 1;
-    } else if (labourCost > 0 && hourlyRate > 0) {
-      minutes = (labourCost / hourlyRate) * 60;
-      source = 'labour_cost';
-    } else {
-      minutes = defaultRepairMinutes;
-      source = 'default';
-    }
+    const { minutes, source } = repairMinutesFor(iss);
+    if (source === 'catalogue') catalogueRepairs += 1;
 
     if (key) {
       const day = ensureDay(key);
@@ -265,7 +370,19 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
     }
   });
 
+  // Mechanics clocked in per day — used to split the day's queue evenly.
+  const clockedPerDay = new Map<string, number>();
+  mechMap.forEach((m) => {
+    m.dayMap.forEach((d, key) => {
+      if (d.hours > 0) clockedPerDay.set(key, (clockedPerDay.get(key) || 0) + 1);
+    });
+  });
+
   const daily: MechanicHoursDaily[] = Array.from(dayMap.entries())
+    .filter(
+      ([, v]) =>
+        v.hours > 0 || v.inspections > 0 || v.repairs > 0 || v.availableJobs > 0,
+    )
     .sort((a, b) => a[0].localeCompare(b[0]))
     .map(([date, v]) => {
       const hours = round1(v.hours);
@@ -280,6 +397,8 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
         inspections: v.inspections,
         repairs: v.repairs,
         jobsPerHour: v.hours > 0 ? (v.inspections + v.repairs) / v.hours : 0,
+        availableJobs: v.availableJobs,
+        hoursPossible: round1(v.availableMinutes / 60),
       };
     });
 
@@ -287,11 +406,21 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
     const jobs = r.inspections + r.repairs;
     const hours = round1(r.hours);
     const standardHours = round1(r.standardMinutes / 60);
+    let shareJobs = 0;
+    let shareMinutes = 0;
     const days: MechanicDayBreakdown[] = Array.from(r.dayMap.entries())
       .sort((a, b) => b[0].localeCompare(a[0]))
       .map(([date, d]) => {
         const dh = round1(d.hours);
         const dsh = round1(d.standardMinutes / 60);
+        const queue = dayMap.get(date);
+        const splitters = clockedPerDay.get(date) || 0;
+        const dayJobsShare = queue && splitters > 0 ? queue.availableJobs / splitters : 0;
+        const dayMinutesShare = queue && splitters > 0 ? queue.availableMinutes / splitters : 0;
+        if (d.hours > 0) {
+          shareJobs += dayJobsShare;
+          shareMinutes += dayMinutesShare;
+        }
         return {
           date,
           label: labelFor(date),
@@ -299,8 +428,13 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
           standardHours: dsh,
           varianceHours: round1(dsh - dh),
           jobs: d.jobs,
+          availableJobs: queue?.availableJobs ?? 0,
+          hoursPossible: round1((queue?.availableMinutes ?? 0) / 60),
+          availableJobsShare: Math.round(dayJobsShare * 10) / 10,
+          hoursPossibleShare: round1(dayMinutesShare / 60),
         };
       });
+    const hoursPossibleShare = round1(shareMinutes / 60);
     return {
       mechanicId: r.mechanicId,
       name: r.name,
@@ -312,6 +446,9 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
       repairs: r.repairs,
       jobsPerHour: hours > 0 ? jobs / hours : 0,
       minutesPerJob: jobs > 0 ? (hours * 60) / jobs : 0,
+      availableJobsShare: Math.round(shareJobs * 10) / 10,
+      hoursPossibleShare,
+      utilisationPct: hoursPossibleShare > 0 ? (standardHours / hoursPossibleShare) * 100 : 0,
       days,
     };
   });
@@ -322,6 +459,8 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
   const totalInspections = daily.reduce((s, d) => s + d.inspections, 0);
   const totalRepairs = daily.reduce((s, d) => s + d.repairs, 0);
   const totalJobs = totalInspections + totalRepairs;
+  const totalHoursPossible = daily.reduce((s, d) => s + d.hoursPossible, 0);
+  const peakAvailableJobs = daily.reduce((s, d) => Math.max(s, d.availableJobs), 0);
 
   return {
     daily,
@@ -336,6 +475,8 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
       jobsPerHour: totalHours > 0 ? totalJobs / totalHours : 0,
       minutesPerJob: totalJobs > 0 ? (totalHours * 60) / totalJobs : 0,
       catalogueCoveragePct: totalRepairRows > 0 ? (catalogueRepairs / totalRepairRows) * 100 : 0,
+      availableJobs: peakAvailableJobs,
+      hoursPossible: round1(totalHoursPossible),
     },
     settings: {
       hourlyRate,

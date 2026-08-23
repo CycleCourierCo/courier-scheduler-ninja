@@ -37,6 +37,7 @@ import BulkAvailabilityPage from "./pages/BulkAvailabilityPage";
 import DriverTimeslips from "./pages/DriverTimeslips";
 import MechanicClock from "./pages/MechanicClock";
 import RouteProfitabilityPage from "./pages/RouteProfitabilityPage";
+import MechanicProfitabilityPage from "./pages/MechanicProfitabilityPage";
 import BicycleInspections from "./pages/BicycleInspections";
 import HolidaysPage from "./pages/HolidaysPage";
 import PricingPage from "./pages/PricingPage";
@@ -46,6 +47,7 @@ import AIRouting from "./pages/AIRouting";
 import BulkOrderUpload from "./pages/BulkOrderUpload";
 import WarehouseStockPage from "./pages/WarehouseStockPage";
 import StorageBaysPage from "./pages/StorageBaysPage";
+import TrunkRunsPage from "./pages/TrunkRunsPage";
 import MyStockPage from "./pages/MyStockPage";
 import ShopifyIntegrationPage from "./pages/ShopifyIntegrationPage";
 import FuelFinderPage from "./pages/FuelFinderPage";
@@ -58,8 +60,12 @@ import DispatchRoutesPage from "./pages/DispatchRoutesPage";
 import BoxMyBikePage from "./pages/BoxMyBikePage";
 import CustomerServiceInbox from "./pages/CustomerServiceInbox";
 import Tasks from "./pages/Tasks";
+import RoutePermissionsPage from "./pages/RoutePermissionsPage";
 import LabourTimesAdmin from "./pages/LabourTimesAdmin";
 import KnowledgeBase from "./pages/KnowledgeBase";
+import ReviewsPage from "./pages/ReviewsPage";
+import ReviewDetailPage from "./pages/ReviewDetailPage";
+import MyReviewsPage from "./pages/MyReviewsPage";
 
 const queryClient = new QueryClient();
 
@@ -167,6 +173,12 @@ function App() {
                   <RouteProfitabilityPage />
                 </ProtectedRoute>
               } />
+              <Route path="/mechanic-profitability" element={
+                <ProtectedRoute adminOnly={true}>
+                  <MechanicProfitabilityPage />
+                </ProtectedRoute>
+              } />
+
               <Route path="/bicycle-inspections" element={
                 <ProtectedRoute>
                   <BicycleInspections />
@@ -195,6 +207,21 @@ function App() {
               <Route path="/knowledge" element={
                 <ProtectedRoute noB2CAccess={true}>
                   <KnowledgeBase />
+                </ProtectedRoute>
+              } />
+              <Route path="/reviews" element={
+                <ProtectedRoute noB2CAccess={true}>
+                  <ReviewsPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/reviews/:id" element={
+                <ProtectedRoute noB2CAccess={true}>
+                  <ReviewDetailPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/my-reviews" element={
+                <ProtectedRoute noB2CAccess={true}>
+                  <MyReviewsPage />
                 </ProtectedRoute>
               } />
               <Route path="/knowledge/:slug" element={
@@ -241,6 +268,11 @@ function App() {
               <Route path="/storage-bays" element={
                 <ProtectedRoute adminOnly={true}>
                   <StorageBaysPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/trunk-runs" element={
+                <ProtectedRoute adminOnly={true}>
+                  <TrunkRunsPage />
                 </ProtectedRoute>
               } />
               <Route path="/my-stock" element={
@@ -291,6 +323,11 @@ function App() {
               <Route path="/admin/labour-times" element={
                 <ProtectedRoute>
                   <LabourTimesAdmin />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/route-permissions" element={
+                <ProtectedRoute adminOnly>
+                  <RoutePermissionsPage />
                 </ProtectedRoute>
               } />
               <Route path="/tracking" element={<TrackingPage />} />

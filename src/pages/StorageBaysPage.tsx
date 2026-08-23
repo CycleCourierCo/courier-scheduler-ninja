@@ -18,9 +18,14 @@ import {
 } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { useStorageBays, StorageBay } from "@/hooks/useStorageBays";
+import { useSites, defaultSite } from "@/hooks/useSites";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const StorageBaysPage: React.FC = () => {
-  const { bays, loading, refresh } = useStorageBays(true);
+  const { data: sites = [] } = useSites(true);
+  const [siteId, setSiteId] = useState<string | null>(null);
+  const activeSiteId = siteId ?? defaultSite(sites)?.id ?? null;
+  const { bays, loading, refresh } = useStorageBays(true, activeSiteId);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<StorageBay | null>(null);
   const [label, setLabel] = useState("");
@@ -66,6 +71,7 @@ const StorageBaysPage: React.FC = () => {
           position_count: count,
           is_active: isActive,
           display_order: maxOrder + 1,
+          site_id: activeSiteId,
         });
         if (error) throw error;
         toast.success("Bay added");
@@ -136,6 +142,17 @@ const StorageBaysPage: React.FC = () => {
             <p className="text-muted-foreground text-sm mt-1">
               Configure the bays and slot counts used on the Loading &amp; Warehouse Stock pages.
             </p>
+            {sites.length > 1 && (
+              <Tabs value={activeSiteId ?? ""} onValueChange={setSiteId} className="mt-3">
+                <TabsList>
+                  {sites.map((site) => (
+                    <TabsTrigger key={site.id} value={site.id}>
+                      {site.name}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            )}
           </div>
           <Button onClick={openNew}>
             <Plus className="mr-2 h-4 w-4" /> Add Bay

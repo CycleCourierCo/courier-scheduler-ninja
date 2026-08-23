@@ -74,6 +74,9 @@ import {
   undoIssueReceiverApproval,
   reinstateDeclinedIssue,
   createReceiverInspectionInvoice,
+  regenerateInspectionReport,
+  sendInspectionApprovalEmail,
+
 
 } from "@/services/inspectionService";
 import { InspectionIssue, InspectionStatus } from "@/types/inspection";
@@ -307,7 +310,7 @@ const BicycleInspections = () => {
 
   // Add multiple issues mutation
   const addMultipleIssuesMutation = useMutation({
-    mutationFn: async ({ orderId, issues, bikeType }: { orderId: string; issues: IssueEntry[]; bikeType?: string | null }) => {
+    mutationFn: async ({ orderId, issues, bikeType, pdiNotes }: { orderId: string; issues: IssueEntry[]; bikeType?: string | null; pdiNotes?: string | null }) => {
       if (!user?.id || !userProfile?.name) {
         throw new Error("User not authenticated");
       }
@@ -338,6 +341,7 @@ const BicycleInspections = () => {
               repair_id: issue.repairId,
               parts_cost: parts,
               labour_cost: labour,
+              inspection_notes: pdiNotes ?? null,
             }
           );
           results.push(result);
@@ -558,8 +562,44 @@ const BicycleInspections = () => {
     onSettled: () => setSendingInspectaBikeOrderId(null),
   });
 
+  // PDI report: regenerate the PDF and open it in a new tab
+  const [reportingInspectionId, setReportingInspectionId] = useState<string | null>(null);
+  const reportMutation = useMutation({
+    mutationFn: async (inspectionId: string) => {
+      setReportingInspectionId(inspectionId);
+      return regenerateInspectionReport({ inspectionId });
+    },
+    onSuccess: (url) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      if (url) {
+        window.open(url, "_blank", "noopener");
+      } else {
+        toast.error("Could not generate the inspection report");
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to generate the inspection report");
+      console.error(error);
+    },
+    onSettled: () => setReportingInspectionId(null),
+  });
 
-
+  // Re-send the approval request email to the booking account
+  const approvalEmailMutation = useMutation({
+    mutationFn: async (inspectionId: string) => sendInspectionApprovalEmail(inspectionId, true),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      if (result?.skipped) {
+        toast.info("Nothing to approve — email not sent");
+      } else {
+        toast.success("Approval request emailed to the booking account");
+      }
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to send the approval email");
+      console.error(error);
+    },
+  });
 
 
   // Release inspection to customer (admin gate)
@@ -1107,6 +1147,7 @@ const BicycleInspections = () => {
         orderId: selectedOrderForInspection,
         issues: allChecklistIssues,
         bikeType: checklistBikeType,
+        pdiNotes: buildPdiNotes(),
       });
       setInspectionChecklistOpen(false);
     } else {
@@ -2439,6 +2480,47 @@ const BicycleInspections = () => {
               </Button>
             </div>
           )}
+
+          {/* PDI report: download / re-send the approval request (staff only) */}
+          {canManageInspections && inspection?.id && inspection.status !== "pending" && (
+            <div className="flex flex-wrap items-center gap-2 pt-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => reportMutation.mutate(inspection.id)}
+                disabled={reportMutation.isPending && reportingInspectionId === inspection.id}
+              >
+                {reportMutation.isPending && reportingInspectionId === inspection.id ? (
+                  <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="mr-1 h-4 w-4" />
+                )}
+                Download report
+              </Button>
+              {isAdmin && inspection.status === "issues_found" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => approvalEmailMutation.mutate(inspection.id)}
+                  disabled={approvalEmailMutation.isPending}
+                >
+                  {approvalEmailMutation.isPending ? (
+                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="mr-1 h-4 w-4" />
+                  )}
+                  Resend approval email
+                </Button>
+              )}
+              {(inspection as any).approval_email_sent_at && (
+                <span className="text-xs text-muted-foreground">
+                  Approval email sent {new Date((inspection as any).approval_email_sent_at).toLocaleDateString("en-GB")}
+                </span>
+              )}
+            </div>
+          )}
+
+
 
           {/* Complete Repairs Button (admin/mechanic for awaiting_repair when all approved are repaired) */}
           {(isAdmin || isMechanic) && isAwaitingRepair && allApprovedRepaired && (
