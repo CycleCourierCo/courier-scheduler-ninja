@@ -14,6 +14,7 @@ Geoapify often returns no county for UK addresses, which is what makes this hit 
 
 - **Search-first stays.** The address fields remain hidden until the user has searched and picked an address (or chosen manual entry) — no change to that flow. The block additionally auto-expands if any of its fields has a validation error or a value, so errors can never hide.
 - **County stays required** — on both collection and delivery. The delivery schema gets the missing County check so it matches collection and matches the step gate exactly. Street, City, County, Postcode, Country are required on both sides.
+- **Explicit county error.** A missing county shows "County is required" in red under the County field itself (delivery included, where today no message appears at all), and the blocking toast spells it out, e.g. "Delivery address: County is required".
 - **Errors you can't miss.** On a failed submit the form switches to the offending step, expands the address block, scrolls to and focuses the first invalid field, and the toast names the specific missing fields (e.g. "Delivery address: County, Postcode") instead of a generic message.
 - **Live error clearing.** Picking an address from search (or clearing it) re-validates the fields immediately, so stale errors disappear and genuinely missing ones (like a county Geoapify didn't return) surface straight away.
 
