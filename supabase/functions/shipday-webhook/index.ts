@@ -50,11 +50,12 @@ serve(async (req) => {
     }
 
     const payload = await req.json();
+    logInboundWebhook("shipday", "status update");
     console.log("Received Shipday webhook", {
       event: payload?.event ?? null,
-      logInboundWebhook("shipday", "status update");
       orderNumber: payload?.order?.order_number ?? null,
     });
+
 
 
     const { order, event } = payload;
