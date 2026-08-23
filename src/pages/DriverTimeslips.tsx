@@ -165,17 +165,6 @@ const DriverTimeslips = () => {
     },
   });
 
-  // Create QuickBooks bill mutation
-  const createBillMutation = useMutation({
-    mutationFn: (timeslipId: string) => timeslipService.createQuickBooksBill(timeslipId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['timeslips'] });
-      toast.success('QuickBooks bill created successfully');
-    },
-    onError: (error: any) => {
-      toast.error(`Failed to create bill: ${error.message}`);
-    },
-  });
 
   // Delete timeslip mutation
   const deleteMutation = useMutation({
