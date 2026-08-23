@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import { trackedFetch } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -85,7 +86,7 @@ async function geocodePostcode(postcode: string): Promise<{lat?: number; lon?: n
     const url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(cleanPostcode)}&filter=countrycode:gb&apiKey=${apiKey}`;
     
     console.log('Geocoding postcode:', cleanPostcode);
-    const response = await fetch(url);
+    const response = await trackedFetch("geoapify", "geocode address", url);
     if (!response.ok) {
       console.error('Geocoding failed:', response.status);
       return null;
