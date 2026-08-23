@@ -1734,6 +1734,42 @@ export type Database = {
           },
         ]
       }
+      integration_call_logs: {
+        Row: {
+          created_at: string
+          direction: string
+          duration_ms: number | null
+          error_label: string | null
+          id: string
+          operation: string
+          provider: string
+          status_code: number | null
+          success: boolean
+        }
+        Insert: {
+          created_at?: string
+          direction?: string
+          duration_ms?: number | null
+          error_label?: string | null
+          id?: string
+          operation: string
+          provider: string
+          status_code?: number | null
+          success?: boolean
+        }
+        Update: {
+          created_at?: string
+          direction?: string
+          duration_ms?: number | null
+          error_label?: string | null
+          id?: string
+          operation?: string
+          provider?: string
+          status_code?: number | null
+          success?: boolean
+        }
+        Relationships: []
+      }
       invoice_history: {
         Row: {
           created_at: string
@@ -4913,6 +4949,7 @@ export type Database = {
       }
       can_manage_review: { Args: { _cycle_id: string }; Returns: boolean }
       can_view_review: { Args: { _cycle_id: string }; Returns: boolean }
+      cleanup_integration_call_logs: { Args: never; Returns: undefined }
       create_webhook_secret: {
         Args: { p_name: string; p_secret: string }
         Returns: string
