@@ -3631,26 +3631,16 @@ Route Link: ${routeLink}`;
                   </div>
                   
                   <Button
-                    onClick={sendAllTimeslots}
+                    onClick={sendAllTimeslotsWhatsApp}
                     disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
                     variant="outline"
                     size="sm"
                     className="w-full flex items-center justify-center gap-1 h-9 text-sm"
                   >
-                    <Send className="h-3 w-3" />
+                    <MessageSquare className="h-3 w-3" />
                     {isSendingTimeslots ? 'Sending...' : 'Send All Timeslots'}
                   </Button>
-                  
-                  <Button
-                    onClick={sendAllTimeslotsSendZen}
-                    disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
-                    variant="outline"
-                    size="sm"
-                    className="w-full flex items-center justify-center gap-1 h-9 text-sm"
-                  >
-                    <Zap className="h-3 w-3" />
-                    {isSendingTimeslots ? 'Sending...' : 'Send All (SendZen)'}
-                  </Button>
+
                 </div>
               </div>
             </div>
