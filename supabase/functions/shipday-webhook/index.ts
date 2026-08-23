@@ -25,7 +25,7 @@ serve(async (req) => {
   }
 
   try {
-    console.log("Received headers:", Object.fromEntries(req.headers.entries()));
+    // Note: never log raw headers here — they carry the shared webhook token.
     
     const expectedToken = Deno.env.get("SHIPDAY_WEBHOOK_TOKEN");
     if (!expectedToken) {
