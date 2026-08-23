@@ -9,6 +9,7 @@ import {
   formatNiReceiverBlock,
   formatNiSenderBlock,
 } from "../_shared/northernIreland.ts";
+import { requireOpsAuth, createAuthErrorResponse } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -570,6 +571,11 @@ async function sendEmail(
 serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  const auth = await requireOpsAuth(req, ['admin', 'route_planner', 'loader']);
+  if (!auth.success) {
+    return createAuthErrorResponse(auth.error!, auth.status!);
   }
 
   try {
