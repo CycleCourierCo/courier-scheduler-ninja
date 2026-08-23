@@ -104,31 +104,31 @@ const IntegrationsSection = () => {
         <StatsCard
           title="Total calls"
           value={totals.total.toLocaleString()}
-          icon={<Activity className="h-4 w-4" />}
+          icon={Activity}
           description={isLoading ? "Loading…" : "Outbound + inbound"}
         />
         <StatsCard
           title="Outbound"
           value={totals.outbound.toLocaleString()}
-          icon={<ArrowUpRight className="h-4 w-4" />}
+          icon={ArrowUpRight}
           description="Requests we sent"
         />
         <StatsCard
           title="Inbound webhooks"
           value={totals.inbound.toLocaleString()}
-          icon={<ArrowDownLeft className="h-4 w-4" />}
+          icon={ArrowDownLeft}
           description="Received from partners"
         />
         <StatsCard
           title="Success rate"
           value={`${totals.successRate.toFixed(1)}%`}
-          icon={<AlertTriangle className="h-4 w-4" />}
+          icon={AlertTriangle}
           description={`${totals.failures.toLocaleString()} failures`}
         />
         <StatsCard
           title="Avg response"
           value={formatMs(totals.avgDurationMs)}
-          icon={<Timer className="h-4 w-4" />}
+          icon={Timer}
           description={`p95 ${formatMs(totals.p95DurationMs)}`}
         />
       </div>
