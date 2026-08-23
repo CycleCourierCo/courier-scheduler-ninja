@@ -1,35 +1,32 @@
-# Hide the Geoapify key behind a server proxy
+# TrackPod audit and cleanup
 
-The mapping/address key is currently compiled into the browser bundle, so anyone visiting the site can copy it and run geocoding or route-optimisation calls billed to the account. The fix is to move every Geoapify call to the server, where the key stays private, and to rotate the exposed key.
+## What the audit found
 
-## What changes for users
+I searched the current codebase (frontend, edge functions, config, env file, public assets) and the git history for anything TrackPod-related:
 
-Nothing visible. Address autocomplete, geocoding, timeslot travel times and route optimisation all behave the same — the requests just travel via our own server instead of the browser calling Geoapify directly.
+- No TrackPod code, key, URL or setting exists in the app today. The only file that ever held it, a TrackPod service in the frontend, was deleted in a commit on 15 June 2026.
+- No TrackPod secret exists in the project's stored secrets, and no TrackPod value is in the env file.
+- The one remaining mention is a single sentence inside an archived planning note in `.lovable/plan/`, which just lists the scanner's old findings. It is text in a document, not a key or working code.
+- The old key does still live in the repository's git history from before the deletion, so it should be revoked in the TrackPod account regardless of the code being gone.
 
-## Access rules for the new server endpoint
+So the finding is stale: the "hardcoded key in the client bundle" no longer ships to browsers.
 
-- Address autocomplete and single-address geocoding: available without signing in, because public booking/availability pages need it. Guarded by input limits (minimum 3 characters, max length, UK-only filter) and a per-IP request throttle.
-- Route optimisation, multi-stop routing and travel-time lookups: staff sign-in required (same role gate used by the other operations endpoints).
+## Proposed actions
+
+1. Remove the leftover TrackPod sentence from the archived plan note so no reference remains anywhere in the project.
+2. Mark the TrackPod security finding as resolved, recording that the code and key were removed and that nothing TrackPod-related is bundled or stored.
+3. Add a short note to security memory so future scans do not re-raise TrackPod, and so the standing rule stays clear: no third-party API keys in browser-visible code.
+
+## Something only you can do
+
+The key existed publicly in the past, so please revoke/delete it in the TrackPod dashboard if that has not already been done. I cannot do that, and clearing the finding does not invalidate a leaked key.
+
+## Note on the other open finding
+
+The exposed mapping/geocoding key in the browser bundle is a separate, still-live issue. The plan for moving it server-side is ready and waiting for your go-ahead whenever you want it done.
 
 ## Technical detail
 
-New edge function `supabase/functions/geoapify/index.ts`:
-- POST with `{ action, params }`; actions: `autocomplete`, `geocode`, `routing`, `route-planner`.
-- Reads the key from `GEOAPIFY_API_KEY` (already a server secret, used by the `orders` function); never returns the key.
-- `routing` and `route-planner` call `requireOpsAuth`/`requireAuth` from `_shared/auth.ts`; `autocomplete`/`geocode` are open but throttled per IP with a small in-memory window and validated payloads.
-- Forces `filter=countrycode:gb` server-side; passes through Geoapify's response body unchanged so existing parsing keeps working.
-- CORS headers on every response, including errors; logs only action + status, no addresses.
-
-Frontend refactor (all `import.meta.env.VITE_GEOAPIFY_API_KEY` reads removed):
-- `src/utils/geocoding.ts` — call `geoapify` with `action: 'geocode'`.
-- `src/services/routeOptimizationService.ts` (3 call sites) — `route-planner` for both optimisers, `routing` for `computeRouteInOrder`.
-- `src/components/AddressForm.tsx` and `src/components/availability/AltLocationFields.tsx` — `autocomplete`.
-- `src/components/scheduling/RouteBuilder.tsx` `calculateTravelTime` — `routing`.
-- `src/components/admin/BusinessAccountsMap.tsx` — `geocode`.
-- Add a small shared helper (`src/services/geoapifyClient.ts`) wrapping `supabase.functions.invoke("geoapify", …)` so all callers share one path.
-
-Cleanup and key hygiene:
-- Remove `VITE_GEOAPIFY_API_KEY` from `.env` so it stops being inlined into the bundle.
-- Change `supabase/functions/shopify-webhook/index.ts` to read `GEOAPIFY_API_KEY` instead of `VITE_GEOAPIFY_API_KEY`.
-- Because the old key was public, it must be rotated in the Geoapify dashboard and the new value saved as the `GEOAPIFY_API_KEY` secret — I will prompt for it after the code change. Until it is rotated, the leaked key remains usable by third parties.
-- Verify the new endpoint live (autocomplete without auth, routing rejected without staff auth), then mark the security finding as fixed and update security memory.
+- Files touched: `.lovable/plan/lock-down-the-shipday-edge-functions-2026-08-23.md` (one line edited).
+- No code, database, secret or edge-function changes are needed for TrackPod.
+- Finding cleared via the security tooling with `mark_as_fixed`, plus a security memory update.
