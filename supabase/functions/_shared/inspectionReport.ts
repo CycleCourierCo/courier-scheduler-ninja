@@ -277,20 +277,6 @@ export const buildInspectionReportPdf = ({ order, inspection, issues }: ReportCo
     });
   }
 
-  // --- Footer on every page ---
-  const pages = (doc as any).getNumberOfPages();
-  for (let p = 1; p <= pages; p++) {
-    doc.setPage(p);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    doc.setTextColor(107, 114, 128);
-    doc.text(
-      `Generated ${londonDateTime(new Date().toISOString())} · Cycle Courier Co. Ltd · No pricing shown on this report`,
-      margin,
-      pageHeight - 10
-    );
-    doc.text(`Page ${p} of ${pages}`, pageWidth - margin, pageHeight - 10, { align: "right" });
-  }
 
   return new Uint8Array(doc.output("arraybuffer") as ArrayBuffer);
 };
