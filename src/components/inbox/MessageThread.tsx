@@ -42,13 +42,7 @@ const MessageThread: React.FC<Props> = ({ messages }) => {
             {m.body_html ? (
               <div
                 className="prose prose-sm max-w-none [&_*]:!text-inherit"
-                dangerouslySetInnerHTML={{
-                  __html: DOMPurify.sanitize(m.body_html, {
-                    USE_PROFILES: { html: true },
-                    FORBID_TAGS: ['style', 'script', 'iframe', 'object', 'embed', 'form'],
-                    FORBID_ATTR: ['style', 'onerror', 'onload', 'onclick'],
-                  }),
-                }}
+                dangerouslySetInnerHTML={{ __html: sanitizeMessageHtml(m.body_html) }}
               />
             ) : (
               <div className="whitespace-pre-wrap">{m.body_text || '(empty)'}</div>
