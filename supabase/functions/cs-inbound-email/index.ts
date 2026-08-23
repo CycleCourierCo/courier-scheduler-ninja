@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { resolveOrderLink } from "../_shared/cs-order-linker.ts";
+import { sanitizeInboundHtml } from "../_shared/sanitizeHtml.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -92,7 +93,7 @@ serve(async (req) => {
       conversation_id: conversationId,
       direction: 'in',
       body_text: body.text || null,
-      body_html: body.html || null,
+      body_html: sanitizeInboundHtml(body.html) || null,
       attachments: body.attachments || [],
       email_message_id: body.message_id || null,
       in_reply_to: body.in_reply_to || null,
