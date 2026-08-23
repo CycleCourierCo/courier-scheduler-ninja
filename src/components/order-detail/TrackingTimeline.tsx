@@ -639,6 +639,9 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
     const result = await verifyPublicOrderPostcode(identifier, postcode);
     if (result.verified && result.order) {
       onOrderUpdated?.(result.order);
+      if (result.revealedSide === "receiver") {
+        setVerifiedPostcode(postcode);
+      }
     }
     return { verified: result.verified, rateLimited: result.rateLimited };
   };
