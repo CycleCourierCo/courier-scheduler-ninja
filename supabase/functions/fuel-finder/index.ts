@@ -2,6 +2,7 @@ import { corsHeaders } from '../_shared/cors.ts';
 import { captureException, withSentry } from '../_shared/sentry.ts';
 import { requireAdminOrCronAuth, createAuthErrorResponse } from '../_shared/auth.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import { trackedFetch } from "../_shared/integrationLog.ts";
 
 const DEPOT_LAT = 52.4690197;
 const DEPOT_LON = -1.8757663;
@@ -27,7 +28,7 @@ async function getAccessToken(): Promise<string> {
   const clientSecret = Deno.env.get('FUEL_FINDER_CLIENT_SECRET');
   if (!clientId || !clientSecret) throw new Error('Fuel Finder credentials not configured');
 
-  const res = await fetch('https://www.fuel-finder.service.gov.uk/api/v1/oauth/generate_access_token', {
+  const res = await trackedFetch("fuel", "access token", 'https://www.fuel-finder.service.gov.uk/api/v1/oauth/generate_access_token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -65,7 +66,7 @@ async function fetchAllBatches(url: string, token: string, key: string): Promise
   let currentToken = token;
 
   while (true) {
-    const res = await fetch(`${url}?batch-number=${batch}`, {
+    const res = await trackedFetch("fuel", "fetch prices", `${url}?batch-number=${batch}`, {
       headers: { 'Authorization': `Bearer ${currentToken}` },
     });
 
@@ -78,7 +79,7 @@ async function fetchAllBatches(url: string, token: string, key: string): Promise
       console.log(`Token expired at batch ${batch}, refreshing...`);
       try {
         currentToken = await getAccessToken();
-        const retry = await fetch(`${url}?batch-number=${batch}`, {
+        const retry = await trackedFetch("fuel", "fetch prices retry", `${url}?batch-number=${batch}`, {
           headers: { 'Authorization': `Bearer ${currentToken}` },
         });
         if (retry.status === 404) break;

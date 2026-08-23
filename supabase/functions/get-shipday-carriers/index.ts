@@ -1,4 +1,5 @@
 import { requireOpsAuth, createAuthErrorResponse } from "../_shared/auth.ts";
+import { trackedFetch } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -24,7 +25,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Shipday API key not configured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const response = await fetch('https://api.shipday.com/carriers', {
+    const response = await trackedFetch("shipday", "list carriers", 'https://api.shipday.com/carriers', {
       headers: {
         'Authorization': `Basic ${shipdayApiKey}`,
       },

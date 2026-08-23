@@ -13,6 +13,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import {
+import { trackedFetch } from "../_shared/integrationLog.ts";
   addDays,
   buildCustomerUpdateReport,
   buildDailyOpsReport,
@@ -39,7 +40,7 @@ const REPORTS = ["customer-updates", "daily-ops", "parts-to-order", "weekly-driv
 type ReportName = (typeof REPORTS)[number];
 
 const sendEmail = async (subject: string, html: string) => {
-  const res = await fetch("https://api.resend.com/emails", {
+  const res = await trackedFetch("resend", "internal report", "https://api.resend.com/emails", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

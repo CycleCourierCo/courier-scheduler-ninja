@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { requireLoadingListAuth, createAuthErrorResponse } from '../_shared/auth.ts';
-import { trackResend } from "../_shared/integrationLog.ts";
+import { trackResend, trackedFetch } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -576,7 +576,7 @@ async function sendSendZenMessage(sendzenApiKey: string, toNumber: string, messa
   const formattedPhone = cleanPhone.startsWith('+') ? cleanPhone : `+${cleanPhone}`;
   
   try {
-    const response = await fetch('https://api.sendzen.io/v1/messages', {
+    const response = await trackedFetch("whatsapp", "send loading list", 'https://api.sendzen.io/v1/messages', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${sendzenApiKey}`,

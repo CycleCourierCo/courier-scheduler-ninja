@@ -10,7 +10,7 @@ import {
   formatNiSenderBlock,
 } from "../_shared/northernIreland.ts";
 import { requireOpsAuth, createAuthErrorResponse } from "../_shared/auth.ts";
-import { trackResend } from "../_shared/integrationLog.ts";
+import { trackResend, trackedFetch } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -338,7 +338,7 @@ async function updateShipday(
     try {
       const shipdayUrl = `https://api.shipday.com/order/edit/${shipdayId}`;
 
-      const shipdayResponse = await fetch(shipdayUrl, {
+      const shipdayResponse = await trackedFetch("shipday", "update order", shipdayUrl, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

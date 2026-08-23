@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { trackedFetch } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -65,7 +66,7 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const res = await fetch(`https://${shopDomain}/admin/api/2024-10/shop.json`, {
+      const res = await trackedFetch("shopify", "shop info", `https://${shopDomain}/admin/api/2024-10/shop.json`, {
         headers: { "X-Shopify-Access-Token": accessToken },
       });
       if (!res.ok) {
@@ -107,7 +108,7 @@ serve(async (req) => {
       let url =
         `https://${store.shop_domain}/admin/api/2024-10/products.json?limit=250&fields=id,title,vendor,variants`;
       for (let page = 0; page < 10 && url; page++) {
-        const res = await fetch(url, { headers: { "X-Shopify-Access-Token": token } });
+        const res = await trackedFetch("shopify", "admin api", url, { headers: { "X-Shopify-Access-Token": token } });
         if (!res.ok) {
           return new Response(
             JSON.stringify({ error: `Shopify returned ${res.status}` }),
@@ -159,7 +160,7 @@ serve(async (req) => {
     }
 
     // Verify token works
-    const verify = await fetch(`https://${shopDomain}/admin/api/2024-10/shop.json`, {
+    const verify = await trackedFetch("shopify", "verify token", `https://${shopDomain}/admin/api/2024-10/shop.json`, {
       headers: { "X-Shopify-Access-Token": accessToken },
     });
     if (!verify.ok) {
