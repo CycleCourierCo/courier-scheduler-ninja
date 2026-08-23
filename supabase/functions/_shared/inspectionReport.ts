@@ -127,8 +127,6 @@ export const buildInspectionReportPdf = ({ order, inspection, issues }: ReportCo
     ["Bike", bike],
     ["Type", order.bike_type || inspection.bike_type || "—"],
     ["Quantity", String(order.bike_quantity || 1)],
-    ["Sender", sender.name || "—"],
-    ["Receiver", receiver.name || "—"],
     ["Inspected by", inspection.inspected_by_name || "—"],
     ["Inspected at", londonDateTime(inspection.inspected_at)],
     ["Stage", String(inspection.status || "—").replace(/_/g, " ")],
