@@ -3546,9 +3546,8 @@ Route Link: ${routeLink}`;
                       isRetiming={isRetiming}
                       onAddBreak={addBreak}
                       onRemove={removeJob}
-                      onSendTimeslot={openTimeslotEditDialog}
-                      onSendGroupedTimeslots={sendGroupedTimeslots}
-                      onSendGroupedTimeslotsSendZen={sendGroupedTimeslotsSendZen}
+                      onSendGroupedTimeslotsWhatsApp={sendGroupedTimeslotsWhatsApp}
+
                       onUpdateCoordinates={updateCoordinates}
                       onToggleAddress={toggleStopAddress}
                       isSendingTimeslots={isSendingTimeslots}
