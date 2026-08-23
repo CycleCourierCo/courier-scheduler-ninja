@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireOpsAuth, createAuthErrorResponse } from "../_shared/auth.ts";
 
 const SHIPDAY_API_KEY = Deno.env.get("SHIPDAY_API_KEY");
 
@@ -19,6 +20,11 @@ serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  const auth = await requireOpsAuth(req, ['admin', 'route_planner']);
+  if (!auth.success) {
+    return createAuthErrorResponse(auth.error!, auth.status!);
   }
 
   try {

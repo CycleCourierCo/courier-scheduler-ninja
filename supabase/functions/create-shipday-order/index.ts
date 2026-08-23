@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { corsHeaders } from "../_shared/cors.ts";
 import { initSentry, captureException } from "../_shared/sentry.ts";
 import { CITY_AIR_EXPRESS, isNorthernIrelandAddress, formatNiReceiverBlock, formatNiSenderBlock, niDirectionOf } from "../_shared/northernIreland.ts";
+import { requireOpsAuth, createAuthErrorResponse } from "../_shared/auth.ts";
 
 
 interface OrderRequest {
@@ -86,6 +87,11 @@ serve(async (req) => {
       status: 204,
       headers: corsHeaders 
     });
+  }
+
+  const auth = await requireOpsAuth(req, ['admin', 'route_planner']);
+  if (!auth.success) {
+    return createAuthErrorResponse(auth.error!, auth.status!);
   }
 
   try {

@@ -572,6 +572,11 @@ serve(async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const auth = await requireOpsAuth(req, ['admin', 'route_planner', 'loader']);
+  if (!auth.success) {
+    return createAuthErrorResponse(auth.error!, auth.status!);
+  }
+
   try {
     const {
       orderId,

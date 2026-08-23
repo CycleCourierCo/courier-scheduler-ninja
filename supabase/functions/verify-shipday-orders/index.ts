@@ -1,8 +1,14 @@
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireOpsAuth, createAuthErrorResponse } from "../_shared/auth.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  const auth = await requireOpsAuth(req, ['admin', 'route_planner']);
+  if (!auth.success) {
+    return createAuthErrorResponse(auth.error!, auth.status!);
   }
 
   try {
