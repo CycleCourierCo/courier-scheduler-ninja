@@ -30,20 +30,6 @@ import { hasRole } from "@/lib/roles";
 const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
-// Human labels for the address fields, used to build precise error toasts
-const ADDRESS_FIELD_LABELS: Record<string, string> = {
-  street: "Street address",
-  city: "City",
-  state: "County",
-  zipCode: "Postcode",
-  country: "Country",
-};
-
-const missingAddressLabels = (address?: Record<string, any> | null): string[] =>
-  Object.keys(ADDRESS_FIELD_LABELS).filter(
-    (key) => !address?.[key] || String(address[key]).trim() === ""
-  ).map((key) => ADDRESS_FIELD_LABELS[key]);
-
 // Custom phone validation with specific error messages
 const phoneValidation = z
   .string()
@@ -76,8 +62,8 @@ const phoneValidation = z
 const addressSchema = z.object({
   street: z.string().min(2, "Street address is required"),
   city: z.string().min(2, "City is required"),
-  state: z.string().min(1, "County is required"),
-  zipCode: z.string().min(1, "Postcode is required"),
+  state: z.string().min(1, "State is required"),
+  zipCode: z.string().min(1, "Zip code is required"),
   country: z.string().min(2, "Country is required"),
   region: z.string().optional(),
   lat: z.number().optional(),
@@ -168,7 +154,6 @@ const orderSchema = z.object({
     }
     if (!r?.address?.street) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Street address is required", path: ["receiver", "address", "street"] });
     if (!r?.address?.city) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "City is required", path: ["receiver", "address", "city"] });
-    if (!r?.address?.state || r.address.state.trim() === "") ctx.addIssue({ code: z.ZodIssueCode.custom, message: "County is required", path: ["receiver", "address", "state"] });
     if (!r?.address?.zipCode) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Postcode is required", path: ["receiver", "address", "zipCode"] });
     if (!r?.address?.country) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Country is required", path: ["receiver", "address", "country"] });
   }
@@ -484,15 +469,10 @@ const CreateOrder = () => {
       toast.error("Phone number is too short — must be +44 followed by exactly 10 digits.");
     } else if (!senderPhone.startsWith('+44')) {
       toast.error("Phone number must start with +44.");
+    } else if (!address?.street || !address?.city || !address?.zipCode) {
+      toast.error("Please complete the sender's address (street, city, and postcode are required).");
     } else {
-      const missing = missingAddressLabels(address);
-      if (missing.length > 0) {
-        // Surface the inline errors on the address block as well as the toast
-        form.trigger("sender.address");
-        toast.error(`Collection address: ${missing.join(", ")} ${missing.length > 1 ? "are" : "is"} required.`);
-      } else {
-        toast.error("Please fill in all required fields in Collection Information.");
-      }
+      toast.error("Please fill in all required fields in Collection Information.");
     }
   };
 
@@ -589,60 +569,37 @@ const CreateOrder = () => {
           <CardContent>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
-                // Flatten the error tree into dotted paths + messages so we can
-                // both name the exact fields and focus the first offender.
-                const flatten = (node: any, path: string[] = []): { path: string; message: string }[] => {
-                  if (!node || typeof node !== "object") return [];
-                  if (typeof node.message === "string" && !("type" in node && node.type === undefined && !node.message)) {
-                    if (node.message) return [{ path: path.join("."), message: node.message }];
-                  }
-                  return Object.keys(node)
-                    .filter((k) => !["message", "type", "ref", "types", "root"].includes(k))
-                    .flatMap((k) => flatten(node[k], [...path, k]));
-                };
-
-                const flat = flatten(errors);
-                const first = flat[0];
-
-                const groupLabel = (p: string) =>
-                  p.startsWith("sender.address") ? "Collection address"
-                  : p.startsWith("receiver.address") ? "Delivery address"
-                  : p.startsWith("sender") ? "Collection details"
-                  : p.startsWith("receiver") ? "Delivery details"
-                  : p.startsWith("boxBuyer") ? "Buyer details"
-                  : "Bike details";
-
-                const hasDetailsErrors = errors.bikes || errors.bikeQuantity || errors.isEbayOrder ||
-                  errors.collectionCode || errors.needsPaymentOnCollection ||
-                  errors.paymentCollectionPhone || errors.isBikeSwap ||
-                  errors.partExchangeBikeBrand || errors.partExchangeBikeModel || errors.partExchangeBikeType ||
-                  errors.boxBuyer;
-
+                // Handle validation errors with user feedback
+                console.log("Form validation errors:", errors);
+                
+                // Check which tab has errors and navigate there
+                const hasDetailsErrors = errors.bikes || errors.bikeQuantity || errors.isEbayOrder || 
+                  errors.collectionCode || errors.needsPaymentOnCollection || 
+                  errors.paymentCollectionPhone || errors.isBikeSwap || 
+                  errors.partExchangeBikeBrand || errors.partExchangeBikeModel || errors.partExchangeBikeType;
+                
+                const hasSenderErrors = errors.sender;
+                const hasReceiverErrors = errors.receiver;
+                
                 if (hasDetailsErrors) {
                   setActiveTab("details");
-                } else if (errors.sender) {
+                  toast.error("Please complete all required fields in Bike Details.");
+                } else if (hasSenderErrors) {
                   setActiveTab("sender");
-                } else if (errors.receiver) {
+                  toast.error("Please complete all required fields in Collection Information.");
+                } else if (hasReceiverErrors) {
                   setActiveTab("receiver");
-                }
-
-                if (first) {
-                  const sameGroup = flat.filter((e) => groupLabel(e.path) === groupLabel(first.path));
-                  const messages = Array.from(new Set(sameGroup.map((e) => e.message)));
-                  toast.error(`${groupLabel(first.path)}: ${messages.join(" · ")}`);
-                  // Expand the relevant section and focus the offending input
-                  setTimeout(() => {
-                    try {
-                      form.setFocus(first.path as any, { shouldSelect: true });
-                    } catch {
-                      /* field may not be mounted yet */
-                    }
-                  }, 120);
+                  toast.error("Please complete all required fields in Delivery Information.");
                 } else {
-                  toast.error("Please complete all required fields.");
+                  // Generic error for any other validation failure
+                  const firstErrorKey = Object.keys(errors)[0];
+                  const firstError = errors[firstErrorKey as keyof typeof errors];
+                  const errorMessage = typeof firstError === 'object' && firstError && 'message' in firstError 
+                    ? String(firstError.message) 
+                    : "Please complete all required fields.";
+                  toast.error(errorMessage);
                 }
               })} className="space-y-6">
-
                 <Tabs value={activeTab} onValueChange={(value) => {
                   if (value === "sender" && !isDetailsValid) {
                     toast.error("Please complete Bike Details first.");
