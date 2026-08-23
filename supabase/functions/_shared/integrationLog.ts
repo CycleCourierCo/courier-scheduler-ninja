@@ -140,3 +140,42 @@ export async function trackedFetch(
     throw error;
   }
 }
+
+/**
+ * Wraps a Resend client so every `emails.send(...)` call is timed and counted.
+ * Only metrics are recorded — never recipients, subjects or bodies.
+ */
+export function trackResend<T extends { emails: { send: (...args: any[]) => Promise<any> } }>(
+  client: T,
+  operation = "send email",
+): T {
+  const originalSend = client.emails.send.bind(client.emails);
+  client.emails.send = async (...args: any[]) => {
+    const started = Date.now();
+    try {
+      const result = await originalSend(...args);
+      const failed = !!result?.error;
+      logIntegrationCall({
+        provider: "resend",
+        operation,
+        direction: "outbound",
+        statusCode: failed ? null : 200,
+        success: !failed,
+        durationMs: Date.now() - started,
+        errorLabel: failed ? (result?.error?.name ?? "resend_error") : null,
+      });
+      return result;
+    } catch (error) {
+      logIntegrationCall({
+        provider: "resend",
+        operation,
+        direction: "outbound",
+        success: false,
+        durationMs: Date.now() - started,
+        errorLabel: error instanceof Error ? error.name : "resend_error",
+      });
+      throw error;
+    }
+  };
+  return client;
+}
