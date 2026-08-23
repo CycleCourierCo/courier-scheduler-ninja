@@ -125,12 +125,12 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
         </div>
         
         <Button 
-          onClick={handleSendTimeslot}
-          disabled={isSending || !contact?.phone}
+          onClick={handleSendWhatsApp}
+          disabled={isSendingWhatsApp || !contact?.phone}
           className="w-full"
           size="sm"
         >
-          {isSending ? (
+          {isSendingWhatsApp ? (
             <>
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
               Sending...
@@ -138,30 +138,11 @@ const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, or
           ) : (
             <>
               <MessageSquare className="w-4 h-4 mr-2" />
-              Send Timeslot
+              Send Timeslot (WhatsApp)
             </>
           )}
         </Button>
-        
-        <Button 
-          onClick={handleSendViaSendZen}
-          disabled={isSendingSendZen || !contact?.phone}
-          variant="outline"
-          className="w-full"
-          size="sm"
-        >
-          {isSendingSendZen ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current mr-2"></div>
-              Sending via SendZen...
-            </>
-          ) : (
-            <>
-              <Zap className="w-4 h-4 mr-2" />
-              Send via SendZen
-            </>
-          )}
-        </Button>
+
         
         {!contact?.phone && (
           <p className="text-sm text-muted-foreground">
