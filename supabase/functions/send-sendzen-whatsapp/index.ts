@@ -10,6 +10,7 @@ import {
   formatNiSenderBlock,
 } from "../_shared/northernIreland.ts";
 import { requireOpsAuth, createAuthErrorResponse } from "../_shared/auth.ts";
+import { trackResend } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -394,7 +395,7 @@ async function sendEmail(
   if (!resendApiKey) { console.error("Resend API key not configured"); return; }
   if (!contact?.email) { console.log("No email for recipient, skipping"); return; }
 
-  const resend = new Resend(resendApiKey);
+  const resend = trackResend(new Resend(resendApiKey), "timeslot email");
 
   if (type === "review") {
     // No email for review messages

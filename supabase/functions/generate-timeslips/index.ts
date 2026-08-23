@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { Resend } from 'npm:resend@4.0.0';
 import { requireAdminOrCronAuth, createAuthErrorResponse } from '../_shared/auth.ts';
+import { trackResend } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -387,7 +388,7 @@ const handler = async (req: Request): Promise<Response> => {
     const status = createdTimeslips.length > 0 ? (warnings.length > 0 ? 'partial' : 'success') : 'failed';
     
     try {
-      const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+      const resend = trackResend(new Resend(Deno.env.get('RESEND_API_KEY'), "timeslip email"));
       
       // Fetch driver details for the email
       const driverDetails = createdTimeslips.length > 0 ? await Promise.all(

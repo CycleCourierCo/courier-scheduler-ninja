@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { corsHeaders } from "../_shared/cors.ts";
 import { regenerateInspectionReport } from "../_shared/inspectionReport.ts";
+import { trackResend } from "../_shared/integrationLog.ts";
 
 const BASE_URL = "https://booking.cyclecourierco.com";
 const FROM = "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>";
@@ -149,7 +150,7 @@ serve(async (req) => {
         <p style="font-size:13px;color:#4b5563">Thanks,<br/>CCC - Cycle Courier Co.</p>
       </div>`;
 
-    const resend = new Resend(resendKey);
+    const resend = trackResend(new Resend(resendKey), "inspection approval");
     const { error: emailError } = await resend.emails.send({
       from: FROM,
       to: [to],

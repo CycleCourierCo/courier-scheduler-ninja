@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { Resend } from "npm:resend@4.1.2";
 import { initSentry, captureException, startSpan } from "../_shared/sentry.ts";
+import { trackResend } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -393,7 +394,7 @@ serve(async (req) => {
     try {
       const resendApiKey = Deno.env.get('RESEND_API_KEY');
       if (resendApiKey) {
-        const resend = new Resend(resendApiKey);
+        const resend = trackResend(new Resend(resendApiKey), "registration email");
         await sendRegistrationEmails(resend, email.trim().toLowerCase(), userData || {});
       } else {
         console.warn("RESEND_API_KEY not set, skipping registration emails");

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { requireLoadingListAuth, createAuthErrorResponse } from '../_shared/auth.ts';
+import { trackResend } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -680,7 +681,7 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Initialize Resend if API key is available
-    const resend = resendApiKey ? new Resend(resendApiKey) : null;
+    const resend = resendApiKey ? trackResend(new Resend(resendApiKey), "loading list") : null;
 
     // Get all unique drivers
     const allDrivers = new Set<string>();

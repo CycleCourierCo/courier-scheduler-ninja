@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { prepareInvoiceDelivery, buildInvoiceCtaHtml, buildInvoiceCtaText } from "../_shared/quickbooksInvoiceDelivery.ts";
+import { trackResend } from "../_shared/integrationLog.ts";
 
 function escapeQuickBooksString(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
@@ -369,7 +370,7 @@ const handler = async (req: Request): Promise<Response> => {
     const resendApiKey = Deno.env.get('RESEND_API_KEY');
     if (resendApiKey) {
       try {
-        const resend = new Resend(resendApiKey);
+        const resend = trackResend(new Resend(resendApiKey), "receiver inspection invoice");
         const email = buildReceiverInvoiceEmail(order, issue, delivery.publicUrl, !!delivery.pdfBase64, totalAmount);
         await resend.emails.send({
           from: 'CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>',
