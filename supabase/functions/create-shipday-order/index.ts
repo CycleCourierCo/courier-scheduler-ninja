@@ -4,6 +4,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { initSentry, captureException } from "../_shared/sentry.ts";
 import { CITY_AIR_EXPRESS, isNorthernIrelandAddress, formatNiReceiverBlock, formatNiSenderBlock, niDirectionOf } from "../_shared/northernIreland.ts";
 import { requireOpsAuth, createAuthErrorResponse } from "../_shared/auth.ts";
+import { trackedFetch } from "../_shared/integrationLog.ts";
 
 
 interface OrderRequest {
@@ -345,7 +346,7 @@ serve(async (req) => {
       console.log("Creating Shipday pickup order with payload:", JSON.stringify(pickupOrderData, null, 2));
       
       try {
-        const response = await fetch("https://api.shipday.com/orders", {
+        const response = await trackedFetch("shipday", "create order", "https://api.shipday.com/orders", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -382,7 +383,7 @@ serve(async (req) => {
       console.log("Creating Shipday delivery order with payload:", JSON.stringify(deliveryOrderData, null, 2));
       
       try {
-        const response = await fetch("https://api.shipday.com/orders", {
+        const response = await trackedFetch("shipday", "create order", "https://api.shipday.com/orders", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

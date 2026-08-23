@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { trackedFetch } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -66,7 +67,7 @@ Deno.serve(async (req) => {
 
   for (const v of vehicles ?? []) {
     try {
-      const res = await fetch(
+      const res = await trackedFetch("dvla", "lookup vehicle", 
         "https://driver-vehicle-licensing.api.gov.uk/vehicle-enquiry/v1/vehicles",
         {
           method: "POST",

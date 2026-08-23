@@ -1,6 +1,7 @@
 // Resend webhook receiver: verifies Svix signature and logs delivery events.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { Webhook } from "https://esm.sh/svix@1.24.0";
+import { logInboundWebhook } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -50,8 +51,10 @@ Deno.serve(async (req) => {
       const wh = new Webhook(secret);
       evt = wh.verify(payload, headers);
       console.log("Signature verification PASSED, event type:", evt?.type ?? "unknown");
+      logInboundWebhook("resend", "delivery event");
     } catch (err) {
       console.error("Signature verification FAILED:", (err as Error).message);
+      logInboundWebhook("resend", "delivery event", { success: false, statusCode: 401, errorLabel: "invalid_signature" });
       return new Response(JSON.stringify({ error: "invalid signature" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { initSentry, captureException } from "../_shared/sentry.ts";
 import { requireAuth, createAuthErrorResponse } from "../_shared/auth.ts";
 import { expectationsHtml, expectationsText, expectationsForOrder } from "../_shared/deliveryExpectations.ts";
+import { trackResend } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,7 +36,7 @@ serve(async (req) => {
       );
     }
     
-    const resend = new Resend(RESEND_API_KEY);
+    const resend = trackResend(new Resend(RESEND_API_KEY), "send email");
     
     // Parse request data and log it
     const reqData = await req.json();

@@ -3,6 +3,7 @@ import { corsHeaders } from '../_shared/cors.ts'
 import { initSentry, captureException, startSpan } from '../_shared/sentry.ts'
 import { resolveNiDirection } from '../_shared/northernIreland.ts'
 import { buildFerryPartnerEmail } from '../_shared/ferryPartnerEmail.ts'
+import { trackedFetch } from "../_shared/integrationLog.ts";
 
 
 // Bike type numeric ID mapping
@@ -43,7 +44,7 @@ async function getCoordinates(addressString: string): Promise<{ lat: number; lon
   
   try {
     const url = `https://api.geoapify.com/v1/geocode/search?text=${encodeURIComponent(addressString)}&filter=countrycode:gb&apiKey=${geoapifyKey}`;
-    const response = await fetch(url);
+    const response = await trackedFetch("geoapify", "geocode address", url);
     const data = await response.json();
     
     if (data.features && data.features.length > 0) {

@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { Resend } from "https://esm.sh/resend@2.0.0";
+import { trackResend, trackedFetch } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -64,7 +65,7 @@ serve(async (req) => {
     if (conv.channel === 'email') {
       const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
       if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY missing');
-      const resend = new Resend(RESEND_API_KEY);
+      const resend = trackResend(new Resend(RESEND_API_KEY), "cs reply email");
 
       // Build threading headers
       const { data: lastIn } = await admin
@@ -118,7 +119,7 @@ serve(async (req) => {
         : { to: phone, from: fromNumber, type: 'text', text: { body: body_text } };
 
       try {
-        const res = await fetch('https://api.sendzen.io/v1/messages', {
+        const res = await trackedFetch("whatsapp", "cs reply", 'https://api.sendzen.io/v1/messages', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SENDZEN_API_KEY}` },
           body: JSON.stringify(payload),

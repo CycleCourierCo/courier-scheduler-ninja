@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { initSentry, captureException } from "../_shared/sentry.ts";
 import { isNorthernIrelandAddress } from "../_shared/northernIreland.ts";
+import { logInboundWebhook } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -41,6 +42,7 @@ serve(async (req) => {
       null;
     if (!webhookToken || webhookToken !== expectedToken) {
       console.error("Invalid webhook token", { hasProvided: !!webhookToken });
+      logInboundWebhook("shipday", "status update", { success: false, statusCode: 401, errorLabel: "invalid_token" });
       return new Response(JSON.stringify({ error: "Invalid webhook token" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 401,
@@ -48,10 +50,12 @@ serve(async (req) => {
     }
 
     const payload = await req.json();
+    logInboundWebhook("shipday", "status update");
     console.log("Received Shipday webhook", {
       event: payload?.event ?? null,
       orderNumber: payload?.order?.order_number ?? null,
     });
+
 
 
     const { order, event } = payload;

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { requireOpsAuth, createAuthErrorResponse } from "../_shared/auth.ts";
+import { trackedFetch } from "../_shared/integrationLog.ts";
 
 const SHIPDAY_API_KEY = Deno.env.get("SHIPDAY_API_KEY");
 
@@ -55,7 +56,7 @@ serve(async (req) => {
     if (shipdayPickupId) {
       try {
         console.log(`Deleting Shipday pickup job: ${shipdayPickupId}`);
-        const pickupResponse = await fetch(
+        const pickupResponse = await trackedFetch("shipday", "delete pickup", 
           `https://api.shipday.com/orders/${shipdayPickupId}`,
           {
             method: "DELETE",
@@ -85,7 +86,7 @@ serve(async (req) => {
     if (shipdayDeliveryId) {
       try {
         console.log(`Deleting Shipday delivery job: ${shipdayDeliveryId}`);
-        const deliveryResponse = await fetch(
+        const deliveryResponse = await trackedFetch("shipday", "delete delivery", 
           `https://api.shipday.com/orders/${shipdayDeliveryId}`,
           {
             method: "DELETE",
