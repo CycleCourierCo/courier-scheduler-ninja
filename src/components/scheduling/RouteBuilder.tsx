@@ -125,9 +125,8 @@ interface JobItemProps {
   isRetiming?: boolean;
   onAddBreak: (afterIndex: number, breakType: 'lunch' | 'stop') => void;
   onRemove: (job: SelectedJob) => void;
-  onSendTimeslot: (job: SelectedJob) => void;
-  onSendGroupedTimeslots?: (locationGroupId: string) => void;
-  onSendGroupedTimeslotsSendZen?: (locationGroupId: string) => void;
+  onSendGroupedTimeslotsWhatsApp?: (locationGroupId: string) => void;
+
   onUpdateCoordinates: (job: SelectedJob, lat: number, lon: number) => void;
   onToggleAddress?: (job: SelectedJob) => void;
   isSendingTimeslots: boolean;
