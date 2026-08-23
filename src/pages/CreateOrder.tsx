@@ -62,7 +62,7 @@ const phoneValidation = z
 const addressSchema = z.object({
   street: z.string().min(2, "Street address is required"),
   city: z.string().min(2, "City is required"),
-  state: z.string().min(1, "State is required"),
+  state: z.string().min(1, "County is required"),
   zipCode: z.string().min(1, "Zip code is required"),
   country: z.string().min(2, "Country is required"),
   region: z.string().optional(),
@@ -154,6 +154,7 @@ const orderSchema = z.object({
     }
     if (!r?.address?.street) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Street address is required", path: ["receiver", "address", "street"] });
     if (!r?.address?.city) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "City is required", path: ["receiver", "address", "city"] });
+    if (!r?.address?.state) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "County is required", path: ["receiver", "address", "state"] });
     if (!r?.address?.zipCode) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Postcode is required", path: ["receiver", "address", "zipCode"] });
     if (!r?.address?.country) ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Country is required", path: ["receiver", "address", "country"] });
   }
@@ -469,8 +470,8 @@ const CreateOrder = () => {
       toast.error("Phone number is too short — must be +44 followed by exactly 10 digits.");
     } else if (!senderPhone.startsWith('+44')) {
       toast.error("Phone number must start with +44.");
-    } else if (!address?.street || !address?.city || !address?.zipCode) {
-      toast.error("Please complete the sender's address (street, city, and postcode are required).");
+    } else if (!address?.street || !address?.city || !address?.state || !address?.zipCode) {
+      toast.error("Please complete the sender's address (street, city, county, and postcode are required).");
     } else {
       toast.error("Please fill in all required fields in Collection Information.");
     }
