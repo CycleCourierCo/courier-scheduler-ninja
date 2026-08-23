@@ -9,6 +9,7 @@ import {
   formatNiReceiverBlock,
   formatNiSenderBlock,
 } from "../_shared/northernIreland.ts";
+import { requireOpsAuth, createAuthErrorResponse } from "../_shared/auth.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
