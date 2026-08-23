@@ -305,7 +305,13 @@ const AnalyticsPage = () => {
                   <span className="hidden sm:inline">API &amp; Webhooks</span>
                   <span className="sm:hidden">API</span>
                 </TabsTrigger>
+                <TabsTrigger value="integrations" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2 col-span-2 sm:col-span-1">
+                  <PlugZap className="h-3 w-3 sm:h-4 sm:w-4" />
+                  <span className="hidden sm:inline">Integrations</span>
+                  <span className="sm:hidden">Integ</span>
+                </TabsTrigger>
               </TabsList>
+
 
               
               <TabsContent value="overview" className="space-y-8">
