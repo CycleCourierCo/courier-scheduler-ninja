@@ -3918,33 +3918,8 @@ Route Link: ${routeLink}`;
         </DialogContent>
       </Dialog>
 
-      <TimeslotEditDialog
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        job={jobToEdit}
-        onConfirm={(job, editedTime, date) => {
-          setEditDialogOpen(false);
-          sendTimeslot(job, editedTime, date);
-        }}
-        isLoading={isSendingTimeslots}
-        adminComments={jobToEdit ? (adminComments[jobToEdit.orderId] || []) : []}
-        openingHours={(() => {
-          if (!jobToEdit?.orderData?.user_id) return undefined;
-          const entry = profileOpeningHours[jobToEdit.orderData.user_id];
-          if (!entry) return undefined;
-          const stopEmail = jobToEdit.type === 'pickup'
-            ? jobToEdit.orderData?.sender?.email
-            : jobToEdit.orderData?.receiver?.email;
-          return {
-            hours: entry.hours,
-            profileEmail: entry.email,
-            profileAccountsEmail: entry.accounts_email,
-            stopEmail,
-          };
-        })()}
-      />
-
       <CSVMatchReviewDialog
+
         open={showCsvReviewDialog}
         onOpenChange={setShowCsvReviewDialog}
         matchResults={csvMatchResults}
