@@ -103,8 +103,6 @@ export const buildInspectionReportPdf = ({ order, inspection, issues }: ReportCo
     y = margin;
   };
 
-  const sender = (order.sender || {}) as Record<string, any>;
-  const receiver = (order.receiver || {}) as Record<string, any>;
   const bike = [order.bike_brand, order.bike_model].filter(Boolean).join(" ") || "Bike";
 
   // --- Header ---
