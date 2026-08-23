@@ -578,7 +578,7 @@ export const getCollectionTimeAnalytics = (orders: Order[], range?: TimeRange): 
   }
 
   let totalHours = 0;
-  let within24h = 0;
+  let withinCollectionSla = 0;
   const customerData: Record<string, { totalHours: number; count: number }> = {};
 
   collectedOrders.forEach(order => {
@@ -589,7 +589,7 @@ export const getCollectionTimeAnalytics = (orders: Order[], range?: TimeRange): 
     const hoursToCollect = (collectionTime.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
     
     totalHours += hoursToCollect;
-    if (hoursToCollect <= 24) within24h++;
+    if (hoursToCollect <= COLLECTION_SLA_HOURS) withinCollectionSla++;
 
     // @ts-ignore - Added in fetchOrdersForAnalytics
     const customerName = order.companyName || order.sender.name;
@@ -610,7 +610,7 @@ export const getCollectionTimeAnalytics = (orders: Order[], range?: TimeRange): 
 
   return {
     averageTimeToCollect: totalHours / collectedOrders.length,
-    collectionSLA: (within24h / collectedOrders.length) * 100,
+    collectionSLA: (withinCollectionSla / collectedOrders.length) * 100,
     byCustomer
   };
 };
@@ -636,8 +636,8 @@ export const getDeliveryTimeAnalytics = (orders: Order[], range?: TimeRange): De
 
   let totalCollectionToDeliveryHours = 0;
   let totalDurationHours = 0;
-  let within48h = 0;
-  let within72hTotal = 0;
+  let withinDeliverySla = 0;
+  let withinTotalSla = 0;
   const customerData: Record<string, { collectionToDelivery: number; totalDuration: number; count: number }> = {};
 
   deliveredOrders.forEach(order => {
@@ -651,8 +651,8 @@ export const getDeliveryTimeAnalytics = (orders: Order[], range?: TimeRange): De
     
     totalCollectionToDeliveryHours += collectionToDeliveryHours;
     totalDurationHours += totalHours;
-    if (collectionToDeliveryHours <= 48) within48h++;
-    if (totalHours <= 72) within72hTotal++;
+    if (collectionToDeliveryHours <= DELIVERY_SLA_HOURS) withinDeliverySla++;
+    if (totalHours <= TOTAL_DURATION_SLA_HOURS) withinTotalSla++;
 
     // @ts-ignore - Added in fetchOrdersForAnalytics
     const customerName = order.companyName || order.sender.name;
@@ -676,8 +676,8 @@ export const getDeliveryTimeAnalytics = (orders: Order[], range?: TimeRange): De
   return {
     averageCollectionToDelivery: totalCollectionToDeliveryHours / deliveredOrders.length,
     averageTotalDuration: totalDurationHours / deliveredOrders.length,
-    deliverySLA: (within48h / deliveredOrders.length) * 100,
-    totalDurationSLA: (within72hTotal / deliveredOrders.length) * 100,
+    deliverySLA: (withinDeliverySla / deliveredOrders.length) * 100,
+    totalDurationSLA: (withinTotalSla / deliveredOrders.length) * 100,
     byCustomer
   };
 };
@@ -843,8 +843,8 @@ export interface PerformanceLeaderboardRow {
   avgCreationToCollection: number | null;
   avgCollectionToDelivery: number | null;
   avgCreationToDelivery: number | null;
-  collectionSlaRate: number | null;   // % within 24h
-  deliverySlaRate: number | null;     // creation→delivery within 72h
+  collectionSlaRate: number | null;   // % creation→collection within COLLECTION_SLA_HOURS
+  deliverySlaRate: number | null;     // % creation→delivery within TOTAL_DURATION_SLA_HOURS
 }
 
 export const getPerformanceLeaderboard = (
@@ -859,9 +859,9 @@ export const getPerformanceLeaderboard = (
     c2c: number[];
     c2d: number[];
     cr2d: number[];
-    collectionWithin24h: number;
+    collectionWithinSla: number;
     collectionTotal: number;
-    deliveryWithin72h: number;
+    deliveryWithinSla: number;
     deliveryTotal: number;
   }> = {};
 
@@ -879,8 +879,8 @@ export const getPerformanceLeaderboard = (
       agg[customerName] = {
         isB2B,
         c2c: [], c2d: [], cr2d: [],
-        collectionWithin24h: 0, collectionTotal: 0,
-        deliveryWithin72h: 0, deliveryTotal: 0,
+        collectionWithinSla: 0, collectionTotal: 0,
+        deliveryWithinSla: 0, deliveryTotal: 0,
       };
     }
     const a = agg[customerName];
@@ -891,14 +891,14 @@ export const getPerformanceLeaderboard = (
       const h = hours(created, coll);
       a.c2c.push(h);
       a.collectionTotal++;
-      if (h <= 24) a.collectionWithin24h++;
+      if (h <= COLLECTION_SLA_HOURS) a.collectionWithinSla++;
     }
     if (coll && del) a.c2d.push(hours(coll, del));
     if (del) {
       const h = hours(created, del);
       a.cr2d.push(h);
       a.deliveryTotal++;
-      if (h <= 72) a.deliveryWithin72h++;
+      if (h <= TOTAL_DURATION_SLA_HOURS) a.deliveryWithinSla++;
     }
   }
 
@@ -910,8 +910,8 @@ export const getPerformanceLeaderboard = (
       avgCreationToCollection: avg(a.c2c),
       avgCollectionToDelivery: avg(a.c2d),
       avgCreationToDelivery: avg(a.cr2d),
-      collectionSlaRate: a.collectionTotal > 0 ? (a.collectionWithin24h / a.collectionTotal) * 100 : null,
-      deliverySlaRate: a.deliveryTotal > 0 ? (a.deliveryWithin72h / a.deliveryTotal) * 100 : null,
+      collectionSlaRate: a.collectionTotal > 0 ? (a.collectionWithinSla / a.collectionTotal) * 100 : null,
+      deliverySlaRate: a.deliveryTotal > 0 ? (a.deliveryWithinSla / a.deliveryTotal) * 100 : null,
     }))
     .filter(r => r.orders >= minSampleSize);
 
