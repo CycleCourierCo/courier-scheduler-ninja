@@ -30,6 +30,20 @@ import { hasRole } from "@/lib/roles";
 const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
 
+// Human labels for the address fields, used to build precise error toasts
+const ADDRESS_FIELD_LABELS: Record<string, string> = {
+  street: "Street address",
+  city: "City",
+  state: "County",
+  zipCode: "Postcode",
+  country: "Country",
+};
+
+const missingAddressLabels = (address?: Record<string, any> | null): string[] =>
+  Object.keys(ADDRESS_FIELD_LABELS).filter(
+    (key) => !address?.[key] || String(address[key]).trim() === ""
+  ).map((key) => ADDRESS_FIELD_LABELS[key]);
+
 // Custom phone validation with specific error messages
 const phoneValidation = z
   .string()
