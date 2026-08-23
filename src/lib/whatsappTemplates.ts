@@ -1,18 +1,18 @@
-export interface SendZenTemplateComponent {
+export interface WhatsAppTemplateComponent {
   type: string;
   text?: string;
   format?: string;
   example?: { body_text?: string[][] };
 }
 
-export interface SendZenTemplate {
+export interface WhatsAppTemplate {
   name: string;
   language: string;
   category: string;
-  components: SendZenTemplateComponent[];
+  components: WhatsAppTemplateComponent[];
 }
 
-export function extractTemplateParams(template: SendZenTemplate): string[] {
+export function extractTemplateParams(template: WhatsAppTemplate): string[] {
   const params: string[] = [];
   for (const comp of template.components) {
     if (comp.type === "BODY" && comp.text) {
@@ -28,7 +28,7 @@ export function extractTemplateParams(template: SendZenTemplate): string[] {
   return params.sort((a, b) => Number(a) - Number(b));
 }
 
-export function getTemplateBodyText(template: SendZenTemplate): string {
+export function getTemplateBodyText(template: WhatsAppTemplate): string {
   const body = template.components.find((c) => c.type === "BODY");
   return body?.text || "";
 }

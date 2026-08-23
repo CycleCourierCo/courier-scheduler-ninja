@@ -18,7 +18,6 @@ import { notify } from "@/lib/notify";
 import { supabase } from "@/integrations/supabase/client";
 import { useDraggable } from "@/hooks/useDraggable";
 import { useDroppable } from "@/hooks/useDroppable";
-import TimeslotEditDialog from './TimeslotEditDialog';
 import CSVUploadButton from './CSVUploadButton';
 import MultiCSVUploadButton, { UploadedFile } from './MultiCSVUploadButton';
 import RouteComparisonDialog from './RouteComparisonDialog';
@@ -125,9 +124,8 @@ interface JobItemProps {
   isRetiming?: boolean;
   onAddBreak: (afterIndex: number, breakType: 'lunch' | 'stop') => void;
   onRemove: (job: SelectedJob) => void;
-  onSendTimeslot: (job: SelectedJob) => void;
-  onSendGroupedTimeslots?: (locationGroupId: string) => void;
-  onSendGroupedTimeslotsSendZen?: (locationGroupId: string) => void;
+  onSendGroupedTimeslotsWhatsApp?: (locationGroupId: string) => void;
+
   onUpdateCoordinates: (job: SelectedJob, lat: number, lon: number) => void;
   onToggleAddress?: (job: SelectedJob) => void;
   isSendingTimeslots: boolean;
@@ -454,9 +452,8 @@ const JobItem: React.FC<JobItemProps> = ({
   isRetiming,
   onAddBreak, 
   onRemove, 
-  onSendTimeslot, 
-  onSendGroupedTimeslots,
-  onSendGroupedTimeslotsSendZen,
+  onSendGroupedTimeslotsWhatsApp,
+
   onUpdateCoordinates,
   onToggleAddress,
   isSendingTimeslots,
@@ -902,35 +899,20 @@ const JobItem: React.FC<JobItemProps> = ({
             )}
             
             {job.type !== 'break' && (job.lat && job.lon) && (
-              <>
-                {groupedJobs.length > 1 ? (
-                  // Multi-job group: only show the SendZen (SZ) grouped button
-                  job.isGroupedLocation && job.locationGroupId && onSendGroupedTimeslotsSendZen && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onSendGroupedTimeslotsSendZen!(job.locationGroupId!)}
-                      disabled={isSendingTimeslots || !job.estimatedTime}
-                      className="flex items-center gap-1 text-purple-600 hover:text-purple-700 h-7 text-xs px-2"
-                    >
-                      <Zap className="h-3 w-3" />
-                      SZ
-                    </Button>
-                  )
-                ) : (
-                  // Single job send button
-                  <Button
-                    size="sm"
-                    onClick={() => onSendTimeslot(job)}
-                    disabled={isSendingTimeslots || !job.estimatedTime}
-                    className="flex items-center gap-1 h-7 text-xs px-2"
-                  >
-                    <Send className="h-3 w-3" />
-                    Send
-                  </Button>
-                )}
-              </>
+              job.isGroupedLocation && job.locationGroupId && onSendGroupedTimeslotsWhatsApp && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onSendGroupedTimeslotsWhatsApp!(job.locationGroupId!)}
+                  disabled={isSendingTimeslots || !job.estimatedTime}
+                  className="flex items-center gap-1 text-purple-600 hover:text-purple-700 h-7 text-xs px-2"
+                >
+                  <MessageSquare className="h-3 w-3" />
+                  WA
+                </Button>
+              )
             )}
+
             
             <Button
               size="sm"
@@ -1051,9 +1033,6 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const vanCapacity = bikeSpacesData?.capacity ?? DEFAULT_VAN_SPACES_CAPACITY;
   const [isSendingTimeslots, setIsSendingTimeslots] = useState(false);
   const [isRetiming, setIsRetiming] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [jobToEdit, setJobToEdit] = useState<SelectedJob | null>(null);
-  const [isSendingTimeslip, setIsSendingTimeslip] = useState(false);
   const [adminComments, setAdminComments] = useState<Record<string, OrderComment[]>>({});
   const [profileOpeningHours, setProfileOpeningHours] = useState<Record<string, any>>({});
   // CSV upload states
@@ -2525,745 +2504,11 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   };
 
 
-  const openTimeslotEditDialog = (job: SelectedJob) => {
-    if (!job.estimatedTime) return;
-    setJobToEdit(job);
-    setEditDialogOpen(true);
-  };
 
-  const sendTimeslot = async (job: SelectedJob, customTime?: string, customDate?: Date) => {
-    const timeToUse = customTime || job.estimatedTime;
-    if (!timeToUse) return;
 
-    setIsSendingTimeslots(true);
-    try {
-      const deliveryTime = `${timeToUse}:00`;
-      
-      // Create datetime from selected date (use customDate from dialog if provided, otherwise fall back to route's selectedDate)
-      const [hours, minutes] = timeToUse.split(':').map(Number);
-      const dateToUse = customDate || selectedDate;
-      const scheduledDateTime = new Date(dateToUse);
-      scheduledDateTime.setHours(hours, minutes, 0, 0);
-      
-      // First save the timeslot and scheduled date to the database
-      const updateField = job.type === 'pickup' ? 'pickup_timeslot' : 'delivery_timeslot';
-      const dateField = job.type === 'pickup' ? 'scheduled_pickup_date' : 'scheduled_delivery_date';
-      
-      const { error: updateError } = await supabase
-        .from('orders')
-        .update({ 
-          [updateField]: deliveryTime,
-          [dateField]: scheduledDateTime.toISOString()
-        })
-        .eq('id', job.orderId);
 
-      if (updateError) {
-        console.error("Error saving timeslot:", updateError);
-        toast.error(`Failed to save timeslot: ${updateError.message}`);
-        return;
-      }
-
-      // Update order status like in TimeslotSelection component
-      let newStatus: any = 'scheduled'; // Default status
-      if (job.type === 'pickup') {
-        newStatus = "collection_scheduled";
-      } else if (job.type === 'delivery') {
-        // Check if delivery is on same date as collection
-        const order = job.orderData;
-        const pickupDate = order?.scheduled_pickup_date;
-        
-        if (pickupDate && scheduledDateTime) {
-          const pickupDateOnly = new Date(pickupDate).toDateString();
-          const deliveryDateOnly = scheduledDateTime.toDateString();
-          
-          if (pickupDateOnly === deliveryDateOnly) {
-            newStatus = "scheduled";
-          } else {
-            newStatus = "delivery_scheduled";
-          }
-        } else {
-          newStatus = "delivery_scheduled";
-        }
-      }
-
-      // Update the order status
-      const { error: statusUpdateError } = await supabase
-        .from('orders')
-        .update({ status: newStatus })
-        .eq('id', job.orderId);
-
-      if (statusUpdateError) {
-        console.error("Error updating order status:", statusUpdateError);
-        toast.error(`Failed to update order status: ${statusUpdateError.message}`);
-        return;
-      }
-      
-      // Check if this is a grouped location and send enhanced message
-      let message = '';
-      if (job.isGroupedLocation && job.locationGroupId) {
-        const jobsAtSameLocation = selectedJobs.filter(j => 
-          j.locationGroupId === job.locationGroupId && j.type !== 'break'
-        );
-        
-        if (jobsAtSameLocation.length > 1) {
-          message = `Multiple ${job.type === 'pickup' ? 'collections' : 'deliveries'} scheduled at this location (${jobsAtSameLocation.length} total)`;
-        }
-      }
-      
-      const { data, error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
-        body: {
-          orderId: job.orderId,
-          recipientType: job.type === 'pickup' ? 'sender' : 'receiver',
-          deliveryTime,
-          customMessage: message,
-          addressOverrides: buildAddressOverrides([job])
-        }
-      });
-
-      if (error) {
-        console.error("Error sending timeslot:", error);
-        toast.error(`Failed to send timeslot: ${error.message}`);
-        return;
-      }
-
-      // Handle individual operation results
-      if (data?.results) {
-        const { whatsapp, shipday, email } = data.results;
-        if (whatsapp?.success) toast.success("WhatsApp sent");
-        if (email?.success) toast.success("Email sent");
-        if (shipday?.success) toast.success("Shipday updated");
-        if (!whatsapp?.success) toast.error(`WhatsApp failed: ${whatsapp?.error}`);
-        if (!email?.success && email?.error) toast.warning(`Email failed: ${email.error}`);
-        if (!shipday?.success && shipday?.error) toast.warning(`Shipday failed: ${shipday.error}`);
-      } else {
-        toast.success("Timeslot sent successfully");
-      }
-
-      // Check Shipday status and show appropriate notification like in TimeslotSelection
-      if (data?.shipdayStatus === 'failed') {
-        toast.success(`Timeslot sent to ${job.contactName} via WhatsApp successfully!`, {
-          description: `Note: Shipday update failed (${data.shipdayError}). The timeslot was saved but may need manual update in Shipday.`
-        });
-      } else if (data?.shipdayStatus === 'no_shipday_id') {
-        toast.success(`Timeslot sent to ${job.contactName} via WhatsApp successfully!`, {
-          description: "Note: No Shipday order found to update."
-        });
-      } else {
-        toast.success(`Timeslot sent to ${job.contactName}${job.isGroupedLocation ? ' (grouped location)' : ''} successfully!`);
-      }
-    } catch (error) {
-      console.error('Error sending timeslot:', error);
-      toast.error(`Failed to send timeslot: ${error instanceof Error ? error.message : "Unknown error"}`);
-    } finally {
-      setIsSendingTimeslots(false);
-    }
-  };
-
-  // New function to send timeslots for all jobs at a grouped location
-  const sendGroupedTimeslots = async (locationGroupId: string) => {
-    const jobsAtLocation = selectedJobs.filter(job => 
-      job.locationGroupId === locationGroupId && job.type !== 'break'
-    );
-    
-    if (jobsAtLocation.length === 0) return;
-
-    setIsSendingTimeslots(true);
-    try {
-      if (jobsAtLocation.length === 0 || !jobsAtLocation[0].estimatedTime) return;
-      
-      // Get the primary contact (first job's contact - could be pickup or delivery)
-      const primaryJob = jobsAtLocation[0];
-      const deliveryTime = `${primaryJob.estimatedTime}:00`;
-      
-      // Create datetime from selected date and estimated time (local timezone)
-      const [jobHours, jobMinutes] = primaryJob.estimatedTime.split(':').map(Number);
-      const dateStr = format(selectedDate, 'yyyy-MM-dd');
-      const [year, month, day] = dateStr.split('-').map(Number);
-      const scheduledDateTime = new Date(year, month - 1, day, jobHours, jobMinutes, 0, 0);
-      
-      // Separate ALL deliveries and collections at this location
-      const deliveries: string[] = [];
-      const collections: string[] = [];
-      
-      jobsAtLocation.forEach(job => {
-        const brand = job.orderData?.bike_brand || 'Unknown Brand';
-        const model = job.orderData?.bike_model || 'Unknown Model';
-        const bikeInfo = `${brand} ${model}`;
-        
-        if (job.type === 'delivery') {
-          deliveries.push(bikeInfo);
-        } else if (job.type === 'pickup') {
-          collections.push(bikeInfo);
-        }
-      });
-      
-      // Format timeslot window (original time + 3 hours)
-      const [windowHours, windowMinutes] = primaryJob.estimatedTime.split(':').map(Number);
-      const endHour = Math.min(23, windowHours + 3);
-      const startTime = `${windowHours.toString().padStart(2, '0')}:${windowMinutes.toString().padStart(2, '0')}`;
-      const endTime = `${endHour.toString().padStart(2, '0')}:${windowMinutes.toString().padStart(2, '0')}`;
-      const timeWindow = `${startTime} and ${endTime}`;
-      
-      // Format date
-      const formattedDate = format(selectedDate, 'EEEE d MMMM yyyy');
-      
-      // Create custom message following the requested format - send to primary contact
-      let message = `Dear ${primaryJob.contactName},\n\n`;
-      message += `We are due to be with you on ${formattedDate} between ${timeWindow} for the following deliveries and collections.\n\n`;
-      
-      if (deliveries.length > 0) {
-        message += `Deliveries: ${deliveries.join(', ')}\n`;
-      }
-      if (collections.length > 0) {
-        message += `Collections: ${collections.join(', ')}\n`;
-      }
-      
-      message += `\nYou will receive a text with a live tracking link once the driver is on his way.\n\n`;
-      message += `Please ensure the pedals have been removed from the bikes we are collecting and are in a bag along with any other accessories. Make sure the bag is attached to the bike securely to avoid any loss.\n\n`;
-      message += `Thank you!\nCycle Courier Co.`;
-      
-      // Update ALL jobs at this location
-      for (const job of jobsAtLocation) {
-        const updateField = job.type === 'pickup' ? 'pickup_timeslot' : 'delivery_timeslot';
-        const dateField = job.type === 'pickup' ? 'scheduled_pickup_date' : 'scheduled_delivery_date';
-        
-        // Update timeslot and scheduled date
-        await supabase
-          .from('orders')
-          .update({ 
-            [updateField]: deliveryTime,
-            [dateField]: scheduledDateTime.toISOString()
-          })
-          .eq('id', job.orderId);
-          
-        // Update status
-        let newStatus: any = 'scheduled';
-        if (job.type === 'pickup') {
-          newStatus = "collection_scheduled";
-        } else if (job.type === 'delivery') {
-          const order = job.orderData;
-          const pickupDate = order?.scheduled_pickup_date;
-          
-          if (pickupDate && scheduledDateTime) {
-            const pickupDateOnly = new Date(pickupDate).toDateString();
-            const deliveryDateOnly = scheduledDateTime.toDateString();
-            
-            if (pickupDateOnly === deliveryDateOnly) {
-              newStatus = "scheduled";
-            } else {
-              newStatus = "delivery_scheduled";
-            }
-          } else {
-            newStatus = "delivery_scheduled";
-          }
-        }
-        
-        await supabase
-          .from('orders')
-          .update({ status: newStatus })
-          .eq('id', job.orderId);
-      }
-      
-      // Send ONE consolidated message to the primary contact, but include all related jobs
-      // with explicit job types so that ALL Shipday jobs get updated correctly
-      const relatedJobs = jobsAtLocation
-        .filter(job => job.orderId !== primaryJob.orderId)
-        .map(job => ({ orderId: job.orderId, jobType: toEdgeFunctionJobType(job.type) }));
-      
-      console.log(`Sending consolidated message for primary order ${primaryJob.orderId} with ${relatedJobs.length} related jobs`);
-      
-      const { data, error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
-        body: {
-          orderId: primaryJob.orderId,
-          recipientType: toEdgeFunctionJobType(primaryJob.type) === 'pickup' ? 'sender' : 'receiver',
-          deliveryTime,
-          customMessage: message,
-          relatedJobs: relatedJobs.length > 0 ? relatedJobs : undefined,
-          addressOverrides: buildAddressOverrides(jobsAtLocation)
-        }
-      });
-
-      if (error) {
-        console.error('Error sending grouped timeslots:', error);
-        toast.error(`Failed to send consolidated timeslot: ${error.message}`);
-        return;
-      }
-
-      // Handle individual operation results
-      if (data?.results) {
-        const { whatsapp, shipday, email } = data.results;
-        if (whatsapp?.success) toast.success(`WhatsApp sent to ${jobsAtLocation.length} grouped jobs`);
-        if (email?.success) toast.success("Email sent");
-        if (shipday?.success) toast.success(`Shipday updated for ${jobsAtLocation.length} jobs`);
-        if (!whatsapp?.success) toast.error(`WhatsApp failed: ${whatsapp?.error}`);
-        if (!email?.success && email?.error) toast.warning(`Email failed: ${email.error}`);
-        if (!shipday?.success && shipday?.error) toast.warning(`Shipday failed: ${shipday.error}`);
-      } else {
-        toast.success(`Consolidated timeslot sent for ${jobsAtLocation.length} jobs`);
-      }
-      const shipdayResults = data?.shipdayResults || [];
-      const successfulUpdates = shipdayResults.filter((r: any) => r.status === 'success').length;
-      const failedUpdates = shipdayResults.filter((r: any) => r.status === 'failed' || r.status === 'error').length;
-      
-      let toastMessage = `Consolidated timeslot sent for ${jobsAtLocation.length} jobs at this location`;
-      if (successfulUpdates > 0) {
-        toastMessage += ` (${successfulUpdates} Shipday orders updated)`;
-      }
-      if (failedUpdates > 0) {
-        toastMessage += ` - ${failedUpdates} Shipday updates failed`;
-      }
-      
-      toast.success(toastMessage);
-    } catch (error) {
-      console.error('Error sending grouped timeslots:', error);
-      toast.error('Failed to send some timeslots');
-    } finally {
-      setIsSendingTimeslots(false);
-    }
-  };
-
-  const sendAllTimeslots = async () => {
-    const jobsToSend = selectedJobs.filter(job => 
-      job.type !== 'break' && 
-      job.estimatedTime && 
-      job.lat && 
-      job.lon
-    );
-    
-    if (jobsToSend.length === 0) {
-      toast.error('No jobs with valid timeslots and coordinates to send');
-      return;
-    }
-
-    setIsSendingTimeslots(true);
-    
-    // Track detailed results for each job
-    interface JobResult {
-      job: SelectedJob;
-      bikeCount: number;
-      results: {
-        whatsapp: { success: boolean; error?: string };
-        shipday: { success: boolean; error?: string };
-        email: { success: boolean; error?: string };
-      };
-    }
-    
-    const jobResults: JobResult[] = [];
-    let successCount = 0;
-    let failureCount = 0;
-
-    try {
-      // Step 1: Group jobs by actual coordinates (not relying on pre-set grouping info)
-      const processedGroupIds = new Set<string>();
-      const groupedLocationMap = new Map<string, SelectedJob[]>();
-      const standaloneJobs: SelectedJob[] = [];
-
-      // First, group jobs by coordinates
-      const coordinateGroups: { [key: string]: SelectedJob[] } = {};
-      
-      for (const job of jobsToSend) {
-        if (!job.lat || !job.lon) {
-          standaloneJobs.push(job);
-          continue;
-        }
-        
-        // Find existing group with same location (within 750 meters)
-        let foundGroupKey: string | null = null;
-        for (const [groupKey, groupJobs] of Object.entries(coordinateGroups)) {
-          const firstJobInGroup = groupJobs[0];
-          if (firstJobInGroup.lat && firstJobInGroup.lon && 
-              isSameLocation({ lat: job.lat, lon: job.lon }, { lat: firstJobInGroup.lat, lon: firstJobInGroup.lon })) {
-            foundGroupKey = groupKey;
-            break;
-          }
-        }
-        
-        if (foundGroupKey) {
-          coordinateGroups[foundGroupKey].push(job);
-        } else {
-          // Create new group
-          const newGroupKey = `coord-${job.lat}-${job.lon}`;
-          coordinateGroups[newGroupKey] = [job];
-        }
-      }
-      
-      // Step 2: Separate into grouped (2+ jobs) vs standalone (1 job)
-      for (const [groupKey, jobs] of Object.entries(coordinateGroups)) {
-        if (jobs.length >= 2) {
-          groupedLocationMap.set(groupKey, jobs);
-        } else {
-          standaloneJobs.push(jobs[0]);
-        }
-      }
-
-      console.log(`Grouping results: ${groupedLocationMap.size} grouped locations, ${standaloneJobs.length} standalone jobs`);
-
-      // Step 2: Process grouped locations FIRST (one message per location)
-      for (const [locationGroupId, jobsAtLocation] of groupedLocationMap.entries()) {
-        if (processedGroupIds.has(locationGroupId)) continue;
-        processedGroupIds.add(locationGroupId);
-
-        try {
-          const primaryJob = jobsAtLocation[0];
-          const deliveryTime = `${primaryJob.estimatedTime}:00`;
-          
-          // Create datetime from selected date and estimated time
-          const [jobHours, jobMinutes] = primaryJob.estimatedTime.split(':').map(Number);
-          const dateStr = format(selectedDate, 'yyyy-MM-dd');
-          const [year, month, day] = dateStr.split('-').map(Number);
-          const scheduledDateTime = new Date(year, month - 1, day, jobHours, jobMinutes, 0, 0);
-          
-          // Separate deliveries and collections
-          const deliveries: string[] = [];
-          const collections: string[] = [];
-          
-          jobsAtLocation.forEach(job => {
-            const brand = job.orderData?.bike_brand || 'Unknown Brand';
-            const model = job.orderData?.bike_model || 'Unknown Model';
-            const bikeInfo = `${brand} ${model}`;
-            
-            if (job.type === 'delivery') {
-              deliveries.push(bikeInfo);
-            } else if (job.type === 'pickup') {
-              collections.push(bikeInfo);
-            }
-          });
-          
-          // Format timeslot window
-          const [windowHours, windowMinutes] = primaryJob.estimatedTime.split(':').map(Number);
-          const endHour = Math.min(23, windowHours + 3);
-          const startTime = `${windowHours.toString().padStart(2, '0')}:${windowMinutes.toString().padStart(2, '0')}`;
-          const endTime = `${endHour.toString().padStart(2, '0')}:${windowMinutes.toString().padStart(2, '0')}`;
-          const timeWindow = `${startTime} and ${endTime}`;
-          const formattedDate = format(selectedDate, 'EEEE d MMMM yyyy');
-          
-          // Create consolidated message
-          let message = `Dear ${primaryJob.contactName},\n\n`;
-          message += `We are due to be with you on ${formattedDate} between ${timeWindow} for the following deliveries and collections.\n\n`;
-          
-          if (deliveries.length > 0) {
-            message += `Deliveries: ${deliveries.join(', ')}\n`;
-          }
-          if (collections.length > 0) {
-            message += `Collections: ${collections.join(', ')}\n`;
-          }
-          
-          message += `\nYou will receive a text with a live tracking link once the driver is on his way.\n\n`;
-          message += `Please ensure the pedals have been removed from the bikes we are collecting and are in a bag along with any other accessories. Make sure the bag is attached to the bike securely to avoid any loss.\n\n`;
-          message += `Thank you!\nCycle Courier Co.`;
-          
-          // Update ALL jobs at this location
-          for (const job of jobsAtLocation) {
-            const updateField = job.type === 'pickup' ? 'pickup_timeslot' : 'delivery_timeslot';
-            const dateField = job.type === 'pickup' ? 'scheduled_pickup_date' : 'scheduled_delivery_date';
-            
-            await supabase
-              .from('orders')
-              .update({ 
-                [updateField]: deliveryTime,
-                [dateField]: scheduledDateTime.toISOString()
-              })
-              .eq('id', job.orderId);
-              
-            // Update status
-            let newStatus: any = 'scheduled';
-            if (job.type === 'pickup') {
-              newStatus = "collection_scheduled";
-            } else if (job.type === 'delivery') {
-              const order = job.orderData;
-              const pickupDate = order?.scheduled_pickup_date;
-              
-              if (pickupDate && scheduledDateTime) {
-                const pickupDateOnly = new Date(pickupDate).toDateString();
-                const deliveryDateOnly = scheduledDateTime.toDateString();
-                
-                if (pickupDateOnly === deliveryDateOnly) {
-                  newStatus = "scheduled";
-                } else {
-                  newStatus = "delivery_scheduled";
-                }
-              } else {
-                newStatus = "delivery_scheduled";
-              }
-            }
-            
-            await supabase
-              .from('orders')
-              .update({ status: newStatus })
-              .eq('id', job.orderId);
-          }
-          
-          // Send ONE consolidated message with explicit job types
-          const relatedJobs = jobsAtLocation
-            .filter(job => job.orderId !== primaryJob.orderId)
-            .map(job => ({ orderId: job.orderId, jobType: toEdgeFunctionJobType(job.type) }));
-          
-          const { data, error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
-            body: {
-              orderId: primaryJob.orderId,
-              recipientType: toEdgeFunctionJobType(primaryJob.type) === 'pickup' ? 'sender' : 'receiver',
-              deliveryTime,
-              customMessage: message,
-              relatedJobs: relatedJobs.length > 0 ? relatedJobs : undefined,
-              addressOverrides: buildAddressOverrides(jobsAtLocation)
-            }
-          });
-
-          // Track results for each job in the group
-          const groupResults = {
-            whatsapp: { success: data?.results?.whatsapp?.success ?? false, error: data?.results?.whatsapp?.error },
-            shipday: { success: data?.results?.shipday?.success ?? false, error: data?.results?.shipday?.error },
-            email: { success: data?.results?.email?.success ?? false, error: data?.results?.email?.error },
-          };
-
-          for (const job of jobsAtLocation) {
-            const jobIndex = selectedJobs.findIndex(j => j.orderId === job.orderId && j.type === job.type);
-            const bikeCount = jobIndex >= 0 ? calculateBikeCountAtJob(jobIndex) : 0;
-            
-            jobResults.push({
-              job,
-              bikeCount,
-              results: groupResults
-            });
-          }
-
-          if (error) {
-            console.error(`Error sending grouped timeslots for location ${locationGroupId}:`, error);
-            failureCount++;
-          } else {
-            successCount++;
-          }
-
-          // Add 4-minute delay after each grouped location
-          if (groupedLocationMap.size > 1 || standaloneJobs.length > 0) {
-            await new Promise(resolve => setTimeout(resolve, 240 * 1000));
-          }
-
-        } catch (groupError) {
-          console.error(`Error processing grouped location ${locationGroupId}:`, groupError);
-          failureCount++;
-          
-          // Still track failed jobs with error results
-          for (const job of jobsAtLocation) {
-            const jobIndex = selectedJobs.findIndex(j => j.orderId === job.orderId && j.type === job.type);
-            const bikeCount = jobIndex >= 0 ? calculateBikeCountAtJob(jobIndex) : 0;
-            
-            jobResults.push({
-              job,
-              bikeCount,
-              results: {
-                whatsapp: { success: false, error: 'Group processing failed' },
-                shipday: { success: false, error: 'Group processing failed' },
-                email: { success: false, error: 'Group processing failed' },
-              }
-            });
-          }
-        }
-      }
-
-      // Step 3: Process standalone jobs (individual messages)
-      for (let i = 0; i < standaloneJobs.length; i++) {
-        const job = standaloneJobs[i];
-        
-        try {
-          const deliveryTime = `${job.estimatedTime}:00`;
-          
-          // Create datetime from selected date and estimated time
-          const [hours, minutes] = job.estimatedTime.split(':').map(Number);
-          const dateStr = format(selectedDate, 'yyyy-MM-dd');
-          const [year, month, day] = dateStr.split('-').map(Number);
-          const scheduledDateTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
-          
-          // Save the timeslot and scheduled date
-          const updateField = job.type === 'pickup' ? 'pickup_timeslot' : 'delivery_timeslot';
-          const dateField = job.type === 'pickup' ? 'scheduled_pickup_date' : 'scheduled_delivery_date';
-          
-          const { error: updateError } = await supabase
-            .from('orders')
-            .update({ 
-              [updateField]: job.estimatedTime,
-              [dateField]: scheduledDateTime.toISOString()
-            })
-            .eq('id', job.orderId);
-
-          if (updateError) {
-            console.error(`Error saving timeslot for ${job.contactName}:`, updateError);
-            failureCount++;
-            
-            const jobIndex = selectedJobs.findIndex(j => j.orderId === job.orderId && j.type === job.type);
-            const bikeCount = jobIndex >= 0 ? calculateBikeCountAtJob(jobIndex) : 0;
-            
-            jobResults.push({
-              job,
-              bikeCount,
-              results: {
-                whatsapp: { success: false, error: 'Database update failed' },
-                shipday: { success: false, error: 'Database update failed' },
-                email: { success: false, error: 'Database update failed' },
-              }
-            });
-            continue;
-          }
-
-          // Send individual WhatsApp message
-          const { data, error } = await supabase.functions.invoke('send-timeslot-whatsapp', {
-            body: {
-              orderId: job.orderId,
-              recipientType: job.type === 'pickup' ? 'sender' : 'receiver',
-              deliveryTime: job.estimatedTime,
-              addressOverrides: buildAddressOverrides([job])
-            }
-          });
-
-          const jobIndex = selectedJobs.findIndex(j => j.orderId === job.orderId && j.type === job.type);
-          const bikeCount = jobIndex >= 0 ? calculateBikeCountAtJob(jobIndex) : 0;
-
-          jobResults.push({
-            job,
-            bikeCount,
-            results: {
-              whatsapp: { success: data?.results?.whatsapp?.success ?? false, error: data?.results?.whatsapp?.error },
-              shipday: { success: data?.results?.shipday?.success ?? false, error: data?.results?.shipday?.error },
-              email: { success: data?.results?.email?.success ?? false, error: data?.results?.email?.error },
-            }
-          });
-
-          if (error) {
-            console.error(`Error sending timeslot to ${job.contactName}:`, error);
-            failureCount++;
-          } else if (data?.results) {
-            if (data.results.whatsapp?.success || data.results.shipday?.success || data.results.email?.success) {
-              successCount++;
-            } else {
-              failureCount++;
-            }
-          } else {
-            successCount++;
-          }
-
-          // Add 4-minute delay between standalone jobs
-          if (i < standaloneJobs.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 240 * 1000));
-          }
-
-        } catch (jobError) {
-          console.error(`Error processing standalone job for ${job.contactName}:`, jobError);
-          failureCount++;
-          
-          const jobIndex = selectedJobs.findIndex(j => j.orderId === job.orderId && j.type === job.type);
-          const bikeCount = jobIndex >= 0 ? calculateBikeCountAtJob(jobIndex) : 0;
-          
-          jobResults.push({
-            job,
-            bikeCount,
-            results: {
-              whatsapp: { success: false, error: 'Processing failed' },
-              shipday: { success: false, error: 'Processing failed' },
-              email: { success: false, error: 'Processing failed' },
-            }
-          });
-        }
-      }
-
-      // Also include breaks in the report (without notification results)
-      const breakJobs = selectedJobs.filter(job => job.type === 'break');
-      for (const breakJob of breakJobs) {
-        const jobIndex = selectedJobs.findIndex(j => j.orderId === breakJob.orderId && j.type === breakJob.type);
-        const bikeCount = jobIndex >= 0 ? calculateBikeCountAtJob(jobIndex) : startingBikes;
-        
-        jobResults.push({
-          job: breakJob,
-          bikeCount,
-          results: {
-            whatsapp: { success: false },
-            shipday: { success: false },
-            email: { success: false },
-          }
-        });
-      }
-
-      // Sort job results by original order in selectedJobs
-      jobResults.sort((a, b) => {
-        const indexA = selectedJobs.findIndex(j => j.orderId === a.job.orderId && j.type === a.job.type);
-        const indexB = selectedJobs.findIndex(j => j.orderId === b.job.orderId && j.type === b.job.type);
-        return indexA - indexB;
-      });
-
-      // Build and send route report
-      if (jobResults.length > 0) {
-        const summary = {
-          totalStops: jobResults.length,
-          totalPickups: jobResults.filter(r => r.job.type === 'pickup').length,
-          totalDeliveries: jobResults.filter(r => r.job.type === 'delivery').length,
-          totalBreaks: jobResults.filter(r => r.job.type === 'break').length,
-          whatsappSuccess: jobResults.filter(r => r.job.type !== 'break' && r.results.whatsapp.success).length,
-          whatsappFailed: jobResults.filter(r => r.job.type !== 'break' && !r.results.whatsapp.success).length,
-          shipdaySuccess: jobResults.filter(r => r.job.type !== 'break' && r.results.shipday.success).length,
-          shipdayFailed: jobResults.filter(r => r.job.type !== 'break' && !r.results.shipday.success).length,
-          emailSuccess: jobResults.filter(r => r.job.type !== 'break' && r.results.email.success).length,
-          emailFailed: jobResults.filter(r => r.job.type !== 'break' && !r.results.email.success).length,
-        };
-
-        const reportPayload = {
-          date: format(selectedDate, 'EEEE, d MMMM yyyy'),
-          startTime,
-          startingBikes,
-          stops: jobResults.map((result, index) => ({
-            sequence: index + 1,
-            type: result.job.type,
-            contactName: result.job.contactName,
-            address: result.job.address,
-            estimatedTime: result.job.estimatedTime || '',
-            bikesOnboard: result.bikeCount,
-            bikeQuantity: result.job.orderData?.bike_quantity || 1,
-            trackingNumber: result.job.orderData?.tracking_number,
-            bikeBrand: result.job.orderData?.bike_brand,
-            bikeModel: result.job.orderData?.bike_model,
-            breakDuration: result.job.breakDuration,
-            breakType: result.job.breakType,
-            results: result.results,
-          })),
-          summary,
-        };
-
-        try {
-          const { data: reportData, error: reportError } = await supabase.functions.invoke('send-route-report', {
-            body: reportPayload
-          });
-
-          if (reportError) {
-            console.error('Error sending route report:', reportError);
-            toast.warning('Route report email failed to send');
-          } else {
-            console.log('Route report sent successfully:', reportData);
-            toast.success('Route report emailed to info@cyclecourierco.com');
-          }
-        } catch (reportErr) {
-          console.error('Exception sending route report:', reportErr);
-          toast.warning('Route report email failed');
-        }
-      }
-
-      // Show summary toast
-      const totalProcessed = groupedLocationMap.size + standaloneJobs.length;
-      if (successCount > 0 && failureCount === 0) {
-        toast.success(`All ${successCount} timeslot message(s) sent successfully!`);
-      } else if (successCount > 0 && failureCount > 0) {
-        toast.success(`${successCount} sent successfully, ${failureCount} failed`);
-      } else {
-        toast.error(`Failed to send all ${failureCount} timeslots`);
-      }
-
-    } catch (error) {
-      console.error('Error in bulk send:', error);
-      toast.error('Failed to send timeslots');
-    } finally {
-      setIsSendingTimeslots(false);
-    }
-  };
-
-  // SendZen: Send grouped timeslots for a single location
-  const sendGroupedTimeslotsSendZen = async (locationGroupId: string) => {
+  // WhatsApp: Send grouped timeslots for a single location
+  const sendGroupedTimeslotsWhatsApp = async (locationGroupId: string) => {
     const jobsAtLocation = selectedJobs.filter(job => 
       job.locationGroupId === locationGroupId && job.type !== 'break'
     );
@@ -3319,7 +2564,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         await supabase.from('orders').update({ status: newStatus }).eq('id', job.orderId);
       }
       
-      // Send via SendZen grouped_timeslot template
+      // Send via WhatsApp grouped_timeslot template
       const { data, error } = await supabase.functions.invoke('send-sendzen-whatsapp', {
         body: {
           orderId: primaryJob.orderId,
@@ -3337,22 +2582,22 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       });
 
       if (error) {
-        toast.error(`SendZen failed: ${error.message}`);
+        toast.error(`WhatsApp failed: ${error.message}`);
       } else if (data?.success) {
-        toast.success(`SendZen grouped timeslot sent for ${jobsAtLocation.length} jobs`);
+        toast.success(`WhatsApp grouped timeslot sent for ${jobsAtLocation.length} jobs`);
       } else {
-        toast.error(`SendZen failed: ${data?.error || 'Unknown error'}`);
+        toast.error(`WhatsApp failed: ${data?.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Error sending SendZen grouped timeslots:', error);
-      toast.error('Failed to send SendZen grouped timeslots');
+      console.error('Error sending WhatsApp grouped timeslots:', error);
+      toast.error('Failed to send WhatsApp grouped timeslots');
     } finally {
       setIsSendingTimeslots(false);
     }
   };
 
-  // SendZen: Send all timeslots (no 4-minute delay)
-  const sendAllTimeslotsSendZen = async () => {
+  // WhatsApp: Send all timeslots (no 4-minute delay)
+  const sendAllTimeslotsWhatsApp = async () => {
     const jobsToSend = selectedJobs.filter(job => 
       job.type !== 'break' && job.estimatedTime && job.lat && job.lon
     );
@@ -3432,7 +2677,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
             await supabase.from('orders').update({ status: newStatus }).eq('id', job.orderId);
           }
           
-          // Send grouped SendZen message
+          // Send grouped WhatsApp message
           const { data, error } = await supabase.functions.invoke('send-sendzen-whatsapp', {
             body: {
               orderId: primaryJob.orderId,
@@ -3454,7 +2699,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           else successCount++;
           jobsAtLocation.forEach(j => jobSendResults.set(`${j.orderId}-${j.type}`, wasSuccess));
           
-          // Throttle to prevent SendZen rate limiting
+          // Throttle to prevent WhatsApp rate limiting
           await new Promise(resolve => setTimeout(resolve, 500));
         } catch {
           failureCount++;
@@ -3500,7 +2745,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           else successCount++;
           jobSendResults.set(`${job.orderId}-${job.type}`, wasSuccess);
           
-          // Throttle to prevent SendZen rate limiting
+          // Throttle to prevent WhatsApp rate limiting
           await new Promise(resolve => setTimeout(resolve, 500));
         } catch {
           failureCount++;
@@ -3581,11 +2826,11 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       }
 
       if (successCount > 0 && failureCount === 0) {
-        toast.success(`All ${successCount} SendZen messages sent!`);
+        toast.success(`All ${successCount} WhatsApp messages sent!`);
       } else if (successCount > 0) {
-        toast.success(`${successCount} sent, ${failureCount} failed via SendZen`);
+        toast.success(`${successCount} sent, ${failureCount} failed via WhatsApp`);
       } else {
-        toast.error(`All ${failureCount} SendZen messages failed`);
+        toast.error(`All ${failureCount} WhatsApp messages failed`);
       }
 
       // Persist the route so it can be re-loaded later
@@ -3604,139 +2849,10 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
       }
     } catch (error) {
-      console.error('Error in SendZen bulk send:', error);
-      toast.error('Failed to send SendZen timeslots');
+      console.error('Error in WhatsApp bulk send:', error);
+      toast.error('Failed to send WhatsApp timeslots');
     } finally {
       setIsSendingTimeslots(false);
-    }
-  };
-
-  const createTimeslip = async () => {
-    if (selectedJobs.length === 0) return;
-
-    setIsSendingTimeslip(true);
-    try {
-      // Group jobs by location to get unique stops
-      const ferryAwareJobs = selectedJobs.map(job => {
-        if (job.type === 'break' || !job.orderData) return job;
-        const leg = getLegContact(job.orderData, job.type as 'pickup' | 'delivery');
-        const coords = resolveStopCoords(job.orderData, job.type);
-        return {
-          ...job,
-          lat: coords.lat ?? job.lat,
-          lon: coords.lon ?? job.lon,
-          address: leg.address ? formatAddress(leg.address) : job.address,
-        };
-      });
-      const groupedJobs = groupJobsByLocation(ferryAwareJobs);
-      const routeJobs = groupedJobs.filter(job => job.type !== 'break');
-      
-      // Get unique locations only (one per group)
-      const uniqueLocations: { lat: number; lon: number; address: string }[] = [];
-      const processedGroups = new Set<string>();
-      
-      routeJobs.forEach(job => {
-        if (job.lat && job.lon) {
-          const groupKey = job.locationGroupId || `single-${job.orderId}-${job.type}`;
-          if (!processedGroups.has(groupKey)) {
-            uniqueLocations.push({
-              lat: job.lat,
-              lon: job.lon,
-              address: job.address
-            });
-            processedGroups.add(groupKey);
-          }
-        }
-      });
-      
-      const totalUniqueStops = uniqueLocations.length;
-      
-      // Calculate actual driving time using Geoapify API
-      let drivingMinutes = 0;
-      const baseCoords = { lat: 52.4690197, lon: -1.8757663 }; // Lawden Road, B10 0AD
-      
-      if (uniqueLocations.length > 0) {
-        try {
-          // Calculate route: Lawden Road -> all unique stops -> back to Lawden Road
-          let currentCoords = baseCoords;
-          
-          for (const location of uniqueLocations) {
-            const travelTime = await calculateTravelTime(currentCoords, { lat: location.lat, lon: location.lon });
-            drivingMinutes += travelTime.minutes;
-            currentCoords = { lat: location.lat, lon: location.lon };
-          }
-          
-          // Add return leg to Lawden Road
-          const returnTime = await calculateTravelTime(currentCoords, baseCoords);
-          drivingMinutes += returnTime.minutes;
-          
-        } catch (error) {
-          console.error('Error calculating driving time:', error);
-          // Fallback: use 15 minutes per stop + 30 minutes return
-          drivingMinutes = (totalUniqueStops * 15) + 30;
-        }
-      }
-      
-      const drivingHours = Math.round((drivingMinutes / 60) * 100) / 100;
-      
-      // Calculate stop time based on unique stops (what's displayed)
-      const stopMinutes = totalUniqueStops * 10; // 10 minutes per unique stop
-      const stopHours = stopMinutes / 60;
-      const lunchHours = 1;
-      const totalHours = Math.round((drivingHours + stopHours + lunchHours) * 100) / 100;
-      const totalPay = Math.round((totalHours * 11) * 100) / 100;
-
-      // Create Google Maps route link using unique locations only
-      const uniqueAddresses = uniqueLocations.map(loc => encodeURIComponent(loc.address));
-      let routeLink = `https://www.google.com/maps/dir/Lawden+Road,+Birmingham,+B10+0AD/${uniqueAddresses.join('/')}/Lawden+Road,+Birmingham,+B10+0AD`;
-      
-      // If more than 10 unique stops, split into 2 routes
-      if (uniqueAddresses.length > 10) {
-        const firstHalf = uniqueAddresses.slice(0, 5);
-        const secondHalf = uniqueAddresses.slice(5);
-        routeLink = `Route 1: https://www.google.com/maps/dir/Lawden+Road,+Birmingham,+B10+0AD/${firstHalf.join('/')}/Lawden+Road,+Birmingham,+B10+0AD
-Route 2: https://www.google.com/maps/dir/Lawden+Road,+Birmingham,+B10+0AD/${secondHalf.join('/')}/Lawden+Road,+Birmingham,+B10+0AD`;
-      }
-
-      // Format the selected date
-      const formatDate = (date: Date) => {
-        return date.toLocaleDateString('en-GB', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        });
-      };
-
-      const message = `Timeslip - ${formatDate(selectedDate)}
-
-Driving Total Hours: ${drivingHours}
-
-Stops: ${totalUniqueStops} → ${stopMinutes}m → ${stopHours}h → round = ${stopHours}h
-
-Lunch: 1h
-
-Total Hours: ${drivingHours} + ${stopHours} + Lunch 
-
-Total Pay: Total hours x £11 per hour = £${totalPay}
-
-Route Link: ${routeLink}`;
-
-      // Send WhatsApp message via edge function
-      await supabase.functions.invoke('send-timeslip-whatsapp', {
-        body: {
-          phoneNumber: '+441217980767',
-          message: message
-        }
-      });
-
-      toast.success('Timeslip sent successfully');
-      // Route and timeslots remain visible for further use
-    } catch (error) {
-      console.error('Error creating timeslip:', error);
-      toast.error('Failed to create timeslip');
-    } finally {
-      setIsSendingTimeslip(false);
     }
   };
 
@@ -4297,9 +3413,8 @@ Route Link: ${routeLink}`;
                       isRetiming={isRetiming}
                       onAddBreak={addBreak}
                       onRemove={removeJob}
-                      onSendTimeslot={openTimeslotEditDialog}
-                      onSendGroupedTimeslots={sendGroupedTimeslots}
-                      onSendGroupedTimeslotsSendZen={sendGroupedTimeslotsSendZen}
+                      onSendGroupedTimeslotsWhatsApp={sendGroupedTimeslotsWhatsApp}
+
                       onUpdateCoordinates={updateCoordinates}
                       onToggleAddress={toggleStopAddress}
                       isSendingTimeslots={isSendingTimeslots}
@@ -4383,26 +3498,16 @@ Route Link: ${routeLink}`;
                   </div>
                   
                   <Button
-                    onClick={sendAllTimeslots}
+                    onClick={sendAllTimeslotsWhatsApp}
                     disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
                     variant="outline"
                     size="sm"
                     className="w-full flex items-center justify-center gap-1 h-9 text-sm"
                   >
-                    <Send className="h-3 w-3" />
+                    <MessageSquare className="h-3 w-3" />
                     {isSendingTimeslots ? 'Sending...' : 'Send All Timeslots'}
                   </Button>
-                  
-                  <Button
-                    onClick={sendAllTimeslotsSendZen}
-                    disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
-                    variant="outline"
-                    size="sm"
-                    className="w-full flex items-center justify-center gap-1 h-9 text-sm"
-                  >
-                    <Zap className="h-3 w-3" />
-                    {isSendingTimeslots ? 'Sending...' : 'Send All (SendZen)'}
-                  </Button>
+
                 </div>
               </div>
             </div>
@@ -4503,9 +3608,8 @@ Route Link: ${routeLink}`;
                     isRetiming={isRetiming}
                     onAddBreak={addBreak}
                     onRemove={removeJob}
-                    onSendTimeslot={openTimeslotEditDialog}
-                    onSendGroupedTimeslots={sendGroupedTimeslots}
-                    onSendGroupedTimeslotsSendZen={sendGroupedTimeslotsSendZen}
+                    onSendGroupedTimeslotsWhatsApp={sendGroupedTimeslotsWhatsApp}
+
                     onUpdateCoordinates={updateCoordinates}
                     onToggleAddress={toggleStopAddress}
 
@@ -4599,25 +3703,16 @@ Route Link: ${routeLink}`;
                     Save Route
                   </Button>
                   <Button
-                    onClick={sendAllTimeslots}
+                    onClick={sendAllTimeslotsWhatsApp}
                     disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
                     variant="outline"
                     size="sm"
                     className="flex items-center gap-1"
                   >
-                    <Send className="h-3 w-3" />
-                    {isSendingTimeslots ? 'Sending All...' : 'Send All Timeslots'}
+                    <MessageSquare className="h-3 w-3" />
+                    {isSendingTimeslots ? 'Sending...' : 'Send All Timeslots'}
                   </Button>
-                  <Button
-                    onClick={sendAllTimeslotsSendZen}
-                    disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-1"
-                  >
-                    <Zap className="h-3 w-3" />
-                    {isSendingTimeslots ? 'Sending...' : 'Send All (SendZen)'}
-                  </Button>
+
                 </div>
               </div>
             </div>
@@ -4690,33 +3785,8 @@ Route Link: ${routeLink}`;
         </DialogContent>
       </Dialog>
 
-      <TimeslotEditDialog
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        job={jobToEdit}
-        onConfirm={(job, editedTime, date) => {
-          setEditDialogOpen(false);
-          sendTimeslot(job, editedTime, date);
-        }}
-        isLoading={isSendingTimeslots}
-        adminComments={jobToEdit ? (adminComments[jobToEdit.orderId] || []) : []}
-        openingHours={(() => {
-          if (!jobToEdit?.orderData?.user_id) return undefined;
-          const entry = profileOpeningHours[jobToEdit.orderData.user_id];
-          if (!entry) return undefined;
-          const stopEmail = jobToEdit.type === 'pickup'
-            ? jobToEdit.orderData?.sender?.email
-            : jobToEdit.orderData?.receiver?.email;
-          return {
-            hours: entry.hours,
-            profileEmail: entry.email,
-            profileAccountsEmail: entry.accounts_email,
-            stopEmail,
-          };
-        })()}
-      />
-
       <CSVMatchReviewDialog
+
         open={showCsvReviewDialog}
         onOpenChange={setShowCsvReviewDialog}
         matchResults={csvMatchResults}

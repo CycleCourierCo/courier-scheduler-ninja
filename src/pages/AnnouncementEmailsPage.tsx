@@ -43,8 +43,8 @@ import { wrapAnnouncementEmail, buildPlainText } from "@/utils/announcementEmail
 import {
   extractTemplateParams,
   getTemplateBodyText,
-  type SendZenTemplate,
-} from "@/lib/sendzenTemplates";
+  type WhatsAppTemplate,
+} from "@/lib/whatsappTemplates";
 
 type RecipientRole = UserRole | "b2c_contact";
 
@@ -198,11 +198,11 @@ const AnnouncementEmailsPage: React.FC = () => {
   const isLoading = profilesLoading || contactsLoading;
 
   const { data: templates = [], isLoading: templatesLoading } = useQuery({
-    queryKey: ["sendzen-templates"],
+    queryKey: ["whatsapp-templates"],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("list-sendzen-templates");
       if (error) throw error;
-      return (data?.templates || []) as SendZenTemplate[];
+      return (data?.templates || []) as WhatsAppTemplate[];
     },
     enabled: whatsappMode === "template",
   });
