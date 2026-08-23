@@ -113,12 +113,14 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
       : street.trim();
     
     
-    // Set basic address fields
-    setValue(`${prefix}.street`, fullStreetAddress);
-    setValue(`${prefix}.city`, suggestion.properties.city || suggestion.properties.county || "");
-    setValue(`${prefix}.state`, suggestion.properties.county || "");
-    setValue(`${prefix}.zipCode`, suggestion.properties.postcode || "");
-    setValue(`${prefix}.country`, suggestion.properties.country || "");
+    // Set basic address fields — validate immediately so anything the lookup
+    // failed to return (commonly the county) is flagged straight away.
+    const opts = { shouldValidate: true, shouldDirty: true } as const;
+    setValue(`${prefix}.street`, fullStreetAddress, opts);
+    setValue(`${prefix}.city`, suggestion.properties.city || suggestion.properties.county || "", opts);
+    setValue(`${prefix}.state`, suggestion.properties.county || "", opts);
+    setValue(`${prefix}.zipCode`, suggestion.properties.postcode || "", opts);
+    setValue(`${prefix}.country`, suggestion.properties.country || "", opts);
     // Geoapify returns the UK constituent country ("England", "Wales",
     // "Scotland", "Northern Ireland") in `state` — keep it for NI routing.
     setValue(`${prefix}.region`, suggestion.properties.state || "");
@@ -157,13 +159,17 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
     setValue(`${prefix}.lat`, undefined);
     setValue(`${prefix}.lon`, undefined);
 
-    
+    // Starting a fresh search: drop stale errors so the collapsed block stays
+    // collapsed until the user picks an address again.
+    clearErrors(ADDRESS_KEYS.map((k) => `${prefix}.${k}`));
+
     setAddressSelected(false);
     
     setSearchValue("");
     setSuggestions([]);
     setShowSuggestions(false);
   };
+
 
   return (
     <div className="space-y-4">
