@@ -145,6 +145,7 @@ const handler = async (req: Request): Promise<Response> => {
         headers: corsHeaders 
       });
     }
+    logInboundWebhook("shopify", "order webhook");
 
     // Only process order paid webhooks
     if (topic !== 'orders/paid') {

@@ -79,6 +79,7 @@ serve(async (req) => {
       logInboundWebhook("shopify", "customer order webhook", { success: false, statusCode: 401, errorLabel: "invalid_hmac" });
       return new Response("Unauthorized", { status: 401, headers: corsHeaders });
     }
+    logInboundWebhook("shopify", "customer order webhook");
 
     if (topic !== "orders/paid") {
       return new Response("OK", { status: 200, headers: corsHeaders });

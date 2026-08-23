@@ -51,6 +51,7 @@ serve(async (req) => {
       logInboundWebhook("inspectabike", "fault webhook", { success: false, statusCode: 401, errorLabel: "invalid_signature" });
       return json({ error: "Invalid signature" }, 401);
     }
+    logInboundWebhook("inspectabike", "fault webhook");
 
     let body: any;
     try {
