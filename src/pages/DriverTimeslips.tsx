@@ -213,9 +213,6 @@ const DriverTimeslips = () => {
     rejectMutation.mutate(id);
   };
 
-  const handleCreateBill = (timeslip: Timeslip) => {
-    createBillMutation.mutate(timeslip.id);
-  };
 
   const handleDelete = (id: string) => {
     setDeletingTimeslipId(id);
@@ -337,7 +334,7 @@ const DriverTimeslips = () => {
                         onEdit={handleEdit}
                         onApprove={handleApprove}
                         onReject={handleReject}
-                        onCreateBill={isTrueAdmin ? handleCreateBill : undefined}
+                        
                         onDelete={handleDelete}
                       />
                     ))}
