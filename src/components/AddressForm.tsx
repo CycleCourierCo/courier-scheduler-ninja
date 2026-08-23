@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
-import { Control, UseFormSetValue, useWatch } from "react-hook-form";
+import { Control, UseFormSetValue, useWatch, useFormContext, useFormState } from "react-hook-form";
 import { Loader2, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -27,6 +27,7 @@ interface AddressSuggestion {
   };
 }
 
+const ADDRESS_KEYS = ["street", "city", "state", "zipCode", "country"] as const;
 
 const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) => {
   const [searchValue, setSearchValue] = useState("");
@@ -34,19 +35,37 @@ const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) 
   const [loading, setLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addressSelected, setAddressSelected] = useState(false);
+  const { clearErrors } = useFormContext();
+  const { errors } = useFormState({ control, name: ADDRESS_KEYS.map((k) => `${prefix}.${k}`) });
 
-  // Watch the street field to detect when it's populated
-  const streetValue = useWatch({
+  // Watch all address fields so the block can reveal itself whenever it holds data
+  const addressValues = useWatch({
     control,
-    name: `${prefix}.street`,
+    name: ADDRESS_KEYS.map((k) => `${prefix}.${k}`),
+  }) as (string | undefined)[];
+
+  const hasAnyValue = Array.isArray(addressValues)
+    && addressValues.some((v) => typeof v === "string" && v.trim() !== "");
+
+  // Any validation error under this address prefix
+  const hasAddressError = ADDRESS_KEYS.some((k) => {
+    const parts = `${prefix}.${k}`.split(".");
+    let node: any = errors;
+    for (const part of parts) {
+      node = node?.[part];
+      if (!node) return false;
+    }
+    return Boolean(node?.message);
   });
 
-  // Update addressSelected when street field has a value
+  // Reveal the fields once the address holds data, or when validation flags a
+  // problem — errors must never be hidden inside a collapsed block.
   useEffect(() => {
-    if (streetValue && streetValue.length > 0) {
+    if (hasAnyValue || hasAddressError) {
       setAddressSelected(true);
     }
-  }, [streetValue]);
+  }, [hasAnyValue, hasAddressError]);
+
 
   const fetchAddressSuggestions = async (text: string) => {
     if (!text || text.length < 3) {
