@@ -103,8 +103,6 @@ export const buildInspectionReportPdf = ({ order, inspection, issues }: ReportCo
     y = margin;
   };
 
-  const sender = (order.sender || {}) as Record<string, any>;
-  const receiver = (order.receiver || {}) as Record<string, any>;
   const bike = [order.bike_brand, order.bike_model].filter(Boolean).join(" ") || "Bike";
 
   // --- Header ---
@@ -127,8 +125,6 @@ export const buildInspectionReportPdf = ({ order, inspection, issues }: ReportCo
     ["Bike", bike],
     ["Type", order.bike_type || inspection.bike_type || "—"],
     ["Quantity", String(order.bike_quantity || 1)],
-    ["Sender", sender.name || "—"],
-    ["Receiver", receiver.name || "—"],
     ["Inspected by", inspection.inspected_by_name || "—"],
     ["Inspected at", londonDateTime(inspection.inspected_at)],
     ["Stage", String(inspection.status || "—").replace(/_/g, " ")],
@@ -277,20 +273,6 @@ export const buildInspectionReportPdf = ({ order, inspection, issues }: ReportCo
     });
   }
 
-  // --- Footer on every page ---
-  const pages = (doc as any).getNumberOfPages();
-  for (let p = 1; p <= pages; p++) {
-    doc.setPage(p);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
-    doc.setTextColor(107, 114, 128);
-    doc.text(
-      `Generated ${londonDateTime(new Date().toISOString())} · Cycle Courier Co. Ltd · No pricing shown on this report`,
-      margin,
-      pageHeight - 10
-    );
-    doc.text(`Page ${p} of ${pages}`, pageWidth - margin, pageHeight - 10, { align: "right" });
-  }
 
   return new Uint8Array(doc.output("arraybuffer") as ArrayBuffer);
 };
