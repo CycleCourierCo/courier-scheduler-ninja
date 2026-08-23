@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Clock, MessageSquare, Zap } from "lucide-react";
+import { Clock, MessageSquare } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,8 +18,8 @@ interface TimeslotSelectionProps {
 const TimeslotSelection: React.FC<TimeslotSelectionProps> = ({ type, orderId, order }) => {
   const existingTimeslot = type === "sender" ? order?.pickupTimeslot : order?.deliveryTimeslot;
   const [selectedTime, setSelectedTime] = useState<string>(existingTimeslot || "18:00");
-  const [isSending, setIsSending] = useState(false);
-  const [isSendingSendZen, setIsSendingSendZen] = useState(false);
+  const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
+
 
   const handleSendTimeslot = async () => {
     if (!selectedTime) {
