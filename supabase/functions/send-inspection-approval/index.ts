@@ -133,9 +133,8 @@ serve(async (req) => {
           <thead>
             <tr style="background:#f1f5f9">
               <th style="padding:8px;text-align:left">Work needed</th>
-              <th style="padding:8px;text-align:right">Parts</th>
-              <th style="padding:8px;text-align:right">Labour</th>
-              <th style="padding:8px;text-align:right">Total</th>
+              <th style="padding:8px;text-align:right">Price</th>
+
             </tr>
           </thead>
           <tbody>${rows}</tbody>
