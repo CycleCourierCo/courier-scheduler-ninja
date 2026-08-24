@@ -53,7 +53,7 @@ serve(async (req) => {
 
     const { data: inspection, error: inspError } = await admin
       .from("bicycle_inspections")
-      .select("id, order_id, status, released_to_customer_at, approval_email_sent_at, report_url")
+      .select("id, order_id, status, released_to_customer_at, approval_email_sent_at, report_url, created_at")
       .eq("id", inspectionId)
       .maybeSingle();
     if (inspError) throw inspError;
@@ -92,6 +92,13 @@ serve(async (req) => {
       reportUrl = regenerated.url || reportUrl;
     } catch (err) {
       console.error("Report regeneration failed before approval email:", err instanceof Error ? err.message : "unknown");
+    }
+
+    // Legacy inspections (created before the cutoff) don't get a customer-facing report link.
+    const REPORT_CUTOFF = Date.parse("2026-08-25T00:00:00+01:00");
+    const createdAt = inspection.created_at ? Date.parse(inspection.created_at as string) : 0;
+    if (!(createdAt >= REPORT_CUTOFF)) {
+      reportUrl = null;
     }
 
     // Booking account (not the receiver).
