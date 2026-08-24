@@ -81,6 +81,7 @@ import {
 } from "@/services/inspectionService";
 import { InspectionIssue, InspectionStatus } from "@/types/inspection";
 import { hasRole } from "@/lib/roles";
+import { toPublicFileUrl } from "@/lib/publicFileUrl";
 import { RepairPicker, type RepairPickerSelection } from "@/components/inspections/RepairPicker";
 import { BikeCategoryPicker } from "@/components/inspections/BikeCategoryPicker";
 import WorkshopScheduleTab from "@/components/inspections/WorkshopScheduleTab";
@@ -572,7 +573,7 @@ const BicycleInspections = () => {
     onSuccess: (url) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
       if (url) {
-        window.open(url, "_blank", "noopener");
+        window.open(toPublicFileUrl(url), "_blank", "noopener");
       } else {
         toast.error("Could not generate the inspection report");
       }
@@ -1576,7 +1577,7 @@ const BicycleInspections = () => {
                           size="sm"
                           variant="outline"
                           className="h-6 text-[11px]"
-                          onClick={() => window.open((inspection as any).external_report_url, "_blank", "noopener")}
+                          onClick={() => window.open(toPublicFileUrl((inspection as any).external_report_url), "_blank", "noopener")}
                         >
                           <ExternalLink className="mr-1 h-3 w-3" /> View report
                         </Button>
