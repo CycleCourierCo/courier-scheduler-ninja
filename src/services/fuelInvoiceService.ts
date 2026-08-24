@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
-import {
 import { toPublicFileUrl } from "@/lib/publicFileUrl";
+import {
   closestReg,
   normaliseReg,
   mpg as calcMpg,

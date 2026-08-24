@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle2, Loader2, Wrench } from "lucide-react";
+import { CheckCircle2, FileText, Loader2, Wrench } from "lucide-react";
 import { toast } from "sonner";
+import { toPublicFileUrl } from "@/lib/publicFileUrl";
 import {
   fetchPublicRepairOffer,
   submitPublicRepairOffer,
@@ -102,6 +103,8 @@ export default function RepairOffer() {
 
   const alreadyResponded = submitted || (offered.length === 0 && !!offer.responded_at);
 
+  const reportUrl = toPublicFileUrl(offer.report_url ?? null);
+
   return (
     <Layout>
       <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
@@ -111,6 +114,18 @@ export default function RepairOffer() {
             <p className="text-sm text-muted-foreground break-all">Job #{offer.tracking_number}</p>
           )}
         </div>
+
+        {reportUrl && (
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={() => window.open(reportUrl, "_blank", "noopener")}
+          >
+            <FileText className="h-4 w-4 mr-2" />
+            View inspection report (PDF)
+          </Button>
+        )}
+
 
         {alreadyResponded ? (
           <Card>
