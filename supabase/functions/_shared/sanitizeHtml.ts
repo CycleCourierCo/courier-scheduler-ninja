@@ -34,10 +34,13 @@ export function sanitizeInboundHtml(input: string | null | undefined): string | 
   }
 
   // Strip inline event handlers: onclick=... / onerror='...' / onload=foo
+  // Anchored on attribute boundaries and matched against valid event names.
   html = replaceUntilStable(html, (s) => {
-    let out = s.replace(/\son[a-z-]+\s*=\s*"[^"]*"/gi, '');
-    out = out.replace(/\son[a-z-]+\s*=\s*'[^']*'/gi, '');
-    out = out.replace(/\son[a-z-]+\s*=\s*[^\s>]+/gi, '');
+    let out = s.replace(/(^|[\s"'])(on[a-z0-9_-]+)\s*=\s*"[^"]*"/gi, '$1');
+    out = out.replace(/(^|[\s"'])(on[a-z0-9_-]+)\s*=\s*'[^']*'/gi, '$1');
+    out = out.replace(/(^|[\s"'])(on[a-z0-9_-]+)\s*=\s*[^\s>]+/gi, '$1');
+    // Safety net: rename any surviving on* attribute inside a start tag so it cannot execute.
+    out = out.replace(/(<[a-zA-Z][^\s>]*\s+)(on[a-z0-9_-]+)(\s*=)/gi, '$1data-removed-$2$3');
     return out;
   });
 
