@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { toPublicFileUrl } from "../_shared/publicFileUrl.ts";
 
 /**
  * Returns short-lived signed URLs for an order's foam delivery photos.
@@ -101,7 +102,7 @@ Deno.serve(async (req) => {
     }
 
     return json({
-      urls: (data || []).map((d) => d.signedUrl).filter(Boolean),
+      urls: (data || []).map((d) => toPublicFileUrl(d.signedUrl)).filter(Boolean),
     });
   } catch (e) {
     console.error("get-foam-photo-urls failed:", (e as Error).message);

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import PostcodeVerification from "./PostcodeVerification";
 import { verifyPublicOrderPostcode } from "@/services/fetchOrderService";
 import { supabase } from "@/integrations/supabase/client";
+import { toPublicFileUrls } from "@/lib/publicFileUrl";
 
 interface TrackingTimelineProps {
   order: Order;
@@ -105,7 +106,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
           .createSignedUrls(foamPhotoPaths, 60 * 30);
         if (cancelled) return;
         setFoamPhotoUrls(
-          error ? [] : ((data || []).map((d) => d.signedUrl).filter(Boolean) as string[]),
+          error ? [] : toPublicFileUrls((data || []).map((d) => d.signedUrl)),
         );
         return;
       }

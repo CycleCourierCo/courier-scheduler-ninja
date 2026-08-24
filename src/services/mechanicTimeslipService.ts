@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { toPublicFileUrl } from "@/lib/publicFileUrl";
 
 export interface MechanicTimeslip {
   id: string;
@@ -81,7 +82,7 @@ export async function getSignedPhotoUrl(path: string | null | undefined): Promis
   if (!path) return null;
   const { data, error } = await supabase.storage.from(BUCKET).createSignedUrl(path, 3600);
   if (error) return null;
-  return data?.signedUrl || null;
+  return toPublicFileUrl(data?.signedUrl) || null;
 }
 
 export async function getOpenSlipToday(driverId: string): Promise<MechanicTimeslip | null> {

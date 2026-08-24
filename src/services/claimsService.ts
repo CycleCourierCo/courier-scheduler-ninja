@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { toPublicFileUrl } from "@/lib/publicFileUrl";
 
 export type ClaimStatus =
   // New step-by-step workflow
@@ -540,7 +541,7 @@ export async function deleteEvidence(file: ClaimEvidenceFile): Promise<void> {
 export async function getEvidenceSignedUrl(path: string): Promise<string | null> {
   const { data, error } = await supabase.storage.from("claim-evidence").createSignedUrl(path, 60 * 60);
   if (error) return null;
-  return data.signedUrl;
+  return toPublicFileUrl(data.signedUrl);
 }
 
 export interface ClaimsStats {

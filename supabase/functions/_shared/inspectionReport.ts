@@ -1,6 +1,7 @@
 // Builds and stores the printable PDI inspection report PDF.
 // Deliberately contains NO pricing information — description + decision only.
 import { jsPDF } from "https://esm.sh/jspdf@2.5.1";
+import { toPublicFileUrl } from "./publicFileUrl.ts";
 
 const BUCKET = "inspection-reports";
 // Long-lived signed link (bucket is private) — ~10 years.
@@ -322,7 +323,7 @@ export const regenerateInspectionReport = async (
     .createSignedUrl(path, SIGNED_URL_TTL);
   if (signError) throw signError;
 
-  const url = signed?.signedUrl || null;
+  const url = toPublicFileUrl(signed?.signedUrl) || null;
   const { error: updateError } = await admin
     .from("bicycle_inspections")
     .update({ report_url: url, report_generated_at: new Date().toISOString() })

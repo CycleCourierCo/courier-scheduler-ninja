@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import {
+import { toPublicFileUrl } from "@/lib/publicFileUrl";
   closestReg,
   normaliseReg,
   mpg as calcMpg,
@@ -322,7 +323,7 @@ export async function getInvoiceDownloadUrl(filePath: string): Promise<string | 
     .from(FUEL_INVOICE_BUCKET)
     .createSignedUrl(filePath, 60 * 10);
   if (error) return null;
-  return data?.signedUrl ?? null;
+  return toPublicFileUrl(data?.signedUrl) ?? null;
 }
 
 /* --------------------------------------------------------------- analysis */
