@@ -11,12 +11,19 @@ export const publicApiOrigin = (): string => {
   }
 };
 
+const isSupabaseHost = (host: string): boolean => /\.supabase\.(co|in)$/i.test(host);
+
 export const toPublicFileUrl = <T extends string | null | undefined>(url: T): T => {
   if (!url) return url;
   try {
     const parsed = new URL(url);
-    const projectOrigin = new URL(Deno.env.get("SUPABASE_URL") || "").origin;
-    if (parsed.origin !== projectOrigin) return url;
+    let projectOrigin = "";
+    try {
+      projectOrigin = new URL(Deno.env.get("SUPABASE_URL") || "").origin;
+    } catch {
+      projectOrigin = "";
+    }
+    if (parsed.origin !== projectOrigin && !isSupabaseHost(parsed.hostname)) return url;
     const target = new URL(publicApiOrigin());
     parsed.protocol = target.protocol;
     parsed.host = target.host;
