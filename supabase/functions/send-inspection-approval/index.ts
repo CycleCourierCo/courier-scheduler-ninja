@@ -94,6 +94,13 @@ serve(async (req) => {
       console.error("Report regeneration failed before approval email:", err instanceof Error ? err.message : "unknown");
     }
 
+    // Legacy inspections (created before the cutoff) don't get a customer-facing report link.
+    const REPORT_CUTOFF = Date.parse("2026-08-25T00:00:00+01:00");
+    const createdAt = inspection.created_at ? Date.parse(inspection.created_at as string) : 0;
+    if (!(createdAt >= REPORT_CUTOFF)) {
+      reportUrl = null;
+    }
+
     // Booking account (not the receiver).
     const { data: profile } = await admin
       .from("profiles")
