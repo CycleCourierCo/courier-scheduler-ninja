@@ -113,7 +113,7 @@ serve(async (req) => {
 
     const bike = [order.bike_brand, order.bike_model].filter(Boolean).join(" ") || "the bike";
     const total = pending.reduce((s: number, i: any) => s + Number(i.estimated_cost || 0), 0);
-    const link = `${BASE_URL}/bicycle-inspections`;
+    const link = `${BASE_URL}/customer-orders/${order.id}`;
 
     const rows = pending
       .map((i: any) => {
