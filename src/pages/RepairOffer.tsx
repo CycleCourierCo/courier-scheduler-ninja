@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { CheckCircle2, Loader2, Wrench } from "lucide-react";
+import { CheckCircle2, FileText, Loader2, Wrench } from "lucide-react";
 import { toast } from "sonner";
+import { toPublicFileUrl } from "@/lib/publicFileUrl";
 import {
   fetchPublicRepairOffer,
   submitPublicRepairOffer,
