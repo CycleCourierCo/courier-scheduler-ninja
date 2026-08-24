@@ -1394,6 +1394,7 @@ export interface PublicRepairOffer {
   offered?: RepairOfferIssue[];
   receiver_approved?: RepairOfferIssue[];
   responded_at?: string | null;
+  report_url?: string | null;
 }
 
 /** Emails/WhatsApps the receiver an offer for every declined repair on an order. */
