@@ -117,16 +117,13 @@ serve(async (req) => {
 
     const rows = pending
       .map((i: any) => {
-        const parts = i.parts_cost != null ? money(Number(i.parts_cost)) : "—";
-        const labour = i.labour_cost != null ? money(Number(i.labour_cost)) : "—";
         return `<tr>
           <td style="padding:8px;border-bottom:1px solid #e5e7eb">${esc(i.issue_description)}</td>
-          <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:right">${parts}</td>
-          <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:right">${labour}</td>
           <td style="padding:8px;border-bottom:1px solid #e5e7eb;text-align:right"><strong>${money(Number(i.estimated_cost || 0))}</strong></td>
         </tr>`;
       })
       .join("");
+
 
     const html = `
       <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1f2937;line-height:1.5">
@@ -136,9 +133,8 @@ serve(async (req) => {
           <thead>
             <tr style="background:#f1f5f9">
               <th style="padding:8px;text-align:left">Work needed</th>
-              <th style="padding:8px;text-align:right">Parts</th>
-              <th style="padding:8px;text-align:right">Labour</th>
-              <th style="padding:8px;text-align:right">Total</th>
+              <th style="padding:8px;text-align:right">Price</th>
+
             </tr>
           </thead>
           <tbody>${rows}</tbody>
