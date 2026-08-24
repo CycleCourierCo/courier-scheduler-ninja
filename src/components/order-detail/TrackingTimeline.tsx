@@ -381,7 +381,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
         }
       } else {
         const inspectedAt = summary.inspected_at;
-        const reportUrl: string | null = summary.report_url || null;
+        const reportUrl: string | null = toPublicFileUrl(summary.report_url || null);
         if (!summary.has_issues) {
           events.push({
             title: "Inspection Complete — No Issues Found",

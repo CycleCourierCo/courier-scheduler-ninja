@@ -4,6 +4,7 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 import { corsHeaders } from "../_shared/cors.ts";
 import { regenerateInspectionReport } from "../_shared/inspectionReport.ts";
 import { trackResend } from "../_shared/integrationLog.ts";
+import { toPublicFileUrl } from "../_shared/publicFileUrl.ts";
 
 const BASE_URL = "https://booking.cyclecourierco.com";
 const FROM = "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>";
@@ -86,10 +87,10 @@ serve(async (req) => {
     }
 
     // Always refresh the report so the link matches the current state.
-    let reportUrl = inspection.report_url as string | null;
+    let reportUrl = toPublicFileUrl(inspection.report_url as string | null);
     try {
       const regenerated = await regenerateInspectionReport(admin, inspectionId);
-      reportUrl = regenerated.url || reportUrl;
+      reportUrl = toPublicFileUrl(regenerated.url) || reportUrl;
     } catch (err) {
       console.error("Report regeneration failed before approval email:", err instanceof Error ? err.message : "unknown");
     }
