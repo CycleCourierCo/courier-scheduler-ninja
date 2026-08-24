@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import PostcodeVerification from "./PostcodeVerification";
 import { verifyPublicOrderPostcode } from "@/services/fetchOrderService";
 import { supabase } from "@/integrations/supabase/client";
-import { toPublicFileUrls } from "@/lib/publicFileUrl";
+import { toPublicFileUrl, toPublicFileUrls } from "@/lib/publicFileUrl";
 
 interface TrackingTimelineProps {
   order: Order;

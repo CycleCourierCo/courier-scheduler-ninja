@@ -553,7 +553,7 @@ const BicycleInspections = () => {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
       toast.success(result?.already_linked ? "Already linked to InspectaBike" : "Sent to InspectaBike");
-      if (result?.report_url) window.open(result.report_url, "_blank", "noopener");
+      if (result?.report_url) window.open(toPublicFileUrl(result.report_url), "_blank", "noopener");
     },
     onError: (error: any) => {
       toast.error(error?.message || "Failed to send to InspectaBike");
