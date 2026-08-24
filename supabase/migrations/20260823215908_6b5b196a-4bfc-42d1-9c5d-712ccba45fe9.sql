@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Foam delivery photos readable for tracking" ON storage.objects;

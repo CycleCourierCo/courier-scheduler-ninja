@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { trackedFetch } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -31,7 +32,7 @@ async function refreshQuickBooksToken(
     refresh_token: refreshToken,
   });
   const credentials = btoa(`${clientId}:${clientSecret}`);
-  const resp = await fetch(tokenUrl, {
+  const resp = await trackedFetch("quickbooks", "refresh token", tokenUrl, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
@@ -153,7 +154,7 @@ serve(async (req: Request): Promise<Response> => {
     // Helper: try to find an existing customer, either by email or DisplayName.
     const findExisting = async (whereClause: string): Promise<string | null> => {
       const url = `${baseUrl}/query?query=${encodeURIComponent(`SELECT * FROM Customer WHERE ${whereClause}`)}`;
-      const resp = await fetch(url, { headers: authHeaders });
+      const resp = await trackedFetch("quickbooks", "query customer", url, { headers: authHeaders });
       if (!resp.ok) {
         console.error('Customer query failed:', resp.status, await resp.text());
         return null;
@@ -218,7 +219,7 @@ serve(async (req: Request): Promise<Response> => {
       };
     }
 
-    const createResp = await fetch(`${baseUrl}/customer`, {
+    const createResp = await trackedFetch("quickbooks", "create customer", `${baseUrl}/customer`, {
       method: 'POST',
       headers: { ...authHeaders, 'Content-Type': 'application/json' },
       body: JSON.stringify(customerPayload),

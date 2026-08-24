@@ -7,6 +7,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { trackedFetch } from "../_shared/integrationLog.ts";
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
@@ -37,7 +38,7 @@ async function sendReportEmail(
   }
 
   try {
-    const resp = await fetch('https://api.resend.com/emails', {
+    const resp = await trackedFetch("resend", "invoice batch report", 'https://api.resend.com/emails', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

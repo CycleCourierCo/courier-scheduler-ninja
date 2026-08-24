@@ -6,6 +6,7 @@
 // Every helper is best-effort: failures are logged (status + body, no PII) and the
 // caller receives null/false so invoice creation never breaks.
 
+import { trackedFetch } from "./integrationLog.ts";
 const QB_BASE = 'https://quickbooks.api.intuit.com/v3/company';
 
 function authHeaders(accessToken: string, accept = 'application/json') {
@@ -26,7 +27,7 @@ export async function getInvoicePublicLink(
 ): Promise<string | null> {
   if (!invoiceId) return null;
   try {
-    const res = await fetch(
+    const res = await trackedFetch("quickbooks", "send invoice", 
       `${QB_BASE}/${companyId}/invoice/${invoiceId}?include=invoiceLink&minorversion=70`,
       { headers: authHeaders(accessToken) }
     );
@@ -59,7 +60,7 @@ export async function getInvoicePdfBase64(
 ): Promise<string | null> {
   if (!invoiceId) return null;
   try {
-    const res = await fetch(`${QB_BASE}/${companyId}/invoice/${invoiceId}/pdf?minorversion=70`, {
+    const res = await trackedFetch("quickbooks", "invoice pdf", `${QB_BASE}/${companyId}/invoice/${invoiceId}/pdf?minorversion=70`, {
       headers: authHeaders(accessToken, 'application/pdf'),
     });
 
@@ -97,7 +98,7 @@ export async function sendInvoiceViaQuickBooks(
       ? `${QB_BASE}/${companyId}/invoice/${invoiceId}/send?sendTo=${encodeURIComponent(email)}&minorversion=70`
       : `${QB_BASE}/${companyId}/invoice/${invoiceId}/send?minorversion=70`;
 
-    const res = await fetch(url, {
+    const res = await trackedFetch("quickbooks", "api call", url, {
       method: 'POST',
       headers: { ...authHeaders(accessToken), 'Content-Type': 'application/octet-stream' },
     });

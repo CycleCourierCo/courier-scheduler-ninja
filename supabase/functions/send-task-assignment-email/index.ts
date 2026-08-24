@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { trackResend } from "../_shared/integrationLog.ts";
 
 const BASE_URL = "https://booking.cyclecourierco.com";
 const FROM = "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>";
@@ -83,7 +84,7 @@ serve(async (req) => {
     }
 
     if (!resendKey) return json({ error: "Email is not configured" }, 500);
-    const resend = new Resend(resendKey);
+    const resend = trackResend(new Resend(resendKey), "task assignment");
 
     const due = task.due_date
       ? new Date(task.due_date).toLocaleDateString("en-GB", { timeZone: "Europe/London", day: "numeric", month: "short", year: "numeric" })

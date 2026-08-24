@@ -15,7 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { MessageSquare, Mail } from "lucide-react";
-import { extractTemplateParams, getTemplateBodyText, type SendZenTemplate } from "@/lib/sendzenTemplates";
+import { extractTemplateParams, getTemplateBodyText, type WhatsAppTemplate } from "@/lib/whatsappTemplates";
 import { wrapAnnouncementEmail, buildPlainText } from "@/utils/announcementEmailTemplate";
 
 interface Job {
@@ -109,11 +109,11 @@ const BulkRouteMessageDialog: React.FC<Props> = ({ open, onOpenChange, jobs }) =
   const [emailProgress, setEmailProgress] = useState({ sent: 0, total: 0 });
 
   const { data: templates = [], isLoading: templatesLoading } = useQuery({
-    queryKey: ["sendzen-templates"],
+    queryKey: ["whatsapp-templates"],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke("list-sendzen-templates");
       if (error) throw error;
-      return (data?.templates || []) as SendZenTemplate[];
+      return (data?.templates || []) as WhatsAppTemplate[];
     },
     enabled: open && sendWA && waMode === "template",
   });

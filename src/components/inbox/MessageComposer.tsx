@@ -54,7 +54,7 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
     <div className="border-t p-3 space-y-2 bg-background">
       {outsideWaWindow && !isNote && (
         <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
-          The WhatsApp 24h reply window is closed. Free-form messages may be rejected — use an approved template via SendZen, or send an internal note.
+          The WhatsApp 24h reply window is closed. Free-form messages may be rejected — use an approved WhatsApp template, or send an internal note.
         </div>
       )}
       <Textarea

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { isNorthernIrelandAddress, NI_SURCHARGE_NET } from "../_shared/northernIreland.ts";
 import { prepareInvoiceDelivery } from "../_shared/quickbooksInvoiceDelivery.ts";
+import { trackedFetch } from "../_shared/integrationLog.ts";
 
 
 const corsHeaders = {
@@ -76,7 +77,7 @@ async function qbFetch(url: string, init: RequestInit, maxAttempts = 5): Promise
     attempt++;
     let resp: Response;
     try {
-      resp = await fetch(url, init);
+      resp = await trackedFetch("quickbooks", "api call", url, init);
     } catch (err) {
       if (attempt >= maxAttempts) throw err;
       const wait = Math.min(500 * 2 ** (attempt - 1), 8000) + Math.floor(Math.random() * 250);

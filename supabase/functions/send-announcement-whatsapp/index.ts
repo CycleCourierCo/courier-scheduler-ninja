@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { trackedFetch } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -103,7 +104,7 @@ serve(async (req) => {
 
         console.log(`Sending WhatsApp ${isTemplateMode ? "template" : "text"} to ${normalizedPhone.slice(0, 6)}***`);
 
-        const response = await fetch("https://api.sendzen.io/v1/messages", {
+        const response = await trackedFetch("whatsapp", "send announcement", "https://api.sendzen.io/v1/messages", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${SENDZEN_API_KEY}`,

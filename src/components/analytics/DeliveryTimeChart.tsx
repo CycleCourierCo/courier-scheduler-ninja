@@ -48,7 +48,7 @@ const DeliveryTimeChart = ({ data }: DeliveryTimeChartProps) => {
             </p>
           </div>
           <div className="rounded-lg border bg-card p-3">
-            <p className="text-sm text-muted-foreground">SLA (&lt;48h)</p>
+            <p className="text-sm text-muted-foreground">SLA (&le;4 days)</p>
             <p className={`text-2xl font-bold ${
               data.deliverySLA >= 90 ? 'text-primary' : 
               data.deliverySLA >= 75 ? 'text-yellow-600' : 

@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { trackedFetch } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -67,7 +68,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const credentials = btoa(`${clientId}:${clientSecret}`);
     
-    const tokenResponse = await fetch(tokenUrl, {
+    const tokenResponse = await trackedFetch("quickbooks", "oauth token", tokenUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',

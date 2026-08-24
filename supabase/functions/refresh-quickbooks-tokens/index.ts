@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { requireAdminOrCronAuth, createAuthErrorResponse } from '../_shared/auth.ts';
+import { trackedFetch } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -37,7 +38,7 @@ async function refreshQuickBooksToken(
 
     console.log(`Refreshing token for user: ${tokenRecord.user_id}`);
     
-    const tokenResponse = await fetch(tokenUrl, {
+    const tokenResponse = await trackedFetch("quickbooks", "refresh token", tokenUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',

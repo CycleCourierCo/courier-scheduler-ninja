@@ -92,11 +92,9 @@ export const createShipdayOrder = async (
       throw new Error(data?.error || "Shipday didn't accept these orders — please retry from the Dispatch page.");
     }
     
-    // Display helpful information about webhook setup
-    console.log("Shipday order created. Configure the Shipday webhook:", {
-      url: `https://api.cyclecourierco.com/functions/v1/shipday-webhook`,
-      message: "Note: Webhook token validation is currently disabled for initial setup."
-    });
+    // Shipday webhook endpoint (requires the shared SHIPDAY_WEBHOOK_TOKEN header):
+    // https://api.cyclecourierco.com/functions/v1/shipday-webhook
+
     
     return data;
   } catch (err) {

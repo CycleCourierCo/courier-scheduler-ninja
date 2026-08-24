@@ -1,8 +1,15 @@
 import { corsHeaders } from "../_shared/cors.ts";
+import { requireOpsAuth, createAuthErrorResponse } from "../_shared/auth.ts";
+import { trackedFetch } from "../_shared/integrationLog.ts";
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  const auth = await requireOpsAuth(req, ['admin', 'route_planner']);
+  if (!auth.success) {
+    return createAuthErrorResponse(auth.error!, auth.status!);
   }
 
   try {
@@ -21,7 +28,7 @@ Deno.serve(async (req) => {
     }
 
     // Fetch all active orders in one call
-    const response = await fetch("https://api.shipday.com/orders", {
+    const response = await trackedFetch("shipday", "list orders", "https://api.shipday.com/orders", {
       method: "GET",
       headers: {
         "Authorization": `Basic ${apiKey}`,

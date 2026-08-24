@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { isNorthernIrelandAddress } from "../_shared/northernIreland.ts";
+import { trackedFetch } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -38,7 +39,7 @@ function extractStatus(o: ShipdayApiOrder): string {
 }
 
 async function fetchActive(apiKey: string): Promise<ShipdayApiOrder[]> {
-  const res = await fetch("https://api.shipday.com/orders", {
+  const res = await trackedFetch("shipday", "list orders", "https://api.shipday.com/orders", {
     headers: { Authorization: `Basic ${apiKey}`, Accept: "application/json" },
   });
   if (!res.ok) {
@@ -59,7 +60,7 @@ async function fetchByStatus(
   const batch = 100;
   let cursor = 1;
   for (let i = 0; i < 50; i++) {
-    const res = await fetch("https://api.shipday.com/orders/query", {
+    const res = await trackedFetch("shipday", "query orders", "https://api.shipday.com/orders/query", {
       method: "POST",
       headers: {
         Authorization: `Basic ${apiKey}`,

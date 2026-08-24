@@ -9,6 +9,8 @@ import {
   formatNiReceiverBlock,
   formatNiSenderBlock,
 } from "../_shared/northernIreland.ts";
+import { requireOpsAuth, createAuthErrorResponse } from "../_shared/auth.ts";
+import { trackResend, trackedFetch } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -336,7 +338,7 @@ async function updateShipday(
     try {
       const shipdayUrl = `https://api.shipday.com/order/edit/${shipdayId}`;
 
-      const shipdayResponse = await fetch(shipdayUrl, {
+      const shipdayResponse = await trackedFetch("shipday", "update order", shipdayUrl, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -393,7 +395,7 @@ async function sendEmail(
   if (!resendApiKey) { console.error("Resend API key not configured"); return; }
   if (!contact?.email) { console.log("No email for recipient, skipping"); return; }
 
-  const resend = new Resend(resendApiKey);
+  const resend = trackResend(new Resend(resendApiKey), "timeslot email");
 
   if (type === "review") {
     // No email for review messages
@@ -570,6 +572,11 @@ async function sendEmail(
 serve(async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  const auth = await requireOpsAuth(req, ['admin', 'route_planner', 'loader']);
+  if (!auth.success) {
+    return createAuthErrorResponse(auth.error!, auth.status!);
   }
 
   try {
@@ -753,7 +760,7 @@ serve(async (req: Request): Promise<Response> => {
     let sendzenSuccess = false;
     let sendzenResponseText = "";
     try {
-      const sendzenRes = await fetch("https://api.sendzen.io/v1/messages", {
+      const sendzenRes = await trackedFetch("whatsapp", "send template", "https://api.sendzen.io/v1/messages", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

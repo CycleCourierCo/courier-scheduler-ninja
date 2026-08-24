@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { trackedFetch } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -80,7 +81,7 @@ Deno.serve(async (req) => {
     const apiKey = Deno.env.get("DVLA_VES_API_KEY");
     if (!apiKey) return json({ error: "Server is missing DVLA_VES_API_KEY" }, 500);
 
-    const vesRes = await fetch(
+    const vesRes = await trackedFetch("dvla", "lookup vehicle", 
       "https://driver-vehicle-licensing.api.gov.uk/vehicle-enquiry/v1/vehicles",
       {
         method: "POST",

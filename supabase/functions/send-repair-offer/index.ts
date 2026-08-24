@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { corsHeaders } from "../_shared/cors.ts";
+import { trackResend } from "../_shared/integrationLog.ts";
 
 const BASE_URL = "https://booking.cyclecourierco.com";
 const FROM = "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>";
@@ -126,7 +127,7 @@ serve(async (req) => {
       if (!resendKey) {
         results.email = "not_configured";
       } else {
-        const resend = new Resend(resendKey);
+        const resend = trackResend(new Resend(resendKey), "repair offer");
         const approvedHtml = approved.length
           ? `<p style="margin:0 0 8px"><strong>The customer has approved the following repairs:</strong></p>
              <ul>${approved.map((i: any) => `<li>${i.issue_description}</li>`).join("")}</ul>`

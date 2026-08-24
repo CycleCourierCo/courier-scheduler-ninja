@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { trackedFetch } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -24,7 +25,7 @@ serve(async (req) => {
       );
     }
 
-    const response = await fetch(
+    const response = await trackedFetch("whatsapp", "list templates", 
       `https://api.sendzen.io/v1/${WABA_ID}/message_templates`,
       {
         method: "GET",

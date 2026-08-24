@@ -3,7 +3,7 @@ import { Timeslip } from '@/types/timeslip';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, MapPin, TrendingUp, Check, X, Edit, ExternalLink, Zap, CheckCircle, Trash2 } from 'lucide-react';
+import { Clock, MapPin, TrendingUp, Check, X, Edit, ExternalLink, Zap, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface TimeslipCardProps {
@@ -12,7 +12,6 @@ interface TimeslipCardProps {
   onEdit?: (timeslip: Timeslip) => void;
   onApprove?: (id: string) => void;
   onReject?: (id: string) => void;
-  onCreateBill?: (timeslip: Timeslip) => void;
   onDelete?: (id: string) => void;
 }
 
@@ -22,9 +21,9 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
   onEdit,
   onApprove,
   onReject,
-  onCreateBill,
   onDelete
 }) => {
+
 
   const statusColors = {
     draft: 'bg-yellow-500',
@@ -148,26 +147,6 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
             </div>
           )}
 
-          {/* QuickBooks Bill */}
-          {(timeslip as any).quickbooks_bill_id && (
-            <div className="flex items-center gap-2 text-sm p-3 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
-              <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
-              <span className="font-medium text-green-700 dark:text-green-300">
-                QuickBooks Bill #{(timeslip as any).quickbooks_bill_number}
-              </span>
-              {(timeslip as any).quickbooks_bill_url && (
-                <a 
-                  href={(timeslip as any).quickbooks_bill_url} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="ml-auto text-green-600 dark:text-green-400 hover:underline flex items-center gap-1"
-                >
-                  View in QB
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              )}
-            </div>
-          )}
 
           {/* Admin Notes */}
           {timeslip.admin_notes && (
@@ -210,17 +189,6 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
                     Reject
                   </Button>
                 </>
-              )}
-              {timeslip.status === 'approved' && !timeslip.quickbooks_bill_id && onCreateBill && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() => onCreateBill?.(timeslip)}
-                  className="sm:flex-1"
-                >
-                  <CheckCircle className="h-4 w-4 mr-1" />
-                  Create Bill
-                </Button>
               )}
               <Button
                 variant="destructive"
