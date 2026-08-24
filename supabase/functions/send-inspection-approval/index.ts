@@ -53,7 +53,7 @@ serve(async (req) => {
 
     const { data: inspection, error: inspError } = await admin
       .from("bicycle_inspections")
-      .select("id, order_id, status, released_to_customer_at, approval_email_sent_at, report_url")
+      .select("id, order_id, status, released_to_customer_at, approval_email_sent_at, report_url, created_at")
       .eq("id", inspectionId)
       .maybeSingle();
     if (inspError) throw inspError;
