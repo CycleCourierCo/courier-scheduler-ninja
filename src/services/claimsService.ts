@@ -330,7 +330,6 @@ export async function createClaim(payload: {
   ev_delivery_note?: boolean;
   status?: ClaimStatus;
 }): Promise<Claim> {
-  const { data: userData } = await supabase.auth.getUser();
   // For timeframe calc we need delivery date — fetch order
   let withinTimeframe: boolean | null = null;
   if (payload.damage_type && payload.notification_date) {
@@ -340,7 +339,6 @@ export async function createClaim(payload: {
   }
   const insertPayload: any = {
     ...payload,
-    created_by: userData.user?.id,
     within_timeframe: withinTimeframe,
     status: payload.status ?? "opened",
   };
