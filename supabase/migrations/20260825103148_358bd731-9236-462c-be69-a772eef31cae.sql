@@ -1,0 +1,1 @@
+ALTER FUNCTION public.set_claim_created_by() SECURITY INVOKER;
