@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS claims_admin_delete ON public.claims;
