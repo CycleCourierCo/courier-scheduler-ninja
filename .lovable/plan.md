@@ -1,36 +1,38 @@
-# Make automatic Shipday creation reliable
+# Fix Shipday jobs not being created for dashboard bookings
 
-## Confirmed diagnosis
+## Confirmed root cause
 
-- `CCC754296942656MUSCH6` and `CCC754953717831CARDE6` were manually synced on 25 August, so their current Shipday IDs do not prove the booking-time automation worked.
-- Website bookings insert directly into `orders`, then start `createShipdayOrder(order.id)` without awaiting it. `CreateOrder.tsx` immediately navigates away after `createOrder()` returns, so the browser can cancel the in-flight Edge Function request. The error is caught and only written to the browser console, leaving no durable retry.
-- One genuinely unsynced recent order remains: `CCC754739140674MATL8` (created 11 August), with neither pickup nor delivery Shipday ID.
-- Separately, multiple orders have dedicated Shipday ID columns populated while the same reference is absent from `tracking_events`. The current read-modify-write of the full JSON object can lose data when webhook and reconciliation updates overlap.
+Your hypothesis is correct — it is a permissions problem, not a Shipday problem.
+
+- Both examples (`CCC754124718246ANDN11`, created 26 Aug 18:30, and `CCC754238650806NEWS20`, created 26 Aug 18:36) were booked by business customer accounts (`sales@probiketrader.co.uk`, `chris@newportcyclingrepairs.co.uk`), both holding only the `b2b_customer` role, neither a test account. Both have no Shipday pickup or delivery reference at all.
+- After a dashboard booking, the browser calls the Shipday creation function using the signed-in customer's own token. That function only accepts an internal service-role call or a staff member holding `admin`, `route_planner`, `loader` or `driver`. A `b2b_customer` therefore gets rejected with "Forbidden: Staff access required" every time.
+- Orders placed through the API work because they are created server-side and invoke Shipday creation internally with the service role, which passes the same gate.
+- The rejection is swallowed into a browser console message and the booking flow navigates away, so nobody sees it and nothing retries.
 
 ## Changes
 
-1. **Make initial creation deterministic**
-   - Await the Shipday Edge Function call before the website booking flow navigates away.
-   - Keep the customer order successfully created if Shipday is temporarily unavailable, but surface/log the sync failure rather than silently swallowing it.
-   - Apply the same reliable handling to part-exchange return orders.
+1. **Move Shipday creation off the customer's browser**
+   - Trigger Shipday job creation server-side after an order is booked, using the same internal service-role path the API orders already use successfully.
+   - Keep the existing staff-only gate on the Shipday function untouched — customers never gain the ability to call it directly, so no privilege is widened.
+   - Keep the booking itself succeeding if Shipday is temporarily unavailable, but record the failure durably instead of only in the browser console.
 
-2. **Add a durable reconciliation safety net**
-   - Extend the existing reconciliation function to find active, non-test orders missing the required Shipday pickup or delivery leg and create only the missing leg.
-   - Preserve Box My Bike and collected-order rules so no inappropriate duplicate delivery/pickup job is created.
-   - Schedule the reconciliation through the existing authenticated cron-wrapper pattern so a browser interruption or transient Shipday outage is repaired automatically.
+2. **Apply the same path everywhere orders are created**
+   - Dashboard single bookings, part-exchange return legs, and bulk upload all use the same server-side trigger, so no creation route is left on the customer's token.
 
-3. **Prevent Shipday metadata loss**
-   - Add a narrowly scoped database function that atomically merges Shipday IDs and event updates into `tracking_events` while retaining existing data.
-   - Use it from creation, webhook, and reconciliation paths instead of replacing the full JSON blob.
-   - Keep the dedicated `shipday_pickup_id` and `shipday_delivery_id` columns synchronized in the same operation.
+3. **Add a safety net so a miss is self-healing**
+   - Extend the existing reconciliation function to find active, non-test orders missing a required Shipday leg and create only the missing leg, honouring the Box My Bike (pickup only) and already-collected (delivery only) rules so nothing is duplicated.
+   - Run it on a schedule via the existing authenticated cron-wrapper pattern.
 
-4. **Repair and verify**
-   - Run reconciliation for `CCC754739140674MATL8` and any other eligible missing legs.
-   - Verify a new booking receives the expected Shipday IDs, existing webhook history remains intact, and rerunning reconciliation does not create duplicates.
-   - Check Edge Function logs for successful automatic creation and cron execution.
+4. **Repair the affected orders and verify**
+   - Backfill the two named orders plus any other recent customer-booked orders missing Shipday legs (including `CCC754739140674MATL8`).
+   - Verify with a fresh dashboard booking that Shipday references appear without manual sync, confirm function logs show success rather than a 403, and confirm rerunning reconciliation creates no duplicates.
+
+5. **Protect Shipday references from being overwritten**
+   - Merge Shipday IDs and webhook events into the order's tracking data atomically instead of rewriting the whole block, which is why some orders had IDs in their columns but missing references in tracking history.
 
 ## Technical notes
 
-- Edge Functions retain in-code JWT/service-role validation and CORS on every response.
-- The database helper will be `SECURITY DEFINER`, use a fixed `search_path`, revoke public execution, and grant execution only to `service_role`.
-- Reconciliation queries will be server-filtered and paginated to avoid the Supabase 1,000-row limit.
+- Server-side invocation keeps `SUPABASE_SERVICE_ROLE_KEY` strictly inside Edge Functions; it is never exposed to the browser.
+- All Edge Function responses retain CORS headers and in-code auth validation.
+- Reconciliation queries are server-filtered and paginated to avoid the 1,000-row limit.
+- The tracking-data merge helper will be `SECURITY DEFINER` with a fixed `search_path`, executable only by `service_role`.
