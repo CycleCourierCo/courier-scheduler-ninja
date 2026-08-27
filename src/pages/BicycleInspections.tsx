@@ -1463,7 +1463,7 @@ const BicycleInspections = () => {
     const partsArrivedCount = approvedIssues.filter((i: InspectionIssue) => (i.parts_arrived && i.parts_ordered) || i.status === 'repaired' || i.status === 'resolved').length;
 
 
-    const bikePhotos = getCollectionPhotos(order.tracking_events);
+    const bikePhotos = getCollectionPhotos(order.tracking_events, order.shipday_pickup_id);
     const bikeLabel = `${order.bike_brand || ""} ${order.bike_model || ""}`.trim() || "Bike";
     const storageLocations: any[] = Array.isArray(order.storage_locations) ? order.storage_locations : [];
 
