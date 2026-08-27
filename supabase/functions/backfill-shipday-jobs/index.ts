@@ -121,6 +121,21 @@ serve(async (req) => {
       await Promise.all(
         batch.map(async (item) => {
           try {
+            // Re-check right before creating: the order may have been cancelled
+            // while this run was scanning/creating other legs.
+            const { data: fresh } = await admin
+              .from("orders")
+              .select("status, tracking_events")
+              .eq("id", item.id)
+              .maybeSingle();
+            if (
+              !fresh ||
+              TERMINAL_STATUSES.has(String(fresh.status)) ||
+              (fresh.tracking_events as any)?.shipday?.cancelled_at
+            ) {
+              return;
+            }
+
             const res = await fetch(`${supabaseUrl}/functions/v1/create-shipday-order`, {
               method: "POST",
               headers: {
