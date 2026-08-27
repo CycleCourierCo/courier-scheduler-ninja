@@ -105,3 +105,9 @@ verify_jwt = false
 
 [functions.inspectabike-push-status]
 verify_jwt = false
+
+[functions.sync-order-shipday]
+verify_jwt = false
+
+[functions.backfill-shipday-jobs]
+verify_jwt = false

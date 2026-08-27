@@ -70,6 +70,36 @@ export const syncOrdersToShipday = async (orders: any[]) => {
   }
 };
 
+/**
+ * Pushes a freshly booked order to Shipday.
+ *
+ * Customers (b2b/b2c) are not allowed to call `create-shipday-order` directly —
+ * it is staff-only — so bookings go through `sync-order-shipday`, which checks
+ * order ownership and then performs the Shipday creation server-side.
+ * Any failure here is non-fatal: the 15-minute backfill cron will pick it up.
+ */
+export const syncOrderShipday = async (
+  orderId: string,
+  jobType?: 'pickup' | 'delivery'
+) => {
+  const { data, error } = await supabase.functions.invoke("sync-order-shipday", {
+    body: { orderId, jobType }
+  });
+
+  if (error) {
+    console.error("Shipday sync failed for order:", orderId, error.message);
+    throw new Error(error.message);
+  }
+
+  if (!data?.success) {
+    console.error("Shipday sync rejected for order:", orderId);
+    throw new Error(data?.error || "Shipday sync failed");
+  }
+
+  return data;
+};
+
+
 export const createShipdayOrder = async (
   orderId: string,
   jobType?: 'pickup' | 'delivery',
