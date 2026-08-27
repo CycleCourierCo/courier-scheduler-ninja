@@ -444,41 +444,18 @@ serve(async (req) => {
                              deliveryResponseData?.trackingNumber || 
                              `SD-D-${Date.now()}`) : null;
     
-    const trackingEvents = order.tracking_events || {};
-    
-    if (!trackingEvents.shipday) {
-      trackingEvents.shipday = {};
-    }
-    
-    if (createPickup && shipdayPickupId) {
-      trackingEvents.shipday.pickup_id = shipdayPickupId;
-    }
-    
-    if (createDelivery && shipdayDeliveryId) {
-      trackingEvents.shipday.delivery_id = shipdayDeliveryId;
-    }
-    
-    trackingEvents.shipday.created_at = new Date().toISOString();
-
-    const updateData: Record<string, any> = {
-      tracking_events: trackingEvents,
-      updated_at: new Date().toISOString()
-    };
-    
-    if (createPickup && shipdayPickupId) {
-      updateData.shipday_pickup_id = shipdayPickupId;
-    }
-    
-    if (createDelivery && shipdayDeliveryId) {
-      updateData.shipday_delivery_id = shipdayDeliveryId;
-    }
-
-    const { error: updateError } = await supabase
-      .from("orders")
-      .update(updateData)
-      .eq("id", orderId);
+    // Merge the references atomically so a concurrent webhook/reconcile write
+    // can never drop the Shipday ids or the accumulated status history.
+    const { error: updateError } = await supabase.rpc("apply_shipday_tracking", {
+      p_order_id: orderId,
+      p_pickup_id: createPickup && shipdayPickupId ? String(shipdayPickupId) : null,
+      p_delivery_id: createDelivery && shipdayDeliveryId ? String(shipdayDeliveryId) : null,
+      p_event: null,
+      p_set_created_at: true,
+    });
 
     if (updateError) {
+      console.error("Failed to record Shipday references:", updateError.message);
       return new Response(
         JSON.stringify({ error: updateError.message }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
