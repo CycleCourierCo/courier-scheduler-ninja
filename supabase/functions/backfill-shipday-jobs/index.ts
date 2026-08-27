@@ -53,7 +53,7 @@ serve(async (req) => {
       const { data, error } = await admin
         .from("orders")
         .select(
-          "id, tracking_number, status, user_id, is_box_my_bike, order_collected, shipday_pickup_id, shipday_delivery_id, created_at"
+          "id, tracking_number, status, user_id, is_box_my_bike, order_collected, shipday_pickup_id, shipday_delivery_id, created_at, tracking_events"
         )
         .gte("created_at", since)
         .or("shipday_pickup_id.is.null,shipday_delivery_id.is.null")
