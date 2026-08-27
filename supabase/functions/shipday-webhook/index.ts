@@ -357,6 +357,16 @@ serve(async (req) => {
       delivery_id: dbOrder.shipday_delivery_id,
       updates: [],
     };
+    // Keep the leg references in sync: a missing id here hides the driver name
+    // and proof photos in the UI, which match events against these values.
+    if (!shipdayEvents.pickup_id && dbOrder.shipday_pickup_id) {
+      shipdayEvents.pickup_id = dbOrder.shipday_pickup_id;
+    }
+    if (!shipdayEvents.delivery_id && dbOrder.shipday_delivery_id) {
+      shipdayEvents.delivery_id = dbOrder.shipday_delivery_id;
+    }
+    if (isPickup && shipdayOrderId) shipdayEvents.pickup_id = shipdayOrderId;
+    if (!isPickup && shipdayOrderId) shipdayEvents.delivery_id = shipdayOrderId;
 
     // Extract POD URLs and signature URL from various places in payload
     const podUrls = payload.pods || payload.order?.podUrls || [];
