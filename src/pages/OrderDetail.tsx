@@ -208,6 +208,7 @@ const OrderDetail = () => {
   const [bookingCustomer, setBookingCustomer] = useState<{ name?: string; email?: string } | null>(null);
   const [creatingReturn, setCreatingReturn] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [removingFromShipday, setRemovingFromShipday] = useState(false);
   const navigate = useNavigate();
   
   const [pickupDatePicker, setPickupDatePicker] = useState<Date | undefined>(undefined);
