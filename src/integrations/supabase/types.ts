@@ -4947,6 +4947,16 @@ export type Database = {
         Args: { status: string; user_id: string }
         Returns: boolean
       }
+      apply_shipday_tracking: {
+        Args: {
+          p_delivery_id?: string
+          p_event?: Json
+          p_order_id: string
+          p_pickup_id?: string
+          p_set_created_at?: boolean
+        }
+        Returns: undefined
+      }
       can_manage_review: { Args: { _cycle_id: string }; Returns: boolean }
       can_view_review: { Args: { _cycle_id: string }; Returns: boolean }
       cleanup_integration_call_logs: { Args: never; Returns: undefined }
@@ -5047,6 +5057,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      invoke_backfill_shipday_jobs: { Args: never; Returns: undefined }
       invoke_fuel_finder_refresh: { Args: never; Returns: undefined }
       invoke_generate_timeslips: { Args: never; Returns: undefined }
       invoke_internal_report: { Args: { p_report: string }; Returns: undefined }
