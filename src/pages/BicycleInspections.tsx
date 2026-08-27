@@ -1530,7 +1530,11 @@ const BicycleInspections = () => {
                     : !!order.storage_locations;
                   if (hasAllocation || !order.collection_confirmation_sent_at) return null;
                   const driver = getDriverAssignment(
-                    { trackingEvents: order.tracking_events } as any,
+                    {
+                      trackingEvents: order.tracking_events,
+                      shipdayPickupId: order.shipday_pickup_id,
+                      shipdayDeliveryId: order.shipday_delivery_id,
+                    } as any,
                     'pickup'
                   );
                   if (!driver) return null;
