@@ -3,12 +3,16 @@
  *
  * The Shipday webhook stores driver proof-of-delivery images inside the order's
  * `tracking_events.shipday.updates[]` array. Each update carries a `podUrls`
- * array plus the Shipday order id it belongs to, so the collection photos are
- * the ones attached to the pickup leg.
+ * array, a `leg` marker and the Shipday order id it belongs to.
+ *
+ * We match on the `leg` field first because some orders have a missing or stale
+ * `pickup_id` in the tracking block (the leg was re-created later), which would
+ * otherwise hide photos that are actually present.
  */
 
 interface ShipdayUpdate {
   event?: string;
+  leg?: string;
   orderId?: string | number;
   podUrls?: string[];
 }
@@ -21,18 +25,39 @@ interface TrackingEventsLike {
   } | null;
 }
 
-/** Photo URLs uploaded by the driver when the bike was collected. */
-export const getCollectionPhotos = (trackingEvents: unknown): string[] => {
+/**
+ * Photo URLs uploaded by the driver when the bike was collected.
+ * `fallbackPickupId` lets callers pass the order's flat `shipday_pickup_id`
+ * column when the tracking block is missing the id.
+ */
+export const getCollectionPhotos = (
+  trackingEvents: unknown,
+  fallbackPickupId?: string | number | null
+): string[] => {
   const events = (trackingEvents || null) as TrackingEventsLike | null;
   const updates = events?.shipday?.updates;
   if (!Array.isArray(updates) || updates.length === 0) return [];
 
-  const pickupId = events?.shipday?.pickup_id?.toString();
+  const pickupIds = [events?.shipday?.pickup_id, fallbackPickupId]
+    .filter((v) => v !== null && v !== undefined && v !== "")
+    .map((v) => String(v));
+  const deliveryId = events?.shipday?.delivery_id?.toString();
+
+  const isPickup = (update: ShipdayUpdate) => {
+    if (update?.leg === "pickup") return true;
+    if (update?.leg === "delivery") return false;
+    const id = update?.orderId?.toString();
+    if (id && pickupIds.includes(id)) return true;
+    // Unknown leg and no pickup id to match on: accept anything that clearly
+    // isn't the delivery leg.
+    if (pickupIds.length === 0 && id && id !== deliveryId) return true;
+    return false;
+  };
 
   const collectionEvent = updates.find(
     (update) =>
       (update?.event === "ORDER_COMPLETED" || update?.event === "ORDER_POD_UPLOAD") &&
-      update?.orderId?.toString() === pickupId &&
+      isPickup(update) &&
       Array.isArray(update?.podUrls) &&
       update.podUrls.length > 0
   );
@@ -41,5 +66,6 @@ export const getCollectionPhotos = (trackingEvents: unknown): string[] => {
 };
 
 /** Convenience wrapper for objects that expose camelCase `trackingEvents`. */
-export const getOrderCollectionPhotos = (order: { trackingEvents?: unknown } | undefined | null): string[] =>
-  getCollectionPhotos(order?.trackingEvents);
+export const getOrderCollectionPhotos = (
+  order: { trackingEvents?: unknown; shipdayPickupId?: string | number | null } | undefined | null
+): string[] => getCollectionPhotos(order?.trackingEvents, order?.shipdayPickupId ?? null);
