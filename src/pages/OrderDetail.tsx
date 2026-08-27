@@ -1003,47 +1003,50 @@ const OrderDetail = () => {
       
       // Handle cancellation with Shipday deletion and email notifications
       if (newStatus === 'cancelled') {
-        let shipdaySuccess = false;
-        let emailSuccess = false;
-        
-        // Try to delete Shipday jobs
-        try {
-          const shipdayResult = await deleteShipdayJobs(id);
-          shipdaySuccess = shipdayResult.success;
-          if (shipdaySuccess) {
-            toast.success(shipdayResult.message || "Shipday jobs deleted");
+        // Server-side cancel: deletes every Shipday leg, clears the ids and
+        // stamps a cancellation marker so the backfill can't re-create jobs.
+        let result = await cancelOrderWithShipday(id);
+
+        if (!result.success) {
+          const proceed = window.confirm(
+            `${result.error || "Couldn't remove this order from Shipday."}\n\nCancel the order anyway? You'll need to delete the job in Shipday manually.`
+          );
+          if (!proceed) {
+            toast.error(result.error || "Order not cancelled — Shipday cleanup failed");
+            return;
           }
-        } catch (shipdayError) {
-          console.error("Error deleting Shipday jobs:", shipdayError);
-          toast.warning("Failed to delete Shipday jobs, but continuing with cancellation");
+          result = await cancelOrderWithShipday(id, true);
+          if (!result.success) {
+            throw new Error(result.error || "Failed to cancel order");
+          }
         }
-        
+
         // Try to send cancellation emails
+        let emailSuccess = false;
         try {
           const emailResults = await sendOrderCancellationEmails(id);
           const emailsSent = Object.values(emailResults).filter(Boolean).length;
           if (emailsSent > 0) {
             emailSuccess = true;
-            toast.success(`Cancellation emails sent to ${emailsSent} recipient(s)`);
           }
         } catch (emailError) {
           console.error("Error sending cancellation emails:", emailError);
           toast.warning("Failed to send some cancellation emails");
         }
-        
-        // Update order status to cancelled
-        const updatedOrder = await updateAdminOrderStatus(id, newStatus);
-        
-        if (updatedOrder) {
-          const mappedOrder = mapDbOrderToOrderType(updatedOrder);
+
+        if (result.order) {
+          const mappedOrder = mapDbOrderToOrderType(result.order);
           setOrder(mappedOrder);
-          setSelectedStatus(newStatus);
-          
-          // Show comprehensive success message
-          const parts = ["Order cancelled"];
-          if (shipdaySuccess) parts.push("Shipday jobs deleted");
-          if (emailSuccess) parts.push("notifications sent");
-          toast.success(parts.join(", "));
+        }
+        setSelectedStatus(newStatus);
+
+        const parts = ["Order cancelled"];
+        if (result.shipdayCleared) parts.push("Shipday jobs removed");
+        if (emailSuccess) parts.push("notifications sent");
+        toast.success(parts.join(", "));
+
+        if (!result.shipdayCleared) {
+          toast.warning("Shipday jobs may still be live — remove them in Shipday");
         }
       } else {
         // Handle other status changes normally
