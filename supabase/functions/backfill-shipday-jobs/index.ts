@@ -87,6 +87,8 @@ serve(async (req) => {
 
     for (const order of candidates) {
       if (TERMINAL_STATUSES.has(String(order.status))) continue;
+      // Explicitly cancelled orders must never get their legs re-created.
+      if (order.tracking_events?.shipday?.cancelled_at) continue;
       if (order.user_id && testAccounts.has(order.user_id)) continue;
 
       const collected = order.order_collected === true;
