@@ -1463,7 +1463,7 @@ const BicycleInspections = () => {
     const partsArrivedCount = approvedIssues.filter((i: InspectionIssue) => (i.parts_arrived && i.parts_ordered) || i.status === 'repaired' || i.status === 'resolved').length;
 
 
-    const bikePhotos = getCollectionPhotos(order.tracking_events);
+    const bikePhotos = getCollectionPhotos(order.tracking_events, order.shipday_pickup_id);
     const bikeLabel = `${order.bike_brand || ""} ${order.bike_model || ""}`.trim() || "Bike";
     const storageLocations: any[] = Array.isArray(order.storage_locations) ? order.storage_locations : [];
 
@@ -1530,7 +1530,11 @@ const BicycleInspections = () => {
                     : !!order.storage_locations;
                   if (hasAllocation || !order.collection_confirmation_sent_at) return null;
                   const driver = getDriverAssignment(
-                    { trackingEvents: order.tracking_events } as any,
+                    {
+                      trackingEvents: order.tracking_events,
+                      shipdayPickupId: order.shipday_pickup_id,
+                      shipdayDeliveryId: order.shipday_delivery_id,
+                    } as any,
                     'pickup'
                   );
                   if (!driver) return null;
