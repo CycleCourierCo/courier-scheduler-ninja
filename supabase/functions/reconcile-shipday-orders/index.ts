@@ -238,6 +238,11 @@ serve(async (req) => {
         skippedNoMatch++;
         continue;
       }
+      // Cancelled orders are intentionally detached from Shipday — never revive them.
+      if (dbOrder.status === "cancelled" || dbOrder.tracking_events?.shipday?.cancelled_at) {
+        skippedNoMatch++;
+        continue;
+      }
       if (!isPickup) isPickup = false; // it's delivery
 
       const sStatus = extractStatus(sOrder);

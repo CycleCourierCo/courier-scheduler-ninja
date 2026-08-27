@@ -53,7 +53,7 @@ serve(async (req) => {
       const { data, error } = await admin
         .from("orders")
         .select(
-          "id, tracking_number, status, user_id, is_box_my_bike, order_collected, shipday_pickup_id, shipday_delivery_id, created_at"
+          "id, tracking_number, status, user_id, is_box_my_bike, order_collected, shipday_pickup_id, shipday_delivery_id, created_at, tracking_events"
         )
         .gte("created_at", since)
         .or("shipday_pickup_id.is.null,shipday_delivery_id.is.null")
@@ -87,6 +87,8 @@ serve(async (req) => {
 
     for (const order of candidates) {
       if (TERMINAL_STATUSES.has(String(order.status))) continue;
+      // Explicitly cancelled orders must never get their legs re-created.
+      if (order.tracking_events?.shipday?.cancelled_at) continue;
       if (order.user_id && testAccounts.has(order.user_id)) continue;
 
       const collected = order.order_collected === true;
@@ -119,6 +121,21 @@ serve(async (req) => {
       await Promise.all(
         batch.map(async (item) => {
           try {
+            // Re-check right before creating: the order may have been cancelled
+            // while this run was scanning/creating other legs.
+            const { data: fresh } = await admin
+              .from("orders")
+              .select("status, tracking_events")
+              .eq("id", item.id)
+              .maybeSingle();
+            if (
+              !fresh ||
+              TERMINAL_STATUSES.has(String(fresh.status)) ||
+              (fresh.tracking_events as any)?.shipday?.cancelled_at
+            ) {
+              return;
+            }
+
             const res = await fetch(`${supabaseUrl}/functions/v1/create-shipday-order`, {
               method: "POST",
               headers: {

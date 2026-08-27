@@ -119,7 +119,20 @@ serve(async (req) => {
       
       console.log("Found order using fallback lookup:", fallbackOrders[0]);
       var dbOrder = fallbackOrders[0];
-      
+
+      // A cancelled order is intentionally detached from Shipday: never
+      // re-attach a Shipday id to it via the tracking-number fallback.
+      if (
+        dbOrder.status === "cancelled" ||
+        (dbOrder as any).tracking_events?.shipday?.cancelled_at
+      ) {
+        console.log("Ignoring Shipday webhook for a cancelled order");
+        return new Response(JSON.stringify({ ignored: "order cancelled" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
       if (isPickup && !(dbOrder as any).shipday_pickup_id) {
         await supabase
           .from("orders")
@@ -133,6 +146,16 @@ serve(async (req) => {
       }
     } else {
       var dbOrder = orders[0];
+      if (
+        dbOrder.status === "cancelled" ||
+        (dbOrder as any).tracking_events?.shipday?.cancelled_at
+      ) {
+        console.log("Ignoring Shipday webhook for a cancelled order");
+        return new Response(JSON.stringify({ ignored: "order cancelled" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
     }
 
     // Northern Ireland orders are delivered to City Air Express (the ferry hub),
