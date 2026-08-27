@@ -1721,6 +1721,29 @@ const OrderDetail = () => {
                 Return to Dashboard
               </Link>
             </Button>
+            {isAdmin && order.status === 'cancelled' && (
+              <Button
+                variant="outline"
+                disabled={removingFromShipday}
+                onClick={async () => {
+                  setRemovingFromShipday(true);
+                  try {
+                    const result = await cancelOrderWithShipday(order.id, true);
+                    if (result.success && result.shipdayCleared) {
+                      toast.success("Shipday jobs removed");
+                    } else {
+                      toast.error(result.error || "Some Shipday jobs could not be removed");
+                    }
+                  } catch (err: any) {
+                    toast.error(err?.message || "Failed to remove Shipday jobs");
+                  } finally {
+                    setRemovingFromShipday(false);
+                  }
+                }}
+              >
+                {removingFromShipday ? "Removing..." : "Remove from Shipday"}
+              </Button>
+            )}
             {isAdmin && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
