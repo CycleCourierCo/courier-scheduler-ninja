@@ -16,7 +16,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { format, isValid, parseISO } from "date-fns";
 import { getOrderById, updateOrderSchedule, updateAdminOrderStatus, resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail, createOrder } from "@/services/orderService";
-import { createShipdayOrder, deleteShipdayJobs } from "@/services/shipdayService";
+import { createShipdayOrder, deleteShipdayJobs, cancelOrderWithShipday } from "@/services/shipdayService";
 import { sendOrderCancellationEmails } from "@/services/emailService";
 import { isReceiverAvailabilityBlockedByInspection } from "@/services/inspectionService";
 import { Order, OrderStatus, CreateOrderFormData } from "@/types/order";
