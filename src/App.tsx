@@ -52,6 +52,7 @@ import MyStockPage from "./pages/MyStockPage";
 import ShopifyIntegrationPage from "./pages/ShopifyIntegrationPage";
 import FuelFinderPage from "./pages/FuelFinderPage";
 import VehicleManagement from "./pages/VehicleManagement";
+import EquipmentPage from "./pages/EquipmentPage";
 import ClaimsList from "./pages/ClaimsList";
 import NewClaim from "./pages/NewClaim";
 import ClaimDetail from "./pages/ClaimDetail";
@@ -288,6 +289,11 @@ function App() {
               <Route path="/fuel-finder" element={
                 <ProtectedRoute>
                   <FuelFinderPage />
+                </ProtectedRoute>
+              } />
+              <Route path="/equipment" element={
+                <ProtectedRoute>
+                  <EquipmentPage />
                 </ProtectedRoute>
               } />
               <Route path="/vehicles" element={
