@@ -2,7 +2,7 @@ import type { ComponentType } from "react";
 import type { UserRole } from "@/types/user";
 import {
   Home, Package, Package2, Upload, Truck, FileText, PoundSterling, Calendar, Sparkles,
-  ClipboardList, ClipboardCheck, Route as RouteIcon, Warehouse, Clock, Wrench, Car, Fuel, ShieldAlert,
+  ClipboardList, ClipboardCheck, Route as RouteIcon, Warehouse, Clock, Wrench, Car, Fuel, ShieldAlert, Boxes,
   BarChart3, TrendingUp, Inbox, CheckSquare, Megaphone, Mail, BookOpen, User, Users,
   Shield, CalendarOff, Key, Webhook, Store, Lock,
 } from "lucide-react";
@@ -80,6 +80,8 @@ export const APP_ROUTES: AppRoute[] = [
     defaultRoles: ["mechanic", "loader", ...CUSTOMERS] },
 
   // Fleet
+  { key: "equipment", path: "/equipment", label: "Equipment", section: "Fleet", icon: Boxes,
+    defaultRoles: ["loader", "fleet_manager"] },
   { key: "vehicles", path: "/vehicles", label: "Vehicles", section: "Fleet", icon: Car,
     defaultRoles: ["fleet_manager"] },
   { key: "driver-timeslips", path: "/driver-timeslips", label: "Driver Timeslips", section: "Fleet", icon: Clock,
