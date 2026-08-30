@@ -34,6 +34,7 @@ import {
   EQUIPMENT_CONDITION_LABELS,
   EQUIPMENT_STATUS_LABELS,
   type EquipmentType,
+  type EquipmentTypeWithCounts,
   type EquipmentUnit,
   type EquipmentUnitStatus,
 } from "@/types/equipment";
