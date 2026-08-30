@@ -465,8 +465,8 @@ const EquipmentPage: React.FC = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="groups" className="pt-4">
-            <Card>
+          <TabsContent value="groups" className="pt-4 space-y-4">
+            <Card className="hidden md:block">
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <Table>
@@ -517,42 +517,7 @@ const EquipmentPage: React.FC = () => {
                                 : "Not required"}
                             </TableCell>
                             <TableCell className="text-right">
-                              {canManage ? (
-                                <div className="flex justify-end gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => {
-                                      setPresetTypeId(t.id);
-                                      setAddUnitsOpen(true);
-                                    }}
-                                    title="Add items"
-                                  >
-                                    <Plus className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => {
-                                      setEditingType(t);
-                                      setTypeDialogOpen(true);
-                                    }}
-                                    title="Edit"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleDeleteType(t)}
-                                    title="Delete"
-                                  >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground">—</span>
-                              )}
+                              <GroupActions type={t} />
                             </TableCell>
                           </TableRow>
                         ))
@@ -562,6 +527,63 @@ const EquipmentPage: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
+
+            <div className="md:hidden space-y-3">
+              {typesLoading ? (
+                <p className="py-8 text-center text-muted-foreground">Loading...</p>
+              ) : typesWithCounts.length === 0 ? (
+                <p className="py-8 text-center text-muted-foreground">No equipment set up yet.</p>
+              ) : (
+                typesWithCounts.map((t) => (
+                  <Card key={t.id} className={t.is_active ? "" : "opacity-60"}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">
+                            {t.name}
+                            {!t.is_active && (
+                              <Badge variant="outline" className="ml-2">
+                                Inactive
+                              </Badge>
+                            )}
+                          </p>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {t.category || "No category"}
+                          </p>
+                        </div>
+                        <GroupActions type={t} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Total</p>
+                          <p>{t.total_units}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Available</p>
+                          <p>{t.available_units}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Out</p>
+                          <p>{t.assigned_units}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">In repair</p>
+                          <p>{t.in_repair_units}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-xs text-muted-foreground">Checks</p>
+                          <p>
+                            {t.requires_maintenance
+                              ? `Every ${t.maintenance_interval_days} days${t.due_units ? ` · ${t.due_units} due` : ""}`
+                              : "Not required"}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </div>
