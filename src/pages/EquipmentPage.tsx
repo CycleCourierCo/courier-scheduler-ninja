@@ -141,9 +141,75 @@ const EquipmentPage: React.FC = () => {
     }
   };
 
+  const UnitActions: React.FC<{ unit: EquipmentUnit }> = ({ unit }) =>
+    canManage ? (
+      <div className="flex items-center justify-end gap-1">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setAssignUnit(unit)}
+          title="Move or update"
+        >
+          <Edit className="h-4 w-4" />
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => setMaintenanceUnit(unit)}
+          title="Log a check"
+        >
+          <Wrench className="h-4 w-4" />
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => handleDeleteUnit(unit)}
+          title="Remove item"
+        >
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
+      </div>
+    ) : null;
+
+  const GroupActions: React.FC<{ type: EquipmentTypeWithCounts }> = ({ type }) =>
+    canManage ? (
+      <div className="flex items-center justify-end gap-1">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            setPresetTypeId(type.id);
+            setAddUnitsOpen(true);
+          }}
+          title="Add items"
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => {
+            setEditingType(type);
+            setTypeDialogOpen(true);
+          }}
+          title="Edit"
+        >
+          <Edit className="h-4 w-4" />
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => handleDeleteType(type)}
+          title="Delete"
+        >
+          <Trash2 className="h-4 w-4 text-destructive" />
+        </Button>
+      </div>
+    ) : null;
+
   return (
     <Layout>
-      <div className="space-y-6">
+      <div className="container mx-auto px-4 py-6 space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Equipment</h1>
@@ -264,7 +330,7 @@ const EquipmentPage: React.FC = () => {
               </Select>
             </div>
 
-            <Card>
+            <Card className="hidden md:block">
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <Table>
@@ -325,36 +391,7 @@ const EquipmentPage: React.FC = () => {
                               )}
                             </TableCell>
                             <TableCell className="text-right">
-                              {canManage ? (
-                                <div className="flex justify-end gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => setAssignUnit(u)}
-                                    title="Move or update"
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => setMaintenanceUnit(u)}
-                                    title="Log a check"
-                                  >
-                                    <Wrench className="h-4 w-4" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleDeleteUnit(u)}
-                                    title="Remove item"
-                                  >
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <span className="text-muted-foreground">—</span>
-                              )}
+                              <UnitActions unit={u} />
                             </TableCell>
                           </TableRow>
                         ))
@@ -364,6 +401,67 @@ const EquipmentPage: React.FC = () => {
                 </div>
               </CardContent>
             </Card>
+
+            <div className="md:hidden space-y-3">
+              {unitsLoading ? (
+                <p className="py-8 text-center text-muted-foreground">Loading equipment...</p>
+              ) : filteredUnits.length === 0 ? (
+                <p className="py-8 text-center text-muted-foreground">No items match these filters.</p>
+              ) : (
+                filteredUnits.map((u) => (
+                  <Card key={u.id}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{typeName(u.equipment_type_id)}</p>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {u.serial || u.asset_tag || "No serial"}
+                          </p>
+                        </div>
+                        <UnitActions unit={u} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Status</p>
+                          <Badge
+                            className={statusVariant(u.status)}
+                            variant={statusVariant(u.status) ? "default" : "outline"}
+                          >
+                            {EQUIPMENT_STATUS_LABELS[u.status]}
+                          </Badge>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Condition</p>
+                          <p>{EQUIPMENT_CONDITION_LABELS[u.condition]}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Location</p>
+                          <p className="truncate">{locationLabel(u)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Next check</p>
+                          <p>
+                            {u.next_maintenance_due ? (
+                              <span
+                                className={
+                                  u.next_maintenance_due <= todayStr
+                                    ? "text-amber-600 font-medium"
+                                    : ""
+                                }
+                              >
+                                {new Date(u.next_maintenance_due).toLocaleDateString("en-GB")}
+                              </span>
+                            ) : (
+                              "—"
+                            )}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="groups" className="pt-4">
