@@ -194,7 +194,8 @@ const getCollectionStatusBadge = (
   deliveryIndex: number | undefined,
   allJobs: SelectedJob[],
   scheduledPickupDate?: string | null,
-  orderCollected?: boolean | null
+  orderCollected?: boolean | null,
+  routeDate?: Date | undefined
 ): { text: string; color: string; icon: JSX.Element } => {
   // If already collected, show "Collected"
   if (collectionConfirmedAt || orderCollected === true) {
@@ -226,17 +227,33 @@ const getCollectionStatusBadge = (
     }
   }
 
-  // Scheduled to be collected today via another route
+  // Compare the scheduled collection date against the route date being scheduled
   if (scheduledPickupDate) {
-    const todayStr = format(new Date(), 'yyyy-MM-dd');
+    const compareStr = format(routeDate ?? new Date(), 'yyyy-MM-dd');
     const schedStr = format(new Date(scheduledPickupDate), 'yyyy-MM-dd');
-    if (schedStr === todayStr) {
+    const schedLabel = format(new Date(scheduledPickupDate), 'EEE d MMM');
+
+    if (schedStr === compareStr) {
       return {
         text: 'Collecting Today',
         color: 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 border border-amber-200',
         icon: <Truck className="h-3 w-3" />
       };
     }
+
+    if (schedStr < compareStr) {
+      return {
+        text: `Collected Earlier (${schedLabel})`,
+        color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
+        icon: <Package className="h-3 w-3" />
+      };
+    }
+
+    return {
+      text: `Collection After Delivery! (${schedLabel})`,
+      color: 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300',
+      icon: <PackageX className="h-3 w-3" />
+    };
   }
 
   return {
