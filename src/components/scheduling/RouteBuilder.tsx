@@ -741,7 +741,8 @@ const JobItem: React.FC<JobItemProps> = ({
                           job.order,
                           allJobs,
                           job.orderData?.scheduled_pickup_date,
-                          job.orderData?.order_collected
+                          job.orderData?.order_collected,
+                          selectedDate
                         );
                         return collectionBadge ? (
                           <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
