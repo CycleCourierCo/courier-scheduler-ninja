@@ -594,8 +594,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         // Create Shipday jobs for the reverse order
         if (reverseOrder && !reverseError) {
           try {
-            const { createShipdayOrder } = await import('@/services/shipdayService');
-            await createShipdayOrder(reverseOrder.id);
+            const { syncOrderShipday } = await import('@/services/shipdayService');
+            await syncOrderShipday(reverseOrder.id);
             console.log('Created Shipday jobs for reverse order:', reverseOrder.id);
           } catch (shipdayError) {
             console.error('Failed to create Shipday jobs for reverse order:', shipdayError);
@@ -638,20 +638,20 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       // Handle errors silently in background
     });
     
-    // Create Shipday jobs automatically after order creation
-    const createShipdayJobs = async () => {
-      try {
-        const { createShipdayOrder } = await import('@/services/shipdayService');
-        await createShipdayOrder(order.id);
-      } catch (shipdayError) {
-        console.error('Failed to create Shipday jobs:', shipdayError);
-        // Don't fail the order creation if Shipday fails
-      }
-    };
+    // Create Shipday jobs automatically after order creation.
+    // Awaited on purpose: fired-and-forgotten it was being aborted when the
+    // user navigated away from the booking form. Goes through the ownership
+    // -checked sync bridge so customer accounts aren't blocked by the
+    // staff-only gate on create-shipday-order. If it still fails, the
+    // 15-minute backfill job creates the missing legs.
+    try {
+      const { syncOrderShipday } = await import('@/services/shipdayService');
+      await syncOrderShipday(order.id);
+    } catch (shipdayError) {
+      console.error('Failed to create Shipday jobs:', shipdayError);
+      // Don't fail the order creation if Shipday fails
+    }
     
-    createShipdayJobs().catch(() => {
-      // Handle errors silently in background
-    });
     
     return mapDbOrderToOrderType(order);
   } catch (error) {

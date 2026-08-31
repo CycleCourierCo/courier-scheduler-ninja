@@ -4,6 +4,7 @@ import { Resend } from "https://esm.sh/resend@2.0.0";
 import { corsHeaders } from "../_shared/cors.ts";
 import { regenerateInspectionReport } from "../_shared/inspectionReport.ts";
 import { trackResend } from "../_shared/integrationLog.ts";
+import { toPublicFileUrl } from "../_shared/publicFileUrl.ts";
 
 const BASE_URL = "https://booking.cyclecourierco.com";
 const FROM = "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>";
@@ -53,7 +54,7 @@ serve(async (req) => {
 
     const { data: inspection, error: inspError } = await admin
       .from("bicycle_inspections")
-      .select("id, order_id, status, released_to_customer_at, approval_email_sent_at, report_url")
+      .select("id, order_id, status, released_to_customer_at, approval_email_sent_at, report_url, created_at")
       .eq("id", inspectionId)
       .maybeSingle();
     if (inspError) throw inspError;
@@ -86,12 +87,19 @@ serve(async (req) => {
     }
 
     // Always refresh the report so the link matches the current state.
-    let reportUrl = inspection.report_url as string | null;
+    let reportUrl = toPublicFileUrl(inspection.report_url as string | null);
     try {
       const regenerated = await regenerateInspectionReport(admin, inspectionId);
-      reportUrl = regenerated.url || reportUrl;
+      reportUrl = toPublicFileUrl(regenerated.url) || reportUrl;
     } catch (err) {
       console.error("Report regeneration failed before approval email:", err instanceof Error ? err.message : "unknown");
+    }
+
+    // Legacy inspections (created before the cutoff) don't get a customer-facing report link.
+    const REPORT_CUTOFF = Date.parse("2026-08-25T00:00:00+01:00");
+    const createdAt = inspection.created_at ? Date.parse(inspection.created_at as string) : 0;
+    if (!(createdAt >= REPORT_CUTOFF)) {
+      reportUrl = null;
     }
 
     // Booking account (not the receiver).
@@ -113,7 +121,7 @@ serve(async (req) => {
 
     const bike = [order.bike_brand, order.bike_model].filter(Boolean).join(" ") || "the bike";
     const total = pending.reduce((s: number, i: any) => s + Number(i.estimated_cost || 0), 0);
-    const link = `${BASE_URL}/bicycle-inspections`;
+    const link = `${BASE_URL}/customer-orders/${order.id}`;
 
     const rows = pending
       .map((i: any) => {

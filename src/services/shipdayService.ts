@@ -70,6 +70,78 @@ export const syncOrdersToShipday = async (orders: any[]) => {
   }
 };
 
+/**
+ * Pushes a freshly booked order to Shipday.
+ *
+ * Customers (b2b/b2c) are not allowed to call `create-shipday-order` directly —
+ * it is staff-only — so bookings go through `sync-order-shipday`, which checks
+ * order ownership and then performs the Shipday creation server-side.
+ * Any failure here is non-fatal: the 15-minute backfill cron will pick it up.
+ */
+export const syncOrderShipday = async (
+  orderId: string,
+  jobType?: 'pickup' | 'delivery'
+) => {
+  const { data, error } = await supabase.functions.invoke("sync-order-shipday", {
+    body: { orderId, jobType }
+  });
+
+  if (error) {
+    console.error("Shipday sync failed for order:", orderId, error.message);
+    throw new Error(error.message);
+  }
+
+  if (!data?.success) {
+    console.error("Shipday sync rejected for order:", orderId);
+    throw new Error(data?.error || "Shipday sync failed");
+  }
+
+  return data;
+};
+
+export interface CancelOrderResult {
+  success: boolean;
+  order?: any;
+  shipdayCleared?: boolean;
+  deleted?: number;
+  failedLegs?: Array<{ leg: string; status: number }>;
+  error?: string;
+}
+
+/**
+ * Cancels an order server-side and tears down its Shipday legs.
+ *
+ * The edge function deletes every known Shipday id (flat columns, tracking
+ * block and webhook history), nulls the ids and stamps a cancellation marker so
+ * the backfill/reconcile jobs can never re-create the legs. Pass `force` to
+ * cancel anyway when Shipday deletion keeps failing.
+ */
+export const cancelOrderWithShipday = async (
+  orderId: string,
+  force = false
+): Promise<CancelOrderResult> => {
+  const { data, error } = await supabase.functions.invoke("cancel-order", {
+    body: { orderId, force },
+  });
+
+  if (error) {
+    // Non-2xx responses carry the useful message in the response body.
+    let parsed: any = null;
+    try {
+      parsed = await (error as any)?.context?.json?.();
+    } catch {
+      parsed = null;
+    }
+    if (parsed) return { ...parsed, success: false } as CancelOrderResult;
+    return { success: false, error: error.message };
+  }
+
+  return (data || { success: false, error: "Cancellation failed" }) as CancelOrderResult;
+};
+
+
+
+
 export const createShipdayOrder = async (
   orderId: string,
   jobType?: 'pickup' | 'delivery',

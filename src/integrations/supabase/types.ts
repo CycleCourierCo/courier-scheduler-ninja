@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "13.0.5"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -1076,6 +1076,280 @@ export type Database = {
           side?: string | null
         }
         Relationships: []
+      }
+      equipment_maintenance_logs: {
+        Row: {
+          cost: number | null
+          created_at: string
+          id: string
+          next_due_at: string | null
+          notes: string | null
+          performed_at: string
+          performed_by: string | null
+          result: Database["public"]["Enums"]["equipment_maintenance_result"]
+          unit_id: string
+        }
+        Insert: {
+          cost?: number | null
+          created_at?: string
+          id?: string
+          next_due_at?: string | null
+          notes?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          result?: Database["public"]["Enums"]["equipment_maintenance_result"]
+          unit_id: string
+        }
+        Update: {
+          cost?: number | null
+          created_at?: string
+          id?: string
+          next_due_at?: string | null
+          notes?: string | null
+          performed_at?: string
+          performed_by?: string | null
+          result?: Database["public"]["Enums"]["equipment_maintenance_result"]
+          unit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_maintenance_logs_performed_by_fkey"
+            columns: ["performed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_maintenance_logs_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_movements: {
+        Row: {
+          from_assignment_kind:
+            | Database["public"]["Enums"]["equipment_assignment_kind"]
+            | null
+          from_site_id: string | null
+          from_user_id: string | null
+          from_vehicle_id: string | null
+          id: string
+          moved_at: string
+          moved_by: string | null
+          notes: string | null
+          to_assignment_kind:
+            | Database["public"]["Enums"]["equipment_assignment_kind"]
+            | null
+          to_site_id: string | null
+          to_user_id: string | null
+          to_vehicle_id: string | null
+          unit_id: string
+        }
+        Insert: {
+          from_assignment_kind?:
+            | Database["public"]["Enums"]["equipment_assignment_kind"]
+            | null
+          from_site_id?: string | null
+          from_user_id?: string | null
+          from_vehicle_id?: string | null
+          id?: string
+          moved_at?: string
+          moved_by?: string | null
+          notes?: string | null
+          to_assignment_kind?:
+            | Database["public"]["Enums"]["equipment_assignment_kind"]
+            | null
+          to_site_id?: string | null
+          to_user_id?: string | null
+          to_vehicle_id?: string | null
+          unit_id: string
+        }
+        Update: {
+          from_assignment_kind?:
+            | Database["public"]["Enums"]["equipment_assignment_kind"]
+            | null
+          from_site_id?: string | null
+          from_user_id?: string | null
+          from_vehicle_id?: string | null
+          id?: string
+          moved_at?: string
+          moved_by?: string | null
+          notes?: string | null
+          to_assignment_kind?:
+            | Database["public"]["Enums"]["equipment_assignment_kind"]
+            | null
+          to_site_id?: string | null
+          to_user_id?: string | null
+          to_vehicle_id?: string | null
+          unit_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_movements_moved_by_fkey"
+            columns: ["moved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_movements_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_types: {
+        Row: {
+          category: string | null
+          created_at: string
+          default_site_id: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          maintenance_interval_days: number | null
+          manufacturer: string | null
+          model: string | null
+          name: string
+          requires_maintenance: boolean
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          default_site_id?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          maintenance_interval_days?: number | null
+          manufacturer?: string | null
+          model?: string | null
+          name: string
+          requires_maintenance?: boolean
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          default_site_id?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          maintenance_interval_days?: number | null
+          manufacturer?: string | null
+          model?: string | null
+          name?: string
+          requires_maintenance?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_types_default_site_id_fkey"
+            columns: ["default_site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_units: {
+        Row: {
+          asset_tag: string | null
+          assigned_to_user_id: string | null
+          assignment_kind:
+            | Database["public"]["Enums"]["equipment_assignment_kind"]
+            | null
+          condition: Database["public"]["Enums"]["equipment_condition"]
+          created_at: string
+          equipment_type_id: string
+          id: string
+          last_maintenance_at: string | null
+          next_maintenance_due: string | null
+          notes: string | null
+          purchase_cost: number | null
+          purchase_date: string | null
+          serial: string | null
+          site_id: string | null
+          status: Database["public"]["Enums"]["equipment_unit_status"]
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          asset_tag?: string | null
+          assigned_to_user_id?: string | null
+          assignment_kind?:
+            | Database["public"]["Enums"]["equipment_assignment_kind"]
+            | null
+          condition?: Database["public"]["Enums"]["equipment_condition"]
+          created_at?: string
+          equipment_type_id: string
+          id?: string
+          last_maintenance_at?: string | null
+          next_maintenance_due?: string | null
+          notes?: string | null
+          purchase_cost?: number | null
+          purchase_date?: string | null
+          serial?: string | null
+          site_id?: string | null
+          status?: Database["public"]["Enums"]["equipment_unit_status"]
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          asset_tag?: string | null
+          assigned_to_user_id?: string | null
+          assignment_kind?:
+            | Database["public"]["Enums"]["equipment_assignment_kind"]
+            | null
+          condition?: Database["public"]["Enums"]["equipment_condition"]
+          created_at?: string
+          equipment_type_id?: string
+          id?: string
+          last_maintenance_at?: string | null
+          next_maintenance_due?: string | null
+          notes?: string | null
+          purchase_cost?: number | null
+          purchase_date?: string | null
+          serial?: string | null
+          site_id?: string | null
+          status?: Database["public"]["Enums"]["equipment_unit_status"]
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_units_assigned_to_user_id_fkey"
+            columns: ["assigned_to_user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_units_equipment_type_id_fkey"
+            columns: ["equipment_type_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_units_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_units_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fuel_analysis_settings: {
         Row: {
@@ -4947,6 +5221,16 @@ export type Database = {
         Args: { status: string; user_id: string }
         Returns: boolean
       }
+      apply_shipday_tracking: {
+        Args: {
+          p_delivery_id?: string
+          p_event?: Json
+          p_order_id: string
+          p_pickup_id?: string
+          p_set_created_at?: boolean
+        }
+        Returns: undefined
+      }
       can_manage_review: { Args: { _cycle_id: string }; Returns: boolean }
       can_view_review: { Args: { _cycle_id: string }; Returns: boolean }
       cleanup_integration_call_logs: { Args: never; Returns: undefined }
@@ -5047,6 +5331,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      invoke_backfill_shipday_jobs: { Args: never; Returns: undefined }
       invoke_fuel_finder_refresh: { Args: never; Returns: undefined }
       invoke_generate_timeslips: { Args: never; Returns: undefined }
       invoke_internal_report: { Args: { p_report: string }; Returns: undefined }
@@ -5193,6 +5478,15 @@ export type Database = {
         | "settlement_proposed"
         | "negotiation"
         | "settlement_agreed"
+      equipment_assignment_kind: "site" | "vehicle" | "person"
+      equipment_condition: "new" | "good" | "fair" | "poor" | "unusable"
+      equipment_maintenance_result: "pass" | "advisory" | "fail"
+      equipment_unit_status:
+        | "available"
+        | "assigned"
+        | "in_repair"
+        | "lost"
+        | "retired"
       foam_status:
         | "pending_collection"
         | "pending_foaming"
@@ -5434,6 +5728,16 @@ export const Constants = {
         "settlement_proposed",
         "negotiation",
         "settlement_agreed",
+      ],
+      equipment_assignment_kind: ["site", "vehicle", "person"],
+      equipment_condition: ["new", "good", "fair", "poor", "unusable"],
+      equipment_maintenance_result: ["pass", "advisory", "fail"],
+      equipment_unit_status: [
+        "available",
+        "assigned",
+        "in_repair",
+        "lost",
+        "retired",
       ],
       foam_status: [
         "pending_collection",

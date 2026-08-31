@@ -20,6 +20,7 @@ import { uploadToStorage, describeUploadError } from "@/utils/uploadFile";
 import { useOrderTaskSummaries } from "@/hooks/useOrderTaskSummaries";
 import TaskDialog from "@/components/tasks/TaskDialog";
 import TaskDetailDrawer from "@/components/tasks/TaskDetailDrawer";
+import { toPublicFileUrl } from "@/lib/publicFileUrl";
 
 
 interface FoamOrder {
@@ -243,7 +244,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       toast.error("Could not open photo");
       return;
     }
-    window.open(data.signedUrl, "_blank");
+    window.open(toPublicFileUrl(data.signedUrl), "_blank");
   };
 
   const uploadLabel = useMutation({
@@ -301,8 +302,9 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       toast.error("Could not load label");
       return;
     }
-    if (tab) tab.location.href = data.signedUrl;
-    else window.open(data.signedUrl, "_blank");
+    const labelUrl = toPublicFileUrl(data.signedUrl);
+    if (tab) tab.location.href = labelUrl;
+    else window.open(labelUrl, "_blank");
   };
 
 

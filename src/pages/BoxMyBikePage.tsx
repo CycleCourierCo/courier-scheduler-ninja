@@ -30,6 +30,7 @@ import TaskDialog from "@/components/tasks/TaskDialog";
 import TaskDetailDrawer from "@/components/tasks/TaskDetailDrawer";
 
 import FoamMyBikeSection from "@/components/boxmybike/FoamMyBikeSection";
+import { toPublicFileUrl } from "@/lib/publicFileUrl";
 
 
 const STAFF_STAGES: BoxMyBikeStatus[] = BOX_MY_BIKE_STATUS_ORDER;
@@ -275,10 +276,11 @@ const BoxMyBikePage: React.FC = () => {
       toast.error("Could not load label");
       return;
     }
+    const labelUrl = toPublicFileUrl(data.signedUrl);
     if (win && !win.closed) {
-      win.location.href = data.signedUrl;
+      win.location.href = labelUrl;
     } else {
-      window.location.href = data.signedUrl;
+      window.location.href = labelUrl;
     }
   };
 

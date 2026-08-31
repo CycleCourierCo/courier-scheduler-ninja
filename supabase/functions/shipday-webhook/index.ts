@@ -119,7 +119,20 @@ serve(async (req) => {
       
       console.log("Found order using fallback lookup:", fallbackOrders[0]);
       var dbOrder = fallbackOrders[0];
-      
+
+      // A cancelled order is intentionally detached from Shipday: never
+      // re-attach a Shipday id to it via the tracking-number fallback.
+      if (
+        dbOrder.status === "cancelled" ||
+        (dbOrder as any).tracking_events?.shipday?.cancelled_at
+      ) {
+        console.log("Ignoring Shipday webhook for a cancelled order");
+        return new Response(JSON.stringify({ ignored: "order cancelled" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+
       if (isPickup && !(dbOrder as any).shipday_pickup_id) {
         await supabase
           .from("orders")
@@ -133,6 +146,16 @@ serve(async (req) => {
       }
     } else {
       var dbOrder = orders[0];
+      if (
+        dbOrder.status === "cancelled" ||
+        (dbOrder as any).tracking_events?.shipday?.cancelled_at
+      ) {
+        console.log("Ignoring Shipday webhook for a cancelled order");
+        return new Response(JSON.stringify({ ignored: "order cancelled" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
     }
 
     // Northern Ireland orders are delivered to City Air Express (the ferry hub),
@@ -334,6 +357,16 @@ serve(async (req) => {
       delivery_id: dbOrder.shipday_delivery_id,
       updates: [],
     };
+    // Keep the leg references in sync: a missing id here hides the driver name
+    // and proof photos in the UI, which match events against these values.
+    if (!shipdayEvents.pickup_id && dbOrder.shipday_pickup_id) {
+      shipdayEvents.pickup_id = dbOrder.shipday_pickup_id;
+    }
+    if (!shipdayEvents.delivery_id && dbOrder.shipday_delivery_id) {
+      shipdayEvents.delivery_id = dbOrder.shipday_delivery_id;
+    }
+    if (isPickup && shipdayOrderId) shipdayEvents.pickup_id = shipdayOrderId;
+    if (!isPickup && shipdayOrderId) shipdayEvents.delivery_id = shipdayOrderId;
 
     // Extract POD URLs and signature URL from various places in payload
     const podUrls = payload.pods || payload.order?.podUrls || [];

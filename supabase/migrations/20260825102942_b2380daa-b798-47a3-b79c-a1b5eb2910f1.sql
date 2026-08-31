@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.set_claim_created_by() FROM PUBLIC, anon, authenticated, service_role;

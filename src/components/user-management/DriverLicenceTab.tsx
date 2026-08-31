@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { FileText, Loader2, Trash2, Upload, ExternalLink, IdCard } from "lucide-react";
 import type { UserProfile } from "@/types/user";
+import { toPublicFileUrl } from "@/lib/publicFileUrl";
 
 const BUCKET = "driver-licences";
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -50,7 +51,7 @@ const DriverLicenceTab: React.FC<DriverLicenceTabProps> = ({ userId, formData, o
         const path = (formData as any)[slot.key] as string | null | undefined;
         if (!path) continue;
         const { data } = await supabase.storage.from(BUCKET).createSignedUrl(path, 60 * 10);
-        if (data?.signedUrl) next[slot.key] = data.signedUrl;
+        if (data?.signedUrl) next[slot.key] = toPublicFileUrl(data.signedUrl);
       }
       if (!cancelled) setPreviews(next);
     };

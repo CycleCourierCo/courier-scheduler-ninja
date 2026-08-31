@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { toPublicFileUrl } from "@/lib/publicFileUrl";
 
 export type ClaimStatus =
   // New step-by-step workflow
@@ -329,7 +330,6 @@ export async function createClaim(payload: {
   ev_delivery_note?: boolean;
   status?: ClaimStatus;
 }): Promise<Claim> {
-  const { data: userData } = await supabase.auth.getUser();
   // For timeframe calc we need delivery date — fetch order
   let withinTimeframe: boolean | null = null;
   if (payload.damage_type && payload.notification_date) {
@@ -339,7 +339,6 @@ export async function createClaim(payload: {
   }
   const insertPayload: any = {
     ...payload,
-    created_by: userData.user?.id,
     within_timeframe: withinTimeframe,
     status: payload.status ?? "opened",
   };
@@ -540,7 +539,7 @@ export async function deleteEvidence(file: ClaimEvidenceFile): Promise<void> {
 export async function getEvidenceSignedUrl(path: string): Promise<string | null> {
   const { data, error } = await supabase.storage.from("claim-evidence").createSignedUrl(path, 60 * 60);
   if (error) return null;
-  return data.signedUrl;
+  return toPublicFileUrl(data.signedUrl);
 }
 
 export interface ClaimsStats {

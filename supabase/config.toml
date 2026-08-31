@@ -1,5 +1,9 @@
 project_id = "axigtrmaxhetyfzjjdve"
 
+[functions.cancel-order]
+verify_jwt = false
+
+
 [functions.trigger-webhook]
 verify_jwt = false
 
@@ -104,4 +108,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.inspectabike-push-status]
+verify_jwt = false
+
+[functions.sync-order-shipday]
+verify_jwt = false
+
+[functions.backfill-shipday-jobs]
 verify_jwt = false

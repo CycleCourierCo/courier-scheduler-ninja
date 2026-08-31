@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, PoundSterling, Megaphone, Sparkles, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare, BookOpen, Store, Route as RouteIcon, ClipboardList, ClipboardCheck, Lock } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, PoundSterling, Megaphone, Sparkles, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare, BookOpen, Store, Route as RouteIcon, ClipboardList, ClipboardCheck, Lock, Boxes } from "lucide-react";
 import NoticeBanner from "./NoticeBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
   {
     label: "Fleet",
     items: [
+      { to: "/equipment", label: "Equipment", icon: Boxes },
       { to: "/vehicles", label: "Vehicles", icon: Car },
       { to: "/driver-timeslips", label: "Driver Timeslips", icon: Clock },
       { to: "/fuel-finder", label: "Fuel Finder", icon: Fuel },
