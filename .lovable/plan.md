@@ -1,34 +1,32 @@
-# Fix jobs loading at the wrong route position after CSV upload
+# Fix CSV route matching: match on address, not names
 
 ## What's going wrong
 
-In Route_1_4.csv, "Andrew Johnson" is stop #9 and "Andrew robinson" is stop #48. The name matcher (Levenshtein similarity over 0.7) treats those two as plausible matches for each other, so Andrew Robinson's job is offered as a weak candidate under stop #9 as well as an exact candidate under stop #48.
+The CSV only carries `sequence, name, address`. Today matching is name-first: an exact/substring name hit, or any Levenshtein similarity over 0.7, creates a candidate — postcode only nudges the confidence. So in Route_1_4.csv "Andrew Johnson" (#9) and "Andrew robinson" (#48) each become plausible candidates for the other's job.
 
-Two mechanics in the review dialog then combine to misplace it:
+The review dialog then tracks selection by a global `orderId|jobType` key and dedupes by that key while walking stops in sequence order, keeping the first occurrence. Ticking Andrew Robinson at #48 also marks the weak duplicate listed at #9, and the job is emitted with sequence 9.
 
-1. Selection is tracked by a global `orderId|jobType` key, not per stop. Ticking Andrew Robinson under stop #48 also marks the same weak candidate listed under stop #9 as ticked.
-2. When building the final job list, the dialog walks stops in sequence order and dedupes by that same key, keeping the **first** occurrence. So the job is emitted with sequence 9 instead of 48.
+## The fix — match on the unique bits of the address
 
-The same applies to any pair of similarly named customers (e.g. Paul Martin / Julian Martin), which is why only "certain" jobs jump position.
+1. **Postcode + premise becomes the identity.** Build a match key from the normalised full postcode plus the premise/house number (or unit) from the address line, and match CSV rows to order legs on that key. This is what actually identifies a drop, and it is present in every CSV row.
+2. **Name drops to a tie-breaker only.** With multiple order legs at the same postcode + premise (the five Paul Martin rows at DE65 5SN, Webuycycle at the same unit), name similarity only orders the candidates within that stop — it can never introduce a candidate from a different address.
+3. **No candidate without address agreement.** Remove name-similarity-only matching. If the postcode doesn't match, the leg isn't a candidate. Postcode-matches-but-premise-differs stays a candidate at lower confidence (covers "10" vs "10a", "Unit 15b" formatting), and rows whose postcode matches nothing are shown as unmatched for manual handling — same as today's "Not Found" state.
+4. **Selection keyed per stop.** Checkbox state becomes `stopKey + orderId + jobType`, so ticking a job under one stop can't tick the same job listed elsewhere, and the confirmed sequence is the stop the job was actually ticked under. On confirm, if the same leg is ticked twice, keep the higher-confidence occurrence.
 
-## The fix
-
-1. **Track selection per stop.** Key checkboxes by `stopKey + orderId + jobType` so ticking a job under one stop no longer ticks the same job listed under a different stop. The confirm step then uses the sequence of the stop the job was actually ticked under.
-2. **Keep one job per stop on confirm.** If the same order/leg somehow ends up ticked under two stops, keep the occurrence at the stop with the higher match confidence (tie-break on lower sequence) rather than blindly taking the first sequence.
-3. **Stop weak cross-stop candidates from appearing at all.** For each order/leg, compute its best confidence across all stops; only list it under stops where its confidence is at or near that best (small tolerance). A 0.64-confidence "Andrew Johnson" guess disappears from stop #9 once stop #48 matches the same job at ~1.0.
-4. **Raise the fuzzy floor slightly** so different surnames at different postcodes stop generating candidates: require postcode agreement for similarity-based (non-substring) matches below ~0.85, in `matchRowToOrder`.
-
-Default pre-tick behaviour, stop grouping, viability analysis and timeslot maths are unchanged.
+Note on email: the CSV has no email column, so email can't be the join key for this file. If you can export routes with an email/reference column, that becomes the primary key and address the fallback — say the word and I'll add it as the preferred path with the address logic as backup.
 
 ## Technical detail
 
+- `src/utils/csvRouteParser.ts`
+  - Add `addressKey(address)` → `{ postcode, premise }` with normalisation (strip spaces/case, handle "Unit 15b", "Apt 52 2", "Ls225fs", trailing letter suffixes).
+  - Rewrite `matchRowToOrder`: iterate order legs, compute the leg's postcode/premise from `sender`/`receiver` address fields, and only emit a candidate when postcodes match. Confidence: 1.0 postcode + premise + name agreement, ~0.9 postcode + premise, ~0.75 postcode + name, ~0.6 postcode only. `matchType` reported as `exact` / `address` / `fuzzy` accordingly.
+  - Delete the similarity-only branches (`stringSimilarity` over names) from candidate generation; keep the helper for the name tie-break score.
 - `src/components/scheduling/CSVMatchReviewDialog.tsx`
-  - Replace `candidateKey(c)` with `selectionKey(stop, c)` for `selectedKeys`, `toggle`, select-all / best-match buttons, checkbox ids, and `pickupSequenceByOrderId`.
-  - In the `stops` memo, after grouping, drop candidates whose confidence is materially below that order/leg's best confidence across all stops; keep the existing single-owner `claimed` pass for the equal-confidence case.
-  - In `selectedJobs`, dedupe by `orderId|jobType` choosing the entry with the highest candidate confidence, then sort by sequence.
-- `src/utils/csvRouteParser.ts`: in `matchRowToOrder`, skip similarity-only candidates (no substring/exact name hit) when the CSV postcode is present and does not match the leg's postcode.
-- No database, edge function or RouteBuilder changes needed; `handleCsvConfirm` already keeps the sequence order it is given.
+  - Replace `candidateKey` with `selectionKey(stop, candidate)` for `selectedKeys`, `toggle`, select-all / deselect / best-match buttons, checkbox ids, and `pickupSequenceByOrderId`.
+  - In `selectedJobs`, dedupe by `orderId|jobType` keeping the highest-confidence occurrence, then sort by sequence.
+  - `stopKey` keeps its current postcode+premise grouping (now consistent with the matcher).
+- No database, edge function, RouteBuilder or timeslot-maths changes.
 
 ## Verification
 
-Re-upload Route_1_4.csv and confirm Andrew Robinson appears only under stop #48, and that the Get Timeslots list shows him at position 48-ish rather than 9. Spot-check the five Paul Martin rows still group as one stop with five tickable jobs.
+Re-upload Route_1_4.csv: Andrew Robinson appears only under stop #48 and lands at that position in Get Timeslots; the five DE65 5SN rows still group into one stop with five tickable jobs; unmatched rows are limited to addresses with no order at that postcode.
