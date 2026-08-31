@@ -318,7 +318,7 @@ serve(async (req) => {
     let deliveryResponse = null;
     let deliveryResponseData = null;
     
-    let createPickup = !jobType || jobType === 'pickup';
+    const createPickup = !jobType || jobType === 'pickup';
     let createDelivery = !jobType || jobType === 'delivery';
 
     // Box My Bike: never create the delivery leg on Shipday.
