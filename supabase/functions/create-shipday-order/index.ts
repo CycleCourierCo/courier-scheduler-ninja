@@ -141,7 +141,7 @@ serve(async (req) => {
       .single();
 
     if (profile?.is_test_account) {
-      console.log("Skipping Shipday creation for test account, order:", orderId);
+      console.log("Skipping Shipday creation for test account");
       return new Response(
         JSON.stringify({ success: true, skipped: true, reason: "test_account" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
@@ -187,11 +187,6 @@ serve(async (req) => {
       ? ferryAddress
       : `${receiver.address.street}, ${receiver.address.city}, ${receiver.address.state} ${receiver.address.zipCode}`;
 
-    console.log("Pickup leg target address:", senderAddress);
-    console.log("Delivery leg target address:", receiverAddress);
-
-
-
     // Parse timeslots and create 3-hour windows (same as send-timeslot-whatsapp)
     const parseTimeSlot = (timeslot: string | null | undefined): { start: string; end: string } => {
       if (!timeslot) {
@@ -231,9 +226,6 @@ serve(async (req) => {
       expectedDeliveryDateFormatted = formatDateOnly(new Date(Date.now() + 24 * 60 * 60 * 1000)) || '';
     }
     
-    console.log("Expected pickup date:", expectedPickupDateFormatted);
-    console.log("Expected delivery date:", expectedDeliveryDateFormatted);
-
     // Adjust times for BST so Shipday displays correctly
     pickupWindow.start = adjustTimeForShipday(pickupWindow.start, expectedPickupDateFormatted);
     pickupWindow.end = adjustTimeForShipday(pickupWindow.end, expectedPickupDateFormatted);
@@ -333,7 +325,7 @@ serve(async (req) => {
     // The 3rd-party courier handles delivery from our depot.
     if (order.is_box_my_bike === true) {
       if (jobType === 'delivery') {
-        console.log("Skipping Shipday delivery for Box My Bike order:", orderId);
+        console.log("Skipping Shipday delivery for Box My Bike order");
         return new Response(
           JSON.stringify({ success: true, skipped: true, reason: "box_my_bike_delivery" }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
@@ -343,7 +335,7 @@ serve(async (req) => {
     }
     
     if (createPickup) {
-      console.log("Creating Shipday pickup order with payload:", JSON.stringify(pickupOrderData, null, 2));
+      console.log("Creating Shipday pickup order");
       
       try {
         const response = await trackedFetch("shipday", "create order", "https://api.shipday.com/orders", {
@@ -357,7 +349,6 @@ serve(async (req) => {
         
         const responseText = await response.text();
         console.log(`Shipday pickup API response status: ${response.status}`);
-        console.log(`Shipday pickup API response body: ${responseText}`);
         
         try {
           pickupResponseData = responseText ? JSON.parse(responseText) : { status: response.status };
@@ -380,7 +371,7 @@ serve(async (req) => {
     }
     
     if (createDelivery) {
-      console.log("Creating Shipday delivery order with payload:", JSON.stringify(deliveryOrderData, null, 2));
+      console.log("Creating Shipday delivery order");
       
       try {
         const response = await trackedFetch("shipday", "create order", "https://api.shipday.com/orders", {
@@ -394,7 +385,6 @@ serve(async (req) => {
         
         const responseText = await response.text();
         console.log(`Shipday delivery API response status: ${response.status}`);
-        console.log(`Shipday delivery API response body: ${responseText}`);
         
         try {
           deliveryResponseData = responseText ? JSON.parse(responseText) : { status: response.status };

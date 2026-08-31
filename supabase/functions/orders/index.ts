@@ -594,19 +594,7 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
           captureException(emailError)
         }
 
-
-        // Shipday
-        try {
-          const shipdayResponse = await supabase.functions.invoke('create-shipday-order', {
-            body: { orderId: order.id }
-          })
-          if (shipdayResponse.error) {
-            console.error('Failed to create Shipday jobs:', shipdayResponse.error)
-          }
-        } catch (shipdayError) {
-          console.error('Error creating Shipday jobs:', shipdayError)
-          captureException(shipdayError)
-        }
+        // Shipday creation is queued by the database insert trigger.
       })()
 
       // @ts-ignore EdgeRuntime is provided by Supabase Edge Runtime
