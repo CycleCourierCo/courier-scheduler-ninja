@@ -607,7 +607,8 @@ const JobItem: React.FC<JobItemProps> = ({
                             job.order,
                             allJobs,
                             groupedJob.orderData?.scheduled_pickup_date,
-                            groupedJob.orderData?.order_collected
+                            groupedJob.orderData?.order_collected,
+                            selectedDate
                           )
                         : null;
                     
