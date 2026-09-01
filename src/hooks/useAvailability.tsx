@@ -275,19 +275,23 @@ export const useAvailability = ({
     }
   };
 
-  // Dynamically calculate calendar end date to guarantee 30 selectable days
+  // Dynamically calculate calendar end date to guarantee 14 selectable days
   const calendarEndDate = useMemo(() => {
     const today = startOfDay(new Date());
+    const start = minDate && startOfDay(minDate) > today ? startOfDay(minDate) : today;
     let validDays = 0;
-    let checkDate = new Date(today);
-    while (validDays < 30) {
+    let checkDate = new Date(start);
+    let guard = 0;
+    while (validDays < 14 && guard < 365) {
       checkDate = addDays(checkDate, 1);
+      guard++;
       if (!isDateDisabled(checkDate)) {
         validDays++;
       }
     }
     return checkDate;
-  }, [holidayDates, minDate]);
+  }, [holidayDates, allowedFridayDates, minDate]);
+
 
   return {
     dates,
