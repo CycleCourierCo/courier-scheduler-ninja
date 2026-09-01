@@ -584,9 +584,10 @@ export const sendReceiverAvailabilityEmail = async (id: string): Promise<boolean
       price: 0
     };
     
-    // Northern Ireland: the availability/dates email goes to the ferry hand-off
-    // point, who book the onward transport — not to the NI receiver.
-    const isNI = order.isNorthernIreland || isNorthernIrelandAddress(order.receiver.address as any);
+    // Northern Ireland: for outbound (England → NI) the delivery availability email goes
+    // to the ferry hand-off point, who book the onward transport — not to the NI receiver.
+    // Inbound (NI → England) deliveries are normal mainland deliveries.
+    const isNI = getNiDirection(order as any) === 'outbound';
     const recipientEmail = isNI ? CITY_AIR_EXPRESS.email : order.receiver.email;
     const recipientName = isNI ? CITY_AIR_EXPRESS.displayName : (order.receiver.name || "Receiver");
 
