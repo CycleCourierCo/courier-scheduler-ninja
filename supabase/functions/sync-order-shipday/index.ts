@@ -30,12 +30,21 @@ serve(async (req) => {
 
     const authHeader = req.headers.get("Authorization") || "";
     const token = authHeader.replace(/^Bearer\s+/i, "").trim();
-    if (!token) return json({ error: "Unauthorized" }, 401);
 
     const admin = createClient(supabaseUrl, serviceKey);
 
+    // Database insert triggers authenticate with the same secret used by
+    // scheduled internal callbacks. The service-role key never enters SQL.
+    const cronSecret = req.headers.get("X-Cron-Secret") || "";
+    let isCron = false;
+    if (cronSecret) {
+      const { data: expectedSecret, error: secretError } = await admin.rpc("get_cron_secret");
+      isCron = !secretError && typeof expectedSecret === "string" && cronSecret === expectedSecret;
+    }
+
     // Internal service-to-service invocation is allowed as-is.
-    const isInternal = token === serviceKey;
+    const isInternal = token === serviceKey || isCron;
+    if (!token && !isInternal) return json({ error: "Unauthorized" }, 401);
 
     let userId: string | null = null;
     if (!isInternal) {
@@ -65,7 +74,7 @@ serve(async (req) => {
 
     const { data: order, error: orderError } = await admin
       .from("orders")
-      .select("id, user_id, shipday_pickup_id, shipday_delivery_id, is_box_my_bike, status")
+      .select("id, user_id, shipday_pickup_id, shipday_delivery_id, is_box_my_bike, order_collected, status, tracking_events")
       .eq("id", orderId)
       .maybeSingle();
 
@@ -74,6 +83,29 @@ serve(async (req) => {
       return json({ error: "Failed to load order" }, 500);
     }
     if (!order) return json({ error: "Order not found" }, 404);
+
+    const terminalStatuses = new Set([
+      "cancelled",
+      "delivered",
+      "delivered_by_3p",
+      "delivered_ni",
+      "delivered_to_ferry",
+    ]);
+    if (
+      terminalStatuses.has(String(order.status)) ||
+      (order.tracking_events as Record<string, any> | null)?.shipday?.cancelled_at
+    ) {
+      return json({ success: true, skipped: true, reason: "terminal_order" });
+    }
+
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("is_test_account")
+      .eq("id", order.user_id)
+      .maybeSingle();
+    if (profile?.is_test_account) {
+      return json({ success: true, skipped: true, reason: "test_account" });
+    }
 
     // Ownership / staff check
     if (!isInternal) {
@@ -94,9 +126,10 @@ serve(async (req) => {
     }
 
     // Nothing to do when both required legs already exist.
-    const needsPickup = !order.shipday_pickup_id;
+    const needsPickup = !order.shipday_pickup_id && order.order_collected !== true;
     const needsDelivery = order.is_box_my_bike === true ? false : !order.shipday_delivery_id;
-    if (!jobType && !needsPickup && !needsDelivery) {
+    const requestedLegNeeded = jobType === "pickup" ? needsPickup : jobType === "delivery" ? needsDelivery : true;
+    if (!requestedLegNeeded || (!jobType && !needsPickup && !needsDelivery)) {
       return json({ success: true, skipped: true, reason: "already_synced" });
     }
 
@@ -121,10 +154,14 @@ serve(async (req) => {
     }
 
     if (!response.ok) {
-      console.error("Shipday creation failed", { orderId, status: response.status });
+      console.error("Shipday creation failed", { status: response.status });
       return json({ error: "Failed to create Shipday jobs", details: payload }, 502);
     }
 
+    console.log("Automatic Shipday sync completed", {
+      source: isCron ? "database_trigger" : isInternal ? "internal" : "user",
+      jobType: effectiveJobType || "both",
+    });
     return json({ success: true, result: payload });
   } catch (err) {
     console.error("sync-order-shipday failed:", err instanceof Error ? err.message : "unknown");

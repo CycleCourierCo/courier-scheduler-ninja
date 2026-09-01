@@ -591,17 +591,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
           .select()
           .single();
 
-        // Create Shipday jobs for the reverse order
-        if (reverseOrder && !reverseError) {
-          try {
-            const { syncOrderShipday } = await import('@/services/shipdayService');
-            await syncOrderShipday(reverseOrder.id);
-            console.log('Created Shipday jobs for reverse order:', reverseOrder.id);
-          } catch (shipdayError) {
-            console.error('Failed to create Shipday jobs for reverse order:', shipdayError);
-            // Don't fail the order creation if Shipday fails
-          }
-        }
+        // Shipday creation is queued by the database insert trigger.
       } catch (reverseOrderError) {
         console.error('Failed to create reverse order:', reverseOrderError);
         // Don't throw here - we don't want to fail the main order creation
@@ -638,21 +628,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       // Handle errors silently in background
     });
     
-    // Create Shipday jobs automatically after order creation.
-    // Awaited on purpose: fired-and-forgotten it was being aborted when the
-    // user navigated away from the booking form. Goes through the ownership
-    // -checked sync bridge so customer accounts aren't blocked by the
-    // staff-only gate on create-shipday-order. If it still fails, the
-    // 15-minute backfill job creates the missing legs.
-    try {
-      const { syncOrderShipday } = await import('@/services/shipdayService');
-      await syncOrderShipday(order.id);
-    } catch (shipdayError) {
-      console.error('Failed to create Shipday jobs:', shipdayError);
-      // Don't fail the order creation if Shipday fails
-    }
-    
-    
+    // Shipday creation is queued by the database insert trigger.
+
     return mapDbOrderToOrderType(order);
   } catch (error) {
     throw error;
