@@ -603,6 +603,7 @@ export const sendReceiverAvailabilityEmail = async (id: string): Promise<boolean
         emailType: "receiver",
         item: item,
         trackingNumber: order.trackingNumber,
+        niDirection: isNI ? 'outbound' : undefined,
         niReceiver: isNI ? {
           name: order.receiver.name,
           email: order.receiver.email,
