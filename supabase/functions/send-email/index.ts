@@ -166,13 +166,18 @@ serve(async (req) => {
       
       emailOptions.subject = `Please confirm your ${availabilityType} availability`;
 
-      // Northern Ireland deliveries: this email goes to City Air Express, so
-      // include the NI receiver's details for the onward booking.
+      // Northern Ireland jobs: this email goes to City Air Express, so include the
+      // NI-side party's details (receiver for England → NI, sender for NI → England).
       const niReceiver = reqData.niReceiver;
       const niAddr = niReceiver?.address || {};
+      const niInbound = reqData.niDirection === 'inbound';
+      const niDirectionLabel = niInbound ? 'NI to England' : 'England to NI';
       const niBlock = niReceiver ? `
+          <p style="background-color:#eef2ff; border-left:4px solid #4a65d5; padding:10px 12px; border-radius:4px;">
+            <strong>Direction: ${niDirectionLabel}</strong>
+          </p>
           <div style="background-color: #fff4e5; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-            <p style="margin-top:0;"><strong>Northern Ireland receiver details</strong></p>
+            <p style="margin-top:0;"><strong>${niInbound ? 'Northern Ireland collection details' : 'Northern Ireland receiver details'}</strong></p>
             <p><strong>Name:</strong> ${niReceiver.name || ''}</p>
             <p><strong>Address:</strong> ${[niAddr.street, niAddr.city, niAddr.state, niAddr.zipCode, niAddr.country].filter(Boolean).join(', ')}</p>
             <p><strong>Phone:</strong> ${niReceiver.phone || ''}</p>
