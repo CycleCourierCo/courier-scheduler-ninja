@@ -356,8 +356,11 @@ The Cycle Courier Co. Team
             ` : ''}
           </div>
           ${reqData.niReceiver ? `
+          <p style="background-color:#eef2ff; border-left:4px solid #4a65d5; padding:10px 12px; border-radius:4px;">
+            <strong>Direction: ${reqData.niDirection === 'inbound' ? 'NI to England' : 'England to NI'}</strong>
+          </p>
           <div style="background-color: #fff4e5; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-            <p style="margin-top:0;"><strong>Northern Ireland receiver details</strong></p>
+            <p style="margin-top:0;"><strong>${reqData.niDirection === 'inbound' ? 'Northern Ireland collection details' : 'Northern Ireland receiver details'}</strong></p>
             <p><strong>Name:</strong> ${reqData.niReceiver.name || ''}</p>
             <p><strong>Address:</strong> ${[reqData.niReceiver.address?.street, reqData.niReceiver.address?.city, reqData.niReceiver.address?.state, reqData.niReceiver.address?.zipCode, reqData.niReceiver.address?.country].filter(Boolean).join(', ')}</p>
             <p><strong>Phone:</strong> ${reqData.niReceiver.phone || ''}</p>
