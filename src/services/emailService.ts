@@ -272,17 +272,24 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
     console.log("Using tracking URL:", trackingUrl);
     
     // Northern Ireland: the ferry hand-off point also receives this email and needs
-    // the NI receiver's full details so they can book the onward transport.
-    const isNI = order.isNorthernIreland || isNorthernIrelandAddress(order.receiver.address as any);
-    const addr = order.receiver.address || ({} as any);
+    // the NI-side party's details so they can book their leg. Outbound (England → NI)
+    // that is the receiver; inbound (NI → England) it is the sender.
+    const niDirection = getNiDirection(order as any);
+    const isNI = niDirection !== null;
+    const niInbound = niDirection === 'inbound';
+    const niParty: any = (niInbound ? order.sender : order.receiver) || {};
+    const addr = niParty.address || ({} as any);
     const niDetailsBlock = isNI ? `
+            <p style="background-color:#eef2ff; border-left:4px solid #4a65d5; padding:10px 12px; border-radius:4px;">
+              <strong>Direction: ${niInbound ? 'NI to England' : 'England to NI'}</strong>
+            </p>
             <div style="background-color: #fff4e5; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f59e0b;">
-              <p style="margin-top:0;"><strong>Northern Ireland delivery — receiver details for onward booking</strong></p>
-              <p><strong>Name:</strong> ${order.receiver.name || ''}</p>
+              <p style="margin-top:0;"><strong>${niInbound ? 'Northern Ireland collection — sender details for the NI-side pickup' : 'Northern Ireland delivery — receiver details for onward booking'}</strong></p>
+              <p><strong>Name:</strong> ${niParty.name || ''}</p>
               <p><strong>Address:</strong> ${[addr.street, addr.city, addr.state, addr.zipCode, addr.country].filter(Boolean).join(', ')}</p>
-              <p><strong>Phone:</strong> ${order.receiver.phone || ''}</p>
-              <p><strong>Email:</strong> ${order.receiver.email || ''}</p>
-              <p style="margin-bottom:0;">This bicycle will be delivered to the ferry port for onward transport to Northern Ireland.</p>
+              <p><strong>Phone:</strong> ${niParty.phone || ''}</p>
+              <p><strong>Email:</strong> ${niParty.email || ''}</p>
+              <p style="margin-bottom:0;">${niInbound ? 'Our ferry partner collects this bicycle from the Northern Ireland address above and hands it to us in Manchester for the mainland delivery.' : 'This bicycle will be delivered to the ferry port for onward transport to Northern Ireland.'}</p>
             </div>
     ` : '';
 
