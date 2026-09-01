@@ -693,8 +693,9 @@ export const sendReceiverDatesConfirmedEmail = async (orderId: string, selectedD
     
     const baseUrl = window.location.origin;
 
-    // Northern Ireland: the dates email goes to the ferry hand-off point, not the NI receiver.
-    const isNI = order.isNorthernIreland || isNorthernIrelandAddress(order.receiver.address as any);
+    // Northern Ireland: for outbound (England → NI) the dates email goes to the ferry
+    // hand-off point, not the NI receiver. Inbound deliveries are normal mainland ones.
+    const isNI = getNiDirection(order as any) === 'outbound';
     const recipientEmail = isNI ? CITY_AIR_EXPRESS.email : order.receiver.email;
     const recipientName = isNI ? CITY_AIR_EXPRESS.displayName : (order.receiver.name || "Customer");
     
@@ -706,6 +707,7 @@ export const sendReceiverDatesConfirmedEmail = async (orderId: string, selectedD
         trackingNumber: order.trackingNumber,
         selectedDates: selectedDates,
         baseUrl,
+        niDirection: isNI ? 'outbound' : undefined,
         niReceiver: isNI ? {
           name: order.receiver.name,
           email: order.receiver.email,
