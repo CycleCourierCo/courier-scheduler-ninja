@@ -1,19 +1,22 @@
-# Give B2B customers access to the Shopify integration page
+# Limit availability calendars to the next 14 selectable days
 
-(There is no separate "Shipday" page in the portal — the customer-facing integration page is Shopify Integration at `/shopify-integration`, which is what this covers.)
+## Goal
 
-## Cause (verified)
+Both the sender and receiver availability pages currently open up a window that guarantees 30 selectable days. Reduce that to 14, counted as days the customer can actually pick — booked holidays and blocked Fridays don't use up any of the 14.
 
-Access is driven by the role/route permission matrix. In `role_route_permissions`, the row for `role = b2b_customer`, `route_key = shopify-integration` is `allowed = false`, and the route's built-in default roles are `["tech"]` only. So `ProtectedRoute` redirects B2B users away and the page never appears in their menu.
+## Behaviour
 
-The underlying data access is fine: RLS on `customer_shopify_stores`, `customer_shopify_order_log` and `customer_shopify_skus` already scopes rows to `user_id = auth.uid()`, and the page itself has no admin-only gate.
+- The calendar starts at the earliest allowed date (today for senders; the sender's earliest date, plus the inspection buffer where it applies, for receivers).
+- It walks forward and counts only days that aren't holidays, aren't non-allowed Fridays, and aren't before the minimum date, stopping once 14 such days are available. That last day becomes the calendar's end date.
+- Days beyond that point can't be navigated to or selected.
+- Existing rules stay as they are: holidays and blocked Fridays remain greyed out, and the minimum of 7 selected dates for submission is unchanged.
 
-## Changes
+## Technical notes
 
-1. Migration: set `allowed = true` for `role = b2b_customer`, `route_key = 'shopify-integration'` in `role_route_permissions`.
-2. `src/config/routes.ts`: add `b2b_customer` to the `defaultRoles` for the `shopify-integration` route so a "Reset to defaults" in the Route Permissions admin page keeps the access.
-3. `src/components/Layout.tsx`: make sure the customer menu shows the Shopify Integration link for B2B users (currently only in the admin menu), so they can reach it without typing the URL.
+- `src/hooks/useAvailability.tsx`: change the `calendarEndDate` loop target from 30 to 14, and start the walk from `max(today, minDate)` so receivers get 14 selectable days after the sender window rather than 14 counted from today. Add `allowedFridayDates` to the memo dependencies so the window recalculates once Friday allowances load.
+- No changes needed in `AvailabilityForm.tsx`, `SenderAvailability.tsx` or `ReceiverAvailability.tsx` — they already pass `calendarEndDate` into the calendar's `toDate`.
 
-## Verification
+## Out of scope
 
-- Sign in as a B2B customer and confirm `/shopify-integration` loads and the store connect/SKU sections work against their own rows.
+- Bulk availability page and admin scheduling calendars.
+- Changing the 7-date minimum or the holiday/Friday rules themselves.
