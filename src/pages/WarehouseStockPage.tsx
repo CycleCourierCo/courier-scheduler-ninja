@@ -326,19 +326,55 @@ const WarehouseStockPage: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Bike Brand</Label>
+                <Label>Item type *</Label>
+                <Select
+                  value={formData.item_kind ?? "bike"}
+                  onValueChange={(v) => setFormData({ ...formData, item_kind: v as any })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bike">Complete bike</SelectItem>
+                    <SelectItem value="component">Component / part</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {formData.item_kind === "component" && (
+                <div>
+                  <Label>Component category *</Label>
+                  <Select
+                    value={formData.component_category ?? ""}
+                    onValueChange={(v) => setFormData({ ...formData, component_category: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {COMPONENT_CATEGORIES.map((cat) => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>{formData.item_kind === "component" ? "Brand" : "Bike Brand"}</Label>
                 <Input
                   value={formData.bike_brand}
                   onChange={(e) => setFormData({ ...formData, bike_brand: e.target.value })}
-                  placeholder="e.g. Trek"
+                  placeholder={formData.item_kind === "component" ? "e.g. Shimano" : "e.g. Trek"}
                 />
               </div>
               <div>
-                <Label>Bike Model</Label>
+                <Label>{formData.item_kind === "component" ? "Model" : "Bike Model"}</Label>
                 <Input
                   value={formData.bike_model}
                   onChange={(e) => setFormData({ ...formData, bike_model: e.target.value })}
-                  placeholder="e.g. Domane"
+                  placeholder={formData.item_kind === "component" ? "e.g. Ultegra R8000" : "e.g. Domane"}
                 />
               </div>
             </div>
