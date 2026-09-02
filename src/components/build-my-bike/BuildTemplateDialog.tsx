@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import * as Sentry from "@sentry/react";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { COMPONENT_CATEGORIES } from "@/constants/bikeComponents";
+import { COMPONENT_CATEGORIES, slotForCategory, type BikeHotspot } from "@/constants/bikeComponents";
+import BikeDiagram from "./BikeDiagram";
 import { saveBuildTemplate } from "@/services/bikeBuildService";
 import type { BikeBuildTemplate, BikeBuildTemplateFormData } from "@/types/bikeBuild";
 
@@ -47,9 +48,42 @@ const BuildTemplateDialog: React.FC<Props> = ({
 }) => {
   const [form, setForm] = useState<BikeBuildTemplateFormData>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [activeSlot, setActiveSlot] = useState<BikeHotspot | null>(null);
+
+  const countsBySlot = useMemo(() => {
+    const counts: Record<string, number> = {};
+    form.items.forEach((item) => {
+      const slot = slotForCategory(item.category);
+      if (slot) counts[slot] = (counts[slot] || 0) + (Number(item.quantity) || 1);
+    });
+    return counts;
+  }, [form.items]);
+
+  const visibleItems = useMemo(
+    () =>
+      form.items
+        .map((item, index) => ({ item, index }))
+        .filter(({ item }) => !activeSlot || slotForCategory(item.category) === activeSlot.slot),
+    [form.items, activeSlot]
+  );
+
+  const handleSelectSlot = (hotspot: BikeHotspot) => {
+    if (activeSlot?.slot === hotspot.slot) {
+      setActiveSlot(null);
+      return;
+    }
+    if (!countsBySlot[hotspot.slot]) {
+      setForm((prev) => ({
+        ...prev,
+        items: [...prev.items, { category: hotspot.categories[0] || "", quantity: 1 }],
+      }));
+    }
+    setActiveSlot(hotspot);
+  };
 
   useEffect(() => {
     if (!open) return;
+    setActiveSlot(null);
     if (template) {
       setForm({
         user_id: template.user_id,
@@ -107,7 +141,7 @@ const BuildTemplateDialog: React.FC<Props> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-lg max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>{template ? "Edit stored build" : "New stored build"}</DialogTitle>
         </DialogHeader>
@@ -171,7 +205,7 @@ const BuildTemplateDialog: React.FC<Props> = ({
             </Select>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center justify-between mb-2">
               <Label>Parts needed</Label>
               <Button
@@ -179,19 +213,43 @@ const BuildTemplateDialog: React.FC<Props> = ({
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  setForm((prev) => ({ ...prev, items: [...prev.items, { category: "", quantity: 1 }] }))
+                  setForm((prev) => ({
+                    ...prev,
+                    items: [
+                      ...prev.items,
+                      { category: activeSlot?.categories[0] || "", quantity: 1 },
+                    ],
+                  }))
                 }
               >
                 <Plus className="mr-1 h-3 w-3" /> Add part
               </Button>
             </div>
+
+            <BikeDiagram countsBySlot={countsBySlot} onSelectSlot={handleSelectSlot} />
+
+            <div className="mt-2 mb-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="text-muted-foreground">
+                {activeSlot ? `Area: ${activeSlot.label}` : "Tap an area on the bike to focus its parts"}
+              </span>
+              {activeSlot && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setActiveSlot(null)}>
+                  Show all parts
+                </Button>
+              )}
+            </div>
+
             {form.items.length === 0 ? (
               <p className="text-xs text-muted-foreground border rounded-md p-3 text-center">
                 Add the part categories this spec needs, e.g. Frame, Fork, Wheelset, Groupset.
               </p>
+            ) : visibleItems.length === 0 ? (
+              <p className="text-xs text-muted-foreground border rounded-md p-3 text-center">
+                No parts on this spec for that area yet.
+              </p>
             ) : (
               <div className="space-y-2">
-                {form.items.map((item, index) => (
+                {visibleItems.map(({ item, index }) => (
                   <div key={index} className="space-y-2 border rounded-md p-2">
                     <div className="flex items-center gap-2">
                       <Select value={item.category} onValueChange={(v) => setItem(index, { category: v })}>
