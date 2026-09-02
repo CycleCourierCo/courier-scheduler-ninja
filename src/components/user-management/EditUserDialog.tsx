@@ -310,6 +310,20 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     </p>
                   </div>
                 </div>
+                <div className="sm:col-span-2 flex items-center space-x-2 pt-2 border-t">
+                  <Switch
+                    id="edit-show-sender-on-label"
+                    checked={formData.show_sender_on_label || false}
+                    onCheckedChange={(checked) => setFormData({ ...formData, show_sender_on_label: checked })}
+                  />
+                  <div>
+                    <Label htmlFor="edit-show-sender-on-label">Show sender name on labels</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Prints a "FROM" line with the sender's name on labels for this account's orders
+                    </p>
+                  </div>
+                </div>
+
               </div>
             </TabsContent>
           )}
