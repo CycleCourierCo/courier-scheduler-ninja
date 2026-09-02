@@ -344,25 +344,37 @@ const WarehouseStockPage: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Bike Type</Label>
-                <Select value={formData.bike_type} onValueChange={(v) => setFormData({ ...formData, bike_type: v })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Road">Road</SelectItem>
-                    <SelectItem value="Mountain">Mountain</SelectItem>
-                    <SelectItem value="Hybrid">Hybrid</SelectItem>
-                    <SelectItem value="Electric">Electric</SelectItem>
-                    <SelectItem value="Gravel">Gravel</SelectItem>
-                    <SelectItem value="BMX">BMX</SelectItem>
-                    <SelectItem value="Folding">Folding</SelectItem>
-                    <SelectItem value="Kids">Kids</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {formData.item_kind === "component" ? (
+                <div>
+                  <Label>Quantity</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={formData.quantity ?? 1}
+                    onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <Label>Bike Type</Label>
+                  <Select value={formData.bike_type} onValueChange={(v) => setFormData({ ...formData, bike_type: v })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Road">Road</SelectItem>
+                      <SelectItem value="Mountain">Mountain</SelectItem>
+                      <SelectItem value="Hybrid">Hybrid</SelectItem>
+                      <SelectItem value="Electric">Electric</SelectItem>
+                      <SelectItem value="Gravel">Gravel</SelectItem>
+                      <SelectItem value="BMX">BMX</SelectItem>
+                      <SelectItem value="Folding">Folding</SelectItem>
+                      <SelectItem value="Kids">Kids</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div>
                 <Label>Value (£)</Label>
                 <Input
@@ -373,6 +385,17 @@ const WarehouseStockPage: React.FC = () => {
                 />
               </div>
             </div>
+
+            {formData.item_kind === "component" && (
+              <div>
+                <Label>Spec / size</Label>
+                <Input
+                  value={formData.spec ?? ""}
+                  onChange={(e) => setFormData({ ...formData, spec: e.target.value })}
+                  placeholder="e.g. 56cm, 11-speed, 700c"
+                />
+              </div>
+            )}
 
             <div>
               <Label>SKU</Label>
