@@ -354,11 +354,15 @@ const BuildMyBikePage: React.FC = () => {
 
       {/* New build dialog */}
       <Dialog open={newOpen} onOpenChange={setNewOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-md max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>New bike build</DialogTitle>
+            <DialogDescription>
+              {step === "details" ? "Step 1 of 2 — build details" : "Step 2 of 2 — pick parts from stock (optional)"}
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className={`min-w-0 space-y-4 ${step === "parts" ? "hidden" : ""}`}>
+
             {isStaff && (
               <div>
                 <Label>Customer *</Label>
