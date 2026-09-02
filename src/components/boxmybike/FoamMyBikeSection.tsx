@@ -574,6 +574,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
         setOverrideFor(null);
       }}
     />
+    <OrderSearchBar value={search} onChange={setSearch} />
     <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as FoamStatus)}>
       <TabsList className="flex flex-wrap h-auto">
         {FOAM_STATUS_ORDER.map((s) => (
@@ -587,7 +588,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
         <TabsContent key={s} value={s} className="mt-4">
           {grouped[s].length === 0 ? (
             <div className="text-sm text-muted-foreground py-8 text-center">
-              No bikes in this stage.
+              {search.trim() ? "No bikes match your search." : "No bikes in this stage."}
             </div>
           ) : (
             grouped[s].map(renderCard)
