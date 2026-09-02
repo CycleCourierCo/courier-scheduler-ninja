@@ -116,6 +116,8 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
   const isAdmin = hasRole(userProfile, "admin");
   const [activeTab, setActiveTab] = React.useState<FoamStatus>("pending_collection");
   const [overrideFor, setOverrideFor] = React.useState<FoamOrder | null>(null);
+  const [search, setSearch] = React.useState("");
+
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["foam-my-bike-orders", userId, isStaff],
