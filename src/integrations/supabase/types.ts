@@ -3501,6 +3501,7 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"]
           shipday_driver_id: string | null
           shipday_driver_name: string | null
+          show_sender_on_label: boolean
           special_rate_code: string | null
           special_rate_price: number | null
           table_preferences: Json | null
@@ -3547,6 +3548,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
           shipday_driver_id?: string | null
           shipday_driver_name?: string | null
+          show_sender_on_label?: boolean
           special_rate_code?: string | null
           special_rate_price?: number | null
           table_preferences?: Json | null
@@ -3593,6 +3595,7 @@ export type Database = {
           role?: Database["public"]["Enums"]["user_role"]
           shipday_driver_id?: string | null
           shipday_driver_name?: string | null
+          show_sender_on_label?: boolean
           special_rate_code?: string | null
           special_rate_price?: number | null
           table_preferences?: Json | null
@@ -5549,6 +5552,7 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"]
           shipday_driver_id: string | null
           shipday_driver_name: string | null
+          show_sender_on_label: boolean
           special_rate_code: string | null
           special_rate_price: number | null
           table_preferences: Json | null
@@ -5715,6 +5719,7 @@ export type Database = {
           role: Database["public"]["Enums"]["user_role"]
           shipday_driver_id: string | null
           shipday_driver_name: string | null
+          show_sender_on_label: boolean
           special_rate_code: string | null
           special_rate_price: number | null
           table_preferences: Json | null

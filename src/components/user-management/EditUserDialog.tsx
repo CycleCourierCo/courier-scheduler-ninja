@@ -56,6 +56,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         special_rate_price: user.special_rate_price,
         opening_hours: user.opening_hours || DEFAULT_OPENING_HOURS,
         is_test_account: user.is_test_account,
+        show_sender_on_label: user.show_sender_on_label ?? false,
         hourly_rate: user.hourly_rate,
         workshop_hourly_rate: user.workshop_hourly_rate,
         uses_own_van: user.uses_own_van,
@@ -309,6 +310,20 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     </p>
                   </div>
                 </div>
+                <div className="sm:col-span-2 flex items-center space-x-2 pt-2 border-t">
+                  <Switch
+                    id="edit-show-sender-on-label"
+                    checked={formData.show_sender_on_label || false}
+                    onCheckedChange={(checked) => setFormData({ ...formData, show_sender_on_label: checked })}
+                  />
+                  <div>
+                    <Label htmlFor="edit-show-sender-on-label">Show sender name on labels</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Prints a "FROM" line with the sender's name on labels for this account's orders
+                    </p>
+                  </div>
+                </div>
+
               </div>
             </TabsContent>
           )}

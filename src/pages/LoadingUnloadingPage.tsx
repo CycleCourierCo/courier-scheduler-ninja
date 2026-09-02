@@ -21,7 +21,7 @@ import { Truck, Printer, CalendarIcon, Package, Send } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import jsPDF from 'jspdf';
-import { renderLabelPage } from "@/utils/labelUtils";
+import { renderLabelPage, resolveSenderLabelAccounts } from "@/utils/labelUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasRole } from "@/lib/roles";
 import { Label } from "@/components/ui/label";
@@ -502,9 +502,12 @@ const LoadingUnloadingPage = () => {
       // Create PDF with exact 4x6 inch page size for label printers
       const labelWidth = 288; // 4 inches in points
       const labelHeight = 432; // 6 inches in points
-      
+
+      const senderLabelAccounts = await resolveSenderLabelAccounts([...orders, ...deliveryOrders]);
+
       const pdf = new jsPDF('portrait', 'pt', [labelWidth, labelHeight]);
       let isFirstPage = true;
+
       
       // Group orders by collection driver
       const ordersByDriver = orders.reduce((acc, order) => {
@@ -568,7 +571,7 @@ const LoadingUnloadingPage = () => {
 
           for (let i = 0; i < quantity; i++) {
             pdf.addPage();
-            renderLabelPage(pdf, order, i, quantity, labelWidth);
+            renderLabelPage(pdf, order, i, quantity, labelWidth, senderLabelAccounts.has((order as any)?.user_id));
           }
         });
       });
