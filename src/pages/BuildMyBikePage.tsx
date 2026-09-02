@@ -72,7 +72,7 @@ const BuildMyBikePage: React.FC = () => {
     try {
       setLoading(true);
       const [buildData, customerData] = await Promise.all([
-        getBikeBuilds(activeSiteId),
+        getBikeBuilds(null),
         isStaff ? getCustomerList() : Promise.resolve([]),
       ]);
       setBuilds(buildData);
@@ -215,7 +215,12 @@ const BuildMyBikePage: React.FC = () => {
     });
   };
 
-  const filtered = builds.filter((b) => stageFilter === "all" || b.stage === stageFilter);
+  const filtered = builds.filter(
+    (b) =>
+      (stageFilter === "all" || b.stage === stageFilter) &&
+      (customerFilter === "all" || b.user_id === customerFilter)
+  );
+
 
   return (
     <Layout>
