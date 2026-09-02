@@ -58,6 +58,8 @@ const BuildMyBikePage: React.FC = () => {
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [stageFilter, setStageFilter] = useState<string>("all");
+  const [customerFilter, setCustomerFilter] = useState<string>("all");
+
   const [newOpen, setNewOpen] = useState(false);
   const [step, setStep] = useState<"details" | "parts">("details");
   const [form, setForm] = useState<BikeBuildFormData>(emptyForm);
@@ -284,7 +286,7 @@ const BuildMyBikePage: React.FC = () => {
           })}
         </div>
 
-        <div className="mb-4">
+        <div className="mb-4 flex flex-col sm:flex-row gap-2">
           <Select value={stageFilter} onValueChange={setStageFilter}>
             <SelectTrigger className="w-full sm:w-[240px]">
               <SelectValue />
@@ -296,7 +298,23 @@ const BuildMyBikePage: React.FC = () => {
               ))}
             </SelectContent>
           </Select>
+          {isStaff && (
+            <Select value={customerFilter} onValueChange={setCustomerFilter}>
+              <SelectTrigger className="w-full sm:w-[260px]">
+                <SelectValue placeholder="All customers" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All customers</SelectItem>
+                {customers.map((c: any) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.company_name || c.name || c.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
+
 
         {loading ? (
           <div className="flex justify-center py-12">
@@ -323,14 +341,17 @@ const BuildMyBikePage: React.FC = () => {
                       <div className="font-semibold truncate">{build.name}</div>
                       <div className="text-xs text-muted-foreground truncate">{build.customer_name}</div>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive shrink-0"
-                      onClick={(e) => { e.stopPropagation(); handleDelete(build); }}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {isStaff && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive shrink-0"
+                        onClick={(e) => { e.stopPropagation(); handleDelete(build); }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+
                   </div>
                   <span className={`inline-block px-2 py-1 rounded-full text-xs font-medium ${BUILD_STAGE_COLORS[build.stage]}`}>
                     {BUILD_STAGE_LABELS[build.stage]}
