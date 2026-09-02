@@ -79,7 +79,7 @@ export const APP_ROUTES: AppRoute[] = [
   { key: "box-my-bike", path: "/box-my-bike", label: "Box My Bike", section: "Workshop", icon: Package2,
     defaultRoles: ["mechanic", "loader", ...CUSTOMERS] },
   { key: "build-my-bike", path: "/build-my-bike", label: "Build My Bike", section: "Workshop", icon: Wrench,
-    defaultRoles: ["mechanic", "loader"] },
+    defaultRoles: ["mechanic", "loader", ...CUSTOMERS] },
 
   // Fleet
   { key: "equipment", path: "/equipment", label: "Equipment", section: "Fleet", icon: Boxes,
