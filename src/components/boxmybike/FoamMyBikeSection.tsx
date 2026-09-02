@@ -528,7 +528,16 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
         No Northern Ireland deliveries yet.
       </div>
     ) : (
-      <>{orders.map(renderCard)}</>
+      <>
+        <OrderSearchBar value={search} onChange={setSearch} />
+        {filteredOrders.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-8 text-center">
+            No bikes match your search.
+          </div>
+        ) : (
+          filteredOrders.map(renderCard)
+        )}
+      </>
     );
   }
 
