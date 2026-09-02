@@ -32,6 +32,10 @@ export type WarehouseStock = {
 
 export type WarehouseStockFormData = {
   user_id: string;
+  item_kind?: WarehouseItemKind;
+  component_category?: string;
+  quantity?: number;
+  spec?: string;
   bike_brand: string;
   bike_model: string;
   bike_type: string;
