@@ -25,8 +25,7 @@ import {
 import type { WarehouseStock, WarehouseStockFormData } from "@/types/warehouseStock";
 import { format } from "date-fns";
 import { useStorageBays } from "@/hooks/useStorageBays";
-import { useSites, defaultSite } from "@/hooks/useSites";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useSites, defaultSite, findSite, DEFAULT_SITE_CODE } from "@/hooks/useSites";
 import { COMPONENT_CATEGORIES } from "@/constants/bikeComponents";
 
 const statusColors: Record<string, string> = {
