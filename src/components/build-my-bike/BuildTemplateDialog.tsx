@@ -48,6 +48,38 @@ const BuildTemplateDialog: React.FC<Props> = ({
 }) => {
   const [form, setForm] = useState<BikeBuildTemplateFormData>(emptyForm);
   const [saving, setSaving] = useState(false);
+  const [activeSlot, setActiveSlot] = useState<BikeHotspot | null>(null);
+
+  const countsBySlot = useMemo(() => {
+    const counts: Record<string, number> = {};
+    form.items.forEach((item) => {
+      const slot = slotForCategory(item.category);
+      if (slot) counts[slot] = (counts[slot] || 0) + (Number(item.quantity) || 1);
+    });
+    return counts;
+  }, [form.items]);
+
+  const visibleItems = useMemo(
+    () =>
+      form.items
+        .map((item, index) => ({ item, index }))
+        .filter(({ item }) => !activeSlot || slotForCategory(item.category) === activeSlot.slot),
+    [form.items, activeSlot]
+  );
+
+  const handleSelectSlot = (hotspot: BikeHotspot) => {
+    if (activeSlot?.slot === hotspot.slot) {
+      setActiveSlot(null);
+      return;
+    }
+    if (!countsBySlot[hotspot.slot]) {
+      setForm((prev) => ({
+        ...prev,
+        items: [...prev.items, { category: hotspot.categories[0] || "", quantity: 1 }],
+      }));
+    }
+    setActiveSlot(hotspot);
+  };
 
   useEffect(() => {
     if (!open) return;
