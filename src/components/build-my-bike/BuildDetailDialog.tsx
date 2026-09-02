@@ -305,15 +305,18 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
                       <div className="text-sm shrink-0 sm:w-16 sm:text-right">
                         {c.unit_value != null ? `£${Number(c.unit_value).toFixed(2)}` : "—"}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive shrink-0 ml-auto sm:ml-0"
-                        onClick={() => handleRemove(c)}
-                        disabled={build.stage === "invoiced"}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {isStaff && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive shrink-0 ml-auto sm:ml-0"
+                          onClick={() => handleRemove(c)}
+                          disabled={build.stage === "invoiced"}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+
                     </div>
                   ))}
                 </div>
