@@ -90,7 +90,11 @@ const WarehouseStockPage: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!formData.user_id) {
-      toast.error("Pick which customer this bike belongs to before saving.");
+      toast.error("Pick which customer this item belongs to before saving.");
+      return;
+    }
+    if (formData.item_kind === "component" && !formData.component_category) {
+      toast.error("Choose a component category so it can be picked for a build.");
       return;
     }
     if (!formData.bay || !formData.position) {
@@ -100,7 +104,10 @@ const WarehouseStockPage: React.FC = () => {
 
     setSubmitting(true);
     try {
-      const conflict = await checkLocationConflict(formData.bay, formData.position, undefined, activeSiteId);
+      // Several parts can share a shelf, so only whole bikes need a unique slot.
+      const conflict = formData.item_kind === "component"
+        ? false
+        : await checkLocationConflict(formData.bay, formData.position, undefined, activeSiteId);
       if (conflict) {
         toast.error(`Bay ${formData.bay} Position ${formData.position} is already occupied`);
         setSubmitting(false);
