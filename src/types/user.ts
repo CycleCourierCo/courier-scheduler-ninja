@@ -65,6 +65,7 @@ export interface UserProfile {
   // Opening hours
   opening_hours: any | null;
   is_test_account: boolean | null;
+  show_sender_on_label?: boolean | null;
   default_vehicle_id: string | null;
   quickbooks_customer_id: string | null;
   // Driver licence documents
