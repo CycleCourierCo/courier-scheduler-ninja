@@ -131,7 +131,7 @@ const renderIndicatorRow = (
   return startY + ICON_SIZE + 24;
 };
 
-export const renderLabelPage = (pdf: jsPDF, order: Order, bikeIndex: number, quantity: number, labelWidth: number = LABEL_WIDTH) => {
+export const renderLabelPage = (pdf: jsPDF, order: Order, bikeIndex: number, quantity: number, labelWidth: number = LABEL_WIDTH, showSenderName: boolean = false) => {
   let currentY = MARGIN + 20;
 
   // Tracking number
