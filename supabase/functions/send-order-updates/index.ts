@@ -63,6 +63,42 @@ const hasDates = (value: any): boolean => {
 };
 
 /**
+ * Explicit precedence for the one update each side may receive.
+ * Higher wins: delays > booked legs > awaiting availability > awaiting route >
+ * with-us / workshop chatter. This removes any reliance on push order.
+ */
+const STAGE_PRIORITY: Record<string, number> = {
+  collection_delayed: 100,
+  delivery_delayed: 100,
+
+  collection_scheduled: 80,
+  collection_scheduled_receiver: 80,
+  delivery_scheduled: 80,
+  delivery_scheduled_sender: 80,
+
+  booked_awaiting_request: 60,
+  awaiting_sender_dates: 60,
+  awaiting_receiver_dates: 60,
+
+  sender_dates_received: 40,
+};
+
+const stagePriority = (stageKey: string): number => STAGE_PRIORITY[stageKey] ?? 20;
+
+/** Keeps only the highest-priority update per side. */
+function highestPriorityPerSide(updates: Update[]): Update[] {
+  const best = new Map<Side, Update>();
+  for (const u of updates) {
+    const current = best.get(u.side);
+    if (!current || stagePriority(u.stageKey) > stagePriority(current.stageKey)) {
+      best.set(u.side, u);
+    }
+  }
+  return [...best.values()];
+}
+
+
+/**
  * Work out which single update (if any) each side should receive right now,
  * based on where the job actually is.
  */
@@ -350,16 +386,28 @@ function deriveUpdates(order: any, inspectionPending = false, inspectionStatus: 
 
   // ---- Delivery scheduled -------------------------------------------------
   if (order.scheduled_delivery_date && !order.order_delivered && deliveryDay && deliveryDay >= today && !order.is_northern_ireland) {
+    const when = prettyDate(order.scheduled_delivery_date);
     push({
       side: "receiver",
       stageKey: "delivery_scheduled",
       subject: `Your delivery is booked for ${item}`,
-      headline: `Your delivery is booked for ${prettyDate(order.scheduled_delivery_date)}`,
+      headline: `Your delivery is booked for ${when}`,
       lines: ["We'll send your time slot the day before so you know when to expect us."],
+    });
+    push({
+      side: "sender",
+      stageKey: "delivery_scheduled_sender",
+      subject: `Delivery booked for ${item}`,
+      headline: `The bike you sent is booked for delivery on ${when}`,
+      lines: [
+        "That's the final leg of its journey - we'll hand it over to the buyer on that date.",
+        "There's nothing you need to do.",
+      ],
     });
   }
 
-  return updates;
+  return highestPriorityPerSide(updates);
+
 }
 
 function buildHtml(order: any, update: Update, name: string): string {
