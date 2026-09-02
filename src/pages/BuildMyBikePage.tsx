@@ -157,6 +157,28 @@ const BuildMyBikePage: React.FC = () => {
           </Button>
         </div>
 
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "builds" | "stored")} className="mb-6">
+          <TabsList>
+            <TabsTrigger value="builds">
+              <Bike className="mr-2 h-4 w-4" /> Builds
+            </TabsTrigger>
+            <TabsTrigger value="stored">
+              <Layers className="mr-2 h-4 w-4" /> Stored builds
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+
+        {tab === "stored" ? (
+          <StoredBuildsTab
+            isStaff={isStaff}
+            customers={customers}
+            currentUserId={user?.id || ""}
+            restrictToUserId={isStaff ? null : user?.id || null}
+            siteId={activeSiteId}
+            onBuildCreated={() => { setTab("builds"); fetchData(); }}
+          />
+        ) : (
+        <>
         {/* Stage summary */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
           {BUILD_STAGES.map((stage) => {
@@ -244,6 +266,8 @@ const BuildMyBikePage: React.FC = () => {
               </Card>
             ))}
           </div>
+        )}
+        </>
         )}
       </div>
 
