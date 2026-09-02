@@ -502,9 +502,12 @@ const LoadingUnloadingPage = () => {
       // Create PDF with exact 4x6 inch page size for label printers
       const labelWidth = 288; // 4 inches in points
       const labelHeight = 432; // 6 inches in points
-      
+
+      const senderLabelAccounts = await resolveSenderLabelAccounts([...orders, ...deliveryOrders]);
+
       const pdf = new jsPDF('portrait', 'pt', [labelWidth, labelHeight]);
       let isFirstPage = true;
+
       
       // Group orders by collection driver
       const ordersByDriver = orders.reduce((acc, order) => {
