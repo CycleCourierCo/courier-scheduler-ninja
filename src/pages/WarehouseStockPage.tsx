@@ -265,11 +265,22 @@ const WarehouseStockPage: React.FC = () => {
                       {item.customer_name}
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm">
-                        {[item.bike_brand, item.bike_model].filter(Boolean).join(" ") || "—"}
+                      <div className="text-sm flex items-center gap-2">
+                        {[item.bike_brand, item.bike_model].filter(Boolean).join(" ") || item.component_category || "—"}
+                        {item.item_kind === "component" && (
+                          <Badge variant="secondary" className="text-[10px]">Part</Badge>
+                        )}
                       </div>
-                      {item.bike_type && (
-                        <div className="text-xs text-muted-foreground">{item.bike_type}</div>
+                      {item.item_kind === "component" ? (
+                        <div className="text-xs text-muted-foreground">
+                          {[item.component_category, item.spec, item.quantity > 1 ? `x${item.quantity}` : null]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                      ) : (
+                        item.bike_type && (
+                          <div className="text-xs text-muted-foreground">{item.bike_type}</div>
+                        )
                       )}
                       {item.sku && (
                         <div className="text-xs text-muted-foreground">SKU: <code className="bg-muted px-1 rounded">{item.sku}</code></div>
