@@ -71,7 +71,10 @@ const BuildTemplateDialog: React.FC<Props> = ({
     }
   }, [open, template, isStaff, currentUserId]);
 
-  const setItem = (index: number, patch: Partial<{ category: string; quantity: number }>) => {
+  const setItem = (
+    index: number,
+    patch: Partial<{ category: string; quantity: number; notes: string }>
+  ) => {
     setForm((prev) => ({
       ...prev,
       items: prev.items.map((item, i) => (i === index ? { ...item, ...patch } : item)),
