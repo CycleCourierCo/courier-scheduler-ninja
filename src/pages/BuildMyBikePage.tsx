@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import * as Sentry from "@sentry/react";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
-import { Bike, Plus, Trash2 } from "lucide-react";
+import { Bike, Layers, Plus, Trash2 } from "lucide-react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSites, defaultSite } from "@/hooks/useSites";
 import { getCustomerList } from "@/services/warehouseStockService";
@@ -20,11 +20,14 @@ import { createBikeBuild, deleteBikeBuild, getBikeBuilds } from "@/services/bike
 import type { BikeBuild, BikeBuildFormData } from "@/types/bikeBuild";
 import { BUILD_STAGES, BUILD_STAGE_COLORS, BUILD_STAGE_LABELS } from "@/constants/bikeComponents";
 import BuildDetailDialog from "@/components/build-my-bike/BuildDetailDialog";
+import StoredBuildsTab from "@/components/build-my-bike/StoredBuildsTab";
+import { hasAnyRole } from "@/lib/roles";
 import { format } from "date-fns";
 
 const emptyForm: BikeBuildFormData = {
   user_id: "",
   name: "",
+  sku: "",
   bike_brand: "",
   bike_model: "",
   bike_type: "",
@@ -33,10 +36,12 @@ const emptyForm: BikeBuildFormData = {
 };
 
 const BuildMyBikePage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
+  const isStaff = hasAnyRole(userProfile, ["admin", "loader", "mechanic"]);
   const { data: sites = [] } = useSites();
   const [siteId, setSiteId] = useState<string | null>(null);
-  const activeSiteId = siteId ?? defaultSite(sites)?.id ?? null;
+  const activeSiteId = isStaff ? siteId ?? defaultSite(sites)?.id ?? null : null;
+  const [tab, setTab] = useState<"builds" | "stored">("builds");
 
   const [builds, setBuilds] = useState<BikeBuild[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -51,9 +56,12 @@ const BuildMyBikePage: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [buildData, customerData] = await Promise.all([getBikeBuilds(activeSiteId), getCustomerList()]);
+      const [buildData, customerData] = await Promise.all([
+        getBikeBuilds(activeSiteId),
+        isStaff ? getCustomerList() : Promise.resolve([]),
+      ]);
       setBuilds(buildData);
-      setCustomers(customerData);
+      setCustomers(customerData as any[]);
       setSelected((prev) => (prev ? buildData.find((b) => b.id === prev.id) ?? null : null));
     } catch (err) {
       Sentry.captureException(err);
@@ -69,7 +77,8 @@ const BuildMyBikePage: React.FC = () => {
   }, [activeSiteId]);
 
   const handleCreate = async () => {
-    if (!form.user_id) {
+    const targetUserId = isStaff ? form.user_id : user?.id || "";
+    if (!targetUserId) {
       toast.error("Pick which customer this build is for.");
       return;
     }
@@ -79,7 +88,15 @@ const BuildMyBikePage: React.FC = () => {
     }
     setSubmitting(true);
     try {
-      await createBikeBuild({ ...form, site_id: activeSiteId }, user?.id || "");
+      await createBikeBuild(
+        {
+          ...form,
+          user_id: targetUserId,
+          labour_cost: isStaff ? form.labour_cost : "",
+          site_id: activeSiteId,
+        },
+        user?.id || ""
+      );
       toast.success("Build created");
       setNewOpen(false);
       setForm(emptyForm);
@@ -125,7 +142,7 @@ const BuildMyBikePage: React.FC = () => {
             <p className="text-muted-foreground text-sm mt-1">
               Assemble customer bikes from components held in warehouse stock
             </p>
-            {sites.length > 1 && (
+            {isStaff && sites.length > 1 && (
               <Tabs value={activeSiteId ?? ""} onValueChange={setSiteId} className="mt-3">
                 <TabsList>
                   {sites.map((site) => (
@@ -212,9 +229,12 @@ const BuildMyBikePage: React.FC = () => {
                   </span>
                   <div className="flex flex-wrap gap-1 text-xs">
                     <Badge variant="outline">{build.component_count ?? 0} parts</Badge>
-                    <Badge variant="outline">
-                      £{(Number(build.parts_total || 0) + Number(build.labour_cost || 0)).toFixed(2)}
-                    </Badge>
+                    {build.sku && <Badge variant="secondary">SKU {build.sku}</Badge>}
+                    {(isStaff || build.invoice_number) && (
+                      <Badge variant="outline">
+                        £{(Number(build.parts_total || 0) + Number(build.labour_cost || 0)).toFixed(2)}
+                      </Badge>
+                    )}
                     {build.invoice_number && <Badge variant="secondary">Inv {build.invoice_number}</Badge>}
                   </div>
                   <div className="text-xs text-muted-foreground">
@@ -234,28 +254,40 @@ const BuildMyBikePage: React.FC = () => {
             <DialogTitle>New bike build</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>Customer *</Label>
-              <Select value={form.user_id} onValueChange={(v) => setForm({ ...form, user_id: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select customer" />
-                </SelectTrigger>
-                <SelectContent>
-                  {customers.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.company_name || c.name || c.email}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Build name *</Label>
-              <Input
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="e.g. Ribble winter build"
-              />
+            {isStaff && (
+              <div>
+                <Label>Customer *</Label>
+                <Select value={form.user_id} onValueChange={(v) => setForm({ ...form, user_id: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select customer" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {customers.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.company_name || c.name || c.email}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>Build name *</Label>
+                <Input
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  placeholder="e.g. Ribble winter build"
+                />
+              </div>
+              <div>
+                <Label>SKU</Label>
+                <Input
+                  value={form.sku}
+                  onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                  placeholder="Your product code"
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -287,15 +319,17 @@ const BuildMyBikePage: React.FC = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
-                <Label>Labour charge (£)</Label>
-                <Input
-                  type="number"
-                  value={form.labour_cost}
-                  onChange={(e) => setForm({ ...form, labour_cost: e.target.value })}
-                  placeholder="0.00"
-                />
-              </div>
+              {isStaff && (
+                <div>
+                  <Label>Labour charge (£)</Label>
+                  <Input
+                    type="number"
+                    value={form.labour_cost}
+                    onChange={(e) => setForm({ ...form, labour_cost: e.target.value })}
+                    placeholder="0.00"
+                  />
+                </div>
+              )}
             </div>
             <div>
               <Label>Spec notes</Label>
@@ -320,6 +354,7 @@ const BuildMyBikePage: React.FC = () => {
         open={detailOpen}
         onOpenChange={setDetailOpen}
         onChanged={fetchData}
+        isStaff={isStaff}
       />
     </Layout>
   );
