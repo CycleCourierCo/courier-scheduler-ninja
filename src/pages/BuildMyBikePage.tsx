@@ -25,10 +25,11 @@ import {
 } from "@/services/bikeBuildService";
 import type { BikeBuild, BikeBuildFormData } from "@/types/bikeBuild";
 import type { WarehouseStock } from "@/types/warehouseStock";
-import { BUILD_STAGES, BUILD_STAGE_COLORS, BUILD_STAGE_LABELS, slotForCategory } from "@/constants/bikeComponents";
+import { BUILD_STAGES, BUILD_STAGE_COLORS, BUILD_STAGE_LABELS, slotForCategory, type BikeHotspot } from "@/constants/bikeComponents";
 import BuildDetailDialog from "@/components/build-my-bike/BuildDetailDialog";
 import StoredBuildsTab from "@/components/build-my-bike/StoredBuildsTab";
 import StockPickerList from "@/components/build-my-bike/StockPickerList";
+import BikeDiagram from "@/components/build-my-bike/BikeDiagram";
 import { hasAnyRole } from "@/lib/roles";
 import { format } from "date-fns";
 
@@ -69,6 +70,7 @@ const BuildMyBikePage: React.FC = () => {
   const [availableStock, setAvailableStock] = useState<WarehouseStock[]>([]);
   const [stockLoading, setStockLoading] = useState(false);
   const [pickedParts, setPickedParts] = useState<string[]>([]);
+  const [createHotspot, setCreateHotspot] = useState<BikeHotspot | null>(null);
 
   const fetchData = async () => {
     try {
@@ -96,6 +98,7 @@ const BuildMyBikePage: React.FC = () => {
   const openNewBuild = () => {
     setForm(emptyForm);
     setPickedParts([]);
+    setCreateHotspot(null);
     setAvailableStock([]);
     setStep("details");
     setNewOpen(true);
@@ -130,9 +133,16 @@ const BuildMyBikePage: React.FC = () => {
     setPickedParts((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
   };
 
-  const pickedTotal = availableStock
-    .filter((s) => pickedParts.includes(s.id))
-    .reduce((sum, s) => sum + Number(s.bike_value || 0), 0);
+  const pickedStock = availableStock.filter((s) => pickedParts.includes(s.id));
+
+  const pickedTotal = pickedStock.reduce((sum, s) => sum + Number(s.bike_value || 0), 0);
+
+  const pickedCountsBySlot = pickedStock.reduce<Record<string, number>>((acc, s) => {
+    const slot = slotForCategory(s.component_category);
+    if (slot) acc[slot] = (acc[slot] || 0) + 1;
+    return acc;
+  }, {});
+
 
   const handleCreate = async () => {
     const targetUserId = targetCustomerId;
@@ -186,6 +196,7 @@ const BuildMyBikePage: React.FC = () => {
       setNewOpen(false);
       setForm(emptyForm);
       setPickedParts([]);
+      setCreateHotspot(null);
       setAvailableStock([]);
       setStep("details");
       fetchData();
@@ -484,8 +495,23 @@ const BuildMyBikePage: React.FC = () => {
                 </div>
               ) : (
                 <>
+                  <BikeDiagram
+                    countsBySlot={pickedCountsBySlot}
+                    onSelectSlot={(hs) => setCreateHotspot((prev) => (prev?.slot === hs.slot ? null : hs))}
+                  />
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <span className="text-muted-foreground">
+                      {createHotspot ? `Area: ${createHotspot.label}` : "Tap an area on the bike to filter parts"}
+                    </span>
+                    {createHotspot && (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setCreateHotspot(null)}>
+                        Clear area
+                      </Button>
+                    )}
+                  </div>
                   <StockPickerList
                     stock={availableStock}
+                    hotspot={createHotspot}
                     selected={pickedParts}
                     onToggle={togglePart}
                     emptyLabel="No parts in stock for this customer yet."
