@@ -25,10 +25,11 @@ import {
 } from "@/services/bikeBuildService";
 import type { BikeBuild, BikeBuildFormData } from "@/types/bikeBuild";
 import type { WarehouseStock } from "@/types/warehouseStock";
-import { BUILD_STAGES, BUILD_STAGE_COLORS, BUILD_STAGE_LABELS, slotForCategory } from "@/constants/bikeComponents";
+import { BUILD_STAGES, BUILD_STAGE_COLORS, BUILD_STAGE_LABELS, slotForCategory, type BikeHotspot } from "@/constants/bikeComponents";
 import BuildDetailDialog from "@/components/build-my-bike/BuildDetailDialog";
 import StoredBuildsTab from "@/components/build-my-bike/StoredBuildsTab";
 import StockPickerList from "@/components/build-my-bike/StockPickerList";
+import BikeDiagram from "@/components/build-my-bike/BikeDiagram";
 import { hasAnyRole } from "@/lib/roles";
 import { format } from "date-fns";
 
