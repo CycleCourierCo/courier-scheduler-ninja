@@ -362,6 +362,7 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
               </div>
             )}
 
+            {(isStaff || build.invoice_number) && (
             <div className="rounded-md border p-4 space-y-3">
               <h3 className="font-semibold text-sm">Invoice</h3>
               {build.invoice_number ? (
@@ -382,6 +383,7 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
                 </Button>
               )}
             </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
