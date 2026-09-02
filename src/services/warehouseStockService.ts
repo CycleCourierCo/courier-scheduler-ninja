@@ -81,6 +81,38 @@ export const updateWarehouseStock = async (
   if (error) throw error;
 };
 
+/**
+ * Books physically received parts into a bay against the existing catalogue row,
+ * so the build allocator keeps seeing a single accurate count per part.
+ */
+export const receiveComponentStock = async (params: {
+  id: string;
+  currentQuantity: number;
+  received: number;
+  bay: string;
+  position: number;
+  note?: string | null;
+  existingNotes?: string | null;
+}): Promise<void> => {
+  const stamp = new Date().toISOString().slice(0, 10);
+  const entry = params.note
+    ? `Received ${params.received} on ${stamp}: ${params.note}`
+    : `Received ${params.received} on ${stamp}`;
+
+  const { error } = await supabase
+    .from("warehouse_stock" as any)
+    .update({
+      quantity: Math.max(0, params.currentQuantity) + params.received,
+      bay: params.bay,
+      position: params.position,
+      status: "stored",
+      item_notes: [params.existingNotes, entry].filter(Boolean).join("\n"),
+    } as any)
+    .eq("id", params.id);
+
+  if (error) throw error;
+};
+
 export const removeWarehouseStock = async (id: string): Promise<void> => {
   const { error } = await supabase
     .from("warehouse_stock" as any)
