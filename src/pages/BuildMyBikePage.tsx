@@ -16,13 +16,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSites, defaultSite, findSite, DEFAULT_SITE_CODE } from "@/hooks/useSites";
 import { getCustomerList } from "@/services/warehouseStockService";
-import { createBikeBuild, deleteBikeBuild, getBikeBuilds } from "@/services/bikeBuildService";
+import {
+  addComponentToBuild,
+  createBikeBuild,
+  deleteBikeBuild,
+  getAvailableComponents,
+  getBikeBuilds,
+} from "@/services/bikeBuildService";
 import type { BikeBuild, BikeBuildFormData } from "@/types/bikeBuild";
-import { BUILD_STAGES, BUILD_STAGE_COLORS, BUILD_STAGE_LABELS } from "@/constants/bikeComponents";
+import type { WarehouseStock } from "@/types/warehouseStock";
+import { BUILD_STAGES, BUILD_STAGE_COLORS, BUILD_STAGE_LABELS, slotForCategory } from "@/constants/bikeComponents";
 import BuildDetailDialog from "@/components/build-my-bike/BuildDetailDialog";
 import StoredBuildsTab from "@/components/build-my-bike/StoredBuildsTab";
+import StockPickerList from "@/components/build-my-bike/StockPickerList";
 import { hasAnyRole } from "@/lib/roles";
 import { format } from "date-fns";
+
 
 const emptyForm: BikeBuildFormData = {
   user_id: "",
