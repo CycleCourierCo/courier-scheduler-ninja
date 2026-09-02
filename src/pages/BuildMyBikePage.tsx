@@ -41,6 +41,7 @@ const emptyForm: BikeBuildFormData = {
   bike_brand: "",
   bike_model: "",
   bike_type: "",
+  frame_size: "",
   spec_notes: "",
   labour_cost: "",
 };
@@ -71,6 +72,7 @@ const BuildMyBikePage: React.FC = () => {
   const [stockLoading, setStockLoading] = useState(false);
   const [pickedParts, setPickedParts] = useState<string[]>([]);
   const [createHotspot, setCreateHotspot] = useState<BikeHotspot | null>(null);
+  const [frameSizes, setFrameSizes] = useState<string[]>([]);
 
   const fetchData = async () => {
     try {
@@ -97,6 +99,12 @@ const BuildMyBikePage: React.FC = () => {
 
   const openNewBuild = () => {
     setForm(emptyForm);
+    getFrameSizes()
+      .then(setFrameSizes)
+      .catch((err) => {
+        Sentry.captureException(err);
+        setFrameSizes([]);
+      });
     setPickedParts([]);
     setCreateHotspot(null);
     setAvailableStock([]);
@@ -462,6 +470,23 @@ const BuildMyBikePage: React.FC = () => {
                     <SelectItem value="Folding">Folding</SelectItem>
                     <SelectItem value="Kids">Kids</SelectItem>
                     <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Bike size</Label>
+                <Select
+                  value={form.frame_size || ""}
+                  onValueChange={(v) => setForm({ ...form, frame_size: v === "__none" ? "" : v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={frameSizes.length ? "Select size" : "No sizes in stock yet"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">No size</SelectItem>
+                    {frameSizes.map((size) => (
+                      <SelectItem key={size} value={size}>{size}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
