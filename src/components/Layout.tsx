@@ -55,6 +55,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
       { to: "/admin/labour-times", label: "Labour Times", icon: Wrench },
       { to: "/mechanic-clock", label: "Mechanic Clock", icon: Clock },
       { to: "/box-my-bike", label: "Box My Bike", icon: Package2 },
+      { to: "/build-my-bike", label: "Build My Bike", icon: Wrench },
     ],
   },
   {
