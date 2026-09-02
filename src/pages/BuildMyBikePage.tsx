@@ -196,6 +196,7 @@ const BuildMyBikePage: React.FC = () => {
       setNewOpen(false);
       setForm(emptyForm);
       setPickedParts([]);
+      setCreateHotspot(null);
       setAvailableStock([]);
       setStep("details");
       fetchData();
