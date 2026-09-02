@@ -110,6 +110,6 @@ export type BikeBuildTemplateFormData = {
   bike_model: string;
   bike_type: string;
   spec_notes: string;
-  items: { category: string; quantity: number; slot?: string | null }[];
+  items: { category: string; quantity: number; slot?: string | null; notes?: string | null }[];
 };
 

@@ -333,6 +333,7 @@ export const saveBuildTemplate = async (
         template_id: id,
         category: i.category,
         slot: i.slot ?? null,
+        notes: i.notes || null,
         quantity: i.quantity && i.quantity > 0 ? i.quantity : 1,
       }))
     );

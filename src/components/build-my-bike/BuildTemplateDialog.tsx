@@ -63,6 +63,7 @@ const BuildTemplateDialog: React.FC<Props> = ({
           category: i.category,
           quantity: Number(i.quantity || 1),
           slot: i.slot,
+          notes: i.notes,
         })),
       });
     } else {
@@ -70,7 +71,10 @@ const BuildTemplateDialog: React.FC<Props> = ({
     }
   }, [open, template, isStaff, currentUserId]);
 
-  const setItem = (index: number, patch: Partial<{ category: string; quantity: number }>) => {
+  const setItem = (
+    index: number,
+    patch: Partial<{ category: string; quantity: number; notes: string }>
+  ) => {
     setForm((prev) => ({
       ...prev,
       items: prev.items.map((item, i) => (i === index ? { ...item, ...patch } : item)),
@@ -188,35 +192,42 @@ const BuildTemplateDialog: React.FC<Props> = ({
             ) : (
               <div className="space-y-2">
                 {form.items.map((item, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <Select value={item.category} onValueChange={(v) => setItem(index, { category: v })}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {COMPONENT_CATEGORIES.map((c) => (
-                          <SelectItem key={c} value={c}>{c}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                  <div key={index} className="space-y-2 border rounded-md p-2">
+                    <div className="flex items-center gap-2">
+                      <Select value={item.category} onValueChange={(v) => setItem(index, { category: v })}>
+                        <SelectTrigger className="flex-1">
+                          <SelectValue placeholder="Category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {COMPONENT_CATEGORIES.map((c) => (
+                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        min={1}
+                        className="w-20"
+                        value={item.quantity}
+                        onChange={(e) => setItem(index, { quantity: parseInt(e.target.value, 10) || 1 })}
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive shrink-0"
+                        onClick={() =>
+                          setForm((prev) => ({ ...prev, items: prev.items.filter((_, i) => i !== index) }))
+                        }
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                     <Input
-                      type="number"
-                      min={1}
-                      className="w-20"
-                      value={item.quantity}
-                      onChange={(e) => setItem(index, { quantity: parseInt(e.target.value, 10) || 1 })}
+                      value={item.notes || ""}
+                      onChange={(e) => setItem(index, { notes: e.target.value })}
+                      placeholder="Exact spec, e.g. Continental Terra Speed 700x40c"
                     />
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive shrink-0"
-                      onClick={() =>
-                        setForm((prev) => ({ ...prev, items: prev.items.filter((_, i) => i !== index) }))
-                      }
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
                   </div>
                 ))}
               </div>

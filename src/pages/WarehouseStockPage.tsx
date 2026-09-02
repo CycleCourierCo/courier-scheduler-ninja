@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import * as Sentry from "@sentry/react";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
-import { Plus, Trash2, Edit, Warehouse, Package } from "lucide-react";
+import { Plus, Trash2, Edit, Warehouse, Package, PackagePlus } from "lucide-react";
+import ReceiveStockDialog from "@/components/warehouse/ReceiveStockDialog";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -65,6 +66,7 @@ const WarehouseStockPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterCustomer, setFilterCustomer] = useState<string>("all");
+  const [receiveItem, setReceiveItem] = useState<WarehouseStock | null>(null);
 
   const fetchData = async () => {
     try {
@@ -262,7 +264,7 @@ const WarehouseStockPage: React.FC = () => {
                   <TableHead>Location</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Deposited</TableHead>
-                  <TableHead className="w-[80px]">Actions</TableHead>
+                  <TableHead className="w-[120px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -276,6 +278,11 @@ const WarehouseStockPage: React.FC = () => {
                         {[item.bike_brand, item.bike_model].filter(Boolean).join(" ") || item.component_category || "—"}
                         {item.item_kind === "component" && (
                           <Badge variant="secondary" className="text-[10px]">Part</Badge>
+                        )}
+                        {item.item_kind === "component" && Number(item.quantity || 0) === 0 && (
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                            Out of stock
+                          </Badge>
                         )}
                       </div>
                       {item.item_kind === "component" ? (
@@ -307,6 +314,16 @@ const WarehouseStockPage: React.FC = () => {
                       {format(new Date(item.deposited_at), "dd MMM yyyy")}
                     </TableCell>
                     <TableCell>
+                      {item.item_kind === "component" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Receive stock"
+                          onClick={() => setReceiveItem(item)}
+                        >
+                          <PackagePlus className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -523,6 +540,13 @@ const WarehouseStockPage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ReceiveStockDialog
+        open={!!receiveItem}
+        onOpenChange={(open) => { if (!open) setReceiveItem(null); }}
+        item={receiveItem}
+        siteId={activeSiteId}
+        onReceived={fetchData}
+      />
     </Layout>
   );
 };
