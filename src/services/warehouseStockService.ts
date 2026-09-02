@@ -46,6 +46,10 @@ export const addWarehouseStock = async (
     .insert({
       user_id: data.user_id,
       deposited_by: depositedBy,
+      item_kind: data.item_kind || "bike",
+      component_category: data.item_kind === "component" ? data.component_category || null : null,
+      quantity: data.quantity && data.quantity > 0 ? data.quantity : 1,
+      spec: data.spec || null,
       bike_brand: data.bike_brand || null,
       bike_model: data.bike_model || null,
       bike_type: data.bike_type || null,
