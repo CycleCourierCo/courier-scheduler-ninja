@@ -26,6 +26,7 @@ import { format } from "date-fns";
 import { useStorageBays } from "@/hooks/useStorageBays";
 import { useSites, defaultSite } from "@/hooks/useSites";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { COMPONENT_CATEGORIES } from "@/constants/bikeComponents";
 
 const statusColors: Record<string, string> = {
   stored: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
