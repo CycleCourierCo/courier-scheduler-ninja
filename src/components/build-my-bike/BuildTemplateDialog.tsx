@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import * as Sentry from "@sentry/react";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { COMPONENT_CATEGORIES } from "@/constants/bikeComponents";
+import { COMPONENT_CATEGORIES, slotForCategory, type BikeHotspot } from "@/constants/bikeComponents";
+import BikeDiagram from "./BikeDiagram";
 import { saveBuildTemplate } from "@/services/bikeBuildService";
 import type { BikeBuildTemplate, BikeBuildTemplateFormData } from "@/types/bikeBuild";
 
