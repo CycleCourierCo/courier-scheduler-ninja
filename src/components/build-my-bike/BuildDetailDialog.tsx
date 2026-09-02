@@ -215,6 +215,7 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
               {build.customer_name}
               {[build.bike_brand, build.bike_model].filter(Boolean).length > 0 &&
                 ` · ${[build.bike_brand, build.bike_model].filter(Boolean).join(" ")}`}
+              {build.frame_size ? ` · Size ${build.frame_size}` : ""}
               {build.sku ? ` · SKU ${build.sku}` : ""}
             </DialogDescription>
           </DialogHeader>
@@ -292,7 +293,7 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
                           {[c.stock?.bike_brand, c.stock?.bike_model].filter(Boolean).join(" ") || c.category}
                         </div>
                         <div className="text-xs text-muted-foreground truncate">
-                          {[c.category, c.stock?.spec, c.slot ? `slot: ${c.slot}` : null]
+                          {[c.category, c.stock?.frame_size ? `Size ${c.stock.frame_size}` : null, c.stock?.spec, c.slot ? `slot: ${c.slot}` : null]
                             .filter(Boolean)
                             .join(" · ")}
                         </div>
