@@ -83,6 +83,7 @@ const BuildTemplateDialog: React.FC<Props> = ({
 
   useEffect(() => {
     if (!open) return;
+    setActiveSlot(null);
     if (template) {
       setForm({
         user_id: template.user_id,
