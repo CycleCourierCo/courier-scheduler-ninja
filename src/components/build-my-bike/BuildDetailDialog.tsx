@@ -158,9 +158,6 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
   };
 
   const handleSaveAsTemplate = async () => {
-    notify.prompt
-      ? undefined
-      : undefined;
     const name = window.prompt("Name for this stored build", build.name);
     if (!name) return;
     setBusy(true);
@@ -322,7 +319,7 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
               )}
             </div>
 
-            {!build.linked_stock_id && (
+            {isStaff && !build.linked_stock_id && (
               <div className="rounded-md border p-4 space-y-3">
                 <h3 className="font-semibold text-sm">Finish the build</h3>
                 <p className="text-xs text-muted-foreground">
