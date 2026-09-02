@@ -11,7 +11,7 @@ type Props = {
 /** Simple side-on bike outline with clickable areas for each component group. */
 const BikeDiagram: React.FC<Props> = ({ countsBySlot, onSelectSlot, disabled }) => {
   return (
-    <div className="relative w-full max-w-xl mx-auto aspect-[16/10] rounded-lg border bg-muted/30">
+    <div className="relative w-full max-w-xl mx-auto aspect-[16/10] overflow-hidden rounded-lg border bg-muted/30">
       <svg viewBox="0 0 320 200" className="absolute inset-0 h-full w-full text-muted-foreground">
         {/* wheels */}
         <circle cx="62" cy="150" r="42" fill="none" stroke="currentColor" strokeWidth="3" />
@@ -33,15 +33,25 @@ const BikeDiagram: React.FC<Props> = ({ countsBySlot, onSelectSlot, disabled }) 
 
       {BIKE_HOTSPOTS.map((hotspot) => {
         const count = countsBySlot[hotspot.slot] || 0;
+        // Clamp edge labels so wide pills never spill outside the diagram box.
+        const alignLeft = hotspot.x <= 25;
+        const alignRight = hotspot.x >= 75;
+        const style: React.CSSProperties = { top: `${hotspot.y}%` };
+        if (alignLeft) style.left = "2%";
+        else if (alignRight) style.right = "2%";
+        else style.left = `${hotspot.x}%`;
+
         return (
           <button
             key={hotspot.slot}
             type="button"
             disabled={disabled}
             onClick={() => onSelectSlot(hotspot)}
-            style={{ left: `${hotspot.x}%`, top: `${hotspot.y}%` }}
+            style={style}
             className={cn(
-              "absolute -translate-x-1/2 -translate-y-1/2 rounded-full border px-2 py-1 text-[11px] font-medium shadow-sm transition",
+              "absolute -translate-y-1/2 rounded-full border px-1.5 py-1 text-[10px] sm:px-2 sm:text-[11px] font-medium shadow-sm transition",
+              "max-w-[40%] text-center leading-tight",
+              !alignLeft && !alignRight && "-translate-x-1/2",
               "bg-background/95 hover:bg-primary hover:text-primary-foreground",
               count > 0 && "border-primary text-primary",
               disabled && "opacity-60 cursor-not-allowed hover:bg-background/95 hover:text-foreground"
@@ -54,6 +64,7 @@ const BikeDiagram: React.FC<Props> = ({ countsBySlot, onSelectSlot, disabled }) 
       })}
     </div>
   );
+
 };
 
 export default BikeDiagram;
