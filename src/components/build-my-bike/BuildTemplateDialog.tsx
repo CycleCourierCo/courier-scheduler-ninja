@@ -205,7 +205,7 @@ const BuildTemplateDialog: React.FC<Props> = ({
             </Select>
           </div>
 
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center justify-between mb-2">
               <Label>Parts needed</Label>
               <Button
@@ -213,19 +213,43 @@ const BuildTemplateDialog: React.FC<Props> = ({
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  setForm((prev) => ({ ...prev, items: [...prev.items, { category: "", quantity: 1 }] }))
+                  setForm((prev) => ({
+                    ...prev,
+                    items: [
+                      ...prev.items,
+                      { category: activeSlot?.categories[0] || "", quantity: 1 },
+                    ],
+                  }))
                 }
               >
                 <Plus className="mr-1 h-3 w-3" /> Add part
               </Button>
             </div>
+
+            <BikeDiagram countsBySlot={countsBySlot} onSelectSlot={handleSelectSlot} />
+
+            <div className="mt-2 mb-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <span className="text-muted-foreground">
+                {activeSlot ? `Area: ${activeSlot.label}` : "Tap an area on the bike to focus its parts"}
+              </span>
+              {activeSlot && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setActiveSlot(null)}>
+                  Show all parts
+                </Button>
+              )}
+            </div>
+
             {form.items.length === 0 ? (
               <p className="text-xs text-muted-foreground border rounded-md p-3 text-center">
                 Add the part categories this spec needs, e.g. Frame, Fork, Wheelset, Groupset.
               </p>
+            ) : visibleItems.length === 0 ? (
+              <p className="text-xs text-muted-foreground border rounded-md p-3 text-center">
+                No parts on this spec for that area yet.
+              </p>
             ) : (
               <div className="space-y-2">
-                {form.items.map((item, index) => (
+                {visibleItems.map(({ item, index }) => (
                   <div key={index} className="space-y-2 border rounded-md p-2">
                     <div className="flex items-center gap-2">
                       <Select value={item.category} onValueChange={(v) => setItem(index, { category: v })}>
