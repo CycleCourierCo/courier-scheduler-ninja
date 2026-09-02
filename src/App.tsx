@@ -190,6 +190,11 @@ function App() {
                   <BoxMyBikePage />
                 </ProtectedRoute>
               } />
+              <Route path="/build-my-bike" element={
+                <ProtectedRoute>
+                  <BuildMyBikePage />
+                </ProtectedRoute>
+              } />
               <Route path="/inbox" element={
                 <ProtectedRoute>
                   <CustomerServiceInbox />
