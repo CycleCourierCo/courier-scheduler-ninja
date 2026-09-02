@@ -284,6 +284,11 @@ const BoxMyBikePage: React.FC = () => {
     }
   };
 
+  const filteredOrders = React.useMemo(
+    () => filterOrdersBySearch(orders, search),
+    [orders, search]
+  );
+
   const grouped = React.useMemo(() => {
     const m: Record<BoxMyBikeStatus, BoxOrder[]> = {
       awaiting_depot: [],
@@ -293,7 +298,7 @@ const BoxMyBikePage: React.FC = () => {
       collected_by_3p: [],
       delivered_by_3p: [],
     };
-    for (const o of orders) {
+    for (const o of filteredOrders) {
       const s = (o.box_my_bike_status || "awaiting_depot") as BoxMyBikeStatus;
       if (m[s]) m[s].push(o);
     }
