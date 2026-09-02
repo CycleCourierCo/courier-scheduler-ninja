@@ -350,6 +350,89 @@ export type Database = {
           },
         ]
       }
+      bike_build_template_items: {
+        Row: {
+          category: string
+          created_at: string
+          id: string
+          notes: string | null
+          quantity: number
+          slot: string | null
+          template_id: string
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          quantity?: number
+          slot?: string | null
+          template_id: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          quantity?: number
+          slot?: string | null
+          template_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bike_build_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "bike_build_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bike_build_templates: {
+        Row: {
+          bike_brand: string | null
+          bike_model: string | null
+          bike_type: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          sku: string | null
+          spec_notes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bike_brand?: string | null
+          bike_model?: string | null
+          bike_type?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name: string
+          sku?: string | null
+          spec_notes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bike_brand?: string | null
+          bike_model?: string | null
+          bike_type?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          name?: string
+          sku?: string | null
+          spec_notes?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       bike_builds: {
         Row: {
           bike_brand: string | null
@@ -367,6 +450,7 @@ export type Database = {
           name: string
           parts_total: number
           site_id: string | null
+          sku: string | null
           spec_notes: string | null
           stage: Database["public"]["Enums"]["bike_build_stage"]
           updated_at: string
@@ -388,6 +472,7 @@ export type Database = {
           name: string
           parts_total?: number
           site_id?: string | null
+          sku?: string | null
           spec_notes?: string | null
           stage?: Database["public"]["Enums"]["bike_build_stage"]
           updated_at?: string
@@ -409,6 +494,7 @@ export type Database = {
           name?: string
           parts_total?: number
           site_id?: string | null
+          sku?: string | null
           spec_notes?: string | null
           stage?: Database["public"]["Enums"]["bike_build_stage"]
           updated_at?: string
