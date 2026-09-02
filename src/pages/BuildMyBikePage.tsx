@@ -132,9 +132,16 @@ const BuildMyBikePage: React.FC = () => {
     setPickedParts((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
   };
 
-  const pickedTotal = availableStock
-    .filter((s) => pickedParts.includes(s.id))
-    .reduce((sum, s) => sum + Number(s.bike_value || 0), 0);
+  const pickedStock = availableStock.filter((s) => pickedParts.includes(s.id));
+
+  const pickedTotal = pickedStock.reduce((sum, s) => sum + Number(s.bike_value || 0), 0);
+
+  const pickedCountsBySlot = pickedStock.reduce<Record<string, number>>((acc, s) => {
+    const slot = slotForCategory(s.component_category);
+    if (slot) acc[slot] = (acc[slot] || 0) + 1;
+    return acc;
+  }, {});
+
 
   const handleCreate = async () => {
     const targetUserId = targetCustomerId;
