@@ -21,6 +21,8 @@ import { useOrderTaskSummaries } from "@/hooks/useOrderTaskSummaries";
 import TaskDialog from "@/components/tasks/TaskDialog";
 import TaskDetailDrawer from "@/components/tasks/TaskDetailDrawer";
 import { toPublicFileUrl } from "@/lib/publicFileUrl";
+import OrderSearchBar from "@/components/boxmybike/OrderSearchBar";
+import { filterOrdersBySearch } from "@/utils/orderSearch";
 
 
 interface FoamOrder {
@@ -114,6 +116,8 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
   const isAdmin = hasRole(userProfile, "admin");
   const [activeTab, setActiveTab] = React.useState<FoamStatus>("pending_collection");
   const [overrideFor, setOverrideFor] = React.useState<FoamOrder | null>(null);
+  const [search, setSearch] = React.useState("");
+
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["foam-my-bike-orders", userId, isStaff],
@@ -309,17 +313,22 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
 
 
 
+  const filteredOrders = React.useMemo(
+    () => filterOrdersBySearch(orders, search),
+    [orders, search]
+  );
+
   const grouped = React.useMemo(() => {
     const m = FOAM_STATUS_ORDER.reduce((acc, s) => {
       acc[s] = [] as FoamOrder[];
       return acc;
     }, {} as Record<FoamStatus, FoamOrder[]>);
-    for (const o of orders) {
+    for (const o of filteredOrders) {
       const s = (o.foam_status || "pending_collection") as FoamStatus;
       if (m[s]) m[s].push(o);
     }
     return m;
-  }, [orders]);
+  }, [filteredOrders]);
 
   const renderCard = (o: FoamOrder) => {
     const stage = (o.foam_status || "pending_collection") as FoamStatus;
@@ -519,7 +528,16 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
         No Northern Ireland deliveries yet.
       </div>
     ) : (
-      <>{orders.map(renderCard)}</>
+      <>
+        <OrderSearchBar value={search} onChange={setSearch} />
+        {filteredOrders.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-8 text-center">
+            No bikes match your search.
+          </div>
+        ) : (
+          filteredOrders.map(renderCard)
+        )}
+      </>
     );
   }
 
@@ -556,6 +574,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
         setOverrideFor(null);
       }}
     />
+    <OrderSearchBar value={search} onChange={setSearch} />
     <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as FoamStatus)}>
       <TabsList className="flex flex-wrap h-auto">
         {FOAM_STATUS_ORDER.map((s) => (
@@ -569,7 +588,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
         <TabsContent key={s} value={s} className="mt-4">
           {grouped[s].length === 0 ? (
             <div className="text-sm text-muted-foreground py-8 text-center">
-              No bikes in this stage.
+              {search.trim() ? "No bikes match your search." : "No bikes in this stage."}
             </div>
           ) : (
             grouped[s].map(renderCard)
