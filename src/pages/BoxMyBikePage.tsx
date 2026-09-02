@@ -303,7 +303,7 @@ const BoxMyBikePage: React.FC = () => {
       if (m[s]) m[s].push(o);
     }
     return m;
-  }, [orders]);
+  }, [filteredOrders]);
 
   const renderCard = (o: BoxOrder) => {
     const stage = (o.box_my_bike_status || "awaiting_depot") as BoxMyBikeStatus;
