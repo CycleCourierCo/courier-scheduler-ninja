@@ -314,6 +314,16 @@ const WarehouseStockPage: React.FC = () => {
                       {format(new Date(item.deposited_at), "dd MMM yyyy")}
                     </TableCell>
                     <TableCell>
+                      {item.item_kind === "component" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Receive stock"
+                          onClick={() => setReceiveItem(item)}
+                        >
+                          <PackagePlus className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
