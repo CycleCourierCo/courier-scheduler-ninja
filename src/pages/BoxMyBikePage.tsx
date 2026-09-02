@@ -112,6 +112,7 @@ const BoxMyBikePage: React.FC = () => {
   const queryClient = useQueryClient();
   const isStaff = hasRole(userProfile, "admin") || hasRole(userProfile, "mechanic") || hasRole(userProfile, "loader");
   const [activeTab, setActiveTab] = React.useState<BoxMyBikeStatus>("awaiting_depot");
+  const [search, setSearch] = React.useState("");
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["box-my-bike-orders", user?.id, isStaff],
