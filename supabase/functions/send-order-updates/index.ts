@@ -350,16 +350,28 @@ function deriveUpdates(order: any, inspectionPending = false, inspectionStatus: 
 
   // ---- Delivery scheduled -------------------------------------------------
   if (order.scheduled_delivery_date && !order.order_delivered && deliveryDay && deliveryDay >= today && !order.is_northern_ireland) {
+    const when = prettyDate(order.scheduled_delivery_date);
     push({
       side: "receiver",
       stageKey: "delivery_scheduled",
       subject: `Your delivery is booked for ${item}`,
-      headline: `Your delivery is booked for ${prettyDate(order.scheduled_delivery_date)}`,
+      headline: `Your delivery is booked for ${when}`,
       lines: ["We'll send your time slot the day before so you know when to expect us."],
+    });
+    push({
+      side: "sender",
+      stageKey: "delivery_scheduled_sender",
+      subject: `Delivery booked for ${item}`,
+      headline: `The bike you sent is booked for delivery on ${when}`,
+      lines: [
+        "That's the final leg of its journey - we'll hand it over to the buyer on that date.",
+        "There's nothing you need to do.",
+      ],
     });
   }
 
-  return updates;
+  return highestPriorityPerSide(updates);
+
 }
 
 function buildHtml(order: any, update: Update, name: string): string {
