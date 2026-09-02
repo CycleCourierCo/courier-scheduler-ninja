@@ -354,6 +354,7 @@ export type Database = {
         Row: {
           category: string
           created_at: string
+          frame_size: string | null
           id: string
           notes: string | null
           quantity: number
@@ -364,6 +365,7 @@ export type Database = {
         Insert: {
           category: string
           created_at?: string
+          frame_size?: string | null
           id?: string
           notes?: string | null
           quantity?: number
@@ -374,6 +376,7 @@ export type Database = {
         Update: {
           category?: string
           created_at?: string
+          frame_size?: string | null
           id?: string
           notes?: string | null
           quantity?: number
@@ -441,6 +444,7 @@ export type Database = {
           built_at: string | null
           created_at: string
           created_by: string | null
+          frame_size: string | null
           id: string
           invoice_number: string | null
           invoice_url: string | null
@@ -463,6 +467,7 @@ export type Database = {
           built_at?: string | null
           created_at?: string
           created_by?: string | null
+          frame_size?: string | null
           id?: string
           invoice_number?: string | null
           invoice_url?: string | null
@@ -485,6 +490,7 @@ export type Database = {
           built_at?: string | null
           created_at?: string
           created_by?: string | null
+          frame_size?: string | null
           id?: string
           invoice_number?: string | null
           invoice_url?: string | null
@@ -5122,6 +5128,7 @@ export type Database = {
           deposited_at: string
           deposited_by: string | null
           dispatched_at: string | null
+          frame_size: string | null
           id: string
           item_kind: Database["public"]["Enums"]["warehouse_item_kind"]
           item_notes: string | null
@@ -5146,6 +5153,7 @@ export type Database = {
           deposited_at?: string
           deposited_by?: string | null
           dispatched_at?: string | null
+          frame_size?: string | null
           id?: string
           item_kind?: Database["public"]["Enums"]["warehouse_item_kind"]
           item_notes?: string | null
@@ -5170,6 +5178,7 @@ export type Database = {
           deposited_at?: string
           deposited_by?: string | null
           dispatched_at?: string | null
+          frame_size?: string | null
           id?: string
           item_kind?: Database["public"]["Enums"]["warehouse_item_kind"]
           item_notes?: string | null
