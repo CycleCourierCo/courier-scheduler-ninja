@@ -571,7 +571,7 @@ const LoadingUnloadingPage = () => {
 
           for (let i = 0; i < quantity; i++) {
             pdf.addPage();
-            renderLabelPage(pdf, order, i, quantity, labelWidth);
+            renderLabelPage(pdf, order, i, quantity, labelWidth, senderLabelAccounts.has((order as any)?.user_id));
           }
         });
       });
