@@ -30,6 +30,8 @@ import TaskDialog from "@/components/tasks/TaskDialog";
 import TaskDetailDrawer from "@/components/tasks/TaskDetailDrawer";
 
 import FoamMyBikeSection from "@/components/boxmybike/FoamMyBikeSection";
+import OrderSearchBar from "@/components/boxmybike/OrderSearchBar";
+import { filterOrdersBySearch } from "@/utils/orderSearch";
 import { toPublicFileUrl } from "@/lib/publicFileUrl";
 
 
