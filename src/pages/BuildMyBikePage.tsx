@@ -493,8 +493,23 @@ const BuildMyBikePage: React.FC = () => {
                 </div>
               ) : (
                 <>
+                  <BikeDiagram
+                    countsBySlot={pickedCountsBySlot}
+                    onSelectSlot={(hs) => setCreateHotspot((prev) => (prev?.slot === hs.slot ? null : hs))}
+                  />
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                    <span className="text-muted-foreground">
+                      {createHotspot ? `Area: ${createHotspot.label}` : "Tap an area on the bike to filter parts"}
+                    </span>
+                    {createHotspot && (
+                      <Button type="button" variant="ghost" size="sm" onClick={() => setCreateHotspot(null)}>
+                        Clear area
+                      </Button>
+                    )}
+                  </div>
                   <StockPickerList
                     stock={availableStock}
+                    hotspot={createHotspot}
                     selected={pickedParts}
                     onToggle={togglePart}
                     emptyLabel="No parts in stock for this customer yet."
