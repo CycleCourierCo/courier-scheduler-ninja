@@ -75,6 +75,11 @@ export const BIKE_HOTSPOTS: BikeHotspot[] = [
   { slot: "accessories", label: "Accessories", x: 24, y: 58, categories: ["Mudguards", "Pannier rack", "Bottle cage", "Kickstand", "Bolt kit", "Other"] },
 ];
 
+/** Maps a component category to the diagram slot it belongs to, if any. */
+export const slotForCategory = (category?: string | null): string | null =>
+  BIKE_HOTSPOTS.find((h) => h.categories.includes(category || ""))?.slot ?? null;
+
+
 export const BUILD_STAGES = [
   { value: "awaiting_build", label: "Awaiting build" },
   { value: "awaiting_parts", label: "Awaiting parts" },
