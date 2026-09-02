@@ -37,7 +37,7 @@ const emptyForm: BikeBuildFormData = {
 
 const BuildMyBikePage: React.FC = () => {
   const { user, userProfile } = useAuth();
-  const isStaff = hasAnyRole(userProfile, ["admin", "loader", "mechanic"]);
+  const isStaff = hasAnyRole(userProfile, ["admin", "loader", "mechanic", "cs_agent"]);
   const { data: sites = [] } = useSites();
   const [siteId, setSiteId] = useState<string | null>(null);
   const activeSiteId = isStaff ? siteId ?? defaultSite(sites)?.id ?? null : null;
