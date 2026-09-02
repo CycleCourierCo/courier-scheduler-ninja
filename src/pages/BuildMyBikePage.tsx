@@ -232,7 +232,7 @@ const BuildMyBikePage: React.FC = () => {
 
           </div>
           {tab === "builds" && (
-            <Button onClick={() => { setForm(emptyForm); setNewOpen(true); }}>
+            <Button onClick={openNewBuild}>
               <Plus className="mr-2 h-4 w-4" /> New build
             </Button>
           )}
@@ -449,12 +449,48 @@ const BuildMyBikePage: React.FC = () => {
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setNewOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={submitting}>
-              {submitting ? "Creating…" : "Create build"}
-            </Button>
+
+          {step === "parts" && (
+            <div className="min-w-0 space-y-3">
+              {stockLoading ? (
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-primary" />
+                </div>
+              ) : (
+                <>
+                  <StockPickerList
+                    stock={availableStock}
+                    selected={pickedParts}
+                    onToggle={togglePart}
+                    emptyLabel="No parts in stock for this customer yet."
+                  />
+                  <div className="text-sm text-muted-foreground">
+                    {pickedParts.length} part{pickedParts.length === 1 ? "" : "s"} · £{pickedTotal.toFixed(2)} parts total
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="flex-wrap gap-2">
+            {step === "details" ? (
+              <>
+                <Button variant="outline" onClick={() => setNewOpen(false)}>Cancel</Button>
+                <Button variant="outline" onClick={handleCreate} disabled={submitting}>
+                  {submitting ? "Creating…" : "Create without parts"}
+                </Button>
+                <Button onClick={goToParts} disabled={submitting}>Next: pick parts</Button>
+              </>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setStep("details")} disabled={submitting}>Back</Button>
+                <Button onClick={handleCreate} disabled={submitting}>
+                  {submitting ? "Creating…" : "Create build"}
+                </Button>
+              </>
+            )}
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
 
