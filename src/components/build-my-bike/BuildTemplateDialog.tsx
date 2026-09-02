@@ -63,6 +63,7 @@ const BuildTemplateDialog: React.FC<Props> = ({
           category: i.category,
           quantity: Number(i.quantity || 1),
           slot: i.slot,
+          notes: i.notes,
         })),
       });
     } else {
