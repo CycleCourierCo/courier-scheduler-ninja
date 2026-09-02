@@ -279,6 +279,11 @@ const WarehouseStockPage: React.FC = () => {
                         {item.item_kind === "component" && (
                           <Badge variant="secondary" className="text-[10px]">Part</Badge>
                         )}
+                        {item.item_kind === "component" && Number(item.quantity || 0) === 0 && (
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                            Out of stock
+                          </Badge>
+                        )}
                       </div>
                       {item.item_kind === "component" ? (
                         <div className="text-xs text-muted-foreground">
