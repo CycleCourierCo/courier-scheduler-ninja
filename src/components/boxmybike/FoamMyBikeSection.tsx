@@ -313,17 +313,22 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
 
 
 
+  const filteredOrders = React.useMemo(
+    () => filterOrdersBySearch(orders, search),
+    [orders, search]
+  );
+
   const grouped = React.useMemo(() => {
     const m = FOAM_STATUS_ORDER.reduce((acc, s) => {
       acc[s] = [] as FoamOrder[];
       return acc;
     }, {} as Record<FoamStatus, FoamOrder[]>);
-    for (const o of orders) {
+    for (const o of filteredOrders) {
       const s = (o.foam_status || "pending_collection") as FoamStatus;
       if (m[s]) m[s].push(o);
     }
     return m;
-  }, [orders]);
+  }, [filteredOrders]);
 
   const renderCard = (o: FoamOrder) => {
     const stage = (o.foam_status || "pending_collection") as FoamStatus;
