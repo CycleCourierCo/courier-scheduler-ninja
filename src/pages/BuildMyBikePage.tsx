@@ -152,9 +152,11 @@ const BuildMyBikePage: React.FC = () => {
               </Tabs>
             )}
           </div>
-          <Button onClick={() => { setForm(emptyForm); setNewOpen(true); }}>
-            <Plus className="mr-2 h-4 w-4" /> New build
-          </Button>
+          {tab === "builds" && (
+            <Button onClick={() => { setForm(emptyForm); setNewOpen(true); }}>
+              <Plus className="mr-2 h-4 w-4" /> New build
+            </Button>
+          )}
         </div>
 
         <Tabs value={tab} onValueChange={(v) => setTab(v as "builds" | "stored")} className="mb-6">
