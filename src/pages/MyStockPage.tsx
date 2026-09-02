@@ -118,16 +118,33 @@ const MyStockPage = () => {
             {stock.map((item) => (
               <Card key={item.id} className="relative">
                 <CardHeader className="pb-2">
-                  <div className="flex items-start justify-between">
+                  <div className="flex items-start justify-between gap-2">
                     <CardTitle className="text-base">
-                      {[item.bike_brand, item.bike_model].filter(Boolean).join(" ") || "Item"}
+                      {[item.bike_brand, item.bike_model].filter(Boolean).join(" ") ||
+                        item.spec ||
+                        item.component_category ||
+                        (item.item_kind === "component" ? "Component" : "Bike")}
                     </CardTitle>
-                    <Badge variant={item.status === "stored" ? "default" : "secondary"}>
-                      {item.status}
-                    </Badge>
+                    <div className="flex flex-col items-end gap-1">
+                      <Badge variant={item.status === "stored" ? "default" : "secondary"}>
+                        {item.status}
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px]">
+                        {item.item_kind === "component" ? "Part" : "Bike"}
+                      </Badge>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-2">
+                  {item.item_kind === "component" && item.component_category && (
+                    <p className="text-sm text-muted-foreground">Category: {item.component_category}</p>
+                  )}
+                  {item.item_kind === "component" && item.spec && (item.bike_brand || item.bike_model) && (
+                    <p className="text-sm text-muted-foreground">Spec: {item.spec}</p>
+                  )}
+                  {item.item_kind === "component" && (item.quantity ?? 0) > 0 && (
+                    <p className="text-sm text-muted-foreground">Quantity: {item.quantity}</p>
+                  )}
                   {item.bike_type && (
                     <p className="text-sm text-muted-foreground">Type: {item.bike_type}</p>
                   )}
