@@ -25,8 +25,7 @@ import {
 import type { WarehouseStock, WarehouseStockFormData } from "@/types/warehouseStock";
 import { format } from "date-fns";
 import { useStorageBays } from "@/hooks/useStorageBays";
-import { useSites, defaultSite } from "@/hooks/useSites";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useSites, defaultSite, findSite, DEFAULT_SITE_CODE } from "@/hooks/useSites";
 import { COMPONENT_CATEGORIES } from "@/constants/bikeComponents";
 
 const statusColors: Record<string, string> = {
@@ -55,8 +54,8 @@ const emptyForm: WarehouseStockFormData = {
 const WarehouseStockPage: React.FC = () => {
   const { user } = useAuth();
   const { data: sites = [] } = useSites();
-  const [siteId, setSiteId] = useState<string | null>(null);
-  const activeSiteId = siteId ?? defaultSite(sites)?.id ?? null;
+  // Warehouse stock is held at Birmingham only for now.
+  const activeSiteId = findSite(sites, DEFAULT_SITE_CODE)?.id ?? defaultSite(sites)?.id ?? null;
   const { bays } = useStorageBays(false, activeSiteId);
   const [stock, setStock] = useState<WarehouseStock[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -168,17 +167,7 @@ const WarehouseStockPage: React.FC = () => {
             <p className="text-muted-foreground text-sm mt-1">
               Manage customer inventory stored at the depot
             </p>
-            {sites.length > 1 && (
-              <Tabs value={activeSiteId ?? ""} onValueChange={setSiteId} className="mt-3">
-                <TabsList>
-                  {sites.map((site) => (
-                    <TabsTrigger key={site.id} value={site.id}>
-                      {site.name}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-              </Tabs>
-            )}
+
           </div>
           <Button onClick={() => { setFormData(emptyForm); setDialogOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> Add Stock

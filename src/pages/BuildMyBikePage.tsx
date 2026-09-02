@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
-import { useSites, defaultSite } from "@/hooks/useSites";
+import { useSites, defaultSite, findSite, DEFAULT_SITE_CODE } from "@/hooks/useSites";
 import { getCustomerList } from "@/services/warehouseStockService";
 import { createBikeBuild, deleteBikeBuild, getBikeBuilds } from "@/services/bikeBuildService";
 import type { BikeBuild, BikeBuildFormData } from "@/types/bikeBuild";
@@ -39,8 +39,10 @@ const BuildMyBikePage: React.FC = () => {
   const { user, userProfile } = useAuth();
   const isStaff = hasAnyRole(userProfile, ["admin", "loader", "mechanic", "cs_agent"]);
   const { data: sites = [] } = useSites();
-  const [siteId, setSiteId] = useState<string | null>(null);
-  const activeSiteId = isStaff ? siteId ?? defaultSite(sites)?.id ?? null : null;
+  // Builds draw on Birmingham warehouse stock only for now.
+  const activeSiteId = isStaff
+    ? findSite(sites, DEFAULT_SITE_CODE)?.id ?? defaultSite(sites)?.id ?? null
+    : null;
   const [tab, setTab] = useState<"builds" | "stored">("builds");
 
   const [builds, setBuilds] = useState<BikeBuild[]>([]);
@@ -142,15 +144,7 @@ const BuildMyBikePage: React.FC = () => {
             <p className="text-muted-foreground text-sm mt-1">
               Assemble customer bikes from components held in warehouse stock
             </p>
-            {isStaff && sites.length > 1 && (
-              <Tabs value={activeSiteId ?? ""} onValueChange={setSiteId} className="mt-3">
-                <TabsList>
-                  {sites.map((site) => (
-                    <TabsTrigger key={site.id} value={site.id}>{site.name}</TabsTrigger>
-                  ))}
-                </TabsList>
-              </Tabs>
-            )}
+
           </div>
           {tab === "builds" && (
             <Button onClick={() => { setForm(emptyForm); setNewOpen(true); }}>
