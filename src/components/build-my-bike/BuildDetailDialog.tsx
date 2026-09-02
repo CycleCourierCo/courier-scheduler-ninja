@@ -208,7 +208,7 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[calc(100vw-2rem)] sm:w-auto max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
+        <DialogContent className="w-full max-w-[calc(100vw-2rem)] sm:max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>{build.name}</DialogTitle>
             <DialogDescription>
@@ -219,7 +219,7 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-5">
+          <div className="w-full min-w-0 space-y-5">
             <div className="flex flex-wrap items-end gap-3">
               {isStaff ? (
               <div className="min-w-[220px]">
@@ -263,7 +263,8 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
               }}
             />
 
-            <div>
+            <div className="min-w-0">
+
               <div className="flex items-center justify-between mb-2">
                 <h3 className="font-semibold text-sm">Components ({components.length})</h3>
                 <Button
@@ -283,10 +284,10 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
                   No parts allocated yet. Click an area on the bike to pick parts from stock.
                 </p>
               ) : (
-                <div className="space-y-2">
+                <div className="min-w-0 space-y-2">
                   {components.map((c) => (
-                    <div key={c.id} className="flex items-center gap-3 rounded-md border p-3">
-                      <div className="min-w-0 flex-1">
+                    <div key={c.id} className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 rounded-md border p-3">
+                      <div className="min-w-0 flex-1 basis-full sm:basis-0">
                         <div className="text-sm font-medium truncate">
                           {[c.stock?.bike_brand, c.stock?.bike_model].filter(Boolean).join(" ") || c.category}
                         </div>
@@ -297,17 +298,17 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
                         </div>
                       </div>
                       {c.stock && (
-                        <Badge variant="outline" className="hidden sm:inline-flex text-[10px]">
+                        <Badge variant="outline" className="hidden sm:inline-flex text-[10px] shrink-0">
                           Bay {c.stock.bay} · Pos {c.stock.position}
                         </Badge>
                       )}
-                      <div className="text-sm w-16 text-right">
+                      <div className="text-sm shrink-0 sm:w-16 sm:text-right">
                         {c.unit_value != null ? `£${Number(c.unit_value).toFixed(2)}` : "—"}
                       </div>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="text-destructive"
+                        className="text-destructive shrink-0 ml-auto sm:ml-0"
                         onClick={() => handleRemove(c)}
                         disabled={build.stage === "invoiced"}
                       >
@@ -316,6 +317,7 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
                     </div>
                   ))}
                 </div>
+
               )}
             </div>
 
