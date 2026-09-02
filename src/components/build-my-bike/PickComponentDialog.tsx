@@ -56,7 +56,7 @@ const PickComponentDialog: React.FC<Props> = ({ open, onOpenChange, hotspot, sto
         onOpenChange(next);
       }}
     >
-      <DialogContent className="max-w-lg">
+      <DialogContent className="w-[calc(100vw-2rem)] sm:w-auto max-w-lg overflow-x-hidden">
         <DialogHeader>
           <DialogTitle>{hotspot ? `Add ${hotspot.label.toLowerCase()} parts` : "Add parts"}</DialogTitle>
           <DialogDescription>
@@ -64,16 +64,18 @@ const PickComponentDialog: React.FC<Props> = ({ open, onOpenChange, hotspot, sto
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Input
+            className="min-w-0 flex-1"
             placeholder="Search brand, model, spec or SKU"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
-          <Button type="button" variant="outline" size="sm" onClick={() => setShowAll((v) => !v)}>
+          <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={() => setShowAll((v) => !v)}>
             {showAll ? "This area" : "All parts"}
           </Button>
         </div>
+
 
         <ScrollArea className="max-h-72 pr-2">
           {options.length === 0 ? (

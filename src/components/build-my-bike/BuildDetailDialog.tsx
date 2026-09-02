@@ -208,7 +208,7 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-2rem)] sm:w-auto max-w-3xl max-h-[90vh] overflow-y-auto overflow-x-hidden">
           <DialogHeader>
             <DialogTitle>{build.name}</DialogTitle>
             <DialogDescription>
