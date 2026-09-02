@@ -70,6 +70,7 @@ const BuildMyBikePage: React.FC = () => {
   const [availableStock, setAvailableStock] = useState<WarehouseStock[]>([]);
   const [stockLoading, setStockLoading] = useState(false);
   const [pickedParts, setPickedParts] = useState<string[]>([]);
+  const [createHotspot, setCreateHotspot] = useState<BikeHotspot | null>(null);
 
   const fetchData = async () => {
     try {
