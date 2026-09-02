@@ -1,9 +1,15 @@
 export type WarehouseStockStatus = 'stored' | 'reserved' | 'dispatched' | 'returned';
 
+export type WarehouseItemKind = 'bike' | 'component';
+
 export type WarehouseStock = {
   id: string;
   user_id: string;
   deposited_by: string | null;
+  item_kind: WarehouseItemKind;
+  component_category: string | null;
+  quantity: number;
+  spec: string | null;
   bike_brand: string | null;
   bike_model: string | null;
   bike_type: string | null;
