@@ -500,27 +500,30 @@ const BoxMyBikePage: React.FC = () => {
         ) : isLoading ? (
           <div className="text-sm text-muted-foreground">Loading…</div>
         ) : isStaff ? (
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as BoxMyBikeStatus)}>
-            <TabsList className="flex flex-wrap h-auto">
+          <>
+            <OrderSearchBar value={search} onChange={setSearch} />
+            <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as BoxMyBikeStatus)}>
+              <TabsList className="flex flex-wrap h-auto">
+                {STAFF_STAGES.map((s) => (
+                  <TabsTrigger key={s} value={s} className="text-xs sm:text-sm">
+                    {BOX_MY_BIKE_STATUS_LABELS[s]}{" "}
+                    <Badge variant="outline" className="ml-2">{grouped[s].length}</Badge>
+                  </TabsTrigger>
+                ))}
+              </TabsList>
               {STAFF_STAGES.map((s) => (
-                <TabsTrigger key={s} value={s} className="text-xs sm:text-sm">
-                  {BOX_MY_BIKE_STATUS_LABELS[s]}{" "}
-                  <Badge variant="outline" className="ml-2">{grouped[s].length}</Badge>
-                </TabsTrigger>
+                <TabsContent key={s} value={s} className="mt-4">
+                  {grouped[s].length === 0 ? (
+                    <div className="text-sm text-muted-foreground py-8 text-center">
+                      {search.trim() ? "No orders match your search." : "No orders in this stage."}
+                    </div>
+                  ) : (
+                    grouped[s].map(renderCard)
+                  )}
+                </TabsContent>
               ))}
-            </TabsList>
-            {STAFF_STAGES.map((s) => (
-              <TabsContent key={s} value={s} className="mt-4">
-                {grouped[s].length === 0 ? (
-                  <div className="text-sm text-muted-foreground py-8 text-center">
-                    No orders in this stage.
-                  </div>
-                ) : (
-                  grouped[s].map(renderCard)
-                )}
-              </TabsContent>
-            ))}
-          </Tabs>
+            </Tabs>
+          </>
         ) : orders.length === 0 ? (
           <Card>
             <CardHeader>
@@ -533,7 +536,16 @@ const BoxMyBikePage: React.FC = () => {
             </CardContent>
           </Card>
         ) : (
-          orders.map(renderCard)
+          <>
+            <OrderSearchBar value={search} onChange={setSearch} />
+            {filteredOrders.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-8 text-center">
+                No orders match your search.
+              </div>
+            ) : (
+              filteredOrders.map(renderCard)
+            )}
+          </>
         )}
       </div>
 
