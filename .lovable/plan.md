@@ -9,23 +9,25 @@ Warehouse stock gains the concept of an item kind:
 - **Bike** — behaves exactly as today.
 - **Component** — a part held for a customer, with a component category and a quantity.
 
-Component categories (the full parts list needed to build a bike):
+Component categories (the full parts list needed to build a bike). **Groupset** is a bundle category — one stock item covering shifters, derailleurs, crankset, cassette, chain and brakes — and can be used instead of the individual drivetrain/brake parts:
 
 ```text
-Frame            Fork              Headset          Stem
-Handlebar        Grips/Bar tape    Saddle           Seatpost
-Seat clamp       Wheelset          Front wheel      Rear wheel
-Tyres            Tubes/Sealant     Cassette         Chain
-Crankset         Bottom bracket    Front derailleur Rear derailleur
-Shifters         Brakes (calipers) Brake levers     Rotors
-Brake pads       Pedals            Chainrings       Bearings
-Cables/Hoses     Motor             Battery          Display/Controller
-Rack             Mudguards         Bottle cage      Kickstand
-Bell             Lights            Computer/Sensor  Accessories
-Other
+Groupset (complete)   Frame            Fork              Headset
+Stem                  Handlebar        Grips/Bar tape    Saddle
+Seatpost              Seat clamp       Wheelset          Front wheel
+Rear wheel            Tyres            Tubes/Sealant     Cassette
+Chain                 Crankset         Chainrings        Bottom bracket
+Front derailleur      Rear derailleur  Shifters          Brakes (calipers)
+Brake levers          Rotors           Brake pads        Pedals
+Bearings              Cables/Hoses     Motor             Battery
+Display/Controller    Rack             Mudguards         Bottle cage
+Kickstand             Bell             Lights            Computer/Sensor
+Accessories           Other
 ```
 
 The stock table and the "Add stock" dialog get a kind toggle. Choosing Component swaps the bike fields for: component category, brand, model, spec/size, quantity, value, SKU, notes, plus the existing bay/position/site. Components appear in the stock list with a distinct badge, are filterable by kind and category, and show in the customer's My Stock page.
+
+In the builder, picking a Groupset fills the drivetrain and brake hotspots in one action (those hotspots show as "covered by groupset"), while builds without one require the individual parts. Both routes are allowed on the same build for mixed setups.
 
 ## 2. Build My Bike page (`/build-my-bike`)
 
