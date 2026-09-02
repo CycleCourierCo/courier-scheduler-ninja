@@ -66,6 +66,7 @@ const WarehouseStockPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterCustomer, setFilterCustomer] = useState<string>("all");
+  const [receiveItem, setReceiveItem] = useState<WarehouseStock | null>(null);
 
   const fetchData = async () => {
     try {
