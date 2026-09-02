@@ -39,8 +39,10 @@ const BuildMyBikePage: React.FC = () => {
   const { user, userProfile } = useAuth();
   const isStaff = hasAnyRole(userProfile, ["admin", "loader", "mechanic", "cs_agent"]);
   const { data: sites = [] } = useSites();
-  const [siteId, setSiteId] = useState<string | null>(null);
-  const activeSiteId = isStaff ? siteId ?? defaultSite(sites)?.id ?? null : null;
+  // Builds draw on Birmingham warehouse stock only for now.
+  const activeSiteId = isStaff
+    ? findSite(sites, DEFAULT_SITE_CODE)?.id ?? defaultSite(sites)?.id ?? null
+    : null;
   const [tab, setTab] = useState<"builds" | "stored">("builds");
 
   const [builds, setBuilds] = useState<BikeBuild[]>([]);
