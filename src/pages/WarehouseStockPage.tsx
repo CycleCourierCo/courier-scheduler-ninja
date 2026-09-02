@@ -41,6 +41,7 @@ const emptyForm: WarehouseStockFormData = {
   component_category: "",
   quantity: 1,
   spec: "",
+  frame_size: "",
   bike_brand: "",
   bike_model: "",
   bike_type: "",
@@ -276,13 +277,17 @@ const WarehouseStockPage: React.FC = () => {
                       </div>
                       {item.item_kind === "component" ? (
                         <div className="text-xs text-muted-foreground">
-                          {[item.component_category, item.spec, item.quantity > 1 ? `x${item.quantity}` : null]
+                          {[item.component_category, item.frame_size ? `Size ${item.frame_size}` : null, item.spec, item.quantity > 1 ? `x${item.quantity}` : null]
                             .filter(Boolean)
                             .join(" · ")}
                         </div>
                       ) : (
-                        item.bike_type && (
-                          <div className="text-xs text-muted-foreground">{item.bike_type}</div>
+                        (item.bike_type || item.frame_size) && (
+                          <div className="text-xs text-muted-foreground">
+                            {[item.bike_type, item.frame_size ? `Size ${item.frame_size}` : null]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </div>
                         )
                       )}
                       {item.sku && (
@@ -450,6 +455,17 @@ const WarehouseStockPage: React.FC = () => {
                 />
               </div>
             </div>
+
+            {(formData.item_kind === "bike" || formData.component_category === "Frame") && (
+              <div>
+                <Label>Frame size</Label>
+                <Input
+                  value={formData.frame_size ?? ""}
+                  onChange={(e) => setFormData({ ...formData, frame_size: e.target.value })}
+                  placeholder="e.g. M or 54cm"
+                />
+              </div>
+            )}
 
             {formData.item_kind === "component" && (
               <div>

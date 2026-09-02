@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { COMPONENT_CATEGORIES, slotForCategory, type BikeHotspot } from "@/constants/bikeComponents";
 import BikeDiagram from "./BikeDiagram";
 import { saveBuildTemplate } from "@/services/bikeBuildService";
+import { getFrameSizes } from "@/services/warehouseStockService";
 import type { BikeBuildTemplate, BikeBuildTemplateFormData } from "@/types/bikeBuild";
 
 const BIKE_TYPES = ["Road", "Mountain", "Hybrid", "Electric", "Gravel", "BMX", "Folding", "Kids", "Other"];
@@ -49,6 +50,7 @@ const BuildTemplateDialog: React.FC<Props> = ({
   const [form, setForm] = useState<BikeBuildTemplateFormData>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [activeSlot, setActiveSlot] = useState<BikeHotspot | null>(null);
+  const [frameSizes, setFrameSizes] = useState<string[]>([]);
 
   const countsBySlot = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -84,6 +86,12 @@ const BuildTemplateDialog: React.FC<Props> = ({
   useEffect(() => {
     if (!open) return;
     setActiveSlot(null);
+    getFrameSizes()
+      .then(setFrameSizes)
+      .catch((err) => {
+        Sentry.captureException(err);
+        setFrameSizes([]);
+      });
     if (template) {
       setForm({
         user_id: template.user_id,
@@ -98,6 +106,7 @@ const BuildTemplateDialog: React.FC<Props> = ({
           quantity: Number(i.quantity || 1),
           slot: i.slot,
           notes: i.notes,
+          frame_size: i.frame_size,
         })),
       });
     } else {
@@ -107,7 +116,7 @@ const BuildTemplateDialog: React.FC<Props> = ({
 
   const setItem = (
     index: number,
-    patch: Partial<{ category: string; quantity: number; notes: string }>
+    patch: Partial<{ category: string; quantity: number; notes: string; frame_size: string | null }>
   ) => {
     setForm((prev) => ({
       ...prev,
@@ -281,6 +290,22 @@ const BuildTemplateDialog: React.FC<Props> = ({
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
+                    {item.category === "Frame" && (
+                      <Select
+                        value={item.frame_size || "__none"}
+                        onValueChange={(v) => setItem(index, { frame_size: v === "__none" ? null : v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={frameSizes.length ? "Frame size" : "No sizes in stock yet"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none">No frame size</SelectItem>
+                          {frameSizes.map((size) => (
+                            <SelectItem key={size} value={size}>{size}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                     <Input
                       value={item.notes || ""}
                       onChange={(e) => setItem(index, { notes: e.target.value })}

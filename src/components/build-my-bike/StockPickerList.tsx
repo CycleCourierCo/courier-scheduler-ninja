@@ -77,7 +77,7 @@ const StockPickerList: React.FC<Props> = ({
                     {[item.bike_brand, item.bike_model].filter(Boolean).join(" ") || item.component_category}
                   </div>
                   <div className="text-xs text-muted-foreground truncate">
-                    {[item.component_category, item.spec, item.quantity > 1 ? `x${item.quantity}` : null]
+                    {[item.component_category, item.frame_size ? `Size ${item.frame_size}` : null, item.spec, item.quantity > 1 ? `x${item.quantity}` : null]
                       .filter(Boolean)
                       .join(" · ")}
                   </div>

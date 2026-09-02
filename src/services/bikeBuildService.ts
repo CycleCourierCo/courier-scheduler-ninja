@@ -59,7 +59,7 @@ export const getBikeBuildComponents = async (buildId: string): Promise<BikeBuild
   let stockMap = new Map<string, any>();
   if (stockIds.length > 0) {
     const { data: stock } = await table("warehouse_stock")
-      .select("id, bike_brand, bike_model, spec, sku, bay, position, status, quantity")
+      .select("id, bike_brand, bike_model, spec, frame_size, sku, bay, position, status, quantity")
       .in("id", stockIds);
     stockMap = new Map(((stock as any[]) || []).map((s: any) => [s.id, s]));
   }
@@ -92,6 +92,7 @@ export const createBikeBuild = async (
       bike_brand: form.bike_brand || null,
       bike_model: form.bike_model || null,
       bike_type: form.bike_type || null,
+      frame_size: form.frame_size?.trim() || null,
       spec_notes: form.spec_notes || null,
       labour_cost: form.labour_cost ? parseFloat(form.labour_cost) : 0,
       created_by: createdBy,
@@ -334,6 +335,7 @@ export const saveBuildTemplate = async (
         category: i.category,
         slot: i.slot ?? null,
         notes: i.notes || null,
+        frame_size: i.frame_size || null,
         quantity: i.quantity && i.quantity > 0 ? i.quantity : 1,
       }))
     );
@@ -398,6 +400,7 @@ export const createBuildFromTemplate = async (
       bike_brand: template.bike_brand || "",
       bike_model: template.bike_model || "",
       bike_type: template.bike_type || "",
+      frame_size: (template.items || []).find((i) => i.frame_size)?.frame_size || "",
       spec_notes: template.spec_notes || "",
       labour_cost: "",
       site_id: siteId ?? null,

@@ -10,6 +10,7 @@ export type WarehouseStock = {
   component_category: string | null;
   quantity: number;
   spec: string | null;
+  frame_size: string | null;
   bike_brand: string | null;
   bike_model: string | null;
   bike_type: string | null;
@@ -36,6 +37,7 @@ export type WarehouseStockFormData = {
   component_category?: string;
   quantity?: number;
   spec?: string;
+  frame_size?: string;
   bike_brand: string;
   bike_model: string;
   bike_type: string;
