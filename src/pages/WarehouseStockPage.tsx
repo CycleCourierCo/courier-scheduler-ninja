@@ -37,6 +37,10 @@ const statusColors: Record<string, string> = {
 
 const emptyForm: WarehouseStockFormData = {
   user_id: "",
+  item_kind: "bike",
+  component_category: "",
+  quantity: 1,
+  spec: "",
   bike_brand: "",
   bike_model: "",
   bike_type: "",
