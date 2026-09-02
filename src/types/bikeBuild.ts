@@ -9,6 +9,7 @@ export type BikeBuild = {
   bike_brand: string | null;
   bike_model: string | null;
   bike_type: string | null;
+  frame_size: string | null;
   spec_notes: string | null;
   stage: BuildStage;
   labour_cost: number;
@@ -44,6 +45,7 @@ export type BikeBuildComponent = {
     bike_brand: string | null;
     bike_model: string | null;
     spec: string | null;
+    frame_size?: string | null;
     sku: string | null;
     bay: string;
     position: number;
@@ -69,6 +71,7 @@ export type BikeBuildFormData = {
   bike_brand: string;
   bike_model: string;
   bike_type: string;
+  frame_size?: string;
   spec_notes: string;
   labour_cost: string;
   site_id?: string | null;
@@ -80,6 +83,7 @@ export type BikeBuildTemplateItem = {
   category: string;
   slot: string | null;
   quantity: number;
+  frame_size: string | null;
   notes: string | null;
   created_at?: string;
   updated_at?: string;
@@ -110,6 +114,6 @@ export type BikeBuildTemplateFormData = {
   bike_model: string;
   bike_type: string;
   spec_notes: string;
-  items: { category: string; quantity: number; slot?: string | null; notes?: string | null }[];
+  items: { category: string; quantity: number; slot?: string | null; notes?: string | null; frame_size?: string | null }[];
 };
 

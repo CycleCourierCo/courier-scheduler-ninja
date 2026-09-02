@@ -50,6 +50,7 @@ export const addWarehouseStock = async (
       component_category: data.item_kind === "component" ? data.component_category || null : null,
       quantity: data.quantity && data.quantity > 0 ? data.quantity : 1,
       spec: data.spec || null,
+      frame_size: data.frame_size?.trim() || null,
       bike_brand: data.bike_brand || null,
       bike_model: data.bike_model || null,
       bike_type: data.bike_type || null,
@@ -64,6 +65,22 @@ export const addWarehouseStock = async (
 
 
   if (error) throw error;
+};
+
+/** Distinct frame sizes already recorded on stock rows, used to populate size dropdowns. */
+export const getFrameSizes = async (userId?: string | null): Promise<string[]> => {
+  let query = (supabase.from("warehouse_stock" as any) as any)
+    .select("frame_size")
+    .not("frame_size", "is", null);
+  if (userId) query = query.eq("user_id", userId);
+  const { data, error } = await query;
+  if (error) throw error;
+  const sizes = new Set<string>();
+  ((data as any[]) || []).forEach((row: any) => {
+    const value = String(row.frame_size || "").trim();
+    if (value) sizes.add(value);
+  });
+  return [...sizes].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 };
 
 export const updateWarehouseStock = async (
