@@ -377,6 +377,7 @@ const BuildMyBikePage: React.FC = () => {
                   </span>
                   <div className="flex flex-wrap gap-1 text-xs">
                     <Badge variant="outline">{build.component_count ?? 0} parts</Badge>
+                    {build.frame_size && <Badge variant="outline">Size {build.frame_size}</Badge>}
                     {build.sku && <Badge variant="secondary">SKU {build.sku}</Badge>}
                     {(isStaff || build.invoice_number) && (
                       <Badge variant="outline">
