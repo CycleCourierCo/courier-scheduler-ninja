@@ -121,7 +121,7 @@ const ReceiveStockDialog: React.FC<Props> = ({ open, onOpenChange, item, siteId,
               <Input
                 type="number"
                 min={1}
-                max={selectedBay?.capacity ?? undefined}
+                max={selectedBay?.position_count ?? undefined}
                 disabled={!bay}
                 value={position}
                 onChange={(e) => setPosition(parseInt(e.target.value, 10) || 1)}
