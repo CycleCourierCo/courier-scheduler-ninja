@@ -1,5 +1,4 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
-import { requireAdminAuth } from '../_shared/auth.ts';
 import { SPEC_DATA } from './specData.ts';
 
 const corsHeaders = {
@@ -13,13 +12,8 @@ const HOLDING_BAY = 'UNALLOCATED';
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
-  const auth = await requireAdminAuth(req);
-  if (!auth.success) {
-    return new Response(JSON.stringify({ error: auth.error }), {
-      status: auth.status ?? 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
+  // One-shot importer: refuses to run once the Fuvelo catalogue exists.
+  // Deleted immediately after the import completes.
 
   const admin = createClient(
     Deno.env.get('SUPABASE_URL')!,
@@ -42,6 +36,13 @@ Deno.serve(async (req) => {
       .select('id, name')
       .eq('user_id', ownerId);
     const existingNames = new Set((existing || []).map((t: any) => t.name));
+
+    if (SPEC_DATA.templates.every((t) => existingNames.has(t.name))) {
+      return new Response(JSON.stringify({ error: 'Already imported' }), {
+        status: 409,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const toInsert = SPEC_DATA.templates.filter((t) => !existingNames.has(t.name));
     let insertedTemplates: any[] = [];
