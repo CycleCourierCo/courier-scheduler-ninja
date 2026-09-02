@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSites, defaultSite, findSite, DEFAULT_SITE_CODE } from "@/hooks/useSites";
-import { getCustomerList } from "@/services/warehouseStockService";
+import { getCustomerList, getFrameSizes } from "@/services/warehouseStockService";
 import {
   addComponentToBuild,
   createBikeBuild,
