@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import { format } from "date-fns";
 import type { Order } from "@/types/order";
+import { supabase } from "@/integrations/supabase/client";
 
 export const LABEL_WIDTH = 288; // 4 inches in points
 export const LABEL_HEIGHT = 432; // 6 inches in points
@@ -8,8 +9,37 @@ const MARGIN = 15;
 const ICON_SIZE = 20;
 const INDICATOR_GAP = 8;
 
+/**
+ * Returns the set of account (user) ids that have opted in to showing the
+ * sender's name on printed labels.
+ */
+export const resolveSenderLabelAccounts = async (orders: Order[]): Promise<Set<string>> => {
+  const userIds = Array.from(
+    new Set(orders.map((o) => (o as any)?.user_id).filter((id): id is string => typeof id === 'string' && id.length > 0))
+  );
+  if (userIds.length === 0) return new Set<string>();
+
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('id, show_sender_on_label')
+      .in('id', userIds);
+    if (error) throw error;
+    return new Set((data || []).filter((p: any) => p.show_sender_on_label).map((p: any) => p.id as string));
+  } catch (error) {
+    console.error('Could not resolve sender-name label flags:', error);
+    return new Set<string>();
+  }
+};
+
+const shouldShowSender = (order: Order, allowedAccounts: Set<string>): boolean => {
+  const userId = (order as any)?.user_id;
+  return typeof userId === 'string' && allowedAccounts.has(userId);
+};
+
 export const generateSingleOrderLabel = async (order: Order) => {
   try {
+    const allowedAccounts = await resolveSenderLabelAccounts([order]);
     const pdf = new jsPDF('portrait', 'pt', [LABEL_WIDTH, LABEL_HEIGHT]);
     const quantity = order.bikeQuantity || 1;
     let isFirstLabel = true;
@@ -19,7 +49,7 @@ export const generateSingleOrderLabel = async (order: Order) => {
         pdf.addPage();
       }
       isFirstLabel = false;
-      renderLabelPage(pdf, order, i, quantity, LABEL_WIDTH);
+      renderLabelPage(pdf, order, i, quantity, LABEL_WIDTH, shouldShowSender(order, allowedAccounts));
     }
 
     pdf.save(`collection-label-${order.trackingNumber || order.id}.pdf`);
@@ -31,6 +61,7 @@ export const generateSingleOrderLabel = async (order: Order) => {
 
 export const generateBulkCollectionLabels = async (orders: Order[]) => {
   try {
+    const allowedAccounts = await resolveSenderLabelAccounts(orders);
     const pdf = new jsPDF('portrait', 'pt', [LABEL_WIDTH, LABEL_HEIGHT]);
     let isFirstPage = true;
 
@@ -41,7 +72,7 @@ export const generateBulkCollectionLabels = async (orders: Order[]) => {
           pdf.addPage();
         }
         isFirstPage = false;
-        renderLabelPage(pdf, order, i, quantity, LABEL_WIDTH);
+        renderLabelPage(pdf, order, i, quantity, LABEL_WIDTH, shouldShowSender(order, allowedAccounts));
       }
     }
 
@@ -51,6 +82,7 @@ export const generateBulkCollectionLabels = async (orders: Order[]) => {
     throw new Error(`Bulk PDF generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 };
+
 
 const drawIcon = (pdf: jsPDF, path: string, x: number, y: number, size: number): boolean => {
   try {
