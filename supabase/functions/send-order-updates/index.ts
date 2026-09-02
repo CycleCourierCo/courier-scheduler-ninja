@@ -63,6 +63,42 @@ const hasDates = (value: any): boolean => {
 };
 
 /**
+ * Explicit precedence for the one update each side may receive.
+ * Higher wins: delays > booked legs > awaiting availability > awaiting route >
+ * with-us / workshop chatter. This removes any reliance on push order.
+ */
+const STAGE_PRIORITY: Record<string, number> = {
+  collection_delayed: 100,
+  delivery_delayed: 100,
+
+  collection_scheduled: 80,
+  collection_scheduled_receiver: 80,
+  delivery_scheduled: 80,
+  delivery_scheduled_sender: 80,
+
+  booked_awaiting_request: 60,
+  awaiting_sender_dates: 60,
+  awaiting_receiver_dates: 60,
+
+  sender_dates_received: 40,
+};
+
+const stagePriority = (stageKey: string): number => STAGE_PRIORITY[stageKey] ?? 20;
+
+/** Keeps only the highest-priority update per side. */
+function highestPriorityPerSide(updates: Update[]): Update[] {
+  const best = new Map<Side, Update>();
+  for (const u of updates) {
+    const current = best.get(u.side);
+    if (!current || stagePriority(u.stageKey) > stagePriority(current.stageKey)) {
+      best.set(u.side, u);
+    }
+  }
+  return [...best.values()];
+}
+
+
+/**
  * Work out which single update (if any) each side should receive right now,
  * based on where the job actually is.
  */
