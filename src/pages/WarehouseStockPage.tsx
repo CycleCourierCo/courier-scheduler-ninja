@@ -540,6 +540,13 @@ const WarehouseStockPage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ReceiveStockDialog
+        open={!!receiveItem}
+        onOpenChange={(open) => { if (!open) setReceiveItem(null); }}
+        item={receiveItem}
+        siteId={activeSiteId}
+        onReceived={fetchData}
+      />
     </Layout>
   );
 };
