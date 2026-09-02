@@ -77,7 +77,7 @@ export const APP_ROUTES: AppRoute[] = [
   { key: "mechanic-clock", path: "/mechanic-clock", label: "Mechanic Clock", section: "Workshop", icon: Clock,
     defaultRoles: ["mechanic"] },
   { key: "box-my-bike", path: "/box-my-bike", label: "Box My Bike", section: "Workshop", icon: Package2,
-    defaultRoles: ["mechanic", "loader", "cs_agent", ...CUSTOMERS] },
+    defaultRoles: ["mechanic", "loader", ...CUSTOMERS] },
   { key: "build-my-bike", path: "/build-my-bike", label: "Build My Bike", section: "Workshop", icon: Wrench,
     defaultRoles: ["mechanic", "loader", "cs_agent", ...CUSTOMERS] },
 
