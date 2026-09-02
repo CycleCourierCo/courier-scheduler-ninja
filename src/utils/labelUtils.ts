@@ -170,6 +170,24 @@ export const renderLabelPage = (pdf: jsPDF, order: Order, bikeIndex: number, qua
   // Service / Box / NI indicators
   currentY = renderIndicatorRow(pdf, order, currentY, MARGIN);
 
+  // Sender name (FROM) - only for accounts opted in
+  if (showSenderName && order.sender?.name) {
+    pdf.setFontSize(10);
+    pdf.setFont("helvetica", "bold");
+    pdf.text('FROM:', MARGIN, currentY);
+    currentY += 15;
+
+    pdf.setFont("helvetica", "normal");
+    const senderLines = splitText(pdf, order.sender.name, labelWidth - 2 * MARGIN);
+    senderLines.forEach(line => {
+      pdf.text(line, MARGIN, currentY);
+      currentY += 12;
+    });
+    currentY += 8;
+  }
+
+
+
   // Receiver info (TO)
   pdf.setFontSize(10);
   pdf.setFont("helvetica", "bold");
