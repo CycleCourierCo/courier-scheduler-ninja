@@ -1417,7 +1417,7 @@ const OrderDetail = () => {
                       <p className="text-muted-foreground">No sender availability provided</p>
                     </div>
                   )}
-                  {isAdmin && (
+                  {isAdminOrRoutePlanner && (
                     <Button 
                       onClick={handleResetSenderAvailability}
                       variant="outline"
@@ -1483,7 +1483,7 @@ const OrderDetail = () => {
                       <p className="text-muted-foreground">No receiver availability provided</p>
                     </div>
                   )}
-                  {isAdmin && (
+                  {isAdminOrRoutePlanner && (
                     <Button 
                       onClick={handleResetReceiverAvailability}
                       variant="outline"
