@@ -36,6 +36,8 @@ export function buildFerryPartnerEmail(order: FerryPartnerEmailInput) {
   const bike = [order.bike_brand, order.bike_model].filter(Boolean).join(' ').trim() || 'Bicycle';
   const quantity = order.bike_quantity || 1;
 
+  const directionLabel = inbound ? 'NI to England' : 'England to NI';
+
   const heading = inbound
     ? 'Northern Ireland collection — please arrange the NI-side pickup'
     : 'Northern Ireland delivery — please arrange the onward transport';
@@ -43,12 +45,15 @@ export function buildFerryPartnerEmail(order: FerryPartnerEmailInput) {
   const partyLabel = inbound ? 'NI collection address' : 'NI delivery address';
 
   const subject = inbound
-    ? `NI collection booking — ${trackingNumber}`
-    : `NI delivery booking — ${trackingNumber}`;
+    ? `NI to England — collection booking ${trackingNumber}`
+    : `England to NI — delivery booking ${trackingNumber}`;
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2>${esc(heading)}</h2>
+      <p style="background-color:#eef2ff; border-left:4px solid #4a65d5; padding:10px 12px; border-radius:4px; margin:0 0 16px;">
+        <strong>Direction: ${esc(directionLabel)}</strong>
+      </p>
       <p>The Cycle Courier Co. has a Northern Ireland job for you.</p>
       <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
         <p style="margin-top:0;"><strong>Tracking number:</strong> ${esc(trackingNumber)}</p>

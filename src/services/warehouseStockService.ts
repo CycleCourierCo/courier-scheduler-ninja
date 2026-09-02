@@ -46,6 +46,11 @@ export const addWarehouseStock = async (
     .insert({
       user_id: data.user_id,
       deposited_by: depositedBy,
+      item_kind: data.item_kind || "bike",
+      component_category: data.item_kind === "component" ? data.component_category || null : null,
+      quantity: data.quantity && data.quantity > 0 ? data.quantity : 1,
+      spec: data.spec || null,
+      frame_size: data.frame_size?.trim() || null,
       bike_brand: data.bike_brand || null,
       bike_model: data.bike_model || null,
       bike_type: data.bike_type || null,
@@ -62,6 +67,22 @@ export const addWarehouseStock = async (
   if (error) throw error;
 };
 
+/** Distinct frame sizes already recorded on stock rows, used to populate size dropdowns. */
+export const getFrameSizes = async (userId?: string | null): Promise<string[]> => {
+  let query = (supabase.from("warehouse_stock" as any) as any)
+    .select("frame_size")
+    .not("frame_size", "is", null);
+  if (userId) query = query.eq("user_id", userId);
+  const { data, error } = await query;
+  if (error) throw error;
+  const sizes = new Set<string>();
+  ((data as any[]) || []).forEach((row: any) => {
+    const value = String(row.frame_size || "").trim();
+    if (value) sizes.add(value);
+  });
+  return [...sizes].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+};
+
 export const updateWarehouseStock = async (
   id: string,
   updates: Partial<WarehouseStockFormData & { status: string }>
@@ -73,6 +94,38 @@ export const updateWarehouseStock = async (
     .from("warehouse_stock" as any)
     .update(payload)
     .eq("id", id);
+
+  if (error) throw error;
+};
+
+/**
+ * Books physically received parts into a bay against the existing catalogue row,
+ * so the build allocator keeps seeing a single accurate count per part.
+ */
+export const receiveComponentStock = async (params: {
+  id: string;
+  currentQuantity: number;
+  received: number;
+  bay: string;
+  position: number;
+  note?: string | null;
+  existingNotes?: string | null;
+}): Promise<void> => {
+  const stamp = new Date().toISOString().slice(0, 10);
+  const entry = params.note
+    ? `Received ${params.received} on ${stamp}: ${params.note}`
+    : `Received ${params.received} on ${stamp}`;
+
+  const { error } = await supabase
+    .from("warehouse_stock" as any)
+    .update({
+      quantity: Math.max(0, params.currentQuantity) + params.received,
+      bay: params.bay,
+      position: params.position,
+      status: "stored",
+      item_notes: [params.existingNotes, entry].filter(Boolean).join("\n"),
+    } as any)
+    .eq("id", params.id);
 
   if (error) throw error;
 };

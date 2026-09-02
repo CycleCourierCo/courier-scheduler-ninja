@@ -1,0 +1,1 @@
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS show_sender_on_label boolean NOT NULL DEFAULT false;

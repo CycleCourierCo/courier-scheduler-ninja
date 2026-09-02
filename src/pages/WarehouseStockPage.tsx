@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import * as Sentry from "@sentry/react";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
-import { Plus, Trash2, Edit, Warehouse, Package } from "lucide-react";
+import { Plus, Trash2, Edit, Warehouse, Package, PackagePlus } from "lucide-react";
+import ReceiveStockDialog from "@/components/warehouse/ReceiveStockDialog";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,8 +25,8 @@ import {
 import type { WarehouseStock, WarehouseStockFormData } from "@/types/warehouseStock";
 import { format } from "date-fns";
 import { useStorageBays } from "@/hooks/useStorageBays";
-import { useSites, defaultSite } from "@/hooks/useSites";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useSites, defaultSite, findSite, DEFAULT_SITE_CODE } from "@/hooks/useSites";
+import { COMPONENT_CATEGORIES } from "@/constants/bikeComponents";
 
 const statusColors: Record<string, string> = {
   stored: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
@@ -36,6 +37,11 @@ const statusColors: Record<string, string> = {
 
 const emptyForm: WarehouseStockFormData = {
   user_id: "",
+  item_kind: "bike",
+  component_category: "",
+  quantity: 1,
+  spec: "",
+  frame_size: "",
   bike_brand: "",
   bike_model: "",
   bike_type: "",
@@ -49,8 +55,8 @@ const emptyForm: WarehouseStockFormData = {
 const WarehouseStockPage: React.FC = () => {
   const { user } = useAuth();
   const { data: sites = [] } = useSites();
-  const [siteId, setSiteId] = useState<string | null>(null);
-  const activeSiteId = siteId ?? defaultSite(sites)?.id ?? null;
+  // Warehouse stock is held at Birmingham only for now.
+  const activeSiteId = findSite(sites, DEFAULT_SITE_CODE)?.id ?? defaultSite(sites)?.id ?? null;
   const { bays } = useStorageBays(false, activeSiteId);
   const [stock, setStock] = useState<WarehouseStock[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
@@ -60,6 +66,7 @@ const WarehouseStockPage: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterCustomer, setFilterCustomer] = useState<string>("all");
+  const [receiveItem, setReceiveItem] = useState<WarehouseStock | null>(null);
 
   const fetchData = async () => {
     try {
@@ -85,7 +92,11 @@ const WarehouseStockPage: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!formData.user_id) {
-      toast.error("Pick which customer this bike belongs to before saving.");
+      toast.error("Pick which customer this item belongs to before saving.");
+      return;
+    }
+    if (formData.item_kind === "component" && !formData.component_category) {
+      toast.error("Choose a component category so it can be picked for a build.");
       return;
     }
     if (!formData.bay || !formData.position) {
@@ -95,7 +106,10 @@ const WarehouseStockPage: React.FC = () => {
 
     setSubmitting(true);
     try {
-      const conflict = await checkLocationConflict(formData.bay, formData.position, undefined, activeSiteId);
+      // Several parts can share a shelf, so only whole bikes need a unique slot.
+      const conflict = formData.item_kind === "component"
+        ? false
+        : await checkLocationConflict(formData.bay, formData.position, undefined, activeSiteId);
       if (conflict) {
         toast.error(`Bay ${formData.bay} Position ${formData.position} is already occupied`);
         setSubmitting(false);
@@ -154,17 +168,7 @@ const WarehouseStockPage: React.FC = () => {
             <p className="text-muted-foreground text-sm mt-1">
               Manage customer inventory stored at the depot
             </p>
-            {sites.length > 1 && (
-              <Tabs value={activeSiteId ?? ""} onValueChange={setSiteId} className="mt-3">
-                <TabsList>
-                  {sites.map((site) => (
-                    <TabsTrigger key={site.id} value={site.id}>
-                      {site.name}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-              </Tabs>
-            )}
+
           </div>
           <Button onClick={() => { setFormData(emptyForm); setDialogOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> Add Stock
@@ -250,7 +254,7 @@ const WarehouseStockPage: React.FC = () => {
                   <TableHead>Location</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Deposited</TableHead>
-                  <TableHead className="w-[80px]">Actions</TableHead>
+                  <TableHead className="w-[120px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -260,11 +264,31 @@ const WarehouseStockPage: React.FC = () => {
                       {item.customer_name}
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm">
-                        {[item.bike_brand, item.bike_model].filter(Boolean).join(" ") || "—"}
+                      <div className="text-sm flex items-center gap-2">
+                        {[item.bike_brand, item.bike_model].filter(Boolean).join(" ") || item.component_category || "—"}
+                        {item.item_kind === "component" && (
+                          <Badge variant="secondary" className="text-[10px]">Part</Badge>
+                        )}
+                        {item.item_kind === "component" && Number(item.quantity || 0) === 0 && (
+                          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                            Out of stock
+                          </Badge>
+                        )}
                       </div>
-                      {item.bike_type && (
-                        <div className="text-xs text-muted-foreground">{item.bike_type}</div>
+                      {item.item_kind === "component" ? (
+                        <div className="text-xs text-muted-foreground">
+                          {[item.component_category, item.frame_size ? `Size ${item.frame_size}` : null, item.spec, item.quantity > 1 ? `x${item.quantity}` : null]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                      ) : (
+                        (item.bike_type || item.frame_size) && (
+                          <div className="text-xs text-muted-foreground">
+                            {[item.bike_type, item.frame_size ? `Size ${item.frame_size}` : null]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </div>
+                        )
                       )}
                       {item.sku && (
                         <div className="text-xs text-muted-foreground">SKU: <code className="bg-muted px-1 rounded">{item.sku}</code></div>
@@ -284,6 +308,16 @@ const WarehouseStockPage: React.FC = () => {
                       {format(new Date(item.deposited_at), "dd MMM yyyy")}
                     </TableCell>
                     <TableCell>
+                      {item.item_kind === "component" && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Receive stock"
+                          onClick={() => setReceiveItem(item)}
+                        >
+                          <PackagePlus className="h-4 w-4" />
+                        </Button>
+                      )}
                       <Button
                         variant="ghost"
                         size="icon"
@@ -326,43 +360,91 @@ const WarehouseStockPage: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Bike Brand</Label>
+                <Label>Item type *</Label>
+                <Select
+                  value={formData.item_kind ?? "bike"}
+                  onValueChange={(v) => setFormData({ ...formData, item_kind: v as any })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bike">Complete bike</SelectItem>
+                    <SelectItem value="component">Component / part</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {formData.item_kind === "component" && (
+                <div>
+                  <Label>Component category *</Label>
+                  <Select
+                    value={formData.component_category ?? ""}
+                    onValueChange={(v) => setFormData({ ...formData, component_category: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {COMPONENT_CATEGORIES.map((cat) => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>{formData.item_kind === "component" ? "Brand" : "Bike Brand"}</Label>
                 <Input
                   value={formData.bike_brand}
                   onChange={(e) => setFormData({ ...formData, bike_brand: e.target.value })}
-                  placeholder="e.g. Trek"
+                  placeholder={formData.item_kind === "component" ? "e.g. Shimano" : "e.g. Trek"}
                 />
               </div>
               <div>
-                <Label>Bike Model</Label>
+                <Label>{formData.item_kind === "component" ? "Model" : "Bike Model"}</Label>
                 <Input
                   value={formData.bike_model}
                   onChange={(e) => setFormData({ ...formData, bike_model: e.target.value })}
-                  placeholder="e.g. Domane"
+                  placeholder={formData.item_kind === "component" ? "e.g. Ultegra R8000" : "e.g. Domane"}
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Bike Type</Label>
-                <Select value={formData.bike_type} onValueChange={(v) => setFormData({ ...formData, bike_type: v })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Road">Road</SelectItem>
-                    <SelectItem value="Mountain">Mountain</SelectItem>
-                    <SelectItem value="Hybrid">Hybrid</SelectItem>
-                    <SelectItem value="Electric">Electric</SelectItem>
-                    <SelectItem value="Gravel">Gravel</SelectItem>
-                    <SelectItem value="BMX">BMX</SelectItem>
-                    <SelectItem value="Folding">Folding</SelectItem>
-                    <SelectItem value="Kids">Kids</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {formData.item_kind === "component" ? (
+                <div>
+                  <Label>Quantity</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={formData.quantity ?? 1}
+                    onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <Label>Bike Type</Label>
+                  <Select value={formData.bike_type} onValueChange={(v) => setFormData({ ...formData, bike_type: v })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Road">Road</SelectItem>
+                      <SelectItem value="Mountain">Mountain</SelectItem>
+                      <SelectItem value="Hybrid">Hybrid</SelectItem>
+                      <SelectItem value="Electric">Electric</SelectItem>
+                      <SelectItem value="Gravel">Gravel</SelectItem>
+                      <SelectItem value="BMX">BMX</SelectItem>
+                      <SelectItem value="Folding">Folding</SelectItem>
+                      <SelectItem value="Kids">Kids</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div>
                 <Label>Value (£)</Label>
                 <Input
@@ -373,6 +455,28 @@ const WarehouseStockPage: React.FC = () => {
                 />
               </div>
             </div>
+
+            {(formData.item_kind === "bike" || formData.component_category === "Frame") && (
+              <div>
+                <Label>Frame size</Label>
+                <Input
+                  value={formData.frame_size ?? ""}
+                  onChange={(e) => setFormData({ ...formData, frame_size: e.target.value })}
+                  placeholder="e.g. M or 54cm"
+                />
+              </div>
+            )}
+
+            {formData.item_kind === "component" && (
+              <div>
+                <Label>Spec / size</Label>
+                <Input
+                  value={formData.spec ?? ""}
+                  onChange={(e) => setFormData({ ...formData, spec: e.target.value })}
+                  placeholder="e.g. 56cm, 11-speed, 700c"
+                />
+              </div>
+            )}
 
             <div>
               <Label>SKU</Label>
@@ -441,6 +545,13 @@ const WarehouseStockPage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <ReceiveStockDialog
+        open={!!receiveItem}
+        onOpenChange={(open) => { if (!open) setReceiveItem(null); }}
+        item={receiveItem}
+        siteId={activeSiteId}
+        onReceived={fetchData}
+      />
     </Layout>
   );
 };
