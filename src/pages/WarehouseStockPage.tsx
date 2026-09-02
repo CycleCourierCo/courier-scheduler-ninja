@@ -26,6 +26,7 @@ import { format } from "date-fns";
 import { useStorageBays } from "@/hooks/useStorageBays";
 import { useSites, defaultSite } from "@/hooks/useSites";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { COMPONENT_CATEGORIES } from "@/constants/bikeComponents";
 
 const statusColors: Record<string, string> = {
   stored: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
@@ -36,6 +37,10 @@ const statusColors: Record<string, string> = {
 
 const emptyForm: WarehouseStockFormData = {
   user_id: "",
+  item_kind: "bike",
+  component_category: "",
+  quantity: 1,
+  spec: "",
   bike_brand: "",
   bike_model: "",
   bike_type: "",
@@ -85,7 +90,11 @@ const WarehouseStockPage: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!formData.user_id) {
-      toast.error("Pick which customer this bike belongs to before saving.");
+      toast.error("Pick which customer this item belongs to before saving.");
+      return;
+    }
+    if (formData.item_kind === "component" && !formData.component_category) {
+      toast.error("Choose a component category so it can be picked for a build.");
       return;
     }
     if (!formData.bay || !formData.position) {
@@ -95,7 +104,10 @@ const WarehouseStockPage: React.FC = () => {
 
     setSubmitting(true);
     try {
-      const conflict = await checkLocationConflict(formData.bay, formData.position, undefined, activeSiteId);
+      // Several parts can share a shelf, so only whole bikes need a unique slot.
+      const conflict = formData.item_kind === "component"
+        ? false
+        : await checkLocationConflict(formData.bay, formData.position, undefined, activeSiteId);
       if (conflict) {
         toast.error(`Bay ${formData.bay} Position ${formData.position} is already occupied`);
         setSubmitting(false);
@@ -260,11 +272,22 @@ const WarehouseStockPage: React.FC = () => {
                       {item.customer_name}
                     </TableCell>
                     <TableCell>
-                      <div className="text-sm">
-                        {[item.bike_brand, item.bike_model].filter(Boolean).join(" ") || "—"}
+                      <div className="text-sm flex items-center gap-2">
+                        {[item.bike_brand, item.bike_model].filter(Boolean).join(" ") || item.component_category || "—"}
+                        {item.item_kind === "component" && (
+                          <Badge variant="secondary" className="text-[10px]">Part</Badge>
+                        )}
                       </div>
-                      {item.bike_type && (
-                        <div className="text-xs text-muted-foreground">{item.bike_type}</div>
+                      {item.item_kind === "component" ? (
+                        <div className="text-xs text-muted-foreground">
+                          {[item.component_category, item.spec, item.quantity > 1 ? `x${item.quantity}` : null]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </div>
+                      ) : (
+                        item.bike_type && (
+                          <div className="text-xs text-muted-foreground">{item.bike_type}</div>
+                        )
                       )}
                       {item.sku && (
                         <div className="text-xs text-muted-foreground">SKU: <code className="bg-muted px-1 rounded">{item.sku}</code></div>
@@ -326,43 +349,91 @@ const WarehouseStockPage: React.FC = () => {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Bike Brand</Label>
+                <Label>Item type *</Label>
+                <Select
+                  value={formData.item_kind ?? "bike"}
+                  onValueChange={(v) => setFormData({ ...formData, item_kind: v as any })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="bike">Complete bike</SelectItem>
+                    <SelectItem value="component">Component / part</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {formData.item_kind === "component" && (
+                <div>
+                  <Label>Component category *</Label>
+                  <Select
+                    value={formData.component_category ?? ""}
+                    onValueChange={(v) => setFormData({ ...formData, component_category: v })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {COMPONENT_CATEGORIES.map((cat) => (
+                        <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label>{formData.item_kind === "component" ? "Brand" : "Bike Brand"}</Label>
                 <Input
                   value={formData.bike_brand}
                   onChange={(e) => setFormData({ ...formData, bike_brand: e.target.value })}
-                  placeholder="e.g. Trek"
+                  placeholder={formData.item_kind === "component" ? "e.g. Shimano" : "e.g. Trek"}
                 />
               </div>
               <div>
-                <Label>Bike Model</Label>
+                <Label>{formData.item_kind === "component" ? "Model" : "Bike Model"}</Label>
                 <Input
                   value={formData.bike_model}
                   onChange={(e) => setFormData({ ...formData, bike_model: e.target.value })}
-                  placeholder="e.g. Domane"
+                  placeholder={formData.item_kind === "component" ? "e.g. Ultegra R8000" : "e.g. Domane"}
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Bike Type</Label>
-                <Select value={formData.bike_type} onValueChange={(v) => setFormData({ ...formData, bike_type: v })}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Road">Road</SelectItem>
-                    <SelectItem value="Mountain">Mountain</SelectItem>
-                    <SelectItem value="Hybrid">Hybrid</SelectItem>
-                    <SelectItem value="Electric">Electric</SelectItem>
-                    <SelectItem value="Gravel">Gravel</SelectItem>
-                    <SelectItem value="BMX">BMX</SelectItem>
-                    <SelectItem value="Folding">Folding</SelectItem>
-                    <SelectItem value="Kids">Kids</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              {formData.item_kind === "component" ? (
+                <div>
+                  <Label>Quantity</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={formData.quantity ?? 1}
+                    onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
+                  />
+                </div>
+              ) : (
+                <div>
+                  <Label>Bike Type</Label>
+                  <Select value={formData.bike_type} onValueChange={(v) => setFormData({ ...formData, bike_type: v })}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Road">Road</SelectItem>
+                      <SelectItem value="Mountain">Mountain</SelectItem>
+                      <SelectItem value="Hybrid">Hybrid</SelectItem>
+                      <SelectItem value="Electric">Electric</SelectItem>
+                      <SelectItem value="Gravel">Gravel</SelectItem>
+                      <SelectItem value="BMX">BMX</SelectItem>
+                      <SelectItem value="Folding">Folding</SelectItem>
+                      <SelectItem value="Kids">Kids</SelectItem>
+                      <SelectItem value="Other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div>
                 <Label>Value (£)</Label>
                 <Input
@@ -373,6 +444,17 @@ const WarehouseStockPage: React.FC = () => {
                 />
               </div>
             </div>
+
+            {formData.item_kind === "component" && (
+              <div>
+                <Label>Spec / size</Label>
+                <Input
+                  value={formData.spec ?? ""}
+                  onChange={(e) => setFormData({ ...formData, spec: e.target.value })}
+                  placeholder="e.g. 56cm, 11-speed, 700c"
+                />
+              </div>
+            )}
 
             <div>
               <Label>SKU</Label>

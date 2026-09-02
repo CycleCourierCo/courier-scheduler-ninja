@@ -59,6 +59,7 @@ import ClaimDetail from "./pages/ClaimDetail";
 import DispatchOrdersPage from "./pages/DispatchOrdersPage";
 import DispatchRoutesPage from "./pages/DispatchRoutesPage";
 import BoxMyBikePage from "./pages/BoxMyBikePage";
+import BuildMyBikePage from "./pages/BuildMyBikePage";
 import CustomerServiceInbox from "./pages/CustomerServiceInbox";
 import Tasks from "./pages/Tasks";
 import RoutePermissionsPage from "./pages/RoutePermissionsPage";
@@ -188,6 +189,11 @@ function App() {
               <Route path="/box-my-bike" element={
                 <ProtectedRoute>
                   <BoxMyBikePage />
+                </ProtectedRoute>
+              } />
+              <Route path="/build-my-bike" element={
+                <ProtectedRoute>
+                  <BuildMyBikePage />
                 </ProtectedRoute>
               } />
               <Route path="/inbox" element={

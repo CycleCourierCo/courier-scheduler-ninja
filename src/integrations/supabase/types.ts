@@ -258,6 +258,172 @@ export type Database = {
           },
         ]
       }
+      bike_build_components: {
+        Row: {
+          added_by: string | null
+          build_id: string
+          category: string
+          created_at: string
+          id: string
+          quantity: number
+          slot: string | null
+          stock_id: string | null
+          unit_value: number | null
+          updated_at: string
+        }
+        Insert: {
+          added_by?: string | null
+          build_id: string
+          category: string
+          created_at?: string
+          id?: string
+          quantity?: number
+          slot?: string | null
+          stock_id?: string | null
+          unit_value?: number | null
+          updated_at?: string
+        }
+        Update: {
+          added_by?: string | null
+          build_id?: string
+          category?: string
+          created_at?: string
+          id?: string
+          quantity?: number
+          slot?: string | null
+          stock_id?: string | null
+          unit_value?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bike_build_components_build_id_fkey"
+            columns: ["build_id"]
+            isOneToOne: false
+            referencedRelation: "bike_builds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bike_build_components_stock_id_fkey"
+            columns: ["stock_id"]
+            isOneToOne: false
+            referencedRelation: "warehouse_stock"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bike_build_stage_log: {
+        Row: {
+          build_id: string
+          changed_by: string | null
+          created_at: string
+          from_stage: Database["public"]["Enums"]["bike_build_stage"] | null
+          id: string
+          note: string | null
+          to_stage: Database["public"]["Enums"]["bike_build_stage"]
+        }
+        Insert: {
+          build_id: string
+          changed_by?: string | null
+          created_at?: string
+          from_stage?: Database["public"]["Enums"]["bike_build_stage"] | null
+          id?: string
+          note?: string | null
+          to_stage: Database["public"]["Enums"]["bike_build_stage"]
+        }
+        Update: {
+          build_id?: string
+          changed_by?: string | null
+          created_at?: string
+          from_stage?: Database["public"]["Enums"]["bike_build_stage"] | null
+          id?: string
+          note?: string | null
+          to_stage?: Database["public"]["Enums"]["bike_build_stage"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bike_build_stage_log_build_id_fkey"
+            columns: ["build_id"]
+            isOneToOne: false
+            referencedRelation: "bike_builds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bike_builds: {
+        Row: {
+          bike_brand: string | null
+          bike_model: string | null
+          bike_type: string | null
+          built_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          invoice_number: string | null
+          invoice_url: string | null
+          invoiced_at: string | null
+          labour_cost: number
+          linked_stock_id: string | null
+          name: string
+          parts_total: number
+          site_id: string | null
+          spec_notes: string | null
+          stage: Database["public"]["Enums"]["bike_build_stage"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          bike_brand?: string | null
+          bike_model?: string | null
+          bike_type?: string | null
+          built_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_number?: string | null
+          invoice_url?: string | null
+          invoiced_at?: string | null
+          labour_cost?: number
+          linked_stock_id?: string | null
+          name: string
+          parts_total?: number
+          site_id?: string | null
+          spec_notes?: string | null
+          stage?: Database["public"]["Enums"]["bike_build_stage"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          bike_brand?: string | null
+          bike_model?: string | null
+          bike_type?: string | null
+          built_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_number?: string | null
+          invoice_url?: string | null
+          invoiced_at?: string | null
+          labour_cost?: number
+          linked_stock_id?: string | null
+          name?: string
+          parts_total?: number
+          site_id?: string | null
+          spec_notes?: string | null
+          stage?: Database["public"]["Enums"]["bike_build_stage"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bike_builds_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bike_type_spaces: {
         Row: {
           bike_type: string
@@ -4865,16 +5031,20 @@ export type Database = {
           bike_model: string | null
           bike_type: string | null
           bike_value: number | null
+          component_category: string | null
           created_at: string
           deposited_at: string
           deposited_by: string | null
           dispatched_at: string | null
           id: string
+          item_kind: Database["public"]["Enums"]["warehouse_item_kind"]
           item_notes: string | null
           linked_order_id: string | null
           position: number
+          quantity: number
           site_id: string | null
           sku: string | null
+          spec: string | null
           status: Database["public"]["Enums"]["warehouse_stock_status"]
           updated_at: string
           user_id: string
@@ -4885,16 +5055,20 @@ export type Database = {
           bike_model?: string | null
           bike_type?: string | null
           bike_value?: number | null
+          component_category?: string | null
           created_at?: string
           deposited_at?: string
           deposited_by?: string | null
           dispatched_at?: string | null
           id?: string
+          item_kind?: Database["public"]["Enums"]["warehouse_item_kind"]
           item_notes?: string | null
           linked_order_id?: string | null
           position: number
+          quantity?: number
           site_id?: string | null
           sku?: string | null
+          spec?: string | null
           status?: Database["public"]["Enums"]["warehouse_stock_status"]
           updated_at?: string
           user_id: string
@@ -4905,16 +5079,20 @@ export type Database = {
           bike_model?: string | null
           bike_type?: string | null
           bike_value?: number | null
+          component_category?: string | null
           created_at?: string
           deposited_at?: string
           deposited_by?: string | null
           dispatched_at?: string | null
           id?: string
+          item_kind?: Database["public"]["Enums"]["warehouse_item_kind"]
           item_notes?: string | null
           linked_order_id?: string | null
           position?: number
+          quantity?: number
           site_id?: string | null
           sku?: string | null
+          spec?: string | null
           status?: Database["public"]["Enums"]["warehouse_stock_status"]
           updated_at?: string
           user_id?: string
@@ -5462,6 +5640,13 @@ export type Database = {
     }
     Enums: {
       account_status_type: "pending" | "approved" | "rejected" | "suspended"
+      bike_build_stage:
+        | "awaiting_build"
+        | "awaiting_parts"
+        | "picking_parts"
+        | "in_workshop"
+        | "bike_built"
+        | "invoiced"
       claim_damage_type: "visible" | "concealed" | "loss" | "missing_parts"
       claim_status:
         | "open"
@@ -5583,6 +5768,7 @@ export type Database = {
         | "awaiting_sale"
         | "written_off"
         | "reserved"
+      warehouse_item_kind: "bike" | "component"
       warehouse_stock_status: "stored" | "reserved" | "dispatched" | "returned"
     }
     CompositeTypes: {
@@ -5712,6 +5898,14 @@ export const Constants = {
   public: {
     Enums: {
       account_status_type: ["pending", "approved", "rejected", "suspended"],
+      bike_build_stage: [
+        "awaiting_build",
+        "awaiting_parts",
+        "picking_parts",
+        "in_workshop",
+        "bike_built",
+        "invoiced",
+      ],
       claim_damage_type: ["visible", "concealed", "loss", "missing_parts"],
       claim_status: [
         "open",
@@ -5843,6 +6037,7 @@ export const Constants = {
         "written_off",
         "reserved",
       ],
+      warehouse_item_kind: ["bike", "component"],
       warehouse_stock_status: ["stored", "reserved", "dispatched", "returned"],
     },
   },
