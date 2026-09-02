@@ -59,10 +59,14 @@ const BuildMyBikePage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [stageFilter, setStageFilter] = useState<string>("all");
   const [newOpen, setNewOpen] = useState(false);
+  const [step, setStep] = useState<"details" | "parts">("details");
   const [form, setForm] = useState<BikeBuildFormData>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [selected, setSelected] = useState<BikeBuild | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [availableStock, setAvailableStock] = useState<WarehouseStock[]>([]);
+  const [stockLoading, setStockLoading] = useState(false);
+  const [pickedParts, setPickedParts] = useState<string[]>([]);
 
   const fetchData = async () => {
     try {
@@ -87,8 +91,49 @@ const BuildMyBikePage: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSiteId]);
 
+  const openNewBuild = () => {
+    setForm(emptyForm);
+    setPickedParts([]);
+    setAvailableStock([]);
+    setStep("details");
+    setNewOpen(true);
+  };
+
+  const targetCustomerId = isStaff ? form.user_id : user?.id || "";
+
+  const goToParts = async () => {
+    if (!targetCustomerId) {
+      toast.error("Pick which customer this build is for.");
+      return;
+    }
+    if (!form.name.trim()) {
+      toast.error("Give the build a name so the workshop can identify it.");
+      return;
+    }
+    setStep("parts");
+    setStockLoading(true);
+    try {
+      const stock = await getAvailableComponents(targetCustomerId, activeSiteId);
+      setAvailableStock(stock);
+    } catch (err) {
+      Sentry.captureException(err);
+      toast.error("Couldn't load available parts. You can still create the build and add parts after.");
+      setAvailableStock([]);
+    } finally {
+      setStockLoading(false);
+    }
+  };
+
+  const togglePart = (id: string) => {
+    setPickedParts((prev) => (prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]));
+  };
+
+  const pickedTotal = availableStock
+    .filter((s) => pickedParts.includes(s.id))
+    .reduce((sum, s) => sum + Number(s.bike_value || 0), 0);
+
   const handleCreate = async () => {
-    const targetUserId = isStaff ? form.user_id : user?.id || "";
+    const targetUserId = targetCustomerId;
     if (!targetUserId) {
       toast.error("Pick which customer this build is for.");
       return;
@@ -99,7 +144,7 @@ const BuildMyBikePage: React.FC = () => {
     }
     setSubmitting(true);
     try {
-      await createBikeBuild(
+      const build = await createBikeBuild(
         {
           ...form,
           user_id: targetUserId,
@@ -108,9 +153,39 @@ const BuildMyBikePage: React.FC = () => {
         },
         user?.id || ""
       );
-      toast.success("Build created");
+
+      const parts = availableStock.filter((s) => pickedParts.includes(s.id));
+      const failed: string[] = [];
+      for (const stock of parts) {
+        try {
+          await addComponentToBuild({
+            buildId: build.id,
+            stock,
+            slot: slotForCategory(stock.component_category),
+            addedBy: user?.id || "",
+          });
+        } catch (err) {
+          Sentry.captureException(err);
+          failed.push(
+            [stock.bike_brand, stock.bike_model].filter(Boolean).join(" ") ||
+              stock.component_category ||
+              "part"
+          );
+        }
+      }
+
+      if (failed.length > 0) {
+        toast.warning(`Build created, but these parts couldn't be allocated: ${failed.join(", ")}`);
+      } else {
+        toast.success(
+          parts.length > 0 ? `Build created with ${parts.length} part${parts.length === 1 ? "" : "s"}` : "Build created"
+        );
+      }
       setNewOpen(false);
       setForm(emptyForm);
+      setPickedParts([]);
+      setAvailableStock([]);
+      setStep("details");
       fetchData();
     } catch (err) {
       Sentry.captureException(err);
@@ -119,6 +194,7 @@ const BuildMyBikePage: React.FC = () => {
       setSubmitting(false);
     }
   };
+
 
   const handleDelete = (build: BikeBuild) => {
     notify.confirm({
