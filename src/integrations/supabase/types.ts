@@ -5609,6 +5609,7 @@ export type Database = {
       is_account_approved: { Args: { user_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_admin_or_sales: { Args: never; Returns: boolean }
+      is_build_staff: { Args: { _user_id: string }; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
       is_internal_staff: { Args: { _user_id: string }; Returns: boolean }
       is_review_employee_stage: {
