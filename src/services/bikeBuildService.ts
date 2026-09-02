@@ -4,6 +4,9 @@ import type {
   BikeBuildComponent,
   BikeBuildFormData,
   BikeBuildStageLogEntry,
+  BikeBuildTemplate,
+  BikeBuildTemplateFormData,
+  BikeBuildTemplateItem,
 } from "@/types/bikeBuild";
 import type { BuildStage } from "@/constants/bikeComponents";
 import type { WarehouseStock } from "@/types/warehouseStock";
@@ -85,6 +88,7 @@ export const createBikeBuild = async (
       user_id: form.user_id,
       site_id: form.site_id || null,
       name: form.name,
+      sku: form.sku || null,
       bike_brand: form.bike_brand || null,
       bike_model: form.bike_model || null,
       bike_type: form.bike_type || null,
@@ -208,6 +212,7 @@ export const completeBikeBuild = async (
       bike_brand: build.bike_brand,
       bike_model: build.bike_model,
       bike_type: build.bike_type,
+      sku: build.sku || null,
       bike_value: partsValue + Number(build.labour_cost || 0),
       item_notes: `Built by Cycle Courier Co — ${build.name}`,
       bay: location.bay,
@@ -247,4 +252,191 @@ export const createBuildInvoice = async (buildId: string) => {
     invoicePublicUrl?: string;
     totalAmount?: number;
   };
+};
+
+/* ------------------------------------------------------------------ */
+/* Stored builds (templates)                                          */
+/* ------------------------------------------------------------------ */
+
+export const getBuildTemplates = async (userId?: string | null): Promise<BikeBuildTemplate[]> => {
+  let query = table("bike_build_templates").select("*").order("created_at", { ascending: false });
+  if (userId) query = query.eq("user_id", userId);
+  const { data, error } = await query;
+  if (error) throw error;
+
+  const templates = (data as any[]) || [];
+  if (templates.length === 0) return [];
+
+  const [{ data: items }, { data: profiles }] = await Promise.all([
+    table("bike_build_template_items")
+      .select("*")
+      .in("template_id", templates.map((t) => t.id))
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("profiles")
+      .select("id, name, email, company_name")
+      .in("id", [...new Set(templates.map((t) => t.user_id))]),
+  ]);
+
+  const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+  const itemMap = new Map<string, BikeBuildTemplateItem[]>();
+  ((items as any[]) || []).forEach((item: any) => {
+    const list = itemMap.get(item.template_id) || [];
+    list.push(item as BikeBuildTemplateItem);
+    itemMap.set(item.template_id, list);
+  });
+
+  return templates.map((t) => {
+    const profile: any = profileMap.get(t.user_id);
+    return {
+      ...t,
+      items: itemMap.get(t.id) || [],
+      customer_name: profile?.company_name || profile?.name || profile?.email || "Unknown",
+    } as BikeBuildTemplate;
+  });
+};
+
+export const saveBuildTemplate = async (
+  form: BikeBuildTemplateFormData,
+  createdBy: string,
+  templateId?: string | null
+): Promise<string> => {
+  const payload = {
+    user_id: form.user_id,
+    name: form.name,
+    sku: form.sku || null,
+    bike_brand: form.bike_brand || null,
+    bike_model: form.bike_model || null,
+    bike_type: form.bike_type || null,
+    spec_notes: form.spec_notes || null,
+  };
+
+  let id = templateId || null;
+  if (id) {
+    const { error } = await table("bike_build_templates").update(payload).eq("id", id);
+    if (error) throw error;
+    const { error: delError } = await table("bike_build_template_items").delete().eq("template_id", id);
+    if (delError) throw delError;
+  } else {
+    const { data, error } = await table("bike_build_templates")
+      .insert({ ...payload, created_by: createdBy })
+      .select("id")
+      .single();
+    if (error) throw error;
+    id = (data as any).id as string;
+  }
+
+  const items = form.items.filter((i) => i.category);
+  if (items.length > 0) {
+    const { error } = await table("bike_build_template_items").insert(
+      items.map((i) => ({
+        template_id: id,
+        category: i.category,
+        slot: i.slot ?? null,
+        quantity: i.quantity && i.quantity > 0 ? i.quantity : 1,
+      }))
+    );
+    if (error) throw error;
+  }
+
+  return id as string;
+};
+
+export const deleteBuildTemplate = async (id: string): Promise<void> => {
+  const { error } = await table("bike_build_templates").delete().eq("id", id);
+  if (error) throw error;
+};
+
+/** Snapshots an existing build (its parts, by category) as a reusable stored build. */
+export const saveBuildAsTemplate = async (
+  build: BikeBuild,
+  name: string,
+  createdBy: string
+): Promise<string> => {
+  const components = await getBikeBuildComponents(build.id);
+  const grouped = new Map<string, { category: string; quantity: number; slot: string | null }>();
+  components.forEach((c) => {
+    const key = `${c.category}::${c.slot ?? ""}`;
+    const existing = grouped.get(key);
+    if (existing) existing.quantity += Number(c.quantity || 1);
+    else grouped.set(key, { category: c.category, quantity: Number(c.quantity || 1), slot: c.slot ?? null });
+  });
+
+  return saveBuildTemplate(
+    {
+      user_id: build.user_id,
+      name,
+      sku: build.sku || "",
+      bike_brand: build.bike_brand || "",
+      bike_model: build.bike_model || "",
+      bike_type: build.bike_type || "",
+      spec_notes: build.spec_notes || "",
+      items: [...grouped.values()],
+    },
+    createdBy
+  );
+};
+
+export type CreateFromTemplateResult = {
+  build: BikeBuild;
+  allocated: number;
+  missing: { category: string; quantity: number }[];
+};
+
+/** Creates a live build from a stored build and auto-allocates matching in-stock parts. */
+export const createBuildFromTemplate = async (
+  template: BikeBuildTemplate,
+  createdBy: string,
+  siteId?: string | null
+): Promise<CreateFromTemplateResult> => {
+  const build = await createBikeBuild(
+    {
+      user_id: template.user_id,
+      name: template.name,
+      sku: template.sku || "",
+      bike_brand: template.bike_brand || "",
+      bike_model: template.bike_model || "",
+      bike_type: template.bike_type || "",
+      spec_notes: template.spec_notes || "",
+      labour_cost: "",
+      site_id: siteId ?? null,
+    },
+    createdBy
+  );
+
+  const available = await getAvailableComponents(template.user_id, siteId ?? null);
+  const pool = [...available];
+  let allocated = 0;
+  const missing: { category: string; quantity: number }[] = [];
+
+  for (const item of template.items || []) {
+    const wanted = Number(item.quantity || 1);
+    let taken = 0;
+    for (let i = 0; i < wanted; i++) {
+      const idx = pool.findIndex(
+        (s) => (s.component_category || "Other").toLowerCase() === item.category.toLowerCase()
+      );
+      if (idx === -1) break;
+      const stock = pool.splice(idx, 1)[0];
+      await addComponentToBuild({
+        buildId: build.id,
+        stock,
+        slot: item.slot ?? null,
+        addedBy: createdBy,
+      });
+      taken++;
+      allocated++;
+    }
+    if (taken < wanted) missing.push({ category: item.category, quantity: wanted - taken });
+  }
+
+  const stage: BuildStage = missing.length > 0 ? "awaiting_parts" : "picking_parts";
+  const updates: Record<string, unknown> = { stage };
+  if (missing.length > 0) {
+    const note = `Missing parts: ${missing.map((m) => `${m.quantity} × ${m.category}`).join(", ")}`;
+    updates.spec_notes = [template.spec_notes, note].filter(Boolean).join("\n\n");
+  }
+  await table("bike_builds").update(updates).eq("id", build.id);
+
+  return { build: { ...build, stage }, allocated, missing };
 };

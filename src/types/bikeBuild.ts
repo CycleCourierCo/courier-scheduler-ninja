@@ -5,6 +5,7 @@ export type BikeBuild = {
   user_id: string;
   site_id: string | null;
   name: string;
+  sku: string | null;
   bike_brand: string | null;
   bike_model: string | null;
   bike_type: string | null;
@@ -64,6 +65,7 @@ export type BikeBuildStageLogEntry = {
 export type BikeBuildFormData = {
   user_id: string;
   name: string;
+  sku: string;
   bike_brand: string;
   bike_model: string;
   bike_type: string;
@@ -71,3 +73,43 @@ export type BikeBuildFormData = {
   labour_cost: string;
   site_id?: string | null;
 };
+
+export type BikeBuildTemplateItem = {
+  id: string;
+  template_id: string;
+  category: string;
+  slot: string | null;
+  quantity: number;
+  notes: string | null;
+  created_at?: string;
+  updated_at?: string;
+};
+
+export type BikeBuildTemplate = {
+  id: string;
+  user_id: string;
+  name: string;
+  sku: string | null;
+  bike_brand: string | null;
+  bike_model: string | null;
+  bike_type: string | null;
+  spec_notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  // Joined
+  items?: BikeBuildTemplateItem[];
+  customer_name?: string;
+};
+
+export type BikeBuildTemplateFormData = {
+  user_id: string;
+  name: string;
+  sku: string;
+  bike_brand: string;
+  bike_model: string;
+  bike_type: string;
+  spec_notes: string;
+  items: { category: string; quantity: number; slot?: string | null }[];
+};
+

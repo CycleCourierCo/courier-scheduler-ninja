@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import * as Sentry from "@sentry/react";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
-import { Trash2, FileText, PackageCheck } from "lucide-react";
+import { Trash2, FileText, PackageCheck, Layers } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import type { BikeBuild, BikeBuildComponent } from "@/types/bikeBuild";
 import type { WarehouseStock } from "@/types/warehouseStock";
 import {
   addComponentToBuild,
+  saveBuildAsTemplate,
   completeBikeBuild,
   createBuildInvoice,
   getAvailableComponents,
@@ -32,9 +33,11 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onChanged: () => void;
+  /** Staff control labour, stages and invoicing; customers only allocate parts. */
+  isStaff?: boolean;
 };
 
-const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChanged }) => {
+const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChanged, isStaff = true }) => {
   const { user } = useAuth();
   const { bays } = useStorageBays(false, build?.site_id ?? null);
   const [components, setComponents] = useState<BikeBuildComponent[]>([]);
@@ -154,6 +157,21 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
     }
   };
 
+  const handleSaveAsTemplate = async () => {
+    const name = window.prompt("Name for this stored build", build.name);
+    if (!name) return;
+    setBusy(true);
+    try {
+      await saveBuildAsTemplate(build, name, user?.id || "");
+      toast.success("Saved as a stored build — create it again in one click from the Stored builds tab");
+    } catch (err) {
+      Sentry.captureException(err);
+      toast.error("Couldn't save this build as a stored build. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleComplete = async () => {
     if (!bay) {
       toast.error("Choose the bay and position where the finished bike will live.");
@@ -197,11 +215,13 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
               {build.customer_name}
               {[build.bike_brand, build.bike_model].filter(Boolean).length > 0 &&
                 ` · ${[build.bike_brand, build.bike_model].filter(Boolean).join(" ")}`}
+              {build.sku ? ` · SKU ${build.sku}` : ""}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-5">
             <div className="flex flex-wrap items-end gap-3">
+              {isStaff ? (
               <div className="min-w-[220px]">
                 <Label>Stage</Label>
                 <Select value={build.stage} onValueChange={(v) => handleStage(v as BuildStage)}>
@@ -215,13 +235,23 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
                   </SelectContent>
                 </Select>
               </div>
-              <div className="w-[140px]">
-                <Label>Labour (£)</Label>
-                <Input type="number" value={labour} onChange={(e) => setLabour(e.target.value)} onBlur={handleLabourSave} />
-              </div>
-              <div className="text-sm text-muted-foreground pb-2">
-                Parts £{partsTotal.toFixed(2)} · Total £{(partsTotal + (parseFloat(labour) || 0)).toFixed(2)}
-              </div>
+              ) : (
+                <Badge variant="outline" className="mb-2">{BUILD_STAGE_LABELS[build.stage]}</Badge>
+              )}
+              {isStaff && (
+                <>
+                  <div className="w-[140px]">
+                    <Label>Labour (£)</Label>
+                    <Input type="number" value={labour} onChange={(e) => setLabour(e.target.value)} onBlur={handleLabourSave} />
+                  </div>
+                  <div className="text-sm text-muted-foreground pb-2">
+                    Parts £{partsTotal.toFixed(2)} · Total £{(partsTotal + (parseFloat(labour) || 0)).toFixed(2)}
+                  </div>
+                </>
+              )}
+              <Button variant="outline" size="sm" className="mb-1" onClick={handleSaveAsTemplate} disabled={busy}>
+                <Layers className="mr-2 h-4 w-4" /> Save as stored build
+              </Button>
             </div>
 
             <BikeDiagram
@@ -289,7 +319,7 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
               )}
             </div>
 
-            {!build.linked_stock_id && (
+            {isStaff && !build.linked_stock_id && (
               <div className="rounded-md border p-4 space-y-3">
                 <h3 className="font-semibold text-sm">Finish the build</h3>
                 <p className="text-xs text-muted-foreground">
@@ -332,6 +362,7 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
               </div>
             )}
 
+            {(isStaff || build.invoice_number) && (
             <div className="rounded-md border p-4 space-y-3">
               <h3 className="font-semibold text-sm">Invoice</h3>
               {build.invoice_number ? (
@@ -352,6 +383,7 @@ const BuildDetailDialog: React.FC<Props> = ({ build, open, onOpenChange, onChang
                 </Button>
               )}
             </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
