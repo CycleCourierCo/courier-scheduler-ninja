@@ -16,6 +16,16 @@ export interface BicycleInspection {
   order_id: string;
   status: InspectionStatus;
   bike_type: string | null;
+  identity_checked_at?: string | null;
+  identity_matches?: boolean | null;
+  actual_bike_brand?: string | null;
+  actual_bike_model?: string | null;
+  actual_frame_size?: string | null;
+  identity_notes?: string | null;
+  identity_reviewed_at?: string | null;
+  identity_reviewed_by_id?: string | null;
+  identity_reviewed_by_name?: string | null;
+
   inspected_at: string | null;
   inspected_by_id: string | null;
   inspected_by_name: string | null;

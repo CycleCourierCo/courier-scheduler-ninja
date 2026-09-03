@@ -131,6 +131,9 @@ export type Database = {
       }
       bicycle_inspections: {
         Row: {
+          actual_bike_brand: string | null
+          actual_bike_model: string | null
+          actual_frame_size: string | null
           approval_email_sent_at: string | null
           bike_type: string | null
           created_at: string
@@ -146,6 +149,12 @@ export type Database = {
           frame_cleaned_by_id: string | null
           frame_cleaned_by_name: string | null
           id: string
+          identity_checked_at: string | null
+          identity_matches: boolean | null
+          identity_notes: string | null
+          identity_reviewed_at: string | null
+          identity_reviewed_by_id: string | null
+          identity_reviewed_by_name: string | null
           inspected_at: string | null
           inspected_by_id: string | null
           inspected_by_name: string | null
@@ -168,6 +177,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          actual_bike_brand?: string | null
+          actual_bike_model?: string | null
+          actual_frame_size?: string | null
           approval_email_sent_at?: string | null
           bike_type?: string | null
           created_at?: string
@@ -183,6 +195,12 @@ export type Database = {
           frame_cleaned_by_id?: string | null
           frame_cleaned_by_name?: string | null
           id?: string
+          identity_checked_at?: string | null
+          identity_matches?: boolean | null
+          identity_notes?: string | null
+          identity_reviewed_at?: string | null
+          identity_reviewed_by_id?: string | null
+          identity_reviewed_by_name?: string | null
           inspected_at?: string | null
           inspected_by_id?: string | null
           inspected_by_name?: string | null
@@ -205,6 +223,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          actual_bike_brand?: string | null
+          actual_bike_model?: string | null
+          actual_frame_size?: string | null
           approval_email_sent_at?: string | null
           bike_type?: string | null
           created_at?: string
@@ -220,6 +241,12 @@ export type Database = {
           frame_cleaned_by_id?: string | null
           frame_cleaned_by_name?: string | null
           id?: string
+          identity_checked_at?: string | null
+          identity_matches?: boolean | null
+          identity_notes?: string | null
+          identity_reviewed_at?: string | null
+          identity_reviewed_by_id?: string | null
+          identity_reviewed_by_name?: string | null
           inspected_at?: string | null
           inspected_by_id?: string | null
           inspected_by_name?: string | null
@@ -2071,6 +2098,7 @@ export type Database = {
           created_at: string
           customer_responded_at: string | null
           customer_response: string | null
+          decline_notified_at: string | null
           estimated_cost: number | null
           external_fault_id: string | null
           external_synced_at: string | null
@@ -2125,6 +2153,7 @@ export type Database = {
           created_at?: string
           customer_responded_at?: string | null
           customer_response?: string | null
+          decline_notified_at?: string | null
           estimated_cost?: number | null
           external_fault_id?: string | null
           external_synced_at?: string | null
@@ -2179,6 +2208,7 @@ export type Database = {
           created_at?: string
           customer_responded_at?: string | null
           customer_response?: string | null
+          decline_notified_at?: string | null
           estimated_cost?: number | null
           external_fault_id?: string | null
           external_synced_at?: string | null
