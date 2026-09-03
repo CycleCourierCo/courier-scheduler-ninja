@@ -66,6 +66,9 @@ import {
   addIssueToExistingInspection,
   adminSetInspectionStatus,
   updateInspectionBikeType,
+  saveInspectionIdentity,
+  reviewInspectionIdentity,
+
   setInspectionCleaningTask,
   markInvoiceNotNeeded,
   clearInvoiceSkip,
@@ -272,6 +275,13 @@ const BicycleInspections = () => {
   const [checklistIssues, setChecklistIssues] = useState<Record<string, ChecklistIssue[]>>({});
   const [checklistBikeType, setChecklistBikeType] = useState<string | null>(null);
   const [checklistGeneralNotes, setChecklistGeneralNotes] = useState("");
+  // Bike identity verification (brand / model / frame size vs the booking)
+  const [identityResult, setIdentityResult] = useState<"match" | "mismatch" | null>(null);
+  const [identityBrand, setIdentityBrand] = useState("");
+  const [identityModel, setIdentityModel] = useState("");
+  const [identityFrameSize, setIdentityFrameSize] = useState("");
+  const [identityNotes, setIdentityNotes] = useState("");
+
   // Workshop settings are consumed inside RepairPicker for live labour pricing.
 
 
@@ -290,6 +300,23 @@ const BicycleInspections = () => {
     },
     enabled: !!user,
   });
+
+  // Admin clears a bike details mismatch flag once reviewed
+  const identityReviewMutation = useMutation({
+    mutationFn: async (inspectionId: string) => {
+      if (!user?.id) throw new Error("User not authenticated");
+      return reviewInspectionIdentity(inspectionId, user.id, userProfile?.name || user.email || "Admin");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Mismatch marked as reviewed");
+    },
+    onError: (error) => {
+      toast.error("Failed to mark as reviewed");
+      console.error(error);
+    },
+  });
+
 
   // Mark as inspected mutation
   const markInspectedMutation = useMutation({
@@ -1007,7 +1034,14 @@ const BicycleInspections = () => {
     const order = (inspections as any[]).find((o) => o.id === orderId);
     const existing = order?.inspection?.bike_type as string | null | undefined;
     setChecklistBikeType(existing ?? null);
+    // Identity check starts unanswered; actual fields prefill from the booking.
+    setIdentityResult(null);
+    setIdentityBrand(order?.bike_brand || "");
+    setIdentityModel(order?.bike_model || "");
+    setIdentityFrameSize("");
+    setIdentityNotes("");
     setInspectionChecklistOpen(true);
+
   };
 
 
@@ -1119,8 +1153,34 @@ const BicycleInspections = () => {
 
   const hasIssues = allChecklistIssues.length > 0;
 
+  // Booked bike details for the order being inspected (used by the identity check)
+  const inspectionOrder = (inspections as any[]).find((o) => o.id === selectedOrderForInspection);
+  const bookedBrand = (inspectionOrder?.bike_brand || "").trim();
+  const bookedModel = (inspectionOrder?.bike_model || "").trim();
+  const bookedFrameSize = (inspectionOrder?.frame_size || "").trim();
+
+  const identityAnswered =
+    identityResult === "match"
+      ? !!identityFrameSize.trim()
+      : identityResult === "mismatch"
+        ? (identityBrand.trim() || "") !== bookedBrand ||
+          (identityModel.trim() || "") !== bookedModel ||
+          (identityFrameSize.trim() || "") !== bookedFrameSize
+        : false;
+
+  const buildIdentityLine = () => {
+    const booked = `${bookedBrand || "—"} ${bookedModel || "—"} / size ${bookedFrameSize || "—"}`.trim();
+    const found = `${(identityBrand.trim() || bookedBrand) || "—"} ${(identityModel.trim() || bookedModel) || "—"} / ${identityFrameSize.trim() || "—"}`.trim();
+    const verdict = identityResult === "mismatch" ? "MISMATCH" : "MATCHES BOOKING";
+    const note = identityNotes.trim() ? ` · ${identityNotes.trim()}` : "";
+    return `IDENTITY (${verdict})  Booked: ${booked} · Found: ${found}${note}`;
+  };
+
   const buildPdiNotes = () => {
     const lines: string[] = [];
+    if (identityResult) {
+      lines.push(buildIdentityLine(), '');
+    }
     activeSections.forEach((section) => {
       lines.push(`— ${section.title} —`);
       section.items.forEach((item) => {
@@ -1138,6 +1198,35 @@ const BicycleInspections = () => {
 
   const handleConfirmInspection = async () => {
     if (!selectedOrderForInspection || !allItemsChecked) return;
+    if (!identityAnswered) {
+      toast.error(
+        identityResult === null
+          ? "Confirm whether the bike matches the booking"
+          : identityResult === "match"
+            ? "Enter the frame size found on the bike"
+            : "Change at least one detail so the mismatch is recorded"
+      );
+      return;
+    }
+
+    // Record the identity check first so it's stored even if issue saving fails.
+    try {
+      await saveInspectionIdentity(
+        selectedOrderForInspection,
+        {
+          matches: identityResult === "match",
+          actualBrand: identityBrand.trim() || bookedBrand || null,
+          actualModel: identityModel.trim() || bookedModel || null,
+          actualFrameSize: identityFrameSize.trim() || null,
+          notes: identityNotes.trim() || null,
+        },
+        checklistBikeType
+      );
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to save the bike identity check");
+      return;
+    }
 
     if (hasIssues) {
       if (!checklistBikeType) {
@@ -1160,6 +1249,7 @@ const BicycleInspections = () => {
       setInspectionChecklistOpen(false);
     }
   };
+
 
 
   const handleIssueCountChange = (count: string) => {
@@ -1506,6 +1596,27 @@ const BicycleInspections = () => {
               {/* Order status and storage location badges */}
               <div className="flex min-w-0 flex-wrap gap-2 mt-2">
                 <StatusBadge status={order.status} />
+                {inspection?.identity_matches === false && !inspection?.identity_reviewed_at && (
+                  <Badge
+                    variant="destructive"
+                    className="flex items-center gap-1"
+                    title={`Booked: ${order.bike_brand || "—"} ${order.bike_model || "—"} · Found: ${inspection?.actual_bike_brand || "—"} ${inspection?.actual_bike_model || "—"}${inspection?.actual_frame_size ? ` / ${inspection.actual_frame_size}` : ""}${inspection?.identity_notes ? ` · ${inspection.identity_notes}` : ""}`}
+                  >
+                    <AlertTriangle className="h-3 w-3" />
+                    Details mismatch
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        className="ml-1 underline"
+                        onClick={() => identityReviewMutation.mutate(inspection.id)}
+                        disabled={identityReviewMutation.isPending}
+                      >
+                        Reviewed
+                      </button>
+                    )}
+                  </Badge>
+                )}
+
                 {storageLocations.length > 0 && (
                   <>
                     {storageLocations.map((location: any, idx: number) => (
@@ -2956,6 +3067,95 @@ const BicycleInspections = () => {
                 Complete each inspection item. Report any issues found under each section.
               </p>
 
+              {/* Bike identity — confirm the bike matches what was booked */}
+              <div className="p-3 border rounded-lg space-y-3 bg-muted/30 min-w-0">
+                <Label className="text-sm font-medium">Bike identity</Label>
+                <div className="text-xs text-muted-foreground space-y-0.5">
+                  <p className="break-words">
+                    Booked: <span className="font-medium text-foreground">{bookedBrand || "—"} {bookedModel || "—"}</span>
+                  </p>
+                  <p>
+                    Booked frame size: <span className="font-medium text-foreground">{bookedFrameSize || "not supplied"}</span>
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <Button
+                    size="sm"
+                    variant={identityResult === "match" ? "default" : "outline"}
+                    className="text-xs"
+                    onClick={() => setIdentityResult("match")}
+                  >
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    Matches booking
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={identityResult === "mismatch" ? "destructive" : "outline"}
+                    className="text-xs"
+                    onClick={() => setIdentityResult("mismatch")}
+                  >
+                    <XCircle className="h-3 w-3 mr-1" />
+                    Doesn't match
+                  </Button>
+                </div>
+
+                {identityResult === "match" && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Frame size found on the bike</Label>
+                    <Input
+                      value={identityFrameSize}
+                      onChange={(e) => setIdentityFrameSize(e.target.value)}
+                      placeholder='e.g. 56cm or M'
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                )}
+
+                {identityResult === "mismatch" && (
+                  <div className="space-y-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Actual brand</Label>
+                      <Input
+                        value={identityBrand}
+                        onChange={(e) => setIdentityBrand(e.target.value)}
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Actual model</Label>
+                      <Input
+                        value={identityModel}
+                        onChange={(e) => setIdentityModel(e.target.value)}
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Actual frame size</Label>
+                      <Input
+                        value={identityFrameSize}
+                        onChange={(e) => setIdentityFrameSize(e.target.value)}
+                        placeholder="e.g. 56cm or M"
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Note (optional)</Label>
+                      <Textarea
+                        value={identityNotes}
+                        onChange={(e) => setIdentityNotes(e.target.value)}
+                        rows={2}
+                        className="text-sm"
+                      />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Recorded for an admin to review — the order details are left unchanged.
+                    </p>
+                  </div>
+                )}
+              </div>
+
+
+
               {/* Bike category — required when reporting issues, filters the repair catalogue */}
               <div className="p-3 border rounded-lg space-y-2 bg-muted/30">
                 <Label className="text-sm font-medium">Bike category</Label>
@@ -3177,7 +3377,7 @@ const BicycleInspections = () => {
               </Button>
               <Button 
                 onClick={handleConfirmInspection}
-                disabled={!allItemsChecked || markInspectedMutation.isPending || addMultipleIssuesMutation.isPending}
+                disabled={!allItemsChecked || !identityAnswered || markInspectedMutation.isPending || addMultipleIssuesMutation.isPending}
                 variant={hasIssues ? "destructive" : "default"}
               >
                 {(markInspectedMutation.isPending || addMultipleIssuesMutation.isPending) ? (

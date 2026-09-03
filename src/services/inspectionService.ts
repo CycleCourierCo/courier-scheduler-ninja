@@ -296,6 +296,86 @@ export const updateInspectionBikeType = async (
   if (error) throw error;
 };
 
+export interface InspectionIdentityInput {
+  matches: boolean;
+  actualBrand?: string | null;
+  actualModel?: string | null;
+  actualFrameSize?: string | null;
+  notes?: string | null;
+}
+
+// Persist the mechanic's brand/model/frame-size verification against the booking.
+export const saveInspectionIdentity = async (
+  orderId: string,
+  identity: InspectionIdentityInput,
+  bikeType?: string | null
+): Promise<void> => {
+  const inspection = await getOrCreateInspection(orderId, bikeType ?? null);
+  if (!inspection) throw new Error('Failed to get or create inspection');
+
+  const { error } = await supabase
+    .from('bicycle_inspections')
+    .update({
+      identity_checked_at: new Date().toISOString(),
+      identity_matches: identity.matches,
+      actual_bike_brand: identity.actualBrand?.trim() || null,
+      actual_bike_model: identity.actualModel?.trim() || null,
+      actual_frame_size: identity.actualFrameSize?.trim() || null,
+      identity_notes: identity.notes?.trim() || null,
+      // A fresh check clears any previous admin sign-off.
+      identity_reviewed_at: null,
+      identity_reviewed_by_id: null,
+      identity_reviewed_by_name: null,
+    } as any)
+    .eq('id', (inspection as any).id);
+  if (error) throw error;
+};
+
+// Admin clears a details-mismatch flag once they've dealt with it.
+export const reviewInspectionIdentity = async (
+  inspectionId: string,
+  reviewerId: string,
+  reviewerName: string
+): Promise<void> => {
+  const { error } = await supabase
+    .from('bicycle_inspections')
+    .update({
+      identity_reviewed_at: new Date().toISOString(),
+      identity_reviewed_by_id: reviewerId,
+      identity_reviewed_by_name: reviewerName,
+    } as any)
+    .eq('id', inspectionId);
+  if (error) throw error;
+};
+
+// Notify admin that repairs awaiting approval were declined. Fire-and-forget:
+// the edge function batches every un-notified decline on the order into one email.
+export const notifyRepairsDeclined = async (orderId?: string | null): Promise<void> => {
+  if (!orderId) return;
+  try {
+    await supabase.functions.invoke('notify-repairs-declined', { body: { orderId } });
+  } catch (error) {
+
+    console.error('Failed to queue declined-repairs notification');
+  }
+};
+
+const notifyDeclineForIssue = async (issueId: string): Promise<void> => {
+  try {
+    const { data } = await supabase
+      .from('inspection_issues')
+      .select('order_id')
+      .eq('id', issueId)
+      .maybeSingle();
+    const orderId = (data as any)?.order_id;
+    if (orderId) await notifyRepairsDeclined(orderId);
+  } catch (error) {
+    console.error('Failed to resolve order for declined repair notification');
+  }
+};
+
+
+
 
 // Enable inspection for an existing order (admin action)
 export const enableInspectionForOrder = async (orderId: string): Promise<BicycleInspection | null> => {
@@ -777,6 +857,8 @@ export const declineIssue = async (
     if (error) throw error;
     pushIssueStatusToInspectaBike(issueId);
     void refreshReportForIssue(issueId);
+    void notifyRepairsDeclined((data as any)?.order_id);
+
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error declining issue:', error);
@@ -809,7 +891,9 @@ export const setIssueStatusAsAdmin = async (
 
     if (error) throw error;
     pushIssueStatusToInspectaBike(issueId);
+    if (status === 'declined') void notifyDeclineForIssue(issueId);
     return data as InspectionIssue;
+
   } catch (error) {
     console.error('Error overriding issue status:', error);
     throw error;
