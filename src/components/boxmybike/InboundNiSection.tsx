@@ -13,6 +13,7 @@ import {
   NI_INBOUND_STATUS_ORDER,
 } from "@/types/order";
 import { CITY_AIR_EXPRESS } from "@/constants/depot";
+import { sendOrderUpdateEmail } from "@/lib/sendOrderUpdateEmail";
 import OrderSearchBar from "@/components/boxmybike/OrderSearchBar";
 import { filterOrdersBySearch } from "@/utils/orderSearch";
 import { toPublicFileUrl } from "@/lib/publicFileUrl";
@@ -106,10 +107,12 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
       id,
       newStage,
       occurredAt,
+      notify,
     }: {
       id: string;
       newStage: NiInboundStatus;
       occurredAt?: string;
+      notify?: boolean;
     }) => {
       const patch: any = {
         ni_inbound_status: newStage,
@@ -124,6 +127,8 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
       }
       const { error } = await supabase.from("orders").update(patch).eq("id", id);
       if (error) throw error;
+      // Forward moves tell the customer where their bike is, right away.
+      if (notify) await sendOrderUpdateEmail(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inbound-ni-orders"] });
@@ -131,6 +136,7 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
     },
     onError: (e: any) => toast.error(e?.message || "Failed to update stage"),
   });
+
 
   const updateStageTime = useMutation({
     mutationFn: async ({
@@ -253,7 +259,7 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
         onConfirm={(iso) => {
           if (!pendingStage) return;
           updateStage.mutate(
-            { id: pendingStage.order.id, newStage: pendingStage.stage, occurredAt: iso },
+            { id: pendingStage.order.id, newStage: pendingStage.stage, occurredAt: iso, notify: true },
             { onSuccess: () => setPendingStage(null) }
           );
         }}

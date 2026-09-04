@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2, Zap, Truck, ArrowUpDown, ChevronUp, ChevronDown } from "lucide-react";
+import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2, Zap, Truck, ArrowUpDown, ChevronUp, ChevronDown, Ship } from "lucide-react";
 import { OrderData, ShipdayVerificationResults } from "@/pages/JobScheduling";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
@@ -188,6 +188,39 @@ const getAvailabilityBadge = (
 };
 
 // Helper function to get collection status badge
+// Inbound Northern Ireland bikes can only be delivered on the mainland once
+// they've crossed the ferry / been collected from City Air Express.
+const getNiInboundBadge = (
+  orderData: any
+): { text: string; color: string; icon: JSX.Element } | null => {
+  if (!orderData || orderData.ni_direction !== 'inbound') return null;
+  const status = orderData.ni_inbound_status as string | null | undefined;
+  if (!status) return null;
+
+  const crossedAt = orderData.ni_inbound_ferry_crossed_at as string | null | undefined;
+  const crossedLabel = crossedAt ? ` (${format(new Date(crossedAt), 'EEE d MMM')})` : '';
+
+  if (status === 'collected_from_partner') {
+    return {
+      text: 'Crossed ferry - with us',
+      color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
+      icon: <Ship className="h-3 w-3" />
+    };
+  }
+  if (status === 'crossed_ferry') {
+    return {
+      text: `Crossed ferry - ready${crossedLabel}`,
+      color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
+      icon: <Ship className="h-3 w-3" />
+    };
+  }
+  return {
+    text: 'In NI - not crossed',
+    color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
+    icon: <Ship className="h-3 w-3" />
+  };
+};
+
 const getCollectionStatusBadge = (
   collectionConfirmedAt: string | null | undefined,
   orderId: string,
@@ -641,6 +674,17 @@ const JobItem: React.FC<JobItemProps> = ({
                                 {collectionBadge.text}
                               </Badge>
                             )}
+                            {/* Northern Ireland ferry status (inbound deliveries only) */}
+                            {groupedJob.type === 'delivery' && (() => {
+                              const niBadge = getNiInboundBadge(groupedJob.orderData);
+                              return niBadge ? (
+                                <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${niBadge.color}`}>
+                                  {niBadge.icon}
+                                  {niBadge.text}
+                                </Badge>
+                              ) : null;
+                            })()}
+
                             {/* Inspection Badge */}
                             {(() => {
                               const inspectionBadge = getInspectionStatusBadge(groupedJob.orderData?.needs_inspection, groupedJob.orderData?.inspection_status);
@@ -748,6 +792,17 @@ const JobItem: React.FC<JobItemProps> = ({
                           <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
                             {collectionBadge.icon}
                             {collectionBadge.text}
+                          </Badge>
+                        ) : null;
+                      })()}
+
+                      {/* Northern Ireland ferry status (inbound deliveries only) */}
+                      {job.type === 'delivery' && (() => {
+                        const niBadge = getNiInboundBadge(job.orderData);
+                        return niBadge ? (
+                          <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${niBadge.color}`}>
+                            {niBadge.icon}
+                            {niBadge.text}
                           </Badge>
                         ) : null;
                       })()}
@@ -2147,7 +2202,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     // Fetch latest order data from Supabase
     const { data: freshOrders, error } = await supabase
       .from('orders')
-      .select('id, sender, receiver, is_northern_ireland, ni_direction, foam_status, scheduled_pickup_date, scheduled_delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, pickup_date, delivery_date, status')
+      .select('id, sender, receiver, is_northern_ireland, ni_direction, ni_inbound_status, ni_inbound_ferry_crossed_at, foam_status, scheduled_pickup_date, scheduled_delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, pickup_date, delivery_date, status')
       .in('id', orderIds);
 
     if (error) {
@@ -2183,6 +2238,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           ...job.orderData,
           is_northern_ireland: freshOrder.is_northern_ireland ?? (job.orderData as any).is_northern_ireland,
           ni_direction: (freshOrder as any).ni_direction ?? (job.orderData as any).ni_direction,
+          ni_inbound_status: (freshOrder as any).ni_inbound_status ?? (job.orderData as any).ni_inbound_status,
+          ni_inbound_ferry_crossed_at: (freshOrder as any).ni_inbound_ferry_crossed_at ?? (job.orderData as any).ni_inbound_ferry_crossed_at,
           foam_status: freshOrder.foam_status ?? (job.orderData as any).foam_status,
           scheduled_pickup_date: freshOrder.scheduled_pickup_date ?? job.orderData.scheduled_pickup_date,
           scheduled_delivery_date: freshOrder.scheduled_delivery_date ?? job.orderData.scheduled_delivery_date,
