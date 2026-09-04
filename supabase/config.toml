@@ -1,5 +1,10 @@
 project_id = "axigtrmaxhetyfzjjdve"
 
+[functions.finalise-public-repair-offer]
+verify_jwt = false
+
+
+
 [functions.cancel-order]
 verify_jwt = false
 

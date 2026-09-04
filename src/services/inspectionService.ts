@@ -1521,7 +1521,18 @@ export const submitPublicRepairOffer = async (
   if (error) throw error;
   // Refresh the customer-facing report so it reflects the receiver's decisions.
   void regenerateInspectionReport({ orderId });
+  // Raise the receiver's invoice (and email it) for anything they just approved.
+  if ((data as any)?.approved > 0) {
+    void supabase.functions
+      .invoke('finalise-public-repair-offer', { body: { orderId } })
+      .then(({ error: invoiceError }) => {
+        if (invoiceError) {
+          console.error('Failed to trigger receiver invoicing:', invoiceError.message);
+        }
+      });
+  }
   return (data || { success: false }) as any;
+
 };
 
 /**
