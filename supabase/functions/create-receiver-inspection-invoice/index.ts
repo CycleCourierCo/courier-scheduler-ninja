@@ -117,28 +117,54 @@ function splitName(fullName?: string | null) {
   return { given: parts.slice(0, -1).join(' '), family: parts[parts.length - 1] };
 }
 
+function escapeHtml(value: string): string {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function buildReceiverInvoiceEmail(
   order: any,
-  issue: any,
+  issues: any[],
   publicUrl: string | null,
   hasPdf: boolean,
   totalAmount: number
 ): { html: string; text: string; subject: string } {
-  const receiverName = (order.receiver as any)?.name || 'there';
+  const receiverName = escapeHtml((order.receiver as any)?.name || 'there');
   const trackingNumber = order.tracking_number || order.id;
-  const bikeDesc = `${order.bike_brand || ''} ${order.bike_model || ''}`.trim() || 'your bike';
-  const issueDesc = issue.issue_description || 'repair';
+  const bikeDesc = escapeHtml(`${order.bike_brand || ''} ${order.bike_model || ''}`.trim() || 'your bike');
   const subject = `Invoice for your bike repair — CCC ${trackingNumber}`;
+  const plural = issues.length === 1 ? 'repair' : 'repairs';
+
+  const rows = issues.map((it: any) => `
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #e5e5e5;">${escapeHtml(it.issue_description || 'Repair')}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #e5e5e5; text-align: right; white-space: nowrap;">£${Number(it.estimated_cost || 0).toFixed(2)}</td>
+        </tr>`).join('');
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2>Hello ${receiverName},</h2>
-      <p>You have approved the following repair for ${bikeDesc}:</p>
-      <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
-        <p><strong>Repair:</strong> ${issueDesc}</p>
-        <p><strong>Amount:</strong> £${totalAmount.toFixed(2)} (including VAT)</p>
-      </div>
-      <p>This repair is to be paid by you directly to Cycle Courier Co., not by the person who booked the transport.</p>
+      <p>You have approved the following ${plural} for ${bikeDesc}:</p>
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+        <thead>
+          <tr>
+            <th style="text-align: left; padding: 8px; border-bottom: 2px solid #333;">Repair</th>
+            <th style="text-align: right; padding: 8px; border-bottom: 2px solid #333;">Price</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+        <tfoot>
+          <tr>
+            <td style="padding: 8px; font-weight: bold;">Total (including VAT)</td>
+            <td style="padding: 8px; text-align: right; font-weight: bold;">£${totalAmount.toFixed(2)}</td>
+          </tr>
+        </tfoot>
+      </table>
+      <p>${issues.length === 1 ? 'This repair is' : 'These repairs are'} to be paid by you directly to Cycle Courier Co., not by the person who booked the transport.</p>
       <div style="text-align: center; margin: 25px 0;">
         ${buildInvoiceCtaHtml(publicUrl, hasPdf)}
       </div>
@@ -146,14 +172,19 @@ function buildReceiverInvoiceEmail(
     </div>
   `;
 
-  const text = `Hello ${receiverName},
+  const lines = issues
+    .map((it: any) => `- ${it.issue_description || 'Repair'}: £${Number(it.estimated_cost || 0).toFixed(2)}`)
+    .join('\n');
 
-You have approved the following repair for ${bikeDesc}:
+  const text = `Hello ${(order.receiver as any)?.name || 'there'},
 
-Repair: ${issueDesc}
-Amount: £${totalAmount.toFixed(2)} (including VAT)
+You have approved the following ${plural} for ${`${order.bike_brand || ''} ${order.bike_model || ''}`.trim() || 'your bike'}:
 
-This repair is to be paid by you directly to Cycle Courier Co., not by the person who booked the transport.
+${lines}
+
+Total (including VAT): £${totalAmount.toFixed(2)}
+
+${issues.length === 1 ? 'This repair is' : 'These repairs are'} to be paid by you directly to Cycle Courier Co., not by the person who booked the transport.
 
 ${buildInvoiceCtaText(publicUrl, hasPdf)}
 
@@ -165,6 +196,7 @@ CCC - Cycle Courier Co.`;
 
   return { html, text, subject };
 }
+
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
