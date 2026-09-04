@@ -681,9 +681,9 @@ const JobItem: React.FC<JobItemProps> = ({
                                 {collectionBadge.text}
                               </Badge>
                             )}
-                            {/* Northern Ireland ferry status (inbound deliveries only) */}
-                            {groupedJob.type === 'delivery' && (() => {
-                              const niBadge = getNiInboundBadge(groupedJob.orderData);
+                            {/* Northern Ireland ferry status (inbound deliveries + ferry hand-off collections) */}
+                            {(groupedJob.type === 'delivery' || isFerryLeg(groupedJob.orderData, 'pickup')) && (() => {
+                              const niBadge = getNiInboundBadge(groupedJob.orderData, groupedJob.type === 'pickup' ? 'pickup' : 'delivery');
                               return niBadge ? (
                                 <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${niBadge.color}`}>
                                   {niBadge.icon}
