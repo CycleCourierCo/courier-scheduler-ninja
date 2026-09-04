@@ -1314,6 +1314,10 @@ const BicycleInspections = () => {
         return { variant: "warning" as const, label: "Awaiting Pricing" };
       case "issues_found":
         return { variant: "destructive" as const, label: "Issues Found" };
+      case "repairs_declined":
+        return { variant: "destructive" as const, label: "Repairs Declined" };
+      case "pending_receiver_approval":
+        return { variant: "warning" as const, label: "Pending Receiver Approval" };
       case "awaiting_parts":
         return { variant: "warning" as const, label: "Awaiting Parts" };
       case "awaiting_repair":
