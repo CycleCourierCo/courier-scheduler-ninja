@@ -33,6 +33,9 @@ interface FoamOrder {
   foam_delivery_photos: string[] | null;
   foam_label_url: string | null;
   foam_tracking_url: string | null;
+  foam_pending_collection_at: string | null;
+  foam_pending_foaming_at: string | null;
+  foam_foamed_at: string | null;
   foam_delivered_to_ferry_at: string | null;
   foam_crossed_to_ni_at: string | null;
   foam_delivered_ni_at: string | null;
