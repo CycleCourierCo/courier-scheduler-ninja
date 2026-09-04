@@ -1706,6 +1706,7 @@ export const undoIssueReceiverApproval = async (issueId: string): Promise<void> 
     })
     .eq('id', issueId);
   if (error) throw error;
+  await reconcileForIssue(issueId);
 };
 
 /**
