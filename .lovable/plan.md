@@ -56,7 +56,8 @@ Same manual forward/back controls, stamped with a timestamp, and shown on the cu
 ## Technical notes
 
 Database migration (one call, approved before code changes):
-- `orders`: `ni_partner_label_url`, `ni_partner_label_uploaded_at`, `ni_bfs_number`, `ni_bfs_updated_at`, `ni_inbound_status` (text, checked against the four stages), `ni_inbound_collected_at`, `ni_inbound_ferry_crossed_at`, `ni_inbound_received_at`.
+- `orders`: `ni_partner_label_url`, `ni_partner_label_uploaded_at`, `ni_bfs_number`, `ni_bfs_updated_at`, `ni_inbound_status` (text, checked against the four stages), `ni_inbound_collected_at`, `ni_inbound_ferry_crossed_at`, `ni_inbound_received_at`, `foam_crossed_to_ni_at`.
+- `foam_status` enum: add `crossed_to_ni`, ordered between `delivered_to_ferry` and `delivered_ni`.
 - `get_ni_partner_job(p_order_id uuid)` — security definer, returns direction, tracking number, bike, NI-side name/address/phone, existing label + BFS. Email deliberately excluded.
 - `submit_ni_partner_details(p_order_id uuid, p_bfs_number text, p_label_path text)` — security definer, validates the order is a Northern Ireland order, stamps BFS and label fields.
 - Grants: `EXECUTE` on both functions to `anon` and `authenticated`; column-level access stays closed (no new table, so no new table grants).
