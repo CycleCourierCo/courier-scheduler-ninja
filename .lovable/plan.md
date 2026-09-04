@@ -39,6 +39,20 @@ Each stage stamps a timestamp and the person who set it. Reaching "Collected fro
 
 Customer tracking is updated at each stage, so the tracking page shows the NI collection, the ferry crossing and the hand-over to us.
 
+## 4. New outbound stage: crossed the ferry, now in Northern Ireland
+
+The existing outbound (Foam My Bike) stages gain one step between "Delivered to ferry" and "Delivered in Northern Ireland":
+
+```text
+Foamed, ready for delivery
+  -> Delivered to ferry
+  -> Crossed the ferry, in Northern Ireland   (new)
+  -> Delivered in Northern Ireland
+```
+
+Same manual forward/back controls, stamped with a timestamp, and shown on the customer tracking timeline.
+
+
 ## Technical notes
 
 Database migration (one call, approved before code changes):
