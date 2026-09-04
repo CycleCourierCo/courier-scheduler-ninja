@@ -359,19 +359,21 @@ const handler = async (req: Request): Promise<Response> => {
       if (net7) salesTermId = net7.Id;
     }
 
-    const netPrice = Number((Number(issue.estimated_cost || 0) / 1.2).toFixed(2));
     const bikeDesc = `${order.tracking_number || order.id} - ${order.bike_brand || ''} ${order.bike_model || ''}`.trim();
-    const lineItems = [{
-      Amount: netPrice,
-      DetailType: 'SalesItemLineDetail',
-      SalesItemLineDetail: {
-        ItemRef: { value: repairProductId },
-        Qty: 1,
-        UnitPrice: netPrice,
-        ...(vatTaxCodeId && { TaxCodeRef: { value: vatTaxCodeId } })
-      },
-      Description: `${bikeDesc} - ${issue.issue_description}`
-    }];
+    const lineItems = issues.map((it: any) => {
+      const netPrice = Number((Number(it.estimated_cost || 0) / 1.2).toFixed(2));
+      return {
+        Amount: netPrice,
+        DetailType: 'SalesItemLineDetail',
+        SalesItemLineDetail: {
+          ItemRef: { value: repairProductId },
+          Qty: 1,
+          UnitPrice: netPrice,
+          ...(vatTaxCodeId && { TaxCodeRef: { value: vatTaxCodeId } })
+        },
+        Description: `${bikeDesc} - ${it.issue_description}`
+      };
+    });
 
     const invoiceBody = {
       Line: lineItems,
@@ -386,7 +388,7 @@ const handler = async (req: Request): Promise<Response> => {
     const invoiceId = qbInvoice?.Id;
     const invoiceNumber = qbInvoice?.DocNumber;
     const invoiceUrl = `https://qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
-    const totalAmount = Number(issue.estimated_cost || 0);
+    const totalAmount = issues.reduce((sum: number, it: any) => sum + Number(it.estimated_cost || 0), 0);
     const now = new Date().toISOString();
 
     // Public share link + PDF so the receiver never hits a QuickBooks login wall.
@@ -398,6 +400,7 @@ const handler = async (req: Request): Promise<Response> => {
       { fetchPdf: true }
     );
 
+    // Every repair on this bike shares the one invoice.
     const { error: updateError } = await supabase
       .from('inspection_issues')
       .update({
@@ -409,10 +412,10 @@ const handler = async (req: Request): Promise<Response> => {
         invoiced_by_id: user.id,
         invoiced_by_name: user.user_metadata?.name || user.email || 'Staff',
       })
-      .eq('id', issueId);
+      .in('id', issues.map((it: any) => it.id));
 
     if (updateError) {
-      console.error('Error updating issue with invoice data:', updateError);
+      console.error('Error updating issues with invoice data:', updateError);
     }
 
     // Send email to receiver
@@ -420,7 +423,8 @@ const handler = async (req: Request): Promise<Response> => {
     if (resendApiKey) {
       try {
         const resend = trackResend(new Resend(resendApiKey), "receiver inspection invoice");
-        const email = buildReceiverInvoiceEmail(order, issue, delivery.publicUrl, !!delivery.pdfBase64, totalAmount);
+        const email = buildReceiverInvoiceEmail(order, issues, delivery.publicUrl, !!delivery.pdfBase64, totalAmount);
+
         await resend.emails.send({
           from: 'CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>',
           to: [receiver.email],
