@@ -162,12 +162,25 @@ const stripAdminOnlyFromIssue = (issue: any) => {
 
 // Reconcile inspection statuses based on the new multi-stage workflow.
 // Customer-facing transitions only — admin gates (pricing release) stay manual.
-export const reconcileInspectionStatuses = async (): Promise<number> => {
+export const reconcileInspectionStatuses = async (
+  onlyInspectionId?: string
+): Promise<number> => {
   try {
-    const { data: inspections, error } = await supabase
+    let query = supabase
       .from('bicycle_inspections')
-      .select('id, status, inspection_issues(status, parts_arrived, parts_ordered, parts_in_stock)')
-      .in('status', ['issues_found', 'awaiting_parts', 'awaiting_repair', 'in_repair']);
+      .select(
+        'id, status, inspection_issues(status, parts_arrived, parts_ordered, parts_in_stock, offered_to_receiver_at, receiver_approved_at, receiver_declined_at, billing_party)'
+      )
+      .in('status', [
+        'issues_found',
+        'repairs_declined',
+        'pending_receiver_approval',
+        'awaiting_parts',
+        'awaiting_repair',
+        'in_repair',
+      ]);
+    if (onlyInspectionId) query = query.eq('id', onlyInspectionId);
+    const { data: inspections, error } = await query;
 
     if (error) throw error;
     if (!inspections || inspections.length === 0) return 0;
@@ -175,7 +188,17 @@ export const reconcileInspectionStatuses = async (): Promise<number> => {
     let updatedCount = 0;
 
     for (const inspection of inspections) {
-      const issues = (inspection.inspection_issues as { status: string; parts_arrived: boolean; parts_ordered: boolean; parts_in_stock?: boolean }[]) || [];
+      const issues =
+        (inspection.inspection_issues as {
+          status: string;
+          parts_arrived: boolean;
+          parts_ordered: boolean;
+          parts_in_stock?: boolean;
+          offered_to_receiver_at?: string | null;
+          receiver_approved_at?: string | null;
+          receiver_declined_at?: string | null;
+          billing_party?: string | null;
+        }[]) || [];
       if (issues.length === 0) continue;
 
       let nextStatus: InspectionStatus | null = null;
@@ -186,7 +209,6 @@ export const reconcileInspectionStatuses = async (): Promise<number> => {
       const approved = issues.filter(i =>
         ['approved', 'resolved', 'repaired'].includes(i.status)
       );
-      const allDeclined = allResponded && approved.length === 0;
       const allApprovedRepaired =
         approved.length > 0 && approved.every(i => i.status === 'repaired' || i.status === 'resolved');
       const allPartsReady =
@@ -199,18 +221,53 @@ export const reconcileInspectionStatuses = async (): Promise<number> => {
             (i.parts_arrived === true && i.parts_ordered === true)
         );
 
+      // Declined repairs that could still be sold to the receiver.
+      const declinedOpen = issues.filter(
+        i => i.status === 'declined' && !i.receiver_declined_at
+      );
+      const declinedNotOffered = declinedOpen.filter(i => !i.offered_to_receiver_at);
+      const declinedOffered = declinedOpen.filter(i => !!i.offered_to_receiver_at);
+      // Approved work still to be done (customer- or receiver-billed).
+      const outstandingApproved = approved.filter(
+        i => i.status !== 'repaired' && i.status !== 'resolved'
+      );
+
       const currentStatus = inspection.status as InspectionStatus;
 
+      const postApprovalStatus = (): InspectionStatus =>
+        allPartsReady ? 'awaiting_repair' : 'awaiting_parts';
+
       if (currentStatus === 'issues_found' && allResponded) {
-        // Every approved repair already has its parts in stock → skip the wait.
-        nextStatus = allDeclined ? 'repaired' : allPartsReady ? 'awaiting_repair' : 'awaiting_parts';
+        if (outstandingApproved.length > 0) {
+          nextStatus = postApprovalStatus();
+        } else if (declinedNotOffered.length > 0) {
+          nextStatus = 'repairs_declined';
+        } else if (declinedOffered.length > 0) {
+          nextStatus = 'pending_receiver_approval';
+        } else {
+          nextStatus = 'repaired';
+        }
+      } else if (currentStatus === 'repairs_declined' || currentStatus === 'pending_receiver_approval') {
+        if (outstandingApproved.length > 0) {
+          nextStatus = postApprovalStatus();
+        } else if (declinedNotOffered.length > 0) {
+          nextStatus = 'repairs_declined';
+        } else if (declinedOffered.length > 0) {
+          nextStatus = 'pending_receiver_approval';
+        } else {
+          nextStatus = 'repaired';
+        }
       } else if (currentStatus === 'awaiting_parts' && allPartsReady) {
         nextStatus = 'awaiting_repair';
       } else if (
         (currentStatus === 'awaiting_repair' || currentStatus === 'in_repair') &&
         allApprovedRepaired
       ) {
-        nextStatus = 'repaired';
+        // All agreed work done — but hold the bike if declined repairs are still
+        // with (or waiting to go to) the receiver.
+        if (declinedNotOffered.length > 0) nextStatus = 'repairs_declined';
+        else if (declinedOffered.length > 0) nextStatus = 'pending_receiver_approval';
+        else nextStatus = 'repaired';
       } else if (currentStatus === 'in_repair') {
         // Legacy rows: shift to awaiting_repair so the new UI handles them.
         nextStatus = 'awaiting_repair';
@@ -229,6 +286,7 @@ export const reconcileInspectionStatuses = async (): Promise<number> => {
         }
       }
     }
+
 
     return updatedCount;
   } catch (error) {
