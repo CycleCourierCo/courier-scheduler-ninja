@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { FoamStatus, FOAM_STATUS_LABELS, FOAM_STATUS_ORDER } from "@/types/order";
 import { CITY_AIR_EXPRESS } from "@/constants/depot";
+import { sendOrderUpdateEmail } from "@/lib/sendOrderUpdateEmail";
 import { formatStorageLocations } from "@/utils/storageLocation";
 import { isServiceComplete, serviceGateLabel } from "@/utils/servicingGate";
 import { useInspectionStages, fetchInspectionStages } from "@/hooks/useInspectionStages";
@@ -177,11 +178,13 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       newStage,
       overrideReason,
       occurredAt,
+      notify,
     }: {
       id: string;
       newStage: FoamStatus;
       overrideReason?: string;
       occurredAt?: string;
+      notify?: boolean;
     }) => {
       // Re-check the service gate so a stale card can't push an unserviced bike
       // into foaming.
@@ -222,6 +225,8 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       if (releasedBay) patch.storage_locations = null;
       const { error } = await supabase.from("orders").update(patch).eq("id", id);
       if (error) throw error;
+      // Forward moves tell the customer where their bike is, right away.
+      if (notify) await sendOrderUpdateEmail(id);
       return { releasedBay };
     },
     onSuccess: (result) => {

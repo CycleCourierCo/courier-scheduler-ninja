@@ -13,6 +13,7 @@ import {
   NI_INBOUND_STATUS_ORDER,
 } from "@/types/order";
 import { CITY_AIR_EXPRESS } from "@/constants/depot";
+import { sendOrderUpdateEmail } from "@/lib/sendOrderUpdateEmail";
 import OrderSearchBar from "@/components/boxmybike/OrderSearchBar";
 import { filterOrdersBySearch } from "@/utils/orderSearch";
 import { toPublicFileUrl } from "@/lib/publicFileUrl";
