@@ -177,16 +177,35 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error('No authorization header');
+    // Auth: either a staff JWT (admin/mechanic), or an internal call with X-Cron-Secret
+    // (used when the receiver approves repairs themselves on the public offer page).
+    const cronSecretHeader = req.headers.get('X-Cron-Secret');
+    const cronSecretEnv = Deno.env.get('CRON_SECRET');
+    let user: { id: string; email?: string | null; user_metadata?: any };
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !user) throw new Error('Unauthorized');
+    if (cronSecretHeader && cronSecretEnv && cronSecretHeader === cronSecretEnv) {
+      const { data: qbRow, error: qbErr } = await supabase
+        .from('quickbooks_tokens')
+        .select('user_id, updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (qbErr || !qbRow) throw new Error('No QuickBooks-connected user found for internal invocation');
+      user = { id: qbRow.user_id, user_metadata: { name: 'Receiver approval (automatic)' } };
+    } else {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader) throw new Error('No authorization header');
 
-    const { data: isAdmin } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' });
-    const { data: isMechanic } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'mechanic' });
-    if (!isAdmin && !isMechanic) throw new Error('Admin or mechanic access required');
+      const jwt = authHeader.replace('Bearer ', '');
+      const { data: { user: authUser }, error: userError } = await supabase.auth.getUser(jwt);
+      if (userError || !authUser) throw new Error('Unauthorized');
+
+      const { data: isAdmin } = await supabase.rpc('has_role', { _user_id: authUser.id, _role: 'admin' });
+      const { data: isMechanic } = await supabase.rpc('has_role', { _user_id: authUser.id, _role: 'mechanic' });
+      if (!isAdmin && !isMechanic) throw new Error('Admin or mechanic access required');
+      user = authUser;
+    }
+
 
     const body = await req.json().catch(() => ({}));
     const { issueId } = body as { issueId?: string };
