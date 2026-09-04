@@ -282,8 +282,9 @@ const InboundCard: React.FC<{
   order: InboundOrder;
   onAdvance: () => void;
   onBack: () => void;
+  onEditTime: (column: string, current: string | null, label: string) => void;
   disabled: boolean;
-}> = ({ order, onAdvance, onBack, disabled }) => {
+}> = ({ order, onAdvance, onBack, onEditTime, disabled }) => {
   const [signedLabel, setSignedLabel] = React.useState<string | null>(null);
 
   React.useEffect(() => {
