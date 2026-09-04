@@ -39,6 +39,36 @@ const refreshReportForIssue = async (issueId: string) => {
   }
 };
 
+// Re-runs stage reconciliation for the inspection an issue belongs to, so the
+// declined/receiver stages update immediately after a staff or receiver action.
+const reconcileForIssue = async (issueId: string) => {
+  try {
+    const { data } = await supabase
+      .from('inspection_issues')
+      .select('inspection_id')
+      .eq('id', issueId)
+      .maybeSingle();
+    const inspectionId = (data as any)?.inspection_id as string | undefined;
+    if (inspectionId) await reconcileInspectionStatuses(inspectionId);
+  } catch (error) {
+    console.error('Error reconciling inspection stage for issue:', error);
+  }
+};
+
+const reconcileForOrder = async (orderId: string) => {
+  try {
+    const { data } = await supabase
+      .from('bicycle_inspections')
+      .select('id')
+      .eq('order_id', orderId);
+    for (const row of data || []) {
+      await reconcileInspectionStatuses((row as any).id);
+    }
+  } catch (error) {
+    console.error('Error reconciling inspection stages for order:', error);
+  }
+};
+
 // Emails the booking account asking them to approve the identified repairs.
 export const sendInspectionApprovalEmail = async (
   inspectionId: string,
