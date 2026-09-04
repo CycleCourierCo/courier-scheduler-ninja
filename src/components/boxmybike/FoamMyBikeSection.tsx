@@ -498,17 +498,17 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
           {isStaff &&
             (
               [
-                ["foam_pending_collection_at", o.foam_pending_collection_at],
-                ["foam_pending_foaming_at", o.foam_pending_foaming_at],
-                ["foam_foamed_at", o.foam_foamed_at],
-                ["foam_delivered_to_ferry_at", o.foam_delivered_to_ferry_at],
-                ["foam_crossed_to_ni_at", o.foam_crossed_to_ni_at],
-                ["foam_delivered_ni_at", o.foam_delivered_ni_at],
-              ] as Array<[string, string | null]>
+                ["foam_pending_collection_at", o.foam_pending_collection_at, "pending_collection"],
+                ["foam_pending_foaming_at", o.foam_pending_foaming_at, "pending_foaming"],
+                ["foam_foamed_at", o.foam_foamed_at, "foamed_ready"],
+                ["foam_delivered_to_ferry_at", o.foam_delivered_to_ferry_at, "delivered_to_ferry"],
+                ["foam_crossed_to_ni_at", o.foam_crossed_to_ni_at, "crossed_to_ni"],
+                ["foam_delivered_ni_at", o.foam_delivered_ni_at, "delivered_ni"],
+              ] as Array<[string, string | null, FoamStatus]>
             )
               .filter(([, value]) => Boolean(value))
-              .map(([column, value], i) => {
-                const label = FOAM_STATUS_LABELS[FOAM_STATUS_ORDER[i] as FoamStatus] || column;
+              .map(([column, value, stageKey]) => {
+                const label = FOAM_STATUS_LABELS[stageKey];
                 return (
                   <div key={column} className="text-xs flex flex-wrap items-center gap-2">
                     <span className="text-muted-foreground">
