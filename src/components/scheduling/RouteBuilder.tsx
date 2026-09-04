@@ -803,9 +803,9 @@ const JobItem: React.FC<JobItemProps> = ({
                         ) : null;
                       })()}
 
-                      {/* Northern Ireland ferry status (inbound deliveries only) */}
-                      {job.type === 'delivery' && (() => {
-                        const niBadge = getNiInboundBadge(job.orderData);
+                      {/* Northern Ireland ferry status (inbound deliveries + ferry hand-off collections) */}
+                      {(job.type === 'delivery' || isFerryLeg(job.orderData, 'pickup')) && (() => {
+                        const niBadge = getNiInboundBadge(job.orderData, job.type === 'pickup' ? 'pickup' : 'delivery');
                         return niBadge ? (
                           <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${niBadge.color}`}>
                             {niBadge.icon}
