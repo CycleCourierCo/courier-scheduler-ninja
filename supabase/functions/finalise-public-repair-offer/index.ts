@@ -38,7 +38,6 @@ const handler = async (req: Request): Promise<Response> => {
       .from("inspection_issues")
       .select("id")
       .eq("order_id", orderId)
-      .eq("status", "approved")
       .eq("billing_party", "receiver")
       .is("invoice_number", null)
       .not("receiver_approved_at", "is", null);
