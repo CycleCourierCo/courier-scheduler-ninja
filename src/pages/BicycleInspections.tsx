@@ -2362,6 +2362,11 @@ const BicycleInspections = () => {
                        <Badge className="bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200">
                         Approved by receiver
                         {(issue as any).receiver_approved_source === "staff" ? " (recorded by staff)" : ""}
+                        {(issue as any).receiver_approved_at && (
+                          <span className="ml-1 font-normal">
+                            {new Date((issue as any).receiver_approved_at).toLocaleString()}
+                          </span>
+                        )}
                       </Badge>
                       {(issue as any).invoice_number && (issue as any).invoice_url && (
                         <Badge
