@@ -82,6 +82,7 @@ export type FoamStatus =
   | 'pending_foaming'
   | 'foamed_ready'
   | 'delivered_to_ferry'
+  | 'crossed_to_ni'
   | 'delivered_ni';
 
 export const FOAM_STATUS_ORDER: FoamStatus[] = [
@@ -89,6 +90,7 @@ export const FOAM_STATUS_ORDER: FoamStatus[] = [
   'pending_foaming',
   'foamed_ready',
   'delivered_to_ferry',
+  'crossed_to_ni',
   'delivered_ni',
 ];
 
@@ -97,8 +99,30 @@ export const FOAM_STATUS_LABELS: Record<FoamStatus, string> = {
   pending_foaming: 'Pending foaming',
   foamed_ready: 'Foamed, ready for delivery',
   delivered_to_ferry: 'Delivered to ferry',
+  crossed_to_ni: 'Crossed the ferry, in Northern Ireland',
   delivered_ni: 'Delivered in Northern Ireland',
 };
+
+export type NiInboundStatus =
+  | 'awaiting_ni_collection'
+  | 'collected_in_ni'
+  | 'crossed_ferry'
+  | 'collected_from_partner';
+
+export const NI_INBOUND_STATUS_ORDER: NiInboundStatus[] = [
+  'awaiting_ni_collection',
+  'collected_in_ni',
+  'crossed_ferry',
+  'collected_from_partner',
+];
+
+export const NI_INBOUND_STATUS_LABELS: Record<NiInboundStatus, string> = {
+  awaiting_ni_collection: 'Awaiting NI collection',
+  collected_in_ni: 'Collected in Northern Ireland',
+  crossed_ferry: 'Crossed the ferry',
+  collected_from_partner: 'Collected from partner',
+};
+
 
 
 
@@ -176,9 +200,21 @@ export type Order = {
   foamPendingFoamingAt?: Date | null;
   foamFoamedAt?: Date | null;
   foamDeliveredToFerryAt?: Date | null;
+  foamCrossedToNiAt?: Date | null;
   foamDeliveredNiAt?: Date | null;
   foamDeliveryPhotos?: string[] | null;
   foamHasPhotos?: boolean;
+  /** Northern Ireland partner details: City Air Express label + BFS consignment number. */
+  niPartnerLabelUrl?: string | null;
+  niPartnerLabelUploadedAt?: string | null;
+  niBfsNumber?: string | null;
+  niBfsUpdatedAt?: string | null;
+  /** Inbound Northern Ireland stages. */
+  niInboundStatus?: NiInboundStatus | string | null;
+  niInboundCollectedAt?: string | null;
+  niInboundFerryCrossedAt?: string | null;
+  niInboundReceivedAt?: string | null;
+
 
   collectionCode?: string;
   deliveryInstructions?: string;

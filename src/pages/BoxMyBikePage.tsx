@@ -30,7 +30,9 @@ import TaskDialog from "@/components/tasks/TaskDialog";
 import TaskDetailDrawer from "@/components/tasks/TaskDetailDrawer";
 
 import FoamMyBikeSection from "@/components/boxmybike/FoamMyBikeSection";
+import InboundNiSection from "@/components/boxmybike/InboundNiSection";
 import OrderSearchBar from "@/components/boxmybike/OrderSearchBar";
+
 import { filterOrdersBySearch } from "@/utils/orderSearch";
 import { toPublicFileUrl } from "@/lib/publicFileUrl";
 
@@ -476,7 +478,7 @@ const BoxMyBikePage: React.FC = () => {
     );
   };
 
-  const [section, setSection] = React.useState<"box" | "foam">("box");
+  const [section, setSection] = React.useState<"box" | "foam" | "inbound-ni">("box");
 
   return (
     <Layout>
@@ -488,16 +490,20 @@ const BoxMyBikePage: React.FC = () => {
             : "Your bikes being boxed at our depot for international shipping."}
         </p>
 
-        <Tabs value={section} onValueChange={(v) => setSection(v as "box" | "foam")} className="mb-6">
+        <Tabs value={section} onValueChange={(v) => setSection(v as "box" | "foam" | "inbound-ni")} className="mb-6">
           <TabsList>
             <TabsTrigger value="box">Box My Bike</TabsTrigger>
             <TabsTrigger value="foam">Foam My Bike (NI)</TabsTrigger>
+            <TabsTrigger value="inbound-ni">Inbound NI</TabsTrigger>
           </TabsList>
         </Tabs>
 
         {section === "foam" ? (
           <FoamMyBikeSection isStaff={isStaff} userId={user?.id} />
+        ) : section === "inbound-ni" ? (
+          <InboundNiSection isStaff={isStaff} />
         ) : isLoading ? (
+
           <div className="text-sm text-muted-foreground">Loading…</div>
         ) : isStaff ? (
           <>
