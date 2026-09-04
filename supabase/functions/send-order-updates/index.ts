@@ -323,6 +323,8 @@ function deriveUpdates(order: any, inspectionPending = false, inspectionStatus: 
             line: "Your bike has passed its inspection. It's being cleaned and prepared for delivery.",
           };
         case "issues_found":
+        case "repairs_declined":
+        case "pending_receiver_approval":
         case "awaiting_pricing":
           return {
             key: "in_depot_issues_found",

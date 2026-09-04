@@ -1314,6 +1314,10 @@ const BicycleInspections = () => {
         return { variant: "warning" as const, label: "Awaiting Pricing" };
       case "issues_found":
         return { variant: "destructive" as const, label: "Issues Found" };
+      case "repairs_declined":
+        return { variant: "destructive" as const, label: "Repairs Declined" };
+      case "pending_receiver_approval":
+        return { variant: "warning" as const, label: "Pending Receiver Approval" };
       case "awaiting_parts":
         return { variant: "warning" as const, label: "Awaiting Parts" };
       case "awaiting_repair":
@@ -1491,6 +1495,8 @@ const BicycleInspections = () => {
   const collected = awaitingBase.filter((i: any) => !!i.collection_confirmation_sent_at);
   const awaitingPricing = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_pricing");
   const withIssues = filteredInspections.filter((i: any) => i.inspection?.status === "issues_found");
+  const repairsDeclined = filteredInspections.filter((i: any) => i.inspection?.status === "repairs_declined");
+  const pendingReceiver = filteredInspections.filter((i: any) => i.inspection?.status === "pending_receiver_approval");
   const awaitingParts = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_parts");
   const awaitingRepair = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_repair" || i.inspection?.status === "in_repair" || i.inspection?.status === "cleaning");
   const inspectedAndServiced = filteredInspections.filter(
@@ -1745,6 +1751,8 @@ const BicycleInspections = () => {
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="awaiting_pricing">Awaiting Pricing</SelectItem>
                     <SelectItem value="issues_found">Issues Found</SelectItem>
+                    <SelectItem value="repairs_declined">Repairs Declined</SelectItem>
+                    <SelectItem value="pending_receiver_approval">Pending Receiver Approval</SelectItem>
                     <SelectItem value="awaiting_parts">Awaiting Parts</SelectItem>
                     <SelectItem value="awaiting_repair">Awaiting Repair</SelectItem>
                     <SelectItem value="cleaning">Cleaning</SelectItem>
@@ -2925,6 +2933,22 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
+              {canManageInspections && (
+                <TabsTrigger value="repairs-declined" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
+                  Repairs Declined
+                  {repairsDeclined.length > 0 && (
+                    <Badge variant="destructive" className="ml-1">{repairsDeclined.length}</Badge>
+                  )}
+                </TabsTrigger>
+              )}
+              {canManageInspections && (
+                <TabsTrigger value="pending-receiver" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
+                  Pending Receiver
+                  {pendingReceiver.length > 0 && (
+                    <Badge variant="warning" className="ml-1">{pendingReceiver.length}</Badge>
+                  )}
+                </TabsTrigger>
+              )}
               <TabsTrigger value="awaiting-parts" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Awaiting Parts
                 {awaitingParts.length > 0 && (
@@ -2997,6 +3021,30 @@ const BicycleInspections = () => {
                 withIssues.map(renderInspectionCard)
               )}
             </TabsContent>
+
+            {canManageInspections && (
+              <TabsContent value="repairs-declined" className="space-y-4">
+                {repairsDeclined.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">
+                    No declined repairs waiting to be offered to the receiver
+                  </p>
+                ) : (
+                  repairsDeclined.map(renderInspectionCard)
+                )}
+              </TabsContent>
+            )}
+
+            {canManageInspections && (
+              <TabsContent value="pending-receiver" className="space-y-4">
+                {pendingReceiver.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">
+                    No offers awaiting a receiver decision
+                  </p>
+                ) : (
+                  pendingReceiver.map(renderInspectionCard)
+                )}
+              </TabsContent>
+            )}
 
             {canManageInspections && (
               <TabsContent value="pricing" className="space-y-4">
