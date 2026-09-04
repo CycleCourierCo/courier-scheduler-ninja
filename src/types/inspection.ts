@@ -3,6 +3,8 @@ export type InspectionStatus =
   | 'inspected'
   | 'awaiting_pricing'
   | 'issues_found'
+  | 'repairs_declined'
+  | 'pending_receiver_approval'
   | 'awaiting_parts'
   | 'awaiting_repair'
   | 'in_repair' // deprecated, kept for back-compat reads
