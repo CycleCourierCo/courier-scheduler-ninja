@@ -3023,6 +3023,30 @@ const BicycleInspections = () => {
             </TabsContent>
 
             {canManageInspections && (
+              <TabsContent value="repairs-declined" className="space-y-4">
+                {repairsDeclined.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">
+                    No declined repairs waiting to be offered to the receiver
+                  </p>
+                ) : (
+                  repairsDeclined.map(renderInspectionCard)
+                )}
+              </TabsContent>
+            )}
+
+            {canManageInspections && (
+              <TabsContent value="pending-receiver" className="space-y-4">
+                {pendingReceiver.length === 0 ? (
+                  <p className="text-muted-foreground text-center py-8">
+                    No offers awaiting a receiver decision
+                  </p>
+                ) : (
+                  pendingReceiver.map(renderInspectionCard)
+                )}
+              </TabsContent>
+            )}
+
+            {canManageInspections && (
               <TabsContent value="pricing" className="space-y-4">
                 {awaitingPricing.length === 0 ? (
                   <p className="text-muted-foreground text-center py-8">No bikes awaiting pricing</p>
