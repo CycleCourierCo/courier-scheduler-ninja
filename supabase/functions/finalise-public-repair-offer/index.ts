@@ -36,7 +36,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { data: issues, error: issuesError } = await supabase
       .from("inspection_issues")
-      .select("id")
+      .select("id, inspection_id")
       .eq("order_id", orderId)
       .eq("billing_party", "receiver")
       .is("invoice_number", null)
@@ -47,7 +47,14 @@ const handler = async (req: Request): Promise<Response> => {
       return json({ error: "Could not load approved repairs" }, 500);
     }
 
-    const pending = (issues ?? []).map((i: { id: string }) => i.id);
+    // One invoice per bike: group by inspection and invoice each inspection once.
+    const pending = Array.from(
+      new Set(
+        (issues ?? [])
+          .map((i: { inspection_id: string | null }) => i.inspection_id)
+          .filter((id): id is string => !!id)
+      )
+    );
     if (pending.length === 0) {
       return json({ success: true, invoiced: 0 });
     }
@@ -59,7 +66,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Invoice in the background so the receiver's page confirms instantly.
     const work = (async () => {
-      for (const issueId of pending) {
+      for (const inspectionId of pending) {
         try {
           const res = await fetch(`${supabaseUrl}/functions/v1/create-receiver-inspection-invoice`, {
             method: "POST",
@@ -68,17 +75,17 @@ const handler = async (req: Request): Promise<Response> => {
               "X-Cron-Secret": cronSecret,
               apikey: serviceKey,
             },
-            body: JSON.stringify({ issueId }),
+            body: JSON.stringify({ inspectionId }),
           });
           if (!res.ok) {
             const text = await res.text();
             console.error(
-              `Receiver invoice failed for issue ${issueId} [${res.status}]: ${text.slice(0, 300)}`
+              `Receiver invoice failed for inspection ${inspectionId} [${res.status}]: ${text.slice(0, 300)}`
             );
           }
         } catch (err) {
           console.error(
-            `Receiver invoice threw for issue ${issueId}:`,
+            `Receiver invoice threw for inspection ${inspectionId}:`,
             (err as Error)?.message
           );
         }

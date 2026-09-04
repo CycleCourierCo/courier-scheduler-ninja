@@ -1570,11 +1570,13 @@ export const markIssueReceiverApproved = async (
  * The invoice is billed to the order's receiver (not the booking customer).
  */
 export const createReceiverInspectionInvoice = async (
-  issueId: string
+  issueId: string,
+  inspectionId?: string
 ): Promise<{ invoiceNumber: string; invoiceId: string; invoiceUrl: string; totalAmount: number; alreadyExists?: boolean }> => {
   const { data, error } = await supabase.functions.invoke('create-receiver-inspection-invoice', {
-    body: { issueId },
+    body: { issueId, ...(inspectionId ? { inspectionId } : {}) },
   });
+
   if (error) {
     let details = error.message;
     try {
