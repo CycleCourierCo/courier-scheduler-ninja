@@ -1653,7 +1653,10 @@ export const markIssueReceiverApproved = async (
     .eq('id', issueId);
   if (error) throw error;
   void refreshReportForIssue(issueId);
+  await reconcileForIssue(issueId);
 };
+
+
 
 /**
  * Creates a QuickBooks invoice for a receiver-billed repair issue.
