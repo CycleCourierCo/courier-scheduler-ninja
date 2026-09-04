@@ -2138,6 +2138,7 @@ export type Database = {
           priced_by_name: string | null
           receiver_approved_at: string | null
           receiver_approved_source: string | null
+          receiver_confirmation_sent_at: string | null
           receiver_declined_at: string | null
           repair_id: string | null
           requested_by_id: string
@@ -2193,6 +2194,7 @@ export type Database = {
           priced_by_name?: string | null
           receiver_approved_at?: string | null
           receiver_approved_source?: string | null
+          receiver_confirmation_sent_at?: string | null
           receiver_declined_at?: string | null
           repair_id?: string | null
           requested_by_id: string
@@ -2248,6 +2250,7 @@ export type Database = {
           priced_by_name?: string | null
           receiver_approved_at?: string | null
           receiver_approved_source?: string | null
+          receiver_confirmation_sent_at?: string | null
           receiver_declined_at?: string | null
           repair_id?: string | null
           requested_by_id?: string
