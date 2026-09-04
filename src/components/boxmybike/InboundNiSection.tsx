@@ -259,7 +259,7 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
         onConfirm={(iso) => {
           if (!pendingStage) return;
           updateStage.mutate(
-            { id: pendingStage.order.id, newStage: pendingStage.stage, occurredAt: iso },
+            { id: pendingStage.order.id, newStage: pendingStage.stage, occurredAt: iso, notify: true },
             { onSuccess: () => setPendingStage(null) }
           );
         }}

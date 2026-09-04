@@ -642,7 +642,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       targetLabel={FOAM_STATUS_LABELS.foamed_ready}
       onConfirm={(reason) => {
         if (overrideFor) {
-          updateStage.mutate({ id: overrideFor.id, newStage: "foamed_ready", overrideReason: reason });
+          updateStage.mutate({ id: overrideFor.id, newStage: "foamed_ready", overrideReason: reason, notify: true });
         }
         setOverrideFor(null);
       }}
@@ -679,7 +679,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       onConfirm={(iso) => {
         if (!pendingStage) return;
         updateStage.mutate(
-          { id: pendingStage.order.id, newStage: pendingStage.stage, occurredAt: iso },
+          { id: pendingStage.order.id, newStage: pendingStage.stage, occurredAt: iso, notify: true },
           { onSuccess: () => setPendingStage(null) }
         );
       }}
