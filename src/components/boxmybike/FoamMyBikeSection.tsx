@@ -1,7 +1,7 @@
 import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Camera, Image as ImageIcon, Printer, Upload, UserPlus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Pencil, Camera, Image as ImageIcon, Printer, Upload, UserPlus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ import TaskDialog from "@/components/tasks/TaskDialog";
 import TaskDetailDrawer from "@/components/tasks/TaskDetailDrawer";
 import { toPublicFileUrl } from "@/lib/publicFileUrl";
 import OrderSearchBar from "@/components/boxmybike/OrderSearchBar";
+import StageDateTimeDialog, { formatStageDate } from "@/components/boxmybike/StageDateTimeDialog";
 import { filterOrdersBySearch } from "@/utils/orderSearch";
 
 
@@ -33,6 +34,9 @@ interface FoamOrder {
   foam_delivery_photos: string[] | null;
   foam_label_url: string | null;
   foam_tracking_url: string | null;
+  foam_pending_collection_at: string | null;
+  foam_pending_foaming_at: string | null;
+  foam_foamed_at: string | null;
   foam_delivered_to_ferry_at: string | null;
   foam_crossed_to_ni_at: string | null;
   foam_delivered_ni_at: string | null;
@@ -126,6 +130,13 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
   const [activeTab, setActiveTab] = React.useState<FoamStatus>("pending_collection");
   const [overrideFor, setOverrideFor] = React.useState<FoamOrder | null>(null);
   const [search, setSearch] = React.useState("");
+  const [pendingStage, setPendingStage] = React.useState<{ order: FoamOrder; stage: FoamStatus } | null>(null);
+  const [editing, setEditing] = React.useState<{
+    order: FoamOrder;
+    column: string;
+    current: string | null;
+    label: string;
+  } | null>(null);
 
 
   const { data: orders = [], isLoading } = useQuery({
@@ -133,7 +144,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     queryFn: async () => {
       let q = supabase
         .from("orders")
-        .select("id, tracking_number, status, foam_status, foam_delivery_photos, foam_label_url, foam_tracking_url, foam_delivered_to_ferry_at, foam_crossed_to_ni_at, foam_delivered_ni_at, sender, receiver, bike_brand, bike_model, user_id, created_at, storage_locations, needs_inspection, ni_bfs_number, ni_partner_label_url, ni_partner_label_uploaded_at")
+        .select("id, tracking_number, status, foam_status, foam_delivery_photos, foam_label_url, foam_tracking_url, foam_pending_collection_at, foam_pending_foaming_at, foam_foamed_at, foam_delivered_to_ferry_at, foam_crossed_to_ni_at, foam_delivered_ni_at, sender, receiver, bike_brand, bike_model, user_id, created_at, storage_locations, needs_inspection, ni_bfs_number, ni_partner_label_url, ni_partner_label_uploaded_at")
         .eq("is_northern_ireland", true)
         // Inbound NI bikes arrive already packed — the foam pipeline is outbound only
         .or("ni_direction.is.null,ni_direction.eq.outbound")
@@ -165,10 +176,12 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       id,
       newStage,
       overrideReason,
+      occurredAt,
     }: {
       id: string;
       newStage: FoamStatus;
       overrideReason?: string;
+      occurredAt?: string;
     }) => {
       // Re-check the service gate so a stale card can't push an unserviced bike
       // into foaming.
@@ -199,7 +212,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       }
       const patch: any = { foam_status: newStage, updated_at: new Date().toISOString() };
       const col = foamTimestampColumn(newStage);
-      if (col) patch[col] = new Date().toISOString();
+      if (col) patch[col] = occurredAt || new Date().toISOString();
       // Once handed off at the ferry stage, the public tracking shows that milestone.
       if (newStage === "delivered_to_ferry") patch.status = "delivered_to_ferry";
       if (newStage === "delivered_ni") patch.status = "delivered";
@@ -221,6 +234,21 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     },
 
     onError: (e: any) => toast.error(e?.message || "Failed to update stage"),
+  });
+
+  const updateStageTime = useMutation({
+    mutationFn: async ({ id, column, occurredAt }: { id: string; column: string; occurredAt: string }) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({ [column]: occurredAt, updated_at: new Date().toISOString() } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["foam-my-bike-orders"] });
+      toast.success("Date and time updated");
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to update date and time"),
   });
 
   const [uploadPct, setUploadPct] = React.useState<number | null>(null);
@@ -467,6 +495,37 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
             </div>
           )}
 
+          {isStaff &&
+            (
+              [
+                ["foam_pending_collection_at", o.foam_pending_collection_at, "pending_collection"],
+                ["foam_pending_foaming_at", o.foam_pending_foaming_at, "pending_foaming"],
+                ["foam_foamed_at", o.foam_foamed_at, "foamed_ready"],
+                ["foam_delivered_to_ferry_at", o.foam_delivered_to_ferry_at, "delivered_to_ferry"],
+                ["foam_crossed_to_ni_at", o.foam_crossed_to_ni_at, "crossed_to_ni"],
+                ["foam_delivered_ni_at", o.foam_delivered_ni_at, "delivered_ni"],
+              ] as Array<[string, string | null, FoamStatus]>
+            )
+              .filter(([, value]) => Boolean(value))
+              .map(([column, value, stageKey]) => {
+                const label = FOAM_STATUS_LABELS[stageKey];
+                return (
+                  <div key={column} className="text-xs flex flex-wrap items-center gap-2">
+                    <span className="text-muted-foreground">
+                      {label}: {formatStageDate(value)}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-xs"
+                      onClick={() => setEditing({ order: o, column, current: value, label })}
+                    >
+                      <Pencil className="h-3 w-3 mr-1" /> Edit
+                    </Button>
+                  </div>
+                );
+              })}
+
           {isStaff && (
             <div className="flex flex-wrap gap-2">
               {prev && (
@@ -485,7 +544,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
                         ? "Upload a label and add a tracking link first"
                         : undefined
                   }
-                  onClick={() => updateStage.mutate({ id: o.id, newStage: next })}
+                  onClick={() => setPendingStage({ order: o, stage: next })}
                 >
                   {FOAM_STATUS_LABELS[next]} <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
@@ -605,6 +664,36 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
         </TabsContent>
       ))}
     </Tabs>
+    <StageDateTimeDialog
+      open={!!pendingStage}
+      onOpenChange={(o) => !o && setPendingStage(null)}
+      title={pendingStage ? `Mark as “${FOAM_STATUS_LABELS[pendingStage.stage]}”` : ""}
+      description="When did this step actually happen? This is what the customer sees on tracking."
+      confirmLabel="Update stage"
+      saving={updateStage.isPending}
+      onConfirm={(iso) => {
+        if (!pendingStage) return;
+        updateStage.mutate(
+          { id: pendingStage.order.id, newStage: pendingStage.stage, occurredAt: iso },
+          { onSuccess: () => setPendingStage(null) }
+        );
+      }}
+    />
+    <StageDateTimeDialog
+      open={!!editing}
+      onOpenChange={(o) => !o && setEditing(null)}
+      title={editing ? `Edit “${editing.label}” date` : ""}
+      initial={editing?.current || null}
+      confirmLabel="Save date"
+      saving={updateStageTime.isPending}
+      onConfirm={(iso) => {
+        if (!editing) return;
+        updateStageTime.mutate(
+          { id: editing.order.id, column: editing.column, occurredAt: iso },
+          { onSuccess: () => setEditing(null) }
+        );
+      }}
+    />
     </>
   );
 };

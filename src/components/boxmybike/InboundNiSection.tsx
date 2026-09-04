@@ -1,7 +1,7 @@
 import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Ship, ExternalLink, CheckCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Ship, ExternalLink, CheckCircle, Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import OrderSearchBar from "@/components/boxmybike/OrderSearchBar";
 import { filterOrdersBySearch } from "@/utils/orderSearch";
 import { toPublicFileUrl } from "@/lib/publicFileUrl";
 import { useAuth } from "@/contexts/AuthContext";
+import StageDateTimeDialog, { formatStageDate } from "@/components/boxmybike/StageDateTimeDialog";
 
 interface InboundOrder {
   id: string;
@@ -71,6 +72,16 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = React.useState<NiInboundStatus>("awaiting_ni_collection");
   const [search, setSearch] = React.useState("");
+  const [pendingStage, setPendingStage] = React.useState<{
+    order: InboundOrder;
+    stage: NiInboundStatus;
+  } | null>(null);
+  const [editing, setEditing] = React.useState<{
+    order: InboundOrder;
+    column: string;
+    current: string | null;
+    label: string;
+  } | null>(null);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["inbound-ni-orders"],
@@ -94,16 +105,18 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
     mutationFn: async ({
       id,
       newStage,
+      occurredAt,
     }: {
       id: string;
       newStage: NiInboundStatus;
+      occurredAt?: string;
     }) => {
       const patch: any = {
         ni_inbound_status: newStage,
         updated_at: new Date().toISOString(),
       };
       const col = inboundTimestampColumn(newStage);
-      if (col) patch[col] = new Date().toISOString();
+      if (col) patch[col] = occurredAt || new Date().toISOString();
       // When the ferry partner has handed it to us, the bike is back in our
       // network and can follow the normal mainland lifecycle.
       if (newStage === "collected_from_partner") {
@@ -117,6 +130,29 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
       toast.success("Inbound NI stage updated");
     },
     onError: (e: any) => toast.error(e?.message || "Failed to update stage"),
+  });
+
+  const updateStageTime = useMutation({
+    mutationFn: async ({
+      id,
+      column,
+      occurredAt,
+    }: {
+      id: string;
+      column: string;
+      occurredAt: string;
+    }) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({ [column]: occurredAt, updated_at: new Date().toISOString() } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inbound-ni-orders"] });
+      toast.success("Date and time updated");
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to update date and time"),
   });
 
   const filtered = React.useMemo(
@@ -181,17 +217,18 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
                   <InboundCard
                     key={order.id}
                     order={order}
-                    onAdvance={() =>
-                      updateStage.mutate({
-                        id: order.id,
-                        newStage: nextInboundStage(order.ni_inbound_status) as NiInboundStatus,
-                      })
-                    }
+                    onAdvance={() => {
+                      const next = nextInboundStage(order.ni_inbound_status);
+                      if (next) setPendingStage({ order, stage: next });
+                    }}
                     onBack={() =>
                       updateStage.mutate({
                         id: order.id,
                         newStage: prevInboundStage(order.ni_inbound_status) as NiInboundStatus,
                       })
+                    }
+                    onEditTime={(column, current, label) =>
+                      setEditing({ order, column, current, label })
                     }
                     disabled={updateStage.isPending}
                   />
@@ -201,6 +238,42 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
           </TabsContent>
         ))}
       </Tabs>
+
+      <StageDateTimeDialog
+        open={!!pendingStage}
+        onOpenChange={(o) => !o && setPendingStage(null)}
+        title={
+          pendingStage
+            ? `Mark as “${NI_INBOUND_STATUS_LABELS[pendingStage.stage]}”`
+            : ""
+        }
+        description="When did this step actually happen? This is what the customer sees on tracking."
+        confirmLabel="Update stage"
+        saving={updateStage.isPending}
+        onConfirm={(iso) => {
+          if (!pendingStage) return;
+          updateStage.mutate(
+            { id: pendingStage.order.id, newStage: pendingStage.stage, occurredAt: iso },
+            { onSuccess: () => setPendingStage(null) }
+          );
+        }}
+      />
+
+      <StageDateTimeDialog
+        open={!!editing}
+        onOpenChange={(o) => !o && setEditing(null)}
+        title={editing ? `Edit “${editing.label}” date` : ""}
+        initial={editing?.current || null}
+        confirmLabel="Save date"
+        saving={updateStageTime.isPending}
+        onConfirm={(iso) => {
+          if (!editing) return;
+          updateStageTime.mutate(
+            { id: editing.order.id, column: editing.column, occurredAt: iso },
+            { onSuccess: () => setEditing(null) }
+          );
+        }}
+      />
     </div>
   );
 };
@@ -209,8 +282,9 @@ const InboundCard: React.FC<{
   order: InboundOrder;
   onAdvance: () => void;
   onBack: () => void;
+  onEditTime: (column: string, current: string | null, label: string) => void;
   disabled: boolean;
-}> = ({ order, onAdvance, onBack, disabled }) => {
+}> = ({ order, onAdvance, onBack, onEditTime, disabled }) => {
   const [signedLabel, setSignedLabel] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -290,6 +364,30 @@ const InboundCard: React.FC<{
             )}
           </div>
         )}
+        {(
+          [
+            ["ni_inbound_collected_at", order.ni_inbound_collected_at, "Collected in Northern Ireland"],
+            ["ni_inbound_ferry_crossed_at", order.ni_inbound_ferry_crossed_at, "Crossed the ferry"],
+            ["ni_inbound_received_at", order.ni_inbound_received_at, "Collected from partner"],
+          ] as Array<[string, string | null, string]>
+        )
+          .filter(([, value]) => Boolean(value))
+          .map(([column, value, label]) => (
+            <div key={column} className="text-xs flex flex-wrap items-center gap-2">
+              <span className="text-muted-foreground">
+                {label}: {formatStageDate(value)}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                disabled={disabled}
+                onClick={() => onEditTime(column, value, label)}
+              >
+                <Pencil className="h-3 w-3 mr-1" /> Edit
+              </Button>
+            </div>
+          ))}
         <div className="flex flex-wrap gap-2 pt-2">
           <Button
             variant="outline"
