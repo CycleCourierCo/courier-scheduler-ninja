@@ -72,6 +72,16 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = React.useState<NiInboundStatus>("awaiting_ni_collection");
   const [search, setSearch] = React.useState("");
+  const [pendingStage, setPendingStage] = React.useState<{
+    order: InboundOrder;
+    stage: NiInboundStatus;
+  } | null>(null);
+  const [editing, setEditing] = React.useState<{
+    order: InboundOrder;
+    column: string;
+    current: string | null;
+    label: string;
+  } | null>(null);
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["inbound-ni-orders"],
