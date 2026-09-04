@@ -208,38 +208,63 @@ const handler = async (req: Request): Promise<Response> => {
 
 
     const body = await req.json().catch(() => ({}));
-    const { issueId } = body as { issueId?: string };
-    if (!issueId) throw new Error('issueId is required');
+    const { issueId, inspectionId } = body as { issueId?: string; inspectionId?: string };
+    if (!issueId && !inspectionId) throw new Error('issueId or inspectionId is required');
 
-    const { data: issue, error: issueError } = await supabase
-      .from('inspection_issues')
-      .select('*')
-      .eq('id', issueId)
-      .single();
+    // Resolve the inspection: one invoice per bike, every receiver-approved repair a line item.
+    let resolvedInspectionId = inspectionId || null;
+    let seedIssue: any = null;
 
-    if (issueError || !issue) throw new Error('Issue not found');
-    // Approved, or already progressed past approval (parts/repair/repaired) — either way billable.
-    if (issue.status !== 'approved' && !issue.receiver_approved_at) {
-      throw new Error('Issue is not approved');
+    if (issueId) {
+      const { data: issue, error: issueError } = await supabase
+        .from('inspection_issues')
+        .select('*')
+        .eq('id', issueId)
+        .single();
+      if (issueError || !issue) throw new Error('Issue not found');
+      seedIssue = issue;
+      resolvedInspectionId = resolvedInspectionId || issue.inspection_id;
+
+      // Already invoiced (possibly as part of a combined invoice) — return that invoice.
+      if (issue.invoice_number) {
+        return new Response(JSON.stringify({
+          success: true,
+          invoiceNumber: issue.invoice_number,
+          invoiceId: issue.invoice_id,
+          invoiceUrl: issue.invoice_url,
+          invoicePublicUrl: issue.invoice_public_url,
+          totalAmount: issue.estimated_cost,
+          alreadyExists: true,
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
     }
 
-    if (issue.billing_party !== 'receiver') throw new Error('Issue is not billed to the receiver');
-    if (!issue.estimated_cost || Number(issue.estimated_cost) <= 0) throw new Error('Issue has no cost to invoice');
-    if (issue.invoice_number) {
-      return new Response(JSON.stringify({
-        success: true,
-        invoiceNumber: issue.invoice_number,
-        invoiceId: issue.invoice_id,
-        invoiceUrl: issue.invoice_url,
-        totalAmount: issue.estimated_cost,
-        alreadyExists: true,
-      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    if (!resolvedInspectionId) throw new Error('Inspection could not be resolved');
+
+    const { data: allIssues, error: issuesError } = await supabase
+      .from('inspection_issues')
+      .select('*')
+      .eq('inspection_id', resolvedInspectionId)
+      .eq('billing_party', 'receiver')
+      .is('invoice_number', null)
+      .order('created_at', { ascending: true });
+    if (issuesError) throw new Error('Could not load repairs for this bike');
+
+    const issues = (allIssues || []).filter((i: any) =>
+      (i.status === 'approved' || i.receiver_approved_at) && Number(i.estimated_cost || 0) > 0
+    );
+
+    if (issues.length === 0) {
+      if (seedIssue && seedIssue.billing_party !== 'receiver') {
+        throw new Error('Issue is not billed to the receiver');
+      }
+      throw new Error('No receiver-approved repairs to invoice');
     }
 
     const { data: inspection, error: inspectionError } = await supabase
       .from('bicycle_inspections')
       .select('id, order_id')
-      .eq('id', issue.inspection_id)
+      .eq('id', resolvedInspectionId)
       .single();
     if (inspectionError || !inspection) throw new Error('Inspection not found');
 
@@ -249,6 +274,7 @@ const handler = async (req: Request): Promise<Response> => {
       .eq('id', inspection.order_id)
       .single();
     if (orderError || !order) throw new Error('Order not found');
+
 
     const receiver: any = order.receiver || {};
     if (!receiver.email) throw new Error('Receiver has no email address');
