@@ -17,6 +17,8 @@ Never shown on the page or in the email: the customer's email address. The partn
 
 Access model matches the existing public availability and repair-offer pages: the order UUID in the link is the secret, everything is served by a security-definer function that returns only the fields listed above. No account, no sign-in.
 
+Partner labels are stored in the existing `foam-my-bike-labels` bucket with a `partner/` prefix so they sit alongside the existing foam/box labels and reuse the same bucket access rules.
+
 ## 2. BFS number and label on the order
 
 - Both values show on the order detail page in the Northern Ireland section (with upload timestamp), and the label opens through the `api.cyclecourierco.com` file domain.
@@ -52,19 +54,18 @@ Foamed, ready for delivery
 
 Same manual forward/back controls, stamped with a timestamp, and shown on the customer tracking timeline.
 
-
 ## Technical notes
 
-Database migration (one call, approved before code changes):
+Database migration (already applied):
 - `orders`: `ni_partner_label_url`, `ni_partner_label_uploaded_at`, `ni_bfs_number`, `ni_bfs_updated_at`, `ni_inbound_status` (text, checked against the four stages), `ni_inbound_collected_at`, `ni_inbound_ferry_crossed_at`, `ni_inbound_received_at`, `foam_crossed_to_ni_at`.
 - `foam_status` enum: add `crossed_to_ni`, ordered between `delivered_to_ferry` and `delivered_ni`.
 - `get_ni_partner_job(p_order_id uuid)` — security definer, returns direction, tracking number, bike, NI-side name/address/phone, existing label + BFS. Email deliberately excluded.
 - `submit_ni_partner_details(p_order_id uuid, p_bfs_number text, p_label_path text)` — security definer, validates the order is a Northern Ireland order, stamps BFS and label fields.
-- Grants: `EXECUTE` on both functions to `anon` and `authenticated`; column-level access stays closed (no new table, so no new table grants).
+- Grants: `EXECUTE` on both functions to `anon` and `authenticated`.
 
 Files:
-- New `ni-partner-labels` private storage bucket, created with the bucket tool.
-- New edge function `ni-partner-label-upload` (service role, `verify_jwt = false`): validates order is NI, restricts to PDF/PNG/JPG under 10 MB, writes to the bucket, then calls the submit function. Uploads go through the function because anonymous visitors must not get direct bucket write access.
+- Reuse the existing `foam-my-bike-labels` bucket for partner uploads (path `partner/:orderId/:filename`).
+- New edge function `ni-partner-label-upload` (service role, `verify_jwt = false`): validates order is NI, restricts to PDF/PNG/JPG under 10 MB, writes to `foam-my-bike-labels` with the `partner/` prefix, then calls `submit_ni_partner_details`. Uploads go through the function because anonymous visitors must not get direct bucket write access.
 - `supabase/functions/_shared/ferryPartnerEmail.ts` — drop the customer email line, add the upload-link button; new copy for both directions.
 - New `src/pages/NiPartnerUpload.tsx` + route in `src/App.tsx` (public, outside `ProtectedRoute`).
 - `src/components/order-detail/NorthernIrelandEditor.tsx` — BFS number + label display/edit.

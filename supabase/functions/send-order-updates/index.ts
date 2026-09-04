@@ -179,6 +179,18 @@ function deriveUpdates(order: any, inspectionPending = false, inspectionStatus: 
           "It's awaiting transport to Northern Ireland. Your final delivery date will be confirmed once it has arrived.",
         ],
       },
+      crossed_to_ni: {
+        key: "foam_crossed_to_ni",
+        head: "Your bike has crossed to Northern Ireland",
+        lines: [
+          "It has crossed the ferry and is now on its way for final delivery in Northern Ireland.",
+        ],
+      },
+      delivered_ni: {
+        key: "foam_delivered_ni",
+        head: "Your bike has been delivered in Northern Ireland",
+        lines: ["It has been delivered — thank you for using Cycle Courier."],
+      },
     };
     const stage = foamStage[order.foam_status || ""];
     if (stage) {
@@ -195,7 +207,45 @@ function deriveUpdates(order: any, inspectionPending = false, inspectionStatus: 
     }
   }
 
-  // ---- Delays -------------------------------------------------------------
+  // ---- Inbound Northern Ireland (NI -> mainland) --------------------------
+  if (order.ni_direction === "inbound" && order.ni_inbound_status) {
+    const inboundStage: Record<string, { key: string; head: string; lines: string[] }> = {
+      awaiting_ni_collection: {
+        key: "ni_awaiting_collection",
+        head: "We're arranging your collection in Northern Ireland",
+        lines: ["Your bike is being booked in for collection by our ferry partner in Northern Ireland."],
+      },
+      collected_in_ni: {
+        key: "ni_collected",
+        head: "Your bike has been collected in Northern Ireland",
+        lines: ["It has been collected by our ferry partner and is on its way to the ferry port."],
+      },
+      crossed_ferry: {
+        key: "ni_crossed_ferry",
+        head: "Your bike has crossed the ferry",
+        lines: ["It has crossed to mainland UK and is on its way to our depot for final delivery."],
+      },
+      collected_from_partner: {
+        key: "ni_received_from_partner",
+        head: "Your bike is back with Cycle Courier",
+        lines: ["We've collected your bike from the ferry partner and will deliver it to the destination as planned."],
+      },
+    };
+    const stage = inboundStage[order.ni_inbound_status];
+    if (stage) {
+      for (const side of ["sender", "receiver"] as Side[]) {
+        push({
+          side,
+          stageKey: stage.key,
+          subject: `Update on ${item}`,
+          headline: stage.head,
+          lines: stage.lines,
+        });
+      }
+      return updates;
+    }
+  }
+
   const pickupDay = londonDay(order.scheduled_pickup_date);
   const deliveryDay = londonDay(order.scheduled_delivery_date);
 
@@ -550,7 +600,7 @@ const CHUNK_SIZE = 40;
  * self-chaining chunk for cron/bulk so no single invocation can be cut short.
  */
 async function runScan(admin: any, singleOrderId?: string, offset = 0) {
-  const deadStatuses = ["delivered", "cancelled", "delivered_by_3p", "delivered_to_ferry"];
+  const deadStatuses = ["delivered", "cancelled", "delivered_by_3p", "delivered_to_ferry", "delivered_ni"];
   const orders: any[] = [];
   let hasMore = false;
 

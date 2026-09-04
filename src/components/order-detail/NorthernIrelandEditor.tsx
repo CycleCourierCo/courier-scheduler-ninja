@@ -1,9 +1,11 @@
 import React from "react";
 import { toast } from "sonner";
-import { Ship, Loader2, Mail } from "lucide-react";
+import { Ship, Loader2, Mail, Upload, FileCheck, ExternalLink, Copy, Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,6 +23,9 @@ import { isNorthernIrelandAddress } from "@/utils/northernIreland";
 import { getNiDirection } from "@/utils/niDelivery";
 import { createShipdayOrder } from "@/services/shipdayService";
 import { FOAM_STATUS_LABELS, FoamStatus, Order } from "@/types/order";
+import { toPublicFileUrl } from "@/lib/publicFileUrl";
+import { getPublicAppUrl } from "@/lib/publicAppUrl";
+
 
 interface Props {
   order: Order & Record<string, any>;
@@ -39,6 +44,37 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
       | string
       | null
   );
+  const [bfsInput, setBfsInput] = React.useState(
+    (order as any).niBfsNumber ?? (order as any).ni_bfs_number ?? ""
+  );
+  const [savingBfs, setSavingBfs] = React.useState(false);
+  const [uploadingLabel, setUploadingLabel] = React.useState(false);
+  const [labelPath, setLabelPath] = React.useState<string | null>(
+    (order as any).niPartnerLabelUrl ?? (order as any).ni_partner_label_url ?? null
+  );
+  const [labelUploadedAt, setLabelUploadedAt] = React.useState<string | null>(
+    (order as any).niPartnerLabelUploadedAt ?? (order as any).ni_partner_label_uploaded_at ?? null
+  );
+  const [signedLabelUrl, setSignedLabelUrl] = React.useState<string | null>(null);
+  const [copied, setCopied] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!labelPath) {
+      setSignedLabelUrl(null);
+      return;
+    }
+    let cancelled = false;
+    Promise.resolve(
+      supabase.storage.from("foam-my-bike-labels").createSignedUrl(labelPath, 60 * 30)
+    ).then(({ data, error }) => {
+      if (cancelled) return;
+      setSignedLabelUrl(error ? null : toPublicFileUrl(data?.signedUrl || null));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [labelPath]);
+
 
   const resendFerryEmail = async () => {
     setSendingFerryEmail(true);
@@ -59,7 +95,89 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
   };
 
 
+  const partnerUploadUrl = `${getPublicAppUrl()}/ni-partner/${order.id}`;
+
+  const copyUploadLink = async () => {
+    try {
+      await navigator.clipboard.writeText(partnerUploadUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Could not copy link");
+    }
+  };
+
+  const saveBfsNumber = async () => {
+    setSavingBfs(true);
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from("orders")
+        .update({ ni_bfs_number: bfsInput.trim() || null, ni_bfs_updated_at: now })
+        .eq("id", order.id);
+      if (error) throw error;
+      toast.success("BFS number saved");
+    } catch (e: any) {
+      console.error("BFS save failed", e);
+      toast.error(e?.message || "Could not save BFS number");
+    } finally {
+      setSavingBfs(false);
+    }
+  };
+
+  const ALLOWED_LABEL_TYPES = [
+    "application/pdf",
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/webp",
+  ];
+  const LABEL_MAX_BYTES = 10 * 1024 * 1024;
+
+  const uploadPartnerLabel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!ALLOWED_LABEL_TYPES.includes(f.type)) {
+      toast.error("Label must be a PDF, PNG, JPEG or WebP image");
+      e.target.value = "";
+      return;
+    }
+    if (f.size > LABEL_MAX_BYTES) {
+      toast.error("Label must be under 10 MB");
+      e.target.value = "";
+      return;
+    }
+    setUploadingLabel(true);
+    try {
+      const ext = f.type === "application/pdf" ? "pdf" : f.type === "image/png" ? "png" : f.type === "image/webp" ? "webp" : "jpg";
+      const safeName = (f.name || `label.${ext}`).replace(/[^A-Za-z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^[-.]+|[-.]+$/g, "").slice(0, 80) || `label.${ext}`;
+      const path = `partner/${order.id}/${crypto.randomUUID().slice(0, 8)}-${safeName}`;
+      const { error: uploadError } = await supabase.storage
+        .from("foam-my-bike-labels")
+        .upload(path, f, { contentType: f.type, upsert: false });
+      if (uploadError) throw uploadError;
+
+      const now = new Date().toISOString();
+      const { error: updateError } = await supabase
+        .from("orders")
+        .update({ ni_partner_label_url: path, ni_partner_label_uploaded_at: now })
+        .eq("id", order.id);
+      if (updateError) throw updateError;
+
+      setLabelPath(path);
+      setLabelUploadedAt(now);
+      toast.success("Partner label uploaded");
+    } catch (e: any) {
+      console.error("Label upload failed", e);
+      toast.error(e?.message || "Label upload failed");
+    } finally {
+      setUploadingLabel(false);
+      e.target.value = "";
+    }
+  };
+
   const isNI = Boolean((order as any).isNorthernIreland ?? (order as any).is_northern_ireland);
+
   const foamStatus = ((order as any).foamStatus ?? (order as any).foam_status) as FoamStatus | null;
   const receiverAddress = order.receiver?.address;
   const senderAddress = order.sender?.address;
@@ -227,7 +345,88 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
                   : `Not recorded as sent yet — sends the booking details to ${CITY_AIR_EXPRESS.email}`}
               </p>
             </div>
+            <div className="rounded border bg-muted/30 p-3 space-y-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-medium">Partner upload link</span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2"
+                  onClick={copyUploadLink}
+                >
+                  {copied ? (
+                    <Check className="h-3.5 w-3.5 mr-1 text-emerald-600" />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5 mr-1" />
+                  )}
+                  {copied ? "Copied" : "Copy"}
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-end">
+                <div className="space-y-1">
+                  <Label htmlFor={`bfs-${order.id}`} className="text-xs">
+                    BFS consignment number
+                  </Label>
+                  <Input
+                    id={`bfs-${order.id}`}
+                    value={bfsInput}
+                    onChange={(e) => setBfsInput(e.target.value)}
+                    placeholder="e.g. BFS12345678"
+                    disabled={savingBfs}
+                    className="h-8"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={saveBfsNumber}
+                  disabled={savingBfs}
+                >
+                  {savingBfs && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                  Save
+                </Button>
+              </div>
+              <div className="space-y-1">
+                <Label htmlFor={`label-${order.id}`} className="text-xs">
+                  Partner shipping label
+                </Label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Input
+                    id={`label-${order.id}`}
+                    type="file"
+                    accept="application/pdf,image/png,image/jpeg,image/webp"
+                    onChange={uploadPartnerLabel}
+                    disabled={uploadingLabel}
+                    className="h-8 text-sm py-1 flex-1 min-w-[200px]"
+                  />
+                  {uploadingLabel && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  PDF, PNG, JPEG or WebP, up to 10 MB. Stored in the same label bucket as Foam My Bike.
+                </p>
+                {labelPath && (
+                  <div className="text-xs flex flex-wrap items-center gap-2 pt-1">
+                    <span className="flex items-center gap-1 text-emerald-600">
+                      <FileCheck className="h-3.5 w-3.5" /> Label uploaded
+                      {labelUploadedAt && ` ${new Date(labelUploadedAt).toLocaleString("en-GB")}`}
+                    </span>
+                    {signedLabelUrl && (
+                      <a
+                        href={signedLabelUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary underline flex items-center gap-1"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" /> View
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
+
 
         ) : (
           <p className="text-sm text-muted-foreground">

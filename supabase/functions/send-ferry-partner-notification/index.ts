@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
       return json({ error: 'This order is not flagged as a Northern Ireland order' }, 400)
     }
 
-    const email = buildFerryPartnerEmail(order as any)
+    const email = buildFerryPartnerEmail({ ...order, orderId: order.id } as any)
 
     const { error: emailError } = await admin.functions.invoke('send-email', {
       body: {

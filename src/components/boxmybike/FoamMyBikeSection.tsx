@@ -33,6 +33,9 @@ interface FoamOrder {
   foam_delivery_photos: string[] | null;
   foam_label_url: string | null;
   foam_tracking_url: string | null;
+  foam_delivered_to_ferry_at: string | null;
+  foam_crossed_to_ni_at: string | null;
+  foam_delivered_ni_at: string | null;
   sender: any;
   receiver: any;
   bike_brand: string | null;
@@ -41,7 +44,11 @@ interface FoamOrder {
   created_at: string;
   storage_locations: any;
   needs_inspection: boolean | null;
+  ni_bfs_number: string | null;
+  ni_partner_label_url: string | null;
+  ni_partner_label_uploaded_at: string | null;
 }
+
 
 const BOX_LABEL_BUCKET = "box-my-bike-labels";
 
@@ -92,10 +99,12 @@ function foamTimestampColumn(s: FoamStatus): string | null {
     case "pending_foaming": return "foam_pending_foaming_at";
     case "foamed_ready": return "foam_foamed_at";
     case "delivered_to_ferry": return "foam_delivered_to_ferry_at";
+    case "crossed_to_ni": return "foam_crossed_to_ni_at";
     case "delivered_ni": return "foam_delivered_ni_at";
     default: return null;
   }
 }
+
 
 function nextFoamStage(s: FoamStatus | null): FoamStatus | null {
   if (!s) return FOAM_STATUS_ORDER[0];
@@ -124,7 +133,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     queryFn: async () => {
       let q = supabase
         .from("orders")
-        .select("id, tracking_number, status, foam_status, foam_delivery_photos, foam_label_url, foam_tracking_url, sender, receiver, bike_brand, bike_model, user_id, created_at, storage_locations, needs_inspection")
+        .select("id, tracking_number, status, foam_status, foam_delivery_photos, foam_label_url, foam_tracking_url, foam_delivered_to_ferry_at, foam_crossed_to_ni_at, foam_delivered_ni_at, sender, receiver, bike_brand, bike_model, user_id, created_at, storage_locations, needs_inspection, ni_bfs_number, ni_partner_label_url, ni_partner_label_uploaded_at")
         .eq("is_northern_ireland", true)
         // Inbound NI bikes arrive already packed — the foam pipeline is outbound only
         .or("ni_direction.is.null,ni_direction.eq.outbound")
