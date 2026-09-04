@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2, Zap, Truck, ArrowUpDown, ChevronUp, ChevronDown } from "lucide-react";
+import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2, Zap, Truck, ArrowUpDown, ChevronUp, ChevronDown, Ship } from "lucide-react";
 import { OrderData, ShipdayVerificationResults } from "@/pages/JobScheduling";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
@@ -2202,7 +2202,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     // Fetch latest order data from Supabase
     const { data: freshOrders, error } = await supabase
       .from('orders')
-      .select('id, sender, receiver, is_northern_ireland, ni_direction, foam_status, scheduled_pickup_date, scheduled_delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, pickup_date, delivery_date, status')
+      .select('id, sender, receiver, is_northern_ireland, ni_direction, ni_inbound_status, ni_inbound_ferry_crossed_at, foam_status, scheduled_pickup_date, scheduled_delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, pickup_date, delivery_date, status')
       .in('id', orderIds);
 
     if (error) {
@@ -2238,6 +2238,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           ...job.orderData,
           is_northern_ireland: freshOrder.is_northern_ireland ?? (job.orderData as any).is_northern_ireland,
           ni_direction: (freshOrder as any).ni_direction ?? (job.orderData as any).ni_direction,
+          ni_inbound_status: (freshOrder as any).ni_inbound_status ?? (job.orderData as any).ni_inbound_status,
+          ni_inbound_ferry_crossed_at: (freshOrder as any).ni_inbound_ferry_crossed_at ?? (job.orderData as any).ni_inbound_ferry_crossed_at,
           foam_status: freshOrder.foam_status ?? (job.orderData as any).foam_status,
           scheduled_pickup_date: freshOrder.scheduled_pickup_date ?? job.orderData.scheduled_pickup_date,
           scheduled_delivery_date: freshOrder.scheduled_delivery_date ?? job.orderData.scheduled_delivery_date,
