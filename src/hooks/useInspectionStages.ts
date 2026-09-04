@@ -12,6 +12,8 @@ const STAGE_RANK: Record<string, number> = {
   inspected: 1,
   awaiting_pricing: 2,
   issues_found: 3,
+  repairs_declined: 3.5,
+  pending_receiver_approval: 3.6,
   awaiting_parts: 4,
   awaiting_repair: 5,
   in_repair: 6,
