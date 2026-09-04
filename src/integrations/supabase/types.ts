@@ -131,6 +131,9 @@ export type Database = {
       }
       bicycle_inspections: {
         Row: {
+          actual_bike_brand: string | null
+          actual_bike_model: string | null
+          actual_frame_size: string | null
           approval_email_sent_at: string | null
           bike_type: string | null
           created_at: string
@@ -146,6 +149,12 @@ export type Database = {
           frame_cleaned_by_id: string | null
           frame_cleaned_by_name: string | null
           id: string
+          identity_checked_at: string | null
+          identity_matches: boolean | null
+          identity_notes: string | null
+          identity_reviewed_at: string | null
+          identity_reviewed_by_id: string | null
+          identity_reviewed_by_name: string | null
           inspected_at: string | null
           inspected_by_id: string | null
           inspected_by_name: string | null
@@ -168,6 +177,9 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          actual_bike_brand?: string | null
+          actual_bike_model?: string | null
+          actual_frame_size?: string | null
           approval_email_sent_at?: string | null
           bike_type?: string | null
           created_at?: string
@@ -183,6 +195,12 @@ export type Database = {
           frame_cleaned_by_id?: string | null
           frame_cleaned_by_name?: string | null
           id?: string
+          identity_checked_at?: string | null
+          identity_matches?: boolean | null
+          identity_notes?: string | null
+          identity_reviewed_at?: string | null
+          identity_reviewed_by_id?: string | null
+          identity_reviewed_by_name?: string | null
           inspected_at?: string | null
           inspected_by_id?: string | null
           inspected_by_name?: string | null
@@ -205,6 +223,9 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          actual_bike_brand?: string | null
+          actual_bike_model?: string | null
+          actual_frame_size?: string | null
           approval_email_sent_at?: string | null
           bike_type?: string | null
           created_at?: string
@@ -220,6 +241,12 @@ export type Database = {
           frame_cleaned_by_id?: string | null
           frame_cleaned_by_name?: string | null
           id?: string
+          identity_checked_at?: string | null
+          identity_matches?: boolean | null
+          identity_notes?: string | null
+          identity_reviewed_at?: string | null
+          identity_reviewed_by_id?: string | null
+          identity_reviewed_by_name?: string | null
           inspected_at?: string | null
           inspected_by_id?: string | null
           inspected_by_name?: string | null
@@ -2071,6 +2098,7 @@ export type Database = {
           created_at: string
           customer_responded_at: string | null
           customer_response: string | null
+          decline_notified_at: string | null
           estimated_cost: number | null
           external_fault_id: string | null
           external_synced_at: string | null
@@ -2110,6 +2138,7 @@ export type Database = {
           priced_by_name: string | null
           receiver_approved_at: string | null
           receiver_approved_source: string | null
+          receiver_confirmation_sent_at: string | null
           receiver_declined_at: string | null
           repair_id: string | null
           requested_by_id: string
@@ -2125,6 +2154,7 @@ export type Database = {
           created_at?: string
           customer_responded_at?: string | null
           customer_response?: string | null
+          decline_notified_at?: string | null
           estimated_cost?: number | null
           external_fault_id?: string | null
           external_synced_at?: string | null
@@ -2164,6 +2194,7 @@ export type Database = {
           priced_by_name?: string | null
           receiver_approved_at?: string | null
           receiver_approved_source?: string | null
+          receiver_confirmation_sent_at?: string | null
           receiver_declined_at?: string | null
           repair_id?: string | null
           requested_by_id: string
@@ -2179,6 +2210,7 @@ export type Database = {
           created_at?: string
           customer_responded_at?: string | null
           customer_response?: string | null
+          decline_notified_at?: string | null
           estimated_cost?: number | null
           external_fault_id?: string | null
           external_synced_at?: string | null
@@ -2218,6 +2250,7 @@ export type Database = {
           priced_by_name?: string | null
           receiver_approved_at?: string | null
           receiver_approved_source?: string | null
+          receiver_confirmation_sent_at?: string | null
           receiver_declined_at?: string | null
           repair_id?: string | null
           requested_by_id?: string
@@ -3046,6 +3079,7 @@ export type Database = {
           destination_region: string | null
           ferry_confirmation_sent_at: string | null
           ferry_partner_notified_at: string | null
+          foam_crossed_to_ni_at: string | null
           foam_delivered_ni_at: string | null
           foam_delivered_to_ferry_at: string | null
           foam_delivery_photos: Json
@@ -3079,7 +3113,15 @@ export type Database = {
           loaded_onto_van_at: string | null
           needs_inspection: boolean | null
           needs_payment_on_collection: boolean | null
+          ni_bfs_number: string | null
+          ni_bfs_updated_at: string | null
           ni_direction: string | null
+          ni_inbound_collected_at: string | null
+          ni_inbound_ferry_crossed_at: string | null
+          ni_inbound_received_at: string | null
+          ni_inbound_status: string | null
+          ni_partner_label_uploaded_at: string | null
+          ni_partner_label_url: string | null
           order_collected: boolean | null
           order_delivered: boolean | null
           payment_collection_phone: string | null
@@ -3150,6 +3192,7 @@ export type Database = {
           destination_region?: string | null
           ferry_confirmation_sent_at?: string | null
           ferry_partner_notified_at?: string | null
+          foam_crossed_to_ni_at?: string | null
           foam_delivered_ni_at?: string | null
           foam_delivered_to_ferry_at?: string | null
           foam_delivery_photos?: Json
@@ -3183,7 +3226,15 @@ export type Database = {
           loaded_onto_van_at?: string | null
           needs_inspection?: boolean | null
           needs_payment_on_collection?: boolean | null
+          ni_bfs_number?: string | null
+          ni_bfs_updated_at?: string | null
           ni_direction?: string | null
+          ni_inbound_collected_at?: string | null
+          ni_inbound_ferry_crossed_at?: string | null
+          ni_inbound_received_at?: string | null
+          ni_inbound_status?: string | null
+          ni_partner_label_uploaded_at?: string | null
+          ni_partner_label_url?: string | null
           order_collected?: boolean | null
           order_delivered?: boolean | null
           payment_collection_phone?: string | null
@@ -3254,6 +3305,7 @@ export type Database = {
           destination_region?: string | null
           ferry_confirmation_sent_at?: string | null
           ferry_partner_notified_at?: string | null
+          foam_crossed_to_ni_at?: string | null
           foam_delivered_ni_at?: string | null
           foam_delivered_to_ferry_at?: string | null
           foam_delivery_photos?: Json
@@ -3287,7 +3339,15 @@ export type Database = {
           loaded_onto_van_at?: string | null
           needs_inspection?: boolean | null
           needs_payment_on_collection?: boolean | null
+          ni_bfs_number?: string | null
+          ni_bfs_updated_at?: string | null
           ni_direction?: string | null
+          ni_inbound_collected_at?: string | null
+          ni_inbound_ferry_crossed_at?: string | null
+          ni_inbound_received_at?: string | null
+          ni_inbound_status?: string | null
+          ni_partner_label_uploaded_at?: string | null
+          ni_partner_label_url?: string | null
           order_collected?: boolean | null
           order_delivered?: boolean | null
           payment_collection_phone?: string | null
@@ -5582,6 +5642,7 @@ export type Database = {
       }
       get_cron_secret: { Args: never; Returns: string }
       get_my_pending_availability_orders: { Args: never; Returns: Json }
+      get_ni_partner_job: { Args: { p_order_id: string }; Returns: Json }
       get_public_inspection_summary: {
         Args: { order_identifier: string }
         Returns: Json
@@ -5677,6 +5738,14 @@ export type Database = {
             }
             Returns: Json
           }
+      submit_ni_partner_details: {
+        Args: {
+          p_bfs_number?: string
+          p_label_url?: string
+          p_order_id: string
+        }
+        Returns: Json
+      }
       submit_public_repair_offer: {
         Args: { p_approved_issue_ids: string[]; p_order_id: string }
         Returns: Json
@@ -5778,6 +5847,7 @@ export type Database = {
         | "pending_foaming"
         | "foamed_ready"
         | "delivered_to_ferry"
+        | "crossed_to_ni"
         | "delivered_ni"
       order_status:
         | "created"
@@ -6039,6 +6109,7 @@ export const Constants = {
         "pending_foaming",
         "foamed_ready",
         "delivered_to_ferry",
+        "crossed_to_ni",
         "delivered_ni",
       ],
       order_status: [

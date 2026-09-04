@@ -1,0 +1,1 @@
+ALTER TABLE public.inspection_issues ADD COLUMN IF NOT EXISTS receiver_confirmation_sent_at timestamp with time zone;

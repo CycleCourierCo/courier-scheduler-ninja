@@ -6,6 +6,8 @@ const STAGE_LABELS: Record<string, string> = {
   inspected: "inspected, not cleaned",
   awaiting_pricing: "awaiting pricing",
   issues_found: "issues found",
+  repairs_declined: "repairs declined - to offer to receiver",
+  pending_receiver_approval: "pending receiver approval",
   awaiting_parts: "awaiting parts",
   awaiting_repair: "awaiting repair",
   in_repair: "in repair",

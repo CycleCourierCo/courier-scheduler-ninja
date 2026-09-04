@@ -3,56 +3,68 @@
  * Shared by the orders API/Shopify creation path and the manual resend function
  * so every route produces an identical email.
  */
-import { CITY_AIR_EXPRESS, niDirectionOf } from './northernIreland.ts';
+import { CITY_AIR_EXPRESS, niDirectionOf } from './northernIreland.ts'
 
 const esc = (v: unknown) =>
   String(v ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
+    .replace(/>/g, '&gt;')
 
 const formatAddress = (address?: Record<string, any> | null) =>
   [address?.street, address?.city, address?.state, address?.zipCode || address?.postcode, address?.country]
     .filter(Boolean)
-    .join(', ');
+    .join(', ')
 
 export interface FerryPartnerEmailInput {
-  sender?: Record<string, any> | null;
-  receiver?: Record<string, any> | null;
-  tracking_number?: string | null;
-  bike_brand?: string | null;
-  bike_model?: string | null;
-  bike_quantity?: number | null;
-  ni_direction?: string | null;
-  is_northern_ireland?: boolean | null;
+  orderId?: string
+  sender?: Record<string, any> | null
+  receiver?: Record<string, any> | null
+  tracking_number?: string | null
+  bike_brand?: string | null
+  bike_model?: string | null
+  bike_quantity?: number | null
+  ni_direction?: string | null
+  is_northern_ireland?: boolean | null
+}
+
+function buildPublicAppUrl(): string {
+  const configured = Deno.env.get('PUBLIC_APP_URL')
+  if (configured) return configured.replace(/\/$/, '')
+  return 'https://courier-scheduler-ninja.lovable.app'
 }
 
 export function buildFerryPartnerEmail(order: FerryPartnerEmailInput) {
-  const direction = niDirectionOf(order) || 'outbound';
-  const inbound = direction === 'inbound';
-  const party = inbound ? order.sender : order.receiver;
-  const other = inbound ? order.receiver : order.sender;
-  const trackingNumber = order.tracking_number || '';
-  const bike = [order.bike_brand, order.bike_model].filter(Boolean).join(' ').trim() || 'Bicycle';
-  const quantity = order.bike_quantity || 1;
+  const direction = niDirectionOf(order) || 'outbound'
+  const inbound = direction === 'inbound'
+  const party = inbound ? order.sender : order.receiver
+  const other = inbound ? order.receiver : order.sender
+  const trackingNumber = order.tracking_number || ''
+  const bike = [order.bike_brand, order.bike_model].filter(Boolean).join(' ').trim() || 'Bicycle'
+  const quantity = order.bike_quantity || 1
 
-  const directionLabel = inbound ? 'NI to England' : 'England to NI';
+  const directionLabel = inbound ? 'NI to England' : 'England to NI'
+  const directionPlain = inbound ? 'From Northern Ireland to mainland' : 'To Northern Ireland'
 
   const heading = inbound
     ? 'Northern Ireland collection — please arrange the NI-side pickup'
-    : 'Northern Ireland delivery — please arrange the onward transport';
+    : 'Northern Ireland delivery — please arrange the onward transport'
 
-  const partyLabel = inbound ? 'NI collection address' : 'NI delivery address';
+  const partyLabel = inbound ? 'NI collection address' : 'NI delivery address'
 
   const subject = inbound
     ? `NI to England — collection booking ${trackingNumber}`
-    : `England to NI — delivery booking ${trackingNumber}`;
+    : `England to NI — delivery booking ${trackingNumber}`
+
+  const uploadUrl = order.orderId
+    ? `${buildPublicAppUrl()}/ni-partner/${order.orderId}`
+    : null
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2>${esc(heading)}</h2>
       <p style="background-color:#eef2ff; border-left:4px solid #4a65d5; padding:10px 12px; border-radius:4px; margin:0 0 16px;">
-        <strong>Direction: ${esc(directionLabel)}</strong>
+        <strong>Direction: ${esc(directionLabel)} (${esc(directionPlain)})</strong>
       </p>
       <p>The Cycle Courier Co. has a Northern Ireland job for you.</p>
       <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
@@ -64,18 +76,27 @@ export function buildFerryPartnerEmail(order: FerryPartnerEmailInput) {
         <p style="margin-top:0;"><strong>${esc(partyLabel)}</strong></p>
         <p><strong>Name:</strong> ${esc(party?.name)}</p>
         <p><strong>Address:</strong> ${esc(formatAddress(party?.address))}</p>
-        <p><strong>Phone:</strong> ${esc(party?.phone)}</p>
-        <p style="margin-bottom:0;"><strong>Email:</strong> ${esc(party?.email)}</p>
+        <p style="margin-bottom:0;"><strong>Phone:</strong> ${esc(party?.phone)}</p>
       </div>
       <p>
         ${inbound
           ? `Please collect from the address above in Northern Ireland and hand the item over to us at ${esc(CITY_AIR_EXPRESS.formatted)}. The onward mainland delivery is to ${esc(other?.name)} and is handled by us.`
           : `We will deliver the item to the ferry hand-off point at ${esc(CITY_AIR_EXPRESS.formatted)} for onward transport to the Northern Ireland address above. Collected from ${esc(other?.name)}.`}
       </p>
+      ${uploadUrl
+        ? `<div style="margin: 24px 0;">
+             <a href="${esc(uploadUrl)}" style="background-color:#4a65d5; color:#fff; padding:12px 18px; text-decoration:none; border-radius:4px; display:inline-block; font-weight:bold;">
+               Upload label and BFS number
+             </a>
+             <p style="margin-top:8px; font-size:13px; color:#555;">
+               Use this link to upload the shipping label and add your BFS consignment number.
+             </p>
+           </div>`
+        : ''}
       <p>Any questions, just reply to this email.</p>
       <p>The Cycle Courier Co. Team</p>
     </div>
-  `;
+  `
 
-  return { to: CITY_AIR_EXPRESS.email, subject, html, direction };
+  return { to: CITY_AIR_EXPRESS.email, subject, html, direction }
 }

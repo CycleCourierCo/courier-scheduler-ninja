@@ -1,5 +1,14 @@
 project_id = "axigtrmaxhetyfzjjdve"
 
+[functions.ni-partner-label-upload]
+verify_jwt = false
+
+[functions.finalise-public-repair-offer]
+verify_jwt = false
+
+
+
+
 [functions.cancel-order]
 verify_jwt = false
 

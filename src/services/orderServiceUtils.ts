@@ -82,7 +82,16 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     foamPendingFoamingAt: dbOrder.foam_pending_foaming_at ? parseDate(dbOrder.foam_pending_foaming_at) : null,
     foamFoamedAt: dbOrder.foam_foamed_at ? parseDate(dbOrder.foam_foamed_at) : null,
     foamDeliveredToFerryAt: dbOrder.foam_delivered_to_ferry_at ? parseDate(dbOrder.foam_delivered_to_ferry_at) : null,
+    foamCrossedToNiAt: dbOrder.foam_crossed_to_ni_at ? parseDate(dbOrder.foam_crossed_to_ni_at) : null,
     foamDeliveredNiAt: dbOrder.foam_delivered_ni_at ? parseDate(dbOrder.foam_delivered_ni_at) : null,
+    niInboundStatus: dbOrder.ni_inbound_status || null,
+    niInboundCollectedAt: dbOrder.ni_inbound_collected_at || null,
+    niInboundFerryCrossedAt: dbOrder.ni_inbound_ferry_crossed_at || null,
+    niInboundReceivedAt: dbOrder.ni_inbound_received_at || null,
+    niBfsNumber: dbOrder.ni_bfs_number || null,
+    niBfsUpdatedAt: dbOrder.ni_bfs_updated_at || null,
+    niPartnerLabelUrl: dbOrder.ni_partner_label_url || null,
+    niPartnerLabelUploadedAt: dbOrder.ni_partner_label_uploaded_at || null,
     foamDeliveryPhotos: dbOrder.foam_delivery_photos || null,
     // Public tracking payload flags that photos exist even when the paths are
     // withheld until the receiver verifies their postcode.

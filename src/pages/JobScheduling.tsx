@@ -47,6 +47,9 @@ export interface OrderData {
   sender_notes: string | null;
   receiver_notes: string | null;
   is_box_my_bike: boolean | null;
+  ni_direction?: string | null;
+  ni_inbound_status?: string | null;
+  ni_inbound_ferry_crossed_at?: string | null;
 }
 
 export type ShipdayVerificationResults = Record<string, boolean>;

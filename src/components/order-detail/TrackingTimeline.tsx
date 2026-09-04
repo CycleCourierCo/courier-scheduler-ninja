@@ -1,4 +1,4 @@
-import { isOutboundNi } from "@/utils/niDelivery";
+import { isOutboundNi, isInboundNi } from "@/utils/niDelivery";
 
 import React, { useEffect, useState } from "react";
 import { format, isValid, parseISO } from "date-fns";
@@ -79,6 +79,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
   // Only OUTBOUND NI orders end at the ferry hand-off. Inbound orders (NI -> mainland)
   // are delivered normally, so they keep the standard delivery milestones.
   const isNorthernIrelandOrder = isOutboundNi(order);
+  const isInboundNiOrder = isInboundNi(order);
   const foamPhotoPaths: string[] = Array.isArray((order as any).foamDeliveryPhotos)
     ? (order as any).foamDeliveryPhotos
     : [];
@@ -472,6 +473,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
     if (isNorthernIrelandOrder) {
       const foamedAt = (order as any).foamFoamedAt;
       const ferryAt = (order as any).foamDeliveredToFerryAt;
+      const crossedAt = (order as any).foamCrossedToNiAt;
       const niAt = (order as any).foamDeliveredNiAt;
 
       if (foamedAt) {
@@ -492,6 +494,15 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
         } as any);
       }
 
+      if (crossedAt) {
+        events.push({
+          title: "Crossed to Northern Ireland",
+          date: crossedAt,
+          icon: <Ship className="h-4 w-4 text-blue-600" />,
+          description: "Bike has crossed the ferry and is now in Northern Ireland awaiting final delivery",
+        } as any);
+      }
+
       if (niAt) {
         events.push({
           title: "Delivered in Northern Ireland",
@@ -504,6 +515,44 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
         } as any);
       }
     }
+
+    // Inbound Northern Ireland lifecycle events (public tracking)
+    if (isInboundNiOrder) {
+      const collectedAt = (order as any).niInboundCollectedAt;
+      const crossedAt = (order as any).niInboundFerryCrossedAt;
+      const receivedAt = (order as any).niInboundReceivedAt;
+      const bfs = (order as any).niBfsNumber;
+
+      if (collectedAt) {
+        events.push({
+          title: "Collected in Northern Ireland",
+          date: collectedAt,
+          icon: <Truck className="h-4 w-4 text-courier-600" />,
+          description: bfs
+            ? `Bike collected by the ferry partner (BFS ${bfs})`
+            : "Bike collected in Northern Ireland by the ferry partner",
+        } as any);
+      }
+
+      if (crossedAt) {
+        events.push({
+          title: "Crossed ferry to mainland",
+          date: crossedAt,
+          icon: <Ship className="h-4 w-4 text-blue-600" />,
+          description: "Bike has crossed the ferry and is on its way to our depot",
+        } as any);
+      }
+
+      if (receivedAt) {
+        events.push({
+          title: "Received from partner",
+          date: receivedAt,
+          icon: <CheckCircle className="h-4 w-4 text-green-600" />,
+          description: "Bike has been collected from the ferry partner and will continue to its destination",
+        } as any);
+      }
+    }
+
 
 
     if (order.status === "driver_to_collection" || order.status === "driver_to_delivery" ||

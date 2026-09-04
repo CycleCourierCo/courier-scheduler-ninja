@@ -117,28 +117,54 @@ function splitName(fullName?: string | null) {
   return { given: parts.slice(0, -1).join(' '), family: parts[parts.length - 1] };
 }
 
+function escapeHtml(value: string): string {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function buildReceiverInvoiceEmail(
   order: any,
-  issue: any,
+  issues: any[],
   publicUrl: string | null,
   hasPdf: boolean,
   totalAmount: number
 ): { html: string; text: string; subject: string } {
-  const receiverName = (order.receiver as any)?.name || 'there';
+  const receiverName = escapeHtml((order.receiver as any)?.name || 'there');
   const trackingNumber = order.tracking_number || order.id;
-  const bikeDesc = `${order.bike_brand || ''} ${order.bike_model || ''}`.trim() || 'your bike';
-  const issueDesc = issue.issue_description || 'repair';
+  const bikeDesc = escapeHtml(`${order.bike_brand || ''} ${order.bike_model || ''}`.trim() || 'your bike');
   const subject = `Invoice for your bike repair — CCC ${trackingNumber}`;
+  const plural = issues.length === 1 ? 'repair' : 'repairs';
+
+  const rows = issues.map((it: any) => `
+        <tr>
+          <td style="padding: 8px; border-bottom: 1px solid #e5e5e5;">${escapeHtml(it.issue_description || 'Repair')}</td>
+          <td style="padding: 8px; border-bottom: 1px solid #e5e5e5; text-align: right; white-space: nowrap;">£${Number(it.estimated_cost || 0).toFixed(2)}</td>
+        </tr>`).join('');
 
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2>Hello ${receiverName},</h2>
-      <p>You have approved the following repair for ${bikeDesc}:</p>
-      <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
-        <p><strong>Repair:</strong> ${issueDesc}</p>
-        <p><strong>Amount:</strong> £${totalAmount.toFixed(2)} (including VAT)</p>
-      </div>
-      <p>This repair is to be paid by you directly to Cycle Courier Co., not by the person who booked the transport.</p>
+      <p>You have approved the following ${plural} for ${bikeDesc}:</p>
+      <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+        <thead>
+          <tr>
+            <th style="text-align: left; padding: 8px; border-bottom: 2px solid #333;">Repair</th>
+            <th style="text-align: right; padding: 8px; border-bottom: 2px solid #333;">Price</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+        <tfoot>
+          <tr>
+            <td style="padding: 8px; font-weight: bold;">Total (including VAT)</td>
+            <td style="padding: 8px; text-align: right; font-weight: bold;">£${totalAmount.toFixed(2)}</td>
+          </tr>
+        </tfoot>
+      </table>
+      <p>${issues.length === 1 ? 'This repair is' : 'These repairs are'} to be paid by you directly to Cycle Courier Co., not by the person who booked the transport.</p>
       <div style="text-align: center; margin: 25px 0;">
         ${buildInvoiceCtaHtml(publicUrl, hasPdf)}
       </div>
@@ -146,14 +172,19 @@ function buildReceiverInvoiceEmail(
     </div>
   `;
 
-  const text = `Hello ${receiverName},
+  const lines = issues
+    .map((it: any) => `- ${it.issue_description || 'Repair'}: £${Number(it.estimated_cost || 0).toFixed(2)}`)
+    .join('\n');
 
-You have approved the following repair for ${bikeDesc}:
+  const text = `Hello ${(order.receiver as any)?.name || 'there'},
 
-Repair: ${issueDesc}
-Amount: £${totalAmount.toFixed(2)} (including VAT)
+You have approved the following ${plural} for ${`${order.bike_brand || ''} ${order.bike_model || ''}`.trim() || 'your bike'}:
 
-This repair is to be paid by you directly to Cycle Courier Co., not by the person who booked the transport.
+${lines}
+
+Total (including VAT): £${totalAmount.toFixed(2)}
+
+${issues.length === 1 ? 'This repair is' : 'These repairs are'} to be paid by you directly to Cycle Courier Co., not by the person who booked the transport.
 
 ${buildInvoiceCtaText(publicUrl, hasPdf)}
 
@@ -166,6 +197,7 @@ CCC - Cycle Courier Co.`;
   return { html, text, subject };
 }
 
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -177,46 +209,94 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error('No authorization header');
+    // Auth: either a staff JWT (admin/mechanic), or an internal call with X-Cron-Secret
+    // (used when the receiver approves repairs themselves on the public offer page).
+    const cronSecretHeader = req.headers.get('X-Cron-Secret');
+    const cronSecretEnv = Deno.env.get('CRON_SECRET');
+    let user: { id: string; email?: string | null; user_metadata?: any };
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
-    if (userError || !user) throw new Error('Unauthorized');
+    if (cronSecretHeader && cronSecretEnv && cronSecretHeader === cronSecretEnv) {
+      const { data: qbRow, error: qbErr } = await supabase
+        .from('quickbooks_tokens')
+        .select('user_id, updated_at')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (qbErr || !qbRow) throw new Error('No QuickBooks-connected user found for internal invocation');
+      user = { id: qbRow.user_id, user_metadata: { name: 'Receiver approval (automatic)' } };
+    } else {
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader) throw new Error('No authorization header');
 
-    const { data: isAdmin } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' });
-    const { data: isMechanic } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'mechanic' });
-    if (!isAdmin && !isMechanic) throw new Error('Admin or mechanic access required');
+      const jwt = authHeader.replace('Bearer ', '');
+      const { data: { user: authUser }, error: userError } = await supabase.auth.getUser(jwt);
+      if (userError || !authUser) throw new Error('Unauthorized');
+
+      const { data: isAdmin } = await supabase.rpc('has_role', { _user_id: authUser.id, _role: 'admin' });
+      const { data: isMechanic } = await supabase.rpc('has_role', { _user_id: authUser.id, _role: 'mechanic' });
+      if (!isAdmin && !isMechanic) throw new Error('Admin or mechanic access required');
+      user = authUser;
+    }
+
 
     const body = await req.json().catch(() => ({}));
-    const { issueId } = body as { issueId?: string };
-    if (!issueId) throw new Error('issueId is required');
+    const { issueId, inspectionId } = body as { issueId?: string; inspectionId?: string };
+    if (!issueId && !inspectionId) throw new Error('issueId or inspectionId is required');
 
-    const { data: issue, error: issueError } = await supabase
+    // Resolve the inspection: one invoice per bike, every receiver-approved repair a line item.
+    let resolvedInspectionId = inspectionId || null;
+    let seedIssue: any = null;
+
+    if (issueId) {
+      const { data: issue, error: issueError } = await supabase
+        .from('inspection_issues')
+        .select('*')
+        .eq('id', issueId)
+        .single();
+      if (issueError || !issue) throw new Error('Issue not found');
+      seedIssue = issue;
+      resolvedInspectionId = resolvedInspectionId || issue.inspection_id;
+
+      // Already invoiced (possibly as part of a combined invoice) — return that invoice.
+      if (issue.invoice_number) {
+        return new Response(JSON.stringify({
+          success: true,
+          invoiceNumber: issue.invoice_number,
+          invoiceId: issue.invoice_id,
+          invoiceUrl: issue.invoice_url,
+          invoicePublicUrl: issue.invoice_public_url,
+          totalAmount: issue.estimated_cost,
+          alreadyExists: true,
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      }
+    }
+
+    if (!resolvedInspectionId) throw new Error('Inspection could not be resolved');
+
+    const { data: allIssues, error: issuesError } = await supabase
       .from('inspection_issues')
       .select('*')
-      .eq('id', issueId)
-      .single();
+      .eq('inspection_id', resolvedInspectionId)
+      .eq('billing_party', 'receiver')
+      .is('invoice_number', null)
+      .order('created_at', { ascending: true });
+    if (issuesError) throw new Error('Could not load repairs for this bike');
 
-    if (issueError || !issue) throw new Error('Issue not found');
-    if (issue.status !== 'approved') throw new Error('Issue is not approved');
-    if (issue.billing_party !== 'receiver') throw new Error('Issue is not billed to the receiver');
-    if (!issue.estimated_cost || Number(issue.estimated_cost) <= 0) throw new Error('Issue has no cost to invoice');
-    if (issue.invoice_number) {
-      return new Response(JSON.stringify({
-        success: true,
-        invoiceNumber: issue.invoice_number,
-        invoiceId: issue.invoice_id,
-        invoiceUrl: issue.invoice_url,
-        totalAmount: issue.estimated_cost,
-        alreadyExists: true,
-      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const issues = (allIssues || []).filter((i: any) =>
+      (i.status === 'approved' || i.receiver_approved_at) && Number(i.estimated_cost || 0) > 0
+    );
+
+    if (issues.length === 0) {
+      if (seedIssue && seedIssue.billing_party !== 'receiver') {
+        throw new Error('Issue is not billed to the receiver');
+      }
+      throw new Error('No receiver-approved repairs to invoice');
     }
 
     const { data: inspection, error: inspectionError } = await supabase
       .from('bicycle_inspections')
       .select('id, order_id')
-      .eq('id', issue.inspection_id)
+      .eq('id', resolvedInspectionId)
       .single();
     if (inspectionError || !inspection) throw new Error('Inspection not found');
 
@@ -226,6 +306,7 @@ const handler = async (req: Request): Promise<Response> => {
       .eq('id', inspection.order_id)
       .single();
     if (orderError || !order) throw new Error('Order not found');
+
 
     const receiver: any = order.receiver || {};
     if (!receiver.email) throw new Error('Receiver has no email address');
@@ -310,19 +391,21 @@ const handler = async (req: Request): Promise<Response> => {
       if (net7) salesTermId = net7.Id;
     }
 
-    const netPrice = Number((Number(issue.estimated_cost || 0) / 1.2).toFixed(2));
     const bikeDesc = `${order.tracking_number || order.id} - ${order.bike_brand || ''} ${order.bike_model || ''}`.trim();
-    const lineItems = [{
-      Amount: netPrice,
-      DetailType: 'SalesItemLineDetail',
-      SalesItemLineDetail: {
-        ItemRef: { value: repairProductId },
-        Qty: 1,
-        UnitPrice: netPrice,
-        ...(vatTaxCodeId && { TaxCodeRef: { value: vatTaxCodeId } })
-      },
-      Description: `${bikeDesc} - ${issue.issue_description}`
-    }];
+    const lineItems = issues.map((it: any) => {
+      const netPrice = Number((Number(it.estimated_cost || 0) / 1.2).toFixed(2));
+      return {
+        Amount: netPrice,
+        DetailType: 'SalesItemLineDetail',
+        SalesItemLineDetail: {
+          ItemRef: { value: repairProductId },
+          Qty: 1,
+          UnitPrice: netPrice,
+          ...(vatTaxCodeId && { TaxCodeRef: { value: vatTaxCodeId } })
+        },
+        Description: `${bikeDesc} - ${it.issue_description}`
+      };
+    });
 
     const invoiceBody = {
       Line: lineItems,
@@ -337,7 +420,7 @@ const handler = async (req: Request): Promise<Response> => {
     const invoiceId = qbInvoice?.Id;
     const invoiceNumber = qbInvoice?.DocNumber;
     const invoiceUrl = `https://qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
-    const totalAmount = Number(issue.estimated_cost || 0);
+    const totalAmount = issues.reduce((sum: number, it: any) => sum + Number(it.estimated_cost || 0), 0);
     const now = new Date().toISOString();
 
     // Public share link + PDF so the receiver never hits a QuickBooks login wall.
@@ -349,6 +432,7 @@ const handler = async (req: Request): Promise<Response> => {
       { fetchPdf: true }
     );
 
+    // Every repair on this bike shares the one invoice.
     const { error: updateError } = await supabase
       .from('inspection_issues')
       .update({
@@ -360,10 +444,10 @@ const handler = async (req: Request): Promise<Response> => {
         invoiced_by_id: user.id,
         invoiced_by_name: user.user_metadata?.name || user.email || 'Staff',
       })
-      .eq('id', issueId);
+      .in('id', issues.map((it: any) => it.id));
 
     if (updateError) {
-      console.error('Error updating issue with invoice data:', updateError);
+      console.error('Error updating issues with invoice data:', updateError);
     }
 
     // Send email to receiver
@@ -371,7 +455,8 @@ const handler = async (req: Request): Promise<Response> => {
     if (resendApiKey) {
       try {
         const resend = trackResend(new Resend(resendApiKey), "receiver inspection invoice");
-        const email = buildReceiverInvoiceEmail(order, issue, delivery.publicUrl, !!delivery.pdfBase64, totalAmount);
+        const email = buildReceiverInvoiceEmail(order, issues, delivery.publicUrl, !!delivery.pdfBase64, totalAmount);
+
         await resend.emails.send({
           from: 'CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>',
           to: [receiver.email],

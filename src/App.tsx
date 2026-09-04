@@ -17,6 +17,8 @@ import CustomerOrderDetail from "./pages/CustomerOrderDetail";
 import SenderAvailability from "./pages/SenderAvailability";
 import ReceiverAvailability from "./pages/ReceiverAvailability";
 import RepairOffer from "./pages/RepairOffer";
+import NiPartnerUpload from "./pages/NiPartnerUpload";
+
 
 import TrackingPage from "./pages/TrackingPage";
 import UserProfile from "./pages/UserProfile";
@@ -155,6 +157,8 @@ function App() {
               <Route path="/sender-availability/:id" element={<SenderAvailability />} />
               <Route path="/receiver-availability/:id" element={<ReceiverAvailability />} />
               <Route path="/repair-offer/:id" element={<RepairOffer />} />
+              <Route path="/ni-partner/:orderId" element={<NiPartnerUpload />} />
+
               <Route path="/bulk-availability" element={
                 <ProtectedRoute>
                   <BulkAvailabilityPage />
