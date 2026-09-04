@@ -5,5 +5,5 @@ export function getPublicAppUrl(): string {
   if (typeof window !== "undefined" && window.location?.origin) {
     return window.location.origin;
   }
-  return "https://courier-scheduler-ninja.lovable.app";
+  return "https://booking.cyclecourierco.com";
 }
