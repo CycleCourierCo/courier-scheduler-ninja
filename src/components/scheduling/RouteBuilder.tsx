@@ -191,35 +191,42 @@ const getAvailabilityBadge = (
 // Inbound Northern Ireland bikes can only be delivered on the mainland once
 // they've crossed the ferry / been collected from City Air Express.
 const getNiInboundBadge = (
-  orderData: any
+  orderData: any,
+  leg: 'pickup' | 'delivery' = 'delivery'
 ): { text: string; color: string; icon: JSX.Element } | null => {
   if (!orderData || orderData.ni_direction !== 'inbound') return null;
   const status = orderData.ni_inbound_status as string | null | undefined;
   if (!status) return null;
 
+  const green = 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300';
+  const red = 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300';
   const crossedAt = orderData.ni_inbound_ferry_crossed_at as string | null | undefined;
   const crossedLabel = crossedAt ? ` (${format(new Date(crossedAt), 'EEE d MMM')})` : '';
+  const icon = <Ship className="h-3 w-3" />;
 
   if (status === 'collected_from_partner') {
     return {
-      text: 'Crossed ferry - with us',
-      color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
-      icon: <Ship className="h-3 w-3" />
+      text: leg === 'pickup' ? 'Collected from partner' : 'Crossed ferry - with us',
+      color: green,
+      icon
     };
   }
   if (status === 'crossed_ferry') {
     return {
-      text: `Crossed ferry - ready${crossedLabel}`,
-      color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
-      icon: <Ship className="h-3 w-3" />
+      text: leg === 'pickup'
+        ? `Crossed ferry - ready to collect${crossedLabel}`
+        : `Crossed ferry - ready${crossedLabel}`,
+      color: green,
+      icon
     };
   }
   return {
     text: 'In NI - not crossed',
-    color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
-    icon: <Ship className="h-3 w-3" />
+    color: red,
+    icon
   };
 };
+
 
 const getCollectionStatusBadge = (
   collectionConfirmedAt: string | null | undefined,
@@ -674,9 +681,9 @@ const JobItem: React.FC<JobItemProps> = ({
                                 {collectionBadge.text}
                               </Badge>
                             )}
-                            {/* Northern Ireland ferry status (inbound deliveries only) */}
-                            {groupedJob.type === 'delivery' && (() => {
-                              const niBadge = getNiInboundBadge(groupedJob.orderData);
+                            {/* Northern Ireland ferry status (inbound deliveries + ferry hand-off collections) */}
+                            {(groupedJob.type === 'delivery' || isFerryLeg(groupedJob.orderData, 'pickup')) && (() => {
+                              const niBadge = getNiInboundBadge(groupedJob.orderData, groupedJob.type === 'pickup' ? 'pickup' : 'delivery');
                               return niBadge ? (
                                 <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${niBadge.color}`}>
                                   {niBadge.icon}
@@ -796,9 +803,9 @@ const JobItem: React.FC<JobItemProps> = ({
                         ) : null;
                       })()}
 
-                      {/* Northern Ireland ferry status (inbound deliveries only) */}
-                      {job.type === 'delivery' && (() => {
-                        const niBadge = getNiInboundBadge(job.orderData);
+                      {/* Northern Ireland ferry status (inbound deliveries + ferry hand-off collections) */}
+                      {(job.type === 'delivery' || isFerryLeg(job.orderData, 'pickup')) && (() => {
+                        const niBadge = getNiInboundBadge(job.orderData, job.type === 'pickup' ? 'pickup' : 'delivery');
                         return niBadge ? (
                           <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${niBadge.color}`}>
                             {niBadge.icon}
