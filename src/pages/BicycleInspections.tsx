@@ -2933,6 +2933,22 @@ const BicycleInspections = () => {
                   </Badge>
                 )}
               </TabsTrigger>
+              {canManageInspections && (
+                <TabsTrigger value="repairs-declined" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
+                  Repairs Declined
+                  {repairsDeclined.length > 0 && (
+                    <Badge variant="destructive" className="ml-1">{repairsDeclined.length}</Badge>
+                  )}
+                </TabsTrigger>
+              )}
+              {canManageInspections && (
+                <TabsTrigger value="pending-receiver" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
+                  Pending Receiver
+                  {pendingReceiver.length > 0 && (
+                    <Badge variant="warning" className="ml-1">{pendingReceiver.length}</Badge>
+                  )}
+                </TabsTrigger>
+              )}
               <TabsTrigger value="awaiting-parts" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Awaiting Parts
                 {awaitingParts.length > 0 && (
