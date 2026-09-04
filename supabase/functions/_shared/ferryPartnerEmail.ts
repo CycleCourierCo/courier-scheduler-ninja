@@ -31,7 +31,7 @@ export interface FerryPartnerEmailInput {
 function buildPublicAppUrl(): string {
   const configured = Deno.env.get('PUBLIC_APP_URL')
   if (configured) return configured.replace(/\/$/, '')
-  return 'https://courier-scheduler-ninja.lovable.app'
+  return 'https://booking.cyclecourierco.com'
 }
 
 export function buildFerryPartnerEmail(order: FerryPartnerEmailInput) {
