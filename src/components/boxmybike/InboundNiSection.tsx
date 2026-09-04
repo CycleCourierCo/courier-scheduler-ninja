@@ -364,6 +364,30 @@ const InboundCard: React.FC<{
             )}
           </div>
         )}
+        {(
+          [
+            ["ni_inbound_collected_at", order.ni_inbound_collected_at, "Collected in Northern Ireland"],
+            ["ni_inbound_ferry_crossed_at", order.ni_inbound_ferry_crossed_at, "Crossed the ferry"],
+            ["ni_inbound_received_at", order.ni_inbound_received_at, "Collected from partner"],
+          ] as Array<[string, string | null, string]>
+        )
+          .filter(([, value]) => Boolean(value))
+          .map(([column, value, label]) => (
+            <div key={column} className="text-xs flex flex-wrap items-center gap-2">
+              <span className="text-muted-foreground">
+                {label}: {formatStageDate(value)}
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 px-2 text-xs"
+                disabled={disabled}
+                onClick={() => onEditTime(column, value, label)}
+              >
+                <Pencil className="h-3 w-3 mr-1" /> Edit
+              </Button>
+            </div>
+          ))}
         <div className="flex flex-wrap gap-2 pt-2">
           <Button
             variant="outline"
