@@ -101,17 +101,17 @@ export const isReceiverAvailabilityBlockedByInspection = async (
       .maybeSingle();
     if (!order || (order as any).needs_inspection !== true) return false;
 
-    // Inspection considered complete when there's an inspection row that is
-    // either 'inspected' (no-issues path) or 'repaired' (all approved repairs
-    // done / every issue declined).
+    // Workshop is only finished once EVERY inspection row on the order has
+    // reached the terminal 'repaired' stage. 'inspected' (not yet cleaned /
+    // repaired) still counts as in the workshop, so we don't chase dates.
     const { data: inspections } = await supabase
       .from('bicycle_inspections')
       .select('status')
       .eq('order_id', orderId);
 
-    const isComplete = (inspections || []).some(
-      (i: any) => i.status === 'repaired' || i.status === 'inspected'
-    );
+    const rows = inspections || [];
+    const isComplete =
+      rows.length > 0 && rows.every((i: any) => i.status === 'repaired');
     return !isComplete;
   } catch (err) {
     console.error('Error checking inspection block for receiver availability:', err);
