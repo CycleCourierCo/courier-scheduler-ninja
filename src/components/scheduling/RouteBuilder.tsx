@@ -188,6 +188,39 @@ const getAvailabilityBadge = (
 };
 
 // Helper function to get collection status badge
+// Inbound Northern Ireland bikes can only be delivered on the mainland once
+// they've crossed the ferry / been collected from City Air Express.
+const getNiInboundBadge = (
+  orderData: any
+): { text: string; color: string; icon: JSX.Element } | null => {
+  if (!orderData || orderData.ni_direction !== 'inbound') return null;
+  const status = orderData.ni_inbound_status as string | null | undefined;
+  if (!status) return null;
+
+  const crossedAt = orderData.ni_inbound_ferry_crossed_at as string | null | undefined;
+  const crossedLabel = crossedAt ? ` (${format(new Date(crossedAt), 'EEE d MMM')})` : '';
+
+  if (status === 'collected_from_partner') {
+    return {
+      text: 'Crossed ferry - with us',
+      color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
+      icon: <Ship className="h-3 w-3" />
+    };
+  }
+  if (status === 'crossed_ferry') {
+    return {
+      text: `Crossed ferry - ready${crossedLabel}`,
+      color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
+      icon: <Ship className="h-3 w-3" />
+    };
+  }
+  return {
+    text: 'In NI - not crossed',
+    color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
+    icon: <Ship className="h-3 w-3" />
+  };
+};
+
 const getCollectionStatusBadge = (
   collectionConfirmedAt: string | null | undefined,
   orderId: string,
@@ -748,6 +781,17 @@ const JobItem: React.FC<JobItemProps> = ({
                           <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
                             {collectionBadge.icon}
                             {collectionBadge.text}
+                          </Badge>
+                        ) : null;
+                      })()}
+
+                      {/* Northern Ireland ferry status (inbound deliveries only) */}
+                      {job.type === 'delivery' && (() => {
+                        const niBadge = getNiInboundBadge(job.orderData);
+                        return niBadge ? (
+                          <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${niBadge.color}`}>
+                            {niBadge.icon}
+                            {niBadge.text}
                           </Badge>
                         ) : null;
                       })()}
