@@ -94,16 +94,18 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
     mutationFn: async ({
       id,
       newStage,
+      occurredAt,
     }: {
       id: string;
       newStage: NiInboundStatus;
+      occurredAt?: string;
     }) => {
       const patch: any = {
         ni_inbound_status: newStage,
         updated_at: new Date().toISOString(),
       };
       const col = inboundTimestampColumn(newStage);
-      if (col) patch[col] = new Date().toISOString();
+      if (col) patch[col] = occurredAt || new Date().toISOString();
       // When the ferry partner has handed it to us, the bike is back in our
       // network and can follow the normal mainland lifecycle.
       if (newStage === "collected_from_partner") {
@@ -117,6 +119,29 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
       toast.success("Inbound NI stage updated");
     },
     onError: (e: any) => toast.error(e?.message || "Failed to update stage"),
+  });
+
+  const updateStageTime = useMutation({
+    mutationFn: async ({
+      id,
+      column,
+      occurredAt,
+    }: {
+      id: string;
+      column: string;
+      occurredAt: string;
+    }) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({ [column]: occurredAt, updated_at: new Date().toISOString() } as any)
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inbound-ni-orders"] });
+      toast.success("Date and time updated");
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to update date and time"),
   });
 
   const filtered = React.useMemo(
