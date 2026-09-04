@@ -22,6 +22,7 @@ import TaskDialog from "@/components/tasks/TaskDialog";
 import TaskDetailDrawer from "@/components/tasks/TaskDetailDrawer";
 import { toPublicFileUrl } from "@/lib/publicFileUrl";
 import OrderSearchBar from "@/components/boxmybike/OrderSearchBar";
+import StageDateTimeDialog, { formatStageDate } from "@/components/boxmybike/StageDateTimeDialog";
 import { filterOrdersBySearch } from "@/utils/orderSearch";
 
 
@@ -129,6 +130,13 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
   const [activeTab, setActiveTab] = React.useState<FoamStatus>("pending_collection");
   const [overrideFor, setOverrideFor] = React.useState<FoamOrder | null>(null);
   const [search, setSearch] = React.useState("");
+  const [pendingStage, setPendingStage] = React.useState<{ order: FoamOrder; stage: FoamStatus } | null>(null);
+  const [editing, setEditing] = React.useState<{
+    order: FoamOrder;
+    column: string;
+    current: string | null;
+    label: string;
+  } | null>(null);
 
 
   const { data: orders = [], isLoading } = useQuery({
@@ -136,7 +144,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     queryFn: async () => {
       let q = supabase
         .from("orders")
-        .select("id, tracking_number, status, foam_status, foam_delivery_photos, foam_label_url, foam_tracking_url, foam_delivered_to_ferry_at, foam_crossed_to_ni_at, foam_delivered_ni_at, sender, receiver, bike_brand, bike_model, user_id, created_at, storage_locations, needs_inspection, ni_bfs_number, ni_partner_label_url, ni_partner_label_uploaded_at")
+        .select("id, tracking_number, status, foam_status, foam_delivery_photos, foam_label_url, foam_tracking_url, foam_pending_collection_at, foam_pending_foaming_at, foam_foamed_at, foam_delivered_to_ferry_at, foam_crossed_to_ni_at, foam_delivered_ni_at, sender, receiver, bike_brand, bike_model, user_id, created_at, storage_locations, needs_inspection, ni_bfs_number, ni_partner_label_url, ni_partner_label_uploaded_at")
         .eq("is_northern_ireland", true)
         // Inbound NI bikes arrive already packed — the foam pipeline is outbound only
         .or("ni_direction.is.null,ni_direction.eq.outbound")
@@ -168,10 +176,12 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       id,
       newStage,
       overrideReason,
+      occurredAt,
     }: {
       id: string;
       newStage: FoamStatus;
       overrideReason?: string;
+      occurredAt?: string;
     }) => {
       // Re-check the service gate so a stale card can't push an unserviced bike
       // into foaming.
@@ -202,7 +212,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
       }
       const patch: any = { foam_status: newStage, updated_at: new Date().toISOString() };
       const col = foamTimestampColumn(newStage);
-      if (col) patch[col] = new Date().toISOString();
+      if (col) patch[col] = occurredAt || new Date().toISOString();
       // Once handed off at the ferry stage, the public tracking shows that milestone.
       if (newStage === "delivered_to_ferry") patch.status = "delivered_to_ferry";
       if (newStage === "delivered_ni") patch.status = "delivered";
