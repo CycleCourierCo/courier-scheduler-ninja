@@ -3079,6 +3079,7 @@ export type Database = {
           destination_region: string | null
           ferry_confirmation_sent_at: string | null
           ferry_partner_notified_at: string | null
+          foam_crossed_to_ni_at: string | null
           foam_delivered_ni_at: string | null
           foam_delivered_to_ferry_at: string | null
           foam_delivery_photos: Json
@@ -3112,7 +3113,15 @@ export type Database = {
           loaded_onto_van_at: string | null
           needs_inspection: boolean | null
           needs_payment_on_collection: boolean | null
+          ni_bfs_number: string | null
+          ni_bfs_updated_at: string | null
           ni_direction: string | null
+          ni_inbound_collected_at: string | null
+          ni_inbound_ferry_crossed_at: string | null
+          ni_inbound_received_at: string | null
+          ni_inbound_status: string | null
+          ni_partner_label_uploaded_at: string | null
+          ni_partner_label_url: string | null
           order_collected: boolean | null
           order_delivered: boolean | null
           payment_collection_phone: string | null
@@ -3183,6 +3192,7 @@ export type Database = {
           destination_region?: string | null
           ferry_confirmation_sent_at?: string | null
           ferry_partner_notified_at?: string | null
+          foam_crossed_to_ni_at?: string | null
           foam_delivered_ni_at?: string | null
           foam_delivered_to_ferry_at?: string | null
           foam_delivery_photos?: Json
@@ -3216,7 +3226,15 @@ export type Database = {
           loaded_onto_van_at?: string | null
           needs_inspection?: boolean | null
           needs_payment_on_collection?: boolean | null
+          ni_bfs_number?: string | null
+          ni_bfs_updated_at?: string | null
           ni_direction?: string | null
+          ni_inbound_collected_at?: string | null
+          ni_inbound_ferry_crossed_at?: string | null
+          ni_inbound_received_at?: string | null
+          ni_inbound_status?: string | null
+          ni_partner_label_uploaded_at?: string | null
+          ni_partner_label_url?: string | null
           order_collected?: boolean | null
           order_delivered?: boolean | null
           payment_collection_phone?: string | null
@@ -3287,6 +3305,7 @@ export type Database = {
           destination_region?: string | null
           ferry_confirmation_sent_at?: string | null
           ferry_partner_notified_at?: string | null
+          foam_crossed_to_ni_at?: string | null
           foam_delivered_ni_at?: string | null
           foam_delivered_to_ferry_at?: string | null
           foam_delivery_photos?: Json
@@ -3320,7 +3339,15 @@ export type Database = {
           loaded_onto_van_at?: string | null
           needs_inspection?: boolean | null
           needs_payment_on_collection?: boolean | null
+          ni_bfs_number?: string | null
+          ni_bfs_updated_at?: string | null
           ni_direction?: string | null
+          ni_inbound_collected_at?: string | null
+          ni_inbound_ferry_crossed_at?: string | null
+          ni_inbound_received_at?: string | null
+          ni_inbound_status?: string | null
+          ni_partner_label_uploaded_at?: string | null
+          ni_partner_label_url?: string | null
           order_collected?: boolean | null
           order_delivered?: boolean | null
           payment_collection_phone?: string | null
@@ -5615,6 +5642,7 @@ export type Database = {
       }
       get_cron_secret: { Args: never; Returns: string }
       get_my_pending_availability_orders: { Args: never; Returns: Json }
+      get_ni_partner_job: { Args: { p_order_id: string }; Returns: Json }
       get_public_inspection_summary: {
         Args: { order_identifier: string }
         Returns: Json
@@ -5710,6 +5738,14 @@ export type Database = {
             }
             Returns: Json
           }
+      submit_ni_partner_details: {
+        Args: {
+          p_bfs_number?: string
+          p_label_url?: string
+          p_order_id: string
+        }
+        Returns: Json
+      }
       submit_public_repair_offer: {
         Args: { p_approved_issue_ids: string[]; p_order_id: string }
         Returns: Json
@@ -5811,6 +5847,7 @@ export type Database = {
         | "pending_foaming"
         | "foamed_ready"
         | "delivered_to_ferry"
+        | "crossed_to_ni"
         | "delivered_ni"
       order_status:
         | "created"
@@ -6072,6 +6109,7 @@ export const Constants = {
         "pending_foaming",
         "foamed_ready",
         "delivered_to_ferry",
+        "crossed_to_ni",
         "delivered_ni",
       ],
       order_status: [
