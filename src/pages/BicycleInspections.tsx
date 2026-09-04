@@ -1751,6 +1751,8 @@ const BicycleInspections = () => {
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="awaiting_pricing">Awaiting Pricing</SelectItem>
                     <SelectItem value="issues_found">Issues Found</SelectItem>
+                    <SelectItem value="repairs_declined">Repairs Declined</SelectItem>
+                    <SelectItem value="pending_receiver_approval">Pending Receiver Approval</SelectItem>
                     <SelectItem value="awaiting_parts">Awaiting Parts</SelectItem>
                     <SelectItem value="awaiting_repair">Awaiting Repair</SelectItem>
                     <SelectItem value="cleaning">Cleaning</SelectItem>
