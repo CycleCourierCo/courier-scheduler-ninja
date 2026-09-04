@@ -1587,6 +1587,8 @@ export const offerDeclinedRepairsToReceiver = async (
     throw new Error(details || 'Failed to send repair offer');
   }
   if (data?.error) throw new Error(data.error);
+  // Move the inspection into "Pending receiver approval".
+  await reconcileForOrder(orderId);
   return data;
 };
 
