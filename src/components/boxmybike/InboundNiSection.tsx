@@ -206,17 +206,18 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
                   <InboundCard
                     key={order.id}
                     order={order}
-                    onAdvance={() =>
-                      updateStage.mutate({
-                        id: order.id,
-                        newStage: nextInboundStage(order.ni_inbound_status) as NiInboundStatus,
-                      })
-                    }
+                    onAdvance={() => {
+                      const next = nextInboundStage(order.ni_inbound_status);
+                      if (next) setPendingStage({ order, stage: next });
+                    }}
                     onBack={() =>
                       updateStage.mutate({
                         id: order.id,
                         newStage: prevInboundStage(order.ni_inbound_status) as NiInboundStatus,
                       })
+                    }
+                    onEditTime={(column, current, label) =>
+                      setEditing({ order, column, current, label })
                     }
                     disabled={updateStage.isPending}
                   />
@@ -226,6 +227,42 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
           </TabsContent>
         ))}
       </Tabs>
+
+      <StageDateTimeDialog
+        open={!!pendingStage}
+        onOpenChange={(o) => !o && setPendingStage(null)}
+        title={
+          pendingStage
+            ? `Mark as “${NI_INBOUND_STATUS_LABELS[pendingStage.stage]}”`
+            : ""
+        }
+        description="When did this step actually happen? This is what the customer sees on tracking."
+        confirmLabel="Update stage"
+        saving={updateStage.isPending}
+        onConfirm={(iso) => {
+          if (!pendingStage) return;
+          updateStage.mutate(
+            { id: pendingStage.order.id, newStage: pendingStage.stage, occurredAt: iso },
+            { onSuccess: () => setPendingStage(null) }
+          );
+        }}
+      />
+
+      <StageDateTimeDialog
+        open={!!editing}
+        onOpenChange={(o) => !o && setEditing(null)}
+        title={editing ? `Edit “${editing.label}” date` : ""}
+        initial={editing?.current || null}
+        confirmLabel="Save date"
+        saving={updateStageTime.isPending}
+        onConfirm={(iso) => {
+          if (!editing) return;
+          updateStageTime.mutate(
+            { id: editing.order.id, column: editing.column, occurredAt: iso },
+            { onSuccess: () => setEditing(null) }
+          );
+        }}
+      />
     </div>
   );
 };
