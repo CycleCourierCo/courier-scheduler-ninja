@@ -45,7 +45,7 @@ If you have any questions in the meantime, please don't hesitate to contact our 
 
 Thank you for choosing The Cycle Courier Co.
         `,
-        from: "Ccc@notification.cyclecourierco.com"
+        from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>"
       }
     });
     
@@ -117,7 +117,7 @@ export const sendBusinessRegistrationAdminNotification = async (
             </p>
           </div>
         `,
-        from: "Ccc@notification.cyclecourierco.com"
+        from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>"
       }
     });
     
@@ -156,7 +156,7 @@ If you have any questions or need assistance getting started, please don't hesit
 
 Thank you for choosing The Cycle Courier Co.
         `,
-        from: "Ccc@notification.cyclecourierco.com"
+        from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>"
       }
     });
     
@@ -227,7 +227,7 @@ export const sendOrderCreationEmailToSender = async (id: string): Promise<boolea
             <p>The Cycle Courier Co. Team</p>
           </div>
         `,
-        from: "Ccc@notification.cyclecourierco.com"
+        from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>"
       }
     });
     
@@ -327,7 +327,7 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
             <p>The Cycle Courier Co. Team</p>
           </div>
         `,
-        from: "Ccc@notification.cyclecourierco.com"
+        from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>"
       }
     });
     
@@ -404,7 +404,7 @@ export const sendDeliveryConfirmationToSender = async (id: string): Promise<bool
             <p>Best regards,<br>The Cycle Courier Co. Team</p>
           </div>
         `,
-        from: "Ccc@notification.cyclecourierco.com"
+        from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>"
       }
     });
     
@@ -479,7 +479,7 @@ export const sendDeliveryConfirmationToReceiver = async (id: string): Promise<bo
             <p>Best regards,<br>The Cycle Courier Co. Team</p>
           </div>
         `,
-        from: "Ccc@notification.cyclecourierco.com"
+        from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>"
       }
     });
     
@@ -781,7 +781,7 @@ export const sendOrderCreationConfirmationToUser = async (
             <p>The Cycle Courier Co. Team</p>
           </div>
         `,
-        from: "Ccc@notification.cyclecourierco.com"
+        from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>"
       }
     });
 
@@ -859,7 +859,7 @@ export const sendOrderCancellationEmails = async (orderId: string): Promise<{
                 <p>Best regards,<br>The Cycle Courier Co. Team</p>
               </div>
             `,
-            from: "Ccc@notification.cyclecourierco.com"
+            from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>"
           }
         });
         
@@ -895,7 +895,7 @@ export const sendOrderCancellationEmails = async (orderId: string): Promise<{
                 <p>Best regards,<br>The Cycle Courier Co. Team</p>
               </div>
             `,
-            from: "Ccc@notification.cyclecourierco.com"
+            from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>"
           }
         });
         
@@ -931,7 +931,7 @@ export const sendOrderCancellationEmails = async (orderId: string): Promise<{
                 <p>Best regards,<br>The Cycle Courier Co. Team</p>
               </div>
             `,
-            from: "Ccc@notification.cyclecourierco.com"
+            from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>"
           }
         });
         
@@ -997,7 +997,7 @@ export const sendBoxMyBikeBoxingEmailToBuyer = async (id: string): Promise<boole
             </div>
           `
         ),
-        from: "Ccc@notification.cyclecourierco.com",
+        from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
       },
     });
 
@@ -1052,7 +1052,7 @@ export const sendBoxMyBikeCollectedEmailToBuyer = async (id: string): Promise<bo
             ${courierBlock}
           `
         ),
-        from: "Ccc@notification.cyclecourierco.com",
+        from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
       },
     });
 
