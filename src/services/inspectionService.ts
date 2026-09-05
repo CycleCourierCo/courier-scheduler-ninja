@@ -1521,7 +1521,10 @@ export const setInspectionCleaningTask = async (
     );
     const finalStatus: InspectionStatus = hadApproved ? 'repaired' : 'inspected';
     const finalPatch: any = { status: finalStatus };
-    if (!hadApproved) {
+    // Stamp the record as shared with the customer on both routes. Without this,
+    // in-house approved repairs finished with no stamp at all, and the customer
+    // stayed stuck on "still in the workshop" on tracking and the dates page.
+    if (!row?.released_to_customer_at) {
       const nowIso = new Date().toISOString();
       finalPatch.released_to_customer_at = nowIso;
       finalPatch.released_by_id = userId;
