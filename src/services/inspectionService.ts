@@ -199,7 +199,7 @@ export const reconcileInspectionStatuses = async (
     let query = supabase
       .from('bicycle_inspections')
       .select(
-        'id, status, inspection_issues(status, parts_arrived, parts_ordered, parts_in_stock, offered_to_receiver_at, receiver_approved_at, receiver_declined_at, billing_party)'
+        'id, status, released_to_customer_at, inspection_issues(status, parts_arrived, parts_ordered, parts_in_stock, offered_to_receiver_at, receiver_approved_at, receiver_declined_at, billing_party)'
       )
       .in('status', [
         'issues_found',
