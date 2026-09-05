@@ -480,6 +480,10 @@ serve(async (req) => {
         updateData.delivery_timeslot = null;
         updateData.shipday_delivery_id = null;
         shipdayEvents.delivery_id = null;
+        // Failed delivery: the bike is coming back off the van, so clear the
+        // loaded flag and its timestamp so it shows as needing loading again.
+        updateData.loaded_onto_van = false;
+        updateData.loaded_onto_van_at = null;
       }
       updateData.tracking_events = trackingEvents;
     }
