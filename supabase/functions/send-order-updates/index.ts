@@ -714,7 +714,9 @@ async function runScan(admin: any, singleOrderId?: string, offset = 0) {
   }
 
   // --- Send, in small parallel batches --------------------------------------
-  const BATCH = 5;
+  // Kept low on purpose: Resend only accepts ~2 sends per second, and each order
+  // can send both a sender and a receiver email (sequentially, below).
+  const BATCH = 2;
   let sent = 0;
   let failed = 0;
   const results: any[] = [];
