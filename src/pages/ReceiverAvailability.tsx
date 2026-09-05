@@ -195,6 +195,21 @@ export default function ReceiverAvailability() {
       nothingOutstanding
     );
 
+  // The sender must confirm collection dates first — the delivery window is
+  // derived from them, so there is nothing sensible to show before that.
+  const senderDatesSet = Array.isArray(order?.pickupDate) && order.pickupDate.length > 0;
+
+  if (!senderDatesSet) {
+    return (
+      <Layout>
+        <ErrorState
+          error="Awaiting sender dates — we're waiting for the sender to confirm when the bike can be collected. As soon as they do, we'll email you so you can pick your delivery dates."
+          onHome={() => navigate("/")}
+        />
+      </Layout>
+    );
+  }
+
 
   if (inspectionBlocked) {
     return (
