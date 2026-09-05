@@ -199,7 +199,7 @@ export const reconcileInspectionStatuses = async (
     let query = supabase
       .from('bicycle_inspections')
       .select(
-        'id, status, inspection_issues(status, parts_arrived, parts_ordered, parts_in_stock, offered_to_receiver_at, receiver_approved_at, receiver_declined_at, billing_party)'
+        'id, status, released_to_customer_at, inspection_issues(status, parts_arrived, parts_ordered, parts_in_stock, offered_to_receiver_at, receiver_approved_at, receiver_declined_at, billing_party)'
       )
       .in('status', [
         'issues_found',
@@ -304,9 +304,15 @@ export const reconcileInspectionStatuses = async (
       }
 
       if (nextStatus && nextStatus !== currentStatus) {
+        const statusPatch: any = { status: nextStatus };
+        // Finishing the workshop always makes the record customer-visible, even
+        // when the repairs were approved in-house and no approval email was sent.
+        if (nextStatus === 'repaired' && !(inspection as any).released_to_customer_at) {
+          statusPatch.released_to_customer_at = new Date().toISOString();
+        }
         const { error: updateError } = await supabase
           .from('bicycle_inspections')
-          .update({ status: nextStatus })
+          .update(statusPatch)
           .eq('id', inspection.id);
         if (!updateError) {
           updatedCount++;
@@ -1521,7 +1527,10 @@ export const setInspectionCleaningTask = async (
     );
     const finalStatus: InspectionStatus = hadApproved ? 'repaired' : 'inspected';
     const finalPatch: any = { status: finalStatus };
-    if (!hadApproved) {
+    // Stamp the record as shared with the customer on both routes. Without this,
+    // in-house approved repairs finished with no stamp at all, and the customer
+    // stayed stuck on "still in the workshop" on tracking and the dates page.
+    if (!row?.released_to_customer_at) {
       const nowIso = new Date().toISOString();
       finalPatch.released_to_customer_at = nowIso;
       finalPatch.released_by_id = userId;
