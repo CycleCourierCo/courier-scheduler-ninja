@@ -304,9 +304,15 @@ export const reconcileInspectionStatuses = async (
       }
 
       if (nextStatus && nextStatus !== currentStatus) {
+        const statusPatch: any = { status: nextStatus };
+        // Finishing the workshop always makes the record customer-visible, even
+        // when the repairs were approved in-house and no approval email was sent.
+        if (nextStatus === 'repaired' && !(inspection as any).released_to_customer_at) {
+          statusPatch.released_to_customer_at = new Date().toISOString();
+        }
         const { error: updateError } = await supabase
           .from('bicycle_inspections')
-          .update({ status: nextStatus })
+          .update(statusPatch)
           .eq('id', inspection.id);
         if (!updateError) {
           updatedCount++;
