@@ -186,7 +186,7 @@ function validateUserData(userData: unknown): { valid: boolean; error?: string }
 // ============================================================================
 // EMAIL HELPERS
 // ============================================================================
-const FROM_EMAIL = "Ccc@notification.cyclecourierco.com";
+const FROM_EMAIL = "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>";
 const ADMIN_EMAIL = "info@cyclecourierco.com";
 const APPROVAL_URL = "https://booking.cyclecourierco.com/users";
 
