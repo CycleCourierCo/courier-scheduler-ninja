@@ -81,9 +81,10 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
       if (payer === "account") {
         toast.success(
           parsed > 0
-            ? `Guaranteed delivery set — £${parsed.toFixed(2)} will be added to their weekly invoice`
+            ? `Guaranteed delivery set — £${grossTyped.toFixed(2)} incl. VAT will be added to their weekly invoice`
             : "Guaranteed delivery set — no surcharge added"
         );
+
       } else {
         const { data, error } = await supabase.functions.invoke(
           "create-guaranteed-delivery-invoice",
