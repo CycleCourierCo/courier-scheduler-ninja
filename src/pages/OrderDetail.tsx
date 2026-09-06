@@ -195,6 +195,7 @@ const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { userProfile } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
+  const pendingOrderRef = React.useRef<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPickupDate, setSelectedPickupDate] = useState<string | null>(null);
@@ -301,12 +302,40 @@ const OrderDetail = () => {
   useEffect(() => {
     if (order?.id) {
       const cleanup = pollOrderUpdates(order.id, (updatedOrder) => {
-        setOrder(updatedOrder);
+        // Don't disturb the page while a dialog is open (it steals focus from inputs)
+        const modalOpen = typeof document !== "undefined" &&
+          document.querySelector('[role="dialog"][data-state="open"]') !== null;
+        if (modalOpen) {
+          pendingOrderRef.current = updatedOrder;
+          return;
+        }
+        setOrder((prev) => {
+          try {
+            if (prev && JSON.stringify(prev) === JSON.stringify(updatedOrder)) return prev;
+          } catch {
+            // fall through and accept the update
+          }
+          return updatedOrder;
+        });
       }, 5000); // Poll every 5 seconds
-      
+
       return cleanup;
     }
   }, [order?.id]);
+
+  // Apply the last skipped update once every dialog has closed
+  useEffect(() => {
+    const flush = setInterval(() => {
+      if (!pendingOrderRef.current) return;
+      const modalOpen = document.querySelector('[role="dialog"][data-state="open"]') !== null;
+      if (modalOpen) return;
+      const pending = pendingOrderRef.current;
+      pendingOrderRef.current = null;
+      setOrder(pending);
+    }, 1000);
+    return () => clearInterval(flush);
+  }, []);
+
 
   const handleSchedulePickup = async () => {
     if (!id || !selectedPickupDate) {
