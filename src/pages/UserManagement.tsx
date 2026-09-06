@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { ALL_ROLES } from "@/lib/roles";
 import { daysUntil } from "@/components/user-management/DriverLicenceTab";
+import PendingLicenceUploads, { LICENCE_BUCKET, LICENCE_SLOTS, type PendingLicenceFiles } from "@/components/user-management/PendingLicenceUploads";
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -28,16 +29,28 @@ const UserManagement: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [carriersDialogOpen, setCarriersDialogOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [licenceFiles, setLicenceFiles] = useState<PendingLicenceFiles>({});
   const [newUser, setNewUser] = useState<{
     email: string;
     password: string;
     name: string;
     role: UserRole;
+    phone: string;
+    hourly_rate: string;
+    workshop_hourly_rate: string;
+    licence_number: string;
+    licence_expiry: string;
   }>({
     email: "",
     password: "",
     name: "",
-    role: "b2c_customer"
+    role: "b2c_customer",
+    phone: "",
+    hourly_rate: "",
+    workshop_hourly_rate: "",
+    licence_number: "",
+    licence_expiry: "",
   });
 
   useEffect(() => {
