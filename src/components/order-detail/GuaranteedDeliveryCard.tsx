@@ -22,6 +22,8 @@ import {
   clearGuaranteedDelivery,
   type GuaranteedDeliveryPayer,
 } from "@/services/orderService";
+import { pausePolling, resumePolling } from "@/lib/pollingPause";
+
 
 interface GuaranteedDeliveryCardProps {
   order: any;
@@ -37,6 +39,16 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const pausedRef = React.useRef(false);
+
+  // Never leave polling paused if this card unmounts while the dialog is open
+  React.useEffect(() => () => {
+    if (pausedRef.current) {
+      pausedRef.current = false;
+      resumePolling();
+    }
+  }, []);
+
 
   const isOn = !!order?.guaranteed_delivery;
   const currentPayer = order?.guaranteed_delivery_payer as GuaranteedDeliveryPayer | null;
@@ -128,19 +140,33 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
     }
   };
 
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (next) {
+      if (!pausedRef.current) {
+        pausedRef.current = true;
+        pausePolling();
+      }
+    } else if (pausedRef.current) {
+      pausedRef.current = false;
+      resumePolling();
+    }
+  };
+
   const openEdit = () => {
     setPayer((currentPayer as GuaranteedDeliveryPayer) || "account");
     setAmount(currentGross ? currentGross.toFixed(2) : "0");
     setNote(order?.guaranteed_delivery_note || "");
-    setOpen(true);
+    handleOpenChange(true);
   };
 
   const openNew = () => {
     setPayer("account");
     setAmount("");
     setNote("");
-    setOpen(true);
+    handleOpenChange(true);
   };
+
 
   const markedAt = order?.guaranteed_delivery_marked_at
     ? new Date(order.guaranteed_delivery_marked_at).toLocaleString("en-GB", {
@@ -273,7 +299,7 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
         )}
       </CardContent>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Guaranteed date delivery</DialogTitle>

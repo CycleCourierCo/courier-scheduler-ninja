@@ -45,6 +45,8 @@ import CustomerUpdatesCard from "@/components/order-detail/CustomerUpdatesCard";
 import OrderTasksPanel from "@/components/tasks/OrderTasksPanel";
 import TimeslotSelection from "@/components/order-detail/TimeslotSelection";
 import { pollOrderUpdates } from "@/services/orderService";
+import { isPollingPaused } from "@/lib/pollingPause";
+
 import { supabase } from "@/integrations/supabase/client";
 import { hasRole } from "@/lib/roles";
 import { mapDbOrderToOrderType } from "@/services/orderServiceUtils";
@@ -303,12 +305,13 @@ const OrderDetail = () => {
     if (order?.id) {
       const cleanup = pollOrderUpdates(order.id, (updatedOrder) => {
         // Don't disturb the page while a dialog is open (it steals focus from inputs)
-        const modalOpen = typeof document !== "undefined" &&
-          document.querySelector('[role="dialog"][data-state="open"]') !== null;
+        const modalOpen = isPollingPaused() || (typeof document !== "undefined" &&
+          document.querySelector('[role="dialog"][data-state="open"]') !== null);
         if (modalOpen) {
           pendingOrderRef.current = updatedOrder;
           return;
         }
+
         setOrder((prev) => {
           try {
             if (prev && JSON.stringify(prev) === JSON.stringify(updatedOrder)) return prev;
@@ -327,8 +330,10 @@ const OrderDetail = () => {
   useEffect(() => {
     const flush = setInterval(() => {
       if (!pendingOrderRef.current) return;
-      const modalOpen = document.querySelector('[role="dialog"][data-state="open"]') !== null;
+      const modalOpen = isPollingPaused() ||
+        document.querySelector('[role="dialog"][data-state="open"]') !== null;
       if (modalOpen) return;
+
       const pending = pendingOrderRef.current;
       pendingOrderRef.current = null;
       setOrder(pending);
