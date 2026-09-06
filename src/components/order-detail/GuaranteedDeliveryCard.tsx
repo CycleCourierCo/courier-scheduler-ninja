@@ -312,16 +312,23 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="gd-amount">Extra amount to pay (£, excl. VAT)</Label>
+              <Label htmlFor="gd-amount">Total amount to charge (£, incl. VAT)</Label>
               <Input
                 id="gd-amount"
-                type="number"
-                min="0"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder="0.00"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
               />
+              <p className="text-xs text-muted-foreground">
+                {grossValid && grossTyped > 0
+                  ? `£${grossTyped.toFixed(2)} total = £${netFromTyped.toFixed(2)} + £${vatFromTyped.toFixed(2)} VAT`
+                  : "Type the total the customer pays — VAT is worked out for you."}
+              </p>
             </div>
+
 
             <div className="space-y-2">
               <Label htmlFor="gd-note">Note (optional)</Label>
