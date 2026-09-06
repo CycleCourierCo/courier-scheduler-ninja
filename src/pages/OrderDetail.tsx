@@ -303,12 +303,13 @@ const OrderDetail = () => {
     if (order?.id) {
       const cleanup = pollOrderUpdates(order.id, (updatedOrder) => {
         // Don't disturb the page while a dialog is open (it steals focus from inputs)
-        const modalOpen = typeof document !== "undefined" &&
-          document.querySelector('[role="dialog"][data-state="open"]') !== null;
+        const modalOpen = isPollingPaused() || (typeof document !== "undefined" &&
+          document.querySelector('[role="dialog"][data-state="open"]') !== null);
         if (modalOpen) {
           pendingOrderRef.current = updatedOrder;
           return;
         }
+
         setOrder((prev) => {
           try {
             if (prev && JSON.stringify(prev) === JSON.stringify(updatedOrder)) return prev;
