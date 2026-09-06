@@ -37,6 +37,16 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const pausedRef = React.useRef(false);
+
+  // Never leave polling paused if this card unmounts while the dialog is open
+  React.useEffect(() => () => {
+    if (pausedRef.current) {
+      pausedRef.current = false;
+      resumePolling();
+    }
+  }, []);
+
 
   const isOn = !!order?.guaranteed_delivery;
   const currentPayer = order?.guaranteed_delivery_payer as GuaranteedDeliveryPayer | null;
