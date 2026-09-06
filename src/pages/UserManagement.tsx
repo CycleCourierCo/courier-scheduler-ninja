@@ -162,6 +162,7 @@ const UserManagement: React.FC = () => {
         options: {
           data: {
             name: newUser.name,
+            role: newUser.role,
           },
         },
       });
