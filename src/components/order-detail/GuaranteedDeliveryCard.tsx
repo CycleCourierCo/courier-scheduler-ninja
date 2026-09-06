@@ -128,19 +128,33 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
     }
   };
 
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (next) {
+      if (!pausedRef.current) {
+        pausedRef.current = true;
+        pausePolling();
+      }
+    } else if (pausedRef.current) {
+      pausedRef.current = false;
+      resumePolling();
+    }
+  };
+
   const openEdit = () => {
     setPayer((currentPayer as GuaranteedDeliveryPayer) || "account");
     setAmount(currentGross ? currentGross.toFixed(2) : "0");
     setNote(order?.guaranteed_delivery_note || "");
-    setOpen(true);
+    handleOpenChange(true);
   };
 
   const openNew = () => {
     setPayer("account");
     setAmount("");
     setNote("");
-    setOpen(true);
+    handleOpenChange(true);
   };
+
 
   const markedAt = order?.guaranteed_delivery_marked_at
     ? new Date(order.guaranteed_delivery_marked_at).toLocaleString("en-GB", {
