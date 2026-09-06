@@ -45,6 +45,8 @@ import CustomerUpdatesCard from "@/components/order-detail/CustomerUpdatesCard";
 import OrderTasksPanel from "@/components/tasks/OrderTasksPanel";
 import TimeslotSelection from "@/components/order-detail/TimeslotSelection";
 import { pollOrderUpdates } from "@/services/orderService";
+import { isPollingPaused } from "@/lib/pollingPause";
+
 import { supabase } from "@/integrations/supabase/client";
 import { hasRole } from "@/lib/roles";
 import { mapDbOrderToOrderType } from "@/services/orderServiceUtils";
