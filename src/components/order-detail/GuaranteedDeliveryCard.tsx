@@ -41,6 +41,12 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
   const isOn = !!order?.guaranteed_delivery;
   const currentPayer = order?.guaranteed_delivery_payer as GuaranteedDeliveryPayer | null;
   const currentAmount = Number(order?.guaranteed_delivery_amount || 0);
+  const currentGross = Math.round(currentAmount * 1.2 * 100) / 100;
+
+  const grossTyped = Number(amount);
+  const grossValid = amount.trim() !== "" && !Number.isNaN(grossTyped) && grossTyped >= 0;
+  const netFromTyped = grossValid ? Math.round((grossTyped / 1.2) * 100) / 100 : 0;
+  const vatFromTyped = grossValid ? Math.round((grossTyped - netFromTyped) * 100) / 100 : 0;
 
   const payerLabel = (p?: string | null) => {
     if (p === "sender") return order?.sender?.name ? `Sender (${order.sender.name})` : "Sender";
@@ -49,16 +55,18 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
   };
 
   const handleConfirm = async () => {
-    const parsed = Number(amount);
-    if (Number.isNaN(parsed) || parsed < 0) {
+    if (!grossValid) {
       toast.error("Enter a valid amount");
       return;
     }
+
+    const parsed = netFromTyped;
 
     if (payer !== "account" && parsed <= 0) {
       toast.error("A standalone invoice needs an amount greater than £0");
       return;
     }
+
 
     setSaving(true);
     try {
