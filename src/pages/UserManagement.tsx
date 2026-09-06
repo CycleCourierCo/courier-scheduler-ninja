@@ -279,9 +279,79 @@ const UserManagement: React.FC = () => {
                   </Select>
                 </div>
               </div>
-              <Button type="submit">
+
+              {newUser.role === 'driver' && (
+                <div className="space-y-4 rounded-md border p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="new-phone">Phone</Label>
+                      <Input
+                        id="new-phone"
+                        value={newUser.phone}
+                        onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
+                        placeholder="07700 900123"
+                      />
+                      <p className="text-[11px] text-muted-foreground">Used for their Shipday driver record.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="new-hourly-rate">Driver Hourly Rate (£)</Label>
+                      <Input
+                        id="new-hourly-rate"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={newUser.hourly_rate}
+                        onChange={(e) => setNewUser({ ...newUser, hourly_rate: e.target.value })}
+                        placeholder="11.00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="new-workshop-rate">Workshop Hourly Rate (£)</Label>
+                      <Input
+                        id="new-workshop-rate"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={newUser.workshop_hourly_rate}
+                        onChange={(e) => setNewUser({ ...newUser, workshop_hourly_rate: e.target.value })}
+                        placeholder="Optional"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="new-licence-number">Licence Number</Label>
+                      <Input
+                        id="new-licence-number"
+                        maxLength={32}
+                        value={newUser.licence_number}
+                        onChange={(e) => setNewUser({ ...newUser, licence_number: e.target.value.toUpperCase() })}
+                        placeholder="e.g. SMITH901234AB9CD"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="new-licence-expiry">Licence Expiry</Label>
+                      <Input
+                        id="new-licence-expiry"
+                        type="date"
+                        value={newUser.licence_expiry}
+                        onChange={(e) => setNewUser({ ...newUser, licence_expiry: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <PendingLicenceUploads files={licenceFiles} onChange={setLicenceFiles} />
+
+                  <p className="text-xs text-muted-foreground">
+                    Two Shipday drivers will be created automatically: "{(newUser.name.trim().split(/\s+/)[0]) || 'First name'}" and "{(newUser.name.trim().split(/\s+/)[0]) || 'First name'} - Temp".
+                  </p>
+                </div>
+              )}
+
+              <Button type="submit" disabled={creating}>
                 <UserPlus className="mr-2 h-4 w-4" />
-                Create User
+                {creating ? 'Creating…' : 'Create User'}
               </Button>
             </form>
           </CardContent>
