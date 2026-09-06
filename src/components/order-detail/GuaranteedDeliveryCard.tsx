@@ -130,8 +130,15 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
 
   const openEdit = () => {
     setPayer((currentPayer as GuaranteedDeliveryPayer) || "account");
-    setAmount(String(currentAmount || 0));
+    setAmount(currentGross ? currentGross.toFixed(2) : "0");
     setNote(order?.guaranteed_delivery_note || "");
+    setOpen(true);
+  };
+
+  const openNew = () => {
+    setPayer("account");
+    setAmount("");
+    setNote("");
     setOpen(true);
   };
 
