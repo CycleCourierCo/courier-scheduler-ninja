@@ -330,8 +330,10 @@ const OrderDetail = () => {
   useEffect(() => {
     const flush = setInterval(() => {
       if (!pendingOrderRef.current) return;
-      const modalOpen = document.querySelector('[role="dialog"][data-state="open"]') !== null;
+      const modalOpen = isPollingPaused() ||
+        document.querySelector('[role="dialog"][data-state="open"]') !== null;
       if (modalOpen) return;
+
       const pending = pendingOrderRef.current;
       pendingOrderRef.current = null;
       setOrder(pending);
