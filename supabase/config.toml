@@ -124,3 +124,6 @@ verify_jwt = false
 
 [functions.backfill-shipday-jobs]
 verify_jwt = false
+
+[functions.create-shipday-carrier]
+verify_jwt = false
