@@ -22,6 +22,8 @@ import {
   clearGuaranteedDelivery,
   type GuaranteedDeliveryPayer,
 } from "@/services/orderService";
+import { pausePolling, resumePolling } from "@/lib/pollingPause";
+
 
 interface GuaranteedDeliveryCardProps {
   order: any;
