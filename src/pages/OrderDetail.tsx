@@ -195,6 +195,7 @@ const OrderDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { userProfile } = useAuth();
   const [order, setOrder] = useState<Order | null>(null);
+  const pendingOrderRef = React.useRef<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPickupDate, setSelectedPickupDate] = useState<string | null>(null);
