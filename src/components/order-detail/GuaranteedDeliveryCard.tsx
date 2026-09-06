@@ -215,9 +215,13 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
               <div className="flex flex-wrap gap-x-2">
                 <dt className="text-muted-foreground">Extra charge:</dt>
                 <dd className="font-medium break-words">
-                  £{currentAmount.toFixed(2)} <span className="text-muted-foreground font-normal">excl. VAT</span>
+                  £{currentGross.toFixed(2)}{" "}
+                  <span className="text-muted-foreground font-normal">
+                    incl. VAT (£{currentAmount.toFixed(2)} excl. VAT)
+                  </span>
                 </dd>
               </div>
+
               <div className="flex flex-wrap gap-x-2">
                 <dt className="text-muted-foreground">Paid by:</dt>
                 <dd className="font-medium break-words">{payerLabel(currentPayer)}</dd>
