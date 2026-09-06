@@ -1,21 +1,28 @@
-# Fix: amount box on the Guaranteed delivery pop up resets while typing
+# Guaranteed delivery pop up: fix the amount box, and enter amounts including VAT
 
-## What's happening
+## 1. The amount box resets while typing
 
-The order page reloads the order from the server every 5 seconds (`pollOrderUpdates` in `src/pages/OrderDetail.tsx`, line 301) and always stores the freshly fetched order, even when nothing has changed. Every one of those refreshes re-renders the whole order page, including the open Guaranteed delivery pop up.
+The order page reloads the order from the server every 5 seconds (`pollOrderUpdates` in `src/pages/OrderDetail.tsx`, line 301) and always stores the freshly fetched order, even when nothing has changed. Every one of those refreshes re-renders the whole order page, including the open pop up — the likely reason the field loses focus, the keyboard closes and you can't continue typing. This cause isn't proven yet, so the first step is to reproduce it before changing behaviour.
 
-The most likely consequence is that the pop up regains focus on each refresh, so the amount field loses focus, the phone keyboard closes and the digits you typed can't be continued — which matches "the whole pop up just refreshes". This cause is not yet proven, so the first step is to reproduce it on the live page before changing behaviour.
+Steps:
 
-## Plan
+1. Reproduce: open an order as admin at phone width, open Guaranteed delivery, type an amount and watch what happens on the 5-second boundary (focus loss, value reset, or the pop up closing).
+2. Stop needless refreshes: only apply a polled update when the order data has actually changed.
+3. Pause refreshing while a pop up is open, applying the pending update once it closes, so nothing changes under the user's fingers.
+4. Make the field forgiving: keep the typed text as-is while editing (empty box or a partial "1." allowed), converting to a number only on Confirm.
 
-1. Reproduce: open an order as admin on a phone-sized view, open Guaranteed delivery, start typing an amount, and watch what happens on the 5-second boundary (focus loss, value reset, or the pop up closing). Confirm the refresh is the trigger.
-2. Stop needless refreshes: only apply a polled update when the order data has actually changed (compare the fetched order against the one already held; skip the state update when identical).
-3. Pause refreshing while a dialog is open: while any pop up is on screen, hold back polled updates and apply them once it closes, so nothing under the user's fingers changes mid-edit.
-4. Make the amount field forgiving regardless: keep the typed text as-is while editing (allow an empty box and a partial number like "1." without snapping back), only converting to a number on Confirm.
-5. Re-test the same flow: type an amount over more than 10 seconds, add a note, confirm, and check the amount saved is the one typed.
+## 2. Amounts are entered including VAT
+
+Today the figure typed is treated as excluding VAT and 20% is added on the QuickBooks invoice. Change it so staff type the total the customer pays.
+
+- The field is relabelled "Total amount to charge (£, incl. VAT)".
+- Under the box, a live line shows the breakdown, e.g. "£120.00 total = £100.00 + £20.00 VAT".
+- On confirm, the VAT-exclusive figure is what gets stored and sent to QuickBooks, so the invoice total matches the number typed exactly.
+- The confirmation card and toasts show the total including VAT, with the excluding-VAT figure noted underneath.
+- Existing guarantees already saved keep their stored figure; nothing is rewritten. Editing one pre-fills the box with the VAT-inclusive equivalent.
 
 ## Technical notes
 
-- `src/pages/OrderDetail.tsx` — in the `pollOrderUpdates` callback, skip `setOrder` when the payload is deep-equal to current order; add a modal-open guard (track open state via a ref set from a `[role="dialog"]` presence check or a small context flag) and flush the last pending order when it clears.
-- `src/components/order-detail/GuaranteedDeliveryCard.tsx` — amount stays a controlled string, no coercion on change; validate on Confirm as it already does. Reset the field when the dialog opens rather than on every render.
-- Presentation/state only: no database, edge function, or invoicing logic changes.
+- `src/pages/OrderDetail.tsx` — skip `setOrder` when the polled order is deep-equal to the current one; add a modal-open guard (ref set from a `[role="dialog"]` presence check) and flush the last pending order when it clears.
+- `src/components/order-detail/GuaranteedDeliveryCard.tsx` — amount stays a controlled string; on Confirm compute `net = round(gross / 1.2, 2)` and pass net to `setGuaranteedDelivery`; display `gross = net * 1.2` in the summary and when pre-filling Edit. Keep the "greater than £0" rule for sender/receiver invoices.
+- Invoice side unchanged: `create-guaranteed-delivery-invoice` and the weekly `create-quickbooks-invoice` line both already use the stored amount as the net unit price with the VAT tax code, so no edge function or database changes are needed.
