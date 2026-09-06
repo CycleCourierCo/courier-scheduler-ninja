@@ -265,7 +265,7 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
             <p className="text-sm text-muted-foreground">
               Mark this order as a guaranteed delivery date and charge the surcharge to whoever is paying.
             </p>
-            <Button size="sm" onClick={() => setOpen(true)}>
+            <Button size="sm" onClick={openNew}>
               <CalendarCheck className="mr-2 h-4 w-4" />
               Guaranteed date delivery
             </Button>
