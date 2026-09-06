@@ -108,6 +108,44 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const resetNewUser = () => {
+    setNewUser({
+      email: "",
+      password: "",
+      name: "",
+      role: "b2c_customer",
+      phone: "",
+      hourly_rate: "",
+      workshop_hourly_rate: "",
+      licence_number: "",
+      licence_expiry: "",
+    });
+    setLicenceFiles({});
+  };
+
+  /** Uploads any chosen licence documents for a freshly created driver. */
+  const uploadLicenceFiles = async (userId: string): Promise<Record<string, string>> => {
+    const paths: Record<string, string> = {};
+    for (const slot of LICENCE_SLOTS) {
+      const file = licenceFiles[slot.key];
+      if (!file) continue;
+      const ext = file.name.split(".").pop()?.toLowerCase() || (file.type === "application/pdf" ? "pdf" : "jpg");
+      const path = `${userId}/${slot.fileBase}.${ext}`;
+      const { error } = await supabase.storage.from(LICENCE_BUCKET).upload(path, file, {
+        upsert: true,
+        contentType: file.type,
+        cacheControl: "3600",
+      });
+      if (error) {
+        console.error("Licence upload failed:", error);
+        toast.error(`Couldn't upload the ${slot.label.toLowerCase()} — add it from the user's Licence tab.`);
+        continue;
+      }
+      paths[slot.key] = path;
+    }
+    return paths;
+  };
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -116,6 +154,7 @@ const UserManagement: React.FC = () => {
       return;
     }
 
+    setCreating(true);
     try {
       const { data, error } = await supabase.auth.signUp({
         email: newUser.email,
@@ -130,20 +169,79 @@ const UserManagement: React.FC = () => {
       if (error) throw error;
 
       if (data.user) {
+        const userId = data.user.id;
+
         // Set the user's role using the edge function
         const { error: roleError } = await supabase.functions.invoke('manage-user-roles', {
-          body: { action: 'set', userId: data.user.id, role: newUser.role }
+          body: { action: 'set', userId, role: newUser.role }
         });
 
         if (roleError) throw roleError;
 
+        if (newUser.role === 'driver') {
+          const licencePaths = await uploadLicenceFiles(userId);
+
+          const updates: Record<string, any> = {
+            phone: newUser.phone.trim() || null,
+            hourly_rate: newUser.hourly_rate === '' ? null : parseFloat(newUser.hourly_rate),
+            workshop_hourly_rate: newUser.workshop_hourly_rate === '' ? null : parseFloat(newUser.workshop_hourly_rate),
+            licence_number: newUser.licence_number.trim() || null,
+            licence_expiry: newUser.licence_expiry || null,
+            ...licencePaths,
+          };
+          if (Object.keys(licencePaths).length > 0) {
+            updates.licence_updated_at = new Date().toISOString();
+          }
+
+          // Create the two Shipday driver records (main + Temp)
+          try {
+            const { data: carrierData, error: carrierError } = await supabase.functions.invoke('create-shipday-carrier', {
+              body: { name: newUser.name, email: newUser.email, phone: newUser.phone },
+            });
+            if (carrierError) throw carrierError;
+
+            const main = (carrierData as any)?.main;
+            const temp = (carrierData as any)?.temp;
+
+            if (main?.id) {
+              updates.shipday_driver_id = String(main.id);
+              updates.shipday_driver_name = main.name;
+            }
+            if (temp?.id) {
+              updates.shipday_temp_driver_id = String(temp.id);
+              updates.shipday_temp_driver_name = temp.name;
+            }
+
+            if (main?.id && temp?.id) {
+              toast.success(`Created "${main.name}" and "${temp.name}" in Shipday`);
+            } else {
+              const detail = (carrierData as any)?.mainError || (carrierData as any)?.tempError;
+              toast.warning(`Some Shipday driver records weren't created${detail ? `: ${detail}` : ''}. Add them in Shipday and link them from the carriers list.`);
+            }
+          } catch (shipdayErr: any) {
+            console.error("Shipday driver creation failed:", shipdayErr);
+            toast.warning("The user was created, but adding them to Shipday failed. Add them in Shipday and link them from the carriers list.");
+          }
+
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update(updates)
+            .eq('id', userId);
+          if (profileError) {
+            console.error("Failed to save driver details:", profileError);
+            toast.error("The user was created, but their pay and licence details didn't save. Edit them from the list.");
+          }
+        }
+
         toast.success("User created successfully");
-        setNewUser({ email: "", password: "", name: "", role: "b2c_customer" });
+        resetNewUser();
         fetchUsers();
       }
     } catch (error: any) {
       console.error("Error creating user:", error);
       toast.error(error.message || "Couldn't create this user. Check the details and try again.");
+    } finally {
+      setCreating(false);
     }
   };
 
