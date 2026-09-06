@@ -134,7 +134,7 @@ serve(async (req) => {
       );
     }
 
-    const from = reqData.from || "Ccc@notification.cyclecourierco.com";
+    const from = reqData.from || "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>";
     
     // Initialize email options with proper typing for Resend API
     const emailOptions: {

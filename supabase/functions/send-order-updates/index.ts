@@ -623,12 +623,12 @@ async function runScan(admin: any, singleOrderId?: string, offset = 0) {
   }
 
 
-  // --- Inspection state: orders still in the workshop must not be chased
-  // for delivery dates. Complete = an inspection row at 'inspected' or 'repaired'.
+  // --- Inspection state: orders still in the workshop must not be chased for
+  // delivery dates. Complete = every inspection row on the order is 'repaired'.
   const inspectionOrderIds = orders
     .filter((o) => o.needs_inspection === true)
     .map((o) => o.id);
-  const inspectionComplete = new Set<string>();
+  const inspectionStatusesByOrder = new Map<string, string[]>();
   const inspectionStatusByOrder = new Map<string, string>();
   if (inspectionOrderIds.length > 0) {
     for (let i = 0; i < inspectionOrderIds.length; i += 200) {
@@ -640,14 +640,19 @@ async function runScan(admin: any, singleOrderId?: string, offset = 0) {
       if (inspErr) throw inspErr;
       for (const insp of insps || []) {
         if (insp.status) inspectionStatusByOrder.set(insp.order_id, insp.status);
-        if (insp.status === "repaired" || insp.status === "inspected") {
-          inspectionComplete.add(insp.order_id);
-        }
+        const list = inspectionStatusesByOrder.get(insp.order_id) || [];
+        list.push(insp.status || "");
+        inspectionStatusesByOrder.set(insp.order_id, list);
       }
     }
   }
-  const isInspectionPending = (order: any): boolean =>
-    order.needs_inspection === true && !inspectionComplete.has(order.id);
+  const isInspectionPending = (order: any): boolean => {
+    if (order.needs_inspection !== true) return false;
+    const statuses = inspectionStatusesByOrder.get(order.id) || [];
+    const complete = statuses.length > 0 && statuses.every((s) => s === "repaired");
+    return !complete;
+  };
+
 
   const today = todayLondon();
   const cutoff = new Date(Date.now() - QUIET_DAYS * 24 * 60 * 60 * 1000).toISOString();
@@ -709,7 +714,9 @@ async function runScan(admin: any, singleOrderId?: string, offset = 0) {
   }
 
   // --- Send, in small parallel batches --------------------------------------
-  const BATCH = 5;
+  // Kept low on purpose: Resend only accepts ~2 sends per second, and each order
+  // can send both a sender and a receiver email (sequentially, below).
+  const BATCH = 2;
   let sent = 0;
   let failed = 0;
   const results: any[] = [];

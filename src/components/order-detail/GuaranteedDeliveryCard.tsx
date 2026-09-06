@@ -22,6 +22,8 @@ import {
   clearGuaranteedDelivery,
   type GuaranteedDeliveryPayer,
 } from "@/services/orderService";
+import { pausePolling, resumePolling } from "@/lib/pollingPause";
+
 
 interface GuaranteedDeliveryCardProps {
   order: any;
@@ -37,10 +39,26 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
+  const pausedRef = React.useRef(false);
+
+  // Never leave polling paused if this card unmounts while the dialog is open
+  React.useEffect(() => () => {
+    if (pausedRef.current) {
+      pausedRef.current = false;
+      resumePolling();
+    }
+  }, []);
+
 
   const isOn = !!order?.guaranteed_delivery;
   const currentPayer = order?.guaranteed_delivery_payer as GuaranteedDeliveryPayer | null;
   const currentAmount = Number(order?.guaranteed_delivery_amount || 0);
+  const currentGross = Math.round(currentAmount * 1.2 * 100) / 100;
+
+  const grossTyped = Number(amount);
+  const grossValid = amount.trim() !== "" && !Number.isNaN(grossTyped) && grossTyped >= 0;
+  const netFromTyped = grossValid ? Math.round((grossTyped / 1.2) * 100) / 100 : 0;
+  const vatFromTyped = grossValid ? Math.round((grossTyped - netFromTyped) * 100) / 100 : 0;
 
   const payerLabel = (p?: string | null) => {
     if (p === "sender") return order?.sender?.name ? `Sender (${order.sender.name})` : "Sender";
@@ -49,16 +67,18 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
   };
 
   const handleConfirm = async () => {
-    const parsed = Number(amount);
-    if (Number.isNaN(parsed) || parsed < 0) {
+    if (!grossValid) {
       toast.error("Enter a valid amount");
       return;
     }
+
+    const parsed = netFromTyped;
 
     if (payer !== "account" && parsed <= 0) {
       toast.error("A standalone invoice needs an amount greater than £0");
       return;
     }
+
 
     setSaving(true);
     try {
@@ -73,9 +93,10 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
       if (payer === "account") {
         toast.success(
           parsed > 0
-            ? `Guaranteed delivery set — £${parsed.toFixed(2)} will be added to their weekly invoice`
+            ? `Guaranteed delivery set — £${grossTyped.toFixed(2)} incl. VAT will be added to their weekly invoice`
             : "Guaranteed delivery set — no surcharge added"
         );
+
       } else {
         const { data, error } = await supabase.functions.invoke(
           "create-guaranteed-delivery-invoice",
@@ -119,12 +140,33 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
     }
   };
 
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (next) {
+      if (!pausedRef.current) {
+        pausedRef.current = true;
+        pausePolling();
+      }
+    } else if (pausedRef.current) {
+      pausedRef.current = false;
+      resumePolling();
+    }
+  };
+
   const openEdit = () => {
     setPayer((currentPayer as GuaranteedDeliveryPayer) || "account");
-    setAmount(String(currentAmount || 0));
+    setAmount(currentGross ? currentGross.toFixed(2) : "0");
     setNote(order?.guaranteed_delivery_note || "");
-    setOpen(true);
+    handleOpenChange(true);
   };
+
+  const openNew = () => {
+    setPayer("account");
+    setAmount("");
+    setNote("");
+    handleOpenChange(true);
+  };
+
 
   const markedAt = order?.guaranteed_delivery_marked_at
     ? new Date(order.guaranteed_delivery_marked_at).toLocaleString("en-GB", {
@@ -199,9 +241,13 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
               <div className="flex flex-wrap gap-x-2">
                 <dt className="text-muted-foreground">Extra charge:</dt>
                 <dd className="font-medium break-words">
-                  £{currentAmount.toFixed(2)} <span className="text-muted-foreground font-normal">excl. VAT</span>
+                  £{currentGross.toFixed(2)}{" "}
+                  <span className="text-muted-foreground font-normal">
+                    incl. VAT (£{currentAmount.toFixed(2)} excl. VAT)
+                  </span>
                 </dd>
               </div>
+
               <div className="flex flex-wrap gap-x-2">
                 <dt className="text-muted-foreground">Paid by:</dt>
                 <dd className="font-medium break-words">{payerLabel(currentPayer)}</dd>
@@ -245,7 +291,7 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
             <p className="text-sm text-muted-foreground">
               Mark this order as a guaranteed delivery date and charge the surcharge to whoever is paying.
             </p>
-            <Button size="sm" onClick={() => setOpen(true)}>
+            <Button size="sm" onClick={openNew}>
               <CalendarCheck className="mr-2 h-4 w-4" />
               Guaranteed date delivery
             </Button>
@@ -253,7 +299,7 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
         )}
       </CardContent>
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Guaranteed date delivery</DialogTitle>
@@ -292,16 +338,23 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="gd-amount">Extra amount to pay (£, excl. VAT)</Label>
+              <Label htmlFor="gd-amount">Total amount to charge (£, incl. VAT)</Label>
               <Input
                 id="gd-amount"
-                type="number"
-                min="0"
-                step="0.01"
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder="0.00"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
               />
+              <p className="text-xs text-muted-foreground">
+                {grossValid && grossTyped > 0
+                  ? `£${grossTyped.toFixed(2)} total = £${netFromTyped.toFixed(2)} + £${vatFromTyped.toFixed(2)} VAT`
+                  : "Type the total the customer pays — VAT is worked out for you."}
+              </p>
             </div>
+
 
             <div className="space-y-2">
               <Label htmlFor="gd-note">Note (optional)</Label>
