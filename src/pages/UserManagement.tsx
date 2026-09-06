@@ -18,6 +18,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { ALL_ROLES } from "@/lib/roles";
 import { daysUntil } from "@/components/user-management/DriverLicenceTab";
+import PendingLicenceUploads, { LICENCE_BUCKET, LICENCE_SLOTS, type PendingLicenceFiles } from "@/components/user-management/PendingLicenceUploads";
 
 const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<UserProfile[]>([]);
@@ -28,16 +29,28 @@ const UserManagement: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [carriersDialogOpen, setCarriersDialogOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [licenceFiles, setLicenceFiles] = useState<PendingLicenceFiles>({});
   const [newUser, setNewUser] = useState<{
     email: string;
     password: string;
     name: string;
     role: UserRole;
+    phone: string;
+    hourly_rate: string;
+    workshop_hourly_rate: string;
+    licence_number: string;
+    licence_expiry: string;
   }>({
     email: "",
     password: "",
     name: "",
-    role: "b2c_customer"
+    role: "b2c_customer",
+    phone: "",
+    hourly_rate: "",
+    workshop_hourly_rate: "",
+    licence_number: "",
+    licence_expiry: "",
   });
 
   useEffect(() => {
@@ -95,6 +108,44 @@ const UserManagement: React.FC = () => {
     }
   };
 
+  const resetNewUser = () => {
+    setNewUser({
+      email: "",
+      password: "",
+      name: "",
+      role: "b2c_customer",
+      phone: "",
+      hourly_rate: "",
+      workshop_hourly_rate: "",
+      licence_number: "",
+      licence_expiry: "",
+    });
+    setLicenceFiles({});
+  };
+
+  /** Uploads any chosen licence documents for a freshly created driver. */
+  const uploadLicenceFiles = async (userId: string): Promise<Record<string, string>> => {
+    const paths: Record<string, string> = {};
+    for (const slot of LICENCE_SLOTS) {
+      const file = licenceFiles[slot.key];
+      if (!file) continue;
+      const ext = file.name.split(".").pop()?.toLowerCase() || (file.type === "application/pdf" ? "pdf" : "jpg");
+      const path = `${userId}/${slot.fileBase}.${ext}`;
+      const { error } = await supabase.storage.from(LICENCE_BUCKET).upload(path, file, {
+        upsert: true,
+        contentType: file.type,
+        cacheControl: "3600",
+      });
+      if (error) {
+        console.error("Licence upload failed:", error);
+        toast.error(`Couldn't upload the ${slot.label.toLowerCase()} — add it from the user's Licence tab.`);
+        continue;
+      }
+      paths[slot.key] = path;
+    }
+    return paths;
+  };
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -103,6 +154,7 @@ const UserManagement: React.FC = () => {
       return;
     }
 
+    setCreating(true);
     try {
       const { data, error } = await supabase.auth.signUp({
         email: newUser.email,
@@ -117,20 +169,79 @@ const UserManagement: React.FC = () => {
       if (error) throw error;
 
       if (data.user) {
+        const userId = data.user.id;
+
         // Set the user's role using the edge function
         const { error: roleError } = await supabase.functions.invoke('manage-user-roles', {
-          body: { action: 'set', userId: data.user.id, role: newUser.role }
+          body: { action: 'set', userId, role: newUser.role }
         });
 
         if (roleError) throw roleError;
 
+        if (newUser.role === 'driver') {
+          const licencePaths = await uploadLicenceFiles(userId);
+
+          const updates: Record<string, any> = {
+            phone: newUser.phone.trim() || null,
+            hourly_rate: newUser.hourly_rate === '' ? null : parseFloat(newUser.hourly_rate),
+            workshop_hourly_rate: newUser.workshop_hourly_rate === '' ? null : parseFloat(newUser.workshop_hourly_rate),
+            licence_number: newUser.licence_number.trim() || null,
+            licence_expiry: newUser.licence_expiry || null,
+            ...licencePaths,
+          };
+          if (Object.keys(licencePaths).length > 0) {
+            updates.licence_updated_at = new Date().toISOString();
+          }
+
+          // Create the two Shipday driver records (main + Temp)
+          try {
+            const { data: carrierData, error: carrierError } = await supabase.functions.invoke('create-shipday-carrier', {
+              body: { name: newUser.name, email: newUser.email, phone: newUser.phone },
+            });
+            if (carrierError) throw carrierError;
+
+            const main = (carrierData as any)?.main;
+            const temp = (carrierData as any)?.temp;
+
+            if (main?.id) {
+              updates.shipday_driver_id = String(main.id);
+              updates.shipday_driver_name = main.name;
+            }
+            if (temp?.id) {
+              updates.shipday_temp_driver_id = String(temp.id);
+              updates.shipday_temp_driver_name = temp.name;
+            }
+
+            if (main?.id && temp?.id) {
+              toast.success(`Created "${main.name}" and "${temp.name}" in Shipday`);
+            } else {
+              const detail = (carrierData as any)?.mainError || (carrierData as any)?.tempError;
+              toast.warning(`Some Shipday driver records weren't created${detail ? `: ${detail}` : ''}. Add them in Shipday and link them from the carriers list.`);
+            }
+          } catch (shipdayErr: any) {
+            console.error("Shipday driver creation failed:", shipdayErr);
+            toast.warning("The user was created, but adding them to Shipday failed. Add them in Shipday and link them from the carriers list.");
+          }
+
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update(updates)
+            .eq('id', userId);
+          if (profileError) {
+            console.error("Failed to save driver details:", profileError);
+            toast.error("The user was created, but their pay and licence details didn't save. Edit them from the list.");
+          }
+        }
+
         toast.success("User created successfully");
-        setNewUser({ email: "", password: "", name: "", role: "b2c_customer" });
+        resetNewUser();
         fetchUsers();
       }
     } catch (error: any) {
       console.error("Error creating user:", error);
       toast.error(error.message || "Couldn't create this user. Check the details and try again.");
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -279,9 +390,79 @@ const UserManagement: React.FC = () => {
                   </Select>
                 </div>
               </div>
-              <Button type="submit">
+
+              {newUser.role === 'driver' && (
+                <div className="space-y-4 rounded-md border p-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="new-phone">Phone</Label>
+                      <Input
+                        id="new-phone"
+                        value={newUser.phone}
+                        onChange={(e) => setNewUser({ ...newUser, phone: e.target.value })}
+                        placeholder="07700 900123"
+                      />
+                      <p className="text-[11px] text-muted-foreground">Used for their Shipday driver record.</p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="new-hourly-rate">Driver Hourly Rate (£)</Label>
+                      <Input
+                        id="new-hourly-rate"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={newUser.hourly_rate}
+                        onChange={(e) => setNewUser({ ...newUser, hourly_rate: e.target.value })}
+                        placeholder="11.00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="new-workshop-rate">Workshop Hourly Rate (£)</Label>
+                      <Input
+                        id="new-workshop-rate"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={newUser.workshop_hourly_rate}
+                        onChange={(e) => setNewUser({ ...newUser, workshop_hourly_rate: e.target.value })}
+                        placeholder="Optional"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="new-licence-number">Licence Number</Label>
+                      <Input
+                        id="new-licence-number"
+                        maxLength={32}
+                        value={newUser.licence_number}
+                        onChange={(e) => setNewUser({ ...newUser, licence_number: e.target.value.toUpperCase() })}
+                        placeholder="e.g. SMITH901234AB9CD"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="new-licence-expiry">Licence Expiry</Label>
+                      <Input
+                        id="new-licence-expiry"
+                        type="date"
+                        value={newUser.licence_expiry}
+                        onChange={(e) => setNewUser({ ...newUser, licence_expiry: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <PendingLicenceUploads files={licenceFiles} onChange={setLicenceFiles} />
+
+                  <p className="text-xs text-muted-foreground">
+                    Two Shipday drivers will be created automatically: "{(newUser.name.trim().split(/\s+/)[0]) || 'First name'}" and "{(newUser.name.trim().split(/\s+/)[0]) || 'First name'} - Temp".
+                  </p>
+                </div>
+              )}
+
+              <Button type="submit" disabled={creating}>
                 <UserPlus className="mr-2 h-4 w-4" />
-                Create User
+                {creating ? 'Creating…' : 'Create User'}
               </Button>
             </form>
           </CardContent>
