@@ -464,8 +464,8 @@ function buildDriverEmailHtml(
     sections.push(`
       <div style="background: #e8f5e9; border: 2px solid #4caf50; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
         <h3 style="margin: 0 0 12px; color: #2e7d32;">🏢 BIKES TO COLLECT FROM DEPOT (${categories.bikesToCollect.length})</h3>
-        ${categories.bikesToCollect.map((bike, i) => {
-          const location = bike.storageAllocations.map(a => `Bay ${a.bay}${a.position}`).join(', ');
+        ${sortByBayPosition(categories.bikesToCollect).map((bike, i) => {
+          const location = formatBikeLocation(bike);
           return `
             <div style="background: white; padding: 8px 12px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;">
               <div><strong>${i + 1}. ${bike.bikeBrand} ${bike.bikeModel}</strong></div>
