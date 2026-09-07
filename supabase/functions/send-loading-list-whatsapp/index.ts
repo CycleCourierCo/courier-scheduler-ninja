@@ -43,6 +43,62 @@ function normalizeDateToYYYYMMDD(dateString: string): string {
   return `${year}-${month}-${day}`;
 }
 
+// ===== Bay / position ordering helpers =====
+type BikeLike = { storageAllocations?: Array<{ bay: string; position: number }>; receiver?: { name?: string } };
+
+function sortAllocations(allocations?: Array<{ bay: string; position: number }>) {
+  return [...(allocations || [])].sort((a, b) => {
+    const bayCompare = String(a.bay || '').toUpperCase().localeCompare(String(b.bay || '').toUpperCase(), 'en');
+    if (bayCompare !== 0) return bayCompare;
+    return (Number(a.position) || 0) - (Number(b.position) || 0);
+  });
+}
+
+function formatBikeLocation(bike: BikeLike): string {
+  return sortAllocations(bike.storageAllocations).map(a => `Bay ${a.bay}${a.position}`).join(', ');
+}
+
+function compareByBayPosition(a: BikeLike, b: BikeLike): number {
+  const aAlloc = sortAllocations(a.storageAllocations)[0];
+  const bAlloc = sortAllocations(b.storageAllocations)[0];
+  if (aAlloc && bAlloc) {
+    const bayCompare = String(aAlloc.bay || '').toUpperCase().localeCompare(String(bAlloc.bay || '').toUpperCase(), 'en');
+    if (bayCompare !== 0) return bayCompare;
+    const positionCompare = (Number(aAlloc.position) || 0) - (Number(bAlloc.position) || 0);
+    if (positionCompare !== 0) return positionCompare;
+  } else if (aAlloc && !bAlloc) {
+    return -1;
+  } else if (!aAlloc && bAlloc) {
+    return 1;
+  }
+  return String(a.receiver?.name || '').localeCompare(String(b.receiver?.name || ''), 'en');
+}
+
+function compareByReceiverName(a: BikeLike, b: BikeLike): number {
+  return String(a.receiver?.name || '').localeCompare(String(b.receiver?.name || ''), 'en');
+}
+
+function sortByBayPosition<T extends BikeLike>(bikes: T[]): T[] {
+  return [...bikes].sort(compareByBayPosition);
+}
+
+function sortByReceiverName<T extends BikeLike>(bikes: T[]): T[] {
+  return [...bikes].sort(compareByReceiverName);
+}
+
+function sortBayKeys(keys: string[]): string[] {
+  const known = ['A', 'B', 'C', 'D'];
+  return [...keys].sort((a, b) => {
+    const ai = known.indexOf(a.toUpperCase());
+    const bi = known.indexOf(b.toUpperCase());
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+    return a.toUpperCase().localeCompare(b.toUpperCase(), 'en', { numeric: true });
+  });
+}
+
+
 function categorizeBikesForDriver(
   driverName: string,
   allBikes: LoadingListRequest['bikesNeedingLoading'],
