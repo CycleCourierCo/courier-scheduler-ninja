@@ -553,7 +553,7 @@ function buildBayBreakdown(bikesFromDepot: LoadingListRequest['bikesNeedingLoadi
   let totalBikes = 0;
 
   for (const bay of bayKeys) {
-    const list = byBay[bay].sort((a, b) => a.position - b.position);
+    const list = [...byBay[bay]].sort((a, b) => (Number(a.position) || 0) - (Number(b.position) || 0));
     totalBikes += list.length;
     const emoji = bayEmoji[bay] || '📦';
 
