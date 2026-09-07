@@ -410,9 +410,13 @@ serve(async (req) => {
           updateData.delivery_timeslot = null;
           updateData.shipday_delivery_id = null;
           shipdayEvents.delivery_id = null;
-          // Failed delivery: bike is back off the van.
+          // Failed delivery: bike is back off the van, but the driver who
+          // failed it still physically has it — record them as the holder.
           updateData.loaded_onto_van = false;
           updateData.loaded_onto_van_at = null;
+          updateData.held_by_driver_name =
+            sOrder.carrier?.name || (dbOrder as any).delivery_driver_name || null;
+          updateData.held_by_driver_at = new Date().toISOString();
         }
         updateData.tracking_events = trackingEvents;
       }
