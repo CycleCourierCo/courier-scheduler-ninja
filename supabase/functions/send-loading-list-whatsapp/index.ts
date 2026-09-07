@@ -302,7 +302,16 @@ function buildDriverMessage(
   date: string
 ): string {
   let message = `🚛 YOUR LOADING LIST\n\n📅 Date: ${date}\n\n👨‍💼 ${driverName}\n\n`;
-  
+
+  const loadOrder = buildLoadOrder(categories);
+  if (loadOrder.hasTimeslots && loadOrder.entries.length > 0) {
+    message += `📥 LOAD IN THIS ORDER (deepest first)\n\n`;
+    loadOrder.entries.forEach((entry, i) => {
+      message += formatLoadOrderEntryText(entry, i, loadOrder.total);
+    });
+    message += `\n---\n\n`;
+  }
+
   if (categories.bikesToKeep.length > 0) {
     message += `🔒 BIKES YOU NEED TO KEEP (${categories.bikesToKeep.length})\n`;
     message += `You collected these and will deliver them\n\n`;
