@@ -15,10 +15,12 @@ const boxBuyerEmail = (order: Order): string | null => {
   return email ? email : null;
 };
 
-/** Receiver-facing recipients, including the ferry hand-off and Box My Bike buyer. */
-const buildReceiverRecipients = (order: Order, isNI: boolean): string | string[] => {
+/**
+ * Receiver-facing recipients, including the Box My Bike buyer.
+ * The ferry partner is deliberately NOT copied here — they get their own booking email.
+ */
+const buildReceiverRecipients = (order: Order): string | string[] => {
   const extras: string[] = [];
-  if (isNI) extras.push(CITY_AIR_EXPRESS.email);
   const buyer = boxBuyerEmail(order);
   if (buyer && buyer.toLowerCase() !== order.receiver?.email?.toLowerCase()) extras.push(buyer);
   return extras.length ? [order.receiver.email, ...extras] : order.receiver.email;
