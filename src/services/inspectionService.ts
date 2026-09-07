@@ -489,6 +489,60 @@ export const enableInspectionForOrder = async (orderId: string): Promise<Bicycle
   }
 };
 
+// Remove inspection from an order (admin action). Only allowed while no
+// workshop work has been recorded — otherwise we'd destroy history/invoices.
+export const disableInspectionForOrder = async (orderId: string): Promise<void> => {
+  const { data: inspections, error: fetchError } = await supabase
+    .from('bicycle_inspections')
+    .select('*')
+    .eq('order_id', orderId);
+
+  if (fetchError) throw fetchError;
+
+  const rows = (inspections || []) as any[];
+
+  const { data: issues, error: issuesError } = await supabase
+    .from('inspection_issues')
+    .select('id')
+    .eq('order_id', orderId);
+
+  if (issuesError) throw issuesError;
+
+  if ((issues || []).length > 0) {
+    throw new Error(
+      'This inspection already has repair items recorded, so it can\'t be removed. Remove the repair items first.'
+    );
+  }
+
+  const started = rows.find(
+    (r) =>
+      r.inspected_at ||
+      r.released_to_customer_at ||
+      (r.status && !['pending', 'awaiting_pricing'].includes(r.status))
+  );
+
+  if (started) {
+    throw new Error(
+      'Workshop work has already been recorded against this bike, so the inspection can\'t be removed.'
+    );
+  }
+
+  if (rows.length > 0) {
+    const { error: deleteError } = await supabase
+      .from('bicycle_inspections')
+      .delete()
+      .eq('order_id', orderId);
+    if (deleteError) throw deleteError;
+  }
+
+  const { error: orderError } = await supabase
+    .from('orders')
+    .update({ needs_inspection: false })
+    .eq('id', orderId);
+
+  if (orderError) throw orderError;
+};
+
 // Get all pending inspections (admin only)
 export const getPendingInspections = async () => {
   try {
