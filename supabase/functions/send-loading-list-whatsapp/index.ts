@@ -509,6 +509,17 @@ function buildDriverEmailHtml(
 ): string {
   const sections: string[] = [];
 
+  const loadOrder = buildLoadOrder(categories);
+  if (loadOrder.hasTimeslots && loadOrder.entries.length > 0) {
+    sections.push(`
+      <div style="background: #fff8e1; border: 2px solid #ffc107; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+        <h3 style="margin: 0 0 12px; color: #f57f17;">📥 LOAD IN THIS ORDER (deepest first)</h3>
+        <p style="margin: 0 0 12px; color: #666; font-size: 14px;">Load the last drop first so the first drop ends up nearest the doors</p>
+        ${loadOrder.entries.map((entry, i) => formatLoadOrderEntryHtml(entry, i, loadOrder.total)).join('')}
+      </div>
+    `);
+  }
+
   if (categories.bikesToKeep.length > 0) {
     sections.push(`
       <div style="background: #e3f2fd; border: 2px solid #2196f3; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
