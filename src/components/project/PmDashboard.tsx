@@ -62,7 +62,7 @@ const PmDashboard: React.FC<Props> = ({ tasks }) => {
   const overdue = active.filter((t) => t.due_date && isPast(new Date(t.due_date)));
   const unassigned = active.filter((t) => !t.assignee_id);
 
-  const byCategory = TASK_CATEGORIES.map((c) => ({
+  const byCategory: { label: string; outstanding: number; completed: number }[] = TASK_CATEGORIES.map((c) => ({
     label: c.label,
     outstanding: active.filter((t) => t.category === c.value).length,
     completed: done.filter((t) => t.category === c.value).length,
