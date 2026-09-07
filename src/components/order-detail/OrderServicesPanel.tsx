@@ -212,7 +212,11 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
           </AlertDialog>
         )}
       </div>
+      {inspectionId && order.id && (
+        <InspectionComments inspectionId={inspectionId} orderId={order.id} />
+      )}
     </div>
+
   );
 };
 
