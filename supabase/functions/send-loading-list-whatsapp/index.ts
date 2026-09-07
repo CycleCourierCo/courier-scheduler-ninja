@@ -251,7 +251,7 @@ function buildDriverMessage(
   
   if (categories.bikesToCollect.length > 0) {
     message += `🏢 BIKES TO COLLECT FROM DEPOT (${categories.bikesToCollect.length})\n\n`;
-    categories.bikesToCollect.forEach((bike, i) => {
+    sortByBayPosition(categories.bikesToCollect).forEach((bike, i) => {
       message += formatBikeEntry(bike, i, true);
     });
     message += '---\n\n';
