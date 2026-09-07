@@ -544,15 +544,7 @@ function buildBayBreakdown(bikesFromDepot: LoadingListRequest['bikesNeedingLoadi
     byBay[r.bay].push(r);
   }
 
-  const bayOrder = ['A', 'B', 'C', 'D'];
-  const bayKeys = Object.keys(byBay).sort((a, b) => {
-    const ai = bayOrder.indexOf(a);
-    const bi = bayOrder.indexOf(b);
-    if (ai === -1 && bi === -1) return a.localeCompare(b);
-    if (ai === -1) return 1;
-    if (bi === -1) return -1;
-    return ai - bi;
-  });
+  const bayKeys = sortBayKeys(Object.keys(byBay));
 
   const bayEmoji: Record<string, string> = { A: '🅰️', B: '🅱️', C: '🇨', D: '🇩' };
 
