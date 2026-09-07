@@ -49,6 +49,24 @@ interface OrderServicesPanelProps {
 const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRefresh }) => {
   const [isEnabling, setIsEnabling] = useState(false);
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const { userProfile } = useAuth();
+  const isAdmin = hasRole(userProfile, "admin");
+
+  const handleRemove = async () => {
+    if (!order.id) return;
+    try {
+      setIsRemoving(true);
+      await disableInspectionForOrder(order.id);
+      await onRefresh();
+      toast.success("Inspection removed from this order");
+    } catch (error: any) {
+      console.error("Error removing inspection:", error);
+      toast.error(error?.message || "Failed to remove inspection");
+    } finally {
+      setIsRemoving(false);
+    }
+  };
 
   const handleEnable = async () => {
     if (!order.id) return;
