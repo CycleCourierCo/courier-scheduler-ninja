@@ -5810,6 +5810,7 @@ export type Database = {
       }
       invoke_backfill_shipday_jobs: { Args: never; Returns: undefined }
       invoke_fuel_finder_refresh: { Args: never; Returns: undefined }
+      invoke_generate_recurring_tasks: { Args: never; Returns: undefined }
       invoke_generate_timeslips: { Args: never; Returns: undefined }
       invoke_internal_report: { Args: { p_report: string }; Returns: undefined }
       invoke_process_scheduled_announcements: {
