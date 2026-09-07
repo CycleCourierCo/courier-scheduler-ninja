@@ -303,8 +303,8 @@ function buildManagementEmailHtml(
     fromDepotHtml += `
       <div style="margin-bottom: 16px;">
         <div style="font-weight: bold; color: #1a1a1a; margin-bottom: 8px;">👨‍💼 ${driverName} (${bikes.length})</div>
-        ${bikes.map((bike, i) => {
-          const location = bike.storageAllocations.map(a => `Bay ${a.bay}${a.position}`).join(', ');
+        ${sortByBayPosition(bikes).map((bike, i) => {
+          const location = formatBikeLocation(bike);
           return `
             <div style="background: #f8f8f8; padding: 8px 12px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;">
               <div><strong>${i + 1}. ${bike.bikeBrand} ${bike.bikeModel}</strong></div>
