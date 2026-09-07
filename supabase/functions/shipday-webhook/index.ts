@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { initSentry, captureException } from "../_shared/sentry.ts";
-import { isNorthernIrelandAddress, niDirectionOf, isFerryLeg } from "../_shared/northernIreland.ts";
+import { niDirectionOf, isFerryLeg } from "../_shared/northernIreland.ts";
 import { logInboundWebhook } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
@@ -166,7 +166,6 @@ serve(async (req) => {
     // the DELIVERY leg, inbound (NI -> mainland) is COLLECTED from the ferry point
     // and then delivered normally on the mainland.
     const niDirection = niDirectionOf(dbOrder);
-    void isNorthernIrelandAddress;
 
     // Ferry hand-off leg for THIS webhook: delivery when outbound, pickup when inbound.
     const niFerryLeg = isFerryLeg(dbOrder, isPickup);
