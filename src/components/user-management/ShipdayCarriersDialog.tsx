@@ -103,16 +103,26 @@ const ShipdayCarriersDialog: React.FC<ShipdayCarriersDialogProps> = ({ open, onO
                   </TableCell>
                   {onLinkCarrier && (
                     <TableCell className="text-right">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onLinkCarrier(carrier.id, carrier.name)}
-                      >
-                        <Link className="h-4 w-4 mr-1" />
-                        Link to Driver
-                      </Button>
+                      <div className="flex flex-wrap justify-end gap-1.5">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onLinkCarrier(carrier.id, carrier.name, 'main')}
+                        >
+                          <Link className="h-4 w-4 mr-1" />
+                          Link to Driver
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onLinkCarrier(carrier.id, carrier.name, 'temp')}
+                        >
+                          Link as Temp
+                        </Button>
+                      </div>
                     </TableCell>
                   )}
+
                 </TableRow>
               ))}
             </TableBody>
