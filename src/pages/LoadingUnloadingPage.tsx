@@ -762,7 +762,8 @@ const LoadingUnloadingPage = () => {
           deliveryDriverName: deliveryDriverName,
           isInStorage: orderAllocations.length > 0,
           scheduledDeliveryDate: order.scheduledDeliveryDate,
-          hasBeenCollected: hasBeenCollected(order)
+          hasBeenCollected: hasBeenCollected(order),
+          deliveryTimeslot: order.deliveryTimeslot
         };
       });
 
