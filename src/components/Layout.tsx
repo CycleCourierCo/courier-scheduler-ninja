@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, PoundSterling, Megaphone, Sparkles, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare, BookOpen, Store, Route as RouteIcon, ClipboardList, ClipboardCheck, Lock, Boxes } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, PoundSterling, Megaphone, Sparkles, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare, BookOpen, Store, Route as RouteIcon, ClipboardList, ClipboardCheck, Lock, Boxes, KanbanSquare } from "lucide-react";
 import NoticeBanner from "./NoticeBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
   {
     label: "Operations",
     items: [
+      { to: "/project-management", label: "Project Management", icon: KanbanSquare },
       { to: "/scheduling", label: "Job Scheduling", icon: Calendar },
       { to: "/ai-routing", label: "AI Routing", icon: Sparkles },
       { to: "/dispatch/orders", label: "Dispatch Orders", icon: ClipboardList },
@@ -124,7 +125,8 @@ const Layout: React.FC<LayoutProps> = ({
   const isTimeslipAdmin = hasRole(userProfile, 'timeslip_admin');
   const isCsAgent = hasRole(userProfile, 'cs_agent');
   const { isAllowedKey, allowedPages } = useRoutePermissions(getRoles(userProfile));
-  const isInternalStaff = isAdmin || isLoader || isRoutePlanner || isSales || isDriver || isMechanic || isTimeslipAdmin || isCsAgent;
+  const isProjectManager = hasRole(userProfile, 'project_manager');
+  const isInternalStaff = isAdmin || isLoader || isRoutePlanner || isSales || isDriver || isMechanic || isTimeslipAdmin || isCsAgent || isProjectManager;
 
 
   // Only suppress general nav for users whose ONLY responsibilities are loader/mechanic/timeslip_admin/cs_agent

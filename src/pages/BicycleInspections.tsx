@@ -16,7 +16,7 @@ import StatusBadge from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 import DashboardHeader from "@/components/DashboardHeader";
-import MyTasksPanel from "@/components/tasks/MyTasksPanel";
+
 import { useTasks } from "@/hooks/useTasks";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -226,10 +226,6 @@ const EMPTY_ISSUE: IssueEntry = {
 const BicycleInspections = () => {
   const { user, userProfile } = useAuth();
   const queryClient = useQueryClient();
-  const { data: myActiveTasks = [] } = useTasks({ assignee: "mine", userId: user?.id, status: "active" });
-  const myOverdueTasks = myActiveTasks.filter(
-    (t) => t.due_date && new Date(t.due_date) < new Date(new Date().toDateString())
-  ).length;
 
   const isAdmin = hasRole(userProfile, "admin");
   const isMechanic = hasRole(userProfile, "mechanic");
@@ -3003,14 +2999,6 @@ const BicycleInspections = () => {
                   )}
                 </TabsTrigger>
               )}
-              <TabsTrigger value="my-tasks" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
-                My Tasks
-                {myActiveTasks.length > 0 && (
-                  <Badge variant={myOverdueTasks > 0 ? "destructive" : "secondary"} className="ml-1">
-                    {myActiveTasks.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
               <TabsTrigger value="schedule" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Schedule
 
@@ -3124,9 +3112,6 @@ const BicycleInspections = () => {
               <WorkshopScheduleTab canManage={isAdmin} />
             </TabsContent>
 
-            <TabsContent value="my-tasks" className="space-y-4">
-              <MyTasksPanel title="My tasks" />
-            </TabsContent>
 
           </Tabs>
         )}

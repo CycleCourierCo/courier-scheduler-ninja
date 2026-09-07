@@ -29,6 +29,11 @@ export async function listTasks(filters: TaskFilters = {}): Promise<Task[]> {
   if (filters.linkedOrderId) q = q.eq('linked_order_id', filters.linkedOrderId);
   if (filters.linkedConversationId) q = q.eq('linked_conversation_id', filters.linkedConversationId);
 
+  if (filters.category && filters.category !== 'all') q = q.eq('category', filters.category);
+  if (filters.unplanned) q = q.is('planned_date', null);
+  if (filters.plannedFrom) q = q.gte('planned_date', filters.plannedFrom);
+  if (filters.plannedTo) q = q.lte('planned_date', filters.plannedTo);
+
   if (filters.due === 'overdue') q = q.lt('due_date', new Date().toISOString()).not('status', 'in', '(done,cancelled)');
   else if (filters.due === 'today') {
     const start = new Date(); start.setHours(0,0,0,0);
@@ -67,6 +72,8 @@ export interface CreateTaskInput {
   assignee_id?: string | null;
   linked_order_id?: string | null;
   linked_conversation_id?: string | null;
+  category?: string | null;
+  planned_date?: string | null;
 }
 
 /** Fire-and-forget assignment email — never blocks or fails the caller. */
@@ -85,6 +92,8 @@ export async function createTask(input: CreateTaskInput, createdBy: string): Pro
     assignee_id: input.assignee_id ?? null,
     linked_order_id: input.linked_order_id ?? null,
     linked_conversation_id: input.linked_conversation_id ?? null,
+    category: input.category ?? null,
+    planned_date: input.planned_date ?? null,
     created_by: createdBy,
     status: 'open',
   };
