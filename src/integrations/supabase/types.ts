@@ -2092,6 +2092,54 @@ export type Database = {
           },
         ]
       }
+      inspection_comments: {
+        Row: {
+          author_id: string
+          author_name: string
+          comment: string
+          created_at: string
+          id: string
+          inspection_id: string
+          order_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          author_name: string
+          comment: string
+          created_at?: string
+          id?: string
+          inspection_id: string
+          order_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          author_name?: string
+          comment?: string
+          created_at?: string
+          id?: string
+          inspection_id?: string
+          order_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_comments_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "bicycle_inspections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_comments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inspection_issues: {
         Row: {
           billing_party: string
@@ -3103,6 +3151,8 @@ export type Database = {
           guaranteed_delivery_marked_by_name: string | null
           guaranteed_delivery_note: string | null
           guaranteed_delivery_payer: string | null
+          held_by_driver_at: string | null
+          held_by_driver_name: string | null
           id: string
           is_bike_swap: boolean | null
           is_box_my_bike: boolean
@@ -3216,6 +3266,8 @@ export type Database = {
           guaranteed_delivery_marked_by_name?: string | null
           guaranteed_delivery_note?: string | null
           guaranteed_delivery_payer?: string | null
+          held_by_driver_at?: string | null
+          held_by_driver_name?: string | null
           id?: string
           is_bike_swap?: boolean | null
           is_box_my_bike?: boolean
@@ -3329,6 +3381,8 @@ export type Database = {
           guaranteed_delivery_marked_by_name?: string | null
           guaranteed_delivery_note?: string | null
           guaranteed_delivery_payer?: string | null
+          held_by_driver_at?: string | null
+          held_by_driver_name?: string | null
           id?: string
           is_bike_swap?: boolean | null
           is_box_my_bike?: boolean
@@ -4486,9 +4540,78 @@ export type Database = {
           },
         ]
       }
+      task_recurrences: {
+        Row: {
+          active: boolean
+          assignee_id: string | null
+          assignee_role: Database["public"]["Enums"]["user_role"] | null
+          category: string | null
+          created_at: string
+          created_by: string | null
+          days_of_week: number[]
+          description: string | null
+          end_date: string | null
+          frequency: string
+          id: string
+          interval_n: number
+          last_generated_on: string | null
+          priority: Database["public"]["Enums"]["task_priority"]
+          start_date: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          assignee_id?: string | null
+          assignee_role?: Database["public"]["Enums"]["user_role"] | null
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          days_of_week?: number[]
+          description?: string | null
+          end_date?: string | null
+          frequency?: string
+          id?: string
+          interval_n?: number
+          last_generated_on?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          start_date?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          assignee_id?: string | null
+          assignee_role?: Database["public"]["Enums"]["user_role"] | null
+          category?: string | null
+          created_at?: string
+          created_by?: string | null
+          days_of_week?: number[]
+          description?: string | null
+          end_date?: string | null
+          frequency?: string
+          id?: string
+          interval_n?: number
+          last_generated_on?: string | null
+          priority?: Database["public"]["Enums"]["task_priority"]
+          start_date?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_recurrences_assignee_id_fkey"
+            columns: ["assignee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tasks: {
         Row: {
           assignee_id: string | null
+          category: string | null
           completed_at: string | null
           created_at: string
           created_by: string | null
@@ -4497,13 +4620,16 @@ export type Database = {
           id: string
           linked_conversation_id: string | null
           linked_order_id: string | null
+          planned_date: string | null
           priority: Database["public"]["Enums"]["task_priority"]
+          recurrence_id: string | null
           status: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at: string
         }
         Insert: {
           assignee_id?: string | null
+          category?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -4512,13 +4638,16 @@ export type Database = {
           id?: string
           linked_conversation_id?: string | null
           linked_order_id?: string | null
+          planned_date?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
+          recurrence_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at?: string
         }
         Update: {
           assignee_id?: string | null
+          category?: string | null
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
@@ -4527,7 +4656,9 @@ export type Database = {
           id?: string
           linked_conversation_id?: string | null
           linked_order_id?: string | null
+          planned_date?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
+          recurrence_id?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title?: string
           updated_at?: string
@@ -5679,6 +5810,7 @@ export type Database = {
       }
       invoke_backfill_shipday_jobs: { Args: never; Returns: undefined }
       invoke_fuel_finder_refresh: { Args: never; Returns: undefined }
+      invoke_generate_recurring_tasks: { Args: never; Returns: undefined }
       invoke_generate_timeslips: { Args: never; Returns: undefined }
       invoke_internal_report: { Args: { p_report: string }; Returns: undefined }
       invoke_process_scheduled_announcements: {
@@ -5923,6 +6055,7 @@ export type Database = {
         | "cs_agent"
         | "fleet_manager"
         | "tech"
+        | "project_manager"
       vehicle_service_position:
         | "front_left"
         | "front_right"
@@ -6189,6 +6322,7 @@ export const Constants = {
         "cs_agent",
         "fleet_manager",
         "tech",
+        "project_manager",
       ],
       vehicle_service_position: [
         "front_left",

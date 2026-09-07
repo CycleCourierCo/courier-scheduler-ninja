@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -148,9 +149,12 @@ export const PendingStorageAllocation = ({
   const collectedByDriver = collectedBikes.reduce((groups, bike) => {
     // Check if bike was previously loaded onto a van (has timestamp = was on a van before)
     const wasLoadedOntoVan = !!bike.loaded_onto_van_at;
-    
+
     let driverName: string;
-    if (wasLoadedOntoVan && bike.delivery_driver_name) {
+    if (bike.held_by_driver_name) {
+      // Failed delivery: the driver who failed it still has the bike
+      driverName = bike.held_by_driver_name;
+    } else if (wasLoadedOntoVan && bike.delivery_driver_name) {
       // Bike was unloaded from delivery van - group by delivery driver (who has it physically)
       driverName = bike.delivery_driver_name;
     } else {
@@ -338,6 +342,16 @@ export const PendingStorageAllocation = ({
                             {remainingToAllocate} remaining to allocate
                           </Badge>
                           {(() => {
+                            if (bike.held_by_driver_name) {
+                              const heldAt = bike.held_by_driver_at
+                                ? ` ${format(new Date(bike.held_by_driver_at), 'd MMM')}`
+                                : '';
+                              return (
+                                <Badge variant="active" className="text-xs">
+                                  In {bike.held_by_driver_name} Van – failed delivery{heldAt}
+                                </Badge>
+                              );
+                            }
                             const collectionDriverName = getCompletedDriverName(bike, 'pickup');
                             if (collectionDriverName) {
                               return (

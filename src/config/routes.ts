@@ -4,7 +4,7 @@ import {
   Home, Package, Package2, Upload, Truck, FileText, PoundSterling, Calendar, Sparkles,
   ClipboardList, ClipboardCheck, Route as RouteIcon, Warehouse, Clock, Wrench, Car, Fuel, ShieldAlert, Boxes,
   BarChart3, TrendingUp, Inbox, CheckSquare, Megaphone, Mail, BookOpen, User, Users,
-  Shield, CalendarOff, Key, Webhook, Store, Lock,
+  Shield, CalendarOff, Key, Webhook, Store, Lock, KanbanSquare,
 } from "lucide-react";
 
 export type AppRouteSection =
@@ -107,6 +107,8 @@ export const APP_ROUTES: AppRoute[] = [
   { key: "tasks", path: "/tasks", label: "Tasks", section: "Comms", icon: CheckSquare,
     prefixes: ["/tasks/"],
     defaultRoles: ["route_planner", "sales", "loader", "mechanic", "driver", "timeslip_admin", "cs_agent", "fleet_manager", "tech"] },
+  { key: "project-management", path: "/project-management", label: "Project Management", section: "Operations", icon: KanbanSquare,
+    defaultRoles: ["project_manager"] },
   { key: "notices", path: "/notices", label: "Notice Bars", section: "Comms", icon: Megaphone,
     defaultRoles: ["sales"] },
   { key: "emails", path: "/emails", label: "Announcement Emails", section: "Comms", icon: Mail,
@@ -144,7 +146,7 @@ export const ROUTE_SECTIONS: AppRouteSection[] =
 /** Roles that can be granted page access (admin excluded — always full access) */
 export const ASSIGNABLE_PERMISSION_ROLES: UserRole[] = [
   "route_planner", "sales", "loader", "mechanic", "driver",
-  "timeslip_admin", "cs_agent", "fleet_manager", "tech", "b2b_customer",
+  "timeslip_admin", "cs_agent", "fleet_manager", "tech", "project_manager", "b2b_customer",
 ];
 
 /** Resolve a pathname to a route definition */

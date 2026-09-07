@@ -13,6 +13,7 @@ import { searchOrdersForLink, fetchOrdersByIds } from "@/services/customerServic
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { TASK_PRIORITIES, TASK_STATUSES, type Task } from "@/types/task";
+import { TASK_CATEGORIES } from "@/constants/taskCategories";
 import { Loader2, X } from "lucide-react";
 
 interface Props {
@@ -25,6 +26,8 @@ interface Props {
   defaultConversationId?: string | null;
   defaultTitle?: string;
   defaultDescription?: string;
+  defaultPlannedDate?: string | null;
+  defaultCategory?: string | null;
   onSaved?: (task: Task | null) => void;
 }
 
@@ -35,7 +38,7 @@ const schema = z.object({
 
 const TaskDialog: React.FC<Props> = ({
   open, onOpenChange, task, defaultOrderId = null, defaultConversationId = null,
-  defaultTitle = "", defaultDescription = "", onSaved,
+  defaultTitle = "", defaultDescription = "", defaultPlannedDate = null, defaultCategory = null, onSaved,
 }) => {
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -48,6 +51,8 @@ const TaskDialog: React.FC<Props> = ({
   const [status, setStatus] = useState<Task['status']>('open');
   const [assigneeId, setAssigneeId] = useState<string>('');
   const [dueDate, setDueDate] = useState<string>('');
+  const [category, setCategory] = useState<string>(defaultCategory || '');
+  const [plannedDate, setPlannedDate] = useState<string>(defaultPlannedDate || '');
   const [linkedOrderId, setLinkedOrderId] = useState<string | null>(defaultOrderId);
   const [linkedOrderLabel, setLinkedOrderLabel] = useState<string>('');
   const [orderQuery, setOrderQuery] = useState('');
@@ -63,6 +68,8 @@ const TaskDialog: React.FC<Props> = ({
       setStatus(task.status);
       setAssigneeId(task.assignee_id || '');
       setDueDate(task.due_date ? task.due_date.slice(0, 16) : '');
+      setCategory(task.category || '');
+      setPlannedDate(task.planned_date || '');
       setLinkedOrderId(task.linked_order_id);
     } else {
       setTitle(defaultTitle);
@@ -71,11 +78,13 @@ const TaskDialog: React.FC<Props> = ({
       setStatus('open');
       setAssigneeId('');
       setDueDate('');
+      setCategory(defaultCategory || '');
+      setPlannedDate(defaultPlannedDate || '');
       setLinkedOrderId(defaultOrderId);
     }
     setOrderQuery('');
     setOrderResults([]);
-  }, [open, task, defaultTitle, defaultDescription, defaultOrderId]);
+  }, [open, task, defaultTitle, defaultDescription, defaultOrderId, defaultPlannedDate, defaultCategory]);
 
   useEffect(() => {
     if (!linkedOrderId) { setLinkedOrderLabel(''); return; }
@@ -105,6 +114,8 @@ const TaskDialog: React.FC<Props> = ({
         assignee_id: assigneeId || null,
         linked_order_id: linkedOrderId,
         linked_conversation_id: isEdit ? task!.linked_conversation_id : defaultConversationId,
+        category: category || null,
+        planned_date: plannedDate || null,
       };
       let result: Task | null = null;
       if (isEdit && task) {
@@ -167,6 +178,20 @@ const TaskDialog: React.FC<Props> = ({
                   {TASK_PRIORITIES.map(p => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label>Service / area</Label>
+              <Select value={category || 'none'} onValueChange={v => setCategory(v === 'none' ? '' : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Uncategorised</SelectItem>
+                  {TASK_CATEGORIES.map(c => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Planned day</Label>
+              <Input type="date" value={plannedDate} onChange={e => setPlannedDate(e.target.value)} />
             </div>
             {isEdit && (
               <div>

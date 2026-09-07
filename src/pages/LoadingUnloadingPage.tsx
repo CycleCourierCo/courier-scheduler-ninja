@@ -11,7 +11,7 @@ import { PendingStorageAllocation } from "@/components/loading/PendingStorageAll
 import { BikeSearchSection } from "@/components/loading/BikeSearchSection";
 import { BikesInStorage } from "@/components/loading/BikesInStorage";
 import { RemoveBikesDialog } from "@/components/loading/RemoveBikesDialog";
-import MyTasksPanel from "@/components/tasks/MyTasksPanel";
+
 
 import { getOrders, getOrdersForLoading, getOrdersByScheduledDate } from "@/services/orderService";
 import { Order } from "@/types/order";
@@ -283,7 +283,12 @@ const LoadingUnloadingPage = () => {
 
       const { error } = await supabase
         .from('orders')
-        .update({ storage_locations: allocationsForDb })
+        .update({
+          storage_locations: allocationsForDb,
+          // Bike is now in a bay, so no driver is holding it
+          held_by_driver_name: null,
+          held_by_driver_at: null,
+        })
         .eq('id', orderId);
 
       if (error) {
@@ -328,6 +333,8 @@ const LoadingUnloadingPage = () => {
       if (updatedAllocations.length === 0) {
         updateData.loaded_onto_van = true;
         updateData.loaded_onto_van_at = new Date().toISOString();
+        updateData.held_by_driver_name = null;
+        updateData.held_by_driver_at = null;
       }
 
       const { error } = await supabase
@@ -364,6 +371,9 @@ const LoadingUnloadingPage = () => {
         loaded_onto_van: true,
         loaded_onto_van_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        // Loaded again, so any "held after failed delivery" marker no longer applies
+        held_by_driver_name: null,
+        held_by_driver_at: null,
         // Only clear storage locations if there are any
         ...(orderAllocations.length > 0 && { storage_locations: null })
       };
@@ -729,8 +739,10 @@ const LoadingUnloadingPage = () => {
       const bikesNeedingLoadingData = bikesForDate.map(order => {
         const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
         
-        // Get both collection and delivery driver names from order columns
-        const collectionDriverName = order.collection_driver_name || null;
+        // Who physically has the bike right now: after a failed delivery the
+        // driver who failed it keeps it, otherwise it's the collecting driver.
+        const collectionDriverName =
+          order.held_by_driver_name || order.collection_driver_name || null;
         const deliveryDriverName = order.delivery_driver_name || 'Unassigned Driver';
 
         return {
@@ -750,7 +762,8 @@ const LoadingUnloadingPage = () => {
           deliveryDriverName: deliveryDriverName,
           isInStorage: orderAllocations.length > 0,
           scheduledDeliveryDate: order.scheduledDeliveryDate,
-          hasBeenCollected: hasBeenCollected(order)
+          hasBeenCollected: hasBeenCollected(order),
+          deliveryTimeslot: order.deliveryTimeslot
         };
       });
 
@@ -1226,10 +1239,6 @@ const LoadingUnloadingPage = () => {
           </div>
         </div>
 
-        {/* My tasks */}
-        <div className="mb-6 sm:mb-8">
-          <MyTasksPanel />
-        </div>
 
         {/* Storage Unit Layout */}
 

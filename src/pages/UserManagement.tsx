@@ -148,7 +148,7 @@ const UserManagement: React.FC = () => {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!newUser.email || !newUser.password || !newUser.name) {
       toast.error("Fill in the name, email and role before creating this user.");
       return;
@@ -156,87 +156,53 @@ const UserManagement: React.FC = () => {
 
     setCreating(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: newUser.email,
-        password: newUser.password,
-        options: {
-          data: {
-            name: newUser.name,
-          },
+      // Everything happens server-side so the admin's own session is never disturbed.
+      const { data, error } = await supabase.functions.invoke('create-driver-user', {
+        body: {
+          name: newUser.name,
+          email: newUser.email,
+          password: newUser.password,
+          role: newUser.role,
+          phone: newUser.phone,
+          hourly_rate: newUser.hourly_rate,
+          workshop_hourly_rate: newUser.workshop_hourly_rate,
+          licence_number: newUser.licence_number,
+          licence_expiry: newUser.licence_expiry,
         },
       });
 
       if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
 
-      if (data.user) {
-        const userId = data.user.id;
+      const userId = (data as any)?.userId as string | undefined;
+      const warnings = ((data as any)?.warnings as string[] | undefined) || [];
+      const shipday = (data as any)?.shipday;
 
-        // Set the user's role using the edge function
-        const { error: roleError } = await supabase.functions.invoke('manage-user-roles', {
-          body: { action: 'set', userId, role: newUser.role }
-        });
-
-        if (roleError) throw roleError;
-
-        if (newUser.role === 'driver') {
-          const licencePaths = await uploadLicenceFiles(userId);
-
-          const updates: Record<string, any> = {
-            phone: newUser.phone.trim() || null,
-            hourly_rate: newUser.hourly_rate === '' ? null : parseFloat(newUser.hourly_rate),
-            workshop_hourly_rate: newUser.workshop_hourly_rate === '' ? null : parseFloat(newUser.workshop_hourly_rate),
-            licence_number: newUser.licence_number.trim() || null,
-            licence_expiry: newUser.licence_expiry || null,
-            ...licencePaths,
-          };
-          if (Object.keys(licencePaths).length > 0) {
-            updates.licence_updated_at = new Date().toISOString();
-          }
-
-          // Create the two Shipday driver records (main + Temp)
-          try {
-            const { data: carrierData, error: carrierError } = await supabase.functions.invoke('create-shipday-carrier', {
-              body: { name: newUser.name, email: newUser.email, phone: newUser.phone },
-            });
-            if (carrierError) throw carrierError;
-
-            const main = (carrierData as any)?.main;
-            const temp = (carrierData as any)?.temp;
-
-            if (main?.id) {
-              updates.shipday_driver_id = String(main.id);
-              updates.shipday_driver_name = main.name;
-            }
-            if (temp?.id) {
-              updates.shipday_temp_driver_id = String(temp.id);
-              updates.shipday_temp_driver_name = temp.name;
-            }
-
-            if (main?.id && temp?.id) {
-              toast.success(`Created "${main.name}" and "${temp.name}" in Shipday`);
-            } else {
-              const detail = (carrierData as any)?.mainError || (carrierData as any)?.tempError;
-              toast.warning(`Some Shipday driver records weren't created${detail ? `: ${detail}` : ''}. Add them in Shipday and link them from the carriers list.`);
-            }
-          } catch (shipdayErr: any) {
-            console.error("Shipday driver creation failed:", shipdayErr);
-            toast.warning("The user was created, but adding them to Shipday failed. Add them in Shipday and link them from the carriers list.");
-          }
-
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .update(updates)
-            .eq('id', userId);
-          if (profileError) {
-            console.error("Failed to save driver details:", profileError);
-            toast.error("The user was created, but their pay and licence details didn't save. Edit them from the list.");
+      if (userId && newUser.role === 'driver') {
+        const licencePaths = await uploadLicenceFiles(userId);
+        if (Object.keys(licencePaths).length > 0) {
+          const { error: attachError } = await supabase.functions.invoke('create-driver-user', {
+            body: { action: 'attachLicence', userId, paths: licencePaths },
+          });
+          if (attachError) {
+            console.error("Saving licence document locations failed:", attachError);
+            toast.error("The licence files uploaded, but weren't linked to the driver. Re-upload them from their Licence tab.");
           }
         }
 
-        toast.success("User created successfully");
-        resetNewUser();
-        fetchUsers();
+        if (shipday?.main?.id && shipday?.temp?.id) {
+          toast.success(`Created "${shipday.main.name}" and "${shipday.temp.name}" in Shipday`);
+        }
       }
+
+      if (warnings.length > 0) {
+        toast.warning(`User created, but: ${warnings.join('; ')}`);
+      } else {
+        toast.success("User created successfully");
+      }
+
+      resetNewUser();
+      fetchUsers();
     } catch (error: any) {
       console.error("Error creating user:", error);
       toast.error(error.message || "Couldn't create this user. Check the details and try again.");
@@ -244,6 +210,7 @@ const UserManagement: React.FC = () => {
       setCreating(false);
     }
   };
+
 
   const handleRoleChange = async (userId: string, newRole: UserRole) => {
     try {
@@ -667,8 +634,8 @@ const UserManagement: React.FC = () => {
         <ShipdayCarriersDialog
           open={carriersDialogOpen}
           onOpenChange={setCarriersDialogOpen}
-          onLinkCarrier={async (carrierId, carrierName) => {
-            const driverName = prompt(`Enter the driver name to link carrier "${carrierName}" (ID: ${carrierId}) to:`);
+          onLinkCarrier={async (carrierId, carrierName, slot) => {
+            const driverName = prompt(`Enter the driver name to link carrier "${carrierName}" (ID: ${carrierId}) to${slot === 'temp' ? ' as their Temp entry' : ''}:`);
             if (!driverName) return;
             const driver = users.find(u => u.name?.toLowerCase().includes(driverName.toLowerCase()) && u.role === 'driver');
             if (!driver) {
@@ -676,18 +643,24 @@ const UserManagement: React.FC = () => {
               return;
             }
             try {
-              const { error } = await supabase
+              const updates = slot === 'temp'
+                ? { shipday_temp_driver_id: String(carrierId), shipday_temp_driver_name: carrierName }
+                : { shipday_driver_id: String(carrierId), shipday_driver_name: carrierName };
+              const { data, error } = await supabase
                 .from('profiles')
-                .update({ shipday_driver_id: String(carrierId), shipday_driver_name: carrierName })
-                .eq('id', driver.id);
+                .update(updates)
+                .eq('id', driver.id)
+                .select('id');
               if (error) throw error;
-              toast.success(`Linked carrier ${carrierName} (${carrierId}) to ${driver.name}`);
+              if (!data?.length) throw new Error('No matching driver record was updated');
+              toast.success(`Linked ${carrierName} (${carrierId}) to ${driver.name}${slot === 'temp' ? ' as Temp' : ''}`);
               fetchUsers();
             } catch (error) {
               console.error("Error linking carrier:", error);
               toast.error("Couldn't link this Shipday carrier to the driver. Check the name matches and try again.");
             }
           }}
+
         />
       </div>
     </Layout>

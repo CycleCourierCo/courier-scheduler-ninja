@@ -1,5 +1,9 @@
-import React, { useState } from "react";
-import { Box, Wrench, Ship, CalendarCheck, Receipt, Settings2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import InspectionComments from "@/components/inspections/InspectionComments";
+import { Box, Wrench, Ship, CalendarCheck, Receipt, Settings2, Trash2, ExternalLink } from "lucide-react";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +13,20 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { hasRole } from "@/lib/roles";
 
 import BoxMyBikeConversion from "./BoxMyBikeConversion";
 import BoxBuyerDetails from "./BoxBuyerDetails";
@@ -17,6 +34,7 @@ import NorthernIrelandEditor from "./NorthernIrelandEditor";
 import GuaranteedDeliveryCard from "./GuaranteedDeliveryCard";
 import {
   enableInspectionForOrder,
+  disableInspectionForOrder,
   createInspectionServiceInvoice,
 } from "@/services/inspectionService";
 import {
@@ -35,6 +53,53 @@ interface OrderServicesPanelProps {
 const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRefresh }) => {
   const [isEnabling, setIsEnabling] = useState(false);
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [inspectionId, setInspectionId] = useState<string | null>(null);
+  const { userProfile } = useAuth();
+  const navigate = useNavigate();
+  const isAdmin = hasRole(userProfile, "admin");
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!order.id || !order.needsInspection) {
+        setInspectionId(null);
+        return;
+      }
+      const { data, error } = await supabase
+        .from("bicycle_inspections")
+        .select("id")
+        .eq("order_id", order.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled) {
+        if (error) console.error("Error loading inspection for order:", error);
+        setInspectionId(data?.id ?? null);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [order.id, order.needsInspection]);
+
+
+
+  const handleRemove = async () => {
+    if (!order.id) return;
+    try {
+      setIsRemoving(true);
+      await disableInspectionForOrder(order.id);
+      await onRefresh();
+      toast.success("Inspection removed from this order");
+    } catch (error: any) {
+      console.error("Error removing inspection:", error);
+      toast.error(error?.message || "Failed to remove inspection");
+    } finally {
+      setIsRemoving(false);
+    }
+  };
 
   const handleEnable = async () => {
     if (!order.id) return;
@@ -89,6 +154,22 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
             {isEnabling ? "Enabling..." : "Inspect and Service"}
           </Button>
         )}
+        {order.needsInspection && (
+          <Button
+            onClick={() =>
+              navigate(
+                `/bicycle-inspections?q=${encodeURIComponent(order.trackingNumber || "")}`
+              )
+            }
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <ExternalLink className="h-4 w-4" />
+            View inspection
+          </Button>
+        )}
+
         {order.needsInspection && order.id && (
           <Button
             onClick={handleInvoice}
@@ -101,8 +182,41 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
             {isCreatingInvoice ? "Creating..." : "Create Inspection Invoice"}
           </Button>
         )}
+        {order.needsInspection && order.id && isAdmin && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={isRemoving}
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                {isRemoving ? "Removing..." : "Remove inspection"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remove inspection from this order?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This takes the bike off the workshop list. It's only possible while no
+                  workshop work has been recorded — if repair items or checks already exist,
+                  removal will be blocked.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleRemove}>Remove</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
+      {inspectionId && order.id && (
+        <InspectionComments inspectionId={inspectionId} orderId={order.id} />
+      )}
     </div>
+
   );
 };
 

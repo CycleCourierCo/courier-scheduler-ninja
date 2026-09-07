@@ -50,13 +50,32 @@ Deno.serve(async (req) => {
         : []
     );
 
+    // Keep the pickup ("restaurant") address per job so callers can spot jobs
+    // pointing at the wrong place (e.g. an inbound NI collection created against
+    // the Northern Irish address instead of the ferry hand-off point).
+    const pickupAddressById = new Map<string, string>();
+    if (Array.isArray(activeOrders)) {
+      for (const o of activeOrders) {
+        const addr =
+          o?.pickup?.address?.street ||
+          o?.pickup?.address ||
+          o?.restaurantAddress ||
+          o?.restaurant?.address ||
+          "";
+        pickupAddressById.set(String(o.orderId), typeof addr === "string" ? addr : JSON.stringify(addr));
+      }
+    }
+
     const results: Record<string, boolean> = {};
+    const pickupAddresses: Record<string, string> = {};
     for (const id of shipdayIds) {
       results[id] = activeIdSet.has(String(id));
+      const addr = pickupAddressById.get(String(id));
+      if (addr) pickupAddresses[id] = addr;
     }
 
     return new Response(
-      JSON.stringify({ results }),
+      JSON.stringify({ results, pickupAddresses }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {

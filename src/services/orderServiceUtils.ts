@@ -51,6 +51,8 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     storage_locations: dbOrder.storage_locations,
     loaded_onto_van: dbOrder.loaded_onto_van || false,
     loaded_onto_van_at: dbOrder.loaded_onto_van_at ? parseDate(dbOrder.loaded_onto_van_at) : undefined,
+    held_by_driver_name: dbOrder.held_by_driver_name || null,
+    held_by_driver_at: dbOrder.held_by_driver_at ? parseDate(dbOrder.held_by_driver_at) : undefined,
     collection_driver_name: dbOrder.collection_driver_name,
     delivery_driver_name: dbOrder.delivery_driver_name,
     needsInspection: dbOrder.needs_inspection || false,

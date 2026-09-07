@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2, Zap, Truck, ArrowUpDown, ChevronUp, ChevronDown, Ship } from "lucide-react";
+import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2, Zap, Truck, ArrowUpDown, ChevronUp, ChevronDown, Ship, AlertCircle } from "lucide-react";
 import { OrderData, ShipdayVerificationResults } from "@/pages/JobScheduling";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
@@ -95,6 +95,7 @@ interface RouteBuilderProps {
   onShowInspectedOnlyChange?: (value: boolean) => void;
   initialJobs?: { orderId: string; type: 'pickup' | 'delivery' }[];
   shipdayVerification?: ShipdayVerificationResults;
+  shipdayPickupAddresses?: Record<string, string>;
   isVerifyingShipday?: boolean;
   onReVerifyShipday?: () => void;
 }
@@ -1047,6 +1048,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   onShowInspectedOnlyChange,
   initialJobs,
   shipdayVerification = {},
+  shipdayPickupAddresses = {},
   isVerifyingShipday = false,
   onReVerifyShipday
 }) => {
@@ -2958,10 +2960,19 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
 
   // Helper to get Shipday status for a job
-  const getShipdayStatus = (order: OrderData, jobType: 'pickup' | 'delivery'): 'verified' | 'missing' | 'none' => {
+  const getShipdayStatus = (order: OrderData, jobType: 'pickup' | 'delivery'): 'verified' | 'missing' | 'none' | 'stale' => {
     const shipdayId = jobType === 'pickup' ? order.shipday_pickup_id : order.shipday_delivery_id;
     if (!shipdayId) return 'none';
-    if (shipdayVerification[shipdayId] === true) return 'verified';
+    if (shipdayVerification[shipdayId] === true) {
+      // Ferry legs must point at the Manchester hand-off point. Jobs created before
+      // the order was flagged as a ferry job still carry the customer's own address.
+      if (isFerryLeg(order, jobType)) {
+        const addr = (shipdayPickupAddresses[shipdayId] || '').toLowerCase();
+        const looksLikeFerry = addr.includes('m17') || addr.includes('ordinal') || addr.includes('trafford');
+        if (addr && !looksLikeFerry) return 'stale';
+      }
+      return 'verified';
+    }
     if (shipdayVerification[shipdayId] === false) return 'missing';
     return 'none'; // not yet checked
   };
@@ -3031,13 +3042,41 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     await doPush();
   };
 
-  const renderShipdayIcon = (status: 'verified' | 'missing' | 'none', orderId?: string, jobType?: 'pickup' | 'delivery') => {
+  const handleReplaceShipdayJob = async (e: React.MouseEvent, orderId: string, jobType: 'pickup' | 'delivery') => {
+    e.stopPropagation();
+    const key = `${orderId}-${jobType}`;
+    setSyncingShipdayIds(prev => new Set(prev).add(key));
+    try {
+      await createShipdayOrder(orderId, jobType, undefined, true);
+      toast.success('Rebuilt for the ferry hand-off address');
+      onReVerifyShipday?.();
+    } catch (err: any) {
+      toast.error(`Could not rebuild this job: ${err.message}`);
+    } finally {
+      setSyncingShipdayIds(prev => { const next = new Set(prev); next.delete(key); return next; });
+    }
+  };
+
+  const renderShipdayIcon = (status: 'verified' | 'missing' | 'none' | 'stale', orderId?: string, jobType?: 'pickup' | 'delivery') => {
     const syncKey = orderId && jobType ? `${orderId}-${jobType}` : '';
     if (syncKey && syncingShipdayIds.has(syncKey)) {
       return <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />;
     }
     if (isVerifyingShipday) return <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />;
     if (status === 'verified') return <CheckCircle className="h-3 w-3 text-green-600" />;
+    if (status === 'stale') {
+      return orderId && jobType ? (
+        <button
+          onClick={(e) => handleReplaceShipdayJob(e, orderId, jobType)}
+          className="hover:scale-125 transition-transform"
+          title="This job is at the wrong address — click to rebuild it at the ferry hand-off point"
+        >
+          <AlertCircle className="h-3 w-3 text-amber-600" />
+        </button>
+      ) : (
+        <AlertCircle className="h-3 w-3 text-amber-600" />
+      );
+    }
     if (status === 'missing' || status === 'none') {
       return orderId && jobType ? (
         <button
@@ -3299,7 +3338,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                           );
                         })()}
                         {/* Shipday Status */}
-                        <span title={shipdayStatus === 'verified' ? 'On Shipday' : shipdayStatus === 'missing' ? 'Missing from Shipday - click to add' : 'Not synced - click to add'}>
+                        {isFerryLeg(job.order, job.type) && (
+                          <Badge className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">
+                            Ferry hand-off
+                          </Badge>
+                        )}
+                        <span title={shipdayStatus === 'verified' ? 'On Shipday' : shipdayStatus === 'stale' ? 'Wrong address on Shipday - click to rebuild' : shipdayStatus === 'missing' ? 'Missing from Shipday - click to add' : 'Not synced - click to add'}>
                           {renderShipdayIcon(shipdayStatus, job.orderId, job.type)}
                         </span>
                       </div>

@@ -28,6 +28,7 @@ interface LoadingListRequest {
     isInStorage: boolean;
     scheduledDeliveryDate?: string;
     hasBeenCollected?: boolean;
+    deliveryTimeslot?: string;
   }[];
   driverPhoneNumbers?: Record<string, string>;
   driverEmails?: Record<string, string>;
@@ -42,6 +43,135 @@ function normalizeDateToYYYYMMDD(dateString: string): string {
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+// ===== Bay / position ordering helpers =====
+type BikeLike = { storageAllocations?: Array<{ bay: string; position: number }>; receiver?: { name?: string } };
+
+function sortAllocations(allocations?: Array<{ bay: string; position: number }>) {
+  return [...(allocations || [])].sort((a, b) => {
+    const bayCompare = String(a.bay || '').toUpperCase().localeCompare(String(b.bay || '').toUpperCase(), 'en');
+    if (bayCompare !== 0) return bayCompare;
+    return (Number(a.position) || 0) - (Number(b.position) || 0);
+  });
+}
+
+function formatBikeLocation(bike: BikeLike): string {
+  return sortAllocations(bike.storageAllocations).map(a => `Bay ${a.bay}${a.position}`).join(', ');
+}
+
+function compareByBayPosition(a: BikeLike, b: BikeLike): number {
+  const aAlloc = sortAllocations(a.storageAllocations)[0];
+  const bAlloc = sortAllocations(b.storageAllocations)[0];
+  if (aAlloc && bAlloc) {
+    const bayCompare = String(aAlloc.bay || '').toUpperCase().localeCompare(String(bAlloc.bay || '').toUpperCase(), 'en');
+    if (bayCompare !== 0) return bayCompare;
+    const positionCompare = (Number(aAlloc.position) || 0) - (Number(bAlloc.position) || 0);
+    if (positionCompare !== 0) return positionCompare;
+  } else if (aAlloc && !bAlloc) {
+    return -1;
+  } else if (!aAlloc && bAlloc) {
+    return 1;
+  }
+  return String(a.receiver?.name || '').localeCompare(String(b.receiver?.name || ''), 'en');
+}
+
+function compareByReceiverName(a: BikeLike, b: BikeLike): number {
+  return String(a.receiver?.name || '').localeCompare(String(b.receiver?.name || ''), 'en');
+}
+
+function sortByBayPosition<T extends BikeLike>(bikes: T[]): T[] {
+  return [...bikes].sort(compareByBayPosition);
+}
+
+function sortByReceiverName<T extends BikeLike>(bikes: T[]): T[] {
+  return [...bikes].sort(compareByReceiverName);
+}
+
+function sortBayKeys(keys: string[]): string[] {
+  const known = ['A', 'B', 'C', 'D'];
+  return [...keys].sort((a, b) => {
+    const ai = known.indexOf(a.toUpperCase());
+    const bi = known.indexOf(b.toUpperCase());
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+    return a.toUpperCase().localeCompare(b.toUpperCase(), 'en', { numeric: true });
+  });
+}
+
+// ===== Delivery / load order helpers =====
+function parseTimeslotStart(slot?: string | null): number | null {
+  if (!slot || typeof slot !== 'string') return null;
+  const cleaned = slot.trim().toLowerCase().replace(/\s+/g, ' ');
+  // "09:00-11:00" or "09:00 - 11:00"
+  let match = cleaned.match(/(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})/);
+  if (match) {
+    return Number(match[1]) * 60 + Number(match[2]);
+  }
+  // "9:00 AM - 11:00 AM" or "9am-11am"
+  match = cleaned.match(/(\d{1,2}):?(\d{2})?\s*(am|pm)\s*[-–]?\s*(\d{1,2}):?(\d{2})?\s*(am|pm)?/);
+  if (match) {
+    let hours = Number(match[1]);
+    const minutes = Number(match[2] || 0);
+    const meridiem = match[3];
+    if (meridiem === 'pm' && hours !== 12) hours += 12;
+    if (meridiem === 'am' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  }
+  // Just a single time like "09:00"
+  match = cleaned.match(/(\d{1,2}):(\d{2})/);
+  if (match) {
+    return Number(match[1]) * 60 + Number(match[2]);
+  }
+  return null;
+}
+
+type LoadOrderEntry = {
+  bike: LoadingListRequest['bikesNeedingLoading'][number];
+  source: string;
+};
+
+function buildLoadOrder(
+  categories: ReturnType<typeof categorizeBikesForDriver>
+): { entries: LoadOrderEntry[]; total: number; hasTimeslots: boolean } {
+  const entries: LoadOrderEntry[] = [];
+
+  for (const bike of categories.bikesToKeep) {
+    entries.push({ bike, source: 'already in your van' });
+  }
+  for (const bike of categories.bikesToCollect) {
+    entries.push({ bike, source: formatBikeLocation({ storageAllocations: bike.storageAllocations }) });
+  }
+  for (const [providerName, bikes] of Object.entries(categories.bikesByProvider)) {
+    for (const bike of bikes) {
+      entries.push({ bike, source: `from ${providerName}'s van` });
+    }
+  }
+
+  // Dedupe by order id just in case a bike appears in more than one category
+  const seen = new Set<string>();
+  const deduped = entries.filter(e => {
+    if (seen.has(e.bike.id)) return false;
+    seen.add(e.bike.id);
+    return true;
+  });
+
+  // Sort by delivery window start time ascending = drop order, then reverse to get load order
+  const dropOrder = [...deduped].sort((a, b) => {
+    const aStart = parseTimeslotStart(a.bike.deliveryTimeslot);
+    const bStart = parseTimeslotStart(b.bike.deliveryTimeslot);
+    if (aStart !== null && bStart !== null) return aStart - bStart;
+    if (aStart !== null) return -1;
+    if (bStart !== null) return 1;
+    return String(a.bike.receiver?.name || '').localeCompare(String(b.bike.receiver?.name || ''), 'en');
+  });
+
+  const loadOrder = dropOrder.reverse();
+  const hasTimeslots = loadOrder.some(e => parseTimeslotStart(e.bike.deliveryTimeslot) !== null);
+
+  return { entries: loadOrder, total: loadOrder.length, hasTimeslots };
+}
+
 
 function categorizeBikesForDriver(
   driverName: string,
@@ -128,13 +258,26 @@ function categorizeBikesForDriver(
   };
 }
 
+function formatLoadOrderEntryText(entry: LoadOrderEntry, loadIndex: number, total: number): string {
+  const bike = entry.bike;
+  const dropNumber = total - loadIndex;
+  const timeSlot = bike.deliveryTimeslot && bike.deliveryTimeslot.trim()
+    ? bike.deliveryTimeslot.trim()
+    : 'no time set';
+  let line = `${loadIndex + 1}. ${bike.bikeBrand} ${bike.bikeModel} - ${entry.source} - drop ${dropNumber} of ${total} - ${timeSlot} - ${bike.receiver.name}`;
+  if (bike.bikeQuantity > 1) {
+    line += ` (${bike.bikeQuantity} bikes)`;
+  }
+  return line + '\n';
+}
+
 function formatBikeEntry(bike: any, index: number, showLocation: boolean = true): string {
   let message = `${index + 1}. ${bike.bikeBrand} ${bike.bikeModel}\n`;
   
   if (showLocation) {
     let location = '';
     if (bike.isInStorage) {
-      location = bike.storageAllocations.map((a: any) => `Bay ${a.bay}${a.position}`).join(', ');
+      location = formatBikeLocation(bike);
     } else if (bike.collectionDriverName) {
       location = `With ${bike.collectionDriverName}`;
     } else {
@@ -159,7 +302,16 @@ function buildDriverMessage(
   date: string
 ): string {
   let message = `🚛 YOUR LOADING LIST\n\n📅 Date: ${date}\n\n👨‍💼 ${driverName}\n\n`;
-  
+
+  const loadOrder = buildLoadOrder(categories);
+  if (loadOrder.hasTimeslots && loadOrder.entries.length > 0) {
+    message += `📥 LOAD IN THIS ORDER (deepest first)\n\n`;
+    loadOrder.entries.forEach((entry, i) => {
+      message += formatLoadOrderEntryText(entry, i, loadOrder.total);
+    });
+    message += `\n---\n\n`;
+  }
+
   if (categories.bikesToKeep.length > 0) {
     message += `🔒 BIKES YOU NEED TO KEEP (${categories.bikesToKeep.length})\n`;
     message += `You collected these and will deliver them\n\n`;
@@ -195,7 +347,7 @@ function buildDriverMessage(
   
   if (categories.bikesToCollect.length > 0) {
     message += `🏢 BIKES TO COLLECT FROM DEPOT (${categories.bikesToCollect.length})\n\n`;
-    categories.bikesToCollect.forEach((bike, i) => {
+    sortByBayPosition(categories.bikesToCollect).forEach((bike, i) => {
       message += formatBikeEntry(bike, i, true);
     });
     message += '---\n\n';
@@ -247,8 +399,8 @@ function buildManagementEmailHtml(
     fromDepotHtml += `
       <div style="margin-bottom: 16px;">
         <div style="font-weight: bold; color: #1a1a1a; margin-bottom: 8px;">👨‍💼 ${driverName} (${bikes.length})</div>
-        ${bikes.map((bike, i) => {
-          const location = bike.storageAllocations.map(a => `Bay ${a.bay}${a.position}`).join(', ');
+        ${sortByBayPosition(bikes).map((bike, i) => {
+          const location = formatBikeLocation(bike);
           return `
             <div style="background: #f8f8f8; padding: 8px 12px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;">
               <div><strong>${i + 1}. ${bike.bikeBrand} ${bike.bikeModel}</strong></div>
@@ -268,7 +420,7 @@ function buildManagementEmailHtml(
     toDepotHtml += `
       <div style="margin-bottom: 16px;">
         <div style="font-weight: bold; color: #1a1a1a; margin-bottom: 8px;">👨‍💼 ${driverName} bringing in (${bikes.length})</div>
-        ${bikes.map((bike, i) => {
+        ${sortByReceiverName(bikes).map((bike, i) => {
           let reason = '';
           if (!bike.deliveryDriverName || bike.deliveryDriverName === 'Unassigned Driver') {
             reason = '⚠️ No delivery driver';
@@ -332,12 +484,41 @@ function buildManagementEmailHtml(
   `;
 }
 
+function formatLoadOrderEntryHtml(entry: LoadOrderEntry, loadIndex: number, total: number): string {
+  const bike = entry.bike;
+  const dropNumber = total - loadIndex;
+  const timeSlot = bike.deliveryTimeslot && bike.deliveryTimeslot.trim()
+    ? bike.deliveryTimeslot.trim()
+    : 'no time set';
+  return `
+    <div style="background: white; padding: 8px 12px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;">
+      <div><strong>${loadIndex + 1}. ${bike.bikeBrand} ${bike.bikeModel}</strong></div>
+      <div style="color: #666;">📍 ${entry.source}</div>
+      <div style="color: #666;">🚚 Drop ${dropNumber} of ${total} — ${timeSlot}</div>
+      <div style="color: #666;">📦 ${bike.receiver.name}</div>
+      <div style="color: #666;">🔢 ${bike.trackingNumber}</div>
+      ${bike.bikeQuantity > 1 ? `<div style="color: #666;">🚲 Quantity: ${bike.bikeQuantity}</div>` : ''}
+    </div>
+  `;
+}
+
 function buildDriverEmailHtml(
   driverName: string,
   categories: ReturnType<typeof categorizeBikesForDriver>,
   date: string
 ): string {
   const sections: string[] = [];
+
+  const loadOrder = buildLoadOrder(categories);
+  if (loadOrder.hasTimeslots && loadOrder.entries.length > 0) {
+    sections.push(`
+      <div style="background: #fff8e1; border: 2px solid #ffc107; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+        <h3 style="margin: 0 0 12px; color: #f57f17;">📥 LOAD IN THIS ORDER (deepest first)</h3>
+        <p style="margin: 0 0 12px; color: #666; font-size: 14px;">Load the last drop first so the first drop ends up nearest the doors</p>
+        ${loadOrder.entries.map((entry, i) => formatLoadOrderEntryHtml(entry, i, loadOrder.total)).join('')}
+      </div>
+    `);
+  }
 
   if (categories.bikesToKeep.length > 0) {
     sections.push(`
@@ -408,8 +589,8 @@ function buildDriverEmailHtml(
     sections.push(`
       <div style="background: #e8f5e9; border: 2px solid #4caf50; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
         <h3 style="margin: 0 0 12px; color: #2e7d32;">🏢 BIKES TO COLLECT FROM DEPOT (${categories.bikesToCollect.length})</h3>
-        ${categories.bikesToCollect.map((bike, i) => {
-          const location = bike.storageAllocations.map(a => `Bay ${a.bay}${a.position}`).join(', ');
+        ${sortByBayPosition(categories.bikesToCollect).map((bike, i) => {
+          const location = formatBikeLocation(bike);
           return `
             <div style="background: white; padding: 8px 12px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;">
               <div><strong>${i + 1}. ${bike.bikeBrand} ${bike.bikeModel}</strong></div>
@@ -488,15 +669,7 @@ function buildBayBreakdown(bikesFromDepot: LoadingListRequest['bikesNeedingLoadi
     byBay[r.bay].push(r);
   }
 
-  const bayOrder = ['A', 'B', 'C', 'D'];
-  const bayKeys = Object.keys(byBay).sort((a, b) => {
-    const ai = bayOrder.indexOf(a);
-    const bi = bayOrder.indexOf(b);
-    if (ai === -1 && bi === -1) return a.localeCompare(b);
-    if (ai === -1) return 1;
-    if (bi === -1) return -1;
-    return ai - bi;
-  });
+  const bayKeys = sortBayKeys(Object.keys(byBay));
 
   const bayEmoji: Record<string, string> = { A: '🅰️', B: '🅱️', C: '🇨', D: '🇩' };
 
@@ -505,7 +678,7 @@ function buildBayBreakdown(bikesFromDepot: LoadingListRequest['bikesNeedingLoadi
   let totalBikes = 0;
 
   for (const bay of bayKeys) {
-    const list = byBay[bay].sort((a, b) => a.position - b.position);
+    const list = [...byBay[bay]].sort((a, b) => (Number(a.position) || 0) - (Number(b.position) || 0));
     totalBikes += list.length;
     const emoji = bayEmoji[bay] || '📦';
 
@@ -734,8 +907,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     for (const [driverName, bikes] of Object.entries(fromDepotByDriver)) {
       managementMessage += `👨‍💼 ${driverName} (${bikes.length})\n`;
-      bikes.forEach((bike, i) => {
-        const location = bike.storageAllocations.map(a => `Bay ${a.bay}${a.position}`).join(', ');
+      sortByBayPosition(bikes).forEach((bike, i) => {
+        const location = formatBikeLocation(bike);
         managementMessage += `${i+1}. ${bike.bikeBrand} ${bike.bikeModel}\n`;
         managementMessage += `   📍 ${location}\n`;
         managementMessage += `   📦 ${bike.receiver.name}\n`;
@@ -761,7 +934,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     for (const [driverName, bikes] of Object.entries(toDepotByDriver)) {
       managementMessage += `👨‍💼 ${driverName} bringing in (${bikes.length})\n`;
-      bikes.forEach((bike, i) => {
+      sortByReceiverName(bikes).forEach((bike, i) => {
         let reason = '';
         if (!bike.deliveryDriverName || bike.deliveryDriverName === 'Unassigned Driver') {
           reason = '⚠️ No delivery driver';

@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
-import { isNorthernIrelandAddress } from "../_shared/northernIreland.ts";
+import { isFerryLeg, niDirectionOf } from "../_shared/northernIreland.ts";
 import { trackedFetch } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
@@ -192,6 +192,11 @@ serve(async (req) => {
       collection_confirmation_sent_at: string | null;
       delivery_confirmation_sent_at: string | null;
       is_northern_ireland: boolean | null;
+      ni_direction: string | null;
+      ni_inbound_status: string | null;
+      ni_inbound_received_at: string | null;
+      sender: any;
+      receiver?: any;
       foam_status: string | null;
       foam_pending_foaming_at: string | null;
       foam_delivered_to_ferry_at: string | null;
@@ -205,7 +210,7 @@ serve(async (req) => {
       const { data, error } = await admin
         .from("orders")
         .select(
-          "id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, delivery_confirmation_sent_at, is_northern_ireland, foam_status, foam_pending_foaming_at, foam_delivered_to_ferry_at, receiver"
+          "id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, delivery_confirmation_sent_at, is_northern_ireland, ni_direction, ni_inbound_status, ni_inbound_received_at, sender, foam_status, foam_pending_foaming_at, foam_delivered_to_ferry_at, receiver"
         )
         .or(
           `shipday_pickup_id.in.(${chunk.join(",")}),shipday_delivery_id.in.(${chunk.join(",")})`
@@ -263,10 +268,9 @@ serve(async (req) => {
         sStatus === "PICKED_UP"
       ) {
         event = "ORDER_COMPLETED";
-        const niFerryLeg =
-          !isPickup &&
-          (dbOrder.is_northern_ireland === true ||
-            isNorthernIrelandAddress((dbOrder as any).receiver?.address || (dbOrder as any).receiver));
+        // Direction-aware: the ferry hand-off is the DELIVERY leg outbound and the
+        // PICKUP leg inbound. An inbound delivery is an ordinary mainland delivery.
+        const niFerryLeg = isFerryLeg(dbOrder, isPickup) && !isPickup;
         newStatus = isPickup ? "collected" : niFerryLeg ? "delivered_to_ferry" : "delivered";
         description = isPickup
           ? "Driver has collected the bike"
@@ -377,6 +381,20 @@ serve(async (req) => {
         updateData.order_collected = true;
         updateData.order_delivered = true;
       }
+      // Inbound NI: collecting at the ferry hand-off means the partner has handed
+      // the bike over. Stages only move forward.
+      if (
+        niDirectionOf(dbOrder) === "inbound" &&
+        isPickup &&
+        (newStatus === "collected" || newStatus === "driver_to_delivery")
+      ) {
+        if (dbOrder.ni_inbound_status !== "collected_from_partner") {
+          updateData.ni_inbound_status = "collected_from_partner";
+        }
+        if (!dbOrder.ni_inbound_received_at) {
+          updateData.ni_inbound_received_at = nowIso;
+        }
+      }
       if (newStatus === "delivered_to_ferry") {
         updateData.order_collected = true;
         if (foamOrder && currentFoamStatus !== "delivered_to_ferry" && currentFoamStatus !== "delivered_ni") {
@@ -410,9 +428,13 @@ serve(async (req) => {
           updateData.delivery_timeslot = null;
           updateData.shipday_delivery_id = null;
           shipdayEvents.delivery_id = null;
-          // Failed delivery: bike is back off the van.
+          // Failed delivery: bike is back off the van, but the driver who
+          // failed it still physically has it — record them as the holder.
           updateData.loaded_onto_van = false;
           updateData.loaded_onto_van_at = null;
+          updateData.held_by_driver_name =
+            sOrder.carrier?.name || (dbOrder as any).delivery_driver_name || null;
+          updateData.held_by_driver_at = new Date().toISOString();
         }
         updateData.tracking_events = trackingEvents;
       }

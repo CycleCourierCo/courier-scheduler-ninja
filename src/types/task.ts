@@ -30,6 +30,9 @@ export interface Task {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
+  category?: string | null;
+  planned_date?: string | null;
+  recurrence_id?: string | null;
   assignee?: { id: string; name: string | null; email: string | null } | null;
   creator?: { id: string; name: string | null; email: string | null } | null;
 }
@@ -59,4 +62,39 @@ export interface TaskFilters {
   linkedConversationId?: string;
   search?: string;
   userId?: string;
+  category?: string | 'all';
+  /** Inclusive planned-date window (YYYY-MM-DD) */
+  plannedFrom?: string;
+  plannedTo?: string;
+  /** Only tasks with no planned day */
+  unplanned?: boolean;
+}
+
+export type RecurrenceFrequency = 'weekdays' | 'days_of_week' | 'weekly' | 'monthly';
+
+export const RECURRENCE_FREQUENCIES: { value: RecurrenceFrequency; label: string }[] = [
+  { value: 'weekdays', label: 'Every working day (Mon-Fri)' },
+  { value: 'days_of_week', label: 'Chosen days of the week' },
+  { value: 'weekly', label: 'Every N weeks' },
+  { value: 'monthly', label: 'Every N months' },
+];
+
+export interface TaskRecurrence {
+  id: string;
+  title: string;
+  description: string | null;
+  category: string | null;
+  priority: TaskPriority;
+  assignee_id: string | null;
+  assignee_role: string | null;
+  frequency: RecurrenceFrequency;
+  interval_n: number;
+  days_of_week: number[];
+  start_date: string;
+  end_date: string | null;
+  active: boolean;
+  last_generated_on: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
 }

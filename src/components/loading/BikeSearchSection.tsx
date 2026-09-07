@@ -19,7 +19,7 @@ interface BikeSearchSectionProps {
   onChangeLocation: (allocationId: string, newBay: string, newPosition: number) => void;
 }
 
-type LocationState = "pending" | "storage" | "van";
+type LocationState = "pending" | "storage" | "van" | "held";
 
 // Helper to extract collection date (pickup-leg completion) from tracking events
 const getCollectionDate = (order: Order | undefined): string | null => {
@@ -108,6 +108,7 @@ export const BikeSearchSection = ({
   const getState = (order: Order): LocationState => {
     if (order.loaded_onto_van) return "van";
     if (storageAllocations.some((a) => a.orderId === order.id)) return "storage";
+    if (order.held_by_driver_name) return "held";
     return "pending";
   };
 
@@ -269,6 +270,11 @@ export const BikeSearchSection = ({
                         {state === "van" && (
                           <Badge variant="success" className="text-xs">
                             <Truck className="h-3 w-3 mr-1" /> On Van
+                          </Badge>
+                        )}
+                        {state === "held" && (
+                          <Badge variant="secondary" className="text-xs">
+                            <Truck className="h-3 w-3 mr-1" /> In {order.held_by_driver_name} van – failed delivery
                           </Badge>
                         )}
                       </div>

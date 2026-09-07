@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearchParams } from "react-router-dom";
+
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
 import { formatDistanceToNowStrict } from "date-fns";
@@ -7,12 +9,14 @@ import { Wrench, CheckCircle, XCircle, AlertTriangle, Loader2, RotateCcw, X, Map
 import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
 import { getCollectionPhotos } from "@/utils/collectionPhotos";
 import { ChangeStorageLocationDialog } from "@/components/loading/ChangeStorageLocationDialog";
+import InspectionComments from "@/components/inspections/InspectionComments";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+
 import StatusBadge from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
 import DashboardHeader from "@/components/DashboardHeader";
-import MyTasksPanel from "@/components/tasks/MyTasksPanel";
+
 import { useTasks } from "@/hooks/useTasks";
 
 import { useAuth } from "@/contexts/AuthContext";
@@ -222,10 +226,6 @@ const EMPTY_ISSUE: IssueEntry = {
 const BicycleInspections = () => {
   const { user, userProfile } = useAuth();
   const queryClient = useQueryClient();
-  const { data: myActiveTasks = [] } = useTasks({ assignee: "mine", userId: user?.id, status: "active" });
-  const myOverdueTasks = myActiveTasks.filter(
-    (t) => t.due_date && new Date(t.due_date) < new Date(new Date().toDateString())
-  ).length;
 
   const isAdmin = hasRole(userProfile, "admin");
   const isMechanic = hasRole(userProfile, "mechanic");
@@ -263,7 +263,10 @@ const BicycleInspections = () => {
   const [storageDialogOrder, setStorageDialogOrder] = useState<any | null>(null);
   const [photoDialog, setPhotoDialog] = useState<{ title: string; urls: string[] } | null>(null);
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
+
   const [filters, setFilters] = useState<InspectionFilterState>({ ...EMPTY_INSPECTION_FILTERS });
 
   
@@ -1594,6 +1597,16 @@ const BicycleInspections = () => {
               <CardDescription className="break-words">
                 #{order.tracking_number} • {(order.sender as any)?.name} → {(order.receiver as any)?.name}
               </CardDescription>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 flex items-center gap-1"
+                onClick={() => navigate(`/orders/${order.id}`)}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                View order
+              </Button>
+
               {order.customer_order_number && (
                 <p className="text-xs text-muted-foreground mt-1 break-words">
                   Order #: <span className="font-medium">{order.customer_order_number}</span>
@@ -2825,7 +2838,16 @@ const BicycleInspections = () => {
             </div>
           )}
 
+          {inspection?.id && (
+            <InspectionComments
+              inspectionId={inspection.id}
+              orderId={order.id}
+              className="mt-4"
+            />
+          )}
+
         </CardContent>
+
       </Card>
     );
   };
@@ -2977,14 +2999,6 @@ const BicycleInspections = () => {
                   )}
                 </TabsTrigger>
               )}
-              <TabsTrigger value="my-tasks" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
-                My Tasks
-                {myActiveTasks.length > 0 && (
-                  <Badge variant={myOverdueTasks > 0 ? "destructive" : "secondary"} className="ml-1">
-                    {myActiveTasks.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
               <TabsTrigger value="schedule" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Schedule
 
@@ -3098,9 +3112,6 @@ const BicycleInspections = () => {
               <WorkshopScheduleTab canManage={isAdmin} />
             </TabsContent>
 
-            <TabsContent value="my-tasks" className="space-y-4">
-              <MyTasksPanel title="My tasks" />
-            </TabsContent>
 
           </Tabs>
         )}
