@@ -21,7 +21,7 @@ interface ShipdayCarrier {
 interface ShipdayCarriersDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onLinkCarrier?: (carrierId: number, carrierName: string) => void;
+  onLinkCarrier?: (carrierId: number, carrierName: string, slot: 'main' | 'temp') => void;
 }
 
 const ShipdayCarriersDialog: React.FC<ShipdayCarriersDialogProps> = ({ open, onOpenChange, onLinkCarrier }) => {
