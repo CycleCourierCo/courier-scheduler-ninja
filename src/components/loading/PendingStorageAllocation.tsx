@@ -341,6 +341,16 @@ export const PendingStorageAllocation = ({
                             {remainingToAllocate} remaining to allocate
                           </Badge>
                           {(() => {
+                            if (bike.held_by_driver_name) {
+                              const heldAt = bike.held_by_driver_at
+                                ? ` ${format(new Date(bike.held_by_driver_at), 'd MMM')}`
+                                : '';
+                              return (
+                                <Badge variant="active" className="text-xs">
+                                  In {bike.held_by_driver_name} Van – failed delivery{heldAt}
+                                </Badge>
+                              );
+                            }
                             const collectionDriverName = getCompletedDriverName(bike, 'pickup');
                             if (collectionDriverName) {
                               return (
