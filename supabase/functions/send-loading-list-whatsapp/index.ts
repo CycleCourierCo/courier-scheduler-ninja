@@ -809,7 +809,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     for (const [driverName, bikes] of Object.entries(toDepotByDriver)) {
       managementMessage += `👨‍💼 ${driverName} bringing in (${bikes.length})\n`;
-      bikes.forEach((bike, i) => {
+      sortByReceiverName(bikes).forEach((bike, i) => {
         let reason = '';
         if (!bike.deliveryDriverName || bike.deliveryDriverName === 'Unassigned Driver') {
           reason = '⚠️ No delivery driver';
