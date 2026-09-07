@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { initSentry, captureException } from "../_shared/sentry.ts";
-import { isNorthernIrelandAddress } from "../_shared/northernIreland.ts";
+import { isNorthernIrelandAddress, niDirectionOf, isFerryLeg } from "../_shared/northernIreland.ts";
 import { logInboundWebhook } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
@@ -91,7 +91,7 @@ serve(async (req) => {
     
     const { data: orders, error: fetchError } = await supabase
       .from("orders")
-      .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, is_northern_ireland, foam_status, foam_pending_foaming_at, foam_delivered_to_ferry_at, receiver")
+      .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, order_delivered, is_northern_ireland, ni_direction, ni_inbound_status, ni_inbound_received_at, sender, foam_status, foam_pending_foaming_at, foam_delivered_to_ferry_at, receiver")
       .or(
         isPickup 
           ? `shipday_pickup_id.eq.${shipdayOrderId}` 
@@ -105,7 +105,7 @@ serve(async (req) => {
       
       const { data: fallbackOrders, error: fallbackError } = await supabase
         .from("orders")
-        .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, is_northern_ireland, foam_status, foam_pending_foaming_at, foam_delivered_to_ferry_at, receiver")
+        .select("id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, order_delivered, is_northern_ireland, ni_direction, ni_inbound_status, ni_inbound_received_at, sender, foam_status, foam_pending_foaming_at, foam_delivered_to_ferry_at, receiver")
         .eq("tracking_number", baseOrderNumber)
         .limit(1);
         
@@ -162,10 +162,23 @@ serve(async (req) => {
     // not the final customer address. Their delivery leg completes as
     // "delivered_to_ferry" and the final delivery is confirmed manually
     // from the Foam My Bike board.
+    // Direction matters: outbound (mainland -> NI) hands over at the ferry point on
+    // the DELIVERY leg, inbound (NI -> mainland) is COLLECTED from the ferry point
+    // and then delivered normally on the mainland.
+    const niDirection = niDirectionOf(dbOrder);
     const isNorthernIreland =
+      niDirection !== null ||
       (dbOrder as any).is_northern_ireland === true ||
       isNorthernIrelandAddress((dbOrder as any).receiver?.address || (dbOrder as any).receiver);
-    const niFerryLeg = isNorthernIreland && isDelivery;
+    // Ferry hand-off leg for THIS webhook: delivery when outbound, pickup when inbound.
+    const niFerryLeg = isFerryLeg(dbOrder, isPickup);
+    const isInboundFerryPickup = niFerryLeg && isPickup;
+    const isInboundDelivery = niDirection === "inbound" && isDelivery;
+    console.log("NI leg decision", {
+      direction: niDirection,
+      leg: isPickup ? "pickup" : "delivery",
+      ferryLeg: niFerryLeg,
+    });
 
     // Map Shipday status to application OrderStatus based on event type
     let newStatus = dbOrder.status;
@@ -259,10 +272,12 @@ serve(async (req) => {
 
       if (isPickup) {
         newStatus = "collected";
-        statusDescription = "Driver has collected the bike";
+        statusDescription = isInboundFerryPickup
+          ? "Collected from our ferry partner in Manchester"
+          : "Driver has collected the bike";
       } else {
-        newStatus = niFerryLeg ? "delivered_to_ferry" : "delivered";
-        statusDescription = niFerryLeg
+        newStatus = (niFerryLeg && isDelivery) ? "delivered_to_ferry" : "delivered";
+        statusDescription = (niFerryLeg && isDelivery)
           ? "Delivered to Port - awaiting transport across the Irish Sea"
           : "Driver has delivered the bike";
       }
@@ -298,10 +313,12 @@ serve(async (req) => {
       if (!hasCompletionEvent) {
         if (isPickup) {
           newStatus = "collected";
-          statusDescription = "Bike collected (proof uploaded)";
+          statusDescription = isInboundFerryPickup
+            ? "Collected from our ferry partner in Manchester (proof uploaded)"
+            : "Bike collected (proof uploaded)";
         } else {
-          newStatus = niFerryLeg ? "delivered_to_ferry" : "delivered";
-          statusDescription = niFerryLeg
+          newStatus = (niFerryLeg && isDelivery) ? "delivered_to_ferry" : "delivered";
+          statusDescription = (niFerryLeg && isDelivery)
             ? "Delivered to Port - awaiting transport across the Irish Sea (proof uploaded)"
             : "Bike delivered (proof uploaded)";
         }
