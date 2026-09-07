@@ -2825,7 +2825,16 @@ const BicycleInspections = () => {
             </div>
           )}
 
+          {inspection?.id && (
+            <InspectionComments
+              inspectionId={inspection.id}
+              orderId={order.id}
+              className="mt-4"
+            />
+          )}
+
         </CardContent>
+
       </Card>
     );
   };
