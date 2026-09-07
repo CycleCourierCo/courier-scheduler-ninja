@@ -30,6 +30,7 @@ import NorthernIrelandEditor from "./NorthernIrelandEditor";
 import GuaranteedDeliveryCard from "./GuaranteedDeliveryCard";
 import {
   enableInspectionForOrder,
+  disableInspectionForOrder,
   createInspectionServiceInvoice,
 } from "@/services/inspectionService";
 import {
