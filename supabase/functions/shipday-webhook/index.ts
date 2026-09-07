@@ -637,7 +637,11 @@ serve(async (req) => {
     }
 
     // Northern Ireland: bike handed to the Irish Sea carrier — notify the receiver
-    if (newStatus === "delivered_to_ferry" && (event === "ORDER_COMPLETED" || event === "ORDER_POD_UPLOAD")) {
+    if (
+      newStatus === "delivered_to_ferry" &&
+      !isInboundDelivery &&
+      (event === "ORDER_COMPLETED" || event === "ORDER_POD_UPLOAD")
+    ) {
       try {
         console.log("Sending ferry-arrival email for order:", dbOrder.id);
         const ferryEmail = await supabase.functions.invoke("send-email", {
