@@ -28,6 +28,7 @@ interface LoadingListRequest {
     isInStorage: boolean;
     scheduledDeliveryDate?: string;
     hasBeenCollected?: boolean;
+    deliveryTimeslot?: string;
   }[];
   driverPhoneNumbers?: Record<string, string>;
   driverEmails?: Record<string, string>;
