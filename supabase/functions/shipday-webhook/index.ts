@@ -473,6 +473,21 @@ serve(async (req) => {
       updateData.order_collected = true;  // Must be collected to be delivered
       updateData.order_delivered = true;
     }
+    // Inbound NI: the collection at the ferry hand-off point means our ferry
+    // partner has handed the bike over, so advance the inbound stage. Stages only
+    // ever move forward.
+    if (
+      isInboundFerryPickup &&
+      (newStatus === 'collected' || newStatus === 'driver_to_delivery')
+    ) {
+      if ((dbOrder as any).ni_inbound_status !== 'collected_from_partner') {
+        updateData.ni_inbound_status = 'collected_from_partner';
+      }
+      if (!(dbOrder as any).ni_inbound_received_at) {
+        updateData.ni_inbound_received_at = nowIso;
+      }
+    }
+
     if (newStatus === 'delivered_to_ferry') {
       // Bike has reached the Irish Sea carrier but not the customer yet
       updateData.order_collected = true;
