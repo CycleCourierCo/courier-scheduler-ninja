@@ -148,9 +148,12 @@ export const PendingStorageAllocation = ({
   const collectedByDriver = collectedBikes.reduce((groups, bike) => {
     // Check if bike was previously loaded onto a van (has timestamp = was on a van before)
     const wasLoadedOntoVan = !!bike.loaded_onto_van_at;
-    
+
     let driverName: string;
-    if (wasLoadedOntoVan && bike.delivery_driver_name) {
+    if (bike.held_by_driver_name) {
+      // Failed delivery: the driver who failed it still has the bike
+      driverName = bike.held_by_driver_name;
+    } else if (wasLoadedOntoVan && bike.delivery_driver_name) {
       // Bike was unloaded from delivery van - group by delivery driver (who has it physically)
       driverName = bike.delivery_driver_name;
     } else {
