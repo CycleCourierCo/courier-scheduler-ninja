@@ -154,6 +154,22 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
             {isEnabling ? "Enabling..." : "Inspect and Service"}
           </Button>
         )}
+        {order.needsInspection && (
+          <Button
+            onClick={() =>
+              navigate(
+                `/bicycle-inspections?q=${encodeURIComponent(order.trackingNumber || "")}`
+              )
+            }
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <ExternalLink className="h-4 w-4" />
+            View inspection
+          </Button>
+        )}
+
         {order.needsInspection && order.id && (
           <Button
             onClick={handleInvoice}
