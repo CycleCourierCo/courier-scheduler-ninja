@@ -484,6 +484,24 @@ function buildManagementEmailHtml(
   `;
 }
 
+function formatLoadOrderEntryHtml(entry: LoadOrderEntry, loadIndex: number, total: number): string {
+  const bike = entry.bike;
+  const dropNumber = total - loadIndex;
+  const timeSlot = bike.deliveryTimeslot && bike.deliveryTimeslot.trim()
+    ? bike.deliveryTimeslot.trim()
+    : 'no time set';
+  return `
+    <div style="background: white; padding: 8px 12px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;">
+      <div><strong>${loadIndex + 1}. ${bike.bikeBrand} ${bike.bikeModel}</strong></div>
+      <div style="color: #666;">📍 ${entry.source}</div>
+      <div style="color: #666;">🚚 Drop ${dropNumber} of ${total} — ${timeSlot}</div>
+      <div style="color: #666;">📦 ${bike.receiver.name}</div>
+      <div style="color: #666;">🔢 ${bike.trackingNumber}</div>
+      ${bike.bikeQuantity > 1 ? `<div style="color: #666;">🚲 Quantity: ${bike.bikeQuantity}</div>` : ''}
+    </div>
+  `;
+}
+
 function buildDriverEmailHtml(
   driverName: string,
   categories: ReturnType<typeof categorizeBikesForDriver>,
