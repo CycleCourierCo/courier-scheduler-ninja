@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
-import { isNorthernIrelandAddress } from "../_shared/northernIreland.ts";
+import { isFerryLeg, niDirectionOf } from "../_shared/northernIreland.ts";
 import { trackedFetch } from "../_shared/integrationLog.ts";
 
 const corsHeaders = {
@@ -192,6 +192,11 @@ serve(async (req) => {
       collection_confirmation_sent_at: string | null;
       delivery_confirmation_sent_at: string | null;
       is_northern_ireland: boolean | null;
+      ni_direction: string | null;
+      ni_inbound_status: string | null;
+      ni_inbound_received_at: string | null;
+      sender: any;
+      receiver?: any;
       foam_status: string | null;
       foam_pending_foaming_at: string | null;
       foam_delivered_to_ferry_at: string | null;
@@ -375,6 +380,20 @@ serve(async (req) => {
       if (newStatus === "delivered") {
         updateData.order_collected = true;
         updateData.order_delivered = true;
+      }
+      // Inbound NI: collecting at the ferry hand-off means the partner has handed
+      // the bike over. Stages only move forward.
+      if (
+        niDirectionOf(dbOrder) === "inbound" &&
+        isPickup &&
+        (newStatus === "collected" || newStatus === "driver_to_delivery")
+      ) {
+        if (dbOrder.ni_inbound_status !== "collected_from_partner") {
+          updateData.ni_inbound_status = "collected_from_partner";
+        }
+        if (!dbOrder.ni_inbound_received_at) {
+          updateData.ni_inbound_received_at = nowIso;
+        }
       }
       if (newStatus === "delivered_to_ferry") {
         updateData.order_collected = true;
