@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Box, Wrench, Ship, CalendarCheck, Receipt, Settings2 } from "lucide-react";
+import { Box, Wrench, Ship, CalendarCheck, Receipt, Settings2, Trash2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,7 +9,20 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { hasRole } from "@/lib/roles";
 
 import BoxMyBikeConversion from "./BoxMyBikeConversion";
 import BoxBuyerDetails from "./BoxBuyerDetails";
@@ -17,6 +30,7 @@ import NorthernIrelandEditor from "./NorthernIrelandEditor";
 import GuaranteedDeliveryCard from "./GuaranteedDeliveryCard";
 import {
   enableInspectionForOrder,
+  disableInspectionForOrder,
   createInspectionServiceInvoice,
 } from "@/services/inspectionService";
 import {
@@ -35,6 +49,24 @@ interface OrderServicesPanelProps {
 const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRefresh }) => {
   const [isEnabling, setIsEnabling] = useState(false);
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const { userProfile } = useAuth();
+  const isAdmin = hasRole(userProfile, "admin");
+
+  const handleRemove = async () => {
+    if (!order.id) return;
+    try {
+      setIsRemoving(true);
+      await disableInspectionForOrder(order.id);
+      await onRefresh();
+      toast.success("Inspection removed from this order");
+    } catch (error: any) {
+      console.error("Error removing inspection:", error);
+      toast.error(error?.message || "Failed to remove inspection");
+    } finally {
+      setIsRemoving(false);
+    }
+  };
 
   const handleEnable = async () => {
     if (!order.id) return;
@@ -100,6 +132,35 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
             <Receipt className="h-4 w-4" />
             {isCreatingInvoice ? "Creating..." : "Create Inspection Invoice"}
           </Button>
+        )}
+        {order.needsInspection && order.id && isAdmin && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={isRemoving}
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                {isRemoving ? "Removing..." : "Remove inspection"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remove inspection from this order?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This takes the bike off the workshop list. It's only possible while no
+                  workshop work has been recorded — if repair items or checks already exist,
+                  removal will be blocked.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleRemove}>Remove</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         )}
       </div>
     </div>
