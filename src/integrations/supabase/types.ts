@@ -3103,6 +3103,8 @@ export type Database = {
           guaranteed_delivery_marked_by_name: string | null
           guaranteed_delivery_note: string | null
           guaranteed_delivery_payer: string | null
+          held_by_driver_at: string | null
+          held_by_driver_name: string | null
           id: string
           is_bike_swap: boolean | null
           is_box_my_bike: boolean
@@ -3216,6 +3218,8 @@ export type Database = {
           guaranteed_delivery_marked_by_name?: string | null
           guaranteed_delivery_note?: string | null
           guaranteed_delivery_payer?: string | null
+          held_by_driver_at?: string | null
+          held_by_driver_name?: string | null
           id?: string
           is_bike_swap?: boolean | null
           is_box_my_bike?: boolean
@@ -3329,6 +3333,8 @@ export type Database = {
           guaranteed_delivery_marked_by_name?: string | null
           guaranteed_delivery_note?: string | null
           guaranteed_delivery_payer?: string | null
+          held_by_driver_at?: string | null
+          held_by_driver_name?: string | null
           id?: string
           is_bike_swap?: boolean | null
           is_box_my_bike?: boolean
