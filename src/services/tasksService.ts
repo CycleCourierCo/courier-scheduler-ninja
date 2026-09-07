@@ -72,6 +72,8 @@ export interface CreateTaskInput {
   assignee_id?: string | null;
   linked_order_id?: string | null;
   linked_conversation_id?: string | null;
+  category?: string | null;
+  planned_date?: string | null;
 }
 
 /** Fire-and-forget assignment email — never blocks or fails the caller. */
