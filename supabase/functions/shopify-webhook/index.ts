@@ -45,6 +45,24 @@ function getPropertyValue(properties: any[], name: string): string {
   return prop?.value || '';
 }
 
+// "Inspect and Service" product recognition.
+// Orders containing it are created as inspection orders so they land in the workshop.
+const INSPECT_SERVICE_SKU = 'bke-ins';
+const INSPECT_SERVICE_TITLES = ['inspect and service', 'inspection and service'];
+const TRUTHY = ['yes', 'true', '1', 'y'];
+
+const normalise = (v: unknown) => String(v ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+function isInspectServiceItem(item: any): boolean {
+  if (normalise(item?.sku) === INSPECT_SERVICE_SKU) return true;
+  if (INSPECT_SERVICE_TITLES.includes(normalise(item?.title))) return true;
+  const props = item?.properties || [];
+  return props.some((p: any) =>
+    INSPECT_SERVICE_TITLES.includes(normalise(p?.name)) && TRUTHY.includes(normalise(p?.value))
+  );
+}
+
+
 // Helper function to format UK phone numbers to +44 format
 function formatPhoneNumber(phone: string): string {
   if (!phone) return '';
