@@ -1,5 +1,9 @@
-import React, { useState } from "react";
-import { Box, Wrench, Ship, CalendarCheck, Receipt, Settings2, Trash2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import InspectionComments from "@/components/inspections/InspectionComments";
+import { Box, Wrench, Ship, CalendarCheck, Receipt, Settings2, Trash2, ExternalLink } from "lucide-react";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
