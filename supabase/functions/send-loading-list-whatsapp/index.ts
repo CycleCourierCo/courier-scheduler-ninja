@@ -782,8 +782,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     for (const [driverName, bikes] of Object.entries(fromDepotByDriver)) {
       managementMessage += `👨‍💼 ${driverName} (${bikes.length})\n`;
-      bikes.forEach((bike, i) => {
-        const location = bike.storageAllocations.map(a => `Bay ${a.bay}${a.position}`).join(', ');
+      sortByBayPosition(bikes).forEach((bike, i) => {
+        const location = formatBikeLocation(bike);
         managementMessage += `${i+1}. ${bike.bikeBrand} ${bike.bikeModel}\n`;
         managementMessage += `   📍 ${location}\n`;
         managementMessage += `   📦 ${bike.receiver.name}\n`;
