@@ -258,6 +258,19 @@ function categorizeBikesForDriver(
   };
 }
 
+function formatLoadOrderEntryText(entry: LoadOrderEntry, loadIndex: number, total: number): string {
+  const bike = entry.bike;
+  const dropNumber = total - loadIndex;
+  const timeSlot = bike.deliveryTimeslot && bike.deliveryTimeslot.trim()
+    ? bike.deliveryTimeslot.trim()
+    : 'no time set';
+  let line = `${loadIndex + 1}. ${bike.bikeBrand} ${bike.bikeModel} - ${entry.source} - drop ${dropNumber} of ${total} - ${timeSlot} - ${bike.receiver.name}`;
+  if (bike.bikeQuantity > 1) {
+    line += ` (${bike.bikeQuantity} bikes)`;
+  }
+  return line + '\n';
+}
+
 function formatBikeEntry(bike: any, index: number, showLocation: boolean = true): string {
   let message = `${index + 1}. ${bike.bikeBrand} ${bike.bikeModel}\n`;
   
