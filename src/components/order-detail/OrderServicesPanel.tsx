@@ -133,6 +133,35 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
             {isCreatingInvoice ? "Creating..." : "Create Inspection Invoice"}
           </Button>
         )}
+        {order.needsInspection && order.id && isAdmin && (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={isRemoving}
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="h-4 w-4" />
+                {isRemoving ? "Removing..." : "Remove inspection"}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Remove inspection from this order?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This takes the bike off the workshop list. It's only possible while no
+                  workshop work has been recorded — if repair items or checks already exist,
+                  removal will be blocked.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleRemove}>Remove</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
     </div>
   );
