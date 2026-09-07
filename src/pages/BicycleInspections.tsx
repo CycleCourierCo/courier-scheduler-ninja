@@ -3003,7 +3003,6 @@ const BicycleInspections = () => {
                   )}
                 </TabsTrigger>
               )}
-              </TabsTrigger>
               <TabsTrigger value="schedule" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Schedule
 
