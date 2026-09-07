@@ -395,6 +395,7 @@ const handler = async (req: Request): Promise<Response> => {
         }
       ],
       bikeQuantity: bikeQuantity,
+      needsInspection,
       customerOrderNumber: shopifyOrder.order_number?.toString() || shopifyOrder.id?.toString(),
       deliveryInstructions: shopifyOrder.note || ''
     };
