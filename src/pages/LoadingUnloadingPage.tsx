@@ -333,6 +333,8 @@ const LoadingUnloadingPage = () => {
       if (updatedAllocations.length === 0) {
         updateData.loaded_onto_van = true;
         updateData.loaded_onto_van_at = new Date().toISOString();
+        updateData.held_by_driver_name = null;
+        updateData.held_by_driver_at = null;
       }
 
       const { error } = await supabase
