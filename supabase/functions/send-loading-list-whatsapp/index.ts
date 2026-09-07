@@ -190,7 +190,7 @@ function formatBikeEntry(bike: any, index: number, showLocation: boolean = true)
   if (showLocation) {
     let location = '';
     if (bike.isInStorage) {
-      location = bike.storageAllocations.map((a: any) => `Bay ${a.bay}${a.position}`).join(', ');
+      location = formatBikeLocation(bike);
     } else if (bike.collectionDriverName) {
       location = `With ${bike.collectionDriverName}`;
     } else {
