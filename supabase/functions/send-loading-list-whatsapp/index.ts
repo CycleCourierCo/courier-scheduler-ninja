@@ -324,7 +324,7 @@ function buildManagementEmailHtml(
     toDepotHtml += `
       <div style="margin-bottom: 16px;">
         <div style="font-weight: bold; color: #1a1a1a; margin-bottom: 8px;">👨‍💼 ${driverName} bringing in (${bikes.length})</div>
-        ${bikes.map((bike, i) => {
+        ${sortByReceiverName(bikes).map((bike, i) => {
           let reason = '';
           if (!bike.deliveryDriverName || bike.deliveryDriverName === 'Unassigned Driver') {
             reason = '⚠️ No delivery driver';
