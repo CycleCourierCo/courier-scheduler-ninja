@@ -196,9 +196,25 @@ const handler = async (req: Request): Promise<Response> => {
     let sender: any;
     let receiver: any;
     let bikeQuantity = 1;
-    
-    if (shopifyOrder.line_items && shopifyOrder.line_items.length > 0) {
-      const firstItem = shopifyOrder.line_items[0];
+
+    // "Inspect and Service" can arrive as its own line, or as an add-on option
+    // on the transport line. Either way the transport line is the one that
+    // carries the bike and address details.
+    const allLineItems: any[] = shopifyOrder.line_items || [];
+    const serviceItems = allLineItems.filter(isInspectServiceItem);
+    const transportItems = allLineItems.filter((i) => !isInspectServiceItem(i));
+    const needsInspection = serviceItems.length > 0;
+
+    if (needsInspection) {
+      console.log('Inspect and Service detected on order:', serviceItems.map((i: any) => ({
+        sku: i?.sku || null,
+        title: i?.title || null,
+      })));
+    }
+
+    if (allLineItems.length > 0) {
+      // Fall back to the first line only when every line is a service line.
+      const firstItem = transportItems[0] || allLineItems[0];
       const properties = firstItem.properties || [];
       
       console.log('Extracting data from line item properties:', JSON.stringify(properties, null, 2));
@@ -212,6 +228,7 @@ const handler = async (req: Request): Promise<Response> => {
       
       // Get bike quantity
       bikeQuantity = firstItem.quantity || 1;
+
       
       // Extract collection (sender) details from individual properties
       const collectionName = getPropertyValue(properties, 'Collection Name');
