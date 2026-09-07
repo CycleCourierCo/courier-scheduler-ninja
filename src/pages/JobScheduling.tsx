@@ -53,12 +53,14 @@ export interface OrderData {
 }
 
 export type ShipdayVerificationResults = Record<string, boolean>;
+export type ShipdayPickupAddresses = Record<string, string>;
 
 const JobScheduling = () => {
   const [searchParams] = useSearchParams();
   const [showClusters, setShowClusters] = useState(true);
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [shipdayVerification, setShipdayVerification] = useState<ShipdayVerificationResults>({});
+  const [shipdayPickupAddresses, setShipdayPickupAddresses] = useState<ShipdayPickupAddresses>({});
   const [isVerifyingShipday, setIsVerifyingShipday] = useState(false);
   
   
@@ -125,6 +127,7 @@ const JobScheduling = () => {
 
     if (shipdayIds.length === 0) {
       setShipdayVerification({});
+      setShipdayPickupAddresses({});
       return;
     }
 
@@ -136,6 +139,7 @@ const JobScheduling = () => {
 
       if (error) throw error;
       setShipdayVerification(data.results || {});
+      setShipdayPickupAddresses(data.pickupAddresses || {});
     } catch (err) {
       console.error('Error verifying Shipday orders:', err);
       toast.error('Failed to verify Shipday orders');
@@ -300,6 +304,7 @@ const JobScheduling = () => {
                 onShowInspectedOnlyChange={setShowInspectedOnly}
                 initialJobs={initialJobs}
                 shipdayVerification={shipdayVerification}
+                shipdayPickupAddresses={shipdayPickupAddresses}
                 isVerifyingShipday={isVerifyingShipday}
                 onReVerifyShipday={() => orders && verifyShipdayOrders(orders)}
               />

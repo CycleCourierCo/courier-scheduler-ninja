@@ -145,12 +145,13 @@ export const cancelOrderWithShipday = async (
 export const createShipdayOrder = async (
   orderId: string,
   jobType?: 'pickup' | 'delivery',
-  forceNorthernIreland?: boolean
+  forceNorthernIreland?: boolean,
+  replace?: boolean
 ) => {
   try {
     // Call the Supabase Edge Function
     const { data, error } = await supabase.functions.invoke("create-shipday-order", {
-      body: { orderId, jobType, forceNorthernIreland }
+      body: { orderId, jobType, forceNorthernIreland, replace }
     });
 
 

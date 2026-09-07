@@ -107,7 +107,8 @@ serve(async (req) => {
       );
     }
 
-    const { orderId, jobType, forceNorthernIreland } = body;
+    const { orderId, jobType, forceNorthernIreland, replace } = body;
+    const shouldReplace = replace === true;
 
     if (!orderId) {
       return new Response(
@@ -312,7 +313,41 @@ serve(async (req) => {
     };
 
     const authHeader = `Basic ${shipdayApiKey}`;
-    
+
+    // Replacing a stale job (e.g. an inbound NI collection created against the
+    // Northern Irish address instead of the ferry hand-off point): remove the old
+    // Shipday job first so the corrected one is not a duplicate.
+    if (shouldReplace) {
+      const staleIds: string[] = [];
+      if ((!jobType || jobType === "pickup") && order.shipday_pickup_id) {
+        staleIds.push(String(order.shipday_pickup_id));
+      }
+      if ((!jobType || jobType === "delivery") && order.shipday_delivery_id) {
+        staleIds.push(String(order.shipday_delivery_id));
+      }
+      for (const staleId of staleIds) {
+        try {
+          const del = await trackedFetch("shipday", "delete order", `https://api.shipday.com/orders/${staleId}`, {
+            method: "DELETE",
+            headers: { "Content-Type": "application/json", "Authorization": authHeader },
+          });
+          console.log(`Deleted stale Shipday job ${staleId}: HTTP ${del.status}`);
+          if (!del.ok && del.status !== 404) {
+            return new Response(
+              JSON.stringify({ error: `Could not remove the existing Shipday job (HTTP ${del.status}). Nothing was changed.` }),
+              { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 502 }
+            );
+          }
+        } catch (e) {
+          console.error("Error deleting stale Shipday job:", e instanceof Error ? e.message : "unknown");
+          return new Response(
+            JSON.stringify({ error: "Could not reach Shipday to remove the existing job. Nothing was changed." }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 502 }
+          );
+        }
+      }
+    }
+
     let pickupResponse = null;
     let pickupResponseData = null;
     let deliveryResponse = null;
