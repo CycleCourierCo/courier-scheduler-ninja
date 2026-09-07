@@ -20,9 +20,12 @@ Read both collection jobs back from Shipday and compare the stored address again
 
 ## Step 2: make the collection stop always be City Air Express for inbound orders
 
+Target behaviour on the job scheduler: every inbound Northern Ireland order shows its collection card as "Ferry hand-off — Unit 1 Ordinal Street, Trafford Park, Manchester, M17 1GB" with a green Shipday tick, exactly as `GORCV3` does today, and the delivery card stays the mainland customer.
+
 - Treat an inbound collection job whose address is not the hand-off point as wrong, not as done. Scheduling and dispatch show it as needing attention, with a control to replace it (delete the wrong job, create the correct one) instead of hiding it because a reference exists.
 - Extend the existing reconciliation job so it detects inbound collections pointing at a Northern Irish address and repairs them, without creating duplicates.
-- Repair the affected orders, starting with `CCC754621940862RUATN2`.
+- Repair the affected orders, starting with `CCC754621940862RUATN2`, so it appears on the scheduler like `GORCV3`.
+
 
 ## Step 3: statuses must always move when a Shipday job is completed
 
