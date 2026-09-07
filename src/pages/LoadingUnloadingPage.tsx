@@ -739,8 +739,10 @@ const LoadingUnloadingPage = () => {
       const bikesNeedingLoadingData = bikesForDate.map(order => {
         const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
         
-        // Get both collection and delivery driver names from order columns
-        const collectionDriverName = order.collection_driver_name || null;
+        // Who physically has the bike right now: after a failed delivery the
+        // driver who failed it keeps it, otherwise it's the collecting driver.
+        const collectionDriverName =
+          order.held_by_driver_name || order.collection_driver_name || null;
         const deliveryDriverName = order.delivery_driver_name || 'Unassigned Driver';
 
         return {
