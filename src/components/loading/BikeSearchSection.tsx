@@ -272,6 +272,11 @@ export const BikeSearchSection = ({
                             <Truck className="h-3 w-3 mr-1" /> On Van
                           </Badge>
                         )}
+                        {state === "held" && (
+                          <Badge variant="secondary" className="text-xs">
+                            <Truck className="h-3 w-3 mr-1" /> In {order.held_by_driver_name} van – failed delivery
+                          </Badge>
+                        )}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {order.bikeBrand} {order.bikeModel}
