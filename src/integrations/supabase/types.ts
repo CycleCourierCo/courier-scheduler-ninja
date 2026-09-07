@@ -2092,6 +2092,54 @@ export type Database = {
           },
         ]
       }
+      inspection_comments: {
+        Row: {
+          author_id: string
+          author_name: string
+          comment: string
+          created_at: string
+          id: string
+          inspection_id: string
+          order_id: string
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          author_name: string
+          comment: string
+          created_at?: string
+          id?: string
+          inspection_id: string
+          order_id: string
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          author_name?: string
+          comment?: string
+          created_at?: string
+          id?: string
+          inspection_id?: string
+          order_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_comments_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "bicycle_inspections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspection_comments_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inspection_issues: {
         Row: {
           billing_party: string

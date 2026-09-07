@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useSearchParams } from "react-router-dom";
+
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
 import { formatDistanceToNowStrict } from "date-fns";
@@ -7,7 +9,9 @@ import { Wrench, CheckCircle, XCircle, AlertTriangle, Loader2, RotateCcw, X, Map
 import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
 import { getCollectionPhotos } from "@/utils/collectionPhotos";
 import { ChangeStorageLocationDialog } from "@/components/loading/ChangeStorageLocationDialog";
+import InspectionComments from "@/components/inspections/InspectionComments";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+
 import StatusBadge from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
@@ -263,7 +267,10 @@ const BicycleInspections = () => {
   const [storageDialogOrder, setStorageDialogOrder] = useState<any | null>(null);
   const [photoDialog, setPhotoDialog] = useState<{ title: string; urls: string[] } | null>(null);
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
+
   const [filters, setFilters] = useState<InspectionFilterState>({ ...EMPTY_INSPECTION_FILTERS });
 
   
@@ -1594,6 +1601,16 @@ const BicycleInspections = () => {
               <CardDescription className="break-words">
                 #{order.tracking_number} • {(order.sender as any)?.name} → {(order.receiver as any)?.name}
               </CardDescription>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 flex items-center gap-1"
+                onClick={() => navigate(`/orders/${order.id}`)}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                View order
+              </Button>
+
               {order.customer_order_number && (
                 <p className="text-xs text-muted-foreground mt-1 break-words">
                   Order #: <span className="font-medium">{order.customer_order_number}</span>
@@ -2825,7 +2842,16 @@ const BicycleInspections = () => {
             </div>
           )}
 
+          {inspection?.id && (
+            <InspectionComments
+              inspectionId={inspection.id}
+              orderId={order.id}
+              className="mt-4"
+            />
+          )}
+
         </CardContent>
+
       </Card>
     );
   };

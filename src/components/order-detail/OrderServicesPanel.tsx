@@ -1,5 +1,9 @@
-import React, { useState } from "react";
-import { Box, Wrench, Ship, CalendarCheck, Receipt, Settings2, Trash2 } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import InspectionComments from "@/components/inspections/InspectionComments";
+import { Box, Wrench, Ship, CalendarCheck, Receipt, Settings2, Trash2, ExternalLink } from "lucide-react";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -50,8 +54,37 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
   const [isEnabling, setIsEnabling] = useState(false);
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [inspectionId, setInspectionId] = useState<string | null>(null);
   const { userProfile } = useAuth();
+  const navigate = useNavigate();
   const isAdmin = hasRole(userProfile, "admin");
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!order.id || !order.needsInspection) {
+        setInspectionId(null);
+        return;
+      }
+      const { data, error } = await supabase
+        .from("bicycle_inspections")
+        .select("id")
+        .eq("order_id", order.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled) {
+        if (error) console.error("Error loading inspection for order:", error);
+        setInspectionId(data?.id ?? null);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [order.id, order.needsInspection]);
+
+
 
   const handleRemove = async () => {
     if (!order.id) return;
@@ -121,6 +154,22 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
             {isEnabling ? "Enabling..." : "Inspect and Service"}
           </Button>
         )}
+        {order.needsInspection && (
+          <Button
+            onClick={() =>
+              navigate(
+                `/bicycle-inspections?q=${encodeURIComponent(order.trackingNumber || "")}`
+              )
+            }
+            variant="outline"
+            size="sm"
+            className="flex items-center gap-2"
+          >
+            <ExternalLink className="h-4 w-4" />
+            View inspection
+          </Button>
+        )}
+
         {order.needsInspection && order.id && (
           <Button
             onClick={handleInvoice}
@@ -163,7 +212,11 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
           </AlertDialog>
         )}
       </div>
+      {inspectionId && order.id && (
+        <InspectionComments inspectionId={inspectionId} orderId={order.id} />
+      )}
     </div>
+
   );
 };
 
