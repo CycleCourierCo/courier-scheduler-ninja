@@ -205,7 +205,7 @@ serve(async (req) => {
       const { data, error } = await admin
         .from("orders")
         .select(
-          "id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, delivery_confirmation_sent_at, is_northern_ireland, foam_status, foam_pending_foaming_at, foam_delivered_to_ferry_at, receiver"
+          "id, status, tracking_events, shipday_pickup_id, shipday_delivery_id, pickup_date, delivery_date, order_collected, order_delivered, collection_confirmation_sent_at, delivery_confirmation_sent_at, is_northern_ireland, ni_direction, ni_inbound_status, ni_inbound_received_at, sender, foam_status, foam_pending_foaming_at, foam_delivered_to_ferry_at, receiver"
         )
         .or(
           `shipday_pickup_id.in.(${chunk.join(",")}),shipday_delivery_id.in.(${chunk.join(",")})`
@@ -263,10 +263,9 @@ serve(async (req) => {
         sStatus === "PICKED_UP"
       ) {
         event = "ORDER_COMPLETED";
-        const niFerryLeg =
-          !isPickup &&
-          (dbOrder.is_northern_ireland === true ||
-            isNorthernIrelandAddress((dbOrder as any).receiver?.address || (dbOrder as any).receiver));
+        // Direction-aware: the ferry hand-off is the DELIVERY leg outbound and the
+        // PICKUP leg inbound. An inbound delivery is an ordinary mainland delivery.
+        const niFerryLeg = isFerryLeg(dbOrder, isPickup) && !isPickup;
         newStatus = isPickup ? "collected" : niFerryLeg ? "delivered_to_ferry" : "delivered";
         description = isPickup
           ? "Driver has collected the bike"
