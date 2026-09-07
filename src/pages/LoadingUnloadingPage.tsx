@@ -283,7 +283,12 @@ const LoadingUnloadingPage = () => {
 
       const { error } = await supabase
         .from('orders')
-        .update({ storage_locations: allocationsForDb })
+        .update({
+          storage_locations: allocationsForDb,
+          // Bike is now in a bay, so no driver is holding it
+          held_by_driver_name: null,
+          held_by_driver_at: null,
+        })
         .eq('id', orderId);
 
       if (error) {
