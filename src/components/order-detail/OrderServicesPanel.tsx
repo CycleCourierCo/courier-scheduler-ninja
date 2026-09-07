@@ -9,7 +9,20 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/AuthContext";
+import { hasRole } from "@/lib/roles";
 
 import BoxMyBikeConversion from "./BoxMyBikeConversion";
 import BoxBuyerDetails from "./BoxBuyerDetails";
