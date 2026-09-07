@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format, isPast } from "date-fns";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -21,7 +20,6 @@ const PendingTasksTable: React.FC<Props> = ({ tasks, onOpenTask }) => {
   const qc = useQueryClient();
   const [selected, setSelected] = useState<string[]>([]);
   const [bulkDate, setBulkDate] = useState<string>(format(new Date(), "yyyy-MM-dd"));
-  const [bulkAssignee, setBulkAssignee] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
   const toggle = (id: string) =>
