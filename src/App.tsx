@@ -64,6 +64,7 @@ import BoxMyBikePage from "./pages/BoxMyBikePage";
 import BuildMyBikePage from "./pages/BuildMyBikePage";
 import CustomerServiceInbox from "./pages/CustomerServiceInbox";
 import Tasks from "./pages/Tasks";
+import ProjectManagement from "./pages/ProjectManagement";
 import RoutePermissionsPage from "./pages/RoutePermissionsPage";
 import LabourTimesAdmin from "./pages/LabourTimesAdmin";
 import KnowledgeBase from "./pages/KnowledgeBase";
@@ -210,7 +211,12 @@ function App() {
                   <CustomerServiceInbox />
                 </ProtectedRoute>
               } />
-              <Route path="/tasks" element={
+              <Route path="/project-management" element={
+          <ProtectedRoute>
+            <ProjectManagement />
+          </ProtectedRoute>
+        } />
+        <Route path="/tasks" element={
                 <ProtectedRoute>
                   <Tasks />
                 </ProtectedRoute>
