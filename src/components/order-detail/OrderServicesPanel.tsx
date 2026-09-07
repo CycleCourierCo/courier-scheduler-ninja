@@ -50,8 +50,37 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
   const [isEnabling, setIsEnabling] = useState(false);
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [inspectionId, setInspectionId] = useState<string | null>(null);
   const { userProfile } = useAuth();
+  const navigate = useNavigate();
   const isAdmin = hasRole(userProfile, "admin");
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!order.id || !order.needsInspection) {
+        setInspectionId(null);
+        return;
+      }
+      const { data, error } = await supabase
+        .from("bicycle_inspections")
+        .select("id")
+        .eq("order_id", order.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled) {
+        if (error) console.error("Error loading inspection for order:", error);
+        setInspectionId(data?.id ?? null);
+      }
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [order.id, order.needsInspection]);
+
+
 
   const handleRemove = async () => {
     if (!order.id) return;
