@@ -108,6 +108,7 @@ export const BikeSearchSection = ({
   const getState = (order: Order): LocationState => {
     if (order.loaded_onto_van) return "van";
     if (storageAllocations.some((a) => a.orderId === order.id)) return "storage";
+    if (order.held_by_driver_name) return "held";
     return "pending";
   };
 
