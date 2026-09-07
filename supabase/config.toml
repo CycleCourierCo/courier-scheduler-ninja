@@ -127,3 +127,6 @@ verify_jwt = false
 
 [functions.create-shipday-carrier]
 verify_jwt = false
+
+[functions.create-driver-user]
+verify_jwt = false
