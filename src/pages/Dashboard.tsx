@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
-import MyTasksWidget from "@/components/tasks/MyTasksWidget";
+
 
 const Dashboard: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -219,9 +219,6 @@ const Dashboard: React.FC = () => {
           </Dialog>
         </div>
 
-        {userRole && userRole !== 'b2b_customer' && userRole !== 'b2c_customer' && (
-          <MyTasksWidget />
-        )}
 
         <OrderFilters 
           onFilterChange={handleFilterChange} 

@@ -11,7 +11,7 @@ import { PendingStorageAllocation } from "@/components/loading/PendingStorageAll
 import { BikeSearchSection } from "@/components/loading/BikeSearchSection";
 import { BikesInStorage } from "@/components/loading/BikesInStorage";
 import { RemoveBikesDialog } from "@/components/loading/RemoveBikesDialog";
-import MyTasksPanel from "@/components/tasks/MyTasksPanel";
+
 
 import { getOrders, getOrdersForLoading, getOrdersByScheduledDate } from "@/services/orderService";
 import { Order } from "@/types/order";
@@ -1239,10 +1239,6 @@ const LoadingUnloadingPage = () => {
           </div>
         </div>
 
-        {/* My tasks */}
-        <div className="mb-6 sm:mb-8">
-          <MyTasksPanel />
-        </div>
 
         {/* Storage Unit Layout */}
 

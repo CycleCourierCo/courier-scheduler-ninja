@@ -22,6 +22,7 @@ export const hasAnyRole = (profile: any | null | undefined, roles: UserRole[]): 
 export const ALL_ROLES: { value: UserRole; label: string }[] = [
   { value: "admin", label: "Admin" },
   { value: "route_planner", label: "Route Planner" },
+  { value: "project_manager", label: "Project Manager" },
   { value: "loader", label: "Loader" },
   { value: "mechanic", label: "Mechanic" },
   { value: "sales", label: "Sales" },
