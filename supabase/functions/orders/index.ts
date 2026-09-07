@@ -562,6 +562,7 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
           // Northern Ireland: the ferry partner needs the NI-side details to book their leg.
           if (isNorthernIreland) {
             const ferryEmail = buildFerryPartnerEmail({
+              orderId: order.id,
               sender: body.sender,
               receiver: body.receiver,
               tracking_number: order.tracking_number,
