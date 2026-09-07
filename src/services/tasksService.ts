@@ -92,6 +92,8 @@ export async function createTask(input: CreateTaskInput, createdBy: string): Pro
     assignee_id: input.assignee_id ?? null,
     linked_order_id: input.linked_order_id ?? null,
     linked_conversation_id: input.linked_conversation_id ?? null,
+    category: input.category ?? null,
+    planned_date: input.planned_date ?? null,
     created_by: createdBy,
     status: 'open',
   };
