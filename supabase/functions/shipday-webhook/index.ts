@@ -166,10 +166,8 @@ serve(async (req) => {
     // the DELIVERY leg, inbound (NI -> mainland) is COLLECTED from the ferry point
     // and then delivered normally on the mainland.
     const niDirection = niDirectionOf(dbOrder);
-    const isNorthernIreland =
-      niDirection !== null ||
-      (dbOrder as any).is_northern_ireland === true ||
-      isNorthernIrelandAddress((dbOrder as any).receiver?.address || (dbOrder as any).receiver);
+    void isNorthernIrelandAddress;
+
     // Ferry hand-off leg for THIS webhook: delivery when outbound, pickup when inbound.
     const niFerryLeg = isFerryLeg(dbOrder, isPickup);
     const isInboundFerryPickup = niFerryLeg && isPickup;
