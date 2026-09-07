@@ -7,7 +7,9 @@ import { Wrench, CheckCircle, XCircle, AlertTriangle, Loader2, RotateCcw, X, Map
 import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
 import { getCollectionPhotos } from "@/utils/collectionPhotos";
 import { ChangeStorageLocationDialog } from "@/components/loading/ChangeStorageLocationDialog";
+import InspectionComments from "@/components/inspections/InspectionComments";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+
 import StatusBadge from "@/components/StatusBadge";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
