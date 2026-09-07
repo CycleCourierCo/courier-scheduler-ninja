@@ -482,8 +482,13 @@ serve(async (req) => {
         shipdayEvents.delivery_id = null;
         // Failed delivery: the bike is coming back off the van, so clear the
         // loaded flag and its timestamp so it shows as needing loading again.
+        // The driver who failed it still physically has the bike, so record
+        // them as the current holder for the loading page / loading list.
         updateData.loaded_onto_van = false;
         updateData.loaded_onto_van_at = null;
+        updateData.held_by_driver_name =
+          payload.carrier?.name || (dbOrder as any).delivery_driver_name || null;
+        updateData.held_by_driver_at = new Date().toISOString();
       }
       updateData.tracking_events = trackingEvents;
     }
