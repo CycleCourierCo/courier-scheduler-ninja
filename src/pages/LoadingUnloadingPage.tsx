@@ -369,6 +369,9 @@ const LoadingUnloadingPage = () => {
         loaded_onto_van: true,
         loaded_onto_van_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+        // Loaded again, so any "held after failed delivery" marker no longer applies
+        held_by_driver_name: null,
+        held_by_driver_at: null,
         // Only clear storage locations if there are any
         ...(orderAllocations.length > 0 && { storage_locations: null })
       };
