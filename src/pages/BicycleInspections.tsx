@@ -1596,6 +1596,16 @@ const BicycleInspections = () => {
               <CardDescription className="break-words">
                 #{order.tracking_number} • {(order.sender as any)?.name} → {(order.receiver as any)?.name}
               </CardDescription>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-2 flex items-center gap-1"
+                onClick={() => navigate(`/orders/${order.id}`)}
+              >
+                <ExternalLink className="h-3.5 w-3.5" />
+                View order
+              </Button>
+
               {order.customer_order_number && (
                 <p className="text-xs text-muted-foreground mt-1 break-words">
                   Order #: <span className="font-medium">{order.customer_order_number}</span>
