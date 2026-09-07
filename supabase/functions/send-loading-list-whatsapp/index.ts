@@ -43,6 +43,62 @@ function normalizeDateToYYYYMMDD(dateString: string): string {
   return `${year}-${month}-${day}`;
 }
 
+// ===== Bay / position ordering helpers =====
+type BikeLike = { storageAllocations?: Array<{ bay: string; position: number }>; receiver?: { name?: string } };
+
+function sortAllocations(allocations?: Array<{ bay: string; position: number }>) {
+  return [...(allocations || [])].sort((a, b) => {
+    const bayCompare = String(a.bay || '').toUpperCase().localeCompare(String(b.bay || '').toUpperCase(), 'en');
+    if (bayCompare !== 0) return bayCompare;
+    return (Number(a.position) || 0) - (Number(b.position) || 0);
+  });
+}
+
+function formatBikeLocation(bike: BikeLike): string {
+  return sortAllocations(bike.storageAllocations).map(a => `Bay ${a.bay}${a.position}`).join(', ');
+}
+
+function compareByBayPosition(a: BikeLike, b: BikeLike): number {
+  const aAlloc = sortAllocations(a.storageAllocations)[0];
+  const bAlloc = sortAllocations(b.storageAllocations)[0];
+  if (aAlloc && bAlloc) {
+    const bayCompare = String(aAlloc.bay || '').toUpperCase().localeCompare(String(bAlloc.bay || '').toUpperCase(), 'en');
+    if (bayCompare !== 0) return bayCompare;
+    const positionCompare = (Number(aAlloc.position) || 0) - (Number(bAlloc.position) || 0);
+    if (positionCompare !== 0) return positionCompare;
+  } else if (aAlloc && !bAlloc) {
+    return -1;
+  } else if (!aAlloc && bAlloc) {
+    return 1;
+  }
+  return String(a.receiver?.name || '').localeCompare(String(b.receiver?.name || ''), 'en');
+}
+
+function compareByReceiverName(a: BikeLike, b: BikeLike): number {
+  return String(a.receiver?.name || '').localeCompare(String(b.receiver?.name || ''), 'en');
+}
+
+function sortByBayPosition<T extends BikeLike>(bikes: T[]): T[] {
+  return [...bikes].sort(compareByBayPosition);
+}
+
+function sortByReceiverName<T extends BikeLike>(bikes: T[]): T[] {
+  return [...bikes].sort(compareByReceiverName);
+}
+
+function sortBayKeys(keys: string[]): string[] {
+  const known = ['A', 'B', 'C', 'D'];
+  return [...keys].sort((a, b) => {
+    const ai = known.indexOf(a.toUpperCase());
+    const bi = known.indexOf(b.toUpperCase());
+    if (ai !== -1 && bi !== -1) return ai - bi;
+    if (ai !== -1) return -1;
+    if (bi !== -1) return 1;
+    return a.toUpperCase().localeCompare(b.toUpperCase(), 'en', { numeric: true });
+  });
+}
+
+
 function categorizeBikesForDriver(
   driverName: string,
   allBikes: LoadingListRequest['bikesNeedingLoading'],
@@ -134,7 +190,7 @@ function formatBikeEntry(bike: any, index: number, showLocation: boolean = true)
   if (showLocation) {
     let location = '';
     if (bike.isInStorage) {
-      location = bike.storageAllocations.map((a: any) => `Bay ${a.bay}${a.position}`).join(', ');
+      location = formatBikeLocation(bike);
     } else if (bike.collectionDriverName) {
       location = `With ${bike.collectionDriverName}`;
     } else {
@@ -195,7 +251,7 @@ function buildDriverMessage(
   
   if (categories.bikesToCollect.length > 0) {
     message += `🏢 BIKES TO COLLECT FROM DEPOT (${categories.bikesToCollect.length})\n\n`;
-    categories.bikesToCollect.forEach((bike, i) => {
+    sortByBayPosition(categories.bikesToCollect).forEach((bike, i) => {
       message += formatBikeEntry(bike, i, true);
     });
     message += '---\n\n';
@@ -247,8 +303,8 @@ function buildManagementEmailHtml(
     fromDepotHtml += `
       <div style="margin-bottom: 16px;">
         <div style="font-weight: bold; color: #1a1a1a; margin-bottom: 8px;">👨‍💼 ${driverName} (${bikes.length})</div>
-        ${bikes.map((bike, i) => {
-          const location = bike.storageAllocations.map(a => `Bay ${a.bay}${a.position}`).join(', ');
+        ${sortByBayPosition(bikes).map((bike, i) => {
+          const location = formatBikeLocation(bike);
           return `
             <div style="background: #f8f8f8; padding: 8px 12px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;">
               <div><strong>${i + 1}. ${bike.bikeBrand} ${bike.bikeModel}</strong></div>
@@ -268,7 +324,7 @@ function buildManagementEmailHtml(
     toDepotHtml += `
       <div style="margin-bottom: 16px;">
         <div style="font-weight: bold; color: #1a1a1a; margin-bottom: 8px;">👨‍💼 ${driverName} bringing in (${bikes.length})</div>
-        ${bikes.map((bike, i) => {
+        ${sortByReceiverName(bikes).map((bike, i) => {
           let reason = '';
           if (!bike.deliveryDriverName || bike.deliveryDriverName === 'Unassigned Driver') {
             reason = '⚠️ No delivery driver';
@@ -408,8 +464,8 @@ function buildDriverEmailHtml(
     sections.push(`
       <div style="background: #e8f5e9; border: 2px solid #4caf50; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
         <h3 style="margin: 0 0 12px; color: #2e7d32;">🏢 BIKES TO COLLECT FROM DEPOT (${categories.bikesToCollect.length})</h3>
-        ${categories.bikesToCollect.map((bike, i) => {
-          const location = bike.storageAllocations.map(a => `Bay ${a.bay}${a.position}`).join(', ');
+        ${sortByBayPosition(categories.bikesToCollect).map((bike, i) => {
+          const location = formatBikeLocation(bike);
           return `
             <div style="background: white; padding: 8px 12px; border-radius: 4px; margin-bottom: 4px; font-size: 14px;">
               <div><strong>${i + 1}. ${bike.bikeBrand} ${bike.bikeModel}</strong></div>
@@ -488,15 +544,7 @@ function buildBayBreakdown(bikesFromDepot: LoadingListRequest['bikesNeedingLoadi
     byBay[r.bay].push(r);
   }
 
-  const bayOrder = ['A', 'B', 'C', 'D'];
-  const bayKeys = Object.keys(byBay).sort((a, b) => {
-    const ai = bayOrder.indexOf(a);
-    const bi = bayOrder.indexOf(b);
-    if (ai === -1 && bi === -1) return a.localeCompare(b);
-    if (ai === -1) return 1;
-    if (bi === -1) return -1;
-    return ai - bi;
-  });
+  const bayKeys = sortBayKeys(Object.keys(byBay));
 
   const bayEmoji: Record<string, string> = { A: '🅰️', B: '🅱️', C: '🇨', D: '🇩' };
 
@@ -505,7 +553,7 @@ function buildBayBreakdown(bikesFromDepot: LoadingListRequest['bikesNeedingLoadi
   let totalBikes = 0;
 
   for (const bay of bayKeys) {
-    const list = byBay[bay].sort((a, b) => a.position - b.position);
+    const list = [...byBay[bay]].sort((a, b) => (Number(a.position) || 0) - (Number(b.position) || 0));
     totalBikes += list.length;
     const emoji = bayEmoji[bay] || '📦';
 
@@ -734,8 +782,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     for (const [driverName, bikes] of Object.entries(fromDepotByDriver)) {
       managementMessage += `👨‍💼 ${driverName} (${bikes.length})\n`;
-      bikes.forEach((bike, i) => {
-        const location = bike.storageAllocations.map(a => `Bay ${a.bay}${a.position}`).join(', ');
+      sortByBayPosition(bikes).forEach((bike, i) => {
+        const location = formatBikeLocation(bike);
         managementMessage += `${i+1}. ${bike.bikeBrand} ${bike.bikeModel}\n`;
         managementMessage += `   📍 ${location}\n`;
         managementMessage += `   📦 ${bike.receiver.name}\n`;
@@ -761,7 +809,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     for (const [driverName, bikes] of Object.entries(toDepotByDriver)) {
       managementMessage += `👨‍💼 ${driverName} bringing in (${bikes.length})\n`;
-      bikes.forEach((bike, i) => {
+      sortByReceiverName(bikes).forEach((bike, i) => {
         let reason = '';
         if (!bike.deliveryDriverName || bike.deliveryDriverName === 'Unassigned Driver') {
           reason = '⚠️ No delivery driver';
