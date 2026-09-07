@@ -19,7 +19,7 @@ interface BikeSearchSectionProps {
   onChangeLocation: (allocationId: string, newBay: string, newPosition: number) => void;
 }
 
-type LocationState = "pending" | "storage" | "van";
+type LocationState = "pending" | "storage" | "van" | "held";
 
 // Helper to extract collection date (pickup-leg completion) from tracking events
 const getCollectionDate = (order: Order | undefined): string | null => {
