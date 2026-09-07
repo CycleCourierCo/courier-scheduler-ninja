@@ -99,6 +99,79 @@ function sortBayKeys(keys: string[]): string[] {
   });
 }
 
+// ===== Delivery / load order helpers =====
+function parseTimeslotStart(slot?: string | null): number | null {
+  if (!slot || typeof slot !== 'string') return null;
+  const cleaned = slot.trim().toLowerCase().replace(/\s+/g, ' ');
+  // "09:00-11:00" or "09:00 - 11:00"
+  let match = cleaned.match(/(\d{1,2}):(\d{2})\s*[-–]\s*(\d{1,2}):(\d{2})/);
+  if (match) {
+    return Number(match[1]) * 60 + Number(match[2]);
+  }
+  // "9:00 AM - 11:00 AM" or "9am-11am"
+  match = cleaned.match(/(\d{1,2}):?(\d{2})?\s*(am|pm)\s*[-–]?\s*(\d{1,2}):?(\d{2})?\s*(am|pm)?/);
+  if (match) {
+    let hours = Number(match[1]);
+    const minutes = Number(match[2] || 0);
+    const meridiem = match[3];
+    if (meridiem === 'pm' && hours !== 12) hours += 12;
+    if (meridiem === 'am' && hours === 12) hours = 0;
+    return hours * 60 + minutes;
+  }
+  // Just a single time like "09:00"
+  match = cleaned.match(/(\d{1,2}):(\d{2})/);
+  if (match) {
+    return Number(match[1]) * 60 + Number(match[2]);
+  }
+  return null;
+}
+
+type LoadOrderEntry = {
+  bike: LoadingListRequest['bikesNeedingLoading'][number];
+  source: string;
+};
+
+function buildLoadOrder(
+  categories: ReturnType<typeof categorizeBikesForDriver>
+): { entries: LoadOrderEntry[]; total: number; hasTimeslots: boolean } {
+  const entries: LoadOrderEntry[] = [];
+
+  for (const bike of categories.bikesToKeep) {
+    entries.push({ bike, source: 'already in your van' });
+  }
+  for (const bike of categories.bikesToCollect) {
+    entries.push({ bike, source: formatBikeLocation({ storageAllocations: bike.storageAllocations }) });
+  }
+  for (const [providerName, bikes] of Object.entries(categories.bikesByProvider)) {
+    for (const bike of bikes) {
+      entries.push({ bike, source: `from ${providerName}'s van` });
+    }
+  }
+
+  // Dedupe by order id just in case a bike appears in more than one category
+  const seen = new Set<string>();
+  const deduped = entries.filter(e => {
+    if (seen.has(e.bike.id)) return false;
+    seen.add(e.bike.id);
+    return true;
+  });
+
+  // Sort by delivery window start time ascending = drop order, then reverse to get load order
+  const dropOrder = [...deduped].sort((a, b) => {
+    const aStart = parseTimeslotStart(a.bike.deliveryTimeslot);
+    const bStart = parseTimeslotStart(b.bike.deliveryTimeslot);
+    if (aStart !== null && bStart !== null) return aStart - bStart;
+    if (aStart !== null) return -1;
+    if (bStart !== null) return 1;
+    return String(a.bike.receiver?.name || '').localeCompare(String(b.bike.receiver?.name || ''), 'en');
+  });
+
+  const loadOrder = dropOrder.reverse();
+  const hasTimeslots = loadOrder.some(e => parseTimeslotStart(e.bike.deliveryTimeslot) !== null);
+
+  return { entries: loadOrder, total: loadOrder.length, hasTimeslots };
+}
+
 
 function categorizeBikesForDriver(
   driverName: string,
