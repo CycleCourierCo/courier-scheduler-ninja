@@ -298,7 +298,7 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
 
     const response = await supabase.functions.invoke("send-email", {
       body: {
-        to: buildReceiverRecipients(order, isNI),
+        to: buildReceiverRecipients(order),
         subject: "Your Bicycle Delivery - The Cycle Courier Co.",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
