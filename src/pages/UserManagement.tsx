@@ -634,8 +634,8 @@ const UserManagement: React.FC = () => {
         <ShipdayCarriersDialog
           open={carriersDialogOpen}
           onOpenChange={setCarriersDialogOpen}
-          onLinkCarrier={async (carrierId, carrierName) => {
-            const driverName = prompt(`Enter the driver name to link carrier "${carrierName}" (ID: ${carrierId}) to:`);
+          onLinkCarrier={async (carrierId, carrierName, slot) => {
+            const driverName = prompt(`Enter the driver name to link carrier "${carrierName}" (ID: ${carrierId}) to${slot === 'temp' ? ' as their Temp entry' : ''}:`);
             if (!driverName) return;
             const driver = users.find(u => u.name?.toLowerCase().includes(driverName.toLowerCase()) && u.role === 'driver');
             if (!driver) {
@@ -643,18 +643,24 @@ const UserManagement: React.FC = () => {
               return;
             }
             try {
-              const { error } = await supabase
+              const updates = slot === 'temp'
+                ? { shipday_temp_driver_id: String(carrierId), shipday_temp_driver_name: carrierName }
+                : { shipday_driver_id: String(carrierId), shipday_driver_name: carrierName };
+              const { data, error } = await supabase
                 .from('profiles')
-                .update({ shipday_driver_id: String(carrierId), shipday_driver_name: carrierName })
-                .eq('id', driver.id);
+                .update(updates)
+                .eq('id', driver.id)
+                .select('id');
               if (error) throw error;
-              toast.success(`Linked carrier ${carrierName} (${carrierId}) to ${driver.name}`);
+              if (!data?.length) throw new Error('No matching driver record was updated');
+              toast.success(`Linked ${carrierName} (${carrierId}) to ${driver.name}${slot === 'temp' ? ' as Temp' : ''}`);
               fetchUsers();
             } catch (error) {
               console.error("Error linking carrier:", error);
               toast.error("Couldn't link this Shipday carrier to the driver. Check the name matches and try again.");
             }
           }}
+
         />
       </div>
     </Layout>
