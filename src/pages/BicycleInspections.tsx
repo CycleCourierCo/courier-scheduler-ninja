@@ -265,7 +265,10 @@ const BicycleInspections = () => {
   const [storageDialogOrder, setStorageDialogOrder] = useState<any | null>(null);
   const [photoDialog, setPhotoDialog] = useState<{ title: string; urls: string[] } | null>(null);
 
-  const [searchQuery, setSearchQuery] = useState("");
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("q") || "");
+
   const [filters, setFilters] = useState<InspectionFilterState>({ ...EMPTY_INSPECTION_FILTERS });
 
   
