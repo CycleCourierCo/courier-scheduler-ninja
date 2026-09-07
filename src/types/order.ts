@@ -230,6 +230,8 @@ export type Order = {
   storage_locations?: any; // Add storage_locations field for database storage
   loaded_onto_van?: boolean; // Track if bikes have been loaded onto van
   loaded_onto_van_at?: Date; // Track when bikes were loaded onto van
+  held_by_driver_name?: string | null; // Driver physically holding the bike (e.g. after a failed delivery)
+  held_by_driver_at?: Date; // When that driver took possession
   collection_driver_name?: string | null; // Driver assigned for collection/pickup
   delivery_driver_name?: string | null; // Driver assigned for delivery
   trackingEvents?: {
