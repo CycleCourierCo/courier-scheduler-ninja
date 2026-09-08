@@ -380,9 +380,13 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     const isOwner = !isStaff && o.user_id === userId;
     const labelStages: FoamStatus[] = ["pending_collection", "pending_foaming", "foamed_ready"];
     const canEditLabel = (isOwner || isStaff) && labelStages.includes(stage);
-    const showLabelSection = labelStages.includes(stage) || !!o.foam_label_url || !!o.foam_tracking_url;
+    // The ferry partner uploads their label into a separate slot (and bucket) —
+    // treat it as the label for this bike when no foam label was uploaded here.
+    const partnerLabel = o.ni_partner_label_url;
+    const hasAnyLabel = !!o.foam_label_url || !!partnerLabel;
+    const showLabelSection = labelStages.includes(stage) || hasAnyLabel || !!o.foam_tracking_url;
     // Can't hand a bike to the ferry courier without a label and tracking link
-    const blockedAdvance = stage === "foamed_ready" && (!o.foam_label_url || !o.foam_tracking_url);
+    const blockedAdvance = stage === "foamed_ready" && (!hasAnyLabel || !o.foam_tracking_url);
     const serviceDone = isServiceComplete(o.needs_inspection, inspectionStages[o.id]);
     const serviceBlocked = next === "foamed_ready" && !serviceDone;
     const serviceStage = serviceGateLabel(inspectionStages[o.id]);
