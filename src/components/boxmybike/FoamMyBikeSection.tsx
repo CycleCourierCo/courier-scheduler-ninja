@@ -337,11 +337,11 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     onError: (e: any) => toast.error(e?.message || "Failed to save tracking link"),
   });
 
-  const viewLabel = async (path: string) => {
+  const viewLabel = async (path: string, bucket: string = BOX_LABEL_BUCKET) => {
     // Open the tab synchronously so popup blockers don't kill it
     const tab = window.open("", "_blank");
     const { data, error } = await supabase.storage
-      .from(BOX_LABEL_BUCKET)
+      .from(bucket)
       .createSignedUrl(path, 60 * 10);
     if (error || !data?.signedUrl) {
       tab?.close();
