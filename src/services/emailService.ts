@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getOrder } from "./orderService";
 
-import { getNiDirection } from "@/utils/niDelivery";
+import { getNiDirection, isInboundNi } from "@/utils/niDelivery";
 import { CITY_AIR_EXPRESS } from "@/constants/depot";
 import { Order } from "@/types/order";
 
@@ -656,9 +656,15 @@ export const sendSenderDatesConfirmedEmail = async (orderId: string, selectedDat
     
     const baseUrl = window.location.origin;
     
+    // Inbound NI: City Air Express collect the bike in Northern Ireland,
+    // so copy them on the agreed collection dates.
+    const recipients = isInboundNi(order)
+      ? [order.sender.email, CITY_AIR_EXPRESS.email]
+      : [order.sender.email];
+
     const response = await supabase.functions.invoke("send-email", {
       body: {
-        to: order.sender.email,
+        to: recipients,
         emailType: "sender_dates_confirmed",
         name: order.sender.name || "Customer",
         trackingNumber: order.trackingNumber,

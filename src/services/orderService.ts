@@ -491,6 +491,14 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       throw error;
     }
 
+    // Northern Ireland: notify the ferry partner so they can book their leg.
+    // Fire-and-forget; the edge function is idempotent via ferry_partner_notified_at.
+    if (isNorthernIreland && order?.id) {
+      void supabase.functions
+        .invoke("send-ferry-partner-notification", { body: { orderId: order.id } })
+        .catch((e) => console.warn("Ferry partner notification failed", e));
+    }
+
     // Upsert contacts and link them to the order
     try {
       const [senderContactId, receiverContactId] = await Promise.all([

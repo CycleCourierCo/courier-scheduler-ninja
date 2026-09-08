@@ -337,11 +337,11 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     onError: (e: any) => toast.error(e?.message || "Failed to save tracking link"),
   });
 
-  const viewLabel = async (path: string) => {
+  const viewLabel = async (path: string, bucket: string = BOX_LABEL_BUCKET) => {
     // Open the tab synchronously so popup blockers don't kill it
     const tab = window.open("", "_blank");
     const { data, error } = await supabase.storage
-      .from(BOX_LABEL_BUCKET)
+      .from(bucket)
       .createSignedUrl(path, 60 * 10);
     if (error || !data?.signedUrl) {
       tab?.close();
@@ -380,9 +380,13 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
     const isOwner = !isStaff && o.user_id === userId;
     const labelStages: FoamStatus[] = ["pending_collection", "pending_foaming", "foamed_ready"];
     const canEditLabel = (isOwner || isStaff) && labelStages.includes(stage);
-    const showLabelSection = labelStages.includes(stage) || !!o.foam_label_url || !!o.foam_tracking_url;
+    // The ferry partner uploads their label into a separate slot (and bucket) —
+    // treat it as the label for this bike when no foam label was uploaded here.
+    const partnerLabel = o.ni_partner_label_url;
+    const hasAnyLabel = !!o.foam_label_url || !!partnerLabel;
+    const showLabelSection = labelStages.includes(stage) || hasAnyLabel || !!o.foam_tracking_url;
     // Can't hand a bike to the ferry courier without a label and tracking link
-    const blockedAdvance = stage === "foamed_ready" && (!o.foam_label_url || !o.foam_tracking_url);
+    const blockedAdvance = stage === "foamed_ready" && (!hasAnyLabel || !o.foam_tracking_url);
     const serviceDone = isServiceComplete(o.needs_inspection, inspectionStages[o.id]);
     const serviceBlocked = next === "foamed_ready" && !serviceDone;
     const serviceStage = serviceGateLabel(inspectionStages[o.id]);
@@ -430,6 +434,11 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
             <div className="text-muted-foreground text-xs mt-1">
               Ferry hand-off: {CITY_AIR_EXPRESS.formatted}
             </div>
+            {o.ni_bfs_number && (
+              <div className="text-xs mt-1">
+                <span className="text-muted-foreground">BFS number:</span> {o.ni_bfs_number}
+              </div>
+            )}
           </div>
 
 
@@ -438,13 +447,28 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
             <div className="rounded-md border p-3 space-y-3">
               <div className="space-y-1">
                 <div className="text-sm font-medium">
-                  Shipping label {stage === "foamed_ready" && canEditLabel && !o.foam_label_url && <span className="text-destructive">*</span>}
+                  Shipping label {stage === "foamed_ready" && canEditLabel && !hasAnyLabel && <span className="text-destructive">*</span>}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {o.foam_label_url ? (
                     <Button size="sm" variant="outline" onClick={() => viewLabel(o.foam_label_url!)}>
                       <Printer className="h-4 w-4 mr-1" /> View / print
                     </Button>
+                  ) : partnerLabel ? (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => viewLabel(partnerLabel, "foam-my-bike-labels")}
+                      >
+                        <Printer className="h-4 w-4 mr-1" /> View / print ferry partner label
+                      </Button>
+                      {o.ni_partner_label_uploaded_at && (
+                        <span className="text-xs text-muted-foreground">
+                          Uploaded {formatStageDate(o.ni_partner_label_uploaded_at)}
+                        </span>
+                      )}
+                    </>
                   ) : (
                     <span className="text-sm text-muted-foreground">No label uploaded yet</span>
                   )}

@@ -80,7 +80,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
     setSendingFerryEmail(true);
     try {
       const { data, error } = await supabase.functions.invoke("send-ferry-partner-notification", {
-        body: { orderId: order.id },
+        body: { orderId: order.id, force: true },
       });
       if (error) throw error;
       setFerryNotifiedAt((data as any)?.notifiedAt || new Date().toISOString());
