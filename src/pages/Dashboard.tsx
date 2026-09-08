@@ -17,6 +17,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
+import MyTasksPanel from "@/components/tasks/MyTasksPanel";
+import { hasAnyRole } from "@/lib/roles";
 
 
 const Dashboard: React.FC = () => {
@@ -39,7 +41,10 @@ const Dashboard: React.FC = () => {
     bikeType: [] as string[],
     missingDates: undefined as 'sender' | 'receiver' | 'either' | undefined
   });
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
+  const isStaff = hasAnyRole(userProfile, [
+    'admin', 'loader', 'mechanic', 'driver', 'route_planner', 'sales', 'timeslip_admin', 'cs_agent', 'project_manager',
+  ] as any);
 
   useEffect(() => {
     const fetchUserRole = async () => {
