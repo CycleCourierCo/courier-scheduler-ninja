@@ -196,6 +196,7 @@ const handler = async (req: Request): Promise<Response> => {
     let sender: any;
     let receiver: any;
     let bikeQuantity = 1;
+    let collectionCode = '';
 
     // "Inspect and Service" can arrive as its own line, or as an add-on option
     // on the transport line. Either way the transport line is the one that
