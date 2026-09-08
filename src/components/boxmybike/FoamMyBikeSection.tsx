@@ -447,13 +447,28 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
             <div className="rounded-md border p-3 space-y-3">
               <div className="space-y-1">
                 <div className="text-sm font-medium">
-                  Shipping label {stage === "foamed_ready" && canEditLabel && !o.foam_label_url && <span className="text-destructive">*</span>}
+                  Shipping label {stage === "foamed_ready" && canEditLabel && !hasAnyLabel && <span className="text-destructive">*</span>}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {o.foam_label_url ? (
                     <Button size="sm" variant="outline" onClick={() => viewLabel(o.foam_label_url!)}>
                       <Printer className="h-4 w-4 mr-1" /> View / print
                     </Button>
+                  ) : partnerLabel ? (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => viewLabel(partnerLabel, "foam-my-bike-labels")}
+                      >
+                        <Printer className="h-4 w-4 mr-1" /> View / print ferry partner label
+                      </Button>
+                      {o.ni_partner_label_uploaded_at && (
+                        <span className="text-xs text-muted-foreground">
+                          Uploaded {formatStageDate(o.ni_partner_label_uploaded_at)}
+                        </span>
+                      )}
+                    </>
                   ) : (
                     <span className="text-sm text-muted-foreground">No label uploaded yet</span>
                   )}
