@@ -406,6 +406,8 @@ const handler = async (req: Request): Promise<Response> => {
         }
       ],
       bikeQuantity: bikeQuantity,
+      collectionCode: collectionCode || undefined,
+      isEbayOrder: !!collectionCode,
       needsInspection,
       customerOrderNumber: shopifyOrder.order_number?.toString() || shopifyOrder.id?.toString(),
       deliveryInstructions: shopifyOrder.note || ''
