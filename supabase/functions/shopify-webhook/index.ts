@@ -230,6 +230,16 @@ const handler = async (req: Request): Promise<Response> => {
       // Get bike quantity
       bikeQuantity = firstItem.quantity || 1;
 
+      // eBay collection code (label varies between Shopify setups)
+      collectionCode = (
+        getPropertyValue(properties, 'eBay Collection Code') ||
+        getPropertyValue(properties, 'Ebay Collection Code') ||
+        getPropertyValue(properties, 'eBay collection code') ||
+        getPropertyValue(properties, 'Collection Code') ||
+        ''
+      ).trim();
+      console.log('eBay collection code present:', collectionCode ? 'yes' : 'no');
+
       
       // Extract collection (sender) details from individual properties
       const collectionName = getPropertyValue(properties, 'Collection Name');
