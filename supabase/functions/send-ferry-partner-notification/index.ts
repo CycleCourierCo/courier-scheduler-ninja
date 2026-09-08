@@ -36,6 +36,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}))
+    const force = body?.force === true
     const orderId = body?.orderId
     if (!orderId || typeof orderId !== 'string') {
       return json({ error: 'orderId is required' }, 400)
@@ -45,7 +46,7 @@ Deno.serve(async (req) => {
     const { data: order, error } = await admin
       .from('orders')
       .select(
-        'id, sender, receiver, tracking_number, bike_brand, bike_model, bike_quantity, is_northern_ireland, ni_direction'
+        'id, sender, receiver, tracking_number, bike_brand, bike_model, bike_quantity, is_northern_ireland, ni_direction, ferry_partner_notified_at'
       )
       .eq('id', orderId)
       .maybeSingle()
