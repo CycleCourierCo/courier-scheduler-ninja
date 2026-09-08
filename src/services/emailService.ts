@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { getOrder } from "./orderService";
 
-import { getNiDirection } from "@/utils/niDelivery";
+import { getNiDirection, isInboundNi } from "@/utils/niDelivery";
 import { CITY_AIR_EXPRESS } from "@/constants/depot";
 import { Order } from "@/types/order";
 
