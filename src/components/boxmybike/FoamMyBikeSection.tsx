@@ -434,6 +434,11 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
             <div className="text-muted-foreground text-xs mt-1">
               Ferry hand-off: {CITY_AIR_EXPRESS.formatted}
             </div>
+            {o.ni_bfs_number && (
+              <div className="text-xs mt-1">
+                <span className="text-muted-foreground">BFS number:</span> {o.ni_bfs_number}
+              </div>
+            )}
           </div>
 
 
