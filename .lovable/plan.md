@@ -1,29 +1,23 @@
-# Missing collection card for CCC754621940862RUATN2
+# Pass the eBay collection code from Shopify orders
 
-## What the data shows
+## What's wrong
 
-Both orders are inbound Northern Ireland, at ferry stage "crossed ferry", and both already have a Shipday collection and delivery reference. The difference is the collection date:
+Shopify order #2114 (tracking `CCC754968576905MARBL0`) shows "eBay Collection Code: 587974" on the line item, but in this system the order was saved with no collection code and not marked as an eBay order.
 
-- `CCC754621940862RUATN2` — collection already booked for 2 September (in the past), never completed, still not collected.
-- `CCC754872802020GORCV3` — collection booked for 8 September (tomorrow).
+Confirmed by checking the stored order: `collection_code` is empty and the eBay flag is off.
 
-The job planner only lists a leg while it has no booked date (`scheduled_pickup_date` empty). Once a collection is booked it disappears from the planner, whether or not it ever happened. So RUATN2's Manchester ferry collection dropped off the list on 2 September and only its delivery remains visible — nothing is wrong with the Shipday reference or the ferry stage.
+Cause: the Shopify order handler reads bike brand, model, value, and both sets of contact/address details from the line-item fields, but never reads the eBay collection code field, so it is never sent on when the order is created. The order creation API already accepts a collection code — nothing is being given to it.
 
-## Fix: booked-but-overdue collections must come back into view
+## The fix
 
-- A collection whose booked date has passed and which is still not marked collected reappears in the planner, tagged as overdue with the date it was booked for, so it can be re-sequenced onto a new day. Same rule for deliveries booked in the past that never completed.
-- Re-booking such a job overwrites the old date rather than creating a second stop.
-- Inbound ferry collections keep the "Ferry hand-off" tag and the Manchester hand-off address on that card.
-- The existing "expired dates only" toggle keeps its current meaning (customer availability), so the new overdue behaviour is not hidden behind it.
+1. Read the eBay collection code from the Shopify line item, accepting the common label variants ("eBay Collection Code", "Ebay Collection Code", "Collection Code").
+2. When a code is present, send it through with the new order and mark the order as an eBay order. When absent, behaviour is unchanged.
+3. Log whether a code was found (the code itself is not sensitive customer data, but keep logging minimal).
+4. Backfill order #2114 so it shows collection code 587974 and is flagged as an eBay order.
 
-## Verify
+## Technical detail
 
-- RUATN2 shows a collection card again, tagged overdue, at the Manchester hand-off address, alongside its delivery card.
-- GORCV3 is unchanged.
-- Booking RUATN2's collection onto a new day updates the single stop, and it drops out of the overdue list once completed.
-
-## Technical notes
-
-- `src/components/scheduling/RouteBuilder.tsx` lines 1415 and 1443: replace `!order.scheduled_pickup_date` / `!order.scheduled_delivery_date` with "unbooked OR (booked date before today AND leg not completed)", using `order_collected` / `order_delivered` as the completion test and Europe/London day boundaries.
-- Mirror the same predicate in `src/pages/JobScheduling.tsx` (`hasUnscheduledPickup` / `hasUnscheduledDelivery`) so the map and the list agree.
-- Overdue badge rendered on the job card next to the existing Shipday/ferry badges; no schema change and no backend change.
+- `supabase/functions/shopify-webhook/index.ts`: add a `collectionCode` lookup via the existing `getPropertyValue` helper against the transport line item's `properties`, then include `collectionCode` and `isEbayOrder: !!collectionCode` in the body posted to the `orders` function.
+- `supabase/functions/orders/index.ts` already maps `body.collectionCode` → `collection_code` and `body.isEbayOrder` → `is_ebay_order`; no change needed there.
+- Backfill: single update on `orders` for tracking number `CCC754968576905MARBL0` setting `collection_code = '587974'` and `is_ebay_order = true`.
+- Verification: typecheck, then re-query the order to confirm the values landed. Future Shopify orders carrying the field will populate automatically once the function is deployed.
