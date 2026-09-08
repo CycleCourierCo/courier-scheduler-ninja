@@ -36,6 +36,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}))
+    const force = body?.force === true
     const orderId = body?.orderId
     if (!orderId || typeof orderId !== 'string') {
       return json({ error: 'orderId is required' }, 400)
@@ -45,7 +46,7 @@ Deno.serve(async (req) => {
     const { data: order, error } = await admin
       .from('orders')
       .select(
-        'id, sender, receiver, tracking_number, bike_brand, bike_model, bike_quantity, is_northern_ireland, ni_direction'
+        'id, sender, receiver, tracking_number, bike_brand, bike_model, bike_quantity, is_northern_ireland, ni_direction, ferry_partner_notified_at'
       )
       .eq('id', orderId)
       .maybeSingle()
@@ -54,6 +55,11 @@ Deno.serve(async (req) => {
     if (!order) return json({ error: 'Order not found' }, 404)
     if (!order.is_northern_ireland) {
       return json({ error: 'This order is not flagged as a Northern Ireland order' }, 400)
+    }
+
+    // One-time send unless explicitly forced (manual resend button).
+    if (!force && order.ferry_partner_notified_at) {
+      return json({ success: true, skipped: true, notifiedAt: order.ferry_partner_notified_at })
     }
 
     const email = buildFerryPartnerEmail({ ...order, orderId: order.id } as any)
