@@ -196,6 +196,7 @@ const handler = async (req: Request): Promise<Response> => {
     let sender: any;
     let receiver: any;
     let bikeQuantity = 1;
+    let collectionCode = '';
 
     // "Inspect and Service" can arrive as its own line, or as an add-on option
     // on the transport line. Either way the transport line is the one that
@@ -228,6 +229,16 @@ const handler = async (req: Request): Promise<Response> => {
       
       // Get bike quantity
       bikeQuantity = firstItem.quantity || 1;
+
+      // eBay collection code (label varies between Shopify setups)
+      collectionCode = (
+        getPropertyValue(properties, 'eBay Collection Code') ||
+        getPropertyValue(properties, 'Ebay Collection Code') ||
+        getPropertyValue(properties, 'eBay collection code') ||
+        getPropertyValue(properties, 'Collection Code') ||
+        ''
+      ).trim();
+      console.log('eBay collection code present:', collectionCode ? 'yes' : 'no');
 
       
       // Extract collection (sender) details from individual properties
@@ -395,6 +406,8 @@ const handler = async (req: Request): Promise<Response> => {
         }
       ],
       bikeQuantity: bikeQuantity,
+      collectionCode: collectionCode || undefined,
+      isEbayOrder: !!collectionCode,
       needsInspection,
       customerOrderNumber: shopifyOrder.order_number?.toString() || shopifyOrder.id?.toString(),
       deliveryInstructions: shopifyOrder.note || ''
