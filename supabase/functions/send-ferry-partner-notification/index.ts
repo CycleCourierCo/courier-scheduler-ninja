@@ -57,6 +57,11 @@ Deno.serve(async (req) => {
       return json({ error: 'This order is not flagged as a Northern Ireland order' }, 400)
     }
 
+    // One-time send unless explicitly forced (manual resend button).
+    if (!force && order.ferry_partner_notified_at) {
+      return json({ success: true, skipped: true, notifiedAt: order.ferry_partner_notified_at })
+    }
+
     const email = buildFerryPartnerEmail({ ...order, orderId: order.id } as any)
 
     const { error: emailError } = await admin.functions.invoke('send-email', {
