@@ -1,8 +1,8 @@
 import type { ComponentType } from "react";
 import type { UserRole } from "@/types/user";
 import {
-  Home, Package, Package2, Upload, Truck, FileText, PoundSterling, Calendar, Sparkles,
-  ClipboardList, ClipboardCheck, Route as RouteIcon, Warehouse, Clock, Wrench, Car, Fuel, ShieldAlert, Boxes,
+  Home, Package, Package2, Upload, Truck, FileText, PoundSterling, Calendar,
+  ClipboardCheck, Warehouse, Clock, Wrench, Car, Fuel, ShieldAlert, Boxes,
   BarChart3, TrendingUp, Inbox, CheckSquare, Megaphone, Mail, BookOpen, User, Users,
   Shield, CalendarOff, Key, Webhook, Store, Lock, KanbanSquare,
 } from "lucide-react";
@@ -50,12 +50,6 @@ export const APP_ROUTES: AppRoute[] = [
   // Operations
   { key: "scheduling", path: "/scheduling", label: "Job Scheduling", section: "Operations", icon: Calendar,
     defaultRoles: ["route_planner"] },
-  { key: "ai-routing", path: "/ai-routing", label: "AI Routing", section: "Operations", icon: Sparkles,
-    defaultRoles: ["route_planner"] },
-  { key: "dispatch-orders", path: "/dispatch/orders", label: "Dispatch Orders", section: "Operations", icon: ClipboardList,
-    defaultRoles: [] },
-  { key: "dispatch-routes", path: "/dispatch/routes", label: "Dispatch Routes", section: "Operations", icon: RouteIcon,
-    defaultRoles: [] },
   { key: "loading", path: "/loading", label: "Loading & Storage", section: "Operations", icon: Package,
     defaultRoles: ["loader"] },
   { key: "warehouse-stock", path: "/warehouse-stock", label: "Warehouse Stock", section: "Operations", icon: Warehouse,
