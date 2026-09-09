@@ -1,0 +1,13 @@
+DROP TABLE IF EXISTS public.dispatch_route_stops CASCADE;
+DROP TABLE IF EXISTS public.dispatch_routes CASCADE;
+DROP TABLE IF EXISTS public.route_predictions CASCADE;
+DROP TABLE IF EXISTS public.route_prediction_runs CASCADE;
+DROP TABLE IF EXISTS public.route_group_scores CASCADE;
+DROP TABLE IF EXISTS public.planner_route_overrides CASCADE;
+DROP TABLE IF EXISTS public.route_archetype_members CASCADE;
+DROP TABLE IF EXISTS public.route_archetypes CASCADE;
+DROP TABLE IF EXISTS public.historical_route_stops CASCADE;
+DROP TABLE IF EXISTS public.historical_routes CASCADE;
+DROP TABLE IF EXISTS public.postcode_patterns CASCADE;
+DROP TABLE IF EXISTS public.routes CASCADE;
+DELETE FROM public.role_route_permissions WHERE route_key IN ('ai-routing','dispatch-orders','dispatch-routes');
