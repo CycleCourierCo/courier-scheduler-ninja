@@ -38,9 +38,6 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
     items: [
       { to: "/project-management", label: "Project Management", icon: KanbanSquare },
       { to: "/scheduling", label: "Job Scheduling", icon: Calendar },
-      { to: "/ai-routing", label: "AI Routing", icon: Sparkles },
-      { to: "/dispatch/orders", label: "Dispatch Orders", icon: ClipboardList },
-      { to: "/dispatch/routes", label: "Dispatch Routes", icon: RouteIcon },
       { to: "/loading", label: "Loading & Storage", icon: Package },
       { to: "/warehouse-stock", label: "Warehouse Stock", icon: Warehouse },
       { to: "/storage-bays", label: "Storage Bays", icon: Warehouse },
@@ -247,10 +244,6 @@ const Layout: React.FC<LayoutProps> = ({
                           <Calendar className="mr-2 h-4 w-4" />
                           Job Scheduling
                         </Link>
-                        <Link to="/ai-routing" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                          <Sparkles className="mr-2 h-4 w-4" />
-                          AI Routing
-                        </Link>
                       </>}
                       {isSales && !isAdmin && <>
                           <Link to="/account-approvals" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
@@ -375,12 +368,6 @@ const Layout: React.FC<LayoutProps> = ({
                       <Link to="/scheduling" className="cursor-pointer flex w-full items-center">
                         <Calendar className="mr-2 h-4 w-4" />
                         <span>Job Scheduling</span>
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <Link to="/ai-routing" className="cursor-pointer flex w-full items-center">
-                        <Sparkles className="mr-2 h-4 w-4" />
-                        <span>AI Routing</span>
                       </Link>
                     </DropdownMenuItem>
                   </>}
