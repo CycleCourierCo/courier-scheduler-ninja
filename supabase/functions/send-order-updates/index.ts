@@ -600,7 +600,9 @@ const CHUNK_SIZE = 40;
  * self-chaining chunk for cron/bulk so no single invocation can be cut short.
  */
 async function runScan(admin: any, singleOrderId?: string, offset = 0) {
-  const deadStatuses = ["delivered", "cancelled", "delivered_by_3p", "delivered_to_ferry", "delivered_ni"];
+  // Must contain only real order_status enum values: an unknown label makes the
+  // whole scan fail with 22P02 and silently sends nothing.
+  const deadStatuses = ["delivered", "cancelled", "delivered_by_3p", "delivered_to_ferry"];
   const orders: any[] = [];
   let hasMore = false;
 
