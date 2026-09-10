@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { JobLocation } from '@/types/timeslip';
@@ -21,6 +21,15 @@ const TimeslipMapPreview: React.FC<TimeslipMapPreviewProps> = ({
   locations,
   height = "400px" 
 }) => {
+  const mapRef = useRef<L.Map | null>(null);
+
+  useEffect(() => {
+    if (mapRef.current && locations.length > 0) {
+      const bounds = L.latLngBounds(locations.map((loc) => [loc.lat, loc.lng] as [number, number]));
+      mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }, [locations]);
+
   // Calculate center point
   const center: [number, number] = locations.length > 0
     ? [
@@ -40,16 +49,15 @@ const TimeslipMapPreview: React.FC<TimeslipMapPreviewProps> = ({
     );
   }
 
-  const bounds = L.latLngBounds(locations.map((loc) => [loc.lat, loc.lng] as [number, number]));
-
   return (
     <MapContainer
       center={center}
       zoom={10}
-      bounds={bounds}
-      boundsOptions={{ padding: [50, 50] }}
       style={{ height, width: '100%' }}
       className="rounded-lg"
+      // Cast: the installed react-leaflet forwards a ref to the Leaflet map,
+      // but the ambient types in this project predate that.
+      {...({ ref: mapRef } as Record<string, unknown>)}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
