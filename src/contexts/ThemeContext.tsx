@@ -1,5 +1,7 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { safeGetItem, safeSetItem } from "@/lib/safeStorage";
+
 
 type Theme = "light" | "dark";
 
@@ -14,7 +16,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // Get the initial theme from localStorage or default to light
   const [theme, setTheme] = useState<Theme>(() => {
     // Check for saved theme preference or use light as default
-    const savedTheme = localStorage.getItem("theme") as Theme;
+    const savedTheme = safeGetItem("theme") as Theme | null;
     return savedTheme || "light";
   });
 
@@ -27,7 +29,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     root.classList.add(theme);
     
     // Save the theme preference to localStorage
-    localStorage.setItem("theme", theme);
+    safeSetItem("theme", theme);
   }, [theme]);
 
   // Toggle between light and dark mode
