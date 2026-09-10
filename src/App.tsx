@@ -45,7 +45,7 @@ import HolidaysPage from "./pages/HolidaysPage";
 import PricingPage from "./pages/PricingPage";
 import NoticeBarManagement from "./pages/NoticeBarManagement";
 import AnnouncementEmailsPage from "./pages/AnnouncementEmailsPage";
-import AIRouting from "./pages/AIRouting";
+
 import BulkOrderUpload from "./pages/BulkOrderUpload";
 import WarehouseStockPage from "./pages/WarehouseStockPage";
 import StorageBaysPage from "./pages/StorageBaysPage";
@@ -58,8 +58,6 @@ import EquipmentPage from "./pages/EquipmentPage";
 import ClaimsList from "./pages/ClaimsList";
 import NewClaim from "./pages/NewClaim";
 import ClaimDetail from "./pages/ClaimDetail";
-import DispatchOrdersPage from "./pages/DispatchOrdersPage";
-import DispatchRoutesPage from "./pages/DispatchRoutesPage";
 import BoxMyBikePage from "./pages/BoxMyBikePage";
 import BuildMyBikePage from "./pages/BuildMyBikePage";
 import CustomerServiceInbox from "./pages/CustomerServiceInbox";
@@ -267,11 +265,6 @@ function App() {
                   <AnnouncementEmailsPage />
                 </ProtectedRoute>
               } />
-              <Route path="/ai-routing" element={
-                <ProtectedRoute>
-                  <AIRouting />
-                </ProtectedRoute>
-              } />
               <Route path="/bulk-upload" element={
                 <ProtectedRoute>
                   <BulkOrderUpload />
@@ -330,16 +323,6 @@ function App() {
               <Route path="/claims/:id" element={
                 <ProtectedRoute adminOnly={true}>
                   <ClaimDetail />
-                </ProtectedRoute>
-              } />
-              <Route path="/dispatch/orders" element={
-                <ProtectedRoute>
-                  <DispatchOrdersPage />
-                </ProtectedRoute>
-              } />
-              <Route path="/dispatch/routes" element={
-                <ProtectedRoute>
-                  <DispatchRoutesPage />
                 </ProtectedRoute>
               } />
               <Route path="/admin/labour-times" element={

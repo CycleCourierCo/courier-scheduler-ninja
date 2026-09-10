@@ -76,18 +76,6 @@ verify_jwt = false
 [functions.get-shipday-carriers]
 verify_jwt = false
 
-[functions.build-postcode-patterns]
-verify_jwt = false
-
-
-[functions.build-historical-routes]
-verify_jwt = false
-
-[functions.build-route-archetypes]
-verify_jwt = false
-
-[functions.predict-routes-v2]
-verify_jwt = false
 
 [functions.fuel-finder]
 verify_jwt = false
@@ -130,3 +118,9 @@ verify_jwt = false
 
 [functions.create-driver-user]
 verify_jwt = false
+
+# Called by the daily 08:00 schedule with only an x-cron-secret header, so the
+# gateway must not demand a Supabase JWT.
+[functions.send-order-updates]
+verify_jwt = false
+

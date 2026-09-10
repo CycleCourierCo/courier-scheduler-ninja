@@ -195,11 +195,13 @@ export default function ReceiverAvailability() {
       nothingOutstanding
     );
 
-  // The sender must confirm collection dates first — the delivery window is
-  // derived from them, so there is nothing sensible to show before that.
+  // The sender normally confirms collection dates first, because the delivery
+  // window is derived from them. Once the bike is actually collected that no
+  // longer matters — the receiver can pick delivery dates straight away.
   const senderDatesSet = Array.isArray(order?.pickupDate) && order.pickupDate.length > 0;
+  const alreadyCollected = order?.orderCollected === true;
 
-  if (!senderDatesSet) {
+  if (!senderDatesSet && !alreadyCollected) {
     return (
       <Layout>
         <ErrorState
