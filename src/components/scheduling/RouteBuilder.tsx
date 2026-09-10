@@ -45,6 +45,7 @@ import {
   parseAltLocation,
   resolveStopAddress,
 } from "@/lib/altLocation";
+import { uuid } from "@/lib/uuid";
 
 // Profitability constants
 const COST_PER_MILE = 0.45;
@@ -1797,7 +1798,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         };
       });
 
-      const id = crypto.randomUUID();
+      const id = uuid();
       const name = `${format(selectedDate, 'yyyy-MM-dd')} — ${id.slice(0, 8)}`;
 
       const { error } = await supabase

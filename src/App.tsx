@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Suspense, lazy, useEffect } from "react";
+import { Routes, Route } from "react-router-dom";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -7,72 +8,87 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import ErrorFallback from "./components/ErrorFallback";
 
 import ProtectedRoute from "./components/ProtectedRoute";
+
+// Eager: everything a customer or a public link can reach. Keeps the first
+// download small so slow connections and older Safari don't stall on it.
 import Index from "./pages/Index";
-import Dashboard from "./pages/Dashboard";
-import OrderDetail from "./pages/OrderDetail";
 import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
-import CreateOrder from "./pages/CreateOrder";
-import CustomerOrderDetail from "./pages/CustomerOrderDetail";
 import SenderAvailability from "./pages/SenderAvailability";
 import ReceiverAvailability from "./pages/ReceiverAvailability";
 import RepairOffer from "./pages/RepairOffer";
 import NiPartnerUpload from "./pages/NiPartnerUpload";
-
-
 import TrackingPage from "./pages/TrackingPage";
-import UserProfile from "./pages/UserProfile";
-import AnalyticsPage from "./pages/AnalyticsPage";
-import JobScheduling from "./pages/JobScheduling";
-import AccountApprovals from "./pages/AccountApprovals";
-import ApiKeysPage from "./pages/ApiKeysPage";
-import WebhookConfigPage from "./pages/WebhookConfigPage";
-import InvoicesPage from "./pages/InvoicesPage";
 import NotFound from "./pages/NotFound";
-import AboutPage from "./pages/AboutPage";
-import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
-import TermsPage from "./pages/TermsPage";
-import ApiDocumentationPage from "./pages/ApiDocumentationPage";
-import LoadingUnloadingPage from "./pages/LoadingUnloadingPage";
-import UserManagement from "./pages/UserManagement";
-import BulkAvailabilityPage from "./pages/BulkAvailabilityPage";
-import DriverTimeslips from "./pages/DriverTimeslips";
-import MechanicClock from "./pages/MechanicClock";
-import RouteProfitabilityPage from "./pages/RouteProfitabilityPage";
-import MechanicProfitabilityPage from "./pages/MechanicProfitabilityPage";
-import BicycleInspections from "./pages/BicycleInspections";
-import HolidaysPage from "./pages/HolidaysPage";
-import PricingPage from "./pages/PricingPage";
-import NoticeBarManagement from "./pages/NoticeBarManagement";
-import AnnouncementEmailsPage from "./pages/AnnouncementEmailsPage";
 
-import BulkOrderUpload from "./pages/BulkOrderUpload";
-import WarehouseStockPage from "./pages/WarehouseStockPage";
-import StorageBaysPage from "./pages/StorageBaysPage";
-import TrunkRunsPage from "./pages/TrunkRunsPage";
-import MyStockPage from "./pages/MyStockPage";
-import ShopifyIntegrationPage from "./pages/ShopifyIntegrationPage";
-import FuelFinderPage from "./pages/FuelFinderPage";
-import VehicleManagement from "./pages/VehicleManagement";
-import EquipmentPage from "./pages/EquipmentPage";
-import ClaimsList from "./pages/ClaimsList";
-import NewClaim from "./pages/NewClaim";
-import ClaimDetail from "./pages/ClaimDetail";
-import BoxMyBikePage from "./pages/BoxMyBikePage";
-import BuildMyBikePage from "./pages/BuildMyBikePage";
-import CustomerServiceInbox from "./pages/CustomerServiceInbox";
-import Tasks from "./pages/Tasks";
-import ProjectManagement from "./pages/ProjectManagement";
-import RoutePermissionsPage from "./pages/RoutePermissionsPage";
-import LabourTimesAdmin from "./pages/LabourTimesAdmin";
-import KnowledgeBase from "./pages/KnowledgeBase";
-import ReviewsPage from "./pages/ReviewsPage";
-import ReviewDetailPage from "./pages/ReviewDetailPage";
-import MyReviewsPage from "./pages/MyReviewsPage";
+// Lazy: staff/admin pages, loaded only when someone opens them.
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const OrderDetail = lazy(() => import("./pages/OrderDetail"));
+const CreateOrder = lazy(() => import("./pages/CreateOrder"));
+const CustomerOrderDetail = lazy(() => import("./pages/CustomerOrderDetail"));
+const UserProfile = lazy(() => import("./pages/UserProfile"));
+const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage"));
+const JobScheduling = lazy(() => import("./pages/JobScheduling"));
+const AccountApprovals = lazy(() => import("./pages/AccountApprovals"));
+const ApiKeysPage = lazy(() => import("./pages/ApiKeysPage"));
+const WebhookConfigPage = lazy(() => import("./pages/WebhookConfigPage"));
+const InvoicesPage = lazy(() => import("./pages/InvoicesPage"));
+const AboutPage = lazy(() => import("./pages/AboutPage"));
+const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
+const TermsPage = lazy(() => import("./pages/TermsPage"));
+const ApiDocumentationPage = lazy(() => import("./pages/ApiDocumentationPage"));
+const LoadingUnloadingPage = lazy(() => import("./pages/LoadingUnloadingPage"));
+const UserManagement = lazy(() => import("./pages/UserManagement"));
+const BulkAvailabilityPage = lazy(() => import("./pages/BulkAvailabilityPage"));
+const DriverTimeslips = lazy(() => import("./pages/DriverTimeslips"));
+const MechanicClock = lazy(() => import("./pages/MechanicClock"));
+const RouteProfitabilityPage = lazy(() => import("./pages/RouteProfitabilityPage"));
+const MechanicProfitabilityPage = lazy(() => import("./pages/MechanicProfitabilityPage"));
+const BicycleInspections = lazy(() => import("./pages/BicycleInspections"));
+const HolidaysPage = lazy(() => import("./pages/HolidaysPage"));
+const PricingPage = lazy(() => import("./pages/PricingPage"));
+const NoticeBarManagement = lazy(() => import("./pages/NoticeBarManagement"));
+const AnnouncementEmailsPage = lazy(() => import("./pages/AnnouncementEmailsPage"));
+const BulkOrderUpload = lazy(() => import("./pages/BulkOrderUpload"));
+const WarehouseStockPage = lazy(() => import("./pages/WarehouseStockPage"));
+const StorageBaysPage = lazy(() => import("./pages/StorageBaysPage"));
+const TrunkRunsPage = lazy(() => import("./pages/TrunkRunsPage"));
+const MyStockPage = lazy(() => import("./pages/MyStockPage"));
+const ShopifyIntegrationPage = lazy(() => import("./pages/ShopifyIntegrationPage"));
+const FuelFinderPage = lazy(() => import("./pages/FuelFinderPage"));
+const VehicleManagement = lazy(() => import("./pages/VehicleManagement"));
+const EquipmentPage = lazy(() => import("./pages/EquipmentPage"));
+const ClaimsList = lazy(() => import("./pages/ClaimsList"));
+const NewClaim = lazy(() => import("./pages/NewClaim"));
+const ClaimDetail = lazy(() => import("./pages/ClaimDetail"));
+const BoxMyBikePage = lazy(() => import("./pages/BoxMyBikePage"));
+const BuildMyBikePage = lazy(() => import("./pages/BuildMyBikePage"));
+const CustomerServiceInbox = lazy(() => import("./pages/CustomerServiceInbox"));
+const Tasks = lazy(() => import("./pages/Tasks"));
+const ProjectManagement = lazy(() => import("./pages/ProjectManagement"));
+const RoutePermissionsPage = lazy(() => import("./pages/RoutePermissionsPage"));
+const LabourTimesAdmin = lazy(() => import("./pages/LabourTimesAdmin"));
+const KnowledgeBase = lazy(() => import("./pages/KnowledgeBase"));
+const ReviewsPage = lazy(() => import("./pages/ReviewsPage"));
+const ReviewDetailPage = lazy(() => import("./pages/ReviewDetailPage"));
+const MyReviewsPage = lazy(() => import("./pages/MyReviewsPage"));
 
 const queryClient = new QueryClient();
 
+const PageLoader = () => (
+  <div className="flex min-h-[60vh] items-center justify-center">
+    <div className="h-8 w-8 animate-spin rounded-full border-2 border-muted border-t-primary" />
+    <span className="sr-only">Loading</span>
+  </div>
+);
+
 function App() {
+  useEffect(() => {
+    // The app mounted, so the shell fallback did its job — allow future
+    // stale-release retries again.
+    (window as unknown as { __cccClearChunkRetry?: () => void }).__cccClearChunkRetry?.();
+  }, []);
+
   return (
     <Sentry.ErrorBoundary
       fallback={({ error, resetError }) => (
@@ -83,6 +99,7 @@ function App() {
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <AuthProvider>
+            <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/auth" element={<Auth />} />
@@ -210,11 +227,11 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/project-management" element={
-          <ProtectedRoute>
-            <ProjectManagement />
-          </ProtectedRoute>
-        } />
-        <Route path="/tasks" element={
+                <ProtectedRoute>
+                  <ProjectManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/tasks" element={
                 <ProtectedRoute>
                   <Tasks />
                 </ProtectedRoute>
@@ -343,6 +360,7 @@ function App() {
               <Route path="/api-docs" element={<ApiDocumentationPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </Suspense>
             <Toaster
               position="top-right"
               closeButton

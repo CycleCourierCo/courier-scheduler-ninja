@@ -11,6 +11,7 @@ import { MapPin, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStorageBays, getBayMaxPosition } from "@/hooks/useStorageBays";
 import { hasLeftDepot } from "@/utils/storageLocation";
+import { uuid } from "@/lib/uuid";
 
 
 interface StorageLocationProps {
@@ -120,7 +121,7 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
 
       // Create allocation for this bike
       newAllocations.push({
-        id: crypto.randomUUID(),
+        id: uuid(),
         orderId: order.id,
         bay: bayUpper,
         position: positionNum,

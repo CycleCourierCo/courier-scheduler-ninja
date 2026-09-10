@@ -25,6 +25,7 @@ import { createShipdayOrder } from "@/services/shipdayService";
 import { FOAM_STATUS_LABELS, FoamStatus, Order } from "@/types/order";
 import { toPublicFileUrl } from "@/lib/publicFileUrl";
 import { getPublicAppUrl } from "@/lib/publicAppUrl";
+import { uuid } from "@/lib/uuid";
 
 
 interface Props {
@@ -151,7 +152,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
     try {
       const ext = f.type === "application/pdf" ? "pdf" : f.type === "image/png" ? "png" : f.type === "image/webp" ? "webp" : "jpg";
       const safeName = (f.name || `label.${ext}`).replace(/[^A-Za-z0-9._-]+/g, "-").replace(/-+/g, "-").replace(/^[-.]+|[-.]+$/g, "").slice(0, 80) || `label.${ext}`;
-      const path = `partner/${order.id}/${crypto.randomUUID().slice(0, 8)}-${safeName}`;
+      const path = `partner/${order.id}/${uuid().slice(0, 8)}-${safeName}`;
       const { error: uploadError } = await supabase.storage
         .from("foam-my-bike-labels")
         .upload(path, f, { contentType: f.type, upsert: false });

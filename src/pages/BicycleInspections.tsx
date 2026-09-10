@@ -98,6 +98,7 @@ import InspectionFilters, {
   EMPTY_INSPECTION_FILTERS,
   type InspectionFilterState,
 } from "@/components/inspections/InspectionFilters";
+import { uuid } from "@/lib/uuid";
 
 // (workshop settings/labour pricing consumed inside RepairPicker)
 
@@ -443,7 +444,7 @@ const BicycleInspections = () => {
 
       const existing = Array.isArray(current?.storage_locations) ? (current!.storage_locations as any[]) : [];
       const updated = locations.map((loc, index) => ({
-        ...(existing[index] || { id: crypto.randomUUID(), orderId, allocatedAt: new Date().toISOString(), bikeIndex: index }),
+        ...(existing[index] || { id: uuid(), orderId, allocatedAt: new Date().toISOString(), bikeIndex: index }),
         bay: loc.bay,
         position: loc.position,
       }));

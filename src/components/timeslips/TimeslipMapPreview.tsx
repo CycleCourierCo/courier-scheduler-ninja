@@ -3,43 +3,32 @@ import L from 'leaflet';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import { JobLocation } from '@/types/timeslip';
 import 'leaflet/dist/leaflet.css';
+import { applyDefaultMarkerIcons, colouredMarkerIcon } from '@/lib/mapMarkers';
 
-// Fix Leaflet default icon issue
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-});
+// Bundled marker images — external pin hosts are blocked on some networks
+applyDefaultMarkerIcons();
 
-const pickupIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
-
-const deliveryIcon = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
+const pickupIcon = colouredMarkerIcon('green');
+const deliveryIcon = colouredMarkerIcon('red');
 
 interface TimeslipMapPreviewProps {
   locations: JobLocation[];
   height?: string;
 }
 
+
 const TimeslipMapPreview: React.FC<TimeslipMapPreviewProps> = ({ 
   locations,
   height = "400px" 
 }) => {
   const mapRef = useRef<L.Map | null>(null);
+
+  useEffect(() => {
+    if (mapRef.current && locations.length > 0) {
+      const bounds = L.latLngBounds(locations.map((loc) => [loc.lat, loc.lng] as [number, number]));
+      mapRef.current.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }, [locations]);
 
   // Calculate center point
   const center: [number, number] = locations.length > 0
@@ -48,13 +37,6 @@ const TimeslipMapPreview: React.FC<TimeslipMapPreviewProps> = ({
         locations.reduce((sum, loc) => sum + loc.lng, 0) / locations.length
       ]
     : [52.4707965, -1.8749747]; // Default to depot
-
-  useEffect(() => {
-    if (mapRef.current && locations.length > 0) {
-      const bounds = L.latLngBounds(locations.map(loc => [loc.lat, loc.lng]));
-      mapRef.current.fitBounds(bounds, { padding: [50, 50] });
-    }
-  }, [locations]);
 
   if (locations.length === 0) {
     return (
@@ -73,9 +55,9 @@ const TimeslipMapPreview: React.FC<TimeslipMapPreviewProps> = ({
       zoom={10}
       style={{ height, width: '100%' }}
       className="rounded-lg"
-      whenCreated={(map) => {
-        mapRef.current = map;
-      }}
+      // Cast: the installed react-leaflet forwards a ref to the Leaflet map,
+      // but the ambient types in this project predate that.
+      {...({ ref: mapRef } as Record<string, unknown>)}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
