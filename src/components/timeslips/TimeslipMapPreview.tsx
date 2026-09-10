@@ -40,14 +40,17 @@ const TimeslipMapPreview: React.FC<TimeslipMapPreviewProps> = ({
     );
   }
 
+  const bounds = L.latLngBounds(locations.map((loc) => [loc.lat, loc.lng] as [number, number]));
+
   return (
     <MapContainer
       center={center}
       zoom={10}
+      bounds={bounds}
+      boundsOptions={{ padding: [50, 50] }}
       style={{ height, width: '100%' }}
       className="rounded-lg"
     >
-      <FitBounds locations={locations} />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
