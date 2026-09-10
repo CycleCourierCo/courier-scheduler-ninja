@@ -4,15 +4,147 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Cycle Courier Co.</title>
-    <meta name="description" content="The Cycle Courier Co. - Specialty bike delivery service" />
+    <title>Cycle Courier Co. | Specialist Bike Delivery &amp; Booking</title>
+    <meta name="description" content="Book, track and manage specialist bicycle collections and deliveries across the UK and Ireland with The Cycle Courier Co." />
     <meta name="author" content="Cycle Courier Co." />
+    <meta property="og:title" content="Cycle Courier Co. | Specialist Bike Delivery &amp; Booking" />
+    <meta property="og:description" content="Book, track and manage specialist bicycle collections and deliveries across the UK and Ireland with The Cycle Courier Co." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
     <meta property="og:image" content="/cycle-courier-logo.png" />
     <link rel="icon" href="/cycle-courier-logo.png" />
+    <style>
+      /* Shown immediately, replaced as soon as the app starts. Plain CSS so it
+         works even if the app's own files are blocked or fail to download. */
+      #app-fallback {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        box-sizing: border-box;
+        background: #ffffff;
+        color: #111827;
+      }
+      #app-fallback .ccc-box { max-width: 420px; text-align: center; }
+      #app-fallback h1 { font-size: 20px; margin: 0 0 12px; }
+      #app-fallback p { font-size: 15px; line-height: 1.5; margin: 0 0 12px; color: #4b5563; }
+      #app-fallback a { color: #15803d; }
+      #app-fallback button {
+        margin-top: 8px;
+        padding: 10px 20px;
+        font-size: 15px;
+        border-radius: 8px;
+        border: 0;
+        background: #15803d;
+        color: #ffffff;
+        cursor: pointer;
+      }
+      #app-fallback .ccc-spinner {
+        width: 28px; height: 28px; margin: 0 auto 16px;
+        border: 3px solid #e5e7eb; border-top-color: #15803d; border-radius: 50%;
+        animation: ccc-spin 0.9s linear infinite;
+      }
+      @keyframes ccc-spin { to { transform: rotate(360deg); } }
+      #app-fallback .ccc-problem { display: none; }
+      #app-fallback.ccc-failed .ccc-loading { display: none; }
+      #app-fallback.ccc-failed .ccc-problem { display: block; }
+    </style>
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div id="app-fallback">
+        <div class="ccc-box">
+          <div class="ccc-loading">
+            <div class="ccc-spinner"></div>
+            <p>Loading Cycle Courier Co.&hellip;</p>
+          </div>
+          <div class="ccc-problem">
+            <h1>We couldn't finish loading this page</h1>
+            <p>
+              Something stopped the page from loading. This is usually antivirus
+              software, an ad blocker, or a company network filter blocking part
+              of our site. Turning those off for this site, or trying another
+              browser or your mobile data, normally fixes it.
+            </p>
+            <p>
+              Still stuck? Email
+              <a href="mailto:Info@cyclecourierco.com">Info@cyclecourierco.com</a>
+              and we'll help.
+            </p>
+            <button type="button" onclick="window.location.reload()">Reload page</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <noscript>
+      <p style="font-family: sans-serif; padding: 24px; text-align: center;">
+        This site needs JavaScript to run. Please enable JavaScript, or contact
+        us at Info@cyclecourierco.com and we'll help you book or track your bike.
+      </p>
+    </noscript>
+    <script>
+      (function () {
+        var showProblem = function () {
+          var el = document.getElementById("app-fallback");
+          if (el) el.className = "ccc-failed";
+        };
+
+        // A released file that no longer exists (stale cache after a deploy)
+        // is worth one silent retry before showing an error.
+        var retryKey = "ccc-chunk-retry";
+        var isLoadFailure = function (message) {
+          if (!message) return false;
+          return (
+            message.indexOf("dynamically imported module") !== -1 ||
+            message.indexOf("Importing a module script failed") !== -1 ||
+            message.indexOf("error loading dynamically imported module") !== -1
+          );
+        };
+        var retryOnce = function () {
+          try {
+            if (window.sessionStorage && !window.sessionStorage.getItem(retryKey)) {
+              window.sessionStorage.setItem(retryKey, "1");
+              window.location.reload();
+              return true;
+            }
+          } catch (e) {
+            /* storage blocked — just show the message */
+          }
+          return false;
+        };
+        window.__cccClearChunkRetry = function () {
+          try {
+            if (window.sessionStorage) window.sessionStorage.removeItem(retryKey);
+          } catch (e) {}
+        };
+
+        // If React never mounted, the fallback is still the only child.
+        window.setTimeout(function () {
+          var el = document.getElementById("app-fallback");
+          if (el && el.isConnected) showProblem();
+        }, 12000);
+
+        window.addEventListener("error", function (event) {
+          var msg = event && event.message ? String(event.message) : "";
+          var el = document.getElementById("app-fallback");
+          if (!el || !el.isConnected) return;
+          if (isLoadFailure(msg) && retryOnce()) return;
+          showProblem();
+        });
+
+        window.addEventListener("unhandledrejection", function (event) {
+          var reason = event && event.reason;
+          var msg = reason && reason.message ? String(reason.message) : String(reason || "");
+          var el = document.getElementById("app-fallback");
+          if (!el || !el.isConnected) return;
+          if (isLoadFailure(msg) && retryOnce()) return;
+          showProblem();
+        });
+      })();
+    </script>
     <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
     <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
     <script type="module" src="/src/main.tsx"></script>
