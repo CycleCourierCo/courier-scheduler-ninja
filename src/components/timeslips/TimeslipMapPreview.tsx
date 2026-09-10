@@ -1,6 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import L from 'leaflet';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import { JobLocation } from '@/types/timeslip';
 import 'leaflet/dist/leaflet.css';
 import { applyDefaultMarkerIcons, colouredMarkerIcon } from '@/lib/mapMarkers';
@@ -15,6 +15,17 @@ interface TimeslipMapPreviewProps {
   locations: JobLocation[];
   height?: string;
 }
+
+// react-leaflet v4 has no whenCreated prop — fit bounds from inside the map.
+const FitBounds: React.FC<{ locations: JobLocation[] }> = ({ locations }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (locations.length === 0) return;
+    const bounds = L.latLngBounds(locations.map((loc) => [loc.lat, loc.lng]));
+    map.fitBounds(bounds, { padding: [50, 50] });
+  }, [locations, map]);
+  return null;
+};
 
 const TimeslipMapPreview: React.FC<TimeslipMapPreviewProps> = ({ 
   locations,
