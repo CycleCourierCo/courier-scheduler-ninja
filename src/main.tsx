@@ -8,6 +8,9 @@ import './index.css';
 // Enable if DSN is configured (works in both dev preview and production)
 const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
 
+// Wrapped: if a blocker or privacy extension breaks the Sentry SDK, the app
+// must still start. Reporting is never worth a blank page.
+try {
 Sentry.init({
   dsn: sentryDsn,
   environment: import.meta.env.PROD ? "production" : "preview",
