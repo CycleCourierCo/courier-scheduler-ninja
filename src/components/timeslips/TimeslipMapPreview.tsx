@@ -31,8 +31,6 @@ const TimeslipMapPreview: React.FC<TimeslipMapPreviewProps> = ({
   locations,
   height = "400px" 
 }) => {
-  const mapRef = useRef<L.Map | null>(null);
-
   // Calculate center point
   const center: [number, number] = locations.length > 0
     ? [
@@ -40,13 +38,6 @@ const TimeslipMapPreview: React.FC<TimeslipMapPreviewProps> = ({
         locations.reduce((sum, loc) => sum + loc.lng, 0) / locations.length
       ]
     : [52.4707965, -1.8749747]; // Default to depot
-
-  useEffect(() => {
-    if (mapRef.current && locations.length > 0) {
-      const bounds = L.latLngBounds(locations.map(loc => [loc.lat, loc.lng]));
-      mapRef.current.fitBounds(bounds, { padding: [50, 50] });
-    }
-  }, [locations]);
 
   if (locations.length === 0) {
     return (
@@ -65,8 +56,8 @@ const TimeslipMapPreview: React.FC<TimeslipMapPreviewProps> = ({
       zoom={10}
       style={{ height, width: '100%' }}
       className="rounded-lg"
-      ref={mapRef}
     >
+      <FitBounds locations={locations} />
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
