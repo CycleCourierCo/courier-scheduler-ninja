@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from 'react-leaflet';
+import { colouredMarkerIcon } from "@/lib/mapMarkers";
 import L from 'leaflet';
 import { OrderData } from '@/pages/JobScheduling';
 import 'leaflet/dist/leaflet.css';
