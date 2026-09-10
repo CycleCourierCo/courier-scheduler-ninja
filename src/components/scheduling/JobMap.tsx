@@ -113,23 +113,8 @@ const JobMap: React.FC<JobMapProps> = ({ orders = [] }) => {
     centerLng = locations.reduce((sum, loc) => sum + loc.lng, 0) / locations.length;
   }
   
-  const collectionIcon = new L.Icon({
-    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-  });
-
-  const deliveryIcon = new L.Icon({
-    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-  });
+  const collectionIcon = colouredMarkerIcon('green');
+  const deliveryIcon = colouredMarkerIcon('red');
 
   return (
     <div className="h-[400px] w-full mb-8 rounded-lg overflow-hidden border border-border" id="map-container">

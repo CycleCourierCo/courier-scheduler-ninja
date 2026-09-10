@@ -2,29 +2,15 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import { applyDefaultMarkerIcons, colouredMarkerIcon } from "@/lib/mapMarkers";
 
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-});
-
-const makeIcon = (color: "green" | "red" | "orange" | "blue") =>
-  new L.Icon({
-    iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${color}.png`,
-    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41],
-  });
+applyDefaultMarkerIcons();
 
 const ICONS = {
-  approved: makeIcon("green"),
-  pending: makeIcon("orange"),
-  rejected: makeIcon("red"),
-  default: makeIcon("blue"),
+  approved: colouredMarkerIcon("green"),
+  pending: colouredMarkerIcon("orange"),
+  rejected: colouredMarkerIcon("red"),
+  default: colouredMarkerIcon("blue"),
 };
 
 export interface MapBusinessAccount {

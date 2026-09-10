@@ -76,18 +76,9 @@ const extractClusterPoints = (orders: OrderData[]): ClusterPoint[] => {
   return points;
 };
 
-// Create colored marker icon
-const createColoredIcon = (color: string, isCollection: boolean) => {
-  const iconColor = isCollection ? 'green' : 'red';
-  return new L.Icon({
-    iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${iconColor}.png`,
-    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-  });
-};
+// Create colored marker icon (bundled pins — no external requests)
+const createColoredIcon = (color: string, isCollection: boolean) =>
+  colouredMarkerIcon(isCollection ? 'green' : 'red');
 
 // Create cluster centroid icon using div icon
 const createCentroidIcon = (color: string, label: string) => {
