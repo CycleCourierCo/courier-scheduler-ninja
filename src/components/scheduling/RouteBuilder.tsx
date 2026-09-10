@@ -39,13 +39,13 @@ import { hasRole } from "@/lib/roles";
 import { BikeSpaceMap, DEFAULT_VAN_SPACES_CAPACITY, formatSpaces, getOrderSpaces, useBikeSpaces } from "@/lib/bikeSpaces";
 import { getGroupedBikes } from "@/utils/bikeSummary";
 import {
-import { uuid } from "@/lib/uuid";
   AddressSource,
   formatAltAddress,
   hasWorkAddress,
   parseAltLocation,
   resolveStopAddress,
 } from "@/lib/altLocation";
+import { uuid } from "@/lib/uuid";
 
 // Profitability constants
 const COST_PER_MILE = 0.45;

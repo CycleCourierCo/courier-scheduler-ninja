@@ -95,10 +95,10 @@ import WorkshopScheduleTab from "@/components/inspections/WorkshopScheduleTab";
 import { sendOrderToInspectaBike } from "@/services/inspectabikeService";
 import BillingCustomerDialog, { type QuickBooksCustomerOption } from "@/components/inspections/BillingCustomerDialog";
 import InspectionFilters, {
-import { uuid } from "@/lib/uuid";
   EMPTY_INSPECTION_FILTERS,
   type InspectionFilterState,
 } from "@/components/inspections/InspectionFilters";
+import { uuid } from "@/lib/uuid";
 
 // (workshop settings/labour pricing consumed inside RepairPicker)
 
