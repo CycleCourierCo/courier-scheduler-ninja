@@ -95,6 +95,7 @@ import WorkshopScheduleTab from "@/components/inspections/WorkshopScheduleTab";
 import { sendOrderToInspectaBike } from "@/services/inspectabikeService";
 import BillingCustomerDialog, { type QuickBooksCustomerOption } from "@/components/inspections/BillingCustomerDialog";
 import InspectionFilters, {
+import { uuid } from "@/lib/uuid";
   EMPTY_INSPECTION_FILTERS,
   type InspectionFilterState,
 } from "@/components/inspections/InspectionFilters";
@@ -443,7 +444,7 @@ const BicycleInspections = () => {
 
       const existing = Array.isArray(current?.storage_locations) ? (current!.storage_locations as any[]) : [];
       const updated = locations.map((loc, index) => ({
-        ...(existing[index] || { id: crypto.randomUUID(), orderId, allocatedAt: new Date().toISOString(), bikeIndex: index }),
+        ...(existing[index] || { id: uuid(), orderId, allocatedAt: new Date().toISOString(), bikeIndex: index }),
         bay: loc.bay,
         position: loc.position,
       }));

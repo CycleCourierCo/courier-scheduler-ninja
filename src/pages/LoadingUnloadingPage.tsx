@@ -33,6 +33,7 @@ import { calculateDistanceInMeters } from "@/utils/locationUtils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useStorageBays } from "@/hooks/useStorageBays";
 import { hasLeftDepot } from "@/utils/storageLocation";
+import { uuid } from "@/lib/uuid";
 
 
 // Storage allocation type
@@ -259,7 +260,7 @@ const LoadingUnloadingPage = () => {
 
     // Create all new allocations
     const newAllocations: StorageAllocation[] = allocationsToMake.map(allocation => ({
-      id: crypto.randomUUID(),
+      id: uuid(),
       orderId,
       bay: allocation.bay,
       position: allocation.position,

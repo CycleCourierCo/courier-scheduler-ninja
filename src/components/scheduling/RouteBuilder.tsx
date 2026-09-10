@@ -39,6 +39,7 @@ import { hasRole } from "@/lib/roles";
 import { BikeSpaceMap, DEFAULT_VAN_SPACES_CAPACITY, formatSpaces, getOrderSpaces, useBikeSpaces } from "@/lib/bikeSpaces";
 import { getGroupedBikes } from "@/utils/bikeSummary";
 import {
+import { uuid } from "@/lib/uuid";
   AddressSource,
   formatAltAddress,
   hasWorkAddress,
@@ -1797,7 +1798,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         };
       });
 
-      const id = crypto.randomUUID();
+      const id = uuid();
       const name = `${format(selectedDate, 'yyyy-MM-dd')} — ${id.slice(0, 8)}`;
 
       const { error } = await supabase
