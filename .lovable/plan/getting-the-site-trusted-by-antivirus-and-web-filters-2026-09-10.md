@@ -14,7 +14,7 @@ No application code changes.
 ## Domains to submit
 
 - booking.cyclecourierco.com (the portal customers log into)
-- cyclecourierco.com and www.cyclecourierco.com
+- cyclecourierco.com and [www.cyclecourierco.com](http://www.cyclecourierco.com)
 - api.cyclecourierco.com (file and photo links sent to customers)
 - notification.cyclecourierco.com (sending domain for our emails)
 - courier-scheduler-ninja.lovable.app (the fallback address)
@@ -22,6 +22,7 @@ No application code changes.
 ## Vendors the document will cover
 
 Endpoint antivirus / security suites:
+
 - Microsoft Defender and SmartScreen (Microsoft Security Intelligence submission)
 - Google Safe Browsing (covers Chrome, Firefox, Safari warnings)
 - Norton / Gen Digital (Norton Safe Web)
@@ -42,6 +43,7 @@ Endpoint antivirus / security suites:
 - Quttera and Sucuri (used by other scanners as a source)
 
 Network and DNS filters (these cause the same blocking on business and school networks):
+
 - Cisco Talos / Umbrella (OpenDNS)
 - Fortinet FortiGuard
 - Palo Alto PAN-DB
@@ -53,6 +55,7 @@ Network and DNS filters (these cause the same blocking on business and school ne
 - Cloudflare Radar domain category review
 
 Email deliverability lists, since our email domain gets flagged separately:
+
 - Spamhaus
 - Barracuda Reputation
 - SORBS
@@ -62,6 +65,7 @@ Email deliverability lists, since our email domain gets flagged separately:
 ## What each submission needs
 
 The document will state the standard inputs so they can be pasted quickly:
+
 - Full URL, plus the extra domains listed above
 - Category we want (Business / Shipping and Logistics)
 - Business name, registered address and company number, plus a contact email on the same domain
@@ -71,6 +75,7 @@ The document will state the standard inputs so they can be pasted quickly:
 ## Checks the document will also list
 
 Things that commonly trigger flags and are worth confirming while submissions are pending:
+
 - The site is HTTPS-only with a valid certificate and redirects from http
 - The domain has SPF, DKIM and DMARC records (email domain reputation feeds site reputation)
 - No mixed content or scripts loaded from unfamiliar third-party hosts
