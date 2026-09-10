@@ -295,7 +295,7 @@ function deriveUpdates(order: any, inspectionPending = false, inspectionStatus: 
   // Never chase the receiver for delivery dates while the bike is still in
   // inspection / repair — that handoff is deferred until the workshop finishes.
   if (
-    order.sender_confirmed_at &&
+    (order.sender_confirmed_at || order.order_collected) &&
     !order.receiver_confirmed_at &&
     !hasDates(order.delivery_date) &&
     !order.order_delivered &&
