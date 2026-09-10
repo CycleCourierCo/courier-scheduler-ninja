@@ -54,9 +54,7 @@ const TimeslipMapPreview: React.FC<TimeslipMapPreviewProps> = ({
       zoom={10}
       style={{ height, width: '100%' }}
       className="rounded-lg"
-      whenCreated={(map) => {
-        mapRef.current = map;
-      }}
+      ref={mapRef}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

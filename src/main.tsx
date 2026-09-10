@@ -37,13 +37,20 @@ Sentry.init({
     /^https:\/\/axigtrmaxhetyfzjjdve\.supabase\.co/,
   ],
 });
+} catch {
+  // Error reporting unavailable (blocked script/storage) — carry on.
+}
 
 // Global handler for unhandled promise rejections
 window.addEventListener('unhandledrejection', (event) => {
   const reason = event.reason as { name?: string } | undefined;
   // Skip form validation errors — these are normal "fill this field in" results
   if (reason?.name === 'ZodError') return;
-  Sentry.captureException(event.reason);
+  try {
+    Sentry.captureException(event.reason);
+  } catch {
+    /* reporting blocked */
+  }
 });
 
 
