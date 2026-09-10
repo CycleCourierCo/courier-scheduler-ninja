@@ -153,6 +153,8 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     result.senderConfirmedAt = parseDate(dbOrder.sender_confirmed_at);
   }
 
+  result.orderCollected = dbOrder.order_collected === true;
+
   if (dbOrder.receiver_confirmed_at) {
     result.receiverConfirmedAt = parseDate(dbOrder.receiver_confirmed_at);
   }
