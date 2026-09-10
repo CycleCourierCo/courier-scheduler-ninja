@@ -157,6 +157,7 @@ export type Order = {
   deliveryTimeslot?: string;
   senderConfirmedAt?: Date;
   receiverConfirmedAt?: Date;
+  orderCollected?: boolean;
   scheduledAt?: Date;
   status: OrderStatus;
   createdAt: Date;
