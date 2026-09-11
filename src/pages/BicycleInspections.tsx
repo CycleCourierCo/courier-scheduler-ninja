@@ -738,6 +738,40 @@ const BicycleInspections = () => {
     },
   });
 
+  // Decline every repair and send the bike back to the seller
+  const returnToSellerMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      const result = await rejectRepairsAndReturnToSeller(orderId);
+      if (!result.success) throw new Error(result.error || "Return failed");
+      return result;
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      if (result.shipdayCleared === false) {
+        toast.warning(
+          "Return created, but the courier job couldn't be removed automatically — our team will sort it."
+        );
+      }
+      toast.success(
+        result.returnTrackingNumber
+          ? `Return job #${result.returnTrackingNumber} created`
+          : "Return created",
+        result.returnOrderId
+          ? {
+              action: {
+                label: "View return",
+                onClick: () => navigate(`/orders/${result.returnOrderId}`),
+              },
+            }
+          : undefined
+      );
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Couldn't set up the return. Please try again.");
+    },
+  });
+
   // Submit customer response mutation
   const submitResponseMutation = useMutation({
     mutationFn: async ({ issueId, response }: { issueId: string; response: string }) => {
