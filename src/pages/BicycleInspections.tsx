@@ -2708,6 +2708,57 @@ const BicycleInspections = () => {
 
 
 
+          {/* Account holder: turn down everything and send the bike back to the seller */}
+          {isOwner &&
+            pendingIssues.length > 0 &&
+            order.status !== "cancelled" &&
+            !order.returned_to_seller_at && (
+              <div className="pt-2">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="w-full sm:w-auto"
+                      disabled={returnToSellerMutation.isPending}
+                    >
+                      {returnToSellerMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                      ) : (
+                        <RotateCcw className="h-4 w-4 mr-1" />
+                      )}
+                      Decline all repairs and return to seller
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Send this bike back to the seller?</AlertDialogTitle>
+                      <AlertDialogDescription asChild>
+                        <div className="space-y-2 text-left">
+                          <p>If you go ahead, we will:</p>
+                          <ul className="list-disc pl-5 space-y-1">
+                            <li>turn down every recommended repair</li>
+                            <li>cancel this delivery</li>
+                            <li>create a new job taking the bike back to the seller</li>
+                            <li>keep the bike where it is in our warehouse until then</li>
+                          </ul>
+                          <p>This can't be undone from here.</p>
+                        </div>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Keep this delivery</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => returnToSellerMutation.mutate(order.id)}
+                      >
+                        Return to seller
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
+
           {/* Complete Repairs Button (admin/mechanic for awaiting_repair when all approved are repaired) */}
           {(isAdmin || isMechanic) && isAwaitingRepair && allApprovedRepaired && (
             <div className="pt-2">
