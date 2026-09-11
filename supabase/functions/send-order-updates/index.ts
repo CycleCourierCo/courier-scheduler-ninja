@@ -390,6 +390,12 @@ function deriveUpdates(order: any, inspectionPending = false, inspectionStatus: 
             head: "The agreed work is underway",
             line: "Your bike is in our workshop while the agreed work is carried out.",
           };
+        case "ship_as_is":
+          return {
+            key: "in_depot_ship_as_is",
+            head: "Your bike has been checked over",
+            line: "The optional work wasn't going ahead, so your bike is ready to come to you as it is.",
+          };
         case "repaired":
           return {
             key: "in_depot_service_complete",
@@ -652,7 +658,9 @@ async function runScan(admin: any, singleOrderId?: string, offset = 0) {
   const isInspectionPending = (order: any): boolean => {
     if (order.needs_inspection !== true) return false;
     const statuses = inspectionStatusesByOrder.get(order.id) || [];
-    const complete = statuses.length > 0 && statuses.every((s) => s === "repaired");
+    const complete =
+      statuses.length > 0 &&
+      statuses.every((s) => s === "repaired" || s === "ship_as_is");
     return !complete;
   };
 

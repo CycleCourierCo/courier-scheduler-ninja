@@ -19,6 +19,7 @@ const STAGE_RANK: Record<string, number> = {
   in_repair: 6,
   cleaning: 7,
   repaired: 8,
+  ship_as_is: 8,
 };
 
 export const fetchInspectionStages = async (
