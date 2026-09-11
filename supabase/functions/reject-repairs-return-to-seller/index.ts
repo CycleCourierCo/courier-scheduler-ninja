@@ -236,9 +236,14 @@ serve(async (req) => {
     }
 
     const results: Array<{ id: string; leg: string; deleted: boolean; status?: number }> = [];
-    if ((pickupIds.size || deliveryIds.size) && SHIPDAY_API_KEY) {
+    const hasShipdayJobs = pickupIds.size > 0 || deliveryIds.size > 0;
+    if (hasShipdayJobs && SHIPDAY_API_KEY) {
       for (const id of pickupIds) results.push(await deleteShipdayJob(id, "pickup"));
       for (const id of deliveryIds) results.push(await deleteShipdayJob(id, "delivery"));
+    } else if (hasShipdayJobs) {
+      // No courier credentials configured — flag it so the office removes them.
+      for (const id of pickupIds) results.push({ id, leg: "pickup", deleted: false, status: 0 });
+      for (const id of deliveryIds) results.push({ id, leg: "delivery", deleted: false, status: 0 });
     }
     const failedLegs = results.filter((r) => !r.deleted);
 
