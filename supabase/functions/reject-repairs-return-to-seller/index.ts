@@ -307,7 +307,7 @@ serve(async (req) => {
             <p>${outstanding.length} repair${outstanding.length === 1 ? "" : "s"} declined. The original job has been cancelled${
               failedLegs.length > 0 ? " but its Shipday jobs could not all be deleted — please clear them manually" : " and removed from Shipday"
             }.</p>
-            <p style="margin:20px 0"><a href="${BASE_URL}/order/${returnOrder.id}" style="background:#0f766e;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;display:inline-block">Open the return job</a></p>
+            <p style="margin:20px 0"><a href="${BASE_URL}/orders/${returnOrder.id}" style="background:#0f766e;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;display:inline-block">Open the return job</a></p>
             <p style="font-size:13px;color:#4b5563">CCC - Cycle Courier Co.</p>
           </div>`;
 
