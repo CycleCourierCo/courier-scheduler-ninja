@@ -158,6 +158,10 @@ export type Order = {
   senderConfirmedAt?: Date;
   receiverConfirmedAt?: Date;
   orderCollected?: boolean;
+  /** Set on the original job when the customer sent the bike back to the seller */
+  returnedToSellerAt?: Date;
+  /** Set on a return job: the job it was created from */
+  returnedFromOrderId?: string | null;
   scheduledAt?: Date;
   status: OrderStatus;
   createdAt: Date;

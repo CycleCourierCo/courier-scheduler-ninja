@@ -1701,6 +1701,43 @@ export const submitPublicRepairOffer = async (
 
 };
 
+export interface ReturnToSellerResult {
+  success: boolean;
+  declined?: number;
+  returnOrderId?: string | null;
+  returnTrackingNumber?: string | null;
+  shipdayCleared?: boolean;
+  alreadyReturned?: boolean;
+  failedLegs?: Array<{ leg: string; status: number }>;
+  error?: string;
+}
+
+/**
+ * Account holder (or staff on their behalf) declines every outstanding repair
+ * and has the bike sent back to the seller: the original job is cancelled and
+ * its courier legs removed, and a return job is created already marked as
+ * collected in the same warehouse bay.
+ */
+export const rejectRepairsAndReturnToSeller = async (
+  orderId: string
+): Promise<ReturnToSellerResult> => {
+  const { data, error } = await supabase.functions.invoke('reject-repairs-return-to-seller', {
+    body: { orderId },
+  });
+
+  if (error) {
+    let parsed: any = null;
+    try {
+      parsed = await (error as any)?.context?.json?.();
+    } catch {
+      parsed = null;
+    }
+    return { success: false, error: parsed?.error || error.message };
+  }
+
+  return (data || { success: false, error: 'Return failed' }) as ReturnToSellerResult;
+};
+
 /**
  * Admin/mechanic override: mark a declined issue as approved by the receiver
  * (rather than the customer) so the work can go ahead and be billed to them.
