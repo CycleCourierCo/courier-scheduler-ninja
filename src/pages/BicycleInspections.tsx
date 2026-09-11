@@ -2933,9 +2933,9 @@ const BicycleInspections = () => {
             </div>
           )}
 
-          {inspection?.id && (
+          {order?.id && (
             <InspectionComments
-              inspectionId={inspection.id}
+              inspectionId={inspection?.id ?? null}
               orderId={order.id}
               className="mt-4"
             />

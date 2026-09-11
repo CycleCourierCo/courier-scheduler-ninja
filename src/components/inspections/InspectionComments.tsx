@@ -17,7 +17,7 @@ interface InspectionComment {
 }
 
 interface InspectionCommentsProps {
-  inspectionId: string;
+  inspectionId?: string | null;
   orderId: string;
   className?: string;
 }
@@ -47,7 +47,7 @@ const InspectionComments: React.FC<InspectionCommentsProps> = ({
       const { data, error } = await supabase
         .from("inspection_comments")
         .select("id, author_id, author_name, comment, created_at")
-        .eq("inspection_id", inspectionId)
+        .eq("order_id", orderId)
         .order("created_at", { ascending: false });
       if (error) throw error;
       setComments(data || []);
@@ -59,11 +59,11 @@ const InspectionComments: React.FC<InspectionCommentsProps> = ({
   };
 
   useEffect(() => {
-    if (!inspectionId) return;
+    if (!orderId) return;
     setLoading(true);
     fetchComments();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inspectionId]);
+  }, [orderId, inspectionId]);
 
   const handleSubmit = async () => {
     const text = newComment.trim();
@@ -76,7 +76,7 @@ const InspectionComments: React.FC<InspectionCommentsProps> = ({
         user.email ||
         "Staff";
       const { error } = await supabase.from("inspection_comments").insert({
-        inspection_id: inspectionId,
+        inspection_id: inspectionId ?? null,
         order_id: orderId,
         author_id: user.id,
         author_name: authorName,

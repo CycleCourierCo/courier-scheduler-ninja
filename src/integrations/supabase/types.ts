@@ -1894,7 +1894,7 @@ export type Database = {
           comment: string
           created_at: string
           id: string
-          inspection_id: string
+          inspection_id: string | null
           order_id: string
           updated_at: string
         }
@@ -1904,7 +1904,7 @@ export type Database = {
           comment: string
           created_at?: string
           id?: string
-          inspection_id: string
+          inspection_id?: string | null
           order_id: string
           updated_at?: string
         }
@@ -1914,7 +1914,7 @@ export type Database = {
           comment?: string
           created_at?: string
           id?: string
-          inspection_id?: string
+          inspection_id?: string | null
           order_id?: string
           updated_at?: string
         }
