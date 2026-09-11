@@ -12,6 +12,9 @@ verify_jwt = false
 [functions.cancel-order]
 verify_jwt = false
 
+[functions.reject-repairs-return-to-seller]
+verify_jwt = false
+
 
 [functions.trigger-webhook]
 verify_jwt = false

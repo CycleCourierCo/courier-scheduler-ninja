@@ -1894,7 +1894,7 @@ export type Database = {
           comment: string
           created_at: string
           id: string
-          inspection_id: string
+          inspection_id: string | null
           order_id: string
           updated_at: string
         }
@@ -1904,7 +1904,7 @@ export type Database = {
           comment: string
           created_at?: string
           id?: string
-          inspection_id: string
+          inspection_id?: string | null
           order_id: string
           updated_at?: string
         }
@@ -1914,7 +1914,7 @@ export type Database = {
           comment?: string
           created_at?: string
           id?: string
-          inspection_id?: string
+          inspection_id?: string | null
           order_id?: string
           updated_at?: string
         }
@@ -2978,6 +2978,8 @@ export type Database = {
           receiver_confirmed_at: string | null
           receiver_contact_id: string | null
           receiver_notes: string | null
+          returned_from_order_id: string | null
+          returned_to_seller_at: string | null
           scheduled_at: string | null
           scheduled_delivery_date: string | null
           scheduled_pickup_date: string | null
@@ -3093,6 +3095,8 @@ export type Database = {
           receiver_confirmed_at?: string | null
           receiver_contact_id?: string | null
           receiver_notes?: string | null
+          returned_from_order_id?: string | null
+          returned_to_seller_at?: string | null
           scheduled_at?: string | null
           scheduled_delivery_date?: string | null
           scheduled_pickup_date?: string | null
@@ -3208,6 +3212,8 @@ export type Database = {
           receiver_confirmed_at?: string | null
           receiver_contact_id?: string | null
           receiver_notes?: string | null
+          returned_from_order_id?: string | null
+          returned_to_seller_at?: string | null
           scheduled_at?: string | null
           scheduled_delivery_date?: string | null
           scheduled_pickup_date?: string | null
@@ -3241,6 +3247,13 @@ export type Database = {
             columns: ["receiver_contact_id"]
             isOneToOne: false
             referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_returned_from_order_id_fkey"
+            columns: ["returned_from_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
           {

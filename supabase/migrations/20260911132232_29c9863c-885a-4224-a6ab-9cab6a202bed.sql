@@ -1,0 +1,1 @@
+ALTER TABLE public.inspection_comments ALTER COLUMN inspection_id DROP NOT NULL;

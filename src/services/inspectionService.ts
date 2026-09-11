@@ -111,7 +111,8 @@ export const isReceiverAvailabilityBlockedByInspection = async (
 
     const rows = inspections || [];
     const isComplete =
-      rows.length > 0 && rows.every((i: any) => i.status === 'repaired');
+      rows.length > 0 &&
+      rows.every((i: any) => i.status === 'repaired' || i.status === 'ship_as_is');
     return !isComplete;
   } catch (err) {
     console.error('Error checking inspection block for receiver availability:', err);
@@ -208,6 +209,7 @@ export const reconcileInspectionStatuses = async (
         'awaiting_parts',
         'awaiting_repair',
         'in_repair',
+        'ship_as_is',
       ]);
     if (onlyInspectionId) query = query.eq('id', onlyInspectionId);
     const { data: inspections, error } = await query;
@@ -267,6 +269,14 @@ export const reconcileInspectionStatuses = async (
       const postApprovalStatus = (): InspectionStatus =>
         allPartsReady ? 'awaiting_repair' : 'awaiting_parts';
 
+      // Nothing was actually repaired (every issue declined by the customer and
+      // either never offered to the receiver or declined by them too) — the bike
+      // ships unrepaired rather than being marked as serviced.
+      const terminalStatus = (): InspectionStatus =>
+        approved.length === 0 && issues.some(i => i.status === 'declined')
+          ? 'ship_as_is'
+          : 'repaired';
+
       if (currentStatus === 'issues_found' && allResponded) {
         if (outstandingApproved.length > 0) {
           nextStatus = postApprovalStatus();
@@ -275,7 +285,7 @@ export const reconcileInspectionStatuses = async (
         } else if (declinedOffered.length > 0) {
           nextStatus = 'pending_receiver_approval';
         } else {
-          nextStatus = 'repaired';
+          nextStatus = terminalStatus();
         }
       } else if (currentStatus === 'repairs_declined' || currentStatus === 'pending_receiver_approval') {
         if (outstandingApproved.length > 0) {
@@ -285,7 +295,7 @@ export const reconcileInspectionStatuses = async (
         } else if (declinedOffered.length > 0) {
           nextStatus = 'pending_receiver_approval';
         } else {
-          nextStatus = 'repaired';
+          nextStatus = terminalStatus();
         }
       } else if (currentStatus === 'awaiting_parts' && allPartsReady) {
         nextStatus = 'awaiting_repair';
@@ -297,7 +307,7 @@ export const reconcileInspectionStatuses = async (
         // with (or waiting to go to) the receiver.
         if (declinedNotOffered.length > 0) nextStatus = 'repairs_declined';
         else if (declinedOffered.length > 0) nextStatus = 'pending_receiver_approval';
-        else nextStatus = 'repaired';
+        else nextStatus = terminalStatus();
       } else if (currentStatus === 'in_repair') {
         // Legacy rows: shift to awaiting_repair so the new UI handles them.
         nextStatus = 'awaiting_repair';
@@ -307,7 +317,10 @@ export const reconcileInspectionStatuses = async (
         const statusPatch: any = { status: nextStatus };
         // Finishing the workshop always makes the record customer-visible, even
         // when the repairs were approved in-house and no approval email was sent.
-        if (nextStatus === 'repaired' && !(inspection as any).released_to_customer_at) {
+        if (
+          (nextStatus === 'repaired' || nextStatus === 'ship_as_is') &&
+          !(inspection as any).released_to_customer_at
+        ) {
           statusPatch.released_to_customer_at = new Date().toISOString();
         }
         const { error: updateError } = await supabase
@@ -316,7 +329,7 @@ export const reconcileInspectionStatuses = async (
           .eq('id', inspection.id);
         if (!updateError) {
           updatedCount++;
-          if (nextStatus === 'repaired') {
+          if (nextStatus === 'repaired' || nextStatus === 'ship_as_is') {
             await triggerReceiverAvailabilityIfDeferred(inspection.id);
           }
         }
@@ -1686,6 +1699,43 @@ export const submitPublicRepairOffer = async (
   }
   return (data || { success: false }) as any;
 
+};
+
+export interface ReturnToSellerResult {
+  success: boolean;
+  declined?: number;
+  returnOrderId?: string | null;
+  returnTrackingNumber?: string | null;
+  shipdayCleared?: boolean;
+  alreadyReturned?: boolean;
+  failedLegs?: Array<{ leg: string; status: number }>;
+  error?: string;
+}
+
+/**
+ * Account holder (or staff on their behalf) declines every outstanding repair
+ * and has the bike sent back to the seller: the original job is cancelled and
+ * its courier legs removed, and a return job is created already marked as
+ * collected in the same warehouse bay.
+ */
+export const rejectRepairsAndReturnToSeller = async (
+  orderId: string
+): Promise<ReturnToSellerResult> => {
+  const { data, error } = await supabase.functions.invoke('reject-repairs-return-to-seller', {
+    body: { orderId },
+  });
+
+  if (error) {
+    let parsed: any = null;
+    try {
+      parsed = await (error as any)?.context?.json?.();
+    } catch {
+      parsed = null;
+    }
+    return { success: false, error: parsed?.error || error.message };
+  }
+
+  return (data || { success: false, error: 'Return failed' }) as ReturnToSellerResult;
 };
 
 /**

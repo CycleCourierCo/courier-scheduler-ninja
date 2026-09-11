@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Copy, Save, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { uuid } from "@/lib/uuid";
 
 interface SelectedJob {
   orderId: string;
@@ -46,13 +47,13 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
   const isUpdate = !!existingRouteId;
   const [routeName, setRouteName] = useState(existingRouteName ?? "");
   const [isSaving, setIsSaving] = useState(false);
-  const [generatedId, setGeneratedId] = useState<string>(() => existingRouteId ?? crypto.randomUUID());
+  const [generatedId, setGeneratedId] = useState<string>(() => existingRouteId ?? uuid());
 
   // Keep local state in sync when the dialog opens or the loaded route changes
   useEffect(() => {
     if (open) {
       setRouteName(existingRouteName ?? "");
-      setGeneratedId(existingRouteId ?? crypto.randomUUID());
+      setGeneratedId(existingRouteId ?? uuid());
     }
   }, [open, existingRouteId, existingRouteName]);
 

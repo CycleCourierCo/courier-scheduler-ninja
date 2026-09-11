@@ -53,6 +53,7 @@ import {
   resetToPending,
   acceptIssue,
   declineIssue,
+  rejectRepairsAndReturnToSeller,
   markIssueRepaired,
   moveToRepaired,
   checkAllApprovedRepaired,
@@ -98,6 +99,7 @@ import InspectionFilters, {
   EMPTY_INSPECTION_FILTERS,
   type InspectionFilterState,
 } from "@/components/inspections/InspectionFilters";
+import { uuid } from "@/lib/uuid";
 
 // (workshop settings/labour pricing consumed inside RepairPicker)
 
@@ -443,7 +445,7 @@ const BicycleInspections = () => {
 
       const existing = Array.isArray(current?.storage_locations) ? (current!.storage_locations as any[]) : [];
       const updated = locations.map((loc, index) => ({
-        ...(existing[index] || { id: crypto.randomUUID(), orderId, allocatedAt: new Date().toISOString(), bikeIndex: index }),
+        ...(existing[index] || { id: uuid(), orderId, allocatedAt: new Date().toISOString(), bikeIndex: index }),
         bay: loc.bay,
         position: loc.position,
       }));
@@ -734,6 +736,40 @@ const BicycleInspections = () => {
     onError: (error) => {
       toast.error("Failed to decline issue");
       console.error(error);
+    },
+  });
+
+  // Decline every repair and send the bike back to the seller
+  const returnToSellerMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      const result = await rejectRepairsAndReturnToSeller(orderId);
+      if (!result.success) throw new Error(result.error || "Return failed");
+      return result;
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      queryClient.invalidateQueries({ queryKey: ["orders"] });
+      if (result.shipdayCleared === false) {
+        toast.warning(
+          "Return created, but the courier job couldn't be removed automatically — our team will sort it."
+        );
+      }
+      toast.success(
+        result.returnTrackingNumber
+          ? `Return job #${result.returnTrackingNumber} created`
+          : "Return created",
+        result.returnOrderId
+          ? {
+              action: {
+                label: "View return",
+                onClick: () => navigate(`/orders/${result.returnOrderId}`),
+              },
+            }
+          : undefined
+      );
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Couldn't set up the return. Please try again.");
     },
   });
 
@@ -1330,6 +1366,8 @@ const BicycleInspections = () => {
         return { variant: "warning" as const, label: "Cleaning" };
       case "repaired":
         return { variant: "success" as const, label: "Repaired" };
+      case "ship_as_is":
+        return { variant: "warning" as const, label: "Ship As-Is" };
       default:
         return { variant: "secondary" as const, label: "Awaiting Inspection" };
     }
@@ -1374,7 +1412,10 @@ const BicycleInspections = () => {
     const inspection = i.inspection;
     if (inspection?.invoice_number) return "invoiced";
     if (inspection?.invoice_skipped_at) return "skipped";
-    const released = inspection?.status === "inspected" || inspection?.status === "repaired";
+    const released =
+      inspection?.status === "inspected" ||
+      inspection?.status === "repaired" ||
+      inspection?.status === "ship_as_is";
     if (!released) return null;
     const issues = i.issues || [];
     if (issues.length === 0) return "no_issues";
@@ -1504,7 +1545,9 @@ const BicycleInspections = () => {
   const awaitingRepair = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_repair" || i.inspection?.status === "in_repair" || i.inspection?.status === "cleaning");
   const inspectedAndServiced = filteredInspections.filter(
     (i: any) =>
-      (i.inspection?.status === "inspected" || i.inspection?.status === "repaired") &&
+      (i.inspection?.status === "inspected" ||
+        i.inspection?.status === "repaired" ||
+        i.inspection?.status === "ship_as_is") &&
       !isBillingSettled(i)
   );
   const invoicedList = filteredInspections.filter(isBillingSettled);
@@ -1528,12 +1571,12 @@ const BicycleInspections = () => {
       .filter((i: any) => i.billing_party === "receiver")
       .reduce((sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0), 0);
     const totalForInvoice = customerApprovedIssues.reduce((sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0), 0);
-    const canCreateInvoice = isAdmin && (inspection?.status === "repaired" || inspection?.status === "inspected") && customerApprovedIssues.length > 0 && !hasInvoice && !invoiceSkipped && totalForInvoice > 0;
+    const canCreateInvoice = isAdmin && (inspection?.status === "repaired" || inspection?.status === "ship_as_is" || inspection?.status === "inspected") && customerApprovedIssues.length > 0 && !hasInvoice && !invoiceSkipped && totalForInvoice > 0;
     const isAwaitingPricing = inspection?.status === "awaiting_pricing";
     const isAwaitingParts = inspection?.status === "awaiting_parts";
     const isAwaitingRepair = inspection?.status === "awaiting_repair" || inspection?.status === "in_repair" || inspection?.status === "cleaning";
     // Post-approval stages: extra work found after the customer approved repairs.
-    const isPostApproval = ["awaiting_parts", "awaiting_repair", "in_repair", "cleaning", "repaired"].includes(
+    const isPostApproval = ["awaiting_parts", "awaiting_repair", "in_repair", "cleaning", "repaired", "ship_as_is"].includes(
       inspection?.status ?? ""
     );
 
@@ -1771,6 +1814,7 @@ const BicycleInspections = () => {
                     <SelectItem value="cleaning">Cleaning</SelectItem>
                     <SelectItem value="inspected">Inspected</SelectItem>
                     <SelectItem value="repaired">Repaired</SelectItem>
+                    <SelectItem value="ship_as_is">Ship As-Is</SelectItem>
                   </SelectContent>
                 </Select>
               )}
@@ -1779,7 +1823,7 @@ const BicycleInspections = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Cleaning tasks (shown pre-repaired-final for every bike) */}
-          {inspection && inspection.status !== "repaired" && inspection.status !== "inspected" && (
+          {inspection && inspection.status !== "repaired" && inspection.status !== "ship_as_is" && inspection.status !== "inspected" && (
             <div className="rounded-md border p-3 bg-muted/30 space-y-2">
               <p className="text-sm font-medium">Cleaning</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -2664,6 +2708,57 @@ const BicycleInspections = () => {
 
 
 
+          {/* Account holder: turn down everything and send the bike back to the seller */}
+          {isOwner &&
+            pendingIssues.length > 0 &&
+            order.status !== "cancelled" &&
+            !order.returned_to_seller_at && (
+              <div className="pt-2">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      className="w-full sm:w-auto"
+                      disabled={returnToSellerMutation.isPending}
+                    >
+                      {returnToSellerMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                      ) : (
+                        <RotateCcw className="h-4 w-4 mr-1" />
+                      )}
+                      Decline all repairs and return to seller
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Send this bike back to the seller?</AlertDialogTitle>
+                      <AlertDialogDescription asChild>
+                        <div className="space-y-2 text-left">
+                          <p>If you go ahead, we will:</p>
+                          <ul className="list-disc pl-5 space-y-1">
+                            <li>turn down every recommended repair</li>
+                            <li>cancel this delivery</li>
+                            <li>create a new job taking the bike back to the seller</li>
+                            <li>keep the bike where it is in our warehouse until then</li>
+                          </ul>
+                          <p>This can't be undone from here.</p>
+                        </div>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Keep this delivery</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => returnToSellerMutation.mutate(order.id)}
+                      >
+                        Return to seller
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
+
           {/* Complete Repairs Button (admin/mechanic for awaiting_repair when all approved are repaired) */}
           {(isAdmin || isMechanic) && isAwaitingRepair && allApprovedRepaired && (
             <div className="pt-2">
@@ -2838,9 +2933,9 @@ const BicycleInspections = () => {
             </div>
           )}
 
-          {inspection?.id && (
+          {order?.id && (
             <InspectionComments
-              inspectionId={inspection.id}
+              inspectionId={inspection?.id ?? null}
               orderId={order.id}
               className="mt-4"
             />

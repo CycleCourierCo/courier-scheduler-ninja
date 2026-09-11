@@ -18,6 +18,7 @@ import { notify } from "@/lib/notify";
 import { geocodeAddress } from "@/utils/geocoding";
 import { format, formatDistanceToNow } from "date-fns";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { applyDefaultMarkerIcons, colouredMarkerIcon } from "@/lib/mapMarkers";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { hasRole } from "@/lib/roles";
@@ -25,32 +26,12 @@ import FuelInvoiceAnalysisSection from "@/components/fuel/FuelInvoiceAnalysisSec
 
 // Fix Leaflet default icon
 const fixLeafletIcon = () => {
-  delete (L.Icon.Default.prototype as any)._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
-    iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
-    shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
-  });
+  applyDefaultMarkerIcons();
 };
 fixLeafletIcon();
 
-const greenIcon = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
-
-const blueIcon = new L.Icon({
-  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png",
-  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
+const greenIcon = colouredMarkerIcon("green");
+const blueIcon = colouredMarkerIcon("blue");
 
 interface FuelStation {
   site_id: string;
