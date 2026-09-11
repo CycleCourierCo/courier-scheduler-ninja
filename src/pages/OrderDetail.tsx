@@ -1334,6 +1334,23 @@ const OrderDetail = () => {
             <CardDescription>
               Last Updated: {safeFormat(order.updatedAt, "PPP 'at' p")}
             </CardDescription>
+            {order.returnedToSellerAt && (
+              <CardDescription className="text-amber-600">
+                Customer declined all repairs — bike returned to seller on{" "}
+                {safeFormat(order.returnedToSellerAt, "PPP")}
+              </CardDescription>
+            )}
+            {order.returnedFromOrderId && (
+              <CardDescription>
+                Return job —{" "}
+                <Link
+                  to={`/orders/${order.returnedFromOrderId}`}
+                  className="underline underline-offset-2"
+                >
+                  view the original job
+                </Link>
+              </CardDescription>
+            )}
           </CardHeader>
           
           <CardContent className="space-y-4">
