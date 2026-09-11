@@ -53,6 +53,7 @@ import {
   resetToPending,
   acceptIssue,
   declineIssue,
+  rejectRepairsAndReturnToSeller,
   markIssueRepaired,
   moveToRepaired,
   checkAllApprovedRepaired,
