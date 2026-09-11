@@ -13,6 +13,7 @@ const STAGE_LABELS: Record<string, string> = {
   in_repair: "in repair",
   cleaning: "being cleaned",
   repaired: "service complete",
+  ship_as_is: "ship as-is - repairs declined",
 };
 
 /**
@@ -25,7 +26,7 @@ export const isServiceComplete = (
   inspectionStatus: InspectionStatus | string | null | undefined
 ): boolean => {
   if (needsInspection !== true) return true;
-  return inspectionStatus === "repaired";
+  return inspectionStatus === "repaired" || inspectionStatus === "ship_as_is";
 };
 
 /** Human-readable current workshop stage, for badges and tooltips. */

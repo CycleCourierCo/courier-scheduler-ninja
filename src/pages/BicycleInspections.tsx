@@ -1331,6 +1331,8 @@ const BicycleInspections = () => {
         return { variant: "warning" as const, label: "Cleaning" };
       case "repaired":
         return { variant: "success" as const, label: "Repaired" };
+      case "ship_as_is":
+        return { variant: "warning" as const, label: "Ship As-Is" };
       default:
         return { variant: "secondary" as const, label: "Awaiting Inspection" };
     }
@@ -1375,7 +1377,10 @@ const BicycleInspections = () => {
     const inspection = i.inspection;
     if (inspection?.invoice_number) return "invoiced";
     if (inspection?.invoice_skipped_at) return "skipped";
-    const released = inspection?.status === "inspected" || inspection?.status === "repaired";
+    const released =
+      inspection?.status === "inspected" ||
+      inspection?.status === "repaired" ||
+      inspection?.status === "ship_as_is";
     if (!released) return null;
     const issues = i.issues || [];
     if (issues.length === 0) return "no_issues";
@@ -1505,7 +1510,9 @@ const BicycleInspections = () => {
   const awaitingRepair = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_repair" || i.inspection?.status === "in_repair" || i.inspection?.status === "cleaning");
   const inspectedAndServiced = filteredInspections.filter(
     (i: any) =>
-      (i.inspection?.status === "inspected" || i.inspection?.status === "repaired") &&
+      (i.inspection?.status === "inspected" ||
+        i.inspection?.status === "repaired" ||
+        i.inspection?.status === "ship_as_is") &&
       !isBillingSettled(i)
   );
   const invoicedList = filteredInspections.filter(isBillingSettled);
@@ -1529,12 +1536,12 @@ const BicycleInspections = () => {
       .filter((i: any) => i.billing_party === "receiver")
       .reduce((sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0), 0);
     const totalForInvoice = customerApprovedIssues.reduce((sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0), 0);
-    const canCreateInvoice = isAdmin && (inspection?.status === "repaired" || inspection?.status === "inspected") && customerApprovedIssues.length > 0 && !hasInvoice && !invoiceSkipped && totalForInvoice > 0;
+    const canCreateInvoice = isAdmin && (inspection?.status === "repaired" || inspection?.status === "ship_as_is" || inspection?.status === "inspected") && customerApprovedIssues.length > 0 && !hasInvoice && !invoiceSkipped && totalForInvoice > 0;
     const isAwaitingPricing = inspection?.status === "awaiting_pricing";
     const isAwaitingParts = inspection?.status === "awaiting_parts";
     const isAwaitingRepair = inspection?.status === "awaiting_repair" || inspection?.status === "in_repair" || inspection?.status === "cleaning";
     // Post-approval stages: extra work found after the customer approved repairs.
-    const isPostApproval = ["awaiting_parts", "awaiting_repair", "in_repair", "cleaning", "repaired"].includes(
+    const isPostApproval = ["awaiting_parts", "awaiting_repair", "in_repair", "cleaning", "repaired", "ship_as_is"].includes(
       inspection?.status ?? ""
     );
 
@@ -1772,6 +1779,7 @@ const BicycleInspections = () => {
                     <SelectItem value="cleaning">Cleaning</SelectItem>
                     <SelectItem value="inspected">Inspected</SelectItem>
                     <SelectItem value="repaired">Repaired</SelectItem>
+                    <SelectItem value="ship_as_is">Ship As-Is</SelectItem>
                   </SelectContent>
                 </Select>
               )}
@@ -1780,7 +1788,7 @@ const BicycleInspections = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Cleaning tasks (shown pre-repaired-final for every bike) */}
-          {inspection && inspection.status !== "repaired" && inspection.status !== "inspected" && (
+          {inspection && inspection.status !== "repaired" && inspection.status !== "ship_as_is" && inspection.status !== "inspected" && (
             <div className="rounded-md border p-3 bg-muted/30 space-y-2">
               <p className="text-sm font-medium">Cleaning</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

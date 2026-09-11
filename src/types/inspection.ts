@@ -9,7 +9,8 @@ export type InspectionStatus =
   | 'awaiting_repair'
   | 'in_repair' // deprecated, kept for back-compat reads
   | 'cleaning'
-  | 'repaired';
+  | 'repaired'
+  | 'ship_as_is';
 
 export type IssueStatus = 'pending' | 'approved' | 'declined' | 'resolved' | 'repaired';
 
