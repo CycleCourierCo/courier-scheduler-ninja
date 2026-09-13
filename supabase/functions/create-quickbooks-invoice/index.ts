@@ -600,10 +600,13 @@ const handler = async (req: Request): Promise<Response> => {
       for (let i = 0; i < bikesToProcess.length; i++) {
         const bike = bikesToProcess[i];
         
-        // Use special rate product if customer has one, otherwise look up by bike type
+        // Big-bike rate (if this job is flagged) > account special rate > bike-type price
         let product: ProductInfo | null = null;
-        
-        if (specialRateProduct) {
+        const useLargeBikeRate = largeBikeRateProduct !== null && largeRateOrderIds.has(order.id);
+
+        if (useLargeBikeRate) {
+          product = largeBikeRateProduct;
+        } else if (specialRateProduct) {
           // Use special rate for ALL bikes when customer has special rate code
           product = specialRateProduct;
         } else {
