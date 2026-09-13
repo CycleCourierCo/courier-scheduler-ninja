@@ -829,7 +829,7 @@ const handler = async (req: Request): Promise<Response> => {
   console.log('Authenticated admin:', authResult.userId);
 
   try {
-    const { date, bikesNeedingLoading: rawBikesNeedingLoading, bikesAlreadyLoaded: rawBikesAlreadyLoaded, driverPhoneNumbers: rawDriverPhoneNumbers = {}, driverEmails: rawDriverEmails = {}, loaderPhoneNumber, loaderEmail }: LoadingListRequest = await req.json();
+    const { date, bikesNeedingLoading: rawBikesNeedingLoading, driverPhoneNumbers: rawDriverPhoneNumbers = {}, driverEmails: rawDriverEmails = {}, loaderPhoneNumber, loaderEmail }: LoadingListRequest = await req.json();
 
     // Shipday keeps a second "<name> - Temp" carrier per driver. Fold those
     // names back into the driver's normal name so nobody appears twice.
