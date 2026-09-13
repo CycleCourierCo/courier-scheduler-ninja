@@ -32,6 +32,7 @@ import BoxMyBikeConversion from "./BoxMyBikeConversion";
 import BoxBuyerDetails from "./BoxBuyerDetails";
 import NorthernIrelandEditor from "./NorthernIrelandEditor";
 import GuaranteedDeliveryCard from "./GuaranteedDeliveryCard";
+import LargeBikeRateToggle from "./LargeBikeRateToggle";
 import {
   enableInspectionForOrder,
   disableInspectionForOrder,
@@ -239,6 +240,7 @@ const OrderServicesPanel: React.FC<OrderServicesPanelProps> = ({ order, onRefres
 
   const inspectionStatus = order.inspection_status as string | null;
   const guaranteed = Boolean((order as any).guaranteed_delivery ?? order.guaranteedDelivery);
+  const bigBikeRate = Boolean((order as any).useLargeBikeRate ?? (order as any).use_large_bike_rate);
 
   const row = (
     value: string,
@@ -344,6 +346,18 @@ const OrderServicesPanel: React.FC<OrderServicesPanelProps> = ({ order, onRefres
               <Badge variant="outline">Not set</Badge>
             ),
             <GuaranteedDeliveryCard order={order} onUpdate={refresh} bare />
+          )}
+
+          {row(
+            "big-bike-rate",
+            <Receipt className="h-4 w-4 shrink-0" />,
+            "Big-bike rate",
+            bigBikeRate ? (
+              <Badge className="bg-blue-600 hover:bg-blue-600 text-white">Big-bike rate</Badge>
+            ) : (
+              <Badge variant="outline">Standard rate</Badge>
+            ),
+            <LargeBikeRateToggle order={order} onUpdate={refresh} />
           )}
         </Accordion>
       </CardContent>

@@ -80,3 +80,17 @@ export const getCompletedDriverName = (order: Order, type: "pickup" | "delivery"
 
   return completedEvent?.driverName || null;
 };
+
+/**
+ * Strip the "- Temp" suffix from a Shipday driver name so temp jobs are
+ * attributed to the driver's normal name instead of a duplicate entry.
+ * "Dave - Temp", "Dave -Temp", "Dave (Temp)" -> "Dave".
+ */
+export const normaliseDriverName = <T extends string | null | undefined>(name: T): T => {
+  if (typeof name !== "string") return name;
+  const cleaned = name
+    .replace(/\s*[-–—]\s*temp\s*$/i, "")
+    .replace(/\s*\(\s*temp\s*\)\s*$/i, "")
+    .trim();
+  return (cleaned || name.trim()) as T;
+};

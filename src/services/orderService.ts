@@ -15,6 +15,7 @@ import { upsertContact } from "@/services/contactService";
 import { geocodeAddress, buildAddressString } from "@/utils/geocoding";
 import { resolveRegion, isNorthernIrelandAddress } from "@/utils/northernIreland";
 import { resolveScotlandDirection } from "@/utils/scotland";
+import { canFilterByCustomer } from "@/lib/roles";
 
 
 const attachInspectionSummary = async (order: Order, orderIdentifier: string): Promise<Order> => {
@@ -169,8 +170,8 @@ export const getOrdersWithFilters = async (filters: OrderFilters = {}): Promise<
       query = query.eq("user_id", userId);
     }
 
-    // Apply customer filter for admins
-    if (userRole === "admin" && customerId) {
+    // Apply customer filter for staff who see all customers' jobs
+    if (canFilterByCustomer(userRole) && customerId) {
       query = query.eq("user_id", customerId);
     }
 

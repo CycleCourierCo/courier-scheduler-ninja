@@ -176,6 +176,8 @@ export type Order = {
   customerOrderNumber?: string;
   needsPaymentOnCollection?: boolean;
   paymentCollectionPhone?: string;
+  /** Invoice this job at the account's agreed big-bike rate instead of their normal rate */
+  useLargeBikeRate?: boolean;
   isBikeSwap?: boolean;
   isEbayOrder?: boolean;
   isBoxMyBike?: boolean;

@@ -33,6 +33,7 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     paymentCollectionPhone: dbOrder.payment_collection_phone,
     isBikeSwap: dbOrder.is_bike_swap,
     isEbayOrder: dbOrder.is_ebay_order || false,
+    useLargeBikeRate: dbOrder.use_large_bike_rate || false,
     collectionCode: dbOrder.collection_code,
     deliveryInstructions: dbOrder.delivery_instructions,
     senderNotes: dbOrder.sender_notes,
