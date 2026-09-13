@@ -829,7 +829,36 @@ const handler = async (req: Request): Promise<Response> => {
   console.log('Authenticated admin:', authResult.userId);
 
   try {
-    const { date, bikesNeedingLoading, driverPhoneNumbers = {}, driverEmails = {}, loaderPhoneNumber, loaderEmail }: LoadingListRequest = await req.json();
+    const { date, bikesNeedingLoading: rawBikesNeedingLoading, bikesAlreadyLoaded: rawBikesAlreadyLoaded, driverPhoneNumbers: rawDriverPhoneNumbers = {}, driverEmails: rawDriverEmails = {}, loaderPhoneNumber, loaderEmail }: LoadingListRequest = await req.json();
+
+    // Shipday keeps a second "<name> - Temp" carrier per driver. Fold those
+    // names back into the driver's normal name so nobody appears twice.
+    const normaliseDriverName = (name: any) => {
+      if (typeof name !== 'string') return name;
+      const cleaned = name
+        .replace(/\s*[-–—]\s*temp\s*$/i, '')
+        .replace(/\s*\(\s*temp\s*\)\s*$/i, '')
+        .trim();
+      return cleaned || name.trim();
+    };
+    const normaliseKeys = (map: Record<string, string>) =>
+      Object.entries(map || {}).reduce((acc, [k, v]) => {
+        const key = normaliseDriverName(k);
+        if (!acc[key] && v) acc[key] = v;
+        return acc;
+      }, {} as Record<string, string>);
+
+    const bikesNeedingLoading = (rawBikesNeedingLoading || []).map((bike: any) => ({
+      ...bike,
+      collectionDriverName: normaliseDriverName(bike.collectionDriverName),
+      deliveryDriverName: normaliseDriverName(bike.deliveryDriverName),
+    }));
+    const bikesAlreadyLoaded = (rawBikesAlreadyLoaded || []).map((bike: any) => ({
+      ...bike,
+      driverName: normaliseDriverName(bike.driverName),
+    }));
+    const driverPhoneNumbers = normaliseKeys(rawDriverPhoneNumbers);
+    const driverEmails = normaliseKeys(rawDriverEmails);
 
     console.log('Sending loading list for date:', date);
     console.log('Bikes needing loading:', bikesNeedingLoading);
