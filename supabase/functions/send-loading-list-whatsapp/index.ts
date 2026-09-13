@@ -853,10 +853,7 @@ const handler = async (req: Request): Promise<Response> => {
       collectionDriverName: normaliseDriverName(bike.collectionDriverName),
       deliveryDriverName: normaliseDriverName(bike.deliveryDriverName),
     }));
-    const bikesAlreadyLoaded = (rawBikesAlreadyLoaded || []).map((bike: any) => ({
-      ...bike,
-      driverName: normaliseDriverName(bike.driverName),
-    }));
+    void rawBikesAlreadyLoaded;
     const driverPhoneNumbers = normaliseKeys(rawDriverPhoneNumbers);
     const driverEmails = normaliseKeys(rawDriverEmails);
 
