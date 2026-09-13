@@ -19,6 +19,15 @@ export const hasAnyRole = (profile: any | null | undefined, roles: UserRole[]): 
   return roles.some((r) => owned.includes(r));
 };
 
+/**
+ * Roles that see every customer's jobs on the dashboard, and therefore can
+ * narrow the list down to a single customer.
+ */
+export const CUSTOMER_FILTER_ROLES = ["admin", "route_planner"] as const;
+
+export const canFilterByCustomer = (role: string | null | undefined): boolean =>
+  !!role && (CUSTOMER_FILTER_ROLES as readonly string[]).includes(role);
+
 export const ALL_ROLES: { value: UserRole; label: string }[] = [
   { value: "admin", label: "Admin" },
   { value: "route_planner", label: "Route Planner" },

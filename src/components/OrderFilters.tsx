@@ -21,6 +21,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { canFilterByCustomer } from "@/lib/roles";
 
 const statusOptions = [
   { value: "created", label: "Created" },
@@ -112,10 +113,12 @@ const OrderFilters: React.FC<OrderFiltersProps> = ({
   const [datePopoverOpen, setDatePopoverOpen] = useState(false);
   const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
+  const showCustomerFilter = canFilterByCustomer(userRole);
+
   const { data: customers } = useQuery({
     queryKey: ["b2b-customers"],
     queryFn: async () => {
-      if (userRole !== "admin") return [];
+      if (!showCustomerFilter) return [];
       const { data, error } = await supabase
         .from("profiles")
         .select("id, name, email")
