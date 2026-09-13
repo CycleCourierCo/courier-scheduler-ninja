@@ -9,6 +9,7 @@ import { Order } from "@/types/order";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { toast } from "sonner";
 import { useStorageBays, getBayMaxPosition } from "@/hooks/useStorageBays";
+import { normaliseDriverName } from "@/utils/driverAssignmentUtils";
 
 interface BikeSearchSectionProps {
   orders: Order[];
@@ -274,7 +275,7 @@ export const BikeSearchSection = ({
                         )}
                         {state === "held" && (
                           <Badge variant="secondary" className="text-xs">
-                            <Truck className="h-3 w-3 mr-1" /> In {order.held_by_driver_name} van – failed delivery
+                            <Truck className="h-3 w-3 mr-1" /> In {normaliseDriverName(order.held_by_driver_name)} van – failed delivery
                           </Badge>
                         )}
                       </div>

@@ -11,7 +11,7 @@ import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { toast } from "sonner";
 import { Package, MapPin, Truck, Printer, Image, PackageMinus, Wrench, ChevronDown } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { getCompletedDriverName } from "@/utils/driverAssignmentUtils";
+import { getCompletedDriverName, normaliseDriverName } from "@/utils/driverAssignmentUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 import { useStorageBays, getBayMaxPosition } from "@/hooks/useStorageBays";
 
@@ -153,13 +153,13 @@ export const PendingStorageAllocation = ({
     let driverName: string;
     if (bike.held_by_driver_name) {
       // Failed delivery: the driver who failed it still has the bike
-      driverName = bike.held_by_driver_name;
+      driverName = normaliseDriverName(bike.held_by_driver_name);
     } else if (wasLoadedOntoVan && bike.delivery_driver_name) {
       // Bike was unloaded from delivery van - group by delivery driver (who has it physically)
-      driverName = bike.delivery_driver_name;
+      driverName = normaliseDriverName(bike.delivery_driver_name);
     } else {
       // Freshly collected bike - group by collection driver
-      driverName = getCompletedDriverName(bike, 'pickup') || 'No Driver Assigned';
+      driverName = normaliseDriverName(getCompletedDriverName(bike, 'pickup')) || 'No Driver Assigned';
     }
     
     if (!groups[driverName]) {
@@ -171,7 +171,7 @@ export const PendingStorageAllocation = ({
 
   // Group loaded bikes by delivery driver
   const loadedByDriver = bikesLoadedOntoVan.reduce((groups, bike) => {
-    const driverName = bike.delivery_driver_name || 'No Driver Assigned';
+    const driverName = normaliseDriverName(bike.delivery_driver_name) || 'No Driver Assigned';
     if (!groups[driverName]) {
       groups[driverName] = [];
     }
@@ -348,7 +348,7 @@ export const PendingStorageAllocation = ({
                                 : '';
                               return (
                                 <Badge variant="active" className="text-xs">
-                                  In {bike.held_by_driver_name} Van – failed delivery{heldAt}
+                                  In {normaliseDriverName(bike.held_by_driver_name)} Van – failed delivery{heldAt}
                                 </Badge>
                               );
                             }
@@ -364,7 +364,7 @@ export const PendingStorageAllocation = ({
                           })()}
                           {bike.delivery_driver_name && (
                             <Badge variant="warning" className="text-xs">
-                              Load onto {bike.delivery_driver_name} van
+                              Load onto {normaliseDriverName(bike.delivery_driver_name)} van
                             </Badge>
                           )}
                           {/* Inspection Status Badge */}
@@ -417,7 +417,7 @@ export const PendingStorageAllocation = ({
                         className="h-9 text-xs w-full min-h-[44px] border-success text-success hover:bg-success/10"
                       >
                         <Truck className="h-3 w-3 sm:mr-1" />
-                        <span className="ml-1">Load onto {bike.delivery_driver_name} Van</span>
+                        <span className="ml-1">Load onto {normaliseDriverName(bike.delivery_driver_name)} Van</span>
                       </Button>
                     )}
                     
