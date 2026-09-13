@@ -484,10 +484,12 @@ const handler = async (req: Request): Promise<Response> => {
     // Check for special rate code on customer profile
     let specialRateProduct: ProductInfo | null = null;
     let specialRateCode: string | null = null;
-    
+    let largeBikeRateProduct: ProductInfo | null = null;
+    let largeBikeRateCode: string | null = null;
+
     const { data: customerProfile, error: customerProfileError } = await supabase
       .from('profiles')
-      .select('special_rate_code, quickbooks_customer_id')
+      .select('special_rate_code, large_bike_rate_code, quickbooks_customer_id')
       .eq('id', invoiceData.customerId)
       .single();
 
@@ -514,6 +516,50 @@ const handler = async (req: Request): Promise<Response> => {
         console.log(`Using special rate product: ${specialRateProduct.name} @ £${specialRateProduct.price}`);
       }
     }
+
+    // Optional second agreed rate used only for jobs flagged as "big bikes"
+    if (customerProfile?.large_bike_rate_code) {
+      largeBikeRateCode = String(customerProfile.large_bike_rate_code).trim() || null;
+    }
+    if (largeBikeRateCode) {
+      largeBikeRateProduct = await findProductByBikeType(
+        tokenData.access_token,
+        tokenData.company_id,
+        `Special Rate - ${largeBikeRateCode}`
+      );
+      if (!largeBikeRateProduct) {
+        throw new Error(
+          `Big-bike rate product not found in QuickBooks: ` +
+          `"Collection and Delivery within England and Wales - Special Rate - ${largeBikeRateCode}". ` +
+          `Please create this product in QuickBooks first.`
+        );
+      }
+      console.log(`Big-bike rate product available: ${largeBikeRateProduct.name} @ £${largeBikeRateProduct.price}`);
+    }
+
+    // Read the per-job big-bike flag server-side so it can't be spoofed by the caller
+    const largeRateOrderIds = new Set<string>();
+    const orderIdsForFlags = invoiceData.orders.map((o: any) => o.id).filter(Boolean);
+    if (orderIdsForFlags.length > 0) {
+      const { data: flagRows, error: flagError } = await supabase
+        .from('orders')
+        .select('id, use_large_bike_rate')
+        .in('id', orderIdsForFlags);
+      if (flagError) {
+        throw new Error(`Could not read big-bike rate flags for these jobs: ${flagError.message}`);
+      }
+      for (const row of flagRows || []) {
+        if (row.use_large_bike_rate) largeRateOrderIds.add(row.id);
+      }
+      if (largeRateOrderIds.size > 0 && !largeBikeRateProduct) {
+        throw new Error(
+          `${largeRateOrderIds.size} job(s) are flagged to use the big-bike rate, but this account has no ` +
+          `big-bike rate code set. Add one on the account before invoicing.`
+        );
+      }
+      console.log(`Jobs flagged for big-bike rate: ${largeRateOrderIds.size}`);
+    }
+
 
     // Build line items with bike-type-based pricing (or special rate if set)
     const lineItems: any[] = [];
