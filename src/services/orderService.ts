@@ -169,8 +169,8 @@ export const getOrdersWithFilters = async (filters: OrderFilters = {}): Promise<
       query = query.eq("user_id", userId);
     }
 
-    // Apply customer filter for admins
-    if (userRole === "admin" && customerId) {
+    // Apply customer filter for staff who see all customers' jobs
+    if (canFilterByCustomer(userRole) && customerId) {
       query = query.eq("user_id", customerId);
     }
 
