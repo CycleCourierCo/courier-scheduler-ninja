@@ -2998,6 +2998,7 @@ export type Database = {
           tracking_events: Json | null
           tracking_number: string | null
           updated_at: string
+          use_large_bike_rate: boolean
           user_id: string
         }
         Insert: {
@@ -3115,6 +3116,7 @@ export type Database = {
           tracking_events?: Json | null
           tracking_number?: string | null
           updated_at?: string
+          use_large_bike_rate?: boolean
           user_id: string
         }
         Update: {
@@ -3232,6 +3234,7 @@ export type Database = {
           tracking_events?: Json | null
           tracking_number?: string | null
           updated_at?: string
+          use_large_bike_rate?: boolean
           user_id?: string
         }
         Relationships: [
@@ -3293,6 +3296,7 @@ export type Database = {
           is_active: boolean | null
           is_business: boolean | null
           is_test_account: boolean
+          large_bike_rate_code: string | null
           latitude: number | null
           licence_back_path: string | null
           licence_check_code_path: string | null
@@ -3342,6 +3346,7 @@ export type Database = {
           is_active?: boolean | null
           is_business?: boolean | null
           is_test_account?: boolean
+          large_bike_rate_code?: string | null
           latitude?: number | null
           licence_back_path?: string | null
           licence_check_code_path?: string | null
@@ -3391,6 +3396,7 @@ export type Database = {
           is_active?: boolean | null
           is_business?: boolean | null
           is_test_account?: boolean
+          large_bike_rate_code?: string | null
           latitude?: number | null
           licence_back_path?: string | null
           licence_check_code_path?: string | null
@@ -5123,6 +5129,7 @@ export type Database = {
           is_active: boolean | null
           is_business: boolean | null
           is_test_account: boolean
+          large_bike_rate_code: string | null
           latitude: number | null
           licence_back_path: string | null
           licence_check_code_path: string | null
@@ -5302,6 +5309,7 @@ export type Database = {
           is_active: boolean | null
           is_business: boolean | null
           is_test_account: boolean
+          large_bike_rate_code: string | null
           latitude: number | null
           licence_back_path: string | null
           licence_check_code_path: string | null

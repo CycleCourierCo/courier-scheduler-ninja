@@ -62,6 +62,7 @@ export interface UserProfile {
   // Invoice pricing
   special_rate_code: string | null;
   special_rate_price: number | null;
+  large_bike_rate_code?: string | null;
   // Opening hours
   opening_hours: any | null;
   is_test_account: boolean | null;
