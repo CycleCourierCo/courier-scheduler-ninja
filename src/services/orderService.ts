@@ -15,6 +15,7 @@ import { upsertContact } from "@/services/contactService";
 import { geocodeAddress, buildAddressString } from "@/utils/geocoding";
 import { resolveRegion, isNorthernIrelandAddress } from "@/utils/northernIreland";
 import { resolveScotlandDirection } from "@/utils/scotland";
+import { canFilterByCustomer } from "@/lib/roles";
 
 
 const attachInspectionSummary = async (order: Order, orderIdentifier: string): Promise<Order> => {
