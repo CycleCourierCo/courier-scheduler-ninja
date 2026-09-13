@@ -27,7 +27,7 @@ import { hasRole } from "@/lib/roles";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
+import { getDriverAssignment, normaliseDriverName } from "@/utils/driverAssignmentUtils";
 import { DEPOT_LOCATION, DEPOT_PROXIMITY_THRESHOLD_METERS } from "@/constants/depot";
 import { calculateDistanceInMeters } from "@/utils/locationUtils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -689,7 +689,7 @@ const LoadingUnloadingPage = () => {
       const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
       
       // Get delivery driver name from the order column
-      const deliveryDriverName = order.delivery_driver_name || 'Unassigned Driver';
+      const deliveryDriverName = normaliseDriverName(order.delivery_driver_name) || 'Unassigned Driver';
 
       if (!acc[deliveryDriverName]) {
         acc[deliveryDriverName] = [];
@@ -743,8 +743,8 @@ const LoadingUnloadingPage = () => {
         // Who physically has the bike right now: after a failed delivery the
         // driver who failed it keeps it, otherwise it's the collecting driver.
         const collectionDriverName =
-          order.held_by_driver_name || order.collection_driver_name || null;
-        const deliveryDriverName = order.delivery_driver_name || 'Unassigned Driver';
+          normaliseDriverName(order.held_by_driver_name || order.collection_driver_name) || null;
+        const deliveryDriverName = normaliseDriverName(order.delivery_driver_name) || 'Unassigned Driver';
 
         return {
           id: order.id,
@@ -770,7 +770,7 @@ const LoadingUnloadingPage = () => {
 
       // Format loaded bikes data for the WhatsApp function  
       const bikesAlreadyLoadedData = loadedBikesForDate.map(order => {
-        const deliveryDriverName = order.delivery_driver_name || 'Unassigned Driver';
+        const deliveryDriverName = normaliseDriverName(order.delivery_driver_name) || 'Unassigned Driver';
         const loadedTime = order.loaded_onto_van_at ? format(new Date(order.loaded_onto_van_at), 'HH:mm') : 'Unknown time';
 
         return {
@@ -986,7 +986,7 @@ const LoadingUnloadingPage = () => {
                              <div className="space-y-2 bg-green-50 p-4 rounded-lg border border-green-200">
                               {bikesLoadedOnDate.map((order) => {
                                   const quantity = order.bikeQuantity || 1;
-                                  const deliveryDriverName = order.delivery_driver_name;
+                                  const deliveryDriverName = normaliseDriverName(order.delivery_driver_name);
                                  const loadedTime = order.loaded_onto_van_at ? format(new Date(order.loaded_onto_van_at), 'HH:mm') : 'Unknown time';
                                  
                                  return (
@@ -1090,7 +1090,7 @@ const LoadingUnloadingPage = () => {
                                          (update: any) => update.event === 'ORDER_COMPLETED' && 
                                          update.orderId?.toString() === order.trackingEvents?.shipday?.pickup_id?.toString()
                                        );
-                                       const driverName = collectionEvent?.driverName;
+                                       const driverName = normaliseDriverName(collectionEvent?.driverName);
                                        
                                        if (driverName) {
                                          // Create group for this driver if it doesn't exist
@@ -1178,7 +1178,7 @@ const LoadingUnloadingPage = () => {
                                                     <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
                                                      {(() => {
                                                        // Show who needs to load onto van (delivery driver)
-                                                       const deliveryDriverName = order.delivery_driver_name;
+                                                       const deliveryDriverName = normaliseDriverName(order.delivery_driver_name);
                                                       
                                                       if (deliveryDriverName) {
                                                         return (
