@@ -26,6 +26,24 @@ export interface FerryPartnerEmailInput {
   bike_quantity?: number | null
   ni_direction?: string | null
   is_northern_ireland?: boolean | null
+  /** Confirmed collection day(s) chosen by the NI customer (YYYY-MM-DD). */
+  pickup_date?: string[] | string | null
+  /** Collection notes the NI customer left when choosing their day. */
+  sender_notes?: string | null
+}
+
+/** Friendly UK-format day, e.g. "Tuesday 23 September 2026". */
+const formatDay = (value?: string | null) => {
+  if (!value) return null
+  const d = new Date(`${String(value).slice(0, 10)}T12:00:00Z`)
+  if (isNaN(d.getTime())) return null
+  return d.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Europe/London',
+  })
 }
 
 function buildPublicAppUrl(): string {
