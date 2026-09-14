@@ -15,7 +15,9 @@ const addressSchema = z.object({
   address_line_1: z.string().min(1, "Enter the first line of your address (e.g. 12 High Street)"),
   address_line_2: z.string().optional(),
   city: z.string().min(1, "Which city or town is this address in?"),
+  county: z.string().min(1, "Which county is this address in? (e.g. West Midlands)"),
   postal_code: z.string().min(1, "Enter your postcode (e.g. SW1A 1AA)"),
+  country: z.string().min(1, "Enter the country (e.g. United Kingdom)").default("United Kingdom"),
 });
 
 const registerSchema = z.object({
@@ -72,7 +74,9 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
         address_line_1: "",
         address_line_2: "",
         city: "",
+        county: "",
         postal_code: "",
+        country: "United Kingdom",
       }
     },
   });
@@ -90,7 +94,9 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
         address_line_1: data.address.address_line_1,
         address_line_2: data.address.address_line_2 || null,
         city: data.address.city,
+        county: data.address.county,
         postal_code: data.address.postal_code,
+        country: data.address.country?.trim() || "United Kingdom",
         accounts_email: data.accounts_email?.trim() || null,
         opening_hours: JSON.stringify(data.opening_hours || DEFAULT_OPENING_HOURS)
       };
@@ -291,8 +297,37 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="address.county"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>County *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="West Midlands" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="address.country"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Country *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="United Kingdom" {...field} value={field.value || ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
           </div>
+
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
