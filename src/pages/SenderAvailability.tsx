@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Clock, CalendarClock } from 'lucide-react';
 import { describeOpeningWindows, getNextOpenDays, normaliseOpeningHours } from '@/lib/businessAvailability';
+import { isInboundNi } from '@/utils/niDelivery';
 
 
 export default function SenderAvailability() {
@@ -71,7 +72,8 @@ export default function SenderAvailability() {
     calendarEndDate,
     isConfirmed,
     confirmedDates,
-    confirmedNotes
+    confirmedNotes,
+    requiredDates
   } = useAvailability({
     type: 'sender',
     updateFunction: updateSenderAvailability,
@@ -80,10 +82,14 @@ export default function SenderAvailability() {
       if (!order) return false;
       return (order.pickupDate !== undefined && order.pickupDate !== null && 
               Array.isArray(order.pickupDate) && order.pickupDate.length > 0);
-    }
+    },
+    // Northern Ireland collections are booked with our ferry partner for one
+    // specific day, so we ask for a single date instead of a 7-day window.
+    requiredDates: (loaded) => (isInboundNi(loaded) ? 1 : 7)
   });
   const { userProfile } = useAuth();
   const [mode, setMode] = useState<'unset' | 'now' | 'later'>('unset');
+  const singleDay = requiredDates === 1;
 
   // The public order payload resolves this server-side, so the emailed link works
   // even when the business isn't logged in. Fall back to the signed-in profile.
