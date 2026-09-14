@@ -225,6 +225,9 @@ const EMPTY_ISSUE: IssueEntry = {
 };
 
 
+// Customer-facing reports are only offered for inspections from this date on.
+const REPORT_CUTOFF_MS = Date.parse("2026-08-25T00:00:00+01:00");
+
 const BicycleInspections = () => {
   const { user, userProfile } = useAuth();
   const queryClient = useQueryClient();
@@ -1558,6 +1561,14 @@ const BicycleInspections = () => {
     const pendingIssues = orderIssues.filter((issue: InspectionIssue) => issue.status === "pending");
     const approvedIssues = orderIssues.filter((issue: InspectionIssue) => issue.status === "approved" || issue.status === "repaired");
     const isOwner = order.user_id === user?.id;
+    // Customers can open the report once the inspection has been released to
+    // them, and only for inspections from the 25 Aug 2026 cutoff onwards.
+    const customerReportUrl = (() => {
+      if (!inspection?.report_url || !inspection?.released_to_customer_at) return null;
+      const created = inspection.created_at ? Date.parse(inspection.created_at) : 0;
+      if (!(created >= REPORT_CUTOFF_MS)) return null;
+      return toPublicFileUrl(inspection.report_url);
+    })();
     const badgeConfig = getInspectionBadge(inspection?.status);
     const allApprovedRepaired = checkAllApprovedRepaired(orderIssues);
     const hasInvoice = !!inspection?.invoice_number;
@@ -1640,15 +1651,29 @@ const BicycleInspections = () => {
               <CardDescription className="break-words">
                 #{order.tracking_number} • {(order.sender as any)?.name} → {(order.receiver as any)?.name}
               </CardDescription>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2 flex items-center gap-1"
-                onClick={() => navigate(`/orders/${order.id}`)}
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                View order
-              </Button>
+              <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1"
+                  onClick={() => navigate(canManageInspections ? `/orders/${order.id}` : `/customer-orders/${order.id}`)}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  View order
+                </Button>
+                {!canManageInspections && isOwner && customerReportUrl && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                    onClick={() => window.open(customerReportUrl, "_blank", "noopener")}
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    View inspection report (PDF)
+                  </Button>
+                )}
+              </div>
+
 
               {order.customer_order_number && (
                 <p className="text-xs text-muted-foreground mt-1 break-words">
