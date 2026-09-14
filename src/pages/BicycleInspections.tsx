@@ -1558,6 +1558,14 @@ const BicycleInspections = () => {
     const pendingIssues = orderIssues.filter((issue: InspectionIssue) => issue.status === "pending");
     const approvedIssues = orderIssues.filter((issue: InspectionIssue) => issue.status === "approved" || issue.status === "repaired");
     const isOwner = order.user_id === user?.id;
+    // Customers can open the report once the inspection has been released to
+    // them, and only for inspections from the 25 Aug 2026 cutoff onwards.
+    const customerReportUrl = (() => {
+      if (!inspection?.report_url || !inspection?.released_to_customer_at) return null;
+      const created = inspection.created_at ? Date.parse(inspection.created_at) : 0;
+      if (!(created >= REPORT_CUTOFF_MS)) return null;
+      return toPublicFileUrl(inspection.report_url);
+    })();
     const badgeConfig = getInspectionBadge(inspection?.status);
     const allApprovedRepaired = checkAllApprovedRepaired(orderIssues);
     const hasInvoice = !!inspection?.invoice_number;
