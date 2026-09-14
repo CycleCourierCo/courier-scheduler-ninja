@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/contexts/AuthContext";
 import { User, Building } from "lucide-react";
 import { toast } from "sonner";
+import OpeningHoursEditor from "@/components/user-management/OpeningHoursEditor";
+import { DEFAULT_OPENING_HOURS, OpeningHours } from "@/types/user";
 
 const addressSchema = z.object({
   address_line_1: z.string().min(1, "Enter the first line of your address (e.g. 12 High Street)"),
