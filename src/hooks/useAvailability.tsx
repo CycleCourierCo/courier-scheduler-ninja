@@ -59,6 +59,9 @@ export const useAvailability = ({
   const [confirmedNotes, setConfirmedNotes] = useState<string>("");
   const [hasInspectionBuffer, setHasInspectionBuffer] = useState(false);
 
+  const requiredDates =
+    typeof requiredDatesOption === "function" ? requiredDatesOption(order) : requiredDatesOption;
+
   // Fetch holiday + allowed Friday dates on mount
   useEffect(() => {
     fetchHolidayDates().then(setHolidayDates).catch(() => {});
