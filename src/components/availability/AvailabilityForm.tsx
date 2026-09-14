@@ -38,6 +38,10 @@ interface AvailabilityFormProps {
   setAltLocation?: (value: AltLocation | null) => void;
   showAltLocation?: boolean;
   altMode?: 'collection' | 'delivery';
+  /** How many dates must be picked before the form can be submitted. */
+  requiredDates?: number;
+  /** Cap on how many dates may be selected (used for single-day NI collections). */
+  maxDates?: number;
 }
 
 
@@ -63,20 +67,23 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
   setAltLocation,
   showAltLocation = false,
   altMode = 'delivery',
+  requiredDates = 7,
+  maxDates,
 
 }) => {
 
   const today = startOfDay(new Date());
+  const singleDay = requiredDates === 1 && maxDates === 1;
   const [validationError, setValidationError] = useState<string | null>(null);
   
   // Validate dates when they change
   useEffect(() => {
-    if (dates.length > 0 && dates.length < 7) {
-      setValidationError("Please select at least 7 dates when you'll be available");
+    if (dates.length > 0 && dates.length < requiredDates) {
+      setValidationError(`Please select at least ${requiredDates} dates when you'll be available`);
     } else {
       setValidationError(null);
     }
-  }, [dates]);
+  }, [dates, requiredDates]);
 
   // Handle date selection
   const handleDateSelect = (selectedDates: Date[] | undefined) => {
@@ -84,7 +91,16 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
       setDates([]);
       return;
     }
-    
+
+    // When only one day is allowed, keep the day the customer just tapped.
+    if (maxDates && selectedDates.length > maxDates) {
+      const added = selectedDates.filter(
+        (d) => !dates.some((existing) => existing.getTime() === d.getTime())
+      );
+      setDates((added.length ? added : selectedDates).slice(-maxDates));
+      return;
+    }
+
     setDates(selectedDates);
   };
   
@@ -92,6 +108,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
   const removeDate = (dateToRemove: Date) => {
     setDates(dates.filter(date => date.getTime() !== dateToRemove.getTime()));
   };
+  
   
   // Default date disabling logic if custom function is not provided
   const defaultIsDateDisabled = (date: Date) => {
