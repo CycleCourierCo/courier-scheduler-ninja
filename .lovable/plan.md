@@ -20,6 +20,7 @@ The profile page does ask for county and country (both required there) — regis
 - `src/components/auth/RegisterForm.tsx`: add `county` (min 1) and `country` (default "United Kingdom") to `addressSchema` and defaults; render both inputs in the Address Information box next to City/Postal Code; add `county` and `country` to the sign-up metadata.
 - Migration: extend `public.handle_new_user()` to write `county` and `coalesce(nullif(raw_user_meta_data->>'country',''),'United Kingdom')` into `profiles`. Columns already exist; no schema, grant or RLS change.
 - Data fix (run_sql, not a migration): `update public.profiles set country = 'United Kingdom' where address_line_1 is not null and address_line_1 <> '' and (country is null or country = '')`.
+- Coordinate backfill: one-off script run from the sandbox — select business profiles with an address and null `latitude`, geocode `address_line_1, city, postal_code` via the Geoapify geocode API (GB filter, rate-limited, key from env, never logged), then a single batched `update` per matched row setting `latitude`/`longitude`. Unmatched rows are listed in the summary and left null.
 - `src/pages/CreateOrder.tsx` `fillMyDetails`: drop `country` from the blocking `missingFields` check and keep the existing `userProfile.country || "United Kingdom"` fallback when setting the form value.
 
 ## Verification
