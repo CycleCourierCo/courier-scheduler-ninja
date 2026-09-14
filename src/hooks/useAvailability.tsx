@@ -18,10 +18,16 @@ interface UseAvailabilityProps {
     dates: Date[],
     notes: string,
     postcode?: string | null,
-    altLocation?: AltLocation | null
+    altLocation?: AltLocation | null,
+    minDates?: number
   ) => Promise<Order | null>;
   getMinDate: () => Date;
   isAlreadyConfirmed: (order: Order | null) => boolean;
+  /**
+   * How many dates the customer must pick. Inbound Northern Ireland collections
+   * ask for a single day; everything else keeps the usual 7-day window.
+   */
+  requiredDates?: number;
 }
 
 
@@ -29,7 +35,8 @@ export const useAvailability = ({
   type,
   updateFunction,
   getMinDate,
-  isAlreadyConfirmed
+  isAlreadyConfirmed,
+  requiredDates = 7
 }: UseAvailabilityProps) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
