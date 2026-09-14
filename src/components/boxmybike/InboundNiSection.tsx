@@ -38,6 +38,8 @@ interface InboundOrder {
   ni_inbound_collected_at: string | null;
   ni_inbound_ferry_crossed_at: string | null;
   ni_inbound_received_at: string | null;
+  /** Collection day(s) the NI customer confirmed. */
+  pickup_date: string[] | string | null;
 }
 
 function inboundTimestampColumn(s: NiInboundStatus): string | null {
@@ -90,7 +92,7 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
       const { data, error } = await supabase
         .from("orders")
         .select(
-          "id, tracking_number, status, ni_inbound_status, sender, receiver, bike_brand, bike_model, bike_quantity, user_id, created_at, ni_partner_label_url, ni_partner_label_uploaded_at, ni_bfs_number, ni_inbound_collected_at, ni_inbound_ferry_crossed_at, ni_inbound_received_at"
+          "id, tracking_number, status, ni_inbound_status, sender, receiver, bike_brand, bike_model, bike_quantity, user_id, created_at, ni_partner_label_url, ni_partner_label_uploaded_at, ni_bfs_number, ni_inbound_collected_at, ni_inbound_ferry_crossed_at, ni_inbound_received_at, pickup_date"
         )
         .eq("is_northern_ireland", true)
         .eq("ni_direction", "inbound")
