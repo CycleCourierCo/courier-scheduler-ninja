@@ -26,8 +26,9 @@ interface UseAvailabilityProps {
   /**
    * How many dates the customer must pick. Inbound Northern Ireland collections
    * ask for a single day; everything else keeps the usual 7-day window.
+   * Can depend on the loaded order.
    */
-  requiredDates?: number;
+  requiredDates?: number | ((order: Order | null) => number);
 }
 
 
@@ -36,7 +37,7 @@ export const useAvailability = ({
   updateFunction,
   getMinDate,
   isAlreadyConfirmed,
-  requiredDates = 7
+  requiredDates: requiredDatesOption = 7
 }: UseAvailabilityProps) => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
