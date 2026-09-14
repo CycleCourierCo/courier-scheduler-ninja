@@ -339,6 +339,15 @@ const InboundCard: React.FC<{
           <p className="font-medium">{order.bike_brand || ""} {order.bike_model || "Bike"}</p>
           <p className="text-muted-foreground">Quantity: {order.bike_quantity || 1}</p>
         </div>
+        <p className="flex items-center gap-1">
+          <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="font-medium">Collection day:</span>{" "}
+          {collectionDay ? (
+            <span>{collectionDay}</span>
+          ) : (
+            <span className="text-muted-foreground">No date yet</span>
+          )}
+        </p>
         <div className="rounded border bg-muted/30 p-3 space-y-1">
           <p className="font-medium flex items-center gap-1">
             <Ship className="h-3.5 w-3.5" /> NI collection point
