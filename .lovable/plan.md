@@ -1,24 +1,29 @@
-# Treat "Ship as-is" as inspected in Job Scheduling and Route Builder
+# Ferry status on delivery jobs: show "Not collected from ferry partner"
 
 ## What
 
-A bike whose repairs were declined by both the seller and receiver ends in the **Ship as-is** state. That state already clears it for delivery everywhere else (delivery gate, boxing/foaming, availability), but the two scheduling screens only count "inspected" and "repaired" as done. With the "inspected only" filter on, a ship-as-is bike's delivery leg disappears from Job Scheduling and Route Builder as if it still needed workshop time.
+On Job Scheduling, an inbound Northern Ireland bike that has crossed the ferry but is still sitting with the ferry partner shows a green "Crossed ferry - ready" badge on the **delivery** job to the customer. That reads as if the bike is with us and ready to go out, when in fact it still needs collecting from the partner.
 
-## Changes
+That "ready" wording belongs only on the **collection** job from the ferry partner.
 
-1. **Job Scheduling** — include ship-as-is in the inspection-complete check, so the "inspected only" filter no longer hides its delivery leg.
-2. **Route Builder** — same fix in the three places it decides whether an inspection is complete (the delivery gate check and the two filter/badge paths), so a ship-as-is bike can be placed on a route like any other finished inspection.
+## Change
 
-No database changes. No changes to what "inspected" means for bikes still in the workshop — pending, issues found, in repair, and awaiting approvals still block delivery exactly as they do today.
+For inbound NI bikes that have crossed the ferry but not yet been collected from the partner:
+
+- **Collection job (from the ferry partner)** — unchanged: green "Crossed ferry - ready to collect (date)".
+- **Delivery job (to the customer)** — now shows an amber warning badge "Not collected from ferry partner" instead of the green ready badge.
+
+Once the bike has actually been collected from the partner, the delivery job goes green as it does today ("Crossed ferry - with us"). Bikes still in NI keep the red "In NI - not crossed" badge on both legs.
+
+Nothing else changes: no database changes, no change to which jobs appear or can be routed, no emails.
 
 ## Technical details
 
-- `src/pages/JobScheduling.tsx` line ~174: `isInspectionComplete = inspection_status === 'inspected' || 'repaired'` → add `|| 'ship_as_is'`. Also widen the local `inspection_status` type (line ~43) to include `'ship_as_is'`.
-- `src/components/scheduling/RouteBuilder.tsx`: same addition at line ~374 (inspection-complete helper), ~1397 (filter predicate), and ~3329 (per-job badge/complete check).
-- `src/utils/servicingGate.ts` already returns true for `ship_as_is` (`canDeliver`), so the delivery-side gate needs no change — this aligns scheduling with it.
+- `src/components/scheduling/RouteBuilder.tsx`, `getNiInboundBadge` (~line 195): in the `status === 'crossed_ferry'` branch, split by leg — `pickup` keeps the green `Crossed ferry - ready to collect${crossedLabel}`; `delivery` returns text `Not collected from ferry partner${crossedLabel}` with an amber colour class (`bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300`), same `Ship` icon.
+- Both grouped and ungrouped job cards (lines ~688 and ~810) already pass the leg, so no call-site changes.
 
 ## Verify
 
 - Typecheck passes.
-- An order at `ship_as_is` with a delivery date now appears in Job Scheduling's delivery list with "inspected only" enabled, and can be added to a route in Route Builder.
-- Orders at `issues_found` / `in_repair` still do not appear under the same filter.
+- An inbound NI order at `crossed_ferry`: collection job shows green "ready to collect", delivery job shows amber "Not collected from ferry partner".
+- The same order at `collected_from_partner` shows green on both legs.
