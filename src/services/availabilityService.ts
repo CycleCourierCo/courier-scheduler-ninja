@@ -7,6 +7,7 @@ import { fetchHolidayDates } from "./holidayService";
 import { fetchAllowedFridayDates } from "./allowedFridaysService";
 import type { AltLocation } from "@/lib/altLocation";
 import { geocodePostcodeAddress } from "@/utils/geocoding";
+import { isInboundNi } from "@/utils/niDelivery";
 
 // Format date as YYYY-MM-DD using local date parts (no timezone shift)
 const toDateString = (date: Date): string => {
@@ -183,7 +184,7 @@ export const confirmReceiverAvailability = async (orderId: string, dateStrings: 
   }
 };
 
-export const updateSenderAvailability = async (orderId: string, dates: Date[], notes: string, postcode?: string | null, altLocation?: AltLocation | null): Promise<Order | null> => {
+export const updateSenderAvailability = async (orderId: string, dates: Date[], notes: string, postcode?: string | null, altLocation?: AltLocation | null, minDates: number = 7): Promise<Order | null> => {
   try {
     if (!orderId || !dates || dates.length === 0) {
       console.error("Invalid parameters for updateSenderAvailability");
@@ -196,11 +197,16 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
     const allowedFridayDates = await fetchAllowedFridayDates();
     const validDates = filterInvalidDates(dates, holidayDates, allowedFridayDates);
     
-    if (validDates.length < 7) {
-      console.error(`Only ${validDates.length} valid dates after filtering (need 7)`);
-      toast.error("Not enough valid dates. Please select at least 7 valid dates.");
+    if (validDates.length < minDates) {
+      console.error(`Only ${validDates.length} valid dates after filtering (need ${minDates})`);
+      toast.error(
+        minDates === 1
+          ? "Please pick a collection day that isn't a Friday or a holiday."
+          : `Not enough valid dates. Please select at least ${minDates} valid dates.`
+      );
       return null;
     }
+    
     
     const dateStrings = validDates.map(toDateString);
 
@@ -247,7 +253,15 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
         console.error("Error sending receiver availability email:", emailError);
       }
     }
-    
+
+    // Inbound Northern Ireland: now that we know the collection day, book it in
+    // with the ferry partner. Idempotent via ferry_partner_notified_at.
+    if (isInboundNi(order)) {
+      void supabase.functions
+        .invoke("send-ferry-partner-notification", { body: { orderId } })
+        .catch((e) => console.warn("Ferry partner notification failed", e));
+    }
+
     return order;
   } catch (error) {
     console.error("Unexpected error in updateSenderAvailability:", error);

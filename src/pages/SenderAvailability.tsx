@@ -13,6 +13,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Clock, CalendarClock } from 'lucide-react';
 import { describeOpeningWindows, getNextOpenDays, normaliseOpeningHours } from '@/lib/businessAvailability';
+import { isInboundNi } from '@/utils/niDelivery';
 
 
 export default function SenderAvailability() {
@@ -71,7 +72,8 @@ export default function SenderAvailability() {
     calendarEndDate,
     isConfirmed,
     confirmedDates,
-    confirmedNotes
+    confirmedNotes,
+    requiredDates
   } = useAvailability({
     type: 'sender',
     updateFunction: updateSenderAvailability,
@@ -80,10 +82,14 @@ export default function SenderAvailability() {
       if (!order) return false;
       return (order.pickupDate !== undefined && order.pickupDate !== null && 
               Array.isArray(order.pickupDate) && order.pickupDate.length > 0);
-    }
+    },
+    // Northern Ireland collections are booked with our ferry partner for one
+    // specific day, so we ask for a single date instead of a 7-day window.
+    requiredDates: (loaded) => (isInboundNi(loaded) ? 1 : 7)
   });
   const { userProfile } = useAuth();
   const [mode, setMode] = useState<'unset' | 'now' | 'later'>('unset');
+  const singleDay = requiredDates === 1;
 
   // The public order payload resolves this server-side, so the emailed link works
   // even when the business isn't logged in. Fall back to the signed-in profile.
@@ -175,7 +181,7 @@ export default function SenderAvailability() {
     );
   }
 
-  if (isBusinessSender && mode === 'unset') {
+  if (isBusinessSender && !singleDay && mode === 'unset') {
     return (
       <Layout>
         <div className="max-w-4xl mx-auto py-8 px-4">
@@ -231,7 +237,7 @@ export default function SenderAvailability() {
 
   return (
     <Layout>
-      {isBusinessSender && (
+      {isBusinessSender && !singleDay && (
         <div className="max-w-4xl mx-auto px-4 pt-4">
           <Button variant="ghost" size="sm" onClick={handleBackToOptions}>
             ← Back to options
@@ -239,11 +245,19 @@ export default function SenderAvailability() {
         </div>
       )}
       <AvailabilityForm
-        title={mode === 'now' ? "Confirm Collection Days" : "Confirm Your Availability"}
+        title={
+          singleDay
+            ? "Choose Your Collection Day"
+            : mode === 'now'
+              ? "Confirm Collection Days"
+              : "Confirm Your Availability"
+        }
         description={
-          mode === 'now'
-            ? "These days come from your business opening hours — adjust them if needed, then submit."
-            : "Select dates when you will be available for package pickup"
+          singleDay
+            ? "Pick the one day in the next two weeks that the bike will be ready. Our Northern Ireland partner books this collection in for that day."
+            : mode === 'now'
+              ? "These days come from your business opening hours — adjust them if needed, then submit."
+              : "Select dates when you will be available for package pickup"
         }
         dates={dates}
         setDates={setDates}
@@ -252,7 +266,11 @@ export default function SenderAvailability() {
         postcode={postcode}
         setPostcode={setPostcode}
         postcodeLabel="Pickup postcode"
-        placeholder="Add any special instructions for pickup (optional)"
+        placeholder={
+          singleDay
+            ? "Anything the collection driver should know (buzzer, parking, best time of day)"
+            : "Add any special instructions for pickup (optional)"
+        }
         minDate={minDate}
         isSubmitting={isSubmitting}
         onSubmit={handleSubmit}
@@ -260,8 +278,10 @@ export default function SenderAvailability() {
         calendarEndDate={calendarEndDate}
         altLocation={altLocation}
         setAltLocation={setAltLocation}
-        showAltLocation={!isBusinessSender}
+        showAltLocation={!isBusinessSender && !singleDay}
         altMode="collection"
+        requiredDates={requiredDates}
+        maxDates={singleDay ? 1 : undefined}
       />
     </Layout>
 

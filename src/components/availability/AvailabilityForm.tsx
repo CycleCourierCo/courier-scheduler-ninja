@@ -38,6 +38,10 @@ interface AvailabilityFormProps {
   setAltLocation?: (value: AltLocation | null) => void;
   showAltLocation?: boolean;
   altMode?: 'collection' | 'delivery';
+  /** How many dates must be picked before the form can be submitted. */
+  requiredDates?: number;
+  /** Cap on how many dates may be selected (used for single-day NI collections). */
+  maxDates?: number;
 }
 
 
@@ -63,20 +67,23 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
   setAltLocation,
   showAltLocation = false,
   altMode = 'delivery',
+  requiredDates = 7,
+  maxDates,
 
 }) => {
 
   const today = startOfDay(new Date());
+  const singleDay = requiredDates === 1 && maxDates === 1;
   const [validationError, setValidationError] = useState<string | null>(null);
   
   // Validate dates when they change
   useEffect(() => {
-    if (dates.length > 0 && dates.length < 7) {
-      setValidationError("Please select at least 7 dates when you'll be available");
+    if (dates.length > 0 && dates.length < requiredDates) {
+      setValidationError(`Please select at least ${requiredDates} dates when you'll be available`);
     } else {
       setValidationError(null);
     }
-  }, [dates]);
+  }, [dates, requiredDates]);
 
   // Handle date selection
   const handleDateSelect = (selectedDates: Date[] | undefined) => {
@@ -84,7 +91,16 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
       setDates([]);
       return;
     }
-    
+
+    // When only one day is allowed, keep the day the customer just tapped.
+    if (maxDates && selectedDates.length > maxDates) {
+      const added = selectedDates.filter(
+        (d) => !dates.some((existing) => existing.getTime() === d.getTime())
+      );
+      setDates((added.length ? added : selectedDates).slice(-maxDates));
+      return;
+    }
+
     setDates(selectedDates);
   };
   
@@ -92,6 +108,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
   const removeDate = (dateToRemove: Date) => {
     setDates(dates.filter(date => date.getTime() !== dateToRemove.getTime()));
   };
+  
   
   // Default date disabling logic if custom function is not provided
   const defaultIsDateDisabled = (date: Date) => {
@@ -136,12 +153,13 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
             <div className="flex-1">
               <h3 className="text-lg font-medium mb-4 flex items-center">
                 <CalendarIcon className="mr-2 h-5 w-5 text-primary" />
-                Select Available Dates
+                {singleDay ? 'Select Your Collection Day' : 'Select Available Dates'}
               </h3>
               <div className="border rounded-md p-2 bg-white shadow-sm">
                 <CalendarComponent
                   mode="multiple"
                   min={1}
+                  weekStartsOn={1}
                   selected={dates}
                   onSelect={handleDateSelect}
                   disabled={disableDate}
@@ -170,14 +188,16 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
             <div className="flex-1 flex flex-col">
               <h3 className="text-lg font-medium mb-4 flex items-center">
                 <Calendar className="mr-2 h-5 w-5 text-primary" />
-                Selected Dates
+                {singleDay ? 'Selected Day' : 'Selected Dates'}
               </h3>
               {dates.length > 0 ? (
                 <div className="space-y-2 flex-grow">
                   <p className="text-sm text-muted-foreground mb-2">
-                    {dates.length >= 7 
-                      ? `You've selected ${dates.length} dates. Great!` 
-                      : `Please select at least ${7 - dates.length} more date${7 - dates.length > 1 ? 's' : ''}.`}
+                    {singleDay
+                      ? "That's your collection day — tap another day to change it."
+                      : dates.length >= requiredDates
+                        ? `You've selected ${dates.length} dates. Great!`
+                        : `Please select at least ${requiredDates - dates.length} more date${requiredDates - dates.length > 1 ? 's' : ''}.`}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {dates.map((date, index) => (
@@ -200,7 +220,9 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
                 </div>
               ) : (
                 <p className="text-muted-foreground italic flex-grow">
-                  No dates selected. Please select at least 7 dates when you'll be available.
+                  {singleDay
+                    ? 'No day selected yet. Please pick the day the bike will be ready.'
+                    : `No dates selected. Please select at least ${requiredDates} dates when you'll be available.`}
                 </p>
               )}
               
@@ -249,7 +271,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
           <Button 
             type="submit" 
             className="w-full mt-4" 
-            disabled={dates.length < 7 || isSubmitting}
+            disabled={dates.length < requiredDates || isSubmitting}
           >
             {isSubmitting ? (
               <>
@@ -260,13 +282,15 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
                 Submitting...
               </>
             ) : (
-              'Confirm Availability'
+              singleDay ? 'Confirm Collection Day' : 'Confirm Availability'
             )}
           </Button>
           
-          {dates.length < 7 && (
+          {dates.length < requiredDates && (
             <p className="text-sm text-center text-muted-foreground">
-              Please select at least 7 available dates to continue
+              {singleDay
+                ? 'Please pick your collection day to continue'
+                : `Please select at least ${requiredDates} available dates to continue`}
             </p>
           )}
         </CardContent>
