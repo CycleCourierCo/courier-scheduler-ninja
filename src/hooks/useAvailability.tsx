@@ -335,7 +335,8 @@ export const useAvailability = ({
     isConfirmed,
     confirmedDates,
     confirmedNotes,
-    hasInspectionBuffer
+    hasInspectionBuffer,
+    requiredDates
   };
 };
 
