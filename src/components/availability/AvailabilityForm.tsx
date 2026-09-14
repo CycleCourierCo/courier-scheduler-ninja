@@ -153,12 +153,13 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
             <div className="flex-1">
               <h3 className="text-lg font-medium mb-4 flex items-center">
                 <CalendarIcon className="mr-2 h-5 w-5 text-primary" />
-                Select Available Dates
+                {singleDay ? 'Select Your Collection Day' : 'Select Available Dates'}
               </h3>
               <div className="border rounded-md p-2 bg-white shadow-sm">
                 <CalendarComponent
                   mode="multiple"
                   min={1}
+                  weekStartsOn={1}
                   selected={dates}
                   onSelect={handleDateSelect}
                   disabled={disableDate}
@@ -187,14 +188,16 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
             <div className="flex-1 flex flex-col">
               <h3 className="text-lg font-medium mb-4 flex items-center">
                 <Calendar className="mr-2 h-5 w-5 text-primary" />
-                Selected Dates
+                {singleDay ? 'Selected Day' : 'Selected Dates'}
               </h3>
               {dates.length > 0 ? (
                 <div className="space-y-2 flex-grow">
                   <p className="text-sm text-muted-foreground mb-2">
-                    {dates.length >= 7 
-                      ? `You've selected ${dates.length} dates. Great!` 
-                      : `Please select at least ${7 - dates.length} more date${7 - dates.length > 1 ? 's' : ''}.`}
+                    {singleDay
+                      ? "That's your collection day — tap another day to change it."
+                      : dates.length >= requiredDates
+                        ? `You've selected ${dates.length} dates. Great!`
+                        : `Please select at least ${requiredDates - dates.length} more date${requiredDates - dates.length > 1 ? 's' : ''}.`}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {dates.map((date, index) => (
