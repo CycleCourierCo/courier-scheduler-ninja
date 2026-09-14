@@ -362,6 +362,17 @@ const CustomerOrderDetail = () => {
                         Bike will be inspected and serviced
                       </p>
                     )}
+                    {inspectionReportUrl && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-3 flex items-center gap-2"
+                        onClick={() => window.open(inspectionReportUrl, "_blank", "noopener")}
+                      >
+                        <FileText className="h-4 w-4" />
+                        View inspection report (PDF)
+                      </Button>
+                    )}
                   </div>
                 </div>
                 
