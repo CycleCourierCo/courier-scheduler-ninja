@@ -13,8 +13,7 @@ The profile page does ask for county and country (both required there) — regis
 1. **Registration address box gains County (required) and Country (defaulting to United Kingdom)**, matching the fields the profile page already requires. Both are saved to the new account at sign-up, so "Fill in my details" works straight after approval.
 2. **Existing accounts stop being blocked**: where an account has an address but no country, treat it as United Kingdom instead of refusing to fill. County stays optional for filling (the form already falls back to address line 2).
 3. **One-off tidy-up of existing accounts**: set country to "United Kingdom" for accounts that have an address but no country, so nobody is stopped by a field they were never asked for. County is left alone — it isn't required for the button once the fallback above is in place.
-
-Coordinates are not part of this: the booking form geocodes the address when it's used, so a missing lat/long on the profile doesn't block anything.
+4. **Fill in the missing map coordinates** for the 139 business accounts that have an address but no latitude/longitude, by looking each address up once and saving the result. Anything that can't be matched is left blank and reported, so nothing is stored as a wrong location.
 
 ## Technical notes
 
