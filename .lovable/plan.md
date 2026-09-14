@@ -13,14 +13,14 @@ The profile page does ask for county and country (both required there) — regis
 1. **Registration address box gains County (required) and Country (defaulting to United Kingdom)**, matching the fields the profile page already requires. Both are saved to the new account at sign-up, so "Fill in my details" works straight after approval.
 2. **Existing accounts stop being blocked**: where an account has an address but no country, treat it as United Kingdom instead of refusing to fill. County stays optional for filling (the form already falls back to address line 2).
 3. **One-off tidy-up of existing accounts**: set country to "United Kingdom" for accounts that have an address but no country, so nobody is stopped by a field they were never asked for. County is left alone — it isn't required for the button once the fallback above is in place.
-
-Coordinates are not part of this: the booking form geocodes the address when it's used, so a missing lat/long on the profile doesn't block anything.
+4. **Fill in the missing map coordinates** for the 139 business accounts that have an address but no latitude/longitude, by looking each address up once and saving the result. Anything that can't be matched is left blank and reported, so nothing is stored as a wrong location.
 
 ## Technical notes
 
 - `src/components/auth/RegisterForm.tsx`: add `county` (min 1) and `country` (default "United Kingdom") to `addressSchema` and defaults; render both inputs in the Address Information box next to City/Postal Code; add `county` and `country` to the sign-up metadata.
 - Migration: extend `public.handle_new_user()` to write `county` and `coalesce(nullif(raw_user_meta_data->>'country',''),'United Kingdom')` into `profiles`. Columns already exist; no schema, grant or RLS change.
 - Data fix (run_sql, not a migration): `update public.profiles set country = 'United Kingdom' where address_line_1 is not null and address_line_1 <> '' and (country is null or country = '')`.
+- Coordinate backfill: one-off script run from the sandbox — select business profiles with an address and null `latitude`, geocode `address_line_1, city, postal_code` via the Geoapify geocode API (GB filter, rate-limited, key from env, never logged), then a single batched `update` per matched row setting `latitude`/`longitude`. Unmatched rows are listed in the summary and left null.
 - `src/pages/CreateOrder.tsx` `fillMyDetails`: drop `country` from the blocking `missingFields` check and keep the existing `userProfile.country || "United Kingdom"` fallback when setting the form value.
 
 ## Verification
