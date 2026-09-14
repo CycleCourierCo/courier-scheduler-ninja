@@ -66,6 +66,8 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
       is_business: true,
       company_name: "",
       website: "",
+      accounts_email: "",
+      opening_hours: DEFAULT_OPENING_HOURS,
       address: {
         address_line_1: "",
         address_line_2: "",
