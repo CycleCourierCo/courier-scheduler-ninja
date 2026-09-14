@@ -183,7 +183,7 @@ export const confirmReceiverAvailability = async (orderId: string, dateStrings: 
   }
 };
 
-export const updateSenderAvailability = async (orderId: string, dates: Date[], notes: string, postcode?: string | null, altLocation?: AltLocation | null): Promise<Order | null> => {
+export const updateSenderAvailability = async (orderId: string, dates: Date[], notes: string, postcode?: string | null, altLocation?: AltLocation | null, minDates: number = 7): Promise<Order | null> => {
   try {
     if (!orderId || !dates || dates.length === 0) {
       console.error("Invalid parameters for updateSenderAvailability");
@@ -196,11 +196,16 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
     const allowedFridayDates = await fetchAllowedFridayDates();
     const validDates = filterInvalidDates(dates, holidayDates, allowedFridayDates);
     
-    if (validDates.length < 7) {
-      console.error(`Only ${validDates.length} valid dates after filtering (need 7)`);
-      toast.error("Not enough valid dates. Please select at least 7 valid dates.");
+    if (validDates.length < minDates) {
+      console.error(`Only ${validDates.length} valid dates after filtering (need ${minDates})`);
+      toast.error(
+        minDates === 1
+          ? "Please pick a collection day that isn't a Friday or a holiday."
+          : `Not enough valid dates. Please select at least ${minDates} valid dates.`
+      );
       return null;
     }
+    
     
     const dateStrings = validDates.map(toDateString);
 
