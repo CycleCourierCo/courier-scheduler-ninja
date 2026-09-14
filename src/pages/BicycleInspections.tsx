@@ -225,6 +225,9 @@ const EMPTY_ISSUE: IssueEntry = {
 };
 
 
+// Customer-facing reports are only offered for inspections from this date on.
+const REPORT_CUTOFF_MS = Date.parse("2026-08-25T00:00:00+01:00");
+
 const BicycleInspections = () => {
   const { user, userProfile } = useAuth();
   const queryClient = useQueryClient();
