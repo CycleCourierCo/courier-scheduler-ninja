@@ -7,6 +7,7 @@ import { fetchHolidayDates } from "./holidayService";
 import { fetchAllowedFridayDates } from "./allowedFridaysService";
 import type { AltLocation } from "@/lib/altLocation";
 import { geocodePostcodeAddress } from "@/utils/geocoding";
+import { isInboundNi } from "@/utils/niDelivery";
 
 // Format date as YYYY-MM-DD using local date parts (no timezone shift)
 const toDateString = (date: Date): string => {
