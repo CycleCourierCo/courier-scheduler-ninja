@@ -214,11 +214,16 @@ const getNiInboundBadge = (
     };
   }
   if (status === 'crossed_ferry') {
+    if (leg === 'pickup') {
+      return {
+        text: `Crossed ferry - ready to collect${crossedLabel}`,
+        color: green,
+        icon
+      };
+    }
     return {
-      text: leg === 'pickup'
-        ? `Crossed ferry - ready to collect${crossedLabel}`
-        : `Crossed ferry - ready${crossedLabel}`,
-      color: green,
+      text: `Not collected from ferry partner${crossedLabel}`,
+      color: 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300',
       icon
     };
   }
