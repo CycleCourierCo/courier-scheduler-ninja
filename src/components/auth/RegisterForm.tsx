@@ -90,7 +90,9 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
         address_line_1: data.address.address_line_1,
         address_line_2: data.address.address_line_2 || null,
         city: data.address.city,
-        postal_code: data.address.postal_code
+        postal_code: data.address.postal_code,
+        accounts_email: data.accounts_email?.trim() || null,
+        opening_hours: JSON.stringify(data.opening_hours || DEFAULT_OPENING_HOURS)
       };
 
       
