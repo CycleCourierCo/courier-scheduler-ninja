@@ -297,8 +297,37 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
                   </FormItem>
                 )}
               />
+
+              <FormField
+                control={form.control}
+                name="address.county"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>County *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="West Midlands" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="address.country"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Country *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="United Kingdom" {...field} value={field.value || ""} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
           </div>
+
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField
