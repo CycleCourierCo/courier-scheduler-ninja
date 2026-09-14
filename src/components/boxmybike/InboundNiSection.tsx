@@ -1,7 +1,7 @@
 import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Ship, ExternalLink, CheckCircle, Pencil } from "lucide-react";
+import { ChevronLeft, ChevronRight, Ship, ExternalLink, CheckCircle, Pencil, CalendarDays } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -321,6 +321,22 @@ const InboundCard: React.FC<{
 
   const canAdvance = Boolean(nextInboundStage(order.ni_inbound_status));
   const canBack = Boolean(prevInboundStage(order.ni_inbound_status));
+
+  // The confirmed collection day chosen by the NI customer, if they've picked one.
+  const rawPickup = Array.isArray(order.pickup_date)
+    ? order.pickup_date[0]
+    : order.pickup_date;
+  const pickupParsed = rawPickup ? new Date(`${String(rawPickup).slice(0, 10)}T12:00:00Z`) : null;
+  const collectionDay =
+    pickupParsed && !isNaN(pickupParsed.getTime())
+      ? pickupParsed.toLocaleDateString("en-GB", {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          timeZone: "Europe/London",
+        })
+      : null;
 
   return (
     <Card>
