@@ -252,7 +252,15 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
         console.error("Error sending receiver availability email:", emailError);
       }
     }
-    
+
+    // Inbound Northern Ireland: now that we know the collection day, book it in
+    // with the ferry partner. Idempotent via ferry_partner_notified_at.
+    if (isInboundNi(order)) {
+      void supabase.functions
+        .invoke("send-ferry-partner-notification", { body: { orderId } })
+        .catch((e) => console.warn("Ferry partner notification failed", e));
+    }
+
     return order;
   } catch (error) {
     console.error("Unexpected error in updateSenderAvailability:", error);
