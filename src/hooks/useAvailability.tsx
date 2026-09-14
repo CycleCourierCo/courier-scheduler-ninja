@@ -249,8 +249,12 @@ export const useAvailability = ({
       toast.warning(`${removedCount} invalid date(s) (Fridays/holidays) were removed from your selection.`);
     }
 
-    if (validDates.length < 7) {
-      toast.error(`Please select at least 7 valid dates. You currently have ${validDates.length} valid date(s).`);
+    if (validDates.length < requiredDates) {
+      toast.error(
+        requiredDates === 1
+          ? "Please pick a collection day that isn't a Friday or a holiday."
+          : `Please select at least ${requiredDates} valid dates. You currently have ${validDates.length} valid date(s).`
+      );
       return;
     }
 
@@ -263,7 +267,7 @@ export const useAvailability = ({
       setIsSubmitting(true);
       console.log(`Submitting ${type} availability for order: ${id}`);
       
-      const updatedOrder = await updateFunction(id, validDates, notes, postcode, altLocation);
+      const updatedOrder = await updateFunction(id, validDates, notes, postcode, altLocation, requiredDates);
 
 
       if (updatedOrder) {
@@ -282,10 +286,14 @@ export const useAvailability = ({
     }
   };
 
-  // Dynamically calculate calendar end date to guarantee 14 selectable days
+  // Dynamically calculate calendar end date to guarantee 14 selectable days.
+  // Single-day (inbound NI) collections are capped to the next two calendar weeks.
   const calendarEndDate = useMemo(() => {
     const today = startOfDay(new Date());
     const start = minDate && startOfDay(minDate) > today ? startOfDay(minDate) : today;
+    if (requiredDates === 1) {
+      return addDays(start, 14);
+    }
     let validDays = 0;
     let checkDate = new Date(start);
     let guard = 0;
@@ -297,7 +305,7 @@ export const useAvailability = ({
       }
     }
     return checkDate;
-  }, [holidayDates, allowedFridayDates, minDate]);
+  }, [holidayDates, allowedFridayDates, minDate, requiredDates]);
 
 
   return {
