@@ -195,6 +195,42 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
                 </FormItem>
               )}
             />
+
+            <FormField
+              control={form.control}
+              name="accounts_email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Accounts Email (optional)</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="accounts@example.com" {...field} value={field.value || ""} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <div className="space-y-4 border p-4 rounded-md bg-accent/30">
+            <h3 className="font-medium">Opening Hours</h3>
+            <p className="text-sm text-muted-foreground">
+              Let us know when your premises are open so we can plan collections and deliveries.
+            </p>
+            <FormField
+              control={form.control}
+              name="opening_hours"
+              render={({ field }) => (
+                <FormItem>
+                  <FormControl>
+                    <OpeningHoursEditor
+                      value={field.value || DEFAULT_OPENING_HOURS}
+                      onChange={field.onChange}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
 
           <div className="space-y-4 border p-4 rounded-md bg-accent/30">
