@@ -27,6 +27,13 @@ const registerSchema = z.object({
   is_business: z.boolean().default(false),
   company_name: z.string().optional(),
   website: z.string().optional(),
+  accounts_email: z
+    .string()
+    .optional()
+    .refine((v) => !v || z.string().email().safeParse(v).success, {
+      message: "Enter an email like accounts@example.com, or leave this blank",
+    }),
+  opening_hours: z.custom<OpeningHours>().default(DEFAULT_OPENING_HOURS),
   address: addressSchema,
 }).refine((data) => data.password === data.confirmPassword, {
   message: "Passwords don't match — re-type the same password in both fields",
