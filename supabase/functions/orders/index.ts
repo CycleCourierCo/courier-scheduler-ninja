@@ -559,8 +559,10 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
             })
           }
 
-          // Northern Ireland: the ferry partner needs the NI-side details to book their leg.
-          if (isNorthernIreland) {
+          // Outbound Northern Ireland: the ferry partner needs the NI-side details to
+          // book their leg. Inbound jobs are booked in once the NI customer has chosen
+          // their collection day (sent from the availability flow instead).
+          if (isNorthernIreland && niDirection === 'outbound') {
             const ferryEmail = buildFerryPartnerEmail({
               orderId: order.id,
               sender: body.sender,
