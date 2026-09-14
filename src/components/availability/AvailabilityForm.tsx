@@ -220,7 +220,9 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
                 </div>
               ) : (
                 <p className="text-muted-foreground italic flex-grow">
-                  No dates selected. Please select at least 7 dates when you'll be available.
+                  {singleDay
+                    ? 'No day selected yet. Please pick the day the bike will be ready.'
+                    : `No dates selected. Please select at least ${requiredDates} dates when you'll be available.`}
                 </p>
               )}
               
@@ -269,7 +271,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
           <Button 
             type="submit" 
             className="w-full mt-4" 
-            disabled={dates.length < 7 || isSubmitting}
+            disabled={dates.length < requiredDates || isSubmitting}
           >
             {isSubmitting ? (
               <>
@@ -280,13 +282,15 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
                 Submitting...
               </>
             ) : (
-              'Confirm Availability'
+              singleDay ? 'Confirm Collection Day' : 'Confirm Availability'
             )}
           </Button>
           
-          {dates.length < 7 && (
+          {dates.length < requiredDates && (
             <p className="text-sm text-center text-muted-foreground">
-              Please select at least 7 available dates to continue
+              {singleDay
+                ? 'Please pick your collection day to continue'
+                : `Please select at least ${requiredDates} available dates to continue`}
             </p>
           )}
         </CardContent>
