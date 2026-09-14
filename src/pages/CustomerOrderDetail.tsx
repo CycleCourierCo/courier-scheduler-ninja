@@ -2,7 +2,8 @@ import { isOutboundNi } from "@/utils/niDelivery";
 
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Printer, Wrench, RotateCcw } from "lucide-react";
+import { ArrowLeft, Calendar, Truck, Package, User, Phone, Mail, MapPin, Printer, Wrench, RotateCcw, FileText } from "lucide-react";
+import { toPublicFileUrl } from "@/lib/publicFileUrl";
 import { getGroupedBikes, getBikeTitle } from "@/utils/bikeSummary";
 import { format, isValid, parseISO } from "date-fns";
 import { getOrderById, createOrder } from "@/services/orderService";
@@ -78,6 +79,10 @@ const CustomerOrderDetail = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creatingReturn, setCreatingReturn] = useState(false);
+
+  // The inspection summary already applies the customer report cutoff, so a URL
+  // here means the customer is allowed to open it.
+  const inspectionReportUrl = toPublicFileUrl(order?.inspectionSummary?.report_url || null);
 
   useEffect(() => {
     const fetchOrderDetails = async () => {
