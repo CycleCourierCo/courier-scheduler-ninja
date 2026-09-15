@@ -279,6 +279,7 @@ export type InspectionSummary = {
   repairs_approved_at: string | null;
   repairs_declined_at: string | null;
   repairs_completed_at: string | null;
+  report_url?: string | null;
 };
 
 export type CreateOrderFormData = {

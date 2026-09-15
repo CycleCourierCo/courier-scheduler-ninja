@@ -26,6 +26,24 @@ export interface FerryPartnerEmailInput {
   bike_quantity?: number | null
   ni_direction?: string | null
   is_northern_ireland?: boolean | null
+  /** Confirmed collection day(s) chosen by the NI customer (YYYY-MM-DD). */
+  pickup_date?: string[] | string | null
+  /** Collection notes the NI customer left when choosing their day. */
+  sender_notes?: string | null
+}
+
+/** Friendly UK-format day, e.g. "Tuesday 23 September 2026". */
+const formatDay = (value?: string | null) => {
+  if (!value) return null
+  const d = new Date(`${String(value).slice(0, 10)}T12:00:00Z`)
+  if (isNaN(d.getTime())) return null
+  return d.toLocaleDateString('en-GB', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Europe/London',
+  })
 }
 
 function buildPublicAppUrl(): string {
@@ -52,8 +70,18 @@ export function buildFerryPartnerEmail(order: FerryPartnerEmailInput) {
 
   const partyLabel = inbound ? 'NI collection address' : 'NI delivery address'
 
+  const pickupDays = (Array.isArray(order.pickup_date)
+    ? order.pickup_date
+    : order.pickup_date
+      ? [order.pickup_date]
+      : [])
+    .map((d) => formatDay(d))
+    .filter(Boolean) as string[]
+  const collectionDay = inbound ? pickupDays[0] || null : null
+  const collectionNotes = inbound ? (order.sender_notes || '').trim() : ''
+
   const subject = inbound
-    ? `NI to England — collection booking ${trackingNumber}`
+    ? `NI to England — collection booking ${trackingNumber}${collectionDay ? ` — ${collectionDay}` : ''}`
     : `England to NI — delivery booking ${trackingNumber}`
 
   const uploadUrl = order.orderId
@@ -67,6 +95,12 @@ export function buildFerryPartnerEmail(order: FerryPartnerEmailInput) {
         <strong>Direction: ${esc(directionLabel)} (${esc(directionPlain)})</strong>
       </p>
       <p>The Cycle Courier Co. has a Northern Ireland job for you.</p>
+      ${collectionDay
+        ? `<div style="background-color:#ecfdf5; padding:15px; border-radius:5px; margin:20px 0; border-left:4px solid #10b981;">
+             <p style="margin:0;"><strong>Please collect on ${esc(collectionDay)}</strong></p>
+             <p style="margin:8px 0 0; font-size:13px; color:#555;">This is the day the customer has confirmed the bike will be ready.</p>
+           </div>`
+        : ''}
       <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
         <p style="margin-top:0;"><strong>Tracking number:</strong> ${esc(trackingNumber)}</p>
         <p><strong>Item:</strong> ${esc(bike)}</p>
@@ -78,6 +112,12 @@ export function buildFerryPartnerEmail(order: FerryPartnerEmailInput) {
         <p><strong>Address:</strong> ${esc(formatAddress(party?.address))}</p>
         <p style="margin-bottom:0;"><strong>Phone:</strong> ${esc(party?.phone)}</p>
       </div>
+      ${collectionNotes
+        ? `<div style="background-color:#f7f7f7; padding:15px; border-radius:5px; margin:20px 0;">
+             <p style="margin-top:0;"><strong>Collection notes from the customer</strong></p>
+             <p style="margin-bottom:0; white-space:pre-wrap;">${esc(collectionNotes)}</p>
+           </div>`
+        : ''}
       <p>
         ${inbound
           ? `Please collect from the address above in Northern Ireland and hand the item over to us at ${esc(CITY_AIR_EXPRESS.formatted)}. The onward mainland delivery is to ${esc(other?.name)} and is handled by us.`

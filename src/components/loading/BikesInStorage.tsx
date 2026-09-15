@@ -9,7 +9,7 @@ import { Package, MapPin, Truck, Edit, Clock, Printer, Image, Wrench, ChevronDow
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
-import { getCompletedDriverName, getDriverAssignment } from "@/utils/driverAssignmentUtils";
+import { getCompletedDriverName, getDriverAssignment, normaliseDriverName } from "@/utils/driverAssignmentUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 
 import { ChangeStorageLocationDialog } from "@/components/loading/ChangeStorageLocationDialog";
@@ -158,7 +158,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                      // Find driver name from collection completion event
                      const collectionDriverName = getCompletedDriverName(order, 'pickup');
                      // Get delivery driver name from order column
-                     const deliveryDriverName = order.delivery_driver_name;
+                     const deliveryDriverName = normaliseDriverName(order.delivery_driver_name);
                     
                     return (
                       <div className="flex flex-wrap gap-1">

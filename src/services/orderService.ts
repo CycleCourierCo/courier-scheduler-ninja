@@ -492,9 +492,11 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       throw error;
     }
 
-    // Northern Ireland: notify the ferry partner so they can book their leg.
+    // Outbound Northern Ireland: notify the ferry partner so they can book their leg.
+    // Inbound jobs wait until the NI customer has chosen their collection day, so
+    // the partner is emailed from the availability flow instead.
     // Fire-and-forget; the edge function is idempotent via ferry_partner_notified_at.
-    if (isNorthernIreland && order?.id) {
+    if (isNorthernIreland && niDirection === 'outbound' && order?.id) {
       void supabase.functions
         .invoke("send-ferry-partner-notification", { body: { orderId: order.id } })
         .catch((e) => console.warn("Ferry partner notification failed", e));

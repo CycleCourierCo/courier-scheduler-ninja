@@ -1,7 +1,7 @@
 import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Ship, ExternalLink, CheckCircle, Pencil } from "lucide-react";
+import { ChevronLeft, ChevronRight, Ship, ExternalLink, CheckCircle, Pencil, CalendarDays } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,8 @@ interface InboundOrder {
   ni_inbound_collected_at: string | null;
   ni_inbound_ferry_crossed_at: string | null;
   ni_inbound_received_at: string | null;
+  /** Collection day(s) the NI customer confirmed. */
+  pickup_date: string[] | string | null;
 }
 
 function inboundTimestampColumn(s: NiInboundStatus): string | null {
@@ -90,7 +92,7 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
       const { data, error } = await supabase
         .from("orders")
         .select(
-          "id, tracking_number, status, ni_inbound_status, sender, receiver, bike_brand, bike_model, bike_quantity, user_id, created_at, ni_partner_label_url, ni_partner_label_uploaded_at, ni_bfs_number, ni_inbound_collected_at, ni_inbound_ferry_crossed_at, ni_inbound_received_at"
+          "id, tracking_number, status, ni_inbound_status, sender, receiver, bike_brand, bike_model, bike_quantity, user_id, created_at, ni_partner_label_url, ni_partner_label_uploaded_at, ni_bfs_number, ni_inbound_collected_at, ni_inbound_ferry_crossed_at, ni_inbound_received_at, pickup_date"
         )
         .eq("is_northern_ireland", true)
         .eq("ni_direction", "inbound")
@@ -320,6 +322,22 @@ const InboundCard: React.FC<{
   const canAdvance = Boolean(nextInboundStage(order.ni_inbound_status));
   const canBack = Boolean(prevInboundStage(order.ni_inbound_status));
 
+  // The confirmed collection day chosen by the NI customer, if they've picked one.
+  const rawPickup = Array.isArray(order.pickup_date)
+    ? order.pickup_date[0]
+    : order.pickup_date;
+  const pickupParsed = rawPickup ? new Date(`${String(rawPickup).slice(0, 10)}T12:00:00Z`) : null;
+  const collectionDay =
+    pickupParsed && !isNaN(pickupParsed.getTime())
+      ? pickupParsed.toLocaleDateString("en-GB", {
+          weekday: "short",
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+          timeZone: "Europe/London",
+        })
+      : null;
+
   return (
     <Card>
       <CardHeader className="pb-2">
@@ -337,6 +355,15 @@ const InboundCard: React.FC<{
           <p className="font-medium">{order.bike_brand || ""} {order.bike_model || "Bike"}</p>
           <p className="text-muted-foreground">Quantity: {order.bike_quantity || 1}</p>
         </div>
+        <p className="flex items-center gap-1">
+          <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
+          <span className="font-medium">Collection day:</span>{" "}
+          {collectionDay ? (
+            <span>{collectionDay}</span>
+          ) : (
+            <span className="text-muted-foreground">No date yet</span>
+          )}
+        </p>
         <div className="rounded border bg-muted/30 p-3 space-y-1">
           <p className="font-medium flex items-center gap-1">
             <Ship className="h-3.5 w-3.5" /> NI collection point

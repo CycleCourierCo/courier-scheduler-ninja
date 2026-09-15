@@ -225,6 +225,9 @@ const EMPTY_ISSUE: IssueEntry = {
 };
 
 
+// Customer-facing reports are only offered for inspections from this date on.
+const REPORT_CUTOFF_MS = Date.parse("2026-08-25T00:00:00+01:00");
+
 const BicycleInspections = () => {
   const { user, userProfile } = useAuth();
   const queryClient = useQueryClient();
@@ -1539,7 +1542,21 @@ const BicycleInspections = () => {
   const collected = awaitingBase.filter((i: any) => !!i.collection_confirmation_sent_at);
   const awaitingPricing = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_pricing");
   const withIssues = filteredInspections.filter((i: any) => i.inspection?.status === "issues_found");
-  const repairsDeclined = filteredInspections.filter((i: any) => i.inspection?.status === "repairs_declined");
+  // Bikes with declined work still available to offer to the receiver. Includes
+  // partial rejections (some work approved, some declined) so they can be
+  // offered straight away rather than waiting for the repairs to finish.
+  const repairsDeclined = filteredInspections.filter((i: any) => {
+    const status = i.inspection?.status;
+    if (!status) return false;
+    if (status === "repairs_declined") return true;
+    if (status === "inspected" || status === "repaired" || status === "ship_as_is") return false;
+    return (i.issues || []).some(
+      (issue: any) =>
+        issue.status === "declined" &&
+        !issue.offered_to_receiver_at &&
+        !issue.receiver_declined_at
+    );
+  });
   const pendingReceiver = filteredInspections.filter((i: any) => i.inspection?.status === "pending_receiver_approval");
   const awaitingParts = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_parts");
   const awaitingRepair = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_repair" || i.inspection?.status === "in_repair" || i.inspection?.status === "cleaning");
@@ -1558,6 +1575,14 @@ const BicycleInspections = () => {
     const pendingIssues = orderIssues.filter((issue: InspectionIssue) => issue.status === "pending");
     const approvedIssues = orderIssues.filter((issue: InspectionIssue) => issue.status === "approved" || issue.status === "repaired");
     const isOwner = order.user_id === user?.id;
+    // Customers can open the report once the inspection has been released to
+    // them, and only for inspections from the 25 Aug 2026 cutoff onwards.
+    const customerReportUrl = (() => {
+      if (!inspection?.report_url || !inspection?.released_to_customer_at) return null;
+      const created = inspection.created_at ? Date.parse(inspection.created_at) : 0;
+      if (!(created >= REPORT_CUTOFF_MS)) return null;
+      return toPublicFileUrl(inspection.report_url);
+    })();
     const badgeConfig = getInspectionBadge(inspection?.status);
     const allApprovedRepaired = checkAllApprovedRepaired(orderIssues);
     const hasInvoice = !!inspection?.invoice_number;
@@ -1640,15 +1665,29 @@ const BicycleInspections = () => {
               <CardDescription className="break-words">
                 #{order.tracking_number} • {(order.sender as any)?.name} → {(order.receiver as any)?.name}
               </CardDescription>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-2 flex items-center gap-1"
-                onClick={() => navigate(`/orders/${order.id}`)}
-              >
-                <ExternalLink className="h-3.5 w-3.5" />
-                View order
-              </Button>
+              <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1"
+                  onClick={() => navigate(canManageInspections ? `/orders/${order.id}` : `/customer-orders/${order.id}`)}
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  View order
+                </Button>
+                {!canManageInspections && isOwner && customerReportUrl && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                    onClick={() => window.open(customerReportUrl, "_blank", "noopener")}
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    View inspection report (PDF)
+                  </Button>
+                )}
+              </div>
+
 
               {order.customer_order_number && (
                 <p className="text-xs text-muted-foreground mt-1 break-words">

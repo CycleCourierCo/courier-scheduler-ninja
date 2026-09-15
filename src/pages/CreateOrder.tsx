@@ -490,7 +490,6 @@ const CreateOrder = () => {
     if (!userProfile.email) missingFields.push("email");
     if (!userProfile.phone) missingFields.push("phone");
     if (!userProfile.address_line_1) missingFields.push("address");
-    if (!userProfile.country) missingFields.push("country");
 
     if (missingFields.length > 0) {
       toast.error(`Please complete your profile first. Missing: ${missingFields.join(", ")}`);
