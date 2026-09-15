@@ -874,6 +874,33 @@ const JobItem: React.FC<JobItemProps> = ({
                           </Badge>
                         ) : null;
                       })()}
+
+                      {/* Job Age Badge */}
+                      {(() => {
+                        const ageBadge = getJobAgeBadge(job.orderData?.created_at);
+                        return ageBadge ? (
+                          <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${ageBadge.color}`}>
+                            {ageBadge.icon}
+                            {ageBadge.text}
+                          </Badge>
+                        ) : null;
+                      })()}
+
+                      {/* Days of Availability Left Badge */}
+                      {(() => {
+                        const daysLeftBadge = getAvailabilityDaysLeftBadge(
+                          job.type,
+                          selectedDate,
+                          job.orderData?.pickup_date,
+                          job.orderData?.delivery_date
+                        );
+                        return daysLeftBadge ? (
+                          <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${daysLeftBadge.color}`}>
+                            {daysLeftBadge.icon}
+                            {daysLeftBadge.text}
+                          </Badge>
+                        ) : null;
+                      })()}
                       
                       {/* Collection Status Badge (only for deliveries) */}
                       {job.type === 'delivery' && (() => {
