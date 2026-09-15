@@ -297,7 +297,7 @@ const getCollectionStatusBadge = (
     }
 
     return {
-      text: `Collection After Delivery! (${schedLabel})`,
+      text: `Collection after delivery! (${schedLabel})`,
       color: 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300',
       icon: <PackageX className="h-3 w-3" />
     };
