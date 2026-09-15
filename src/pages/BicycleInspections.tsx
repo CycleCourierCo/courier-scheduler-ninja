@@ -1542,7 +1542,21 @@ const BicycleInspections = () => {
   const collected = awaitingBase.filter((i: any) => !!i.collection_confirmation_sent_at);
   const awaitingPricing = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_pricing");
   const withIssues = filteredInspections.filter((i: any) => i.inspection?.status === "issues_found");
-  const repairsDeclined = filteredInspections.filter((i: any) => i.inspection?.status === "repairs_declined");
+  // Bikes with declined work still available to offer to the receiver. Includes
+  // partial rejections (some work approved, some declined) so they can be
+  // offered straight away rather than waiting for the repairs to finish.
+  const repairsDeclined = filteredInspections.filter((i: any) => {
+    const status = i.inspection?.status;
+    if (!status) return false;
+    if (status === "repairs_declined") return true;
+    if (status === "inspected" || status === "repaired" || status === "ship_as_is") return false;
+    return (i.issues || []).some(
+      (issue: any) =>
+        issue.status === "declined" &&
+        !issue.offered_to_receiver_at &&
+        !issue.receiver_declined_at
+    );
+  });
   const pendingReceiver = filteredInspections.filter((i: any) => i.inspection?.status === "pending_receiver_approval");
   const awaitingParts = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_parts");
   const awaitingRepair = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_repair" || i.inspection?.status === "in_repair" || i.inspection?.status === "cleaning");
