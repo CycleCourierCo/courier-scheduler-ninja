@@ -189,6 +189,65 @@ const getAvailabilityBadge = (
   }
 };
 
+// Helper function: how many days of the customer's availability remain,
+// counted from the route date being planned to their LAST available date.
+const getAvailabilityDaysLeftBadge = (
+  jobType: 'pickup' | 'delivery' | 'break',
+  selectedDate: Date | undefined,
+  pickupDates?: string[] | null,
+  deliveryDates?: string[] | null
+): { text: string; color: string; icon: JSX.Element } | null => {
+  if (!selectedDate || jobType === 'break') return null;
+
+  const relevantDates = jobType === 'pickup' ? pickupDates : deliveryDates;
+  if (!relevantDates || relevantDates.length === 0) return null; // "No Dates Provided" badge covers this
+
+  const lastDateStr = relevantDates
+    .map(d => format(new Date(d), 'yyyy-MM-dd'))
+    .sort()
+    .pop()!;
+  const routeDateStr = format(selectedDate, 'yyyy-MM-dd');
+  const daysLeft = differenceInCalendarDays(new Date(lastDateStr), new Date(routeDateStr));
+  const lastLabel = format(new Date(lastDateStr), 'EEE d MMM');
+
+  if (daysLeft < 0) {
+    return {
+      text: `Availability ended (${lastLabel})`,
+      color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
+      icon: <Calendar className="h-3 w-3" />
+    };
+  }
+  if (daysLeft === 0) {
+    return {
+      text: 'Last day of availability',
+      color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
+      icon: <Calendar className="h-3 w-3" />
+    };
+  }
+  return {
+    text: `${daysLeft} day${daysLeft === 1 ? '' : 's'} of availability left`,
+    color: daysLeft <= 2
+      ? 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300'
+      : 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
+    icon: <Calendar className="h-3 w-3" />
+  };
+};
+
+// Helper function: how long ago the order was booked.
+const getJobAgeBadge = (
+  createdAt: string | null | undefined
+): { text: string; color: string; icon: JSX.Element } | null => {
+  if (!createdAt) return null;
+  const days = differenceInCalendarDays(new Date(), new Date(createdAt));
+  const text = days <= 0 ? 'Booked today' : days === 1 ? 'Booked 1 day ago' : `Booked ${days} days ago`;
+  const color = days >= 7
+    ? 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
+    : days >= 3
+    ? 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300'
+    : 'bg-muted text-muted-foreground';
+  return { text, color, icon: <Clock className="h-3 w-3" /> };
+};
+
 // Helper function to get collection status badge
 // Inbound Northern Ireland bikes can only be delivered on the mainland once
 // they've crossed the ferry / been collected from City Air Express.
@@ -682,6 +741,31 @@ const JobItem: React.FC<JobItemProps> = ({
                                 {availabilityBadge.text}
                               </Badge>
                             )}
+                            {/* Job Age Badge */}
+                            {(() => {
+                              const ageBadge = getJobAgeBadge(groupedJob.orderData?.created_at);
+                              return ageBadge ? (
+                                <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${ageBadge.color}`}>
+                                  {ageBadge.icon}
+                                  {ageBadge.text}
+                                </Badge>
+                              ) : null;
+                            })()}
+                            {/* Days of Availability Left Badge */}
+                            {(() => {
+                              const daysLeftBadge = getAvailabilityDaysLeftBadge(
+                                groupedJob.type,
+                                selectedDate,
+                                groupedJob.orderData?.pickup_date,
+                                groupedJob.orderData?.delivery_date
+                              );
+                              return daysLeftBadge ? (
+                                <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${daysLeftBadge.color}`}>
+                                  {daysLeftBadge.icon}
+                                  {daysLeftBadge.text}
+                                </Badge>
+                              ) : null;
+                            })()}
                             {collectionBadge && (
                               <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
                                 {collectionBadge.icon}
@@ -787,6 +871,33 @@ const JobItem: React.FC<JobItemProps> = ({
                         return availabilityBadge ? (
                           <Badge className={`text-xs px-1.5 py-0 ${availabilityBadge.color}`}>
                             {availabilityBadge.text}
+                          </Badge>
+                        ) : null;
+                      })()}
+
+                      {/* Job Age Badge */}
+                      {(() => {
+                        const ageBadge = getJobAgeBadge(job.orderData?.created_at);
+                        return ageBadge ? (
+                          <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${ageBadge.color}`}>
+                            {ageBadge.icon}
+                            {ageBadge.text}
+                          </Badge>
+                        ) : null;
+                      })()}
+
+                      {/* Days of Availability Left Badge */}
+                      {(() => {
+                        const daysLeftBadge = getAvailabilityDaysLeftBadge(
+                          job.type,
+                          selectedDate,
+                          job.orderData?.pickup_date,
+                          job.orderData?.delivery_date
+                        );
+                        return daysLeftBadge ? (
+                          <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${daysLeftBadge.color}`}>
+                            {daysLeftBadge.icon}
+                            {daysLeftBadge.text}
                           </Badge>
                         ) : null;
                       })()}
