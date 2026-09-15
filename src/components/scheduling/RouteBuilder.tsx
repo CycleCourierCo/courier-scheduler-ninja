@@ -282,15 +282,15 @@ const getCollectionStatusBadge = (
 
     if (schedStr === compareStr) {
       return {
-        text: 'Collecting Today',
-        color: 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 border border-amber-200',
-        icon: <Truck className="h-3 w-3" />
+        text: `Collected elsewhere same day (${schedLabel})`,
+        color: 'bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300',
+        icon: <PackageX className="h-3 w-3" />
       };
     }
 
     if (schedStr < compareStr) {
       return {
-        text: `Collected Earlier (${schedLabel})`,
+        text: `Collected earlier (${schedLabel})`,
         color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
         icon: <Package className="h-3 w-3" />
       };
