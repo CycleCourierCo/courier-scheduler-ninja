@@ -140,7 +140,7 @@ const TaskDetailDrawer: React.FC<Props> = ({ taskId, onOpenChange }) => {
                   <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
                     <Pencil className="h-3 w-3 mr-1" /> Edit
                   </Button>
-                  {isAdmin && (
+                  {canDelete && (
                     <Button size="sm" variant="destructive" onClick={handleDelete}>
                       <Trash2 className="h-3 w-3 mr-1" /> Delete
                     </Button>
