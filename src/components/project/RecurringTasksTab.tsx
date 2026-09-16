@@ -58,6 +58,7 @@ const RecurringTasksTab: React.FC = () => {
       category: r.category || "",
       priority: r.priority,
       estimated_minutes: r.estimated_minutes ? String(r.estimated_minutes) : "",
+      horizon_days: String(r.horizon_days ?? 14),
       assigneeMode: r.assignee_role ? "role" : "person",
       assignee_id: r.assignee_id || "",
       assignee_role: r.assignee_role || "",
