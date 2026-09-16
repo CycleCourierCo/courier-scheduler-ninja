@@ -32,6 +32,10 @@ const TaskDetailDrawer: React.FC<Props> = ({ taskId, onOpenChange }) => {
   const [posting, setPosting] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const isAdmin = hasRole(userProfile, 'admin');
+  // Admins, project managers and whoever raised the task may remove it.
+  const canDelete =
+    hasAnyRole(userProfile, ['admin', 'project_manager']) ||
+    (!!user?.id && !!task && task.created_by === user.id);
 
   const post = async () => {
     if (!comment.trim() || !user?.id || !taskId) return;
