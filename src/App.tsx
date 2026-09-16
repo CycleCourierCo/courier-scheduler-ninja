@@ -17,6 +17,7 @@ import ResetPassword from "./pages/ResetPassword";
 import SenderAvailability from "./pages/SenderAvailability";
 import ReceiverAvailability from "./pages/ReceiverAvailability";
 import RepairOffer from "./pages/RepairOffer";
+import InspectionApproval from "./pages/InspectionApproval";
 import NiPartnerUpload from "./pages/NiPartnerUpload";
 import TrackingPage from "./pages/TrackingPage";
 import NotFound from "./pages/NotFound";
