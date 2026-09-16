@@ -14,11 +14,30 @@ export type InspectionStatus =
 
 export type IssueStatus = 'pending' | 'approved' | 'declined' | 'resolved' | 'repaired';
 
+export type ApprovalRecipient = 'customer' | 'receiver' | 'walkin';
+
 export interface BicycleInspection {
   id: string;
-  order_id: string;
+  /** Null for workshop-only inspections not tied to a transport job. */
+  order_id: string | null;
   status: InspectionStatus;
   bike_type: string | null;
+  // Workshop-only (walk-in) details
+  customer_name?: string | null;
+  customer_email?: string | null;
+  customer_phone?: string | null;
+  customer_company?: string | null;
+  customer_address?: Record<string, unknown> | null;
+  bike_brand?: string | null;
+  bike_model?: string | null;
+  frame_size?: string | null;
+  reference?: string | null;
+  approval_recipient?: ApprovalRecipient | null;
+  approval_sent_to_at?: string | null;
+  approval_email_sent_at?: string | null;
+  report_url?: string | null;
+  created_by_id?: string | null;
+  created_by_name?: string | null;
   identity_checked_at?: string | null;
   identity_matches?: boolean | null;
   actual_bike_brand?: string | null;
