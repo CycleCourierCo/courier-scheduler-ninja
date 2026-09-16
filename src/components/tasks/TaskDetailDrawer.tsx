@@ -15,7 +15,7 @@ import { format } from "date-fns";
 import TaskStatusBadge from "./TaskStatusBadge";
 import TaskPriorityBadge from "./TaskPriorityBadge";
 import TaskDialog from "./TaskDialog";
-import { hasRole, hasAnyRole } from "@/lib/roles";
+import { hasAnyRole } from "@/lib/roles";
 import { formatLength } from "@/lib/taskTime";
 
 interface Props {
@@ -31,7 +31,7 @@ const TaskDetailDrawer: React.FC<Props> = ({ taskId, onOpenChange }) => {
   const [comment, setComment] = useState('');
   const [posting, setPosting] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const isAdmin = hasRole(userProfile, 'admin');
+  
   // Admins, project managers and whoever raised the task may remove it.
   const canDelete =
     hasAnyRole(userProfile, ['admin', 'project_manager']) ||
