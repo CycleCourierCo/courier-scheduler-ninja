@@ -140,6 +140,7 @@ Deno.serve(async (req) => {
         assignee_id: assignee,
         planned_date: today,
         due_date: `${today}T17:00:00Z`,
+        estimated_minutes: r.estimated_minutes ?? null,
         recurrence_id: r.id,
       });
       if (insertError) {
