@@ -3061,18 +3061,36 @@ const BicycleInspections = () => {
     <Layout>
       <div className="container py-4 sm:py-6 overflow-x-hidden">
         <DashboardHeader>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
-              <Wrench className="h-7 w-7 sm:h-8 sm:w-8 shrink-0" />
-              {isAdmin ? "Bicycle Inspections" : "My Inspections"}
-            </h1>
-            <p className="text-muted-foreground">
-              {isAdmin
-                ? "Manage bike inspections and report issues"
-                : "View inspection status for your bikes"}
-            </p>
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
+                <Wrench className="h-7 w-7 sm:h-8 sm:w-8 shrink-0" />
+                {isAdmin ? "Bicycle Inspections" : "My Inspections"}
+              </h1>
+              <p className="text-muted-foreground">
+                {isAdmin
+                  ? "Manage bike inspections and report issues"
+                  : "View inspection status for your bikes"}
+              </p>
+            </div>
+            {canManageInspections && (
+              <Button onClick={() => setNewWorkshopOpen(true)} className="w-full sm:w-auto">
+                <Plus className="h-4 w-4 mr-1" />
+                New workshop inspection
+              </Button>
+            )}
           </div>
         </DashboardHeader>
+
+        {canManageInspections && user?.id && (
+          <NewWorkshopInspectionDialog
+            open={newWorkshopOpen}
+            onOpenChange={setNewWorkshopOpen}
+            createdById={user.id}
+            createdByName={userProfile?.name || user.email || "Staff"}
+            onCreated={() => queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] })}
+          />
+        )}
 
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
