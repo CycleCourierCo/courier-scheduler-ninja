@@ -15,6 +15,7 @@ import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
 import { pollOrderUpdates } from '@/services/orderService';
 import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
+import AltLocationDetails from "@/components/order-detail/AltLocationDetails";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 import { toast } from "sonner";
