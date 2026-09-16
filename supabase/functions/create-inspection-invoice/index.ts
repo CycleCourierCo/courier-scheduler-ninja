@@ -373,6 +373,59 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // 2b) Workshop-only walk-in: create the QuickBooks customer from the
+    // details staff confirmed, so a first-time customer can be invoiced.
+    if (!qbCustomerId && isWorkshopOnly) {
+      const displayName =
+        (customerDetails?.company || customerDetails?.name || customerProfile.company_name || customerProfile.name || '')
+          .toString()
+          .trim();
+      const email = (customerDetails?.email || customerProfile.email || '').toString().trim();
+      if (displayName && email) {
+        const nameParts = displayName.split(/\s+/);
+        const payload: Record<string, unknown> = {
+          DisplayName: displayName,
+          GivenName: nameParts[0],
+          ...(nameParts.length > 1 ? { FamilyName: nameParts.slice(1).join(' ') } : {}),
+          PrimaryEmailAddr: { Address: email },
+          ...(customerDetails?.phone ? { PrimaryPhone: { FreeFormNumber: customerDetails.phone } } : {}),
+          ...(customerDetails?.addressLine1
+            ? {
+                BillAddr: {
+                  Line1: customerDetails.addressLine1,
+                  ...(customerDetails.addressLine2 ? { Line2: customerDetails.addressLine2 } : {}),
+                  ...(customerDetails.city ? { City: customerDetails.city } : {}),
+                  ...(customerDetails.postcode ? { PostalCode: customerDetails.postcode } : {}),
+                  Country: 'United Kingdom',
+                },
+              }
+            : {}),
+        };
+        const createRes = await fetch(
+          `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/customer`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${tokenData.access_token}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          }
+        );
+        if (createRes.ok) {
+          const created = (await createRes.json())?.Customer;
+          if (created?.Id) {
+            qbCustomerId = created.Id;
+            billingEmail = billingEmail || email;
+            console.log('Created QuickBooks customer for workshop inspection');
+          }
+        } else {
+          console.error('Failed to create QuickBooks customer:', (await createRes.text()).slice(0, 200));
+        }
+      }
+    }
+
     // 3) Nothing matched — hand the decision back to the admin.
     if (!qbCustomerId) {
       const suggestions =
