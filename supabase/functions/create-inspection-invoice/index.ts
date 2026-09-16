@@ -458,7 +458,10 @@ const handler = async (req: Request): Promise<Response> => {
 
 
     // Build line items from approved issues
-    const bikeDesc = `${order.tracking_number || order.id} - ${order.bike_brand || ''} ${order.bike_model || ''}`.trim();
+    const bikeRef = isWorkshopOnly
+      ? (inspection.reference || 'Workshop repair')
+      : (order.tracking_number || order.id);
+    const bikeDesc = `${bikeRef} - ${order.bike_brand || ''} ${order.bike_model || ''}`.trim();
     const lineItems = billableIssues.map((issue: any) => {
       // estimated_cost is VAT-inclusive, so divide by 1.2 to get net price
       const netPrice = Number((Number(issue.estimated_cost) / 1.2).toFixed(2));
