@@ -460,6 +460,7 @@ const CustomerOrderDetail = () => {
                     </div>
                   </div>
                 </div>
+                <AltLocationDetails type="receiver" alt={order.receiverAltLocation} />
               </div>
             </div>
           </CardContent>
