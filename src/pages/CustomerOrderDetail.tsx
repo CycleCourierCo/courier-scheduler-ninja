@@ -430,6 +430,7 @@ const CustomerOrderDetail = () => {
                     </div>
                   </div>
                 </div>
+                <AltLocationDetails type="sender" alt={order.senderAltLocation} />
               </div>
               
               <div className="space-y-4">
