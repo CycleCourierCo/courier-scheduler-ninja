@@ -995,6 +995,16 @@ const BicycleInspections = () => {
       inspectionId: string;
       quickbooksCustomerId?: string;
       billingEmailOverride?: string;
+      customerDetails?: {
+        name?: string;
+        email?: string;
+        phone?: string;
+        company?: string;
+        addressLine1?: string;
+        addressLine2?: string;
+        city?: string;
+        postcode?: string;
+      };
     }) => {
       const { data, error } = await supabase.functions.invoke('create-inspection-invoice', {
         body: vars,
