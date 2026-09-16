@@ -212,23 +212,47 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
 
-    // Get order details
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .select('id, tracking_number, bike_brand, bike_model, user_id, sender, receiver')
-      .eq('id', inspection.order_id)
-      .single();
+    // Workshop-only inspections have no transport job; the customer details
+    // live on the inspection itself (and can be corrected by staff at invoice
+    // time via `customerDetails`).
+    const isWorkshopOnly = !inspection.order_id;
 
-    if (orderError || !order) throw new Error('Order not found');
+    let order: any = null;
+    let customerProfile: any = null;
 
-    // Get customer profile
-    const { data: customerProfile, error: custError } = await supabase
-      .from('profiles')
-      .select('email, accounts_email, name, company_name')
-      .eq('id', order.user_id)
-      .single();
+    if (!isWorkshopOnly) {
+      const { data: orderRow, error: orderError } = await supabase
+        .from('orders')
+        .select('id, tracking_number, bike_brand, bike_model, user_id, sender, receiver')
+        .eq('id', inspection.order_id)
+        .single();
+      if (orderError || !orderRow) throw new Error('Order not found');
+      order = orderRow;
 
-    if (custError || !customerProfile) throw new Error('Customer profile not found');
+      const { data: profileRow, error: custError } = await supabase
+        .from('profiles')
+        .select('email, accounts_email, name, company_name')
+        .eq('id', order.user_id)
+        .single();
+      if (custError || !profileRow) throw new Error('Customer profile not found');
+      customerProfile = profileRow;
+    } else {
+      order = {
+        id: inspection.id,
+        tracking_number: inspection.reference || null,
+        bike_brand: inspection.bike_brand,
+        bike_model: inspection.bike_model,
+        user_id: null,
+        sender: null,
+        receiver: null,
+      };
+      customerProfile = {
+        email: customerDetails?.email || inspection.customer_email,
+        accounts_email: null,
+        name: customerDetails?.name || inspection.customer_name,
+        company_name: customerDetails?.company || inspection.customer_company,
+      };
+    }
 
     const isInternalEmail = (email?: string | null) =>
       !!email && email.toLowerCase().includes('@cyclecourierco.com');
