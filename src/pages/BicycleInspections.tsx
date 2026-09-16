@@ -2754,23 +2754,63 @@ const BicycleInspections = () => {
                 Download report
               </Button>
               {isAdmin && inspection.status === "issues_found" && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => approvalEmailMutation.mutate(inspection.id)}
-                  disabled={approvalEmailMutation.isPending}
-                >
-                  {approvalEmailMutation.isPending ? (
-                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="mr-1 h-4 w-4" />
+                <>
+                  {!isWorkshopOnly && (
+                    <Select
+                      value={
+                        approvalRecipients[inspection.id] ||
+                        (inspection as any).approval_recipient ||
+                        "customer"
+                      }
+                      onValueChange={(v) =>
+                        setApprovalRecipients((prev) => ({
+                          ...prev,
+                          [inspection.id]: v as "customer" | "receiver" | "walkin",
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="h-9 w-[190px]">
+                        <SelectValue placeholder="Who approves?" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="customer">Ask the seller (account)</SelectItem>
+                        <SelectItem value="receiver">Ask the buyer (receiver)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   )}
-                  Resend approval email
-                </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      approvalEmailMutation.mutate({
+                        inspectionId: inspection.id,
+                        recipient: isWorkshopOnly
+                          ? "walkin"
+                          : approvalRecipients[inspection.id] ||
+                            ((inspection as any).approval_recipient as any) ||
+                            "customer",
+                      })
+                    }
+                    disabled={approvalEmailMutation.isPending}
+                  >
+                    {approvalEmailMutation.isPending ? (
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="mr-1 h-4 w-4" />
+                    )}
+                    Send approval request
+                  </Button>
+                </>
               )}
               {(inspection as any).approval_email_sent_at && (
                 <span className="text-xs text-muted-foreground">
-                  Approval email sent {new Date((inspection as any).approval_email_sent_at).toLocaleDateString("en-GB")}
+                  Approval request sent{" "}
+                  {new Date((inspection as any).approval_email_sent_at).toLocaleDateString("en-GB")}
+                  {(inspection as any).approval_recipient === "receiver"
+                    ? " to the buyer"
+                    : (inspection as any).approval_recipient === "walkin"
+                      ? " to the customer"
+                      : " to the seller"}
                 </span>
               )}
             </div>
