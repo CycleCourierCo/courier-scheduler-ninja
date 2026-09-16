@@ -3988,6 +3988,7 @@ export type Database = {
           end_date: string | null
           estimated_minutes: number | null
           frequency: string
+          horizon_days: number
           id: string
           interval_n: number
           last_generated_on: string | null
@@ -4008,6 +4009,7 @@ export type Database = {
           end_date?: string | null
           estimated_minutes?: number | null
           frequency?: string
+          horizon_days?: number
           id?: string
           interval_n?: number
           last_generated_on?: string | null
@@ -4028,6 +4030,7 @@ export type Database = {
           end_date?: string | null
           estimated_minutes?: number | null
           frequency?: string
+          horizon_days?: number
           id?: string
           interval_n?: number
           last_generated_on?: string | null
@@ -4058,6 +4061,7 @@ export type Database = {
           estimated_minutes: number | null
           id: string
           linked_conversation_id: string | null
+          linked_inspection_id: string | null
           linked_order_id: string | null
           planned_date: string | null
           priority: Database["public"]["Enums"]["task_priority"]
@@ -4078,6 +4082,7 @@ export type Database = {
           estimated_minutes?: number | null
           id?: string
           linked_conversation_id?: string | null
+          linked_inspection_id?: string | null
           linked_order_id?: string | null
           planned_date?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
@@ -4098,6 +4103,7 @@ export type Database = {
           estimated_minutes?: number | null
           id?: string
           linked_conversation_id?: string | null
+          linked_inspection_id?: string | null
           linked_order_id?: string | null
           planned_date?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
@@ -4127,6 +4133,13 @@ export type Database = {
             columns: ["linked_conversation_id"]
             isOneToOne: false
             referencedRelation: "cs_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_linked_inspection_id_fkey"
+            columns: ["linked_inspection_id"]
+            isOneToOne: false
+            referencedRelation: "bicycle_inspections"
             referencedColumns: ["id"]
           },
           {
