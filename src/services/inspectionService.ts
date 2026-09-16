@@ -69,14 +69,16 @@ const reconcileForOrder = async (orderId: string) => {
   }
 };
 
-// Emails the booking account asking them to approve the identified repairs.
+// Emails whoever is set to approve the identified repairs: the booking account,
+// the receiver/buyer, or the walk-in customer on a workshop-only inspection.
 export const sendInspectionApprovalEmail = async (
   inspectionId: string,
-  force = false
+  force = false,
+  recipient?: 'customer' | 'receiver' | 'walkin'
 ): Promise<{ success: boolean; skipped?: string }> => {
   try {
     const { data, error } = await supabase.functions.invoke('send-inspection-approval', {
-      body: { inspectionId, force },
+      body: { inspectionId, force, ...(recipient ? { recipient } : {}) },
     });
     if (error) throw error;
     return { success: true, skipped: (data as any)?.skipped };
