@@ -27,6 +27,7 @@ const emptyForm = {
   category: "",
   priority: "normal",
   estimated_minutes: "",
+  horizon_days: "14",
   assigneeMode: "person" as "person" | "role",
   assignee_id: "",
   assignee_role: "",
