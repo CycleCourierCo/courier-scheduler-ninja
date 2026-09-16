@@ -48,13 +48,16 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const inspectionId = typeof body?.inspectionId === "string" ? body.inspectionId.trim() : "";
     const force = body?.force === true;
+    const requestedRecipient = typeof body?.recipient === "string" ? body.recipient.trim() : "";
     if (!UUID.test(inspectionId)) {
       return json({ error: "A valid inspectionId is required" }, 400);
     }
 
     const { data: inspection, error: inspError } = await admin
       .from("bicycle_inspections")
-      .select("id, order_id, status, released_to_customer_at, approval_email_sent_at, report_url, created_at")
+      .select(
+        "id, order_id, status, released_to_customer_at, approval_email_sent_at, report_url, created_at, approval_recipient, customer_name, customer_email, bike_brand, bike_model, reference"
+      )
       .eq("id", inspectionId)
       .maybeSingle();
     if (inspError) throw inspError;
@@ -66,13 +69,29 @@ serve(async (req) => {
       return json({ success: true, skipped: "already_sent" });
     }
 
-    const { data: order, error: orderError } = await admin
-      .from("orders")
-      .select("id, tracking_number, bike_brand, bike_model, user_id, sender")
-      .eq("id", inspection.order_id)
-      .maybeSingle();
-    if (orderError) throw orderError;
-    if (!order) return json({ error: "Order not found" }, 404);
+    const workshopOnly = !inspection.order_id;
+
+    let order: any = null;
+    if (!workshopOnly) {
+      const { data: orderRow, error: orderError } = await admin
+        .from("orders")
+        .select("id, tracking_number, bike_brand, bike_model, user_id, sender, receiver")
+        .eq("id", inspection.order_id)
+        .maybeSingle();
+      if (orderError) throw orderError;
+      if (!orderRow) return json({ error: "Order not found" }, 404);
+      order = orderRow;
+    }
+
+    // Who is being asked to approve: the booking account, the receiver/buyer,
+    // or the walk-in customer on a workshop-only inspection.
+    const allowedRecipients = ["customer", "receiver", "walkin"];
+    let recipient = allowedRecipients.includes(requestedRecipient)
+      ? requestedRecipient
+      : (allowedRecipients.includes(String(inspection.approval_recipient))
+          ? String(inspection.approval_recipient)
+          : (workshopOnly ? "walkin" : "customer"));
+    if (workshopOnly) recipient = "walkin";
 
     const { data: issues, error: issuesError } = await admin
       .from("inspection_issues")
@@ -103,14 +122,31 @@ serve(async (req) => {
     }
 
     // Booking account (not the receiver).
-    const { data: profile } = await admin
-      .from("profiles")
-      .select("id, name, email, accounts_email, is_test_account")
-      .eq("id", order.user_id)
-      .maybeSingle();
+    let profile: any = null;
+    if (order?.user_id) {
+      const { data: profileRow } = await admin
+        .from("profiles")
+        .select("id, name, email, accounts_email, is_test_account")
+        .eq("id", order.user_id)
+        .maybeSingle();
+      profile = profileRow;
+    }
 
-    const to = (profile?.accounts_email || profile?.email || "").trim();
-    if (!to) return json({ error: "The booking account has no email address" }, 400);
+    let to = "";
+    let greetName = "there";
+    if (recipient === "customer") {
+      to = (profile?.accounts_email || profile?.email || "").trim();
+      greetName = profile?.name || "there";
+      if (!to) return json({ error: "The booking account has no email address" }, 400);
+    } else if (recipient === "receiver") {
+      to = String((order?.receiver as any)?.email || "").trim();
+      greetName = String((order?.receiver as any)?.name || "there");
+      if (!to) return json({ error: "This job has no receiver email address" }, 400);
+    } else {
+      to = String(inspection.customer_email || "").trim();
+      greetName = String(inspection.customer_name || "there");
+      if (!to) return json({ error: "This inspection has no customer email address" }, 400);
+    }
 
     if (profile?.is_test_account === true) {
       return json({ success: true, skipped: "test_account" });
@@ -119,9 +155,18 @@ serve(async (req) => {
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (!resendKey) return json({ error: "Email is not configured" }, 500);
 
-    const bike = [order.bike_brand, order.bike_model].filter(Boolean).join(" ") || "the bike";
+    const bike =
+      [order?.bike_brand ?? inspection.bike_brand, order?.bike_model ?? inspection.bike_model]
+        .filter(Boolean)
+        .join(" ") || "the bike";
+    const jobRef = order?.tracking_number || inspection.reference || "";
     const total = pending.reduce((s: number, i: any) => s + Number(i.estimated_cost || 0), 0);
-    const link = `${BASE_URL}/customer-orders/${order.id}`;
+    // Booking accounts approve inside the portal; receivers and walk-ins get a
+    // public link that needs no login.
+    const link =
+      recipient === "customer"
+        ? `${BASE_URL}/customer-orders/${order.id}`
+        : `${BASE_URL}/inspection-approval/${inspection.id}`;
 
     const rows = pending
       .map((i: any) => {
