@@ -1663,20 +1663,34 @@ const BicycleInspections = () => {
                 {order.bike_quantity > 1 && (
                   <Badge variant="secondary" className="shrink-0">x{order.bike_quantity}</Badge>
                 )}
+                {isWorkshopOnly && (
+                  <Badge variant="secondary" className="shrink-0">Workshop only</Badge>
+                )}
               </CardTitle>
               <CardDescription className="break-words">
-                #{order.tracking_number} • {(order.sender as any)?.name} → {(order.receiver as any)?.name}
+                {isWorkshopOnly ? (
+                  <>
+                    {inspection?.reference ? `Ref ${inspection.reference} • ` : ""}
+                    {inspection?.customer_name || inspection?.customer_email || "Walk-in customer"}
+                  </>
+                ) : (
+                  <>
+                    #{order.tracking_number} • {(order.sender as any)?.name} → {(order.receiver as any)?.name}
+                  </>
+                )}
               </CardDescription>
               <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-1"
-                  onClick={() => navigate(canManageInspections ? `/orders/${order.id}` : `/customer-orders/${order.id}`)}
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  View order
-                </Button>
+                {!isWorkshopOnly && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                    onClick={() => navigate(canManageInspections ? `/orders/${order.id}` : `/customer-orders/${order.id}`)}
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    View order
+                  </Button>
+                )}
                 {!canManageInspections && isOwner && customerReportUrl && (
                   <Button
                     variant="outline"
@@ -1689,6 +1703,8 @@ const BicycleInspections = () => {
                   </Button>
                 )}
               </div>
+
+
 
 
               {order.customer_order_number && (
