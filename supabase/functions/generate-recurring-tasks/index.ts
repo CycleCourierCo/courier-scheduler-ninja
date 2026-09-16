@@ -27,7 +27,15 @@ interface Recurrence {
   start_date: string;
   end_date: string | null;
   active: boolean;
+  estimated_minutes: number | null;
+  horizon_days: number | null;
 }
+
+const addDaysStr = (dateStr: string, days: number): string => {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+};
 
 const londonToday = (): string =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
