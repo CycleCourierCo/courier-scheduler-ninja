@@ -48,13 +48,16 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const inspectionId = typeof body?.inspectionId === "string" ? body.inspectionId.trim() : "";
     const force = body?.force === true;
+    const requestedRecipient = typeof body?.recipient === "string" ? body.recipient.trim() : "";
     if (!UUID.test(inspectionId)) {
       return json({ error: "A valid inspectionId is required" }, 400);
     }
 
     const { data: inspection, error: inspError } = await admin
       .from("bicycle_inspections")
-      .select("id, order_id, status, released_to_customer_at, approval_email_sent_at, report_url, created_at")
+      .select(
+        "id, order_id, status, released_to_customer_at, approval_email_sent_at, report_url, created_at, approval_recipient, customer_name, customer_email, bike_brand, bike_model, reference"
+      )
       .eq("id", inspectionId)
       .maybeSingle();
     if (inspError) throw inspError;
@@ -66,13 +69,29 @@ serve(async (req) => {
       return json({ success: true, skipped: "already_sent" });
     }
 
-    const { data: order, error: orderError } = await admin
-      .from("orders")
-      .select("id, tracking_number, bike_brand, bike_model, user_id, sender")
-      .eq("id", inspection.order_id)
-      .maybeSingle();
-    if (orderError) throw orderError;
-    if (!order) return json({ error: "Order not found" }, 404);
+    const workshopOnly = !inspection.order_id;
+
+    let order: any = null;
+    if (!workshopOnly) {
+      const { data: orderRow, error: orderError } = await admin
+        .from("orders")
+        .select("id, tracking_number, bike_brand, bike_model, user_id, sender, receiver")
+        .eq("id", inspection.order_id)
+        .maybeSingle();
+      if (orderError) throw orderError;
+      if (!orderRow) return json({ error: "Order not found" }, 404);
+      order = orderRow;
+    }
+
+    // Who is being asked to approve: the booking account, the receiver/buyer,
+    // or the walk-in customer on a workshop-only inspection.
+    const allowedRecipients = ["customer", "receiver", "walkin"];
+    let recipient = allowedRecipients.includes(requestedRecipient)
+      ? requestedRecipient
+      : (allowedRecipients.includes(String(inspection.approval_recipient))
+          ? String(inspection.approval_recipient)
+          : (workshopOnly ? "walkin" : "customer"));
+    if (workshopOnly) recipient = "walkin";
 
     const { data: issues, error: issuesError } = await admin
       .from("inspection_issues")
@@ -103,14 +122,31 @@ serve(async (req) => {
     }
 
     // Booking account (not the receiver).
-    const { data: profile } = await admin
-      .from("profiles")
-      .select("id, name, email, accounts_email, is_test_account")
-      .eq("id", order.user_id)
-      .maybeSingle();
+    let profile: any = null;
+    if (order?.user_id) {
+      const { data: profileRow } = await admin
+        .from("profiles")
+        .select("id, name, email, accounts_email, is_test_account")
+        .eq("id", order.user_id)
+        .maybeSingle();
+      profile = profileRow;
+    }
 
-    const to = (profile?.accounts_email || profile?.email || "").trim();
-    if (!to) return json({ error: "The booking account has no email address" }, 400);
+    let to = "";
+    let greetName = "there";
+    if (recipient === "customer") {
+      to = (profile?.accounts_email || profile?.email || "").trim();
+      greetName = profile?.name || "there";
+      if (!to) return json({ error: "The booking account has no email address" }, 400);
+    } else if (recipient === "receiver") {
+      to = String((order?.receiver as any)?.email || "").trim();
+      greetName = String((order?.receiver as any)?.name || "there");
+      if (!to) return json({ error: "This job has no receiver email address" }, 400);
+    } else {
+      to = String(inspection.customer_email || "").trim();
+      greetName = String(inspection.customer_name || "there");
+      if (!to) return json({ error: "This inspection has no customer email address" }, 400);
+    }
 
     if (profile?.is_test_account === true) {
       return json({ success: true, skipped: "test_account" });
@@ -119,9 +155,18 @@ serve(async (req) => {
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (!resendKey) return json({ error: "Email is not configured" }, 500);
 
-    const bike = [order.bike_brand, order.bike_model].filter(Boolean).join(" ") || "the bike";
+    const bike =
+      [order?.bike_brand ?? inspection.bike_brand, order?.bike_model ?? inspection.bike_model]
+        .filter(Boolean)
+        .join(" ") || "the bike";
+    const jobRef = order?.tracking_number || inspection.reference || "";
     const total = pending.reduce((s: number, i: any) => s + Number(i.estimated_cost || 0), 0);
-    const link = `${BASE_URL}/customer-orders/${order.id}`;
+    // Booking accounts approve inside the portal; receivers and walk-ins get a
+    // public link that needs no login.
+    const link =
+      recipient === "customer"
+        ? `${BASE_URL}/customer-orders/${order.id}`
+        : `${BASE_URL}/inspection-approval/${inspection.id}`;
 
     const rows = pending
       .map((i: any) => {
@@ -133,10 +178,16 @@ serve(async (req) => {
       .join("");
 
 
+    const refLine = jobRef ? ` (job #${esc(jobRef)})` : "";
+    const payerNote =
+      recipient === "customer"
+        ? "The bike stays with us until you let us know how you'd like to proceed, so the sooner you approve or decline, the sooner we can get it moving."
+        : "Anything you approve is paid by you directly, and we'll be in touch about payment. The bike stays with us until you let us know how you'd like to proceed.";
+
     const html = `
       <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1f2937;line-height:1.5">
-        <p>Hi ${esc(profile?.name || "there")},</p>
-        <p>Our workshop has finished inspecting <strong>${esc(bike)}</strong> (job #${esc(order.tracking_number)}) and found ${pending.length} item${pending.length === 1 ? "" : "s"} that need${pending.length === 1 ? "s" : ""} your approval before we can carry out the work.</p>
+        <p>Hi ${esc(greetName)},</p>
+        <p>Our workshop has finished inspecting <strong>${esc(bike)}</strong>${refLine} and found ${pending.length} item${pending.length === 1 ? "" : "s"} that need${pending.length === 1 ? "s" : ""} your approval before we can carry out the work.</p>
         <table style="border-collapse:collapse;width:100%;font-size:14px;margin:16px 0">
           <thead>
             <tr style="background:#f1f5f9">
@@ -150,7 +201,7 @@ serve(async (req) => {
         <p>Total if all work is approved: <strong>${money(total)}</strong></p>
         <p style="margin:20px 0"><a href="${link}" style="background:#0f766e;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;display:inline-block">Review and approve repairs</a></p>
         ${reportUrl ? `<p style="font-size:14px"><a href="${esc(reportUrl)}">View the full inspection report (PDF)</a></p>` : ""}
-        <p style="font-size:13px;color:#4b5563">The bike stays with us until you let us know how you'd like to proceed, so the sooner you approve or decline, the sooner we can get it moving.</p>
+        <p style="font-size:13px;color:#4b5563">${payerNote}</p>
         <p style="font-size:13px;color:#4b5563">Thanks,<br/>CCC - Cycle Courier Co.</p>
       </div>`;
 
@@ -158,7 +209,7 @@ serve(async (req) => {
     const { error: emailError } = await resend.emails.send({
       from: FROM,
       to: [to],
-      subject: `Repairs need approval — job #${order.tracking_number}`,
+      subject: jobRef ? `Repairs need approval — job #${jobRef}` : `Repairs need approval — ${bike}`,
       html,
       reply_to: REPLY_TO,
     });
@@ -169,10 +220,14 @@ serve(async (req) => {
 
     await admin
       .from("bicycle_inspections")
-      .update({ approval_email_sent_at: new Date().toISOString() })
+      .update({
+        approval_email_sent_at: new Date().toISOString(),
+        approval_recipient: recipient,
+        approval_sent_to_at: new Date().toISOString(),
+      })
       .eq("id", inspectionId);
 
-    return json({ success: true, issues: pending.length, reportUrl });
+    return json({ success: true, issues: pending.length, reportUrl, recipient });
   } catch (error) {
     console.error("send-inspection-approval failed:", error instanceof Error ? error.message : "unknown error");
     return json({ error: "Failed to send the approval email" }, 500);

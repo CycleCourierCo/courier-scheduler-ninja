@@ -117,12 +117,23 @@ const handler = async (req: Request): Promise<Response> => {
       search,
       billingEmailOverride,
       quickbooksCustomerId,
+      customerDetails,
     } = (body || {}) as {
       inspectionId?: string;
       mode?: string;
       search?: string;
       billingEmailOverride?: string;
       quickbooksCustomerId?: string;
+      customerDetails?: {
+        name?: string;
+        email?: string;
+        phone?: string;
+        company?: string;
+        addressLine1?: string;
+        addressLine2?: string;
+        city?: string;
+        postcode?: string;
+      };
     };
 
     const qbQuery = async (token: { access_token: string; company_id: string }, query: string) => {
@@ -201,23 +212,47 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
 
-    // Get order details
-    const { data: order, error: orderError } = await supabase
-      .from('orders')
-      .select('id, tracking_number, bike_brand, bike_model, user_id, sender, receiver')
-      .eq('id', inspection.order_id)
-      .single();
+    // Workshop-only inspections have no transport job; the customer details
+    // live on the inspection itself (and can be corrected by staff at invoice
+    // time via `customerDetails`).
+    const isWorkshopOnly = !inspection.order_id;
 
-    if (orderError || !order) throw new Error('Order not found');
+    let order: any = null;
+    let customerProfile: any = null;
 
-    // Get customer profile
-    const { data: customerProfile, error: custError } = await supabase
-      .from('profiles')
-      .select('email, accounts_email, name, company_name')
-      .eq('id', order.user_id)
-      .single();
+    if (!isWorkshopOnly) {
+      const { data: orderRow, error: orderError } = await supabase
+        .from('orders')
+        .select('id, tracking_number, bike_brand, bike_model, user_id, sender, receiver')
+        .eq('id', inspection.order_id)
+        .single();
+      if (orderError || !orderRow) throw new Error('Order not found');
+      order = orderRow;
 
-    if (custError || !customerProfile) throw new Error('Customer profile not found');
+      const { data: profileRow, error: custError } = await supabase
+        .from('profiles')
+        .select('email, accounts_email, name, company_name')
+        .eq('id', order.user_id)
+        .single();
+      if (custError || !profileRow) throw new Error('Customer profile not found');
+      customerProfile = profileRow;
+    } else {
+      order = {
+        id: inspection.id,
+        tracking_number: inspection.reference || null,
+        bike_brand: inspection.bike_brand,
+        bike_model: inspection.bike_model,
+        user_id: null,
+        sender: null,
+        receiver: null,
+      };
+      customerProfile = {
+        email: customerDetails?.email || inspection.customer_email,
+        accounts_email: null,
+        name: customerDetails?.name || inspection.customer_name,
+        company_name: customerDetails?.company || inspection.customer_company,
+      };
+    }
 
     const isInternalEmail = (email?: string | null) =>
       !!email && email.toLowerCase().includes('@cyclecourierco.com');
@@ -338,6 +373,59 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
+    // 2b) Workshop-only walk-in: create the QuickBooks customer from the
+    // details staff confirmed, so a first-time customer can be invoiced.
+    if (!qbCustomerId && isWorkshopOnly) {
+      const displayName =
+        (customerDetails?.company || customerDetails?.name || customerProfile.company_name || customerProfile.name || '')
+          .toString()
+          .trim();
+      const email = (customerDetails?.email || customerProfile.email || '').toString().trim();
+      if (displayName && email) {
+        const nameParts = displayName.split(/\s+/);
+        const payload: Record<string, unknown> = {
+          DisplayName: displayName,
+          GivenName: nameParts[0],
+          ...(nameParts.length > 1 ? { FamilyName: nameParts.slice(1).join(' ') } : {}),
+          PrimaryEmailAddr: { Address: email },
+          ...(customerDetails?.phone ? { PrimaryPhone: { FreeFormNumber: customerDetails.phone } } : {}),
+          ...(customerDetails?.addressLine1
+            ? {
+                BillAddr: {
+                  Line1: customerDetails.addressLine1,
+                  ...(customerDetails.addressLine2 ? { Line2: customerDetails.addressLine2 } : {}),
+                  ...(customerDetails.city ? { City: customerDetails.city } : {}),
+                  ...(customerDetails.postcode ? { PostalCode: customerDetails.postcode } : {}),
+                  Country: 'United Kingdom',
+                },
+              }
+            : {}),
+        };
+        const createRes = await fetch(
+          `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/customer`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${tokenData.access_token}`,
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+          }
+        );
+        if (createRes.ok) {
+          const created = (await createRes.json())?.Customer;
+          if (created?.Id) {
+            qbCustomerId = created.Id;
+            billingEmail = billingEmail || email;
+            console.log('Created QuickBooks customer for workshop inspection');
+          }
+        } else {
+          console.error('Failed to create QuickBooks customer:', (await createRes.text()).slice(0, 200));
+        }
+      }
+    }
+
     // 3) Nothing matched — hand the decision back to the admin.
     if (!qbCustomerId) {
       const suggestions =
@@ -370,7 +458,10 @@ const handler = async (req: Request): Promise<Response> => {
 
 
     // Build line items from approved issues
-    const bikeDesc = `${order.tracking_number || order.id} - ${order.bike_brand || ''} ${order.bike_model || ''}`.trim();
+    const bikeRef = isWorkshopOnly
+      ? (inspection.reference || 'Workshop repair')
+      : (order.tracking_number || order.id);
+    const bikeDesc = `${bikeRef} - ${order.bike_brand || ''} ${order.bike_model || ''}`.trim();
     const lineItems = billableIssues.map((issue: any) => {
       // estimated_cost is VAT-inclusive, so divide by 1.2 to get net price
       const netPrice = Number((Number(issue.estimated_cost) / 1.2).toFixed(2));
