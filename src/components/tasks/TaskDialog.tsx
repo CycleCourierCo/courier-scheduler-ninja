@@ -74,6 +74,10 @@ const TaskDialog: React.FC<Props> = ({
       setCategory(task.category || '');
       setPlannedDate(task.planned_date || '');
       setLinkedOrderId(task.linked_order_id);
+      const mins = task.estimated_minutes ?? null;
+      setDurationHours(mins ? String(Math.floor(mins / 60)) : '');
+      setDurationMinutes(mins ? String(mins % 60) : '');
+      setStartTime(task.start_time ? task.start_time.slice(0, 5) : '');
     } else {
       setTitle(defaultTitle);
       setDescription(defaultDescription);
@@ -84,6 +88,9 @@ const TaskDialog: React.FC<Props> = ({
       setCategory(defaultCategory || '');
       setPlannedDate(defaultPlannedDate || '');
       setLinkedOrderId(defaultOrderId);
+      setDurationHours('');
+      setDurationMinutes('');
+      setStartTime('');
     }
     setOrderQuery('');
     setOrderResults([]);
