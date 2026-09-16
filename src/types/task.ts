@@ -98,6 +98,7 @@ export interface TaskRecurrence {
   end_date: string | null;
   active: boolean;
   last_generated_on: string | null;
+  estimated_minutes?: number | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
