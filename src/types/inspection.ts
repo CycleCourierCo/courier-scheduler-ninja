@@ -71,7 +71,7 @@ export interface BicycleInspection {
 export interface InspectionIssue {
   id: string;
   inspection_id: string;
-  order_id: string;
+  order_id: string | null;
   issue_description: string;
   estimated_cost: number | null;
   parts_cost: number | null;
