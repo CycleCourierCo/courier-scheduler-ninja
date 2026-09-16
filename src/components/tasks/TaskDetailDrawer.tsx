@@ -111,6 +111,11 @@ const TaskDetailDrawer: React.FC<Props> = ({ taskId, onOpenChange }) => {
                   <div>Assignee: {task.assignee?.name || task.assignee?.email || 'Unassigned'}</div>
                   <div>Created by: {task.creator?.name || task.creator?.email || '—'}</div>
                   <div>Created: {format(new Date(task.created_at), 'PP p')}</div>
+                  <div>
+                    Length: {formatLength(task.estimated_minutes ?? 30)}
+                    {task.estimated_minutes ? '' : ' (default)'}
+                    {task.start_time ? ` · starts ${task.start_time.slice(0, 5)}` : ''}
+                  </div>
                 </div>
 
                 {task.linked_order_id && (
