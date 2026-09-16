@@ -32,6 +32,10 @@ export interface Task {
   updated_at: string;
   category?: string | null;
   planned_date?: string | null;
+  /** How long the task takes, in minutes. Null means use the 30-minute default. */
+  estimated_minutes?: number | null;
+  /** Optional fixed start time on the planned day, e.g. "09:30:00". */
+  start_time?: string | null;
   recurrence_id?: string | null;
   assignee?: { id: string; name: string | null; email: string | null } | null;
   creator?: { id: string; name: string | null; email: string | null } | null;
@@ -94,6 +98,7 @@ export interface TaskRecurrence {
   end_date: string | null;
   active: boolean;
   last_generated_on: string | null;
+  estimated_minutes?: number | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;

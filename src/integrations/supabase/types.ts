@@ -3986,6 +3986,7 @@ export type Database = {
           days_of_week: number[]
           description: string | null
           end_date: string | null
+          estimated_minutes: number | null
           frequency: string
           id: string
           interval_n: number
@@ -4005,6 +4006,7 @@ export type Database = {
           days_of_week?: number[]
           description?: string | null
           end_date?: string | null
+          estimated_minutes?: number | null
           frequency?: string
           id?: string
           interval_n?: number
@@ -4024,6 +4026,7 @@ export type Database = {
           days_of_week?: number[]
           description?: string | null
           end_date?: string | null
+          estimated_minutes?: number | null
           frequency?: string
           id?: string
           interval_n?: number
@@ -4052,12 +4055,14 @@ export type Database = {
           created_by: string | null
           description: string | null
           due_date: string | null
+          estimated_minutes: number | null
           id: string
           linked_conversation_id: string | null
           linked_order_id: string | null
           planned_date: string | null
           priority: Database["public"]["Enums"]["task_priority"]
           recurrence_id: string | null
+          start_time: string | null
           status: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at: string
@@ -4070,12 +4075,14 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           due_date?: string | null
+          estimated_minutes?: number | null
           id?: string
           linked_conversation_id?: string | null
           linked_order_id?: string | null
           planned_date?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           recurrence_id?: string | null
+          start_time?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at?: string
@@ -4088,12 +4095,14 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           due_date?: string | null
+          estimated_minutes?: number | null
           id?: string
           linked_conversation_id?: string | null
           linked_order_id?: string | null
           planned_date?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           recurrence_id?: string | null
+          start_time?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title?: string
           updated_at?: string
