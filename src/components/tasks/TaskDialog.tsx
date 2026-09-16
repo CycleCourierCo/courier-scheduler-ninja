@@ -211,6 +211,37 @@ const TaskDialog: React.FC<Props> = ({
               <Label>Planned day</Label>
               <Input type="date" value={plannedDate} onChange={e => setPlannedDate(e.target.value)} />
             </div>
+            <div>
+              <Label>Start time (optional)</Label>
+              <Input type="time" step={900} value={startTime} onChange={e => setStartTime(e.target.value)} />
+            </div>
+            <div className="col-span-2">
+              <Label>How long will it take?</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  max={24}
+                  className="w-20"
+                  placeholder="0"
+                  value={durationHours}
+                  onChange={e => setDurationHours(e.target.value)}
+                />
+                <span className="text-sm text-muted-foreground">hours</span>
+                <Input
+                  type="number"
+                  min={0}
+                  max={59}
+                  step={5}
+                  className="w-20"
+                  placeholder="30"
+                  value={durationMinutes}
+                  onChange={e => setDurationMinutes(e.target.value)}
+                />
+                <span className="text-sm text-muted-foreground">mins</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Leave blank to count it as 30 minutes.</p>
+            </div>
             {isEdit && (
               <div>
                 <Label>Status</Label>
