@@ -1633,6 +1633,8 @@ const BicycleInspections = () => {
     const bikePhotos = getCollectionPhotos(order.tracking_events, order.shipday_pickup_id);
     const bikeLabel = `${order.bike_brand || ""} ${order.bike_model || ""}`.trim() || "Bike";
     const storageLocations: any[] = Array.isArray(order.storage_locations) ? order.storage_locations : [];
+    // Workshop-only inspections have no transport job behind them.
+    const isWorkshopOnly = !!order.workshop_only;
 
     return (
       <Card key={order.id} className="mb-4 overflow-hidden">
