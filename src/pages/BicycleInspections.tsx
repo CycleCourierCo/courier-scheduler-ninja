@@ -281,6 +281,7 @@ const BicycleInspections = () => {
   const [selectedOrderForInspection, setSelectedOrderForInspection] = useState<string | null>(null);
   const [inspectionChecklist, setInspectionChecklist] = useState<Record<string, ItemResult>>({});
   const [inspectionComments, setInspectionComments] = useState<Record<string, string>>({});
+  const [newWorkshopOpen, setNewWorkshopOpen] = useState(false);
   const [checklistIssues, setChecklistIssues] = useState<Record<string, ChecklistIssue[]>>({});
   const [checklistBikeType, setChecklistBikeType] = useState<string | null>(null);
   const [checklistGeneralNotes, setChecklistGeneralNotes] = useState("");
