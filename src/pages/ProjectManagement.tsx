@@ -177,6 +177,14 @@ const ProjectManagement: React.FC = () => {
             <RecurringTasksTab />
           </TabsContent>
 
+          <TabsContent value="workshop" className="pt-3">
+            <WorkshopQueueTab
+              tasks={allTasks}
+              onOpenTask={setSelectedId}
+              onAdded={() => qc.invalidateQueries({ queryKey: ["tasks"] })}
+            />
+          </TabsContent>
+
           <TabsContent value="dashboard" className="pt-3">
             <PmDashboard tasks={allTasks} />
           </TabsContent>
