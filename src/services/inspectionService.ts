@@ -1752,6 +1752,93 @@ export const submitPublicRepairOffer = async (
 
 };
 
+export interface WorkshopInspectionInput {
+  customer_name: string;
+  customer_email: string;
+  customer_phone?: string | null;
+  customer_company?: string | null;
+  customer_address?: {
+    line1?: string | null;
+    line2?: string | null;
+    city?: string | null;
+    postcode?: string | null;
+  } | null;
+  bike_brand?: string | null;
+  bike_model?: string | null;
+  frame_size?: string | null;
+  bike_type?: string | null;
+  reference?: string | null;
+  notes?: string | null;
+}
+
+/** Create a workshop-only inspection for a walk-in bike (no transport job). */
+export const createWorkshopInspection = async (
+  input: WorkshopInspectionInput,
+  createdById: string,
+  createdByName: string
+): Promise<BicycleInspection> => {
+  const { data, error } = await supabase
+    .from('bicycle_inspections')
+    .insert({
+      order_id: null,
+      status: 'pending' as InspectionStatus,
+      customer_name: input.customer_name,
+      customer_email: input.customer_email,
+      customer_phone: input.customer_phone || null,
+      customer_company: input.customer_company || null,
+      customer_address: input.customer_address || null,
+      bike_brand: input.bike_brand || null,
+      bike_model: input.bike_model || null,
+      frame_size: input.frame_size || null,
+      bike_type: input.bike_type || null,
+      reference: input.reference || null,
+      notes: input.notes || null,
+      approval_recipient: 'walkin',
+      created_by_id: createdById,
+      created_by_name: createdByName,
+    } as any)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as BicycleInspection;
+};
+
+/** Choose who is asked to approve the repairs on an inspection. */
+export const setApprovalRecipient = async (
+  inspectionId: string,
+  recipient: 'customer' | 'receiver' | 'walkin'
+): Promise<void> => {
+  const { error } = await supabase
+    .from('bicycle_inspections')
+    .update({ approval_recipient: recipient } as any)
+    .eq('id', inspectionId);
+  if (error) throw error;
+};
+
+/** Public (unauthenticated) read of an inspection approval request. */
+export const fetchPublicInspectionApproval = async (inspectionId: string): Promise<any> => {
+  const { data, error } = await supabase.rpc('get_public_inspection_approval' as any, {
+    p_inspection_id: inspectionId,
+  });
+  if (error) throw error;
+  return data ?? { found: false };
+};
+
+/** Public (unauthenticated) submission of the approved repairs. */
+export const submitPublicInspectionApproval = async (
+  inspectionId: string,
+  approvedIssueIds: string[]
+): Promise<{ success: boolean; approved?: number; declined?: number; error?: string }> => {
+  const { data, error } = await supabase.rpc('submit_public_inspection_approval' as any, {
+    p_inspection_id: inspectionId,
+    p_approved_issue_ids: approvedIssueIds,
+  });
+  if (error) throw error;
+  void regenerateInspectionReport({ inspectionId });
+  return (data || { success: false }) as any;
+};
+
+
 export interface ReturnToSellerResult {
   success: boolean;
   declined?: number;
