@@ -15,6 +15,7 @@ import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
 import { pollOrderUpdates } from '@/services/orderService';
 import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
+import AltLocationDetails from "@/components/order-detail/AltLocationDetails";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 import { toast } from "sonner";
@@ -430,6 +431,7 @@ const CustomerOrderDetail = () => {
                     </div>
                   </div>
                 </div>
+                <AltLocationDetails type="sender" alt={order.senderAltLocation} />
               </div>
               
               <div className="space-y-4">
@@ -458,6 +460,7 @@ const CustomerOrderDetail = () => {
                     </div>
                   </div>
                 </div>
+                <AltLocationDetails type="receiver" alt={order.receiverAltLocation} />
               </div>
             </div>
           </CardContent>

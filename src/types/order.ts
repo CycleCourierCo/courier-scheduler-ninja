@@ -1,3 +1,4 @@
+import type { AltLocation } from "@/lib/altLocation";
 
 export type ContactInfo = {
   name: string;
@@ -227,6 +228,9 @@ export type Order = {
   deliveryInstructions?: string;
   senderNotes?: string;
   receiverNotes?: string;
+  /** Customer-chosen work address / neighbour details from the availability pages */
+  senderAltLocation?: AltLocation | null;
+  receiverAltLocation?: AltLocation | null;
   /** Set by the public order payload when that side belongs to a business account */
   senderIsBusiness?: boolean;
   receiverIsBusiness?: boolean;
