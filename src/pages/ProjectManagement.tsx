@@ -20,6 +20,7 @@ import WeeklyPlanBoard from "@/components/project/WeeklyPlanBoard";
 import PendingTasksTable from "@/components/project/PendingTasksTable";
 import RecurringTasksTab from "@/components/project/RecurringTasksTab";
 import PmDashboard from "@/components/project/PmDashboard";
+import WorkshopQueueTab from "@/components/project/WorkshopQueueTab";
 
 const ProjectManagement: React.FC = () => {
   const { user } = useAuth();

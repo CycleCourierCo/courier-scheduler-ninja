@@ -54,8 +54,6 @@ const WorkshopQueueTab: React.FC<Props> = ({ tasks, onOpenTask, onAdded }) => {
     const map = new Map<string, Task>();
     for (const t of tasks) {
       if (t.status === "done" || t.status === "cancelled") continue;
-      const kind = t.category === "inspection" ? "" : "";
-      void kind;
       if (t.linked_inspection_id) map.set(`r-${t.linked_inspection_id}`, t);
       if (t.linked_order_id) {
         const key = `i-${t.linked_order_id}`;
