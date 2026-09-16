@@ -10,6 +10,7 @@ import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
 import { getCollectionPhotos } from "@/utils/collectionPhotos";
 import { ChangeStorageLocationDialog } from "@/components/loading/ChangeStorageLocationDialog";
 import InspectionComments from "@/components/inspections/InspectionComments";
+import NewWorkshopInspectionDialog from "@/components/inspections/NewWorkshopInspectionDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 import StatusBadge from "@/components/StatusBadge";
