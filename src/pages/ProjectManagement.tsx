@@ -134,6 +134,7 @@ const ProjectManagement: React.FC = () => {
               Pending tasks <Badge variant="secondary" className="ml-1">{pending.length}</Badge>
             </TabsTrigger>
             <TabsTrigger value="repeating">Repeating tasks</TabsTrigger>
+            <TabsTrigger value="workshop">Workshop queue</TabsTrigger>
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           </TabsList>
 
