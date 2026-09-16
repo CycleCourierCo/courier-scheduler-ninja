@@ -2086,26 +2086,54 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
       setSelectedJobs(list);
 
-      // Refresh the end-of-day ETA / route length using the new times
-      if (lastLocationCoords) {
-        const returnLeg = await calculateTravelTime(lastLocationCoords, baseCoords);
-        const endTimeRounded = roundTimeToNext5Minutes(
-          new Date(currentTime.getTime() + returnLeg.minutes * 60000)
-        );
-        const startClock = new Date(`2024-01-01 ${startTime}`);
-        setRouteStats(prev =>
-          prev
-            ? {
-                ...prev,
-                endTime: endTimeRounded.toTimeString().slice(0, 5),
-                durationMinutes: Math.max(
-                  0,
-                  Math.round((endTimeRounded.getTime() - startClock.getTime()) / 60000)
-                ),
-              }
-            : prev
-        );
+      // Refresh the end-of-day ETA / route length using the new times.
+      // Always runs, even when later stops have no coordinates.
+      let returnOrigin: { lat: number; lon: number } | null = lastLocationCoords;
+      if (!returnOrigin) {
+        for (let i = list.length - 1; i >= 0; i--) {
+          const j: any = list[i];
+          if (j.type !== 'break' && j.lat && j.lon) {
+            returnOrigin = { lat: j.lat, lon: j.lon };
+            break;
+          }
+        }
       }
+
+      // When the loop never advanced past the edited stop, seed from the last stop's time
+      let endBase = currentTime;
+      if (!lastLocationCoords) {
+        const lastTimed = [...list].reverse().find((j) => j.estimatedTime);
+        if (lastTimed?.estimatedTime) {
+          endBase = new Date(`2024-01-01 ${lastTimed.estimatedTime}`);
+          endBase = new Date(endBase.getTime() + 15 * 60000);
+        }
+      }
+
+      let endMs = endBase.getTime();
+      if (returnOrigin) {
+        const returnLeg = await calculateTravelTime(returnOrigin, baseCoords);
+        endMs += returnLeg.minutes * 60000;
+      } else {
+        endMs += 30 * 60000;
+      }
+
+      const endTimeRounded = roundTimeToNext5Minutes(new Date(endMs));
+      const startClock = new Date(`2024-01-01 ${startTime}`);
+      let diffMinutes = Math.round((endTimeRounded.getTime() - startClock.getTime()) / 60000);
+      if (diffMinutes < 0) diffMinutes += 24 * 60; // overnight rollover
+      setRouteStats(prev =>
+        prev
+          ? {
+              ...prev,
+              endTime: endTimeRounded.toTimeString().slice(0, 5),
+              durationMinutes: diffMinutes,
+            }
+          : {
+              endTime: endTimeRounded.toTimeString().slice(0, 5),
+              distanceMiles: 0,
+              durationMinutes: diffMinutes,
+            }
+      );
     } catch (error) {
       console.error('Error re-timing route from manual time:', error);
       toast.error('Failed to re-time later stops');
