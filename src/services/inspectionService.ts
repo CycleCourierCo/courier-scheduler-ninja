@@ -351,13 +351,25 @@ export const getOrCreateInspection = async (
   bikeType?: string | null
 ): Promise<BicycleInspection | null> => {
   try {
-    const { data: existing, error: fetchError } = await supabase
+    const { data: byOrder, error: fetchError } = await supabase
       .from('bicycle_inspections')
       .select('*')
       .eq('order_id', orderId)
       .maybeSingle();
 
     if (fetchError) throw fetchError;
+
+    // Workshop-only inspections have no order, and the UI keys them by the
+    // inspection's own id — look that up before creating anything.
+    let existing: any = byOrder;
+    if (!existing) {
+      const { data: byId } = await supabase
+        .from('bicycle_inspections')
+        .select('*')
+        .eq('id', orderId)
+        .maybeSingle();
+      existing = byId || null;
+    }
 
     if (existing) {
       if (bikeType && !(existing as any).bike_type) {
@@ -371,6 +383,7 @@ export const getOrCreateInspection = async (
       }
       return existing as BicycleInspection;
     }
+
 
     const { data: newInspection, error: createError } = await supabase
       .from('bicycle_inspections')
