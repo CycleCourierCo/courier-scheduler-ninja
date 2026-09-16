@@ -84,6 +84,7 @@ const RecurringTasksTab: React.FC = () => {
       category: form.category || null,
       priority: form.priority as any,
       estimated_minutes: form.estimated_minutes ? Math.max(5, Number(form.estimated_minutes) || 30) : null,
+      horizon_days: Math.min(60, Math.max(1, Number(form.horizon_days) || 14)),
       assignee_id: form.assigneeMode === "person" ? form.assignee_id || null : null,
       assignee_role: form.assigneeMode === "role" ? form.assignee_role || null : null,
       frequency: form.frequency,
