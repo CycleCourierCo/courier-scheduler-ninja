@@ -355,6 +355,13 @@ const CustomerOrderDetail = () => {
                     {order.customerOrderNumber && (
                       <p className="mt-2"><span className="font-medium">Customer Order #:</span> {order.customerOrderNumber}</p>
                     )}
+                    {order.collectionCode && (
+                      <p className="mt-2">
+                        <span className="font-medium">eBay collection code:</span>{" "}
+                        <span className="font-mono font-semibold tracking-wide">{order.collectionCode}</span>
+                      </p>
+                    )}
+
                     {order.isBikeSwap && (
                       <p className="text-courier-600 font-medium mt-2">This is a bike swap</p>
                     )}

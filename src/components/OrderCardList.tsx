@@ -96,7 +96,7 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
               <div className="mt-1">
                 <StatusBadge status={order.status} />
               </div>
-              {(order.isNorthernIreland || order.guaranteedDelivery || order.isBoxMyBike || order.needsInspection) && (
+              {(order.isNorthernIreland || order.guaranteedDelivery || order.isBoxMyBike || order.needsInspection || order.isEbayOrder) && (
                 <div className="mt-1.5 flex flex-wrap items-center gap-1">
                   {order.isNorthernIreland && (
                     <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-[10px] px-1.5 py-0">
@@ -113,11 +113,17 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
                       Box
                     </Badge>
                   )}
+                  {order.isEbayOrder && (
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 text-[10px] px-1.5 py-0">
+                      eBay
+                    </Badge>
+                  )}
                   {order.needsInspection && (
                     <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100 text-[10px] px-1.5 py-0">
                       Inspect
                     </Badge>
                   )}
+
                 </div>
               )}
             </div>
