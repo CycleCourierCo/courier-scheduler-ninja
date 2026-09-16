@@ -1483,7 +1483,8 @@ export const deleteInspectionIssue = async (issueId: string): Promise<void> => {
 // don't re-trigger the status reset that addInspectionIssue does).
 export const addIssueToExistingInspection = async (
   inspectionId: string,
-  orderId: string,
+  /** Null for workshop-only inspections that aren't tied to a transport job. */
+  orderId: string | null,
   issueDescription: string,
   estimatedCost: number | null,
   requestedById: string,
