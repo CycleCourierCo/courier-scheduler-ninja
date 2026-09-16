@@ -27,7 +27,15 @@ interface Recurrence {
   start_date: string;
   end_date: string | null;
   active: boolean;
+  estimated_minutes: number | null;
+  horizon_days: number | null;
 }
+
+const addDaysStr = (dateStr: string, days: number): string => {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+};
 
 const londonToday = (): string =>
   new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
@@ -99,16 +107,25 @@ Deno.serve(async (req) => {
 
   const today = londonToday();
 
-  const { data: recurrences, error } = await admin
-    .from("task_recurrences")
-    .select("*")
-    .eq("active", true);
+  let onlyRecurrenceId: string | null = null;
+  try {
+    const body = await req.json();
+    if (body && typeof body.recurrenceId === "string") onlyRecurrenceId = body.recurrenceId;
+  } catch {
+    // no body is fine
+  }
+
+  let query = admin.from("task_recurrences").select("*").eq("active", true);
+  if (onlyRecurrenceId) query = query.eq("id", onlyRecurrenceId);
+  const { data: recurrences, error } = await query;
   if (error) return json({ error: error.message }, 500);
 
   let created = 0;
+  let lastDate = today;
 
   for (const r of (recurrences || []) as Recurrence[]) {
-    if (!matches(r, today)) continue;
+    // How far ahead should this repeat be filled in? 1-60 days, default 14.
+    const horizon = Math.min(60, Math.max(1, r.horizon_days ?? 14));
 
     // Who should get it?
     let assignees: (string | null)[] = [r.assignee_id ?? null];
@@ -121,33 +138,39 @@ Deno.serve(async (req) => {
       if (assignees.length === 0) assignees = [null];
     }
 
-    for (const assignee of assignees) {
-      let existing = admin
-        .from("tasks")
-        .select("id")
-        .eq("recurrence_id", r.id)
-        .eq("planned_date", today);
-      existing = assignee ? existing.eq("assignee_id", assignee) : existing.is("assignee_id", null);
-      const { data: dupe } = await existing.limit(1);
-      if (dupe && dupe.length) continue;
+    for (let offset = 0; offset < horizon; offset++) {
+      const day = addDaysStr(today, offset);
+      if (!matches(r, day)) continue;
+      if (day > lastDate) lastDate = day;
 
-      const { error: insertError } = await admin.from("tasks").insert({
-        title: r.title,
-        description: r.description,
-        category: r.category,
-        priority: r.priority,
-        status: "open",
-        assignee_id: assignee,
-        planned_date: today,
-        due_date: `${today}T17:00:00Z`,
-        estimated_minutes: r.estimated_minutes ?? null,
-        recurrence_id: r.id,
-      });
-      if (insertError) {
-        console.error("Failed to create recurring task", insertError.message);
-        continue;
+      for (const assignee of assignees) {
+        let existing = admin
+          .from("tasks")
+          .select("id")
+          .eq("recurrence_id", r.id)
+          .eq("planned_date", day);
+        existing = assignee ? existing.eq("assignee_id", assignee) : existing.is("assignee_id", null);
+        const { data: dupe } = await existing.limit(1);
+        if (dupe && dupe.length) continue;
+
+        const { error: insertError } = await admin.from("tasks").insert({
+          title: r.title,
+          description: r.description,
+          category: r.category,
+          priority: r.priority,
+          status: "open",
+          assignee_id: assignee,
+          planned_date: day,
+          due_date: `${day}T17:00:00Z`,
+          estimated_minutes: r.estimated_minutes ?? null,
+          recurrence_id: r.id,
+        });
+        if (insertError) {
+          console.error("Failed to create recurring task", insertError.message);
+          continue;
+        }
+        created++;
       }
-      created++;
     }
 
     await admin
@@ -156,5 +179,5 @@ Deno.serve(async (req) => {
       .eq("id", r.id);
   }
 
-  return json({ ok: true, date: today, created });
+  return json({ ok: true, date: today, through: lastDate, created });
 });

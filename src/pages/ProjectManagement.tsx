@@ -20,6 +20,7 @@ import WeeklyPlanBoard from "@/components/project/WeeklyPlanBoard";
 import PendingTasksTable from "@/components/project/PendingTasksTable";
 import RecurringTasksTab from "@/components/project/RecurringTasksTab";
 import PmDashboard from "@/components/project/PmDashboard";
+import WorkshopQueueTab from "@/components/project/WorkshopQueueTab";
 
 const ProjectManagement: React.FC = () => {
   const { user } = useAuth();
@@ -133,6 +134,7 @@ const ProjectManagement: React.FC = () => {
               Pending tasks <Badge variant="secondary" className="ml-1">{pending.length}</Badge>
             </TabsTrigger>
             <TabsTrigger value="repeating">Repeating tasks</TabsTrigger>
+            <TabsTrigger value="workshop">Workshop queue</TabsTrigger>
             <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
           </TabsList>
 
@@ -173,6 +175,14 @@ const ProjectManagement: React.FC = () => {
 
           <TabsContent value="repeating" className="pt-3">
             <RecurringTasksTab />
+          </TabsContent>
+
+          <TabsContent value="workshop" className="pt-3">
+            <WorkshopQueueTab
+              tasks={allTasks}
+              onOpenTask={setSelectedId}
+              onAdded={() => qc.invalidateQueries({ queryKey: ["tasks"] })}
+            />
           </TabsContent>
 
           <TabsContent value="dashboard" className="pt-3">

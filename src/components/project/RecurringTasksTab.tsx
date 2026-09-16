@@ -27,6 +27,7 @@ const emptyForm = {
   category: "",
   priority: "normal",
   estimated_minutes: "",
+  horizon_days: "14",
   assigneeMode: "person" as "person" | "role",
   assignee_id: "",
   assignee_role: "",
@@ -57,6 +58,7 @@ const RecurringTasksTab: React.FC = () => {
       category: r.category || "",
       priority: r.priority,
       estimated_minutes: r.estimated_minutes ? String(r.estimated_minutes) : "",
+      horizon_days: String(r.horizon_days ?? 14),
       assigneeMode: r.assignee_role ? "role" : "person",
       assignee_id: r.assignee_id || "",
       assignee_role: r.assignee_role || "",
@@ -82,6 +84,7 @@ const RecurringTasksTab: React.FC = () => {
       category: form.category || null,
       priority: form.priority as any,
       estimated_minutes: form.estimated_minutes ? Math.max(5, Number(form.estimated_minutes) || 30) : null,
+      horizon_days: Math.min(60, Math.max(1, Number(form.horizon_days) || 14)),
       assignee_id: form.assigneeMode === "person" ? form.assignee_id || null : null,
       assignee_role: form.assigneeMode === "role" ? form.assignee_role || null : null,
       frequency: form.frequency,
@@ -118,7 +121,7 @@ const RecurringTasksTab: React.FC = () => {
         <Button size="sm" variant="outline" disabled={generate.isPending}
           onClick={() => generate.mutateAsync().then((r) => toast.success(`${r.created} task(s) created`)).catch((e) => toast.error(e?.message || "Generation failed"))}>
           {generate.isPending ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-1" />}
-          Generate today's tasks
+          Fill in repeating tasks now
         </Button>
       </div>
 
@@ -205,6 +208,16 @@ const RecurringTasksTab: React.FC = () => {
                   placeholder="30"
                   value={form.estimated_minutes}
                   onChange={(e) => setForm({ ...form, estimated_minutes: e.target.value })}
+                />
+              </div>
+              <div>
+                <Label>Create how far ahead? (days)</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={60}
+                  value={form.horizon_days}
+                  onChange={(e) => setForm({ ...form, horizon_days: e.target.value })}
                 />
               </div>
               <div>
