@@ -174,6 +174,7 @@ function App() {
               <Route path="/sender-availability/:id" element={<SenderAvailability />} />
               <Route path="/receiver-availability/:id" element={<ReceiverAvailability />} />
               <Route path="/repair-offer/:id" element={<RepairOffer />} />
+              <Route path="/inspection-approval/:id" element={<InspectionApproval />} />
               <Route path="/ni-partner/:orderId" element={<NiPartnerUpload />} />
 
               <Route path="/bulk-availability" element={
