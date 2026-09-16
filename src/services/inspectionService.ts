@@ -790,7 +790,7 @@ export const addInspectionIssue = async (
       .from('inspection_issues')
       .insert({
         inspection_id: inspection.id,
-        order_id: orderId,
+        order_id: (inspection as any).order_id ?? null,
         issue_description: issueDescription,
         estimated_cost: estimatedCost,
         parts_cost: extra?.parts_cost ?? null,
