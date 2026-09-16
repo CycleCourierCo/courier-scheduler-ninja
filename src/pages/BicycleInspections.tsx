@@ -1707,14 +1707,19 @@ const BicycleInspections = () => {
 
 
 
-              {order.customer_order_number && (
+              {!isWorkshopOnly && order.customer_order_number && (
                 <p className="text-xs text-muted-foreground mt-1 break-words">
                   Order #: <span className="font-medium">{order.customer_order_number}</span>
                 </p>
               )}
+              {isWorkshopOnly && (inspection?.customer_email || inspection?.customer_phone) && (
+                <p className="text-xs text-muted-foreground mt-1 break-words">
+                  {[inspection?.customer_email, inspection?.customer_phone].filter(Boolean).join(" • ")}
+                </p>
+              )}
               {/* Order status and storage location badges */}
               <div className="flex min-w-0 flex-wrap gap-2 mt-2">
-                <StatusBadge status={order.status} />
+                {!isWorkshopOnly && <StatusBadge status={order.status} />}
                 {inspection?.identity_matches === false && !inspection?.identity_reviewed_at && (
                   <Badge
                     variant="destructive"
