@@ -135,8 +135,19 @@ export type Database = {
           actual_bike_model: string | null
           actual_frame_size: string | null
           approval_email_sent_at: string | null
+          approval_recipient: string | null
+          approval_sent_to_at: string | null
+          bike_brand: string | null
+          bike_model: string | null
           bike_type: string | null
           created_at: string
+          created_by_id: string | null
+          created_by_name: string | null
+          customer_address: Json | null
+          customer_company: string | null
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
           drivetrain_degreased_at: string | null
           drivetrain_degreased_by_id: string | null
           drivetrain_degreased_by_name: string | null
@@ -148,6 +159,7 @@ export type Database = {
           frame_cleaned_at: string | null
           frame_cleaned_by_id: string | null
           frame_cleaned_by_name: string | null
+          frame_size: string | null
           id: string
           identity_checked_at: string | null
           identity_matches: boolean | null
@@ -167,7 +179,8 @@ export type Database = {
           invoice_skipped_by_name: string | null
           invoice_url: string | null
           notes: string | null
-          order_id: string
+          order_id: string | null
+          reference: string | null
           released_by_id: string | null
           released_by_name: string | null
           released_to_customer_at: string | null
@@ -181,8 +194,19 @@ export type Database = {
           actual_bike_model?: string | null
           actual_frame_size?: string | null
           approval_email_sent_at?: string | null
+          approval_recipient?: string | null
+          approval_sent_to_at?: string | null
+          bike_brand?: string | null
+          bike_model?: string | null
           bike_type?: string | null
           created_at?: string
+          created_by_id?: string | null
+          created_by_name?: string | null
+          customer_address?: Json | null
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
           drivetrain_degreased_at?: string | null
           drivetrain_degreased_by_id?: string | null
           drivetrain_degreased_by_name?: string | null
@@ -194,6 +218,7 @@ export type Database = {
           frame_cleaned_at?: string | null
           frame_cleaned_by_id?: string | null
           frame_cleaned_by_name?: string | null
+          frame_size?: string | null
           id?: string
           identity_checked_at?: string | null
           identity_matches?: boolean | null
@@ -213,7 +238,8 @@ export type Database = {
           invoice_skipped_by_name?: string | null
           invoice_url?: string | null
           notes?: string | null
-          order_id: string
+          order_id?: string | null
+          reference?: string | null
           released_by_id?: string | null
           released_by_name?: string | null
           released_to_customer_at?: string | null
@@ -227,8 +253,19 @@ export type Database = {
           actual_bike_model?: string | null
           actual_frame_size?: string | null
           approval_email_sent_at?: string | null
+          approval_recipient?: string | null
+          approval_sent_to_at?: string | null
+          bike_brand?: string | null
+          bike_model?: string | null
           bike_type?: string | null
           created_at?: string
+          created_by_id?: string | null
+          created_by_name?: string | null
+          customer_address?: Json | null
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
           drivetrain_degreased_at?: string | null
           drivetrain_degreased_by_id?: string | null
           drivetrain_degreased_by_name?: string | null
@@ -240,6 +277,7 @@ export type Database = {
           frame_cleaned_at?: string | null
           frame_cleaned_by_id?: string | null
           frame_cleaned_by_name?: string | null
+          frame_size?: string | null
           id?: string
           identity_checked_at?: string | null
           identity_matches?: boolean | null
@@ -259,7 +297,8 @@ export type Database = {
           invoice_skipped_by_name?: string | null
           invoice_url?: string | null
           notes?: string | null
-          order_id?: string
+          order_id?: string | null
+          reference?: string | null
           released_by_id?: string | null
           released_by_name?: string | null
           released_to_customer_at?: string | null
@@ -1959,7 +1998,7 @@ export type Database = {
           offered_to_receiver_at: string | null
           offered_to_receiver_by_id: string | null
           offered_to_receiver_by_name: string | null
-          order_id: string
+          order_id: string | null
           part_name: string | null
           part_number: string | null
           part_spec: string | null
@@ -2015,7 +2054,7 @@ export type Database = {
           offered_to_receiver_at?: string | null
           offered_to_receiver_by_id?: string | null
           offered_to_receiver_by_name?: string | null
-          order_id: string
+          order_id?: string | null
           part_name?: string | null
           part_number?: string | null
           part_spec?: string | null
@@ -2071,7 +2110,7 @@ export type Database = {
           offered_to_receiver_at?: string | null
           offered_to_receiver_by_id?: string | null
           offered_to_receiver_by_name?: string | null
-          order_id?: string
+          order_id?: string | null
           part_name?: string | null
           part_number?: string | null
           part_spec?: string | null
@@ -5179,6 +5218,10 @@ export type Database = {
       get_cron_secret: { Args: never; Returns: string }
       get_my_pending_availability_orders: { Args: never; Returns: Json }
       get_ni_partner_job: { Args: { p_order_id: string }; Returns: Json }
+      get_public_inspection_approval: {
+        Args: { p_inspection_id: string }
+        Returns: Json
+      }
       get_public_inspection_summary: {
         Args: { order_identifier: string }
         Returns: Json
@@ -5285,6 +5328,10 @@ export type Database = {
           p_label_url?: string
           p_order_id: string
         }
+        Returns: Json
+      }
+      submit_public_inspection_approval: {
+        Args: { p_approved_issue_ids: string[]; p_inspection_id: string }
         Returns: Json
       }
       submit_public_repair_offer: {
