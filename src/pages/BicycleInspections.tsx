@@ -620,15 +620,23 @@ const BicycleInspections = () => {
     onSettled: () => setReportingInspectionId(null),
   });
 
-  // Re-send the approval request email to the booking account
+  // Who each inspection's approval request goes to (staff choice per card)
+  const [approvalRecipients, setApprovalRecipients] = useState<
+    Record<string, "customer" | "receiver" | "walkin">
+  >({});
+
+  // Send the approval request email to whoever staff chose
   const approvalEmailMutation = useMutation({
-    mutationFn: async (inspectionId: string) => sendInspectionApprovalEmail(inspectionId, true),
+    mutationFn: async (args: {
+      inspectionId: string;
+      recipient?: "customer" | "receiver" | "walkin";
+    }) => sendInspectionApprovalEmail(args.inspectionId, true, args.recipient),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
       if (result?.skipped) {
         toast.info("Nothing to approve — email not sent");
       } else {
-        toast.success("Approval request emailed to the booking account");
+        toast.success("Approval request sent");
       }
     },
     onError: (error: any) => {
