@@ -114,6 +114,12 @@ const TaskDialog: React.FC<Props> = ({
     const parsed = schema.safeParse({ title, description });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     if (!user?.id) { toast.error("Not signed in"); return; }
+    const totalMinutes =
+      (parseInt(durationHours || '0', 10) || 0) * 60 + (parseInt(durationMinutes || '0', 10) || 0);
+    if (totalMinutes < 0 || totalMinutes > 24 * 60) {
+      toast.error('That length looks wrong — please enter up to 24 hours');
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -126,6 +132,8 @@ const TaskDialog: React.FC<Props> = ({
         linked_conversation_id: isEdit ? task!.linked_conversation_id : defaultConversationId,
         category: category || null,
         planned_date: plannedDate || null,
+        estimated_minutes: totalMinutes > 0 ? totalMinutes : null,
+        start_time: startTime ? `${startTime}:00` : null,
       };
       let result: Task | null = null;
       if (isEdit && task) {
