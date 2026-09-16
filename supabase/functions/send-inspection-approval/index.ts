@@ -178,10 +178,16 @@ serve(async (req) => {
       .join("");
 
 
+    const refLine = jobRef ? ` (job #${esc(jobRef)})` : "";
+    const payerNote =
+      recipient === "customer"
+        ? "The bike stays with us until you let us know how you'd like to proceed, so the sooner you approve or decline, the sooner we can get it moving."
+        : "Anything you approve is paid by you directly, and we'll be in touch about payment. The bike stays with us until you let us know how you'd like to proceed.";
+
     const html = `
       <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1f2937;line-height:1.5">
-        <p>Hi ${esc(profile?.name || "there")},</p>
-        <p>Our workshop has finished inspecting <strong>${esc(bike)}</strong> (job #${esc(order.tracking_number)}) and found ${pending.length} item${pending.length === 1 ? "" : "s"} that need${pending.length === 1 ? "s" : ""} your approval before we can carry out the work.</p>
+        <p>Hi ${esc(greetName)},</p>
+        <p>Our workshop has finished inspecting <strong>${esc(bike)}</strong>${refLine} and found ${pending.length} item${pending.length === 1 ? "" : "s"} that need${pending.length === 1 ? "s" : ""} your approval before we can carry out the work.</p>
         <table style="border-collapse:collapse;width:100%;font-size:14px;margin:16px 0">
           <thead>
             <tr style="background:#f1f5f9">
@@ -195,7 +201,7 @@ serve(async (req) => {
         <p>Total if all work is approved: <strong>${money(total)}</strong></p>
         <p style="margin:20px 0"><a href="${link}" style="background:#0f766e;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;display:inline-block">Review and approve repairs</a></p>
         ${reportUrl ? `<p style="font-size:14px"><a href="${esc(reportUrl)}">View the full inspection report (PDF)</a></p>` : ""}
-        <p style="font-size:13px;color:#4b5563">The bike stays with us until you let us know how you'd like to proceed, so the sooner you approve or decline, the sooner we can get it moving.</p>
+        <p style="font-size:13px;color:#4b5563">${payerNote}</p>
         <p style="font-size:13px;color:#4b5563">Thanks,<br/>CCC - Cycle Courier Co.</p>
       </div>`;
 
@@ -203,7 +209,7 @@ serve(async (req) => {
     const { error: emailError } = await resend.emails.send({
       from: FROM,
       to: [to],
-      subject: `Repairs need approval — job #${order.tracking_number}`,
+      subject: jobRef ? `Repairs need approval — job #${jobRef}` : `Repairs need approval — ${bike}`,
       html,
       reply_to: REPLY_TO,
     });
@@ -214,10 +220,14 @@ serve(async (req) => {
 
     await admin
       .from("bicycle_inspections")
-      .update({ approval_email_sent_at: new Date().toISOString() })
+      .update({
+        approval_email_sent_at: new Date().toISOString(),
+        approval_recipient: recipient,
+        approval_sent_to_at: new Date().toISOString(),
+      })
       .eq("id", inspectionId);
 
-    return json({ success: true, issues: pending.length, reportUrl });
+    return json({ success: true, issues: pending.length, reportUrl, recipient });
   } catch (error) {
     console.error("send-inspection-approval failed:", error instanceof Error ? error.message : "unknown error");
     return json({ error: "Failed to send the approval email" }, 500);
