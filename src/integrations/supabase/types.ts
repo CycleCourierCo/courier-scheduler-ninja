@@ -5206,6 +5206,10 @@ export type Database = {
         Returns: boolean
       }
       invoke_backfill_shipday_jobs: { Args: never; Returns: undefined }
+      invoke_ferry_partner_notification: {
+        Args: { p_order_id: string }
+        Returns: undefined
+      }
       invoke_fuel_finder_refresh: { Args: never; Returns: undefined }
       invoke_generate_recurring_tasks: { Args: never; Returns: undefined }
       invoke_generate_timeslips: { Args: never; Returns: undefined }
