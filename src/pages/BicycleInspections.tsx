@@ -2974,7 +2974,26 @@ const BicycleInspections = () => {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => createInvoiceMutation.mutate({ inspectionId: inspection.id })}
+                onClick={() =>
+                  createInvoiceMutation.mutate({
+                    inspectionId: inspection.id,
+                    // Walk-in bikes are billed to the customer captured on the inspection.
+                    ...(isWorkshopOnly
+                      ? {
+                          customerDetails: {
+                            name: inspection?.customer_name || undefined,
+                            email: inspection?.customer_email || undefined,
+                            phone: inspection?.customer_phone || undefined,
+                            company: inspection?.customer_company || undefined,
+                            addressLine1: (inspection?.customer_address as any)?.line1 || undefined,
+                            addressLine2: (inspection?.customer_address as any)?.line2 || undefined,
+                            city: (inspection?.customer_address as any)?.city || undefined,
+                            postcode: (inspection?.customer_address as any)?.postcode || undefined,
+                          },
+                        }
+                      : {}),
+                  })
+                }
                 disabled={createInvoiceMutation.isPending}
               >
                 {createInvoiceMutation.isPending ? (
