@@ -197,6 +197,17 @@ const RecurringTasksTab: React.FC = () => {
                 </Select>
               </div>
               <div>
+                <Label>How long will it take? (minutes)</Label>
+                <Input
+                  type="number"
+                  min={5}
+                  step={5}
+                  placeholder="30"
+                  value={form.estimated_minutes}
+                  onChange={(e) => setForm({ ...form, estimated_minutes: e.target.value })}
+                />
+              </div>
+              <div>
                 <Label>Assign to</Label>
                 <Select value={form.assigneeMode} onValueChange={(v) => setForm({ ...form, assigneeMode: v as any })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
