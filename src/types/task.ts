@@ -27,6 +27,7 @@ export interface Task {
   created_by: string | null;
   linked_order_id: string | null;
   linked_conversation_id: string | null;
+  linked_inspection_id?: string | null;
   completed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -99,6 +100,8 @@ export interface TaskRecurrence {
   active: boolean;
   last_generated_on: string | null;
   estimated_minutes?: number | null;
+  /** How many days ahead occurrences are created in advance (1-60, default 14). */
+  horizon_days?: number | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
