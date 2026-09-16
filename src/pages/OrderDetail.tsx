@@ -33,6 +33,7 @@ import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
 import ItemDetails from "@/components/order-detail/ItemDetails";
 import { StorageLocation } from "@/components/order-detail/StorageLocation";
 import ContactDetails from "@/components/order-detail/ContactDetails";
+import AltLocationDetails from "@/components/order-detail/AltLocationDetails";
 import AdminContactEditor from "@/components/order-detail/AdminContactEditor";
 import AdminTrackingEditor from "@/components/order-detail/AdminTrackingEditor";
 import OrderServicesPanel from "@/components/order-detail/OrderServicesPanel";
@@ -1714,6 +1715,7 @@ const OrderDetail = () => {
                     orderId={order.id}
                   />
                 )}
+                <AltLocationDetails type="sender" alt={order.senderAltLocation} />
                 <TimeslotSelection 
                   type="sender"
                   orderId={order.id}
@@ -1738,6 +1740,7 @@ const OrderDetail = () => {
                     orderId={order.id}
                   />
                 )}
+                <AltLocationDetails type="receiver" alt={order.receiverAltLocation} />
                 <TimeslotSelection 
                   type="receiver"
                   orderId={order.id}
