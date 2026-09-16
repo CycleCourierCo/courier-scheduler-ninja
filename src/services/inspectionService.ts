@@ -619,16 +619,53 @@ export const getPendingInspections = async () => {
       );
     }
 
-    return data?.map(order => {
+    const orderRows = data?.map(order => {
       const prof = order.user_id ? profileMap.get(order.user_id) : undefined;
       return {
         ...order,
+        workshop_only: false,
         booking_customer_name: prof?.company || prof?.name || prof?.email || null,
         booking_customer_email: prof?.email || null,
         inspection: inspections?.find(i => i.order_id === order.id) || null,
         issues: inspections?.find(i => i.order_id === order.id)?.inspection_issues || []
       };
     }) || [];
+
+    // Workshop-only inspections (walk-ins) have no transport job, so present
+    // them as order-shaped rows the inspections page can render alongside.
+    const { data: workshopInspections, error: workshopError } = await supabase
+      .from('bicycle_inspections')
+      .select('*, inspection_issues(*)')
+      .is('order_id', null)
+      .order('created_at', { ascending: true });
+    if (workshopError) throw workshopError;
+
+    const workshopRows = (workshopInspections || []).map((insp: any) => ({
+      id: insp.id,
+      workshop_only: true,
+      tracking_number: insp.reference || null,
+      bike_brand: insp.bike_brand || null,
+      bike_model: insp.bike_model || null,
+      bike_quantity: 1,
+      status: 'workshop_only',
+      sender: null,
+      receiver: null,
+      user_id: null,
+      needs_inspection: true,
+      storage_locations: null,
+      customer_order_number: insp.reference || null,
+      collection_confirmation_sent_at: null,
+      pickup_date: null,
+      created_at: insp.created_at,
+      tracking_events: null,
+      booking_customer_name: insp.customer_company || insp.customer_name || insp.customer_email || null,
+      booking_customer_email: insp.customer_email || null,
+      inspection: insp,
+      issues: insp.inspection_issues || [],
+    }));
+
+    return [...workshopRows, ...orderRows];
+
 
   } catch (error) {
     console.error('Error fetching pending inspections:', error);
