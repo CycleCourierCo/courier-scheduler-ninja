@@ -117,12 +117,23 @@ const handler = async (req: Request): Promise<Response> => {
       search,
       billingEmailOverride,
       quickbooksCustomerId,
+      customerDetails,
     } = (body || {}) as {
       inspectionId?: string;
       mode?: string;
       search?: string;
       billingEmailOverride?: string;
       quickbooksCustomerId?: string;
+      customerDetails?: {
+        name?: string;
+        email?: string;
+        phone?: string;
+        company?: string;
+        addressLine1?: string;
+        addressLine2?: string;
+        city?: string;
+        postcode?: string;
+      };
     };
 
     const qbQuery = async (token: { access_token: string; company_id: string }, query: string) => {
