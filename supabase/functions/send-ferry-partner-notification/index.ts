@@ -52,7 +52,6 @@ Deno.serve(async (req) => {
       return json({ error: 'orderId is required' }, 400)
     }
 
-    const admin = createClient(supabaseUrl, serviceKey)
     const { data: order, error } = await admin
       .from('orders')
       .select(
