@@ -3043,7 +3043,7 @@ const BicycleInspections = () => {
             </div>
           )}
 
-          {order?.id && (
+          {order?.id && !isWorkshopOnly && (
             <InspectionComments
               inspectionId={inspection?.id ?? null}
               orderId={order.id}
