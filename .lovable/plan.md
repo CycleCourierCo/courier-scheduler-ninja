@@ -1,52 +1,30 @@
-# Implement Idempotency-Key support in the orders API
+# Show the eBay collection code on the order
 
-## Why
+## What's actually wrong
 
-The API documentation (docs/API_DOCUMENTATION.md, ApiDocumentationPage.tsx) instructs integrators to send an `Idempotency-Key` header, but `supabase/functions/orders/index.ts` never reads it — the header is ignored. Duplicate protection today relies solely on the `customer_order_number` lookup, which is permanent, race-unsafe, and does nothing when the field is omitted. This plan makes the documented header real and gives it a defined retention window.
+Order CCC754172496099MATNW6 **did** receive the code from Shopify. Checked in the database: collection code `918114` is stored and the order is flagged as an eBay order.
 
-## Current behaviour (verified in code)
+The problem is display only — nothing in the app shows the collection code on an order. Confirmed by searching the code: `collectionCode` appears only in the create-order form, the API docs, and the data-mapping layer. Neither the staff order page nor the customer order page renders it, and it isn't on labels or job cards.
 
-- `orders/index.ts` (~line 262): if `customer_order_number` is present, an existing order for the same user is returned with `idempotent: true`. No expiry — matches live `orders` rows forever.
-- No `idempotency_keys` table exists; the header is never read.
+It does already reach the people who need it in the field: the driver's Shipday job and the driver WhatsApp message both include a line `eBay Code: <code>`.
 
-## Changes
+## What changes
 
-### 1. Migration — `public.idempotency_keys`
+1. **Staff order page** — show an "eBay collection code" row with the code, easy to read and copy, plus an "eBay order" marker. Only shown when a code exists.
+2. **Customer order page** — same code shown to the account that owns the order, so the customer can check it matches their eBay record.
+3. **Order lists** — a small "eBay" badge on the order card when the order is an eBay order, so staff can spot them without opening each one.
+4. **Collection labels** — include the eBay code on the collection label, since the driver may need to quote it at the door.
 
-```sql
-create table public.idempotency_keys (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
-  key text not null,
-  order_id uuid references public.orders(id) on delete set null,
-  created_at timestamptz not null default now(),
-  unique (user_id, key)
-);
-alter table public.idempotency_keys enable row level security;
-grant all on public.idempotency_keys to service_role;
-grant select, insert, update on public.idempotency_keys to authenticated;
-```
+Nothing changes about how the code arrives from Shopify, how it's stored, or the existing Shipday/WhatsApp lines.
 
-- No anon access; no client-facing policies beyond the grants (accessed only by the edge function and service role).
-- Index on `created_at` for cleanup.
+## Also worth knowing
 
-### 2. `orders/index.ts` — honour the header on POST order creation
+Some older eBay orders may have the flag set but no code, or a code with no flag, depending on how Shopify sent them. The display handles both: the code shows whenever there is one, and the badge shows whenever the order is flagged.
 
-- Read `Idempotency-Key` header (also accept `idempotency_key` in the JSON body).
-- If the key exists for this user and has an `order_id`, return that order with `idempotent: true` (same shape as the existing `customer_order_number` hit).
-- If the key exists but is still in flight / order creation failed, return a clear 409 retry response.
-- Otherwise claim the key first (`insert ... on conflict (user_id, key) do nothing`); if the claim is lost (concurrent retry), re-select and return the winner's order — this closes the race window.
-- After the order is created, write its `order_id` onto the claim row.
-- Retention: before the claim insert, delete rows older than **7 days** for that user (`created_at < now() - interval '7 days'`). A retry with the same key is safe for 7 days; after that it is treated as a new request.
-- Keep the existing `customer_order_number` behaviour unchanged — it takes priority when both are provided.
+## Technical notes
 
-### 3. Deploy and document
-
-- Deploy the `orders` edge function.
-- Update docs/API_DOCUMENTATION.md and ApiDocumentationPage.tsx: keys are retained **7 days**; a retry with the same key within that window returns the original order and never creates a duplicate; after 7 days the key is pruned and the request is treated as new; keys should be random UUIDs, up to 255 characters.
-
-## Not changing
-
-- `customer_order_number` dedup (permanent) — stays as is.
-- Webhook / Shopify idempotency paths.
-- No UI changes.
+- `src/types/order.ts` already has `collectionCode` and `isEbayOrder`; `orderServiceUtils.ts` already maps `collection_code` / `is_ebay_order`. No type or mapping changes needed.
+- `src/pages/OrderDetail.tsx` and `src/pages/CustomerOrderDetail.tsx`: render the code in the existing order-details block (conditional on `order.collectionCode`), with a copy-to-clipboard button on the staff page.
+- `src/components/OrderCardList.tsx`: add an `isEbayOrder` badge alongside the existing badges.
+- `src/utils/labelUtils.ts`: add the code line to the collection label output only (delivery labels unchanged).
+- No database migration, no edge function changes, no RLS changes — the field is already selected by the existing order queries.
