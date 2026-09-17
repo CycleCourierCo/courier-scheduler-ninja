@@ -1031,7 +1031,7 @@ const BicycleInspections = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
-      setBillingDialogState({ open: false, inspectionId: null, suggestions: [], triedEmails: [] });
+      setBillingDialogState({ open: false, inspectionId: null, suggestions: [], triedEmails: [], parties: undefined });
       toast.success(`Invoice ${data.invoiceNumber} created successfully`);
     },
     onError: (error: any, vars) => {
