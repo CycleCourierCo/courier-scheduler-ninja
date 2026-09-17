@@ -146,7 +146,7 @@ const BillingCustomerDialog: React.FC<BillingCustomerDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Choose billing customer</DialogTitle>
           <DialogDescription>
