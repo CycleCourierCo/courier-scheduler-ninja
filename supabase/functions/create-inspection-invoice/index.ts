@@ -118,12 +118,14 @@ const handler = async (req: Request): Promise<Response> => {
       billingEmailOverride,
       quickbooksCustomerId,
       customerDetails,
+      billFrom,
     } = (body || {}) as {
       inspectionId?: string;
       mode?: string;
       search?: string;
       billingEmailOverride?: string;
       quickbooksCustomerId?: string;
+      billFrom?: 'sender' | 'receiver';
       customerDetails?: {
         name?: string;
         email?: string;
