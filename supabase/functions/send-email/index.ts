@@ -1065,17 +1065,18 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
       console.log("Receiver already has availability dates set, skipping availability email");
     }
     
-    // Mark collection confirmation emails as sent if at least one was successful
-    if (senderSent || receiverSent) {
+    // The marker was set up-front when we claimed the order. If nothing actually
+    // sent, release the claim so a later signal can retry.
+    if (!senderSent && !receiverSent) {
       await supabase
         .from("orders")
-        .update({ 
-          collection_confirmation_sent_at: new Date().toISOString(),
-          order_collected: true  // Mark order as collected
-        })
+        .update({ collection_confirmation_sent_at: null })
         .eq("id", orderId);
+      console.log("No collection confirmation email sent — released claim for order:", orderId);
+    } else {
       console.log("Marked collection confirmation emails as sent for order:", orderId);
     }
+
     
     return new Response(
       JSON.stringify({ 
