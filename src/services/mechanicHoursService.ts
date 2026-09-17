@@ -37,6 +37,8 @@ export interface MechanicHoursDaily {
   availableJobs: number;
   /** Standard hours those queued jobs were worth. */
   hoursPossible: number;
+  /** The individual jobs that made up that day's queue. */
+  queueItems: QueueItem[];
 }
 
 export interface MechanicDayBreakdown {
