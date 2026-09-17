@@ -474,6 +474,7 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
         jobsPerHour: v.hours > 0 ? (v.inspections + v.repairs) / v.hours : 0,
         availableJobs: v.availableJobs,
         hoursPossible: round1(v.availableMinutes / 60),
+        queueItems: v.queueItems,
       };
     });
 
