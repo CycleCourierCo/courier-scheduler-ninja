@@ -20,14 +20,35 @@ export interface QuickBooksCustomerOption {
   email: string | null;
 }
 
+export interface BillingPartyDetails {
+  side: "sender" | "receiver";
+  name?: string;
+  company?: string;
+  email?: string;
+  phone?: string;
+  city?: string;
+  postcode?: string;
+}
+
+export interface BillingParties {
+  sender?: BillingPartyDetails;
+  receiver?: BillingPartyDetails;
+}
+
 interface BillingCustomerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Customers suggested by the edge function when auto-match failed. */
   suggestions?: QuickBooksCustomerOption[];
   triedEmails?: string[];
+  /** Sender/receiver contact details from the job, if it has one. */
+  parties?: BillingParties;
   isSubmitting?: boolean;
-  onConfirm: (selection: { quickbooksCustomerId: string; billingEmailOverride?: string }) => void;
+  onConfirm: (selection: {
+    quickbooksCustomerId?: string;
+    billingEmailOverride?: string;
+    billFrom?: "sender" | "receiver";
+  }) => void;
 }
 
 const BillingCustomerDialog: React.FC<BillingCustomerDialogProps> = ({
@@ -35,6 +56,7 @@ const BillingCustomerDialog: React.FC<BillingCustomerDialogProps> = ({
   onOpenChange,
   suggestions = [],
   triedEmails = [],
+  parties,
   isSubmitting,
   onConfirm,
 }) => {
