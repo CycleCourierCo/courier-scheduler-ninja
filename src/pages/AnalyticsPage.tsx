@@ -115,6 +115,11 @@ const AnalyticsPage = () => {
   const [bikeValueDays, setBikeValueDays] = useState<number | "all">(30);
   const [bikeValueCustomer, setBikeValueCustomer] = useState<string | null>(null);
 
+  // Business customers leaderboard: preset period ("all" = whole history)
+  const [b2bPeriod, setB2bPeriod] = useState<
+    "week" | "this-month" | "last-month" | "90" | "365" | "all"
+  >("all");
+
   const { data: inspections = [] } = useQuery({
     queryKey: ["inspectionsAnalytics"],
     queryFn: fetchInspectionsForAnalytics,
