@@ -3811,13 +3811,15 @@ const BicycleInspections = () => {
           }
           suggestions={billingDialogState.suggestions}
           triedEmails={billingDialogState.triedEmails}
+          parties={billingDialogState.parties}
           isSubmitting={createInvoiceMutation.isPending}
-          onConfirm={({ quickbooksCustomerId, billingEmailOverride }) => {
+          onConfirm={({ quickbooksCustomerId, billingEmailOverride, billFrom }) => {
             if (!billingDialogState.inspectionId) return;
             createInvoiceMutation.mutate({
               inspectionId: billingDialogState.inspectionId,
               quickbooksCustomerId,
               billingEmailOverride,
+              billFrom,
             });
           }}
         />
