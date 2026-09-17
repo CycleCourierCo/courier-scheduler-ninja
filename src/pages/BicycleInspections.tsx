@@ -996,6 +996,7 @@ const BicycleInspections = () => {
       inspectionId: string;
       quickbooksCustomerId?: string;
       billingEmailOverride?: string;
+      billFrom?: "sender" | "receiver";
       customerDetails?: {
         name?: string;
         email?: string;
