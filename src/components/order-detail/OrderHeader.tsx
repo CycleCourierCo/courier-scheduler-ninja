@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronRight, X, User } from "lucide-react";
+import { ChevronRight, X, User, PackageCheck } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import { OrderStatus } from "@/types/order";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ interface OrderHeaderProps {
   onStatusChange: (status: OrderStatus) => void;
   customerName?: string;
   customerEmail?: string;
+  orderCollected?: boolean;
+  onMarkCollected?: () => void;
 }
 
 const OrderHeader: React.FC<OrderHeaderProps> = ({
@@ -27,6 +29,8 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
   onStatusChange,
   customerName,
   customerEmail,
+  orderCollected,
+  onMarkCollected,
 }) => {
   const statusOptions: { value: OrderStatus; label: string }[] = [
     { value: "created", label: "Created" },
