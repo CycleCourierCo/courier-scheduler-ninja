@@ -19,8 +19,19 @@ Deno.serve(async (req) => {
     const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
 
     const authHeader = req.headers.get('Authorization') || ''
-    const isCron = req.headers.get('X-Cron-Secret')
-    let internal = false
+    const cronHeader = req.headers.get('X-Cron-Secret') || req.headers.get('x-cron-secret')
+    const admin = createClient(supabaseUrl, serviceKey)
+
+    // Internal callers (the database trigger that fires when an inbound NI
+    // customer confirms their collection day, and cron) present the shared
+    // cron secret. The value is verified against the vault — presence alone is
+    // not enough.
+    let isCron = false
+    if (cronHeader) {
+      const { data: vaultSecret } = await admin.rpc('get_cron_secret')
+      isCron = typeof vaultSecret === 'string' && vaultSecret.length > 0 && cronHeader === vaultSecret
+      if (!isCron) return json({ error: 'Not authorised' }, 403)
+    }
 
     if (!isCron) {
       if (!authHeader) return json({ error: 'Not authenticated' }, 401)
@@ -31,8 +42,7 @@ Deno.serve(async (req) => {
       const userId = userData?.user?.id
       if (!userId) return json({ error: 'Not authenticated' }, 401)
       const { data: staff } = await userClient.rpc('is_internal_staff', { _user_id: userId })
-      internal = staff === true
-      if (!internal) return json({ error: 'Not authorised' }, 403)
+      if (staff !== true) return json({ error: 'Not authorised' }, 403)
     }
 
     const body = await req.json().catch(() => ({}))
@@ -42,7 +52,6 @@ Deno.serve(async (req) => {
       return json({ error: 'orderId is required' }, 400)
     }
 
-    const admin = createClient(supabaseUrl, serviceKey)
     const { data: order, error } = await admin
       .from('orders')
       .select(

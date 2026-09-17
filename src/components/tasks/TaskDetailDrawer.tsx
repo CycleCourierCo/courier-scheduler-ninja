@@ -15,7 +15,8 @@ import { format } from "date-fns";
 import TaskStatusBadge from "./TaskStatusBadge";
 import TaskPriorityBadge from "./TaskPriorityBadge";
 import TaskDialog from "./TaskDialog";
-import { hasRole } from "@/lib/roles";
+import { hasAnyRole } from "@/lib/roles";
+import { formatLength } from "@/lib/taskTime";
 
 interface Props {
   taskId: string | null;
@@ -30,7 +31,11 @@ const TaskDetailDrawer: React.FC<Props> = ({ taskId, onOpenChange }) => {
   const [comment, setComment] = useState('');
   const [posting, setPosting] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const isAdmin = hasRole(userProfile, 'admin');
+  
+  // Admins, project managers and whoever raised the task may remove it.
+  const canDelete =
+    hasAnyRole(userProfile, ['admin', 'project_manager']) ||
+    (!!user?.id && !!task && task.created_by === user.id);
 
   const post = async () => {
     if (!comment.trim() || !user?.id || !taskId) return;
@@ -111,6 +116,11 @@ const TaskDetailDrawer: React.FC<Props> = ({ taskId, onOpenChange }) => {
                   <div>Assignee: {task.assignee?.name || task.assignee?.email || 'Unassigned'}</div>
                   <div>Created by: {task.creator?.name || task.creator?.email || '—'}</div>
                   <div>Created: {format(new Date(task.created_at), 'PP p')}</div>
+                  <div>
+                    Length: {formatLength(task.estimated_minutes ?? 30)}
+                    {task.estimated_minutes ? '' : ' (default)'}
+                    {task.start_time ? ` · starts ${task.start_time.slice(0, 5)}` : ''}
+                  </div>
                 </div>
 
                 {task.linked_order_id && (
@@ -130,7 +140,7 @@ const TaskDetailDrawer: React.FC<Props> = ({ taskId, onOpenChange }) => {
                   <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
                     <Pencil className="h-3 w-3 mr-1" /> Edit
                   </Button>
-                  {isAdmin && (
+                  {canDelete && (
                     <Button size="sm" variant="destructive" onClick={handleDelete}>
                       <Trash2 className="h-3 w-3 mr-1" /> Delete
                     </Button>

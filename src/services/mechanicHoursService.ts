@@ -10,6 +10,19 @@ export interface MechanicJobRow {
   source: StandardMinutesSource;
 }
 
+/** One job that was sitting in the workshop queue on a given day. */
+export interface QueueItem {
+  id: string;
+  kind: 'inspect' | 'repair';
+  label: string;
+  /** Day it became available (YYYY-MM-DD). */
+  since: string;
+  /** Day it was closed off (inspected / resolved), if it was. */
+  closedOn: string | null;
+  minutes: number;
+  source: StandardMinutesSource;
+}
+
 export interface MechanicHoursDaily {
   date: string;
   label: string;
@@ -24,6 +37,8 @@ export interface MechanicHoursDaily {
   availableJobs: number;
   /** Standard hours those queued jobs were worth. */
   hoursPossible: number;
+  /** The individual jobs that made up that day's queue. */
+  queueItems: QueueItem[];
 }
 
 export interface MechanicDayBreakdown {
@@ -39,6 +54,8 @@ export interface MechanicDayBreakdown {
   /** This mechanic's even share of that day's queue. */
   availableJobsShare: number;
   hoursPossibleShare: number;
+  /** The workshop-wide jobs that made up that day's queue. */
+  queueItems: QueueItem[];
 }
 
 export interface MechanicHoursPerMechanic {
@@ -171,7 +188,7 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
     fetchAll<any>((f, t) =>
       supabase
         .from('bicycle_inspections')
-        .select(sel('id, created_at, inspected_at'))
+        .select(sel('id, created_at, inspected_at, order_id, bike_brand, bike_model, reference, bike_type'))
         .lte('created_at', toISO)
         .or(`inspected_at.is.null,inspected_at.gte.${fromISO}`)
         .order('created_at', { ascending: true })
@@ -182,7 +199,7 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
       supabase
         .from('inspection_issues')
         .select(
-          sel('id, status, parts_arrived_at, parts_in_stock_at, resolved_at, repair_id, labour_cost, labour:labour_times!inspection_issues_repair_id_fkey(labour_minutes)'),
+          sel('id, inspection_id, status, parts_arrived_at, parts_in_stock_at, resolved_at, repair_id, labour_cost, issue_description, labour:labour_times!inspection_issues_repair_id_fkey(labour_minutes,repair_name)'),
         )
         .in('status', ['approved', 'resolved', 'repaired'])
         .or(`resolved_at.is.null,resolved_at.gte.${fromISO}`)
@@ -215,12 +232,22 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
     repairs: number;
     availableJobs: number;
     availableMinutes: number;
+    queueItems: QueueItem[];
   }
+  const QUEUE_ITEM_CAP = 300;
   const dayMap = new Map<string, DayAgg>();
   const ensureDay = (key: string): DayAgg => {
     let entry = dayMap.get(key);
     if (!entry) {
-      entry = { hours: 0, standardMinutes: 0, inspections: 0, repairs: 0, availableJobs: 0, availableMinutes: 0 };
+      entry = {
+        hours: 0,
+        standardMinutes: 0,
+        inspections: 0,
+        repairs: 0,
+        availableJobs: 0,
+        availableMinutes: 0,
+        queueItems: [],
+      };
       dayMap.set(key, entry);
     }
     return entry;
@@ -235,6 +262,7 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
     openedDay: string | null,
     closedDay: string | null,
     minutes: number,
+    item: Omit<QueueItem, 'since' | 'closedOn' | 'minutes'>,
   ) => {
     if (!openedDay) return;
     for (const key of rangeDays) {
@@ -243,11 +271,51 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
       const d = ensureDay(key);
       d.availableJobs += 1;
       d.availableMinutes += minutes;
+      if (d.queueItems.length < QUEUE_ITEM_CAP) {
+        d.queueItems.push({
+          ...item,
+          since: openedDay,
+          closedOn: closedDay,
+          minutes: Math.round(minutes),
+        });
+      }
     }
   };
 
+  // Bike labels for the inspections behind the queued repairs.
+  const issueInspectionIds = Array.from(
+    new Set((openIssues || []).map((i: any) => i.inspection_id).filter((v: any): v is string => !!v)),
+  );
+  const inspectionLabelById = new Map<string, string>();
   (openInspections || []).forEach((i: any) => {
-    addAvailability(londonDay(i.created_at), londonDay(i.inspected_at), inspectionMinutes);
+    const label = [i.bike_brand, i.bike_model].filter(Boolean).join(' ').trim();
+    if (label) inspectionLabelById.set(i.id, label);
+  });
+  const missingLabelIds = issueInspectionIds.filter((id) => !inspectionLabelById.has(id));
+  for (let i = 0; i < missingLabelIds.length; i += 200) {
+    const chunk = missingLabelIds.slice(i, i + 200);
+    const { data: rows } = await supabase
+      .from('bicycle_inspections')
+      .select('id, bike_brand, bike_model, reference')
+      .in('id', chunk);
+    (rows || []).forEach((r: any) => {
+      const label = [r.bike_brand, r.bike_model].filter(Boolean).join(' ').trim() || r.reference || '';
+      if (label) inspectionLabelById.set(r.id, label);
+    });
+  }
+
+  (openInspections || []).forEach((i: any) => {
+    const bike =
+      [i.bike_brand, i.bike_model].filter(Boolean).join(' ').trim() ||
+      i.reference ||
+      i.bike_type ||
+      'Bike';
+    addAvailability(londonDay(i.created_at), londonDay(i.inspected_at), inspectionMinutes, {
+      id: i.id,
+      kind: 'inspect',
+      label: bike,
+      source: 'inspection',
+    });
   });
 
   (openIssues || []).forEach((iss: any) => {
@@ -256,8 +324,15 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
       .filter((v): v is string => !!v);
     if (readyCandidates.length === 0) return;
     const readyDay = readyCandidates.sort()[0];
-    const { minutes } = repairMinutesFor(iss);
-    addAvailability(readyDay, londonDay(iss.resolved_at), minutes);
+    const { minutes, source } = repairMinutesFor(iss);
+    const repairName = iss.labour?.repair_name || iss.issue_description || 'Repair';
+    const bike = iss.inspection_id ? inspectionLabelById.get(iss.inspection_id) : null;
+    addAvailability(readyDay, londonDay(iss.resolved_at), minutes, {
+      id: iss.id,
+      kind: 'repair',
+      label: bike ? `${repairName} — ${bike}` : repairName,
+      source,
+    });
   });
 
   interface MechAgg extends Omit<MechanicHoursPerMechanic, 'days'> {
@@ -399,6 +474,7 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
         jobsPerHour: v.hours > 0 ? (v.inspections + v.repairs) / v.hours : 0,
         availableJobs: v.availableJobs,
         hoursPossible: round1(v.availableMinutes / 60),
+        queueItems: v.queueItems,
       };
     });
 
@@ -432,6 +508,7 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
           hoursPossible: round1((queue?.availableMinutes ?? 0) / 60),
           availableJobsShare: Math.round(dayJobsShare * 10) / 10,
           hoursPossibleShare: round1(dayMinutesShare / 60),
+          queueItems: queue?.queueItems ?? [],
         };
       });
     const hoursPossibleShare = round1(shareMinutes / 60);

@@ -15,6 +15,7 @@ import StatusBadge from "@/components/StatusBadge";
 import Layout from "@/components/Layout";
 import { pollOrderUpdates } from '@/services/orderService';
 import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
+import AltLocationDetails from "@/components/order-detail/AltLocationDetails";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 import { toast } from "sonner";
@@ -355,6 +356,13 @@ const CustomerOrderDetail = () => {
                     {order.customerOrderNumber && (
                       <p className="mt-2"><span className="font-medium">Customer Order #:</span> {order.customerOrderNumber}</p>
                     )}
+                    {order.collectionCode && (
+                      <p className="mt-2">
+                        <span className="font-medium">eBay collection code:</span>{" "}
+                        <span className="font-mono font-semibold tracking-wide">{order.collectionCode}</span>
+                      </p>
+                    )}
+
                     {order.isBikeSwap && (
                       <p className="text-courier-600 font-medium mt-2">This is a bike swap</p>
                     )}
@@ -423,6 +431,7 @@ const CustomerOrderDetail = () => {
                     </div>
                   </div>
                 </div>
+                <AltLocationDetails type="sender" alt={order.senderAltLocation} />
               </div>
               
               <div className="space-y-4">
@@ -451,6 +460,7 @@ const CustomerOrderDetail = () => {
                     </div>
                   </div>
                 </div>
+                <AltLocationDetails type="receiver" alt={order.receiverAltLocation} />
               </div>
             </div>
           </CardContent>

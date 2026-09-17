@@ -167,6 +167,16 @@ export const renderLabelPage = (pdf: jsPDF, order: Order, bikeIndex: number, qua
     currentY += 15;
   }
 
+  // eBay collection code — the driver may need to quote it at collection
+  if (order.collectionCode) {
+    pdf.setFontSize(10);
+    pdf.setFont("helvetica", "bold");
+    pdf.text(`eBay Code: ${order.collectionCode}`, MARGIN, currentY);
+    pdf.setFont("helvetica", "normal");
+    currentY += 18;
+  }
+
+
   // Service / Box / NI indicators
   currentY = renderIndicatorRow(pdf, order, currentY, MARGIN);
 

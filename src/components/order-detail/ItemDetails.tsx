@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Package, FileText, Wrench, Pencil, Box } from "lucide-react";
+import { Package, FileText, Wrench, Pencil, Box, Copy } from "lucide-react";
 
 import { Order } from "@/types/order";
 import { Button } from "@/components/ui/button";
@@ -105,6 +105,27 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
         {order.customerOrderNumber && (
           <p className="mt-2"><span className="font-medium">Order #:</span> {order.customerOrderNumber}</p>
         )}
+        {order.collectionCode && (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="font-medium">eBay collection code:</span>
+            <span className="font-mono text-base font-semibold tracking-wide">{order.collectionCode}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 px-2"
+              onClick={() => {
+                navigator.clipboard?.writeText(order.collectionCode || "");
+                toast.success("Collection code copied");
+              }}
+            >
+              <Copy className="h-3.5 w-3.5" /> Copy
+            </Button>
+          </div>
+        )}
+        {order.isEbayOrder && !order.collectionCode && (
+          <p className="text-courier-600 font-medium mt-2">eBay order (no collection code provided)</p>
+        )}
+
         {order.isBikeSwap && (
           <p className="text-courier-600 font-medium mt-2">This is a bike swap</p>
         )}

@@ -69,14 +69,16 @@ const reconcileForOrder = async (orderId: string) => {
   }
 };
 
-// Emails the booking account asking them to approve the identified repairs.
+// Emails whoever is set to approve the identified repairs: the booking account,
+// the receiver/buyer, or the walk-in customer on a workshop-only inspection.
 export const sendInspectionApprovalEmail = async (
   inspectionId: string,
-  force = false
+  force = false,
+  recipient?: 'customer' | 'receiver' | 'walkin'
 ): Promise<{ success: boolean; skipped?: string }> => {
   try {
     const { data, error } = await supabase.functions.invoke('send-inspection-approval', {
-      body: { inspectionId, force },
+      body: { inspectionId, force, ...(recipient ? { recipient } : {}) },
     });
     if (error) throw error;
     return { success: true, skipped: (data as any)?.skipped };
@@ -351,13 +353,25 @@ export const getOrCreateInspection = async (
   bikeType?: string | null
 ): Promise<BicycleInspection | null> => {
   try {
-    const { data: existing, error: fetchError } = await supabase
+    const { data: byOrder, error: fetchError } = await supabase
       .from('bicycle_inspections')
       .select('*')
       .eq('order_id', orderId)
       .maybeSingle();
 
     if (fetchError) throw fetchError;
+
+    // Workshop-only inspections have no order, and the UI keys them by the
+    // inspection's own id — look that up before creating anything.
+    let existing: any = byOrder;
+    if (!existing) {
+      const { data: byId } = await supabase
+        .from('bicycle_inspections')
+        .select('*')
+        .eq('id', orderId)
+        .maybeSingle();
+      existing = byId || null;
+    }
 
     if (existing) {
       if (bikeType && !(existing as any).bike_type) {
@@ -371,6 +385,7 @@ export const getOrCreateInspection = async (
       }
       return existing as BicycleInspection;
     }
+
 
     const { data: newInspection, error: createError } = await supabase
       .from('bicycle_inspections')
@@ -606,16 +621,53 @@ export const getPendingInspections = async () => {
       );
     }
 
-    return data?.map(order => {
+    const orderRows = data?.map(order => {
       const prof = order.user_id ? profileMap.get(order.user_id) : undefined;
       return {
         ...order,
+        workshop_only: false,
         booking_customer_name: prof?.company || prof?.name || prof?.email || null,
         booking_customer_email: prof?.email || null,
         inspection: inspections?.find(i => i.order_id === order.id) || null,
         issues: inspections?.find(i => i.order_id === order.id)?.inspection_issues || []
       };
     }) || [];
+
+    // Workshop-only inspections (walk-ins) have no transport job, so present
+    // them as order-shaped rows the inspections page can render alongside.
+    const { data: workshopInspections, error: workshopError } = await supabase
+      .from('bicycle_inspections')
+      .select('*, inspection_issues(*)')
+      .is('order_id', null)
+      .order('created_at', { ascending: true });
+    if (workshopError) throw workshopError;
+
+    const workshopRows = (workshopInspections || []).map((insp: any) => ({
+      id: insp.id,
+      workshop_only: true,
+      tracking_number: insp.reference || null,
+      bike_brand: insp.bike_brand || null,
+      bike_model: insp.bike_model || null,
+      bike_quantity: 1,
+      status: 'workshop_only',
+      sender: null,
+      receiver: null,
+      user_id: null,
+      needs_inspection: true,
+      storage_locations: null,
+      customer_order_number: insp.reference || null,
+      collection_confirmation_sent_at: null,
+      pickup_date: null,
+      created_at: insp.created_at,
+      tracking_events: null,
+      booking_customer_name: insp.customer_company || insp.customer_name || insp.customer_email || null,
+      booking_customer_email: insp.customer_email || null,
+      inspection: insp,
+      issues: insp.inspection_issues || [],
+    }));
+
+    return [...workshopRows, ...orderRows];
+
 
   } catch (error) {
     console.error('Error fetching pending inspections:', error);
@@ -777,7 +829,7 @@ export const addInspectionIssue = async (
       .from('inspection_issues')
       .insert({
         inspection_id: inspection.id,
-        order_id: orderId,
+        order_id: (inspection as any).order_id ?? null,
         issue_description: issueDescription,
         estimated_cost: estimatedCost,
         parts_cost: extra?.parts_cost ?? null,
@@ -1470,7 +1522,8 @@ export const deleteInspectionIssue = async (issueId: string): Promise<void> => {
 // don't re-trigger the status reset that addInspectionIssue does).
 export const addIssueToExistingInspection = async (
   inspectionId: string,
-  orderId: string,
+  /** Null for workshop-only inspections that aren't tied to a transport job. */
+  orderId: string | null,
   issueDescription: string,
   estimatedCost: number | null,
   requestedById: string,
@@ -1497,7 +1550,7 @@ export const addIssueToExistingInspection = async (
       .from('inspection_issues')
       .insert({
         inspection_id: inspectionId,
-        order_id: orderId,
+        order_id: orderId || null,
         issue_description: issueDescription,
         estimated_cost: estimatedCost,
         parts_cost: extra?.parts_cost ?? null,
@@ -1700,6 +1753,93 @@ export const submitPublicRepairOffer = async (
   return (data || { success: false }) as any;
 
 };
+
+export interface WorkshopInspectionInput {
+  customer_name: string;
+  customer_email: string;
+  customer_phone?: string | null;
+  customer_company?: string | null;
+  customer_address?: {
+    line1?: string | null;
+    line2?: string | null;
+    city?: string | null;
+    postcode?: string | null;
+  } | null;
+  bike_brand?: string | null;
+  bike_model?: string | null;
+  frame_size?: string | null;
+  bike_type?: string | null;
+  reference?: string | null;
+  notes?: string | null;
+}
+
+/** Create a workshop-only inspection for a walk-in bike (no transport job). */
+export const createWorkshopInspection = async (
+  input: WorkshopInspectionInput,
+  createdById: string,
+  createdByName: string
+): Promise<BicycleInspection> => {
+  const { data, error } = await supabase
+    .from('bicycle_inspections')
+    .insert({
+      order_id: null,
+      status: 'pending' as InspectionStatus,
+      customer_name: input.customer_name,
+      customer_email: input.customer_email,
+      customer_phone: input.customer_phone || null,
+      customer_company: input.customer_company || null,
+      customer_address: input.customer_address || null,
+      bike_brand: input.bike_brand || null,
+      bike_model: input.bike_model || null,
+      frame_size: input.frame_size || null,
+      bike_type: input.bike_type || null,
+      reference: input.reference || null,
+      notes: input.notes || null,
+      approval_recipient: 'walkin',
+      created_by_id: createdById,
+      created_by_name: createdByName,
+    } as any)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as BicycleInspection;
+};
+
+/** Choose who is asked to approve the repairs on an inspection. */
+export const setApprovalRecipient = async (
+  inspectionId: string,
+  recipient: 'customer' | 'receiver' | 'walkin'
+): Promise<void> => {
+  const { error } = await supabase
+    .from('bicycle_inspections')
+    .update({ approval_recipient: recipient } as any)
+    .eq('id', inspectionId);
+  if (error) throw error;
+};
+
+/** Public (unauthenticated) read of an inspection approval request. */
+export const fetchPublicInspectionApproval = async (inspectionId: string): Promise<any> => {
+  const { data, error } = await supabase.rpc('get_public_inspection_approval' as any, {
+    p_inspection_id: inspectionId,
+  });
+  if (error) throw error;
+  return data ?? { found: false };
+};
+
+/** Public (unauthenticated) submission of the approved repairs. */
+export const submitPublicInspectionApproval = async (
+  inspectionId: string,
+  approvedIssueIds: string[]
+): Promise<{ success: boolean; approved?: number; declined?: number; error?: string }> => {
+  const { data, error } = await supabase.rpc('submit_public_inspection_approval' as any, {
+    p_inspection_id: inspectionId,
+    p_approved_issue_ids: approvedIssueIds,
+  });
+  if (error) throw error;
+  void regenerateInspectionReport({ inspectionId });
+  return (data || { success: false }) as any;
+};
+
 
 export interface ReturnToSellerResult {
   success: boolean;

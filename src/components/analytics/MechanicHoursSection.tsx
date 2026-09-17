@@ -20,7 +20,14 @@ import { Badge } from '@/components/ui/badge';
 import { Clock, ClipboardCheck, Wrench, Gauge, Timer, ChevronDown, ChevronRight } from 'lucide-react';
 import { format, subWeeks } from 'date-fns';
 import StatsCard from './StatsCard';
-import { getMechanicHours, type StandardMinutesSource } from '@/services/mechanicHoursService';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { getMechanicHours, type StandardMinutesSource, type QueueItem } from '@/services/mechanicHoursService';
 
 const sourceLabel: Record<StandardMinutesSource, string> = {
   catalogue: 'Book time',
@@ -33,13 +40,102 @@ const varianceClass = (v: number) =>
   v >= 0 ? 'text-green-600 dark:text-green-500' : 'text-destructive';
 const fmtVariance = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(1)}h`;
 
+const dayLabel = (key: string | null): string => {
+  if (!key) return '—';
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, (m || 1) - 1, d || 1).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+};
+
+const daysBetweenKeys = (from: string, to: string): number => {
+  const a = new Date(`${from}T00:00:00Z`).getTime();
+  const b = new Date(`${to}T00:00:00Z`).getTime();
+  if (isNaN(a) || isNaN(b)) return 0;
+  return Math.max(0, Math.round((b - a) / 86400000));
+};
+
+/** The jobs that made up one day's workshop queue. */
+const QueueDialog: React.FC<{
+  day: any | null;
+  onOpenChange: (open: boolean) => void;
+}> = ({ day, onOpenChange }) => {
+  const items: QueueItem[] = day?.queueItems || [];
+  const inspects = items.filter((i) => i.kind === 'inspect');
+  const repairs = items.filter((i) => i.kind === 'repair');
+
+  const renderItem = (i: QueueItem) => {
+    const waited = day ? daysBetweenKeys(i.since, day.date) : 0;
+    const reason =
+      i.kind === 'inspect'
+        ? `In since ${dayLabel(i.since)}${i.closedOn ? `, inspected ${dayLabel(i.closedOn)}` : ', not inspected yet'}`
+        : `Parts ready ${dayLabel(i.since)}${i.closedOn ? `, done ${dayLabel(i.closedOn)}` : ', still open'}`;
+    return (
+      <li key={`${i.kind}-${i.id}`} className="border-t py-2 first:border-t-0 first:pt-0 text-sm">
+        <div className="flex items-start gap-2">
+          {i.kind === 'inspect' ? (
+            <ClipboardCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          ) : (
+            <Wrench className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+          )}
+          <span className="min-w-0 break-words">{i.label}</span>
+        </div>
+        <div className="mt-1 flex flex-wrap items-center gap-2 pl-5 text-xs text-muted-foreground">
+          <span>{reason}</span>
+          <span>· waiting {waited} day{waited === 1 ? '' : 's'}</span>
+          <Badge variant="outline" className="text-[10px]">
+            {sourceLabel[i.source]}
+          </Badge>
+          <span className="tabular-nums">{i.minutes} min</span>
+        </div>
+      </li>
+    );
+  };
+
+  return (
+    <Dialog open={!!day} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Work available on {day?.label}</DialogTitle>
+          <DialogDescription>
+            {day ? `${day.availableJobs} jobs / ${day.hoursPossible.toFixed(1)}h of standard time` : ''}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[60vh] space-y-4 overflow-y-auto pr-1">
+          <div>
+            <h4 className="mb-1 text-sm font-semibold">Awaiting inspection ({inspects.length})</h4>
+            {inspects.length === 0 ? (
+              <p className="text-xs text-muted-foreground">None.</p>
+            ) : (
+              <ul>{inspects.map(renderItem)}</ul>
+            )}
+          </div>
+          <div>
+            <h4 className="mb-1 text-sm font-semibold">Awaiting repair — parts ready ({repairs.length})</h4>
+            {repairs.length === 0 ? (
+              <p className="text-xs text-muted-foreground">None.</p>
+            ) : (
+              <ul>{repairs.map(renderItem)}</ul>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Repairs still waiting on parts are left out — they couldn't have been picked up that day. The day's total is
+            split evenly between the mechanics clocked in that day.
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+};
+
 /** Day-by-day job breakdown for one mechanic — shared by the table and mobile cards. */
 const DayBreakdown: React.FC<{ days: any[] }> = ({ days }) => {
+  const [queueDay, setQueueDay] = useState<any | null>(null);
+
   if (days.length === 0) {
     return <p className="text-sm text-muted-foreground">No days with activity.</p>;
   }
   return (
     <div className="space-y-3">
+      <QueueDialog day={queueDay} onOpenChange={(open) => !open && setQueueDay(null)} />
       {days.map((d) => (
         <div key={d.date} className="rounded-md border bg-background p-3">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
@@ -51,12 +147,17 @@ const DayBreakdown: React.FC<{ days: any[] }> = ({ days }) => {
             </span>
             <span className="text-muted-foreground">{d.jobs.length} jobs</span>
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => d.availableJobs > 0 && setQueueDay(d)}
+            disabled={d.availableJobs === 0}
+            className="mt-1 text-left text-xs text-muted-foreground underline-offset-2 hover:underline disabled:cursor-default disabled:no-underline"
+          >
             Queue that day: {d.availableJobs} jobs / {d.hoursPossible.toFixed(1)}h
             {d.availableJobs > 0 && (
-              <> (your share: {d.availableJobsShare.toFixed(1)} jobs / {d.hoursPossibleShare.toFixed(1)}h)</>
+              <> (your share: {d.availableJobsShare.toFixed(1)} jobs / {d.hoursPossibleShare.toFixed(1)}h) — tap to see why</>
             )}
-          </p>
+          </button>
           {d.jobs.length > 0 && (
             <ul className="mt-2 space-y-2">
               {d.jobs.map((j: any) => (

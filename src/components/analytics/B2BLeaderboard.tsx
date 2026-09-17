@@ -8,12 +8,17 @@ import { Order } from "@/types/order";
 import CustomerOrdersDialog from "./CustomerOrdersDialog";
 import { Search } from "lucide-react";
 
+export type B2BPeriod = "week" | "this-month" | "last-month" | "90" | "365" | "all";
+
 interface B2BLeaderboardProps {
   customers: CustomerOrderCount[];
   orders: Order[];
+  period: B2BPeriod;
+  onPeriodChange: (p: B2BPeriod) => void;
+  rangeLabel: string;
 }
 
-const B2BLeaderboard = ({ customers, orders }: B2BLeaderboardProps) => {
+const B2BLeaderboard = ({ customers, orders, period, onPeriodChange, rangeLabel }: B2BLeaderboardProps) => {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -29,15 +34,32 @@ const B2BLeaderboard = ({ customers, orders }: B2BLeaderboardProps) => {
     <Card>
       <CardHeader>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle>B2B Customer Leaderboard</CardTitle>
-          <div className="relative w-full sm:w-64">
-            <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search customer..."
-              className="pl-8"
-            />
+          <div>
+            <CardTitle>B2B Customer Leaderboard</CardTitle>
+            <p className="text-sm text-muted-foreground mt-1">{rangeLabel}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={period}
+              onChange={(e) => onPeriodChange(e.target.value as B2BPeriod)}
+              className="h-9 rounded-md border bg-background px-2 text-sm"
+            >
+              <option value="week">This week</option>
+              <option value="this-month">This month</option>
+              <option value="last-month">Last month</option>
+              <option value="90">Last 3 months</option>
+              <option value="365">Last 12 months</option>
+              <option value="all">All time</option>
+            </select>
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search customer..."
+                className="pl-8"
+              />
+            </div>
           </div>
         </div>
       </CardHeader>

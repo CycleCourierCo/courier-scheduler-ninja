@@ -305,10 +305,17 @@ export const getTopCustomersAnalytics = (orders: Order[]): CustomerOrderCount[] 
     .slice(0, 10);
 };
 
-export const getAllCustomersAnalytics = (orders: Order[]): CustomerOrderCount[] => {
+export const getAllCustomersAnalytics = (
+  orders: Order[],
+  range?: { start: Date; end: Date }
+): CustomerOrderCount[] => {
   const customerCounts: Record<string, { count: number; isB2B: boolean }> = {};
 
   orders.forEach(order => {
+    if (range) {
+      const d = new Date(order.createdAt);
+      if (isNaN(d.getTime()) || d < range.start || d > range.end) return;
+    }
     // @ts-ignore
     const customerName = order.companyName || order.sender.name;
     // @ts-ignore

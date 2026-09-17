@@ -15,13 +15,25 @@ export async function listRecurrences(): Promise<TaskRecurrence[]> {
 }
 
 export async function createRecurrence(input: RecurrenceInput, createdBy: string): Promise<void> {
-  const { error } = await R().insert({ ...input, created_by: createdBy });
+  const { data, error } = await R().insert({ ...input, created_by: createdBy }).select('id').single();
   if (error) throw error;
+  await fillRecurrence(data?.id);
 }
 
 export async function updateRecurrence(id: string, patch: Partial<TaskRecurrence>): Promise<void> {
   const { error } = await R().update(patch).eq('id', id);
   if (error) throw error;
+  await fillRecurrence(id);
+}
+
+/** Creates the upcoming occurrences for one repeat straight away. Never throws. */
+async function fillRecurrence(recurrenceId?: string | null): Promise<void> {
+  if (!recurrenceId) return;
+  try {
+    await supabase.functions.invoke('generate-recurring-tasks', { body: { recurrenceId } });
+  } catch (e) {
+    console.warn('Could not fill in the repeating task straight away', e);
+  }
 }
 
 export async function deleteRecurrence(id: string): Promise<void> {

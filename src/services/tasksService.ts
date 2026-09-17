@@ -72,8 +72,11 @@ export interface CreateTaskInput {
   assignee_id?: string | null;
   linked_order_id?: string | null;
   linked_conversation_id?: string | null;
+  linked_inspection_id?: string | null;
   category?: string | null;
   planned_date?: string | null;
+  estimated_minutes?: number | null;
+  start_time?: string | null;
 }
 
 /** Fire-and-forget assignment email — never blocks or fails the caller. */
@@ -92,8 +95,11 @@ export async function createTask(input: CreateTaskInput, createdBy: string): Pro
     assignee_id: input.assignee_id ?? null,
     linked_order_id: input.linked_order_id ?? null,
     linked_conversation_id: input.linked_conversation_id ?? null,
+    linked_inspection_id: input.linked_inspection_id ?? null,
     category: input.category ?? null,
     planned_date: input.planned_date ?? null,
+    estimated_minutes: input.estimated_minutes ?? null,
+    start_time: input.start_time ?? null,
     created_by: createdBy,
     status: 'open',
   };
@@ -118,8 +124,13 @@ export async function updateTask(id: string, patch: Partial<Task>): Promise<void
 }
 
 export async function deleteTask(id: string): Promise<void> {
-  const { error } = await T().delete().eq('id', id);
+  // Ask for the deleted row back: a permission refusal deletes nothing but
+  // returns no error, which would otherwise look like success.
+  const { data, error } = await T().delete().eq('id', id).select('id');
   if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error("You can't delete this task — only an admin, a project manager or whoever created it can.");
+  }
 }
 
 export async function listTaskComments(taskId: string): Promise<TaskComment[]> {

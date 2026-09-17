@@ -10,6 +10,7 @@ import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
 import { getCollectionPhotos } from "@/utils/collectionPhotos";
 import { ChangeStorageLocationDialog } from "@/components/loading/ChangeStorageLocationDialog";
 import InspectionComments from "@/components/inspections/InspectionComments";
+import NewWorkshopInspectionDialog from "@/components/inspections/NewWorkshopInspectionDialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 import StatusBadge from "@/components/StatusBadge";
@@ -280,6 +281,7 @@ const BicycleInspections = () => {
   const [selectedOrderForInspection, setSelectedOrderForInspection] = useState<string | null>(null);
   const [inspectionChecklist, setInspectionChecklist] = useState<Record<string, ItemResult>>({});
   const [inspectionComments, setInspectionComments] = useState<Record<string, string>>({});
+  const [newWorkshopOpen, setNewWorkshopOpen] = useState(false);
   const [checklistIssues, setChecklistIssues] = useState<Record<string, ChecklistIssue[]>>({});
   const [checklistBikeType, setChecklistBikeType] = useState<string | null>(null);
   const [checklistGeneralNotes, setChecklistGeneralNotes] = useState("");
@@ -620,15 +622,23 @@ const BicycleInspections = () => {
     onSettled: () => setReportingInspectionId(null),
   });
 
-  // Re-send the approval request email to the booking account
+  // Who each inspection's approval request goes to (staff choice per card)
+  const [approvalRecipients, setApprovalRecipients] = useState<
+    Record<string, "customer" | "receiver" | "walkin">
+  >({});
+
+  // Send the approval request email to whoever staff chose
   const approvalEmailMutation = useMutation({
-    mutationFn: async (inspectionId: string) => sendInspectionApprovalEmail(inspectionId, true),
+    mutationFn: async (args: {
+      inspectionId: string;
+      recipient?: "customer" | "receiver" | "walkin";
+    }) => sendInspectionApprovalEmail(args.inspectionId, true, args.recipient),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
       if (result?.skipped) {
         toast.info("Nothing to approve — email not sent");
       } else {
-        toast.success("Approval request emailed to the booking account");
+        toast.success("Approval request sent");
       }
     },
     onError: (error: any) => {
@@ -985,6 +995,16 @@ const BicycleInspections = () => {
       inspectionId: string;
       quickbooksCustomerId?: string;
       billingEmailOverride?: string;
+      customerDetails?: {
+        name?: string;
+        email?: string;
+        phone?: string;
+        company?: string;
+        addressLine1?: string;
+        addressLine2?: string;
+        city?: string;
+        postcode?: string;
+      };
     }) => {
       const { data, error } = await supabase.functions.invoke('create-inspection-invoice', {
         body: vars,
@@ -1633,6 +1653,8 @@ const BicycleInspections = () => {
     const bikePhotos = getCollectionPhotos(order.tracking_events, order.shipday_pickup_id);
     const bikeLabel = `${order.bike_brand || ""} ${order.bike_model || ""}`.trim() || "Bike";
     const storageLocations: any[] = Array.isArray(order.storage_locations) ? order.storage_locations : [];
+    // Workshop-only inspections have no transport job behind them.
+    const isWorkshopOnly = !!order.workshop_only;
 
     return (
       <Card key={order.id} className="mb-4 overflow-hidden">
@@ -1661,20 +1683,34 @@ const BicycleInspections = () => {
                 {order.bike_quantity > 1 && (
                   <Badge variant="secondary" className="shrink-0">x{order.bike_quantity}</Badge>
                 )}
+                {isWorkshopOnly && (
+                  <Badge variant="secondary" className="shrink-0">Workshop only</Badge>
+                )}
               </CardTitle>
               <CardDescription className="break-words">
-                #{order.tracking_number} • {(order.sender as any)?.name} → {(order.receiver as any)?.name}
+                {isWorkshopOnly ? (
+                  <>
+                    {inspection?.reference ? `Ref ${inspection.reference} • ` : ""}
+                    {inspection?.customer_name || inspection?.customer_email || "Walk-in customer"}
+                  </>
+                ) : (
+                  <>
+                    #{order.tracking_number} • {(order.sender as any)?.name} → {(order.receiver as any)?.name}
+                  </>
+                )}
               </CardDescription>
               <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center gap-1"
-                  onClick={() => navigate(canManageInspections ? `/orders/${order.id}` : `/customer-orders/${order.id}`)}
-                >
-                  <ExternalLink className="h-3.5 w-3.5" />
-                  View order
-                </Button>
+                {!isWorkshopOnly && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1"
+                    onClick={() => navigate(canManageInspections ? `/orders/${order.id}` : `/customer-orders/${order.id}`)}
+                  >
+                    <ExternalLink className="h-3.5 w-3.5" />
+                    View order
+                  </Button>
+                )}
                 {!canManageInspections && isOwner && customerReportUrl && (
                   <Button
                     variant="outline"
@@ -1689,14 +1725,21 @@ const BicycleInspections = () => {
               </div>
 
 
-              {order.customer_order_number && (
+
+
+              {!isWorkshopOnly && order.customer_order_number && (
                 <p className="text-xs text-muted-foreground mt-1 break-words">
                   Order #: <span className="font-medium">{order.customer_order_number}</span>
                 </p>
               )}
+              {isWorkshopOnly && (inspection?.customer_email || inspection?.customer_phone) && (
+                <p className="text-xs text-muted-foreground mt-1 break-words">
+                  {[inspection?.customer_email, inspection?.customer_phone].filter(Boolean).join(" • ")}
+                </p>
+              )}
               {/* Order status and storage location badges */}
               <div className="flex min-w-0 flex-wrap gap-2 mt-2">
-                <StatusBadge status={order.status} />
+                {!isWorkshopOnly && <StatusBadge status={order.status} />}
                 {inspection?.identity_matches === false && !inspection?.identity_reviewed_at && (
                   <Badge
                     variant="destructive"
@@ -2723,23 +2766,63 @@ const BicycleInspections = () => {
                 Download report
               </Button>
               {isAdmin && inspection.status === "issues_found" && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => approvalEmailMutation.mutate(inspection.id)}
-                  disabled={approvalEmailMutation.isPending}
-                >
-                  {approvalEmailMutation.isPending ? (
-                    <Loader2 className="mr-1 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="mr-1 h-4 w-4" />
+                <>
+                  {!isWorkshopOnly && (
+                    <Select
+                      value={
+                        approvalRecipients[inspection.id] ||
+                        (inspection as any).approval_recipient ||
+                        "customer"
+                      }
+                      onValueChange={(v) =>
+                        setApprovalRecipients((prev) => ({
+                          ...prev,
+                          [inspection.id]: v as "customer" | "receiver" | "walkin",
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="h-9 w-[190px]">
+                        <SelectValue placeholder="Who approves?" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="customer">Ask the seller (account)</SelectItem>
+                        <SelectItem value="receiver">Ask the buyer (receiver)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   )}
-                  Resend approval email
-                </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                      approvalEmailMutation.mutate({
+                        inspectionId: inspection.id,
+                        recipient: isWorkshopOnly
+                          ? "walkin"
+                          : approvalRecipients[inspection.id] ||
+                            ((inspection as any).approval_recipient as any) ||
+                            "customer",
+                      })
+                    }
+                    disabled={approvalEmailMutation.isPending}
+                  >
+                    {approvalEmailMutation.isPending ? (
+                      <Loader2 className="mr-1 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="mr-1 h-4 w-4" />
+                    )}
+                    Send approval request
+                  </Button>
+                </>
               )}
               {(inspection as any).approval_email_sent_at && (
                 <span className="text-xs text-muted-foreground">
-                  Approval email sent {new Date((inspection as any).approval_email_sent_at).toLocaleDateString("en-GB")}
+                  Approval request sent{" "}
+                  {new Date((inspection as any).approval_email_sent_at).toLocaleDateString("en-GB")}
+                  {(inspection as any).approval_recipient === "receiver"
+                    ? " to the buyer"
+                    : (inspection as any).approval_recipient === "walkin"
+                      ? " to the customer"
+                      : " to the seller"}
                 </span>
               )}
             </div>
@@ -2891,7 +2974,26 @@ const BicycleInspections = () => {
               <Button
                 size="sm"
                 variant="outline"
-                onClick={() => createInvoiceMutation.mutate({ inspectionId: inspection.id })}
+                onClick={() =>
+                  createInvoiceMutation.mutate({
+                    inspectionId: inspection.id,
+                    // Walk-in bikes are billed to the customer captured on the inspection.
+                    ...(isWorkshopOnly
+                      ? {
+                          customerDetails: {
+                            name: inspection?.customer_name || undefined,
+                            email: inspection?.customer_email || undefined,
+                            phone: inspection?.customer_phone || undefined,
+                            company: inspection?.customer_company || undefined,
+                            addressLine1: (inspection?.customer_address as any)?.line1 || undefined,
+                            addressLine2: (inspection?.customer_address as any)?.line2 || undefined,
+                            city: (inspection?.customer_address as any)?.city || undefined,
+                            postcode: (inspection?.customer_address as any)?.postcode || undefined,
+                          },
+                        }
+                      : {}),
+                  })
+                }
                 disabled={createInvoiceMutation.isPending}
               >
                 {createInvoiceMutation.isPending ? (
@@ -2972,7 +3074,7 @@ const BicycleInspections = () => {
             </div>
           )}
 
-          {order?.id && (
+          {order?.id && !isWorkshopOnly && (
             <InspectionComments
               inspectionId={inspection?.id ?? null}
               orderId={order.id}
@@ -2990,18 +3092,36 @@ const BicycleInspections = () => {
     <Layout>
       <div className="container py-4 sm:py-6 overflow-x-hidden">
         <DashboardHeader>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
-              <Wrench className="h-7 w-7 sm:h-8 sm:w-8 shrink-0" />
-              {isAdmin ? "Bicycle Inspections" : "My Inspections"}
-            </h1>
-            <p className="text-muted-foreground">
-              {isAdmin
-                ? "Manage bike inspections and report issues"
-                : "View inspection status for your bikes"}
-            </p>
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-2">
+                <Wrench className="h-7 w-7 sm:h-8 sm:w-8 shrink-0" />
+                {isAdmin ? "Bicycle Inspections" : "My Inspections"}
+              </h1>
+              <p className="text-muted-foreground">
+                {isAdmin
+                  ? "Manage bike inspections and report issues"
+                  : "View inspection status for your bikes"}
+              </p>
+            </div>
+            {canManageInspections && (
+              <Button onClick={() => setNewWorkshopOpen(true)} className="w-full sm:w-auto">
+                <Plus className="h-4 w-4 mr-1" />
+                New workshop inspection
+              </Button>
+            )}
           </div>
         </DashboardHeader>
+
+        {canManageInspections && user?.id && (
+          <NewWorkshopInspectionDialog
+            open={newWorkshopOpen}
+            onOpenChange={setNewWorkshopOpen}
+            createdById={user.id}
+            createdByName={userProfile?.name || user.email || "Staff"}
+            onCreated={() => queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] })}
+          />
+        )}
 
         {isLoading ? (
           <div className="flex items-center justify-center h-64">

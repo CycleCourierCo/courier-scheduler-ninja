@@ -1,5 +1,6 @@
 
 import { Order, OrderStatus } from "@/types/order";
+import { parseAltLocation } from "@/lib/altLocation";
 
 export const mapDbOrderToOrderType = (dbOrder: any): Order => {
   if (!dbOrder) {
@@ -38,6 +39,8 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     deliveryInstructions: dbOrder.delivery_instructions,
     senderNotes: dbOrder.sender_notes,
     receiverNotes: dbOrder.receiver_notes,
+    senderAltLocation: parseAltLocation(dbOrder.sender_alt_location),
+    receiverAltLocation: parseAltLocation(dbOrder.receiver_alt_location),
     // Public availability links use these to offer business-hours scheduling
     senderIsBusiness: dbOrder.sender_is_business ?? false,
     receiverIsBusiness: dbOrder.receiver_is_business ?? false,

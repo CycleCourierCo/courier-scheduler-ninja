@@ -135,8 +135,19 @@ export type Database = {
           actual_bike_model: string | null
           actual_frame_size: string | null
           approval_email_sent_at: string | null
+          approval_recipient: string | null
+          approval_sent_to_at: string | null
+          bike_brand: string | null
+          bike_model: string | null
           bike_type: string | null
           created_at: string
+          created_by_id: string | null
+          created_by_name: string | null
+          customer_address: Json | null
+          customer_company: string | null
+          customer_email: string | null
+          customer_name: string | null
+          customer_phone: string | null
           drivetrain_degreased_at: string | null
           drivetrain_degreased_by_id: string | null
           drivetrain_degreased_by_name: string | null
@@ -148,6 +159,7 @@ export type Database = {
           frame_cleaned_at: string | null
           frame_cleaned_by_id: string | null
           frame_cleaned_by_name: string | null
+          frame_size: string | null
           id: string
           identity_checked_at: string | null
           identity_matches: boolean | null
@@ -167,7 +179,8 @@ export type Database = {
           invoice_skipped_by_name: string | null
           invoice_url: string | null
           notes: string | null
-          order_id: string
+          order_id: string | null
+          reference: string | null
           released_by_id: string | null
           released_by_name: string | null
           released_to_customer_at: string | null
@@ -181,8 +194,19 @@ export type Database = {
           actual_bike_model?: string | null
           actual_frame_size?: string | null
           approval_email_sent_at?: string | null
+          approval_recipient?: string | null
+          approval_sent_to_at?: string | null
+          bike_brand?: string | null
+          bike_model?: string | null
           bike_type?: string | null
           created_at?: string
+          created_by_id?: string | null
+          created_by_name?: string | null
+          customer_address?: Json | null
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
           drivetrain_degreased_at?: string | null
           drivetrain_degreased_by_id?: string | null
           drivetrain_degreased_by_name?: string | null
@@ -194,6 +218,7 @@ export type Database = {
           frame_cleaned_at?: string | null
           frame_cleaned_by_id?: string | null
           frame_cleaned_by_name?: string | null
+          frame_size?: string | null
           id?: string
           identity_checked_at?: string | null
           identity_matches?: boolean | null
@@ -213,7 +238,8 @@ export type Database = {
           invoice_skipped_by_name?: string | null
           invoice_url?: string | null
           notes?: string | null
-          order_id: string
+          order_id?: string | null
+          reference?: string | null
           released_by_id?: string | null
           released_by_name?: string | null
           released_to_customer_at?: string | null
@@ -227,8 +253,19 @@ export type Database = {
           actual_bike_model?: string | null
           actual_frame_size?: string | null
           approval_email_sent_at?: string | null
+          approval_recipient?: string | null
+          approval_sent_to_at?: string | null
+          bike_brand?: string | null
+          bike_model?: string | null
           bike_type?: string | null
           created_at?: string
+          created_by_id?: string | null
+          created_by_name?: string | null
+          customer_address?: Json | null
+          customer_company?: string | null
+          customer_email?: string | null
+          customer_name?: string | null
+          customer_phone?: string | null
           drivetrain_degreased_at?: string | null
           drivetrain_degreased_by_id?: string | null
           drivetrain_degreased_by_name?: string | null
@@ -240,6 +277,7 @@ export type Database = {
           frame_cleaned_at?: string | null
           frame_cleaned_by_id?: string | null
           frame_cleaned_by_name?: string | null
+          frame_size?: string | null
           id?: string
           identity_checked_at?: string | null
           identity_matches?: boolean | null
@@ -259,7 +297,8 @@ export type Database = {
           invoice_skipped_by_name?: string | null
           invoice_url?: string | null
           notes?: string | null
-          order_id?: string
+          order_id?: string | null
+          reference?: string | null
           released_by_id?: string | null
           released_by_name?: string | null
           released_to_customer_at?: string | null
@@ -1959,7 +1998,7 @@ export type Database = {
           offered_to_receiver_at: string | null
           offered_to_receiver_by_id: string | null
           offered_to_receiver_by_name: string | null
-          order_id: string
+          order_id: string | null
           part_name: string | null
           part_number: string | null
           part_spec: string | null
@@ -2015,7 +2054,7 @@ export type Database = {
           offered_to_receiver_at?: string | null
           offered_to_receiver_by_id?: string | null
           offered_to_receiver_by_name?: string | null
-          order_id: string
+          order_id?: string | null
           part_name?: string | null
           part_number?: string | null
           part_spec?: string | null
@@ -2071,7 +2110,7 @@ export type Database = {
           offered_to_receiver_at?: string | null
           offered_to_receiver_by_id?: string | null
           offered_to_receiver_by_name?: string | null
-          order_id?: string
+          order_id?: string | null
           part_name?: string | null
           part_number?: string | null
           part_spec?: string | null
@@ -3947,7 +3986,9 @@ export type Database = {
           days_of_week: number[]
           description: string | null
           end_date: string | null
+          estimated_minutes: number | null
           frequency: string
+          horizon_days: number
           id: string
           interval_n: number
           last_generated_on: string | null
@@ -3966,7 +4007,9 @@ export type Database = {
           days_of_week?: number[]
           description?: string | null
           end_date?: string | null
+          estimated_minutes?: number | null
           frequency?: string
+          horizon_days?: number
           id?: string
           interval_n?: number
           last_generated_on?: string | null
@@ -3985,7 +4028,9 @@ export type Database = {
           days_of_week?: number[]
           description?: string | null
           end_date?: string | null
+          estimated_minutes?: number | null
           frequency?: string
+          horizon_days?: number
           id?: string
           interval_n?: number
           last_generated_on?: string | null
@@ -4013,12 +4058,15 @@ export type Database = {
           created_by: string | null
           description: string | null
           due_date: string | null
+          estimated_minutes: number | null
           id: string
           linked_conversation_id: string | null
+          linked_inspection_id: string | null
           linked_order_id: string | null
           planned_date: string | null
           priority: Database["public"]["Enums"]["task_priority"]
           recurrence_id: string | null
+          start_time: string | null
           status: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at: string
@@ -4031,12 +4079,15 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           due_date?: string | null
+          estimated_minutes?: number | null
           id?: string
           linked_conversation_id?: string | null
+          linked_inspection_id?: string | null
           linked_order_id?: string | null
           planned_date?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           recurrence_id?: string | null
+          start_time?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title: string
           updated_at?: string
@@ -4049,12 +4100,15 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           due_date?: string | null
+          estimated_minutes?: number | null
           id?: string
           linked_conversation_id?: string | null
+          linked_inspection_id?: string | null
           linked_order_id?: string | null
           planned_date?: string | null
           priority?: Database["public"]["Enums"]["task_priority"]
           recurrence_id?: string | null
+          start_time?: string | null
           status?: Database["public"]["Enums"]["task_status"]
           title?: string
           updated_at?: string
@@ -4079,6 +4133,13 @@ export type Database = {
             columns: ["linked_conversation_id"]
             isOneToOne: false
             referencedRelation: "cs_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tasks_linked_inspection_id_fkey"
+            columns: ["linked_inspection_id"]
+            isOneToOne: false
+            referencedRelation: "bicycle_inspections"
             referencedColumns: ["id"]
           },
           {
@@ -5179,6 +5240,10 @@ export type Database = {
       get_cron_secret: { Args: never; Returns: string }
       get_my_pending_availability_orders: { Args: never; Returns: Json }
       get_ni_partner_job: { Args: { p_order_id: string }; Returns: Json }
+      get_public_inspection_approval: {
+        Args: { p_inspection_id: string }
+        Returns: Json
+      }
       get_public_inspection_summary: {
         Args: { order_identifier: string }
         Returns: Json
@@ -5206,6 +5271,10 @@ export type Database = {
         Returns: boolean
       }
       invoke_backfill_shipday_jobs: { Args: never; Returns: undefined }
+      invoke_ferry_partner_notification: {
+        Args: { p_order_id: string }
+        Returns: undefined
+      }
       invoke_fuel_finder_refresh: { Args: never; Returns: undefined }
       invoke_generate_recurring_tasks: { Args: never; Returns: undefined }
       invoke_generate_timeslips: { Args: never; Returns: undefined }
@@ -5281,6 +5350,10 @@ export type Database = {
           p_label_url?: string
           p_order_id: string
         }
+        Returns: Json
+      }
+      submit_public_inspection_approval: {
+        Args: { p_approved_issue_ids: string[]; p_inspection_id: string }
         Returns: Json
       }
       submit_public_repair_offer: {

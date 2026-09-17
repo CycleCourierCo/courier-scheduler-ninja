@@ -53,6 +53,9 @@ const TaskDialog: React.FC<Props> = ({
   const [dueDate, setDueDate] = useState<string>('');
   const [category, setCategory] = useState<string>(defaultCategory || '');
   const [plannedDate, setPlannedDate] = useState<string>(defaultPlannedDate || '');
+  const [durationHours, setDurationHours] = useState<string>('');
+  const [durationMinutes, setDurationMinutes] = useState<string>('');
+  const [startTime, setStartTime] = useState<string>('');
   const [linkedOrderId, setLinkedOrderId] = useState<string | null>(defaultOrderId);
   const [linkedOrderLabel, setLinkedOrderLabel] = useState<string>('');
   const [orderQuery, setOrderQuery] = useState('');
@@ -71,6 +74,10 @@ const TaskDialog: React.FC<Props> = ({
       setCategory(task.category || '');
       setPlannedDate(task.planned_date || '');
       setLinkedOrderId(task.linked_order_id);
+      const mins = task.estimated_minutes ?? null;
+      setDurationHours(mins ? String(Math.floor(mins / 60)) : '');
+      setDurationMinutes(mins ? String(mins % 60) : '');
+      setStartTime(task.start_time ? task.start_time.slice(0, 5) : '');
     } else {
       setTitle(defaultTitle);
       setDescription(defaultDescription);
@@ -81,6 +88,9 @@ const TaskDialog: React.FC<Props> = ({
       setCategory(defaultCategory || '');
       setPlannedDate(defaultPlannedDate || '');
       setLinkedOrderId(defaultOrderId);
+      setDurationHours('');
+      setDurationMinutes('');
+      setStartTime('');
     }
     setOrderQuery('');
     setOrderResults([]);
@@ -104,6 +114,12 @@ const TaskDialog: React.FC<Props> = ({
     const parsed = schema.safeParse({ title, description });
     if (!parsed.success) { toast.error(parsed.error.issues[0].message); return; }
     if (!user?.id) { toast.error("Not signed in"); return; }
+    const totalMinutes =
+      (parseInt(durationHours || '0', 10) || 0) * 60 + (parseInt(durationMinutes || '0', 10) || 0);
+    if (totalMinutes < 0 || totalMinutes > 24 * 60) {
+      toast.error('That length looks wrong — please enter up to 24 hours');
+      return;
+    }
     setSaving(true);
     try {
       const payload = {
@@ -116,6 +132,8 @@ const TaskDialog: React.FC<Props> = ({
         linked_conversation_id: isEdit ? task!.linked_conversation_id : defaultConversationId,
         category: category || null,
         planned_date: plannedDate || null,
+        estimated_minutes: totalMinutes > 0 ? totalMinutes : null,
+        start_time: startTime ? `${startTime}:00` : null,
       };
       let result: Task | null = null;
       if (isEdit && task) {
@@ -192,6 +210,37 @@ const TaskDialog: React.FC<Props> = ({
             <div>
               <Label>Planned day</Label>
               <Input type="date" value={plannedDate} onChange={e => setPlannedDate(e.target.value)} />
+            </div>
+            <div>
+              <Label>Start time (optional)</Label>
+              <Input type="time" step={900} value={startTime} onChange={e => setStartTime(e.target.value)} />
+            </div>
+            <div className="col-span-2">
+              <Label>How long will it take?</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  type="number"
+                  min={0}
+                  max={24}
+                  className="w-20"
+                  placeholder="0"
+                  value={durationHours}
+                  onChange={e => setDurationHours(e.target.value)}
+                />
+                <span className="text-sm text-muted-foreground">hours</span>
+                <Input
+                  type="number"
+                  min={0}
+                  max={59}
+                  step={5}
+                  className="w-20"
+                  placeholder="30"
+                  value={durationMinutes}
+                  onChange={e => setDurationMinutes(e.target.value)}
+                />
+                <span className="text-sm text-muted-foreground">mins</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Leave blank to count it as 30 minutes.</p>
             </div>
             {isEdit && (
               <div>
