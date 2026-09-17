@@ -95,7 +95,7 @@ import { RepairPicker, type RepairPickerSelection } from "@/components/inspectio
 import { BikeCategoryPicker } from "@/components/inspections/BikeCategoryPicker";
 import WorkshopScheduleTab from "@/components/inspections/WorkshopScheduleTab";
 import { sendOrderToInspectaBike } from "@/services/inspectabikeService";
-import BillingCustomerDialog, { type QuickBooksCustomerOption } from "@/components/inspections/BillingCustomerDialog";
+import BillingCustomerDialog, { type QuickBooksCustomerOption, type BillingParties } from "@/components/inspections/BillingCustomerDialog";
 import InspectionFilters, {
   EMPTY_INSPECTION_FILTERS,
   type InspectionFilterState,
