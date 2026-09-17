@@ -10,6 +10,7 @@ import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { toast } from "sonner";
 import { useStorageBays, getBayMaxPosition } from "@/hooks/useStorageBays";
 import { normaliseDriverName } from "@/utils/driverAssignmentUtils";
+import { getOrderCollectionPhotos } from "@/utils/collectionPhotos";
 
 interface BikeSearchSectionProps {
   orders: Order[];
@@ -234,14 +235,7 @@ export const BikeSearchSection = ({
                   <CardContent className="p-0 space-y-3">
                     <div className="flex gap-3">
                       {(() => {
-                        const updates = order.trackingEvents?.shipday?.updates || [];
-                        const pickupId = order.trackingEvents?.shipday?.pickup_id?.toString();
-                        const podEvent = updates.find((u: any) =>
-                          (u.event === 'ORDER_COMPLETED' || u.event === 'ORDER_POD_UPLOAD') &&
-                          u.orderId === pickupId &&
-                          u.podUrls && u.podUrls.length > 0
-                        );
-                        const photo = podEvent?.podUrls?.[0];
+                        const photo = getOrderCollectionPhotos(order)[0];
                         if (!photo) return null;
                         return (
                           <a href={photo} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
