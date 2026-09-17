@@ -54,6 +54,8 @@ export interface MechanicDayBreakdown {
   /** This mechanic's even share of that day's queue. */
   availableJobsShare: number;
   hoursPossibleShare: number;
+  /** The workshop-wide jobs that made up that day's queue. */
+  queueItems: QueueItem[];
 }
 
 export interface MechanicHoursPerMechanic {
