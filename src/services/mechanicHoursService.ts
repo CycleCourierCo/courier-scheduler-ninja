@@ -232,12 +232,22 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
     repairs: number;
     availableJobs: number;
     availableMinutes: number;
+    queueItems: QueueItem[];
   }
+  const QUEUE_ITEM_CAP = 300;
   const dayMap = new Map<string, DayAgg>();
   const ensureDay = (key: string): DayAgg => {
     let entry = dayMap.get(key);
     if (!entry) {
-      entry = { hours: 0, standardMinutes: 0, inspections: 0, repairs: 0, availableJobs: 0, availableMinutes: 0 };
+      entry = {
+        hours: 0,
+        standardMinutes: 0,
+        inspections: 0,
+        repairs: 0,
+        availableJobs: 0,
+        availableMinutes: 0,
+        queueItems: [],
+      };
       dayMap.set(key, entry);
     }
     return entry;
@@ -252,6 +262,7 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
     openedDay: string | null,
     closedDay: string | null,
     minutes: number,
+    item: Omit<QueueItem, 'since' | 'closedOn' | 'minutes'>,
   ) => {
     if (!openedDay) return;
     for (const key of rangeDays) {
@@ -260,11 +271,51 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
       const d = ensureDay(key);
       d.availableJobs += 1;
       d.availableMinutes += minutes;
+      if (d.queueItems.length < QUEUE_ITEM_CAP) {
+        d.queueItems.push({
+          ...item,
+          since: openedDay,
+          closedOn: closedDay,
+          minutes: Math.round(minutes),
+        });
+      }
     }
   };
 
+  // Bike labels for the inspections behind the queued repairs.
+  const issueInspectionIds = Array.from(
+    new Set((openIssues || []).map((i: any) => i.inspection_id).filter((v: any): v is string => !!v)),
+  );
+  const inspectionLabelById = new Map<string, string>();
   (openInspections || []).forEach((i: any) => {
-    addAvailability(londonDay(i.created_at), londonDay(i.inspected_at), inspectionMinutes);
+    const label = [i.bike_brand, i.bike_model].filter(Boolean).join(' ').trim();
+    if (label) inspectionLabelById.set(i.id, label);
+  });
+  const missingLabelIds = issueInspectionIds.filter((id) => !inspectionLabelById.has(id));
+  for (let i = 0; i < missingLabelIds.length; i += 200) {
+    const chunk = missingLabelIds.slice(i, i + 200);
+    const { data: rows } = await supabase
+      .from('bicycle_inspections')
+      .select('id, bike_brand, bike_model, reference')
+      .in('id', chunk);
+    (rows || []).forEach((r: any) => {
+      const label = [r.bike_brand, r.bike_model].filter(Boolean).join(' ').trim() || r.reference || '';
+      if (label) inspectionLabelById.set(r.id, label);
+    });
+  }
+
+  (openInspections || []).forEach((i: any) => {
+    const bike =
+      [i.bike_brand, i.bike_model].filter(Boolean).join(' ').trim() ||
+      i.reference ||
+      i.bike_type ||
+      'Bike';
+    addAvailability(londonDay(i.created_at), londonDay(i.inspected_at), inspectionMinutes, {
+      id: i.id,
+      kind: 'inspect',
+      label: bike,
+      source: 'inspection',
+    });
   });
 
   (openIssues || []).forEach((iss: any) => {
@@ -273,8 +324,15 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
       .filter((v): v is string => !!v);
     if (readyCandidates.length === 0) return;
     const readyDay = readyCandidates.sort()[0];
-    const { minutes } = repairMinutesFor(iss);
-    addAvailability(readyDay, londonDay(iss.resolved_at), minutes);
+    const { minutes, source } = repairMinutesFor(iss);
+    const repairName = iss.labour?.repair_name || iss.issue_description || 'Repair';
+    const bike = iss.inspection_id ? inspectionLabelById.get(iss.inspection_id) : null;
+    addAvailability(readyDay, londonDay(iss.resolved_at), minutes, {
+      id: iss.id,
+      kind: 'repair',
+      label: bike ? `${repairName} — ${bike}` : repairName,
+      source,
+    });
   });
 
   interface MechAgg extends Omit<MechanicHoursPerMechanic, 'days'> {
