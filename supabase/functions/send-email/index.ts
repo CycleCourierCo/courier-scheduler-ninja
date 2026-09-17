@@ -809,9 +809,31 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
       );
     }
 
-    // Check if collection confirmation emails have already been sent
-    if (order.collection_confirmation_sent_at) {
-      console.log("Collection confirmation emails already sent on:", order.collection_confirmation_sent_at);
+    // Atomically claim this order so duplicate webhooks can't send twice.
+    // The marker is written BEFORE any email goes out; only the winning caller proceeds.
+    const { data: claimed, error: claimError } = await supabase
+      .from("orders")
+      .update({
+        collection_confirmation_sent_at: new Date().toISOString(),
+        order_collected: true,
+      })
+      .eq("id", orderId)
+      .is("collection_confirmation_sent_at", null)
+      .select("id");
+
+    if (claimError) {
+      console.error("Error claiming collection confirmation for order:", claimError);
+      return new Response(
+        JSON.stringify({ error: "Failed to claim collection confirmation" }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500
+        }
+      );
+    }
+
+    if (!claimed || claimed.length === 0) {
+      console.log("Collection confirmation emails already sent/claimed for order:", orderId);
       return new Response(
         JSON.stringify({ 
           success: true, 
@@ -824,6 +846,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
         }
       );
     }
+
     
     const trackingUrl = `https://booking.cyclecourierco.com/tracking/${order.tracking_number || orderId}`;
     const itemName = `${order.bike_brand || ""} ${order.bike_model || ""}`.trim() || "Bicycle";
@@ -1042,17 +1065,18 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
       console.log("Receiver already has availability dates set, skipping availability email");
     }
     
-    // Mark collection confirmation emails as sent if at least one was successful
-    if (senderSent || receiverSent) {
+    // The marker was set up-front when we claimed the order. If nothing actually
+    // sent, release the claim so a later signal can retry.
+    if (!senderSent && !receiverSent) {
       await supabase
         .from("orders")
-        .update({ 
-          collection_confirmation_sent_at: new Date().toISOString(),
-          order_collected: true  // Mark order as collected
-        })
+        .update({ collection_confirmation_sent_at: null })
         .eq("id", orderId);
+      console.log("No collection confirmation email sent — released claim for order:", orderId);
+    } else {
       console.log("Marked collection confirmation emails as sent for order:", orderId);
     }
+
     
     return new Response(
       JSON.stringify({ 
