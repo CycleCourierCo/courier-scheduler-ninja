@@ -1041,6 +1041,7 @@ const BicycleInspections = () => {
           inspectionId: vars.inspectionId,
           suggestions: error.customerNotMatched.suggestions || [],
           triedEmails: error.customerNotMatched.triedEmails || [],
+          parties: error.customerNotMatched.parties || undefined,
         });
         toast.info(error.message);
         return;
