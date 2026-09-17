@@ -8,12 +8,17 @@ import { Order } from "@/types/order";
 import CustomerOrdersDialog from "./CustomerOrdersDialog";
 import { Search } from "lucide-react";
 
+export type B2BPeriod = "week" | "this-month" | "last-month" | "90" | "365" | "all";
+
 interface B2BLeaderboardProps {
   customers: CustomerOrderCount[];
   orders: Order[];
+  period: B2BPeriod;
+  onPeriodChange: (p: B2BPeriod) => void;
+  rangeLabel: string;
 }
 
-const B2BLeaderboard = ({ customers, orders }: B2BLeaderboardProps) => {
+const B2BLeaderboard = ({ customers, orders, period, onPeriodChange, rangeLabel }: B2BLeaderboardProps) => {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
 
