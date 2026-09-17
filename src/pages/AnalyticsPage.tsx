@@ -115,6 +115,11 @@ const AnalyticsPage = () => {
   const [bikeValueDays, setBikeValueDays] = useState<number | "all">(30);
   const [bikeValueCustomer, setBikeValueCustomer] = useState<string | null>(null);
 
+  // Business customers leaderboard: preset period ("all" = whole history)
+  const [b2bPeriod, setB2bPeriod] = useState<
+    "week" | "this-month" | "last-month" | "90" | "365" | "all"
+  >("all");
+
   const { data: inspections = [] } = useQuery({
     queryKey: ["inspectionsAnalytics"],
     queryFn: fetchInspectionsForAnalytics,
@@ -184,8 +189,62 @@ const AnalyticsPage = () => {
   const deliveryTimeData = useMemo(() => getDeliveryTimeAnalytics(orders, perfRange), [orders, perfRange]);
   const storageData = useMemo(() => getStorageAnalytics(orders, perfRange), [orders, perfRange]);
 
-  // Get only B2B customers for business tab
-  const b2bCustomers = getAllCustomersAnalytics(orders).filter(customer => customer.isB2B);
+  // Get only B2B customers for business tab (scoped to the selected period)
+  const b2bRange = useMemo(() => {
+    if (b2bPeriod === "all") return undefined;
+    const end = new Date();
+    const start = new Date();
+    switch (b2bPeriod) {
+      case "week": {
+        const day = start.getDay();
+        start.setDate(start.getDate() - (day === 0 ? 6 : day - 1)); // Monday
+        start.setHours(0, 0, 0, 0);
+        break;
+      }
+      case "this-month":
+        start.setDate(1);
+        start.setHours(0, 0, 0, 0);
+        break;
+      case "last-month":
+        start.setDate(1);
+        start.setMonth(start.getMonth() - 1);
+        start.setHours(0, 0, 0, 0);
+        end.setDate(1);
+        end.setHours(0, 0, 0, 0);
+        end.setMilliseconds(-1); // last moment of previous month
+        break;
+      case "90":
+        start.setDate(end.getDate() - 90);
+        break;
+      case "365":
+        start.setDate(end.getDate() - 365);
+        break;
+    }
+    return { start, end };
+  }, [b2bPeriod]);
+  const b2bRangeLabel =
+    b2bPeriod === "all"
+      ? "All time"
+      : b2bPeriod === "week"
+        ? "This week"
+        : b2bPeriod === "this-month"
+          ? "This month"
+          : b2bPeriod === "last-month"
+            ? "Last month"
+            : b2bPeriod === "90"
+              ? "Last 3 months"
+              : "Last 12 months";
+  const b2bScopedOrders = useMemo(() => {
+    if (!b2bRange) return orders;
+    return orders.filter((o) => {
+      const d = new Date(o.createdAt);
+      return !isNaN(d.getTime()) && d >= b2bRange.start && d <= b2bRange.end;
+    });
+  }, [orders, b2bRange]);
+  const b2bCustomers = useMemo(
+    () => getAllCustomersAnalytics(orders, b2bRange).filter((customer) => customer.isB2B),
+    [orders, b2bRange],
+  );
 
   // Bike value metrics (scoped + all-time)
   const bikeValueRange = useMemo<BikeValueRange | undefined>(() => {
@@ -353,7 +412,13 @@ const AnalyticsPage = () => {
                 <Separator />
                 <section>
                   <h3 className="text-base font-semibold mb-3">Business Customers</h3>
-                  <B2BLeaderboard customers={b2bCustomers} orders={orders} />
+                  <B2BLeaderboard
+                    customers={b2bCustomers}
+                    orders={b2bScopedOrders}
+                    period={b2bPeriod}
+                    onPeriodChange={setB2bPeriod}
+                    rangeLabel={b2bRangeLabel}
+                  />
                 </section>
               </TabsContent>
 
