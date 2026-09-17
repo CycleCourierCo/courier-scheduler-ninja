@@ -508,6 +508,7 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
           hoursPossible: round1((queue?.availableMinutes ?? 0) / 60),
           availableJobsShare: Math.round(dayJobsShare * 10) / 10,
           hoursPossibleShare: round1(dayMinutesShare / 60),
+          queueItems: queue?.queueItems ?? [],
         };
       });
     const hoursPossibleShare = round1(shareMinutes / 60);
