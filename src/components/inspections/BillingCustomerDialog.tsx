@@ -161,6 +161,20 @@ const BillingCustomerDialog: React.FC<BillingCustomerDialogProps> = ({
           </p>
         )}
 
+        {partyList.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Bill someone on this job</p>
+            {partyList.map(renderParty)}
+            <p className="text-xs text-muted-foreground">
+              We'll reuse their QuickBooks account if they have one, or create it from these details.
+            </p>
+          </div>
+        )}
+
+        {partyList.length > 0 && (
+          <p className="text-sm font-medium pt-1">Or choose an existing QuickBooks customer</p>
+        )}
+
         <div className="flex gap-2">
           <Input
             placeholder="Search QuickBooks by name or email…"
