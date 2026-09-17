@@ -188,7 +188,7 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
     fetchAll<any>((f, t) =>
       supabase
         .from('bicycle_inspections')
-        .select(sel('id, created_at, inspected_at'))
+        .select(sel('id, created_at, inspected_at, order_id, bike_brand, bike_model, reference, bike_type'))
         .lte('created_at', toISO)
         .or(`inspected_at.is.null,inspected_at.gte.${fromISO}`)
         .order('created_at', { ascending: true })
@@ -199,7 +199,7 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
       supabase
         .from('inspection_issues')
         .select(
-          sel('id, status, parts_arrived_at, parts_in_stock_at, resolved_at, repair_id, labour_cost, labour:labour_times!inspection_issues_repair_id_fkey(labour_minutes)'),
+          sel('id, inspection_id, status, parts_arrived_at, parts_in_stock_at, resolved_at, repair_id, labour_cost, issue_description, labour:labour_times!inspection_issues_repair_id_fkey(labour_minutes,repair_name)'),
         )
         .in('status', ['approved', 'resolved', 'repaired'])
         .or(`resolved_at.is.null,resolved_at.gte.${fromISO}`)
