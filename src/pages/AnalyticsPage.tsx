@@ -412,7 +412,13 @@ const AnalyticsPage = () => {
                 <Separator />
                 <section>
                   <h3 className="text-base font-semibold mb-3">Business Customers</h3>
-                  <B2BLeaderboard customers={b2bCustomers} orders={orders} />
+                  <B2BLeaderboard
+                    customers={b2bCustomers}
+                    orders={b2bScopedOrders}
+                    period={b2bPeriod}
+                    onPeriodChange={setB2bPeriod}
+                    rangeLabel={b2bRangeLabel}
+                  />
                 </section>
               </TabsContent>
 
