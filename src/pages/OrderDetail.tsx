@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { format, isValid, parseISO } from "date-fns";
-import { getOrderById, updateOrderSchedule, updateAdminOrderStatus, resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail, createOrder } from "@/services/orderService";
+import { getOrderById, updateOrderSchedule, updateAdminOrderStatus, resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail, createOrder, markOrderCollected } from "@/services/orderService";
 import { createShipdayOrder, deleteShipdayJobs, cancelOrderWithShipday } from "@/services/shipdayService";
 import { sendOrderCancellationEmails } from "@/services/emailService";
 import { isReceiverAvailabilityBlockedByInspection } from "@/services/inspectionService";
@@ -1031,11 +1031,61 @@ const OrderDetail = () => {
     }
   };
 
-  const handleStatusChange = async (newStatus: OrderStatus) => {
-    if (!id || !newStatus || newStatus === order?.status) return;
-    
+  /**
+   * Flag the bike as physically collected and, if the buyer still hasn't given
+   * delivery dates, ask them for them (deferred while the bike is in the workshop).
+   */
+  const handleMarkCollected = async () => {
+    if (!id) return;
+    if (order?.orderCollected) {
+      toast.info("This bike is already marked as collected");
+      return;
+    }
+
     try {
       setStatusUpdating(true);
+
+      const updated = await markOrderCollected(id);
+      if (!updated) throw new Error("Couldn't mark the bike as collected");
+
+      setOrder(updated);
+      setSelectedStatus('collected');
+
+      const receiverDatesSet =
+        !!updated.receiverConfirmedAt ||
+        (Array.isArray(updated.deliveryDate) && updated.deliveryDate.length > 0);
+
+      if (receiverDatesSet) {
+        toast.success("Bike marked as collected");
+      } else {
+        const blocked = await isReceiverAvailabilityBlockedByInspection(id);
+        if (blocked) {
+          toast.success("Bike marked as collected. Delivery dates email deferred until inspection is complete.");
+        } else {
+          await resendReceiverAvailabilityEmail(id);
+          toast.success("Bike marked as collected. Delivery dates email sent to the receiver.");
+        }
+      }
+    } catch (error) {
+      console.error("Error marking order collected:", error);
+      toast.error(`Failed to mark as collected: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
+  const handleStatusChange = async (newStatus: OrderStatus) => {
+    if (!id || !newStatus || newStatus === order?.status) return;
+
+    // Picking "Collected" must actually mark the bike as collected, not just relabel it.
+    if (newStatus === 'collected') {
+      await handleMarkCollected();
+      return;
+    }
+
+    try {
+      setStatusUpdating(true);
+      
       
       // Handle cancellation with Shipday deletion and email notifications
       if (newStatus === 'cancelled') {
@@ -1285,6 +1335,8 @@ const OrderDetail = () => {
           onStatusChange={handleStatusChange}
           customerName={bookingCustomer?.name}
           customerEmail={bookingCustomer?.email}
+          orderCollected={order.orderCollected}
+          onMarkCollected={handleMarkCollected}
         />
 
         <Card>
