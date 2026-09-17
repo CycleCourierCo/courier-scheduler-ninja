@@ -248,7 +248,8 @@ const BicycleInspections = () => {
     inspectionId: string | null;
     suggestions: QuickBooksCustomerOption[];
     triedEmails: string[];
-  }>({ open: false, inspectionId: null, suggestions: [], triedEmails: [] });
+    parties?: BillingParties;
+  }>({ open: false, inspectionId: null, suggestions: [], triedEmails: [], parties: undefined });
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [issueCount, setIssueCount] = useState(1);
   const [issues, setIssues] = useState<IssueEntry[]>([{ ...EMPTY_ISSUE }]);
