@@ -20,14 +20,35 @@ export interface QuickBooksCustomerOption {
   email: string | null;
 }
 
+export interface BillingPartyDetails {
+  side: "sender" | "receiver";
+  name?: string;
+  company?: string;
+  email?: string;
+  phone?: string;
+  city?: string;
+  postcode?: string;
+}
+
+export interface BillingParties {
+  sender?: BillingPartyDetails;
+  receiver?: BillingPartyDetails;
+}
+
 interface BillingCustomerDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Customers suggested by the edge function when auto-match failed. */
   suggestions?: QuickBooksCustomerOption[];
   triedEmails?: string[];
+  /** Sender/receiver contact details from the job, if it has one. */
+  parties?: BillingParties;
   isSubmitting?: boolean;
-  onConfirm: (selection: { quickbooksCustomerId: string; billingEmailOverride?: string }) => void;
+  onConfirm: (selection: {
+    quickbooksCustomerId?: string;
+    billingEmailOverride?: string;
+    billFrom?: "sender" | "receiver";
+  }) => void;
 }
 
 const BillingCustomerDialog: React.FC<BillingCustomerDialogProps> = ({
@@ -35,6 +56,7 @@ const BillingCustomerDialog: React.FC<BillingCustomerDialogProps> = ({
   onOpenChange,
   suggestions = [],
   triedEmails = [],
+  parties,
   isSubmitting,
   onConfirm,
 }) => {
@@ -72,9 +94,59 @@ const BillingCustomerDialog: React.FC<BillingCustomerDialogProps> = ({
 
   const selected = results.find((c) => c.id === selectedId) || null;
 
+  const partyList = [parties?.sender, parties?.receiver].filter(Boolean) as BillingPartyDetails[];
+
+  const renderParty = (party: BillingPartyDetails) => {
+    const email = billingEmail.trim() || party.email || "";
+    const label = party.side === "sender" ? "Bill the sender" : "Bill the receiver";
+    return (
+      <div key={party.side} className="rounded-md border p-3 space-y-2">
+        <div className="min-w-0">
+          <p className="text-sm font-medium break-words">
+            {party.company || party.name || (party.side === "sender" ? "Sender" : "Receiver")}
+          </p>
+          {party.company && party.name && (
+            <p className="text-xs text-muted-foreground break-words">{party.name}</p>
+          )}
+          <p className="text-xs text-muted-foreground break-words">
+            {party.email || "No email on the job"}
+            {party.phone ? ` · ${party.phone}` : ""}
+          </p>
+          {(party.city || party.postcode) && (
+            <p className="text-xs text-muted-foreground break-words">
+              {[party.city, party.postcode].filter(Boolean).join(", ")}
+            </p>
+          )}
+        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          className="w-full"
+          disabled={!email || isSubmitting}
+          onClick={() =>
+            onConfirm({
+              billFrom: party.side,
+              billingEmailOverride: billingEmail.trim() || undefined,
+            })
+          }
+        >
+          {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+          {label}
+        </Button>
+        {!email && (
+          <p className="text-xs text-muted-foreground">
+            Add a billing email below to invoice them.
+          </p>
+        )}
+      </div>
+    );
+  };
+
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Choose billing customer</DialogTitle>
           <DialogDescription>
@@ -87,6 +159,20 @@ const BillingCustomerDialog: React.FC<BillingCustomerDialogProps> = ({
           <p className="text-xs text-muted-foreground break-words">
             Tried: {triedEmails.join(", ")}
           </p>
+        )}
+
+        {partyList.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Bill someone on this job</p>
+            {partyList.map(renderParty)}
+            <p className="text-xs text-muted-foreground">
+              We'll reuse their QuickBooks account if they have one, or create it from these details.
+            </p>
+          </div>
+        )}
+
+        {partyList.length > 0 && (
+          <p className="text-sm font-medium pt-1">Or choose an existing QuickBooks customer</p>
         )}
 
         <div className="flex gap-2">

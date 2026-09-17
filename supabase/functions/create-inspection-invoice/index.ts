@@ -118,12 +118,14 @@ const handler = async (req: Request): Promise<Response> => {
       billingEmailOverride,
       quickbooksCustomerId,
       customerDetails,
+      billFrom,
     } = (body || {}) as {
       inspectionId?: string;
       mode?: string;
       search?: string;
       billingEmailOverride?: string;
       quickbooksCustomerId?: string;
+      billFrom?: 'sender' | 'receiver';
       customerDetails?: {
         name?: string;
         email?: string;
@@ -257,6 +259,32 @@ const handler = async (req: Request): Promise<Response> => {
     const isInternalEmail = (email?: string | null) =>
       !!email && email.toLowerCase().includes('@cyclecourierco.com');
 
+    // Sender/receiver contact snapshot on the job — used when staff choose to
+    // bill one of the two parties directly.
+    const partyDetails = (side: 'sender' | 'receiver') => {
+      const raw = (order as any)?.[side];
+      if (!raw || typeof raw !== 'object') return null;
+      const addr = (raw.address || {}) as Record<string, any>;
+      const str = (v: any) => (v === null || v === undefined ? '' : String(v).trim());
+      const details = {
+        side,
+        name: str(raw.name),
+        company: str(raw.company || raw.company_name),
+        email: str(raw.email),
+        phone: str(raw.phone),
+        addressLine1: str(addr.street),
+        addressLine2: '',
+        city: str(addr.city),
+        postcode: str(addr.zipCode || addr.postcode),
+      };
+      if (!details.name && !details.email) return null;
+      return details;
+    };
+
+    const senderParty = partyDetails('sender');
+    const receiverParty = partyDetails('receiver');
+    const chosenParty = billFrom === 'sender' ? senderParty : billFrom === 'receiver' ? receiverParty : null;
+
     // Candidate billing identities, most authoritative first. Internal
     // addresses are skipped so a staff-booked order never invoices ourselves.
     const emailCandidates: string[] = [];
@@ -268,17 +296,24 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     if (billingEmailOverride) pushEmail(billingEmailOverride);
-    pushEmail(customerProfile.accounts_email);
-    pushEmail(customerProfile.email);
-    pushEmail((order.sender as any)?.email);
-    pushEmail((order.receiver as any)?.email);
+    if (chosenParty) pushEmail(chosenParty.email);
+    if (!chosenParty) {
+      pushEmail(customerProfile.accounts_email);
+      pushEmail(customerProfile.email);
+      pushEmail((order.sender as any)?.email);
+      pushEmail((order.receiver as any)?.email);
+    }
 
-    const nameCandidates = [
-      customerProfile.company_name,
-      customerProfile.name,
-      (order.sender as any)?.name,
-      (order.receiver as any)?.name,
-    ]
+    const nameCandidates = (
+      chosenParty
+        ? [chosenParty.company, chosenParty.name]
+        : [
+            customerProfile.company_name,
+            customerProfile.name,
+            (order.sender as any)?.name,
+            (order.receiver as any)?.name,
+          ]
+    )
       .map(n => (n ? String(n).trim() : ''))
       .filter(Boolean);
 
@@ -373,35 +408,43 @@ const handler = async (req: Request): Promise<Response> => {
       }
     }
 
-    // 2b) Workshop-only walk-in: create the QuickBooks customer from the
-    // details staff confirmed, so a first-time customer can be invoiced.
-    if (!qbCustomerId && isWorkshopOnly) {
-      const displayName =
-        (customerDetails?.company || customerDetails?.name || customerProfile.company_name || customerProfile.name || '')
-          .toString()
-          .trim();
-      const email = (customerDetails?.email || customerProfile.email || '').toString().trim();
-      if (displayName && email) {
-        const nameParts = displayName.split(/\s+/);
+    // Create a QuickBooks customer from confirmed contact details. Shared by
+    // walk-in inspections and the "bill the sender/receiver" route.
+    const createQuickBooksCustomer = async (details: {
+      name?: string;
+      company?: string;
+      email?: string;
+      phone?: string;
+      addressLine1?: string;
+      addressLine2?: string;
+      city?: string;
+      postcode?: string;
+    }): Promise<{ id: string; email: string } | null> => {
+      const baseName = (details.company || details.name || '').toString().trim();
+      const email = (details.email || '').toString().trim();
+      if (!baseName || !email) return null;
+
+      const attempt = async (displayName: string) => {
+        const nameParts = (details.name || displayName).trim().split(/\s+/);
         const payload: Record<string, unknown> = {
           DisplayName: displayName,
           GivenName: nameParts[0],
           ...(nameParts.length > 1 ? { FamilyName: nameParts.slice(1).join(' ') } : {}),
           PrimaryEmailAddr: { Address: email },
-          ...(customerDetails?.phone ? { PrimaryPhone: { FreeFormNumber: customerDetails.phone } } : {}),
-          ...(customerDetails?.addressLine1
+          ...(details.phone ? { PrimaryPhone: { FreeFormNumber: details.phone } } : {}),
+          ...(details.addressLine1
             ? {
                 BillAddr: {
-                  Line1: customerDetails.addressLine1,
-                  ...(customerDetails.addressLine2 ? { Line2: customerDetails.addressLine2 } : {}),
-                  ...(customerDetails.city ? { City: customerDetails.city } : {}),
-                  ...(customerDetails.postcode ? { PostalCode: customerDetails.postcode } : {}),
+                  Line1: details.addressLine1,
+                  ...(details.addressLine2 ? { Line2: details.addressLine2 } : {}),
+                  ...(details.city ? { City: details.city } : {}),
+                  ...(details.postcode ? { PostalCode: details.postcode } : {}),
                   Country: 'United Kingdom',
                 },
               }
             : {}),
         };
-        const createRes = await fetch(
+        const res = await fetch(
           `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/customer`,
           {
             method: 'POST',
@@ -413,16 +456,49 @@ const handler = async (req: Request): Promise<Response> => {
             body: JSON.stringify(payload),
           }
         );
-        if (createRes.ok) {
-          const created = (await createRes.json())?.Customer;
-          if (created?.Id) {
-            qbCustomerId = created.Id;
-            billingEmail = billingEmail || email;
-            console.log('Created QuickBooks customer for workshop inspection');
-          }
-        } else {
-          console.error('Failed to create QuickBooks customer:', (await createRes.text()).slice(0, 200));
+        if (res.ok) {
+          const created = (await res.json())?.Customer;
+          return created?.Id ? { id: created.Id as string, email } : null;
         }
+        console.error('Failed to create QuickBooks customer:', (await res.text()).slice(0, 200));
+        return null;
+      };
+
+      // Name collisions are resolved by suffixing the email address.
+      return (await attempt(baseName)) || (await attempt(`${baseName} (${email})`));
+    };
+
+    // 2b) Workshop-only walk-in: create the QuickBooks customer from the
+    // details staff confirmed, so a first-time customer can be invoiced.
+    if (!qbCustomerId && isWorkshopOnly) {
+      const created = await createQuickBooksCustomer({
+        name: customerDetails?.name || customerProfile.name,
+        company: customerDetails?.company || customerProfile.company_name,
+        email: customerDetails?.email || customerProfile.email,
+        phone: customerDetails?.phone,
+        addressLine1: customerDetails?.addressLine1,
+        addressLine2: customerDetails?.addressLine2,
+        city: customerDetails?.city,
+        postcode: customerDetails?.postcode,
+      });
+      if (created) {
+        qbCustomerId = created.id;
+        billingEmail = billingEmail || created.email;
+        console.log('Created QuickBooks customer for workshop inspection');
+      }
+    }
+
+    // 2c) Staff chose to bill the sender or receiver and they aren't in
+    // QuickBooks yet — create them from the job's contact snapshot.
+    if (!qbCustomerId && chosenParty) {
+      const created = await createQuickBooksCustomer({
+        ...chosenParty,
+        email: billingEmailOverride?.trim() || chosenParty.email,
+      });
+      if (created) {
+        qbCustomerId = created.id;
+        billingEmail = billingEmail || created.email;
+        console.log(`Created QuickBooks customer for ${chosenParty.side}`);
       }
     }
 
@@ -439,10 +515,16 @@ const handler = async (req: Request): Promise<Response> => {
       return new Response(
         JSON.stringify({
           error: 'customer_not_matched',
-          message: 'No QuickBooks customer matched this order. Choose the billing customer to continue.',
+          message: chosenParty
+            ? `Could not bill the ${chosenParty.side}. Check their name and email, or choose an existing QuickBooks customer.`
+            : 'No QuickBooks customer matched this order. Choose the billing customer to continue.',
           triedEmails: emailCandidates,
           triedNames: nameCandidates,
           suggestions: suggestions.map(mapCustomer),
+          parties: {
+            ...(senderParty ? { sender: senderParty } : {}),
+            ...(receiverParty ? { receiver: receiverParty } : {}),
+          },
         }),
         { status: 409, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );

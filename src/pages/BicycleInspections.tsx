@@ -95,7 +95,7 @@ import { RepairPicker, type RepairPickerSelection } from "@/components/inspectio
 import { BikeCategoryPicker } from "@/components/inspections/BikeCategoryPicker";
 import WorkshopScheduleTab from "@/components/inspections/WorkshopScheduleTab";
 import { sendOrderToInspectaBike } from "@/services/inspectabikeService";
-import BillingCustomerDialog, { type QuickBooksCustomerOption } from "@/components/inspections/BillingCustomerDialog";
+import BillingCustomerDialog, { type QuickBooksCustomerOption, type BillingParties } from "@/components/inspections/BillingCustomerDialog";
 import InspectionFilters, {
   EMPTY_INSPECTION_FILTERS,
   type InspectionFilterState,
@@ -248,7 +248,8 @@ const BicycleInspections = () => {
     inspectionId: string | null;
     suggestions: QuickBooksCustomerOption[];
     triedEmails: string[];
-  }>({ open: false, inspectionId: null, suggestions: [], triedEmails: [] });
+    parties?: BillingParties;
+  }>({ open: false, inspectionId: null, suggestions: [], triedEmails: [], parties: undefined });
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const [issueCount, setIssueCount] = useState(1);
   const [issues, setIssues] = useState<IssueEntry[]>([{ ...EMPTY_ISSUE }]);
@@ -995,6 +996,7 @@ const BicycleInspections = () => {
       inspectionId: string;
       quickbooksCustomerId?: string;
       billingEmailOverride?: string;
+      billFrom?: "sender" | "receiver";
       customerDetails?: {
         name?: string;
         email?: string;
@@ -1029,7 +1031,7 @@ const BicycleInspections = () => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
-      setBillingDialogState({ open: false, inspectionId: null, suggestions: [], triedEmails: [] });
+      setBillingDialogState({ open: false, inspectionId: null, suggestions: [], triedEmails: [], parties: undefined });
       toast.success(`Invoice ${data.invoiceNumber} created successfully`);
     },
     onError: (error: any, vars) => {
@@ -1039,6 +1041,7 @@ const BicycleInspections = () => {
           inspectionId: vars.inspectionId,
           suggestions: error.customerNotMatched.suggestions || [],
           triedEmails: error.customerNotMatched.triedEmails || [],
+          parties: error.customerNotMatched.parties || undefined,
         });
         toast.info(error.message);
         return;
@@ -3808,13 +3811,15 @@ const BicycleInspections = () => {
           }
           suggestions={billingDialogState.suggestions}
           triedEmails={billingDialogState.triedEmails}
+          parties={billingDialogState.parties}
           isSubmitting={createInvoiceMutation.isPending}
-          onConfirm={({ quickbooksCustomerId, billingEmailOverride }) => {
+          onConfirm={({ quickbooksCustomerId, billingEmailOverride, billFrom }) => {
             if (!billingDialogState.inspectionId) return;
             createInvoiceMutation.mutate({
               inspectionId: billingDialogState.inspectionId,
               quickbooksCustomerId,
               billingEmailOverride,
+              billFrom,
             });
           }}
         />
