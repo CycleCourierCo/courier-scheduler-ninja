@@ -94,6 +94,23 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
             <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-courier-600"></div>
           )}
 
+          {!orderCollected && onMarkCollected && status !== 'cancelled' && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                if (window.confirm("Mark this bike as collected? The buyer will be asked for their delivery dates if they haven't given them yet.")) {
+                  onMarkCollected();
+                }
+              }}
+              disabled={statusUpdating}
+              className="flex items-center gap-2"
+            >
+              <PackageCheck className="h-4 w-4" />
+              Mark as collected
+            </Button>
+          )}
+
           <Button
             variant="destructive"
             size="sm"
