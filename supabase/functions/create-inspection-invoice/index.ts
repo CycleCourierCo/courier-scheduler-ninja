@@ -259,6 +259,32 @@ const handler = async (req: Request): Promise<Response> => {
     const isInternalEmail = (email?: string | null) =>
       !!email && email.toLowerCase().includes('@cyclecourierco.com');
 
+    // Sender/receiver contact snapshot on the job — used when staff choose to
+    // bill one of the two parties directly.
+    const partyDetails = (side: 'sender' | 'receiver') => {
+      const raw = (order as any)?.[side];
+      if (!raw || typeof raw !== 'object') return null;
+      const addr = (raw.address || {}) as Record<string, any>;
+      const str = (v: any) => (v === null || v === undefined ? '' : String(v).trim());
+      const details = {
+        side,
+        name: str(raw.name),
+        company: str(raw.company || raw.company_name),
+        email: str(raw.email),
+        phone: str(raw.phone),
+        addressLine1: str(addr.street),
+        addressLine2: '',
+        city: str(addr.city),
+        postcode: str(addr.zipCode || addr.postcode),
+      };
+      if (!details.name && !details.email) return null;
+      return details;
+    };
+
+    const senderParty = partyDetails('sender');
+    const receiverParty = partyDetails('receiver');
+    const chosenParty = billFrom === 'sender' ? senderParty : billFrom === 'receiver' ? receiverParty : null;
+
     // Candidate billing identities, most authoritative first. Internal
     // addresses are skipped so a staff-booked order never invoices ourselves.
     const emailCandidates: string[] = [];
@@ -270,17 +296,24 @@ const handler = async (req: Request): Promise<Response> => {
     };
 
     if (billingEmailOverride) pushEmail(billingEmailOverride);
-    pushEmail(customerProfile.accounts_email);
-    pushEmail(customerProfile.email);
-    pushEmail((order.sender as any)?.email);
-    pushEmail((order.receiver as any)?.email);
+    if (chosenParty) pushEmail(chosenParty.email);
+    if (!chosenParty) {
+      pushEmail(customerProfile.accounts_email);
+      pushEmail(customerProfile.email);
+      pushEmail((order.sender as any)?.email);
+      pushEmail((order.receiver as any)?.email);
+    }
 
-    const nameCandidates = [
-      customerProfile.company_name,
-      customerProfile.name,
-      (order.sender as any)?.name,
-      (order.receiver as any)?.name,
-    ]
+    const nameCandidates = (
+      chosenParty
+        ? [chosenParty.company, chosenParty.name]
+        : [
+            customerProfile.company_name,
+            customerProfile.name,
+            (order.sender as any)?.name,
+            (order.receiver as any)?.name,
+          ]
+    )
       .map(n => (n ? String(n).trim() : ''))
       .filter(Boolean);
 
