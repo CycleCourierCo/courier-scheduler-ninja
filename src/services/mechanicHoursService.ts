@@ -10,6 +10,19 @@ export interface MechanicJobRow {
   source: StandardMinutesSource;
 }
 
+/** One job that was sitting in the workshop queue on a given day. */
+export interface QueueItem {
+  id: string;
+  kind: 'inspect' | 'repair';
+  label: string;
+  /** Day it became available (YYYY-MM-DD). */
+  since: string;
+  /** Day it was closed off (inspected / resolved), if it was. */
+  closedOn: string | null;
+  minutes: number;
+  source: StandardMinutesSource;
+}
+
 export interface MechanicHoursDaily {
   date: string;
   label: string;
