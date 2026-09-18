@@ -47,6 +47,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}))
     const force = body?.force === true
+    const isUpdate = body?.updated === true
     const orderId = body?.orderId
     if (!orderId || typeof orderId !== 'string') {
       return json({ error: 'orderId is required' }, 400)
@@ -71,7 +72,7 @@ Deno.serve(async (req) => {
       return json({ success: true, skipped: true, notifiedAt: order.ferry_partner_notified_at })
     }
 
-    const email = buildFerryPartnerEmail({ ...order, orderId: order.id } as any)
+    const email = buildFerryPartnerEmail({ ...order, orderId: order.id, isUpdate } as any)
 
     const { error: emailError } = await admin.functions.invoke('send-email', {
       body: {
