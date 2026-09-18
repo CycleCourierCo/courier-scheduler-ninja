@@ -101,6 +101,10 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
     ],
   },
 ];
+// Groups menu items without a bare Fragment, so dev tooling attributes don't
+// trigger React's invalid-Fragment-prop warning on every sidebar render.
+const MenuGroup = ({ children }: { children: React.ReactNode }) => <>{children}</>;
+
 const Layout: React.FC<LayoutProps> = ({
   children
 }) => {
@@ -320,7 +324,7 @@ const Layout: React.FC<LayoutProps> = ({
                   ))}
 
                   {isAdmin && <>
-                      {ADMIN_MENU_SECTIONS.map(section => <React.Fragment key={section.label}>
+                      {ADMIN_MENU_SECTIONS.map(section => <MenuGroup key={section.label}>
                         <DropdownMenuSeparator />
                         <DropdownMenuLabel className="text-xs uppercase tracking-wide text-muted-foreground">
                           {section.label}
@@ -331,7 +335,7 @@ const Layout: React.FC<LayoutProps> = ({
                             <span>{item.label}</span>
                           </Link>
                         </DropdownMenuItem>)}
-                      </React.Fragment>)}
+                      </MenuGroup>)}
                     </>}
                   
                   {isB2B && (
