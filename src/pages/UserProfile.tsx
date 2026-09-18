@@ -383,6 +383,10 @@ const UserProfile = () => {
             </div>
           </form>
         </Form>
+
+        <div className="mt-6">
+          <ConnectedAppsCard />
+        </div>
       </div>
     </Layout>
   );
