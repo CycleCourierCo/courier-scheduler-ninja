@@ -2833,9 +2833,8 @@ const BicycleInspections = () => {
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <div className="space-y-2">
-                      <Button
+                      <AlertDialogAction
                         className="w-full justify-start"
-                        variant={(order as any).shopify_order_id ? "outline" : "default"}
                         onClick={() =>
                           releaseMutation.mutate({
                             inspectionId: inspection.id,
@@ -2844,10 +2843,9 @@ const BicycleInspections = () => {
                         }
                       >
                         Ask the seller (account)
-                      </Button>
-                      <Button
+                      </AlertDialogAction>
+                      <AlertDialogAction
                         className="w-full justify-start"
-                        variant={(order as any).shopify_order_id ? "default" : "outline"}
                         onClick={() =>
                           releaseMutation.mutate({
                             inspectionId: inspection.id,
@@ -2856,7 +2854,7 @@ const BicycleInspections = () => {
                         }
                       >
                         Ask the buyer (receiver)
-                      </Button>
+                      </AlertDialogAction>
                     </div>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
