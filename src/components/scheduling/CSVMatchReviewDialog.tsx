@@ -7,6 +7,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Check, X, AlertTriangle, MapPin, Package, Truck, CalendarClock, CircleAlert } from "lucide-react";
 import { format } from "date-fns";
 import { MatchResult, MatchCandidate, getDeliveryCollectionStatus } from "@/utils/csvRouteParser";
+import { isFerryLeg } from "@/utils/niDelivery";
+import { CITY_AIR_EXPRESS } from "@/constants/depot";
 
 export interface CSVSelectedJob {
   orderId: string;
@@ -380,7 +382,7 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
                               )}
                             </div>
                             <div className="text-xs text-muted-foreground truncate">
-                              {candidate.order.tracking_number} • {contact?.name}
+                              {candidate.order.tracking_number} • {contactLabel}
                             </div>
                             <div className="flex flex-wrap gap-1">
                               {renderCollectionStatus(candidate, stop.sequence)}
