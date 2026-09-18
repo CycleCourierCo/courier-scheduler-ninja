@@ -10,6 +10,7 @@ import { geocodeAddress, buildAddressString } from "@/utils/geocoding";
 import { ContactSelector } from "@/components/create-order/ContactSelector";
 import { useContacts } from "@/hooks/useContacts";
 import { Contact } from "@/services/contactService";
+import AddressSearchInput, { SelectedAddress } from "@/components/address/AddressSearchInput";
 
 
 interface AdminContactEditorProps {
