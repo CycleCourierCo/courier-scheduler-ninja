@@ -76,35 +76,14 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     if (req.method === 'POST') {
-      // Get API key from header
-      const apiKey = req.headers.get('X-API-Key')
-      if (!apiKey) {
-        return new Response(
-          JSON.stringify({ error: 'API key is required', code: 'MISSING_API_KEY' }),
-          { 
-            status: 401, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        )
+      // API key or partner OAuth access token
+      const caller = await resolveApiCaller(req, supabase)
+      if (!caller.userId) {
+        console.error('API authentication failed', { code: caller.error })
+        return apiAuthErrorResponse(caller, corsHeaders)
       }
 
-      // Verify API key and get user ID
-      console.log('API key received, verifying...')
-      const { data: userId, error: keyError } = await supabase.rpc('verify_api_key', { api_key: apiKey })
-      console.log('API key verification:', userId ? 'success' : 'failed')
-      
-      if (keyError || !userId) {
-        console.error('API key verification failed')
-        return new Response(
-          JSON.stringify({ error: 'Invalid API key', code: 'INVALID_API_KEY' }),
-          { 
-            status: 401, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        )
-      }
-
-      ctx.userId = userId as string
+      ctx.userId = caller.userId
 
       const body = await req.json()
 
