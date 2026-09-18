@@ -301,8 +301,6 @@ const BicycleInspections = () => {
     queryKey: ["bicycle-inspections", canManageInspections, user?.id],
     queryFn: async () => {
       if (canManageInspections) {
-        // Reconcile any stuck inspections before fetching
-        await reconcileInspectionStatuses();
         return getPendingInspections();
       } else if (user?.id) {
         return getMyInspections(user.id);
