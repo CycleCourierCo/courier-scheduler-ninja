@@ -618,23 +618,13 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
 
 
     if (req.method === 'GET') {
-      // Require API key auth for GET, same as POST
-      const apiKey = req.headers.get('X-API-Key')
-      if (!apiKey) {
-        return new Response(
-          JSON.stringify({ error: 'API key is required', code: 'MISSING_API_KEY' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-      const { data: userId, error: keyError } = await supabase.rpc('verify_api_key', { api_key: apiKey })
-      if (keyError || !userId) {
-        return new Response(
-          JSON.stringify({ error: 'Invalid API key', code: 'INVALID_API_KEY' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+      // Require API key or partner OAuth token for GET, same as POST
+      const caller = await resolveApiCaller(req, supabase)
+      if (!caller.userId) {
+        return apiAuthErrorResponse(caller, corsHeaders)
       }
 
-      ctx.userId = userId as string
+      ctx.userId = caller.userId
 
 
       const url = new URL(req.url)
