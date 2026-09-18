@@ -1,6 +1,10 @@
 import React from "react";
 import { toast } from "sonner";
-import { Ship, Loader2, Mail, Upload, FileCheck, ExternalLink, Copy, Check } from "lucide-react";
+import { Ship, Loader2, Mail, Upload, FileCheck, ExternalLink, Copy, Check, Pencil } from "lucide-react";
+import CollectionDayDialog, {
+  formatCollectionDay,
+  toDayValue,
+} from "@/components/boxmybike/CollectionDayDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
