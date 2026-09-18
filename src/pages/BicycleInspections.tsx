@@ -2797,17 +2797,73 @@ const BicycleInspections = () => {
           {/* Release to Customer Button (admin only, awaiting_pricing once all priced) */}
           {isAdmin && isAwaitingPricing && allPriced && (
             <div className="pt-2">
-              <Button
-                onClick={() => releaseMutation.mutate(inspection.id)}
-                disabled={releaseMutation.isPending}
-              >
-                {releaseMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                ) : (
-                  <Send className="h-4 w-4 mr-1" />
-                )}
-                Release to Customer
-              </Button>
+              {isWorkshopOnly ? (
+                <Button
+                  onClick={() =>
+                    releaseMutation.mutate({ inspectionId: inspection.id, recipient: "walkin" })
+                  }
+                  disabled={releaseMutation.isPending}
+                >
+                  {releaseMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  ) : (
+                    <Send className="h-4 w-4 mr-1" />
+                  )}
+                  Release to Customer
+                </Button>
+              ) : (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button disabled={releaseMutation.isPending}>
+                      {releaseMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                      ) : (
+                        <Send className="h-4 w-4 mr-1" />
+                      )}
+                      Release to Customer
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Who should approve these repairs?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {(order as any).shopify_order_id
+                          ? "This came from Shopify, so the buyer usually approves and pays."
+                          : "The approval request email goes to whoever you pick here."}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="space-y-2">
+                      <Button
+                        className="w-full justify-start"
+                        variant={(order as any).shopify_order_id ? "outline" : "default"}
+                        onClick={() =>
+                          releaseMutation.mutate({
+                            inspectionId: inspection.id,
+                            recipient: "customer",
+                          })
+                        }
+                      >
+                        Ask the seller (account)
+                      </Button>
+                      <Button
+                        className="w-full justify-start"
+                        variant={(order as any).shopify_order_id ? "default" : "outline"}
+                        onClick={() =>
+                          releaseMutation.mutate({
+                            inspectionId: inspection.id,
+                            recipient: "receiver",
+                          })
+                        }
+                      >
+                        Ask the buyer (receiver)
+                      </Button>
+                    </div>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
           )}
 
