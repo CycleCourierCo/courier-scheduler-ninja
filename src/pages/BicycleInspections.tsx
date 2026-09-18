@@ -3946,6 +3946,23 @@ const BicycleInspections = () => {
             });
           }}
         />
+        <AlertDialog
+          open={!!manualApprovalLink}
+          onOpenChange={(open) => !open && setManualApprovalLink(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Approval link</AlertDialogTitle>
+              <AlertDialogDescription>
+                Your browser blocked copying. Select the link below and copy it manually.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <Input readOnly value={manualApprovalLink || ""} onFocus={(e) => e.currentTarget.select()} />
+            <AlertDialogFooter>
+              <AlertDialogCancel>Close</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );
