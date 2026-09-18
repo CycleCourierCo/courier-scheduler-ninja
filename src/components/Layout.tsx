@@ -320,7 +320,7 @@ const Layout: React.FC<LayoutProps> = ({
                   ))}
 
                   {isAdmin && <>
-                      {ADMIN_MENU_SECTIONS.map(section => <React.Fragment key={section.label}>
+                      {ADMIN_MENU_SECTIONS.map(section => <MenuGroup key={section.label}>
                         <DropdownMenuSeparator />
                         <DropdownMenuLabel className="text-xs uppercase tracking-wide text-muted-foreground">
                           {section.label}
@@ -331,7 +331,7 @@ const Layout: React.FC<LayoutProps> = ({
                             <span>{item.label}</span>
                           </Link>
                         </DropdownMenuItem>)}
-                      </React.Fragment>)}
+                      </MenuGroup>)}
                     </>}
                   
                   {isB2B && (
