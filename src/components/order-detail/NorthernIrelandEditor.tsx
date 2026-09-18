@@ -409,6 +409,13 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
                 <p className="text-xs text-muted-foreground">
                   Monday to Friday only. Saving emails {CITY_AIR_EXPRESS.email} with the day.
                 </p>
+                <CollectionDayDialog
+                  open={dayDialogOpen}
+                  onOpenChange={setDayDialogOpen}
+                  initial={pickupDay}
+                  saving={savingDay}
+                  onConfirm={saveCollectionDay}
+                />
               </div>
             )}
             <div className="rounded border bg-muted/30 p-3 space-y-3">
