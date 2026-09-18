@@ -86,6 +86,16 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
         .single();
       
       if (fetchError) throw fetchError;
+
+      const orderRow = currentOrder as any;
+      const previousAddress = orderRow?.[fieldName]?.address ?? {};
+      const addressChanged =
+        (previousAddress.street || "") !== editedContact.street ||
+        (previousAddress.city || "") !== editedContact.city ||
+        (previousAddress.state || "") !== editedContact.state ||
+        (previousAddress.zipCode || "") !== editedContact.zipCode ||
+        (previousAddress.country || "") !== editedContact.country;
+      
       
       // Use the coordinates from the searched address when available, otherwise
       // fall back to geocoding the typed address.
