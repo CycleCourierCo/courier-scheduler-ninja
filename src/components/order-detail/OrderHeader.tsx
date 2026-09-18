@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronRight, X, User } from "lucide-react";
+import { ChevronRight, X, User, PackageCheck } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import { OrderStatus } from "@/types/order";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,8 @@ interface OrderHeaderProps {
   onStatusChange: (status: OrderStatus) => void;
   customerName?: string;
   customerEmail?: string;
+  orderCollected?: boolean;
+  onMarkCollected?: () => void;
 }
 
 const OrderHeader: React.FC<OrderHeaderProps> = ({
@@ -27,6 +29,8 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
   onStatusChange,
   customerName,
   customerEmail,
+  orderCollected,
+  onMarkCollected,
 }) => {
   const statusOptions: { value: OrderStatus; label: string }[] = [
     { value: "created", label: "Created" },
@@ -88,6 +92,23 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
 
           {statusUpdating && (
             <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-courier-600"></div>
+          )}
+
+          {!orderCollected && onMarkCollected && status !== 'cancelled' && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                if (window.confirm("Mark this bike as collected? The buyer will be asked for their delivery dates if they haven't given them yet.")) {
+                  onMarkCollected();
+                }
+              }}
+              disabled={statusUpdating}
+              className="flex items-center gap-2"
+            >
+              <PackageCheck className="h-4 w-4" />
+              Mark as collected
+            </Button>
           )}
 
           <Button

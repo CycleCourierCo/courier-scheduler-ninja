@@ -287,6 +287,31 @@ export const updateOrderStatus = async (id: string, status: OrderStatus): Promis
 
 export const updateAdminOrderStatus = updateOrderStatus;
 
+/**
+ * Flag a bike as physically collected: sets the collected marker as well as the
+ * status, so route/timeslot views (which read order_collected) show it as
+ * collected and the chasers stop asking the sender for collection dates.
+ */
+export const markOrderCollected = async (id: string): Promise<Order | null> => {
+  const { data, error } = await supabase
+    .from("orders")
+    .update({
+      order_collected: true,
+      status: "collected",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error marking order collected:", error);
+    return null;
+  }
+
+  return mapDbOrderToOrderType(data);
+};
+
 export const updateOrderBikes = async (
   id: string,
   bikes: Array<{ brand: string; model: string; type: string; value?: string }>
