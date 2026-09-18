@@ -147,6 +147,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
   };
 
   const handleCancel = () => {
+    setSearchedAddress(null);
     setEditedContact({
       name: contact.name,
       email: contact.email,
