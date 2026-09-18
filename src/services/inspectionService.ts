@@ -592,7 +592,9 @@ export const getPendingInspections = async () => {
         collection_confirmation_sent_at,
         pickup_date,
         created_at,
-        tracking_events
+        tracking_events,
+        shopify_order_id,
+        created_via_api
       `)
       .eq('needs_inspection', true)
       .neq('status', 'cancelled')
