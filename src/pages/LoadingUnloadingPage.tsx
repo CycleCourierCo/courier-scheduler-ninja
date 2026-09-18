@@ -631,15 +631,12 @@ const LoadingUnloadingPage = () => {
             
             // If collection is within 500m of depot, INCLUDE in loading list (driver won't have the bike yet)
             if (distanceToDepot <= DEPOT_PROXIMITY_THRESHOLD_METERS) {
-              console.log(`Order ${order.trackingNumber}: Same-day but collection within ${Math.round(distanceToDepot)}m of depot - INCLUDING in loading list`);
               return deliveryDate === targetDate;
             } else {
-              console.log(`Order ${order.trackingNumber}: Same-day and collection ${Math.round(distanceToDepot)}m from depot - EXCLUDING from loading list`);
               return false;
             }
           } else {
             // No coordinates available, default to original behavior (exclude same-day)
-            console.log(`Order ${order.trackingNumber}: Same-day but no collection coordinates - EXCLUDING from loading list`);
             return false;
           }
         }

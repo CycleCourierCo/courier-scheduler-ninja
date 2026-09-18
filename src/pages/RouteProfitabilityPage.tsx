@@ -96,17 +96,15 @@ const RouteProfitabilityPage = () => {
     queryFn: () => getTimeslipsForWeek(weekStartString, weekEndString),
   });
 
-  const { data: weekAggregated } = useQuery({
-    queryKey: ['profitability-week-summary', weekTimeslips, revenuePerStop, costPerMile, useBikeTypePricing],
-    queryFn: () => aggregateProfitability(weekTimeslips, revenuePerStop, costPerMile, useBikeTypePricing),
-    enabled: weekTimeslips.length > 0,
-  });
+  const weekAggregated = useMemo(
+    () => (weekTimeslips.length > 0 ? aggregateProfitability(weekTimeslips, revenuePerStop, costPerMile, useBikeTypePricing) : undefined),
+    [weekTimeslips, revenuePerStop, costPerMile, useBikeTypePricing]
+  );
 
-  const { data: dailyChartData = [] } = useQuery({
-    queryKey: ['profitability-daily-chart', weekTimeslips, revenuePerStop, costPerMile, monday, sunday, useBikeTypePricing],
-    queryFn: () => calculateDailyProfitability(weekTimeslips, monday, sunday, revenuePerStop, costPerMile, useBikeTypePricing),
-    enabled: weekTimeslips.length > 0,
-  });
+  const dailyChartData = useMemo(
+    () => (weekTimeslips.length > 0 ? calculateDailyProfitability(weekTimeslips, monday, sunday, revenuePerStop, costPerMile, useBikeTypePricing) : []),
+    [weekTimeslips, monday, sunday, revenuePerStop, costPerMile, useBikeTypePricing]
+  );
 
   const { data: timeslips = [], isLoading } = useQuery({
     queryKey: ['profitability-timeslips', dateString],
@@ -122,11 +120,10 @@ const RouteProfitabilityPage = () => {
     queryFn: () => getTimeslipsForMonth(selectedMonthYear, selectedMonthNum),
   });
 
-  const { data: weeklyChartData = [] } = useQuery({
-    queryKey: ['profitability-weekly-chart', monthTimeslips, revenuePerStop, costPerMile, selectedMonthYear, selectedMonthNum, useBikeTypePricing],
-    queryFn: () => calculateWeeklyProfitabilityForMonth(monthTimeslips, selectedMonthYear, selectedMonthNum, revenuePerStop, costPerMile, useBikeTypePricing),
-    enabled: monthTimeslips.length > 0,
-  });
+  const weeklyChartData = useMemo(
+    () => (monthTimeslips.length > 0 ? calculateWeeklyProfitabilityForMonth(monthTimeslips, selectedMonthYear, selectedMonthNum, revenuePerStop, costPerMile, useBikeTypePricing) : []),
+    [monthTimeslips, selectedMonthYear, selectedMonthNum, revenuePerStop, costPerMile, useBikeTypePricing]
+  );
 
   const monthlyTotals = weeklyChartData.reduce(
     (acc, week) => ({
@@ -143,11 +140,10 @@ const RouteProfitabilityPage = () => {
     queryFn: () => getTimeslipsForYear(selectedYear),
   });
 
-  const { data: monthlyChartData = [] } = useQuery({
-    queryKey: ['profitability-monthly-chart', yearTimeslips, revenuePerStop, costPerMile, selectedYear, useBikeTypePricing],
-    queryFn: () => calculateMonthlyProfitabilityForYear(yearTimeslips, selectedYear, revenuePerStop, costPerMile, useBikeTypePricing),
-    enabled: yearTimeslips.length > 0,
-  });
+  const monthlyChartData = useMemo(
+    () => (yearTimeslips.length > 0 ? calculateMonthlyProfitabilityForYear(yearTimeslips, selectedYear, revenuePerStop, costPerMile, useBikeTypePricing) : []),
+    [yearTimeslips, selectedYear, revenuePerStop, costPerMile, useBikeTypePricing]
+  );
 
   const yearlyTotals = monthlyChartData.reduce(
     (acc, month) => ({
@@ -178,11 +174,10 @@ const RouteProfitabilityPage = () => {
     }
   };
 
-  const { data: aggregated } = useQuery({
-    queryKey: ['profitability-summary', timeslips, revenuePerStop, costPerMile, useBikeTypePricing],
-    queryFn: () => aggregateProfitability(timeslips, revenuePerStop, costPerMile, useBikeTypePricing),
-    enabled: timeslips.length > 0,
-  });
+  const aggregated = useMemo(
+    () => (timeslips.length > 0 ? aggregateProfitability(timeslips, revenuePerStop, costPerMile, useBikeTypePricing) : undefined),
+    [timeslips, revenuePerStop, costPerMile, useBikeTypePricing]
+  );
 
   return (
     <Layout>
