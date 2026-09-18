@@ -252,16 +252,32 @@ const JobScheduling = () => {
           <>
             {/* Filter row */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 mb-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="cluster-mode"
-                  checked={showClusters}
-                  onCheckedChange={setShowClusters}
-                />
-                <Label htmlFor="cluster-mode">
-                  Show K-means Clusters
-                </Label>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm text-muted-foreground">Map:</Label>
+                <ToggleGroup
+                  type="single"
+                  value={mapView}
+                  onValueChange={(v) => v && setMapView(v as MapView)}
+                  variant="outline"
+                  size="sm"
+                >
+                  <ToggleGroupItem value="clusters">Clusters</ToggleGroupItem>
+                  <ToggleGroupItem value="age">Job age</ToggleGroupItem>
+                  <ToggleGroupItem value="viable">Viable on date</ToggleGroupItem>
+                </ToggleGroup>
               </div>
+              {mapView === 'clusters' && (
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="cluster-mode"
+                    checked={showClusters}
+                    onCheckedChange={setShowClusters}
+                  />
+                  <Label htmlFor="cluster-mode">
+                    Show K-means Clusters
+                  </Label>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <Label className="text-sm text-muted-foreground">Show:</Label>
                 <ToggleGroup
