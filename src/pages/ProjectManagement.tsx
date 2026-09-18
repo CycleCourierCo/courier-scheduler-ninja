@@ -66,7 +66,12 @@ const ProjectManagement: React.FC = () => {
     if (!stragglers.length) { toast.info("Nothing left over to move"); return; }
     const tomorrow = format(addDays(new Date(), 1), "yyyy-MM-dd");
     try {
-      for (const t of stragglers) await updateTask(t.id, { planned_date: tomorrow } as any);
+      // Run in small parallel batches so the page stays responsive
+      for (let i = 0; i < stragglers.length; i += 5) {
+        await Promise.all(
+          stragglers.slice(i, i + 5).map((t) => updateTask(t.id, { planned_date: tomorrow } as any))
+        );
+      }
       qc.invalidateQueries({ queryKey: ["tasks"] });
       toast.success(`${stragglers.length} unfinished task(s) moved to tomorrow`);
     } catch (e: any) {
