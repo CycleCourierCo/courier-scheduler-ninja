@@ -2,9 +2,25 @@ import React from 'react';
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { Code, Key, Zap, Globe, Shield, Bell, AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import { Code, Key, Zap, Globe, Shield, Bell, AlertTriangle, CheckCircle, Info, Plug, Download } from 'lucide-react';
+import partnerGuideMarkdown from '../../docs/PARTNER_API_INTEGRATION.md?raw';
+
+// Lets staff hand partners a self-contained copy of the integration guide.
+const downloadPartnerGuide = () => {
+  const blob = new Blob([partnerGuideMarkdown], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'Cycle-Courier-Partner-Integration-Guide.md';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
+
 const ApiDocumentationPage = () => {
   return <Layout>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
