@@ -86,6 +86,8 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
     current: string | null;
     label: string;
   } | null>(null);
+  const [dayEditing, setDayEditing] = React.useState<InboundOrder | null>(null);
+
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["inbound-ni-orders"],
