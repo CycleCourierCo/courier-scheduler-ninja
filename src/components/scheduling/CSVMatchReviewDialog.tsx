@@ -371,6 +371,9 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
                               <span className="text-xs text-muted-foreground">
                                 {Math.round(candidate.confidence * 100)}%
                               </span>
+                              {candidate.alreadyScheduled && (
+                                <Badge variant="outline" className="text-xs">Already booked</Badge>
+                              )}
                             </div>
                             <div className="text-xs text-muted-foreground truncate">
                               {candidate.order.tracking_number} • {contact?.name}
