@@ -260,6 +260,7 @@ export type Order = {
   guaranteedDelivery?: boolean;
   guaranteedDeliveryPayer?: 'account' | 'sender' | 'receiver' | string | null;
   guaranteedDeliveryAmount?: number | null;
+  guaranteedDeliveryDate?: string | null;
   guaranteedDeliveryNote?: string | null;
   guaranteedDeliveryMarkedAt?: string | null;
   guaranteedDeliveryMarkedByName?: string | null;
