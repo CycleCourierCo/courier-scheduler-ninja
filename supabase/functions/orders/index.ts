@@ -4,6 +4,7 @@ import { initSentry, captureException, startSpan } from '../_shared/sentry.ts'
 import { resolveNiDirection } from '../_shared/northernIreland.ts'
 import { buildFerryPartnerEmail } from '../_shared/ferryPartnerEmail.ts'
 import { trackedFetch } from "../_shared/integrationLog.ts";
+import { resolveApiCaller, apiAuthErrorResponse } from "../_shared/apiAuth.ts";
 
 
 // Bike type numeric ID mapping
