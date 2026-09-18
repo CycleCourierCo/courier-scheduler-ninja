@@ -19,6 +19,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 
 export type JobTypeFilter = 'all' | 'collection' | 'delivery';
+export type MapView = 'clusters' | 'age' | 'viable';
 
 export interface OrderData {
   id: string;
