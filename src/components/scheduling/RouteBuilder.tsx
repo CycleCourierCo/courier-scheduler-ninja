@@ -1734,6 +1734,21 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     }
   };
 
+  // Add/remove a guaranteed-date job straight from the panel at the top
+  const toggleGuaranteedJob = (order: OrderData, type: 'pickup' | 'delivery') => {
+    const contact: any = getLegContact(order, type);
+    toggleJobSelection({
+      orderId: order.id,
+      type,
+      address: formatAddress(contact.address),
+      contactName: contact.name,
+      phoneNumber: contact.phone,
+      order,
+      lat: contact.lat,
+      lon: contact.lon,
+    });
+  };
+
   // CSV Upload handlers
   const handleCsvFileSelect = (content: string) => {
     setIsProcessingCsv(true);
