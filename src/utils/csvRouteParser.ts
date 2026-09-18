@@ -231,26 +231,34 @@ const matchRowToOrder = (
       }
     }
     
-    // Record every plausible candidate (both legs), so the planner can choose
-    if (senderConfidence > 0 && senderMatchType !== 'none') {
+    // Record plausible candidates, but only for legs that still need driving.
+    // Collected bikes, Box My Bike deliveries and completed/cancelled orders are
+    // dropped so they no longer compete with live work.
+    if (senderConfidence > 0 && senderMatchType !== 'none' && needsCollectionLeg(order)) {
       candidates.push({
         order,
         jobType: 'pickup',
         matchType: senderMatchType,
         confidence: senderConfidence,
+        alreadyScheduled: !!order.scheduled_pickup_date,
       });
     }
-    if (receiverConfidence > 0 && receiverMatchType !== 'none') {
+    if (receiverConfidence > 0 && receiverMatchType !== 'none' && needsDeliveryLeg(order)) {
       candidates.push({
         order,
         jobType: 'delivery',
         matchType: receiverMatchType,
         confidence: receiverConfidence,
+        alreadyScheduled: !!order.scheduled_delivery_date,
       });
     }
   }
   
-  candidates.sort((a, b) => b.confidence - a.confidence);
+  // Outstanding, unbooked legs first; already-booked legs sink to the bottom
+  candidates.sort((a, b) => {
+    if (!!a.alreadyScheduled !== !!b.alreadyScheduled) return a.alreadyScheduled ? 1 : -1;
+    return b.confidence - a.confidence;
+  });
   
   // Default selection = best candidate whose leg isn't already used by an earlier row
   const best = candidates.find(c => !usedOrderIds.has(`${c.order.id}-${c.jobType}`));
