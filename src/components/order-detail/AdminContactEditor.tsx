@@ -72,6 +72,50 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
     }));
   };
 
+  // When an address changes we can no longer trust the existing Shipday job, so
+  // delete the affected leg's job and let the sync function create a fresh one.
+  const rebuildShipdayJob = async (orderRow: any) => {
+    const isPickupLeg = type === "sender";
+    const existingId = isPickupLeg ? orderRow?.shipday_pickup_id : orderRow?.shipday_delivery_id;
+    const legDone = isPickupLeg ? orderRow?.order_collected === true : orderRow?.order_delivered === true;
+
+    if (!existingId || legDone) return;
+
+    try {
+      const { error: deleteError } = await supabase.functions.invoke('delete-shipday-order', {
+        body: isPickupLeg
+          ? { shipdayPickupId: existingId }
+          : { shipdayDeliveryId: existingId },
+      });
+
+      if (deleteError) {
+        toast.warning("Address saved, but the existing delivery job could not be removed. Please re-sync it manually.");
+        return;
+      }
+
+      const { error: clearError } = await supabase
+        .from('orders')
+        .update(isPickupLeg ? { shipday_pickup_id: null } : { shipday_delivery_id: null })
+        .eq('id', orderId);
+
+      if (clearError) throw clearError;
+
+      const { error: syncError } = await supabase.functions.invoke('sync-order-shipday', {
+        body: { orderId, jobType: isPickupLeg ? 'pickup' : 'delivery' },
+      });
+
+      if (syncError) {
+        toast.warning("Address saved and the old job removed, but creating the new job failed. Please re-sync it manually.");
+        return;
+      }
+
+      toast.success(`${isPickupLeg ? "Collection" : "Delivery"} job recreated with the new address`);
+    } catch (error) {
+      console.error("Error rebuilding Shipday job:", error);
+      toast.warning("Address saved, but the delivery job could not be rebuilt. Please re-sync it manually.");
+    }
+  };
+
   const handleSave = async () => {
     try {
       setIsSaving(true);
@@ -81,11 +125,21 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
       // Get the current contact data
       const { data: currentOrder, error: fetchError } = await supabase
         .from('orders')
-        .select(fieldName)
+        .select(`${fieldName}, shipday_pickup_id, shipday_delivery_id, order_collected, order_delivered, status`)
         .eq('id', orderId)
         .single();
       
       if (fetchError) throw fetchError;
+
+      const orderRow = currentOrder as any;
+      const previousAddress = orderRow?.[fieldName]?.address ?? {};
+      const addressChanged =
+        (previousAddress.street || "") !== editedContact.street ||
+        (previousAddress.city || "") !== editedContact.city ||
+        (previousAddress.state || "") !== editedContact.state ||
+        (previousAddress.zipCode || "") !== editedContact.zipCode ||
+        (previousAddress.country || "") !== editedContact.country;
+      
       
       // Use the coordinates from the searched address when available, otherwise
       // fall back to geocoding the typed address.
@@ -106,12 +160,12 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
       
       // Update all fields including coordinates
       const updatedContact = {
-        ...currentOrder[fieldName],
+        ...orderRow[fieldName],
         name: editedContact.name,
         email: editedContact.email,
         phone: editedContact.phone,
         address: {
-          ...currentOrder[fieldName].address,
+          ...(orderRow[fieldName]?.address ?? {}),
           street: editedContact.street,
           city: editedContact.city,
           state: editedContact.state,
@@ -136,6 +190,10 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
         toast.warning(`${type === "sender" ? "Sender" : "Receiver"} contact updated, but coordinates could not be fetched`);
       }
       
+      if (addressChanged) {
+        await rebuildShipdayJob(orderRow);
+      }
+
       setIsEditing(false);
       onUpdate();
     } catch (error) {
