@@ -10,6 +10,7 @@ import { geocodeAddress, buildAddressString } from "@/utils/geocoding";
 import { ContactSelector } from "@/components/create-order/ContactSelector";
 import { useContacts } from "@/hooks/useContacts";
 import { Contact } from "@/services/contactService";
+import AddressSearchInput, { SelectedAddress } from "@/components/address/AddressSearchInput";
 
 
 interface AdminContactEditorProps {
@@ -40,9 +41,13 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
     zipCode: contact.address.zipCode,
     country: contact.address.country
   });
+  // Populated only when an address is picked from the search — avoids a second
+  // geocode call and keeps NI routing accurate after an address change.
+  const [searchedAddress, setSearchedAddress] = useState<SelectedAddress | null>(null);
   const { data: allContacts = [], isLoading: contactsLoading } = useContacts(undefined, true);
 
   const handleSelectContact = (selected: Contact) => {
+    setSearchedAddress(null);
     setEditedContact({
       name: selected.name,
       email: selected.email || "",
@@ -53,6 +58,18 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
       zipCode: selected.postal_code || "",
       country: selected.country || "United Kingdom",
     });
+  };
+
+  const handleSelectAddress = (address: SelectedAddress) => {
+    setSearchedAddress(address);
+    setEditedContact(prev => ({
+      ...prev,
+      street: address.street,
+      city: address.city,
+      state: address.state,
+      zipCode: address.zipCode,
+      country: address.country || "United Kingdom",
+    }));
   };
 
   const handleSave = async () => {
@@ -70,16 +87,22 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
       
       if (fetchError) throw fetchError;
       
-      // Build address string and geocode
-      const addressString = buildAddressString({
-        street: editedContact.street,
-        city: editedContact.city,
-        state: editedContact.state,
-        zipCode: editedContact.zipCode,
-        country: editedContact.country
-      });
-      
-      const coordinates = await geocodeAddress(addressString);
+      // Use the coordinates from the searched address when available, otherwise
+      // fall back to geocoding the typed address.
+      let coordinates: { lat: number; lon: number } | null = null;
+      if (searchedAddress?.lat !== undefined && searchedAddress?.lon !== undefined) {
+        coordinates = { lat: searchedAddress.lat, lon: searchedAddress.lon };
+      } else {
+        const addressString = buildAddressString({
+          street: editedContact.street,
+          city: editedContact.city,
+          state: editedContact.state,
+          zipCode: editedContact.zipCode,
+          country: editedContact.country
+        });
+
+        coordinates = await geocodeAddress(addressString);
+      }
       
       // Update all fields including coordinates
       const updatedContact = {
@@ -94,6 +117,8 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
           state: editedContact.state,
           zipCode: editedContact.zipCode,
           country: editedContact.country,
+          // Only overwrite the stored UK constituent country when a search result gave us one
+          ...(searchedAddress?.region ? { region: searchedAddress.region } : {}),
           ...(coordinates && { lat: coordinates.lat, lon: coordinates.lon })
         }
       };
@@ -122,6 +147,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
   };
 
   const handleCancel = () => {
+    setSearchedAddress(null);
     setEditedContact({
       name: contact.name,
       email: contact.email,
@@ -268,6 +294,13 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
               </div>
             </div>
             
+            {/* Address search */}
+            <AddressSearchInput
+              onSelect={handleSelectAddress}
+              showManualEntry={false}
+              label="Search Address"
+            />
+
             {/* Street Address */}
             <div>
               <Label htmlFor={`${type}-street`} className="text-sm">Street Address</Label>
