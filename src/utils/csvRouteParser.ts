@@ -1,4 +1,5 @@
 import { OrderData } from "@/pages/JobScheduling";
+import { needsCollectionLeg, needsDeliveryLeg } from "@/components/scheduling/heatJobPoints";
 
 export interface CSVRow {
   sequence: number;
