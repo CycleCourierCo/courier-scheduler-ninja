@@ -36,6 +36,7 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
   const [open, setOpen] = useState(false);
   const [payer, setPayer] = useState<GuaranteedDeliveryPayer>("account");
   const [amount, setAmount] = useState<string>("0");
+  const [guaranteedDate, setGuaranteedDate] = useState<string>("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
