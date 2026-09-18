@@ -60,6 +60,8 @@ export type ShipdayPickupAddresses = Record<string, string>;
 const JobScheduling = () => {
   const [searchParams] = useSearchParams();
   const [showClusters, setShowClusters] = useState(true);
+  const [mapView, setMapView] = useState<MapView>('clusters');
+  const [heatMapDate, setHeatMapDate] = useState<Date>(new Date());
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [shipdayVerification, setShipdayVerification] = useState<ShipdayVerificationResults>({});
   const [shipdayPickupAddresses, setShipdayPickupAddresses] = useState<ShipdayPickupAddresses>({});
