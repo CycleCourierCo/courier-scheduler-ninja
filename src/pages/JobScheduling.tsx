@@ -6,6 +6,8 @@ import DashboardHeader from "@/components/DashboardHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ContactInfo, Address, OrderStatus } from "@/types/order";
 import ClusterMap from "@/components/scheduling/ClusterMap";
+import JobAgeHeatMap from "@/components/scheduling/JobAgeHeatMap";
+import ViableJobsHeatMap from "@/components/scheduling/ViableJobsHeatMap";
 import DriverHoursMileagePanel from "@/components/scheduling/DriverHoursMileagePanel";
 
 import RouteBuilder from "@/components/scheduling/RouteBuilder";
