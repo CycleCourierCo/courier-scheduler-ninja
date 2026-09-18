@@ -1,0 +1,1 @@
+ALTER TABLE public.saved_routes ALTER COLUMN starting_bikes TYPE numeric;

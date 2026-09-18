@@ -36,6 +36,7 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
   const [open, setOpen] = useState(false);
   const [payer, setPayer] = useState<GuaranteedDeliveryPayer>("account");
   const [amount, setAmount] = useState<string>("0");
+  const [guaranteedDate, setGuaranteedDate] = useState<string>("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
@@ -72,6 +73,11 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
       return;
     }
 
+    if (!guaranteedDate) {
+      toast.error("Choose the guaranteed delivery date");
+      return;
+    }
+
     const parsed = netFromTyped;
 
     if (payer !== "account" && parsed <= 0) {
@@ -85,10 +91,17 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
       const { data: authData } = await supabase.auth.getUser();
       const user = authData?.user;
 
-      await setGuaranteedDelivery(order.id, payer, parsed, note.trim() || undefined, {
-        id: user?.id,
-        name: (user?.user_metadata as any)?.name || user?.email || null,
-      });
+      await setGuaranteedDelivery(
+        order.id,
+        payer,
+        parsed,
+        note.trim() || undefined,
+        {
+          id: user?.id,
+          name: (user?.user_metadata as any)?.name || user?.email || null,
+        },
+        guaranteedDate
+      );
 
       if (payer === "account") {
         toast.success(
@@ -156,6 +169,7 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
   const openEdit = () => {
     setPayer((currentPayer as GuaranteedDeliveryPayer) || "account");
     setAmount(currentGross ? currentGross.toFixed(2) : "0");
+    setGuaranteedDate(order?.guaranteed_delivery_date || "");
     setNote(order?.guaranteed_delivery_note || "");
     handleOpenChange(true);
   };
@@ -163,10 +177,20 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
   const openNew = () => {
     setPayer("account");
     setAmount("");
+    setGuaranteedDate("");
     setNote("");
     handleOpenChange(true);
   };
 
+  const guaranteedDateLabel = order?.guaranteed_delivery_date
+    ? new Date(`${order.guaranteed_delivery_date}T12:00:00`).toLocaleDateString("en-GB", {
+        timeZone: "Europe/London",
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : null;
 
   const markedAt = order?.guaranteed_delivery_marked_at
     ? new Date(order.guaranteed_delivery_marked_at).toLocaleString("en-GB", {
@@ -238,6 +262,12 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
 
 
             <dl className="space-y-1.5 text-sm">
+              <div className="flex flex-wrap gap-x-2">
+                <dt className="text-muted-foreground">Guaranteed date:</dt>
+                <dd className="font-medium break-words">
+                  {guaranteedDateLabel || "Not set"}
+                </dd>
+              </div>
               <div className="flex flex-wrap gap-x-2">
                 <dt className="text-muted-foreground">Extra charge:</dt>
                 <dd className="font-medium break-words">
@@ -335,6 +365,16 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
                   </Label>
                 </div>
               </RadioGroup>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="gd-date">Guaranteed delivery date</Label>
+              <Input
+                id="gd-date"
+                type="date"
+                value={guaranteedDate}
+                onChange={(e) => setGuaranteedDate(e.target.value)}
+              />
             </div>
 
             <div className="space-y-2">

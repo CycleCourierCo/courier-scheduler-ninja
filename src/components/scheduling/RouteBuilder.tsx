@@ -46,6 +46,7 @@ import {
   resolveStopAddress,
 } from "@/lib/altLocation";
 import { uuid } from "@/lib/uuid";
+import GuaranteedDatePanel from "./GuaranteedDatePanel";
 
 // Profitability constants
 const COST_PER_MILE = 0.45;
@@ -189,8 +190,8 @@ const getAvailabilityBadge = (
   }
 };
 
-// Helper function: how many days of the customer's availability remain,
-// counted from the route date being planned to their LAST available date.
+// Helper function: how many of the customer's confirmed availability dates
+// remain — dates on or after the route date being planned.
 const getAvailabilityDaysLeftBadge = (
   jobType: 'pickup' | 'delivery' | 'break',
   selectedDate: Date | undefined,
@@ -202,31 +203,31 @@ const getAvailabilityDaysLeftBadge = (
   const relevantDates = jobType === 'pickup' ? pickupDates : deliveryDates;
   if (!relevantDates || relevantDates.length === 0) return null; // "No Dates Provided" badge covers this
 
-  const lastDateStr = relevantDates
-    .map(d => format(new Date(d), 'yyyy-MM-dd'))
-    .sort()
-    .pop()!;
+  const dateStrs = relevantDates.map(d => format(new Date(d), 'yyyy-MM-dd'));
+  const lastDateStr = [...dateStrs].sort().pop()!;
   const routeDateStr = format(selectedDate, 'yyyy-MM-dd');
-  const daysLeft = differenceInCalendarDays(new Date(lastDateStr), new Date(routeDateStr));
+  const remaining = dateStrs.filter(d => d >= routeDateStr).length;
   const lastLabel = format(new Date(lastDateStr), 'EEE d MMM');
 
-  if (daysLeft < 0) {
+  if (remaining === 0) {
     return {
       text: `Availability ended (${lastLabel})`,
       color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
       icon: <Calendar className="h-3 w-3" />
     };
   }
-  if (daysLeft === 0) {
+  if (remaining === 1) {
     return {
-      text: 'Last day of availability',
-      color: 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300',
+      text: `1 availability date left (${lastLabel})`,
+      color: lastDateStr === routeDateStr
+        ? 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
+        : 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300',
       icon: <Calendar className="h-3 w-3" />
     };
   }
   return {
-    text: `${daysLeft} day${daysLeft === 1 ? '' : 's'} of availability left`,
-    color: daysLeft <= 2
+    text: `${remaining} availability dates left`,
+    color: remaining === 2
       ? 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300'
       : 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
     icon: <Calendar className="h-3 w-3" />
@@ -1731,6 +1732,21 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       setSelectedJobs(prev => [...prev, newJob]);
       // Starting bikes will auto-update via useEffect
     }
+  };
+
+  // Add/remove a guaranteed-date job straight from the panel at the top
+  const toggleGuaranteedJob = (order: OrderData, type: 'pickup' | 'delivery') => {
+    const contact: any = getLegContact(order, type);
+    toggleJobSelection({
+      orderId: order.id,
+      type,
+      address: formatAddress(contact.address),
+      contactName: contact.name,
+      phoneNumber: contact.phone,
+      order,
+      lat: contact.lat,
+      lon: contact.lon,
+    });
   };
 
   // CSV Upload handlers
@@ -3245,6 +3261,11 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   return (
     <TooltipProvider>
       <div className="space-y-6">
+      <GuaranteedDatePanel
+        orders={orderList}
+        selectedKeys={new Set(selectedJobs.map(j => `${j.orderId}-${j.type}`))}
+        onToggleJob={toggleGuaranteedJob}
+      />
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">

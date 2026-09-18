@@ -1349,7 +1349,9 @@ const OrderDetail = () => {
               <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                 {(order as any).guaranteed_delivery && (
                   <Badge className="bg-green-600 hover:bg-green-600 text-white">
-                    Guaranteed date
+                    {(order as any).guaranteed_delivery_date
+                      ? `Guaranteed ${new Date(`${(order as any).guaranteed_delivery_date}T12:00:00`).toLocaleDateString("en-GB", { timeZone: "Europe/London", day: "2-digit", month: "short" })}`
+                      : "Guaranteed date"}
                   </Badge>
                 )}
 

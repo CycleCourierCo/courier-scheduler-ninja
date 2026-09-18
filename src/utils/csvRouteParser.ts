@@ -1,4 +1,7 @@
 import { OrderData } from "@/pages/JobScheduling";
+import { needsCollectionLeg, needsDeliveryLeg } from "@/components/scheduling/heatJobPoints";
+import { getLegContact, isFerryLeg } from "@/utils/niDelivery";
+import { CITY_AIR_EXPRESS } from "@/constants/depot";
 
 export interface CSVRow {
   sequence: number;
@@ -11,6 +14,8 @@ export interface MatchCandidate {
   jobType: 'pickup' | 'delivery';
   matchType: 'exact' | 'fuzzy' | 'address';
   confidence: number;
+  /** This leg already has a booked date — shown, but never the default pick */
+  alreadyScheduled?: boolean;
 }
 
 export interface MatchResult {
@@ -135,6 +140,68 @@ const extractPostcode = (address: string): string | null => {
   return postcodeMatch ? postcodeMatch[0].toUpperCase().replace(/\s/g, '') : null;
 };
 
+/** Names a Northern Ireland ferry hand-off stop can appear under in a route file */
+const FERRY_NAME_ALIASES = [CITY_AIR_EXPRESS.name, CITY_AIR_EXPRESS.displayName].map(normalizeName);
+const FERRY_POSTCODE = extractPostcode(CITY_AIR_EXPRESS.address.zipCode);
+
+/**
+ * Score a route row against the stop a driver actually visits for this leg.
+ * For Northern Ireland orders that stop is the ferry hand-off point, not the
+ * customer's own address.
+ */
+const scoreLeg = (
+  order: OrderData,
+  type: 'pickup' | 'delivery',
+  normalizedCSVName: string,
+  csvPostcode: string | null
+): { confidence: number; matchType: 'exact' | 'fuzzy' | 'address' | 'none' } => {
+  const ferry = isFerryLeg(order, type);
+  const contact: any = ferry
+    ? getLegContact(order, type)
+    : (type === 'pickup' ? order.sender : order.receiver);
+
+  const names = ferry ? FERRY_NAME_ALIASES : [normalizeName(contact?.name || '')];
+  const legPostcode = ferry
+    ? FERRY_POSTCODE
+    : extractPostcode(
+        `${contact?.address?.street || ''} ${contact?.address?.city || ''} ${contact?.address?.zipCode || ''}`
+      );
+
+  let confidence = 0;
+  let matchType: 'exact' | 'fuzzy' | 'address' | 'none' = 'none';
+
+  for (const name of names) {
+    if (!name) continue;
+    if (name === normalizedCSVName) {
+      if (1.0 > confidence) { confidence = 1.0; matchType = 'exact'; }
+      continue;
+    }
+    if (name.includes(normalizedCSVName) || normalizedCSVName.includes(name)) {
+      if (0.85 > confidence) { confidence = 0.85; matchType = 'fuzzy'; }
+      continue;
+    }
+    const similarity = stringSimilarity(name, normalizedCSVName);
+    if (similarity > 0.7 && similarity * 0.8 > confidence) {
+      confidence = similarity * 0.8;
+      matchType = 'fuzzy';
+    }
+  }
+
+  const postcodeMatches = !!(csvPostcode && legPostcode && legPostcode === csvPostcode);
+
+  if (confidence > 0 && postcodeMatches) {
+    confidence = Math.min(1.0, confidence + 0.15);
+  }
+
+  // Address-only match when the name tells us nothing
+  if (confidence === 0 && postcodeMatches) {
+    confidence = 0.6;
+    matchType = 'address';
+  }
+
+  return { confidence, matchType };
+};
+
 /**
  * Match a single CSV row to orders
  */
@@ -149,105 +216,37 @@ const matchRowToOrder = (
   const candidates: MatchCandidate[] = [];
   
   for (const order of orders) {
-    // Skip already matched orders for this job type
-    const senderName = normalizeName(order.sender.name);
-    const receiverName = normalizeName(order.receiver.name);
-    
-    // Check sender (pickup) match
-    let senderConfidence = 0;
-    let senderMatchType: 'exact' | 'fuzzy' | 'address' | 'none' = 'none';
-    
-    if (senderName === normalizedCSVName) {
-      senderConfidence = 1.0;
-      senderMatchType = 'exact';
-    } else if (senderName.includes(normalizedCSVName) || normalizedCSVName.includes(senderName)) {
-      senderConfidence = 0.85;
-      senderMatchType = 'fuzzy';
-    } else {
-      const similarity = stringSimilarity(senderName, normalizedCSVName);
-      if (similarity > 0.7) {
-        senderConfidence = similarity * 0.8;
-        senderMatchType = 'fuzzy';
-      }
-    }
-    
-    // Boost confidence if postcodes match
-    if (senderConfidence > 0 && csvPostcode) {
-      const senderPostcode = extractPostcode(
-        `${order.sender.address.street} ${order.sender.address.city} ${order.sender.address.zipCode}`
-      );
-      if (senderPostcode && senderPostcode === csvPostcode) {
-        senderConfidence = Math.min(1.0, senderConfidence + 0.15);
-      }
-    }
-    
-    // Check receiver (delivery) match
-    let receiverConfidence = 0;
-    let receiverMatchType: 'exact' | 'fuzzy' | 'address' | 'none' = 'none';
-    
-    if (receiverName === normalizedCSVName) {
-      receiverConfidence = 1.0;
-      receiverMatchType = 'exact';
-    } else if (receiverName.includes(normalizedCSVName) || normalizedCSVName.includes(receiverName)) {
-      receiverConfidence = 0.85;
-      receiverMatchType = 'fuzzy';
-    } else {
-      const similarity = stringSimilarity(receiverName, normalizedCSVName);
-      if (similarity > 0.7) {
-        receiverConfidence = similarity * 0.8;
-        receiverMatchType = 'fuzzy';
-      }
-    }
-    
-    // Boost confidence if postcodes match
-    if (receiverConfidence > 0 && csvPostcode) {
-      const receiverPostcode = extractPostcode(
-        `${order.receiver.address.street} ${order.receiver.address.city} ${order.receiver.address.zipCode}`
-      );
-      if (receiverPostcode && receiverPostcode === csvPostcode) {
-        receiverConfidence = Math.min(1.0, receiverConfidence + 0.15);
-      }
-    }
-    
-    // Check for address-only match if no name match
-    if (senderConfidence === 0 && receiverConfidence === 0 && csvPostcode) {
-      const senderPostcode = extractPostcode(
-        `${order.sender.address.street} ${order.sender.address.city} ${order.sender.address.zipCode}`
-      );
-      const receiverPostcode = extractPostcode(
-        `${order.receiver.address.street} ${order.receiver.address.city} ${order.receiver.address.zipCode}`
-      );
-      
-      if (senderPostcode === csvPostcode) {
-        senderConfidence = 0.6;
-        senderMatchType = 'address';
-      }
-      if (receiverPostcode === csvPostcode) {
-        receiverConfidence = 0.6;
-        receiverMatchType = 'address';
-      }
-    }
-    
-    // Record every plausible candidate (both legs), so the planner can choose
-    if (senderConfidence > 0 && senderMatchType !== 'none') {
+    const pickup = scoreLeg(order, 'pickup', normalizedCSVName, csvPostcode);
+    const delivery = scoreLeg(order, 'delivery', normalizedCSVName, csvPostcode);
+
+    // Record plausible candidates, but only for legs that still need driving.
+    // Collected bikes, Box My Bike deliveries and completed/cancelled orders are
+    // dropped so they no longer compete with live work.
+    if (pickup.confidence > 0 && pickup.matchType !== 'none' && needsCollectionLeg(order)) {
       candidates.push({
         order,
         jobType: 'pickup',
-        matchType: senderMatchType,
-        confidence: senderConfidence,
+        matchType: pickup.matchType,
+        confidence: pickup.confidence,
+        alreadyScheduled: !!order.scheduled_pickup_date,
       });
     }
-    if (receiverConfidence > 0 && receiverMatchType !== 'none') {
+    if (delivery.confidence > 0 && delivery.matchType !== 'none' && needsDeliveryLeg(order)) {
       candidates.push({
         order,
         jobType: 'delivery',
-        matchType: receiverMatchType,
-        confidence: receiverConfidence,
+        matchType: delivery.matchType,
+        confidence: delivery.confidence,
+        alreadyScheduled: !!order.scheduled_delivery_date,
       });
     }
   }
   
-  candidates.sort((a, b) => b.confidence - a.confidence);
+  // Outstanding, unbooked legs first; already-booked legs sink to the bottom
+  candidates.sort((a, b) => {
+    if (!!a.alreadyScheduled !== !!b.alreadyScheduled) return a.alreadyScheduled ? 1 : -1;
+    return b.confidence - a.confidence;
+  });
   
   // Default selection = best candidate whose leg isn't already used by an earlier row
   const best = candidates.find(c => !usedOrderIds.has(`${c.order.id}-${c.jobType}`));
@@ -462,8 +461,6 @@ export const getDeliveryCollectionStatus = (
   const scheduled = (order as any).scheduled_pickup_date as string | null | undefined;
   if (scheduled) return { kind: 'scheduled', date: scheduled };
 
-  const pickupDates = order.pickup_date as string[] | null | undefined;
-  if (pickupDates && pickupDates.length > 0) return { kind: 'scheduled', date: pickupDates[0] };
-
+  // Customer availability days are not a booked collection - treat as not collected
   return { kind: 'not_collected' };
 };

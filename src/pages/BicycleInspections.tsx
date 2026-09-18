@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
 import { formatDistanceToNowStrict } from "date-fns";
-import { Wrench, CheckCircle, XCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search, Pencil, Trash2, Plus, Save, Truck } from "lucide-react";
+import { Wrench, CheckCircle, XCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search, Pencil, Trash2, Plus, Save, Truck, Copy } from "lucide-react";
 import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
 import { getCollectionPhotos } from "@/utils/collectionPhotos";
 import { ChangeStorageLocationDialog } from "@/components/loading/ChangeStorageLocationDialog";
@@ -502,7 +502,7 @@ const BicycleInspections = () => {
 
   // Add a new issue to an existing inspection (pricing stage)
   const addIssueAtPricingMutation = useMutation({
-    mutationFn: async ({ inspectionId, orderId, draft, postApproval }: { inspectionId: string; orderId: string; draft: typeof newIssueDraft; postApproval?: boolean }) => {
+    mutationFn: async ({ inspectionId, orderId, draft, postApproval }: { inspectionId: string; orderId: string | null; draft: typeof newIssueDraft; postApproval?: boolean }) => {
       if (!user?.id) throw new Error("User not authenticated");
       const parts = draft.partsCost.trim() ? parseFloat(draft.partsCost) : null;
       const labour = draft.labourCost.trim() ? parseFloat(draft.labourCost) : null;
@@ -561,8 +561,8 @@ const BicycleInspections = () => {
         }
       }
     },
-    onError: (error) => {
-      toast.error("Failed to add issue");
+    onError: (error: any) => {
+      toast.error(`Failed to add issue${error?.message ? `: ${error.message}` : ""}`);
       console.error(error);
     },
   });
@@ -649,14 +649,32 @@ const BicycleInspections = () => {
   });
 
 
+  // Approval link staff can send manually (public, no login needed)
+  const buildApprovalLink = (inspectionId: string) =>
+    `${window.location.origin}/inspection-approval/${inspectionId}`;
+  const [manualApprovalLink, setManualApprovalLink] = useState<string | null>(null);
+  const copyApprovalLink = async (inspectionId: string) => {
+    const link = buildApprovalLink(inspectionId);
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success("Approval link copied");
+    } catch {
+      setManualApprovalLink(link);
+    }
+  };
+
   // Release inspection to customer (admin gate)
   const releaseMutation = useMutation({
-    mutationFn: async (inspectionId: string) => {
+    mutationFn: async (args: {
+      inspectionId: string;
+      recipient?: "customer" | "receiver" | "walkin";
+    }) => {
       if (!user?.id) throw new Error("User not authenticated");
       return releaseInspectionToCustomer(
-        inspectionId,
+        args.inspectionId,
         user.id,
-        userProfile?.name || user.email || "Admin"
+        userProfile?.name || user.email || "Admin",
+        args.recipient
       );
     },
     onSuccess: () => {
@@ -1632,6 +1650,23 @@ const BicycleInspections = () => {
     const approvedCount = approvedIssues.length;
     const declinedCount = orderIssues.filter((i: InspectionIssue) => i.status === "declined").length;
     const totalRepairCost = customerApprovedIssues.reduce((sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0), 0);
+    // Quoted totals cover every issue on the inspection, approved or not, so
+    // staff can see the value of the work before any decision is made.
+    const totalPartsCost = orderIssues.reduce(
+      (sum: number, i: any) => sum + (Number(i.parts_cost) || 0),
+      0
+    );
+    const totalLabourCost = orderIssues.reduce(
+      (sum: number, i: any) => sum + (Number(i.labour_cost) || 0),
+      0
+    );
+    // Older issues may carry a single price with no parts/labour split.
+    const totalQuotedCost = orderIssues.reduce((sum: number, i: any) => {
+      const parts = Number(i.parts_cost) || 0;
+      const labour = Number(i.labour_cost) || 0;
+      const split = parts + labour;
+      return sum + (split > 0 ? split : Number(i.estimated_cost) || 0);
+    }, 0);
     // Declined repairs that can still be offered to the receiver (they pay directly)
     const offerableIssues = orderIssues.filter(
       (i: any) => i.status === "declined" && !i.receiver_declined_at
@@ -1702,6 +1737,21 @@ const BicycleInspections = () => {
                   </>
                 )}
               </CardDescription>
+              {(order as any).booking_customer_name && (
+                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground break-words">
+                    Account: <span className="font-medium">{(order as any).booking_customer_name}</span>
+                  </span>
+                  {!isWorkshopOnly && (order as any).shopify_order_id && (
+                    <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+                      Shopify
+                    </Badge>
+                  )}
+                  {!isWorkshopOnly && !(order as any).shopify_order_id && (order as any).created_via_api && (
+                    <Badge variant="secondary">API</Badge>
+                  )}
+                </div>
+              )}
               <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
                 {!isWorkshopOnly && (
                   <Button
@@ -1965,9 +2015,18 @@ const BicycleInspections = () => {
                   Receiver approved: {receiverApprovedCount}
                 </Badge>
               )}
+              <Badge variant="outline">
+                Total parts: £{totalPartsCost.toFixed(2)}
+              </Badge>
+              <Badge variant="outline">
+                Total labour: £{totalLabourCost.toFixed(2)}
+              </Badge>
+              <Badge variant="outline" className="font-semibold">
+                Total repairs: £{totalQuotedCost.toFixed(2)}
+              </Badge>
               {isAdmin && (
                 <Badge variant="outline">
-                  Total repairs: £{totalRepairCost.toFixed(2)}
+                  Approved: £{totalRepairCost.toFixed(2)}
                 </Badge>
               )}
             </div>
@@ -2709,7 +2768,7 @@ const BicycleInspections = () => {
                           toast.error("Enter a parts and/or labour price — there's no pricing round after approval");
                           return;
                         }
-                        addIssueAtPricingMutation.mutate({ inspectionId: inspection.id, orderId: order.id, draft: newIssueDraft, postApproval: isPostApproval });
+                        addIssueAtPricingMutation.mutate({ inspectionId: inspection.id, orderId: order.workshop_only ? null : order.id, draft: newIssueDraft, postApproval: isPostApproval });
 
                       }}
                       disabled={addIssueAtPricingMutation.isPending}
@@ -2738,17 +2797,71 @@ const BicycleInspections = () => {
           {/* Release to Customer Button (admin only, awaiting_pricing once all priced) */}
           {isAdmin && isAwaitingPricing && allPriced && (
             <div className="pt-2">
-              <Button
-                onClick={() => releaseMutation.mutate(inspection.id)}
-                disabled={releaseMutation.isPending}
-              >
-                {releaseMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                ) : (
-                  <Send className="h-4 w-4 mr-1" />
-                )}
-                Release to Customer
-              </Button>
+              {isWorkshopOnly ? (
+                <Button
+                  onClick={() =>
+                    releaseMutation.mutate({ inspectionId: inspection.id, recipient: "walkin" })
+                  }
+                  disabled={releaseMutation.isPending}
+                >
+                  {releaseMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  ) : (
+                    <Send className="h-4 w-4 mr-1" />
+                  )}
+                  Release to Customer
+                </Button>
+              ) : (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button disabled={releaseMutation.isPending}>
+                      {releaseMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                      ) : (
+                        <Send className="h-4 w-4 mr-1" />
+                      )}
+                      Release to Customer
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Who should approve these repairs?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {(order as any).shopify_order_id
+                          ? "This came from Shopify, so the buyer usually approves and pays."
+                          : "The approval request email goes to whoever you pick here."}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="space-y-2">
+                      <AlertDialogAction
+                        className="w-full justify-start"
+                        onClick={() =>
+                          releaseMutation.mutate({
+                            inspectionId: inspection.id,
+                            recipient: "customer",
+                          })
+                        }
+                      >
+                        Ask the seller (account)
+                      </AlertDialogAction>
+                      <AlertDialogAction
+                        className="w-full justify-start"
+                        onClick={() =>
+                          releaseMutation.mutate({
+                            inspectionId: inspection.id,
+                            recipient: "receiver",
+                          })
+                        }
+                      >
+                        Ask the buyer (receiver)
+                      </AlertDialogAction>
+                    </div>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
           )}
 
@@ -2815,9 +2928,19 @@ const BicycleInspections = () => {
                     )}
                     Send approval request
                   </Button>
-                </>
-              )}
-              {(inspection as any).approval_email_sent_at && (
+                 </>
+               )}
+               {inspection.status !== "awaiting_pricing" && (
+                 <Button
+                   size="sm"
+                   variant="outline"
+                   onClick={() => copyApprovalLink(inspection.id)}
+                 >
+                   <Copy className="mr-1 h-4 w-4" />
+                   Copy approval link
+                 </Button>
+               )}
+               {(inspection as any).approval_email_sent_at && (
                 <span className="text-xs text-muted-foreground">
                   Approval request sent{" "}
                   {new Date((inspection as any).approval_email_sent_at).toLocaleDateString("en-GB")}
@@ -3823,6 +3946,23 @@ const BicycleInspections = () => {
             });
           }}
         />
+        <AlertDialog
+          open={!!manualApprovalLink}
+          onOpenChange={(open) => !open && setManualApprovalLink(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Approval link</AlertDialogTitle>
+              <AlertDialogDescription>
+                Your browser blocked copying. Select the link below and copy it manually.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <Input readOnly value={manualApprovalLink || ""} onFocus={(e) => e.currentTarget.select()} />
+            <AlertDialogFooter>
+              <AlertDialogCancel>Close</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );

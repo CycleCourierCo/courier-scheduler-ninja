@@ -2975,6 +2975,7 @@ export type Database = {
           foam_tracking_url: string | null
           guaranteed_delivery: boolean
           guaranteed_delivery_amount: number
+          guaranteed_delivery_date: string | null
           guaranteed_delivery_invoice_id: string | null
           guaranteed_delivery_invoice_number: string | null
           guaranteed_delivery_invoice_public_url: string | null
@@ -3093,6 +3094,7 @@ export type Database = {
           foam_tracking_url?: string | null
           guaranteed_delivery?: boolean
           guaranteed_delivery_amount?: number
+          guaranteed_delivery_date?: string | null
           guaranteed_delivery_invoice_id?: string | null
           guaranteed_delivery_invoice_number?: string | null
           guaranteed_delivery_invoice_public_url?: string | null
@@ -3211,6 +3213,7 @@ export type Database = {
           foam_tracking_url?: string | null
           guaranteed_delivery?: boolean
           guaranteed_delivery_amount?: number
+          guaranteed_delivery_date?: string | null
           guaranteed_delivery_invoice_id?: string | null
           guaranteed_delivery_invoice_number?: string | null
           guaranteed_delivery_invoice_public_url?: string | null
