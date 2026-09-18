@@ -6,6 +6,8 @@ import DashboardHeader from "@/components/DashboardHeader";
 import { supabase } from "@/integrations/supabase/client";
 import { ContactInfo, Address, OrderStatus } from "@/types/order";
 import ClusterMap from "@/components/scheduling/ClusterMap";
+import JobAgeHeatMap from "@/components/scheduling/JobAgeHeatMap";
+import ViableJobsHeatMap from "@/components/scheduling/ViableJobsHeatMap";
 import DriverHoursMileagePanel from "@/components/scheduling/DriverHoursMileagePanel";
 
 import RouteBuilder from "@/components/scheduling/RouteBuilder";
@@ -17,6 +19,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 
 export type JobTypeFilter = 'all' | 'collection' | 'delivery';
+export type MapView = 'clusters' | 'age' | 'viable';
 
 export interface OrderData {
   id: string;
@@ -58,6 +61,8 @@ export type ShipdayPickupAddresses = Record<string, string>;
 const JobScheduling = () => {
   const [searchParams] = useSearchParams();
   const [showClusters, setShowClusters] = useState(true);
+  const [mapView, setMapView] = useState<MapView>('clusters');
+  const [heatMapDate, setHeatMapDate] = useState<Date>(new Date());
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [shipdayVerification, setShipdayVerification] = useState<ShipdayVerificationResults>({});
   const [shipdayPickupAddresses, setShipdayPickupAddresses] = useState<ShipdayPickupAddresses>({});
@@ -96,6 +101,11 @@ const JobScheduling = () => {
     }
   }, [searchParams]);
   
+  // Keep the viable-jobs date in step with the route filter date
+  useEffect(() => {
+    if (filterDate) setHeatMapDate(filterDate);
+  }, [filterDate]);
+
   const { data: orders, isLoading } = useQuery({
     queryKey: ['scheduling-orders'],
     queryFn: async () => {
@@ -247,16 +257,32 @@ const JobScheduling = () => {
           <>
             {/* Filter row */}
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 mb-4">
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="cluster-mode"
-                  checked={showClusters}
-                  onCheckedChange={setShowClusters}
-                />
-                <Label htmlFor="cluster-mode">
-                  Show K-means Clusters
-                </Label>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm text-muted-foreground">Map:</Label>
+                <ToggleGroup
+                  type="single"
+                  value={mapView}
+                  onValueChange={(v) => v && setMapView(v as MapView)}
+                  variant="outline"
+                  size="sm"
+                >
+                  <ToggleGroupItem value="clusters">Clusters</ToggleGroupItem>
+                  <ToggleGroupItem value="age">Job age</ToggleGroupItem>
+                  <ToggleGroupItem value="viable">Viable on date</ToggleGroupItem>
+                </ToggleGroup>
               </div>
+              {mapView === 'clusters' && (
+                <div className="flex items-center space-x-2">
+                  <Switch
+                    id="cluster-mode"
+                    checked={showClusters}
+                    onCheckedChange={setShowClusters}
+                  />
+                  <Label htmlFor="cluster-mode">
+                    Show K-means Clusters
+                  </Label>
+                </div>
+              )}
               <div className="flex items-center gap-2">
                 <Label className="text-sm text-muted-foreground">Show:</Label>
                 <ToggleGroup
@@ -274,12 +300,25 @@ const JobScheduling = () => {
             </div>
             
             <div className="mb-8">
-              <ClusterMap 
-                orders={filteredOrdersForMap} 
-                showClusters={showClusters}
-                jobTypeFilter={jobTypeFilter}
-                onClusterChange={setClusters}
-              />
+              {mapView === 'clusters' && (
+                <ClusterMap 
+                  orders={filteredOrdersForMap} 
+                  showClusters={showClusters}
+                  jobTypeFilter={jobTypeFilter}
+                  onClusterChange={setClusters}
+                />
+              )}
+              {mapView === 'age' && (
+                <JobAgeHeatMap orders={orders || []} jobTypeFilter={jobTypeFilter} />
+              )}
+              {mapView === 'viable' && (
+                <ViableJobsHeatMap
+                  orders={orders || []}
+                  jobTypeFilter={jobTypeFilter}
+                  selectedDate={heatMapDate}
+                  onSelectedDateChange={setHeatMapDate}
+                />
+              )}
             </div>
 
             <div className="mb-4">
