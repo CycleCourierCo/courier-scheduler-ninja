@@ -905,7 +905,9 @@ export const setIssuePrice = async (
 export const releaseInspectionToCustomer = async (
   inspectionId: string,
   releasedById: string,
-  releasedByName: string
+  releasedByName: string,
+  /** Who should be asked to approve the repairs. Defaults to the stored choice. */
+  recipient?: 'customer' | 'receiver' | 'walkin'
 ): Promise<BicycleInspection | null> => {
   try {
     const { data: issues, error: issuesError } = await supabase
