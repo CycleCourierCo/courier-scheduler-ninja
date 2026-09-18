@@ -34,11 +34,53 @@ const ApiDocumentationPage = () => {
               <div>
                 <h3 className="font-semibold mb-2">Authentication</h3>
                 <p className="text-sm text-muted-foreground mb-2">
-                  All requests require an API key in the headers:
+                  Every request needs either an API key:
                 </p>
                 <code className="bg-muted px-3 py-1 rounded text-sm block break-all">
                   X-API-Key: your_api_key_here
                 </code>
+                <p className="text-sm text-muted-foreground mt-2 mb-2">
+                  ...or an OAuth access token, if you are a partner app acting for a customer:
+                </p>
+                <code className="bg-muted px-3 py-1 rounded text-sm block break-all">
+                  Authorization: Bearer access_token_here
+                </code>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Connect with Cycle Courier (partner apps)</h3>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Partner apps use OAuth 2.1 with PKCE so customers can connect their own Cycle
+                  Courier account. Ask Cycle Courier to register your app; you will receive an App ID
+                  and App secret, and you provide your return web address(es).
+                </p>
+                <ol className="text-sm text-muted-foreground list-decimal pl-5 space-y-1 mb-2">
+                  <li>
+                    Send the customer to{" "}
+                    <code className="bg-muted px-1 rounded break-all">
+                      https://booking.cyclecourierco.com/oauth/authorize?response_type=code&amp;client_id=APP_ID&amp;redirect_uri=YOUR_RETURN_URL&amp;state=RANDOM&amp;code_challenge=CHALLENGE&amp;code_challenge_method=S256
+                    </code>
+                  </li>
+                  <li>After they approve, we redirect back with <code className="bg-muted px-1 rounded">code</code> and your <code className="bg-muted px-1 rounded">state</code>.</li>
+                  <li>Exchange the code at the token endpoint for tokens.</li>
+                  <li>Refresh tokens rotate on each use and last 180 days; access tokens last 1 hour.</li>
+                </ol>
+                <code className="bg-muted px-3 py-2 rounded text-xs block whitespace-pre-wrap break-all">
+{`POST https://api.cyclecourierco.com/functions/v1/oauth-token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code&code=CODE&redirect_uri=YOUR_RETURN_URL&code_verifier=VERIFIER&client_id=APP_ID&client_secret=APP_SECRET
+
+# refresh
+grant_type=refresh_token&refresh_token=TOKEN&client_id=APP_ID&client_secret=APP_SECRET
+
+# revoke (disconnect)
+POST https://api.cyclecourierco.com/functions/v1/oauth-revoke
+token=ACCESS_OR_REFRESH_TOKEN&client_id=APP_ID&client_secret=APP_SECRET`}
+                </code>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Tokens give the same access as that customer's own API key. Customers can disconnect
+                  your app at any time from their profile, which immediately stops access.
+                </p>
               </div>
               <div>
                 <h3 className="font-semibold mb-2">Rate Limiting</h3>
