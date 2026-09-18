@@ -146,6 +146,10 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
         toast.warning(`${type === "sender" ? "Sender" : "Receiver"} contact updated, but coordinates could not be fetched`);
       }
       
+      if (addressChanged) {
+        await rebuildShipdayJob(orderRow);
+      }
+
       setIsEditing(false);
       onUpdate();
     } catch (error) {
