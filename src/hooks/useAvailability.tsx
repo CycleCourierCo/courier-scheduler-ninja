@@ -68,6 +68,10 @@ export const useAvailability = ({
     fetchAllowedFridayDates().then(setAllowedFridayDates).catch(() => {});
   }, []);
 
+  // Inbound Northern Ireland collections pick a single day: the ferry partner
+  // books any weekday, so Monday-Friday is allowed and weekends are not.
+  const singleDayMode = requiredDates === 1;
+
   // This function will be used to check if a date should be disabled
   const isDateDisabled = (date: Date): boolean => {
     // Disable past dates (before today)
@@ -81,8 +85,13 @@ export const useAvailability = ({
     // Build YYYY-MM-DD once
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 
-    // Disable Fridays (day 5) UNLESS this specific Friday is in the allow list
-    if (date.getDay() === 5 && !allowedFridayDates.includes(dateStr)) {
+    if (singleDayMode) {
+      // Weekends are never available for the ferry partner collection
+      if (date.getDay() === 0 || date.getDay() === 6) {
+        return true;
+      }
+    } else if (date.getDay() === 5 && !allowedFridayDates.includes(dateStr)) {
+      // Disable Fridays (day 5) UNLESS this specific Friday is in the allow list
       return true;
     }
 
@@ -90,6 +99,7 @@ export const useAvailability = ({
     if (holidayDates.includes(dateStr)) {
       return true;
     }
+    
     
     // For receiver, also disable dates before the earliest sender date
     if (type === 'receiver' && minDate) {
@@ -240,23 +250,31 @@ export const useAvailability = ({
       return;
     }
 
-    // Pre-filter: remove disallowed Fridays and holidays before submission
+    // Pre-filter: remove disallowed dates before submission
     const validDates = dates.filter(date => {
       const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-      if (date.getDay() === 5 && !allowedFridayDates.includes(dateStr)) return false;
+      if (singleDayMode) {
+        if (date.getDay() === 0 || date.getDay() === 6) return false;
+      } else if (date.getDay() === 5 && !allowedFridayDates.includes(dateStr)) {
+        return false;
+      }
       if (holidayDates.includes(dateStr)) return false;
       return true;
     });
 
     const removedCount = dates.length - validDates.length;
     if (removedCount > 0) {
-      toast.warning(`${removedCount} invalid date(s) (Fridays/holidays) were removed from your selection.`);
+      toast.warning(
+        singleDayMode
+          ? `${removedCount} invalid date(s) (weekends/holidays) were removed from your selection.`
+          : `${removedCount} invalid date(s) (Fridays/holidays) were removed from your selection.`
+      );
     }
 
     if (validDates.length < requiredDates) {
       toast.error(
         requiredDates === 1
-          ? "Please pick a collection day that isn't a Friday or a holiday."
+          ? "Please pick a weekday collection day that isn't a holiday."
           : `Please select at least ${requiredDates} valid dates. You currently have ${validDates.length} valid date(s).`
       );
       return;
