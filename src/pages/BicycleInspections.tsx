@@ -649,14 +649,32 @@ const BicycleInspections = () => {
   });
 
 
+  // Approval link staff can send manually (public, no login needed)
+  const buildApprovalLink = (inspectionId: string) =>
+    `${window.location.origin}/inspection-approval/${inspectionId}`;
+  const [manualApprovalLink, setManualApprovalLink] = useState<string | null>(null);
+  const copyApprovalLink = async (inspectionId: string) => {
+    const link = buildApprovalLink(inspectionId);
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success("Approval link copied");
+    } catch {
+      setManualApprovalLink(link);
+    }
+  };
+
   // Release inspection to customer (admin gate)
   const releaseMutation = useMutation({
-    mutationFn: async (inspectionId: string) => {
+    mutationFn: async (args: {
+      inspectionId: string;
+      recipient?: "customer" | "receiver" | "walkin";
+    }) => {
       if (!user?.id) throw new Error("User not authenticated");
       return releaseInspectionToCustomer(
-        inspectionId,
+        args.inspectionId,
         user.id,
-        userProfile?.name || user.email || "Admin"
+        userProfile?.name || user.email || "Admin",
+        args.recipient
       );
     },
     onSuccess: () => {
