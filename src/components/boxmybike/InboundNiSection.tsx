@@ -19,6 +19,7 @@ import { filterOrdersBySearch } from "@/utils/orderSearch";
 import { toPublicFileUrl } from "@/lib/publicFileUrl";
 import { useAuth } from "@/contexts/AuthContext";
 import StageDateTimeDialog, { formatStageDate } from "@/components/boxmybike/StageDateTimeDialog";
+import CollectionDayDialog, { formatCollectionDay, toDayValue } from "@/components/boxmybike/CollectionDayDialog";
 
 interface InboundOrder {
   id: string;
