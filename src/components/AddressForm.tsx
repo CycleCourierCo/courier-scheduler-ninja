@@ -3,8 +3,7 @@ import React, { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { FormField, FormItem, FormLabel, FormControl, FormMessage } from "@/components/ui/form";
 import { Control, UseFormSetValue, useWatch } from "react-hook-form";
-import { Loader2, Search } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import AddressSearchInput, { SelectedAddress } from "@/components/address/AddressSearchInput";
 
 interface AddressFormProps {
   control: Control<any>;
@@ -12,20 +11,6 @@ interface AddressFormProps {
   setValue: UseFormSetValue<any>;
 }
 
-interface AddressSuggestion {
-  properties: {
-    formatted: string;
-    street: string;
-    housenumber?: string;
-    city: string;
-    county: string;
-    state: string;
-    postcode: string;
-    country: string;
-    lat?: number;
-    lon?: number;
-  };
-}
 
 
 const AddressForm: React.FC<AddressFormProps> = ({ control, prefix, setValue }) => {
