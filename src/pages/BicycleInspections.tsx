@@ -308,7 +308,24 @@ const BicycleInspections = () => {
       return [];
     },
     enabled: !!user,
+    staleTime: 60 * 1000,
   });
+
+  // Tidying up stuck inspection statuses used to block the list from showing.
+  // Do it in the background once, then refresh if anything actually changed.
+  const reconciledRef = useRef(false);
+  useEffect(() => {
+    if (!canManageInspections || reconciledRef.current) return;
+    reconciledRef.current = true;
+    (async () => {
+      try {
+        await reconcileInspectionStatuses();
+        queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      } catch (err) {
+        console.error("Failed to reconcile inspection statuses", err);
+      }
+    })();
+  }, [canManageInspections, queryClient]);
 
   // Admin clears a bike details mismatch flag once reviewed
   const identityReviewMutation = useMutation({
