@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet.heat";
 
@@ -10,8 +11,6 @@ export interface HeatPoint {
 }
 
 interface HeatLayerProps {
-  /** Map instance captured from MapContainer's ref */
-  map: L.Map | null;
   points: HeatPoint[];
   radius?: number;
   blur?: number;
@@ -20,17 +19,17 @@ interface HeatLayerProps {
 }
 
 /**
- * Thin wrapper around leaflet.heat. Rendered as a sibling of the map; it only
- * needs the Leaflet map instance, not the react-leaflet context.
+ * Thin wrapper around leaflet.heat. Render it inside a MapContainer.
  */
 const HeatLayer: React.FC<HeatLayerProps> = ({
-  map,
   points,
   radius = 28,
   blur = 20,
   maxZoom = 11,
   gradient,
 }) => {
+  const map = useMap();
+
   useEffect(() => {
     if (!map) return;
     const latLngs = points.map((p) => [p.lat, p.lon, p.weight ?? 0.5] as [number, number, number]);
