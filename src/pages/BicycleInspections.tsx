@@ -502,7 +502,7 @@ const BicycleInspections = () => {
 
   // Add a new issue to an existing inspection (pricing stage)
   const addIssueAtPricingMutation = useMutation({
-    mutationFn: async ({ inspectionId, orderId, draft, postApproval }: { inspectionId: string; orderId: string; draft: typeof newIssueDraft; postApproval?: boolean }) => {
+    mutationFn: async ({ inspectionId, orderId, draft, postApproval }: { inspectionId: string; orderId: string | null; draft: typeof newIssueDraft; postApproval?: boolean }) => {
       if (!user?.id) throw new Error("User not authenticated");
       const parts = draft.partsCost.trim() ? parseFloat(draft.partsCost) : null;
       const labour = draft.labourCost.trim() ? parseFloat(draft.labourCost) : null;
@@ -561,8 +561,8 @@ const BicycleInspections = () => {
         }
       }
     },
-    onError: (error) => {
-      toast.error("Failed to add issue");
+    onError: (error: any) => {
+      toast.error(`Failed to add issue${error?.message ? `: ${error.message}` : ""}`);
       console.error(error);
     },
   });
@@ -2709,7 +2709,7 @@ const BicycleInspections = () => {
                           toast.error("Enter a parts and/or labour price — there's no pricing round after approval");
                           return;
                         }
-                        addIssueAtPricingMutation.mutate({ inspectionId: inspection.id, orderId: order.id, draft: newIssueDraft, postApproval: isPostApproval });
+                        addIssueAtPricingMutation.mutate({ inspectionId: inspection.id, orderId: order.workshop_only ? null : order.id, draft: newIssueDraft, postApproval: isPostApproval });
 
                       }}
                       disabled={addIssueAtPricingMutation.isPending}
