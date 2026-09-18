@@ -74,7 +74,17 @@ const ReviewsPage = lazy(() => import("./pages/ReviewsPage"));
 const ReviewDetailPage = lazy(() => import("./pages/ReviewDetailPage"));
 const MyReviewsPage = lazy(() => import("./pages/MyReviewsPage"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Heavy operational lists shouldn't re-download every time the window
+      // regains focus; a short freshness window keeps pages snappy.
+      staleTime: 60 * 1000,
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const PageLoader = () => (
   <div className="flex min-h-[60vh] items-center justify-center">

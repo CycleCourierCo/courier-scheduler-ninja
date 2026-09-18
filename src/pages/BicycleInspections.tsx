@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -301,8 +301,6 @@ const BicycleInspections = () => {
     queryKey: ["bicycle-inspections", canManageInspections, user?.id],
     queryFn: async () => {
       if (canManageInspections) {
-        // Reconcile any stuck inspections before fetching
-        await reconcileInspectionStatuses();
         return getPendingInspections();
       } else if (user?.id) {
         return getMyInspections(user.id);
@@ -310,7 +308,24 @@ const BicycleInspections = () => {
       return [];
     },
     enabled: !!user,
+    staleTime: 60 * 1000,
   });
+
+  // Tidying up stuck inspection statuses used to block the list from showing.
+  // Do it in the background once, then refresh if anything actually changed.
+  const reconciledRef = useRef(false);
+  useEffect(() => {
+    if (!canManageInspections || reconciledRef.current) return;
+    reconciledRef.current = true;
+    (async () => {
+      try {
+        await reconcileInspectionStatuses();
+        queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      } catch (err) {
+        console.error("Failed to reconcile inspection statuses", err);
+      }
+    })();
+  }, [canManageInspections, queryClient]);
 
   // Admin clears a bike details mismatch flag once reviewed
   const identityReviewMutation = useMutation({
@@ -1577,38 +1592,97 @@ const BicycleInspections = () => {
   }, [sortedInspections, searchQuery, filters]);
 
 
-  // Filter inspections by status
-  const awaitingBase = filteredInspections.filter((i: any) => !i.inspection || i.inspection.status === "pending");
-  const awaitingInspection = awaitingBase.filter((i: any) => !i.collection_confirmation_sent_at);
-  const collected = awaitingBase.filter((i: any) => !!i.collection_confirmation_sent_at);
-  const awaitingPricing = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_pricing");
-  const withIssues = filteredInspections.filter((i: any) => i.inspection?.status === "issues_found");
-  // Bikes with declined work still available to offer to the receiver. Includes
-  // partial rejections (some work approved, some declined) so they can be
-  // offered straight away rather than waiting for the repairs to finish.
-  const repairsDeclined = filteredInspections.filter((i: any) => {
-    const status = i.inspection?.status;
-    if (!status) return false;
-    if (status === "repairs_declined") return true;
-    if (status === "inspected" || status === "repaired" || status === "ship_as_is") return false;
-    return (i.issues || []).some(
-      (issue: any) =>
-        issue.status === "declined" &&
-        !issue.offered_to_receiver_at &&
-        !issue.receiver_declined_at
-    );
-  });
-  const pendingReceiver = filteredInspections.filter((i: any) => i.inspection?.status === "pending_receiver_approval");
-  const awaitingParts = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_parts");
-  const awaitingRepair = filteredInspections.filter((i: any) => i.inspection?.status === "awaiting_repair" || i.inspection?.status === "in_repair" || i.inspection?.status === "cleaning");
-  const inspectedAndServiced = filteredInspections.filter(
-    (i: any) =>
-      (i.inspection?.status === "inspected" ||
-        i.inspection?.status === "repaired" ||
-        i.inspection?.status === "ship_as_is") &&
-      !isBillingSettled(i)
-  );
-  const invoicedList = filteredInspections.filter(isBillingSettled);
+  // Bucket inspections by status in a single pass — filtering the whole list
+  // once per tab on every render made this page hang on large datasets.
+  const {
+    awaitingInspection,
+    collected,
+    awaitingPricing,
+    withIssues,
+    repairsDeclined,
+    pendingReceiver,
+    awaitingParts,
+    awaitingRepair,
+    inspectedAndServiced,
+    invoicedList,
+  } = useMemo(() => {
+    const awaitingInspection: any[] = [];
+    const collected: any[] = [];
+    const awaitingPricing: any[] = [];
+    const withIssues: any[] = [];
+    const repairsDeclined: any[] = [];
+    const pendingReceiver: any[] = [];
+    const awaitingParts: any[] = [];
+    const awaitingRepair: any[] = [];
+    const inspectedAndServiced: any[] = [];
+    const invoicedList: any[] = [];
+
+    for (const i of filteredInspections as any[]) {
+      const status = i.inspection?.status;
+      const settled = isBillingSettled(i);
+
+      if (settled) invoicedList.push(i);
+
+      if (!i.inspection || status === "pending") {
+        if (i.collection_confirmation_sent_at) collected.push(i);
+        else awaitingInspection.push(i);
+        continue;
+      }
+
+      switch (status) {
+        case "awaiting_pricing":
+          awaitingPricing.push(i);
+          break;
+        case "issues_found":
+          withIssues.push(i);
+          break;
+        case "pending_receiver_approval":
+          pendingReceiver.push(i);
+          break;
+        case "awaiting_parts":
+          awaitingParts.push(i);
+          break;
+        case "awaiting_repair":
+        case "in_repair":
+        case "cleaning":
+          awaitingRepair.push(i);
+          break;
+        default:
+          break;
+      }
+
+      // Bikes with declined work still available to offer to the receiver.
+      // Includes partial rejections (some work approved, some declined) so they
+      // can be offered straight away rather than waiting for repairs to finish.
+      const terminal = status === "inspected" || status === "repaired" || status === "ship_as_is";
+      if (status === "repairs_declined") {
+        repairsDeclined.push(i);
+      } else if (!terminal) {
+        const offerable = (i.issues || []).some(
+          (issue: any) =>
+            issue.status === "declined" &&
+            !issue.offered_to_receiver_at &&
+            !issue.receiver_declined_at
+        );
+        if (offerable) repairsDeclined.push(i);
+      }
+
+      if (terminal && !settled) inspectedAndServiced.push(i);
+    }
+
+    return {
+      awaitingInspection,
+      collected,
+      awaitingPricing,
+      withIssues,
+      repairsDeclined,
+      pendingReceiver,
+      awaitingParts,
+      awaitingRepair,
+      inspectedAndServiced,
+      invoicedList,
+    };
+  }, [filteredInspections]);
 
   const renderInspectionCard = (order: any) => {
     const inspection = order.inspection;

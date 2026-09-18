@@ -33,7 +33,6 @@ export type SchedulingJobGroup = {
 // Function to get all pending orders that need scheduling and already scheduled orders
 export const getPendingSchedulingOrders = async (): Promise<Order[]> => {
   try {
-    console.log("Fetching pending scheduling orders and scheduled orders...");
     const { data, error } = await supabase
       .from("orders")
       .select("*")
@@ -53,9 +52,7 @@ export const getPendingSchedulingOrders = async (): Promise<Order[]> => {
       throw new Error(error.message);
     }
 
-    console.log(`Found ${data.length} orders for scheduling`);
     const mappedOrders = data.map(mapDbOrderToOrderType);
-    console.log("Mapped orders:", mappedOrders);
     return mappedOrders;
   } catch (error) {
     console.error("Unexpected error in getPendingSchedulingOrders:", error);
@@ -86,11 +83,9 @@ const findOverlappingDates = (dates1: Date[], dates2: Date[]): Date[] => {
 // Function to group orders by location proximity for either pickup or delivery
 export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'delivery' = 'pickup'): SchedulingGroup[] => {
   if (!orders || orders.length === 0) {
-    console.log("No orders to group");
     return [];
   }
   
-  console.log(`Grouping ${orders.length} orders by location proximity for ${type}`);
   const groups: SchedulingGroup[] = [];
   const processedOrders = new Set<string>();
   
@@ -106,7 +101,6 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
     
     // Skip if we don't have location or date information
     if (!mainContact?.address?.zipCode) {
-      console.log(`Skipping order ${order.id} due to missing location information for ${type}`);
       return;
     }
     
@@ -115,17 +109,13 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
     const deliveryDates = processDateArray(order.deliveryDate);
     
     // Debug logging to diagnose the issue
-    console.log(`Order ${order.id} ${type}:`, 
-      type === 'pickup' ? `Pickup dates: ${pickupDates.length}` : `Delivery dates: ${deliveryDates.length}`);
     
     // Skip if no valid dates for the current type (pickup or delivery)
     if (type === 'pickup' && pickupDates.length === 0) {
-      console.log(`Skipping order ${order.id} due to no valid pickup dates`);
       return;
     }
     
     if (type === 'delivery' && deliveryDates.length === 0) {
-      console.log(`Skipping order ${order.id} due to no valid delivery dates`);
       return;
     }
     
@@ -148,7 +138,6 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
       if (isProximityMatch) {
         // Add to this group, regardless of how many orders it already has
         group.orders.push(order);
-        console.log(`Added order ${order.id} to existing group ${group.id} (proximity match) for ${type}`);
         processedOrders.add(`${order.id}-${type}`);
         foundGroup = true;
         break;
@@ -181,12 +170,10 @@ export const groupOrdersByLocation = (orders: Order[], type: 'pickup' | 'deliver
       };
       
       groups.push(group);
-      console.log(`Created new group ${group.id} for ${locationName} with type ${type}`);
       processedOrders.add(`${order.id}-${type}`);
     }
   });
   
-  console.log(`Created ${groups.length} ${type} order groups`);
   return groups;
 };
 

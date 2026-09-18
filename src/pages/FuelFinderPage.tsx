@@ -203,21 +203,32 @@ const FuelFinderPage: React.FC = () => {
   const { data: stationData, isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: ["fuel-stations", searchParams, radiusMiles],
     queryFn: async () => {
-      let allStations: any[] = [];
-      let from = 0;
-      const batchSize = 1000;
-      while (true) {
-        const { data: batch, error } = await supabase
-          .from("fuel_station_cache")
-          .select("*")
-          .not("diesel_price", "is", null)
-          .range(from, from + batchSize - 1);
-        if (error) throw error;
-        if (!batch || batch.length === 0) break;
-        allStations.push(...batch);
-        if (batch.length < batchSize) break;
-        from += batchSize;
-      }
+      // Only fetch stations inside the bounding box that could possibly be in
+      // range — pulling the whole cache and measuring every station in the
+      // browser locks up the page.
+      const mode = searchParams?.mode || "depot";
+      const padMiles = (mode === "depot" ? radiusMiles : 2) + 1;
+      const padLat = padMiles / 69; // ~69 miles per degree of latitude
+      const lats = mode === "depot"
+        ? [DEPOT_LAT]
+        : [searchParams.origin_lat, searchParams.destination_lat];
+      const lons = mode === "depot"
+        ? [DEPOT_LON]
+        : [searchParams.origin_lon, searchParams.destination_lon];
+      const midLat = lats.reduce((a, b) => a + b, 0) / lats.length;
+      const padLon = padMiles / (69 * Math.max(0.2, Math.cos((midLat * Math.PI) / 180)));
+
+      const { data: batch, error } = await supabase
+        .from("fuel_station_cache")
+        .select("node_id,brand,name,address,postcode,latitude,longitude,diesel_price,last_updated,cached_at")
+        .not("diesel_price", "is", null)
+        .gte("latitude", Math.min(...lats) - padLat)
+        .lte("latitude", Math.max(...lats) + padLat)
+        .gte("longitude", Math.min(...lons) - padLon)
+        .lte("longitude", Math.max(...lons) + padLon)
+        .limit(5000);
+      if (error) throw error;
+      const allStations: any[] = batch || [];
 
       if (allStations.length === 0) {
         return { stations: [] as FuelStation[], count: 0, cached_at: null as string | null, needs_refresh: true };
