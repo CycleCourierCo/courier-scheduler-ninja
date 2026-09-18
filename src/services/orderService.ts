@@ -111,7 +111,6 @@ export const getOrdersForLoading = async (): Promise<Order[]> => {
       return [];
     }
 
-    console.log(`Fetched ${data?.length || 0} orders for loading page`);
     return data.map(order => {
       const mappedOrder = mapDbOrderToOrderType(order);
       const inspections = order.bicycle_inspections as { status: string }[] | null;
