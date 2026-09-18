@@ -87,16 +87,22 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
       
       if (fetchError) throw fetchError;
       
-      // Build address string and geocode
-      const addressString = buildAddressString({
-        street: editedContact.street,
-        city: editedContact.city,
-        state: editedContact.state,
-        zipCode: editedContact.zipCode,
-        country: editedContact.country
-      });
-      
-      const coordinates = await geocodeAddress(addressString);
+      // Use the coordinates from the searched address when available, otherwise
+      // fall back to geocoding the typed address.
+      let coordinates: { lat: number; lon: number } | null = null;
+      if (searchedAddress?.lat !== undefined && searchedAddress?.lon !== undefined) {
+        coordinates = { lat: searchedAddress.lat, lon: searchedAddress.lon };
+      } else {
+        const addressString = buildAddressString({
+          street: editedContact.street,
+          city: editedContact.city,
+          state: editedContact.state,
+          zipCode: editedContact.zipCode,
+          country: editedContact.country
+        });
+
+        coordinates = await geocodeAddress(addressString);
+      }
       
       // Update all fields including coordinates
       const updatedContact = {
@@ -111,6 +117,8 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
           state: editedContact.state,
           zipCode: editedContact.zipCode,
           country: editedContact.country,
+          // Only overwrite the stored UK constituent country when a search result gave us one
+          ...(searchedAddress?.region ? { region: searchedAddress.region } : {}),
           ...(coordinates && { lat: coordinates.lat, lon: coordinates.lon })
         }
       };
