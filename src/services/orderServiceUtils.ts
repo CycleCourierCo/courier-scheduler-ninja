@@ -108,6 +108,7 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     guaranteedDeliveryPayer: dbOrder.guaranteed_delivery_payer || null,
     guaranteedDeliveryAmount:
       dbOrder.guaranteed_delivery_amount != null ? Number(dbOrder.guaranteed_delivery_amount) : null,
+    guaranteedDeliveryDate: dbOrder.guaranteed_delivery_date || null,
     guaranteedDeliveryNote: dbOrder.guaranteed_delivery_note || null,
     guaranteedDeliveryMarkedAt: dbOrder.guaranteed_delivery_marked_at || null,
     guaranteedDeliveryMarkedByName: dbOrder.guaranteed_delivery_marked_by_name || null,
@@ -123,6 +124,7 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     guaranteed_delivery_payer: dbOrder.guaranteed_delivery_payer || null,
     guaranteed_delivery_amount:
       dbOrder.guaranteed_delivery_amount != null ? Number(dbOrder.guaranteed_delivery_amount) : null,
+    guaranteed_delivery_date: dbOrder.guaranteed_delivery_date || null,
     guaranteed_delivery_note: dbOrder.guaranteed_delivery_note || null,
     guaranteed_delivery_marked_at: dbOrder.guaranteed_delivery_marked_at || null,
     guaranteed_delivery_marked_by_name: dbOrder.guaranteed_delivery_marked_by_name || null,

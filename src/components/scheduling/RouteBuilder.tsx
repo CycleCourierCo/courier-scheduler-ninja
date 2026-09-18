@@ -46,6 +46,7 @@ import {
   resolveStopAddress,
 } from "@/lib/altLocation";
 import { uuid } from "@/lib/uuid";
+import GuaranteedDatePanel from "./GuaranteedDatePanel";
 
 // Profitability constants
 const COST_PER_MILE = 0.45;
@@ -1733,6 +1734,21 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     }
   };
 
+  // Add/remove a guaranteed-date job straight from the panel at the top
+  const toggleGuaranteedJob = (order: OrderData, type: 'pickup' | 'delivery') => {
+    const contact: any = getLegContact(order, type);
+    toggleJobSelection({
+      orderId: order.id,
+      type,
+      address: formatAddress(contact.address),
+      contactName: contact.name,
+      phoneNumber: contact.phone,
+      order,
+      lat: contact.lat,
+      lon: contact.lon,
+    });
+  };
+
   // CSV Upload handlers
   const handleCsvFileSelect = (content: string) => {
     setIsProcessingCsv(true);
@@ -3245,6 +3261,11 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   return (
     <TooltipProvider>
       <div className="space-y-6">
+      <GuaranteedDatePanel
+        orders={orderList}
+        selectedKeys={new Set(selectedJobs.map(j => `${j.orderId}-${j.type}`))}
+        onToggleJob={toggleGuaranteedJob}
+      />
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
