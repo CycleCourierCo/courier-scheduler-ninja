@@ -12,6 +12,8 @@ export interface MatchCandidate {
   jobType: 'pickup' | 'delivery';
   matchType: 'exact' | 'fuzzy' | 'address';
   confidence: number;
+  /** This leg already has a booked date — shown, but never the default pick */
+  alreadyScheduled?: boolean;
 }
 
 export interface MatchResult {
