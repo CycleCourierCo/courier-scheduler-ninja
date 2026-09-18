@@ -166,6 +166,37 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
     onError: (e: any) => toast.error(e?.message || "Failed to update date and time"),
   });
 
+  // Staff can set the Northern Ireland collection day themselves, or change one
+  // the customer picked. Either way the ferry partner is emailed with the new day.
+  const setCollectionDay = useMutation({
+    mutationFn: async ({
+      id,
+      day,
+      hadDay,
+    }: {
+      id: string;
+      day: string;
+      hadDay: boolean;
+    }) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({ pickup_date: [day], updated_at: new Date().toISOString() } as any)
+        .eq("id", id);
+      if (error) throw error;
+      const { error: mailError } = await supabase.functions.invoke(
+        "send-ferry-partner-notification",
+        { body: { orderId: id, force: true, updated: hadDay } }
+      );
+      if (mailError) throw new Error("Day saved, but the partner email could not be sent");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inbound-ni-orders"] });
+      toast.success("Collection day saved and emailed to City Air Express");
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to save the collection day"),
+  });
+
+
   const filtered = React.useMemo(
     () => filterOrdersBySearch(orders, search),
     [orders, search]
