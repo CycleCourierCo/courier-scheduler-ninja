@@ -272,6 +272,7 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
                     onEditTime={(column, current, label) =>
                       setEditing({ order, column, current, label })
                     }
+                    onEditDay={() => setDayEditing(order)}
                     disabled={updateStage.isPending}
                   />
                 ))}
