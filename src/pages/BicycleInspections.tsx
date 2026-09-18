@@ -2928,9 +2928,19 @@ const BicycleInspections = () => {
                     )}
                     Send approval request
                   </Button>
-                </>
-              )}
-              {(inspection as any).approval_email_sent_at && (
+                 </>
+               )}
+               {inspection.status !== "awaiting_pricing" && (
+                 <Button
+                   size="sm"
+                   variant="outline"
+                   onClick={() => copyApprovalLink(inspection.id)}
+                 >
+                   <Copy className="mr-1 h-4 w-4" />
+                   Copy approval link
+                 </Button>
+               )}
+               {(inspection as any).approval_email_sent_at && (
                 <span className="text-xs text-muted-foreground">
                   Approval request sent{" "}
                   {new Date((inspection as any).approval_email_sent_at).toLocaleDateString("en-GB")}
