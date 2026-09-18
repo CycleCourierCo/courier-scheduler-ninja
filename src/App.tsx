@@ -32,6 +32,8 @@ const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage"));
 const JobScheduling = lazy(() => import("./pages/JobScheduling"));
 const AccountApprovals = lazy(() => import("./pages/AccountApprovals"));
 const ApiKeysPage = lazy(() => import("./pages/ApiKeysPage"));
+const PartnerAppsPage = lazy(() => import("./pages/PartnerAppsPage"));
+const OAuthAuthorizePage = lazy(() => import("./pages/OAuthAuthorizePage"));
 const WebhookConfigPage = lazy(() => import("./pages/WebhookConfigPage"));
 const InvoicesPage = lazy(() => import("./pages/InvoicesPage"));
 const AboutPage = lazy(() => import("./pages/AboutPage"));
