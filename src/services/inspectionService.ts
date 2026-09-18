@@ -662,6 +662,8 @@ export const getPendingInspections = async () => {
       pickup_date: null,
       created_at: insp.created_at,
       tracking_events: null,
+      shopify_order_id: null,
+      created_via_api: false,
       booking_customer_name: insp.customer_company || insp.customer_name || insp.customer_email || null,
       booking_customer_email: insp.customer_email || null,
       inspection: insp,
