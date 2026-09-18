@@ -317,6 +317,24 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
           );
         }}
       />
+
+      <CollectionDayDialog
+        open={!!dayEditing}
+        onOpenChange={(o) => !o && setDayEditing(null)}
+        initial={dayEditing?.pickup_date || null}
+        saving={setCollectionDay.isPending}
+        onConfirm={(day) => {
+          if (!dayEditing) return;
+          setCollectionDay.mutate(
+            {
+              id: dayEditing.id,
+              day,
+              hadDay: Boolean(toDayValue(dayEditing.pickup_date)),
+            },
+            { onSuccess: () => setDayEditing(null) }
+          );
+        }}
+      />
     </div>
   );
 };
@@ -326,8 +344,9 @@ const InboundCard: React.FC<{
   onAdvance: () => void;
   onBack: () => void;
   onEditTime: (column: string, current: string | null, label: string) => void;
+  onEditDay: () => void;
   disabled: boolean;
-}> = ({ order, onAdvance, onBack, onEditTime, disabled }) => {
+}> = ({ order, onAdvance, onBack, onEditTime, onEditDay, disabled }) => {
   const [signedLabel, setSignedLabel] = React.useState<string | null>(null);
 
   React.useEffect(() => {
