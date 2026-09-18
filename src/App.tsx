@@ -163,6 +163,11 @@ function App() {
                   <ApiKeysPage />
                 </ProtectedRoute>
               } />
+              <Route path="/admin/partner-apps" element={
+                <ProtectedRoute adminOnly={true}>
+                  <PartnerAppsPage />
+                </ProtectedRoute>
+              } />
               <Route path="/webhooks" element={
                 <ProtectedRoute adminOnly={true}>
                   <WebhookConfigPage />
