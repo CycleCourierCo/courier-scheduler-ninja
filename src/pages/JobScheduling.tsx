@@ -274,12 +274,25 @@ const JobScheduling = () => {
             </div>
             
             <div className="mb-8">
-              <ClusterMap 
-                orders={filteredOrdersForMap} 
-                showClusters={showClusters}
-                jobTypeFilter={jobTypeFilter}
-                onClusterChange={setClusters}
-              />
+              {mapView === 'clusters' && (
+                <ClusterMap 
+                  orders={filteredOrdersForMap} 
+                  showClusters={showClusters}
+                  jobTypeFilter={jobTypeFilter}
+                  onClusterChange={setClusters}
+                />
+              )}
+              {mapView === 'age' && (
+                <JobAgeHeatMap orders={orders || []} jobTypeFilter={jobTypeFilter} />
+              )}
+              {mapView === 'viable' && (
+                <ViableJobsHeatMap
+                  orders={orders || []}
+                  jobTypeFilter={jobTypeFilter}
+                  selectedDate={heatMapDate}
+                  onSelectedDateChange={setHeatMapDate}
+                />
+              )}
             </div>
 
             <div className="mb-4">
