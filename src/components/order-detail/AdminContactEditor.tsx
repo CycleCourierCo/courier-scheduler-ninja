@@ -116,7 +116,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
       
       // Update all fields including coordinates
       const updatedContact = {
-        ...currentOrder[fieldName],
+        ...orderRow[fieldName],
         name: editedContact.name,
         email: editedContact.email,
         phone: editedContact.phone,
