@@ -73,6 +73,11 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
       return;
     }
 
+    if (!guaranteedDate) {
+      toast.error("Choose the guaranteed delivery date");
+      return;
+    }
+
     const parsed = netFromTyped;
 
     if (payer !== "account" && parsed <= 0) {
@@ -86,10 +91,17 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
       const { data: authData } = await supabase.auth.getUser();
       const user = authData?.user;
 
-      await setGuaranteedDelivery(order.id, payer, parsed, note.trim() || undefined, {
-        id: user?.id,
-        name: (user?.user_metadata as any)?.name || user?.email || null,
-      });
+      await setGuaranteedDelivery(
+        order.id,
+        payer,
+        parsed,
+        note.trim() || undefined,
+        {
+          id: user?.id,
+          name: (user?.user_metadata as any)?.name || user?.email || null,
+        },
+        guaranteedDate
+      );
 
       if (payer === "account") {
         toast.success(
