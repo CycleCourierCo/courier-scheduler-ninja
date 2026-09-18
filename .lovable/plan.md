@@ -56,6 +56,12 @@ Because iterating on the same day's problem is free, the planner can try several
 
 Self-hosted open-source Vroom + OSRM would be £0 in licence but ~£10/month VPS plus maintenance. Verso removes the server and gives better road data and support for a similar monthly figure at our volume.
 
+## Do we need OSRM as well as Vroom if we use Verso?
+
+No. Vroom (the open-source solver) needs a routing engine (OSRM, Valhalla or OpenRouteService) underneath it to supply a duration/distance matrix — which is why the self-hosted setup runs both containers. Verso's Vroom Premium API bundles that for you: the duration matrix and road data are part of the hosted service, so we would send jobs/vehicles/time windows to one endpoint and get an optimised sequence back. Nothing else to host. The public demo servers for both projects would still be off-limits, but we would not be calling them anyway.
+
+The only thing the solver does not give is a drawn line on the map — the route polyline. We already have that covered: `route-path` (Google Routes) or Geoapify can draw the optimised sequence for display, and they stay for geocoding/maps.
+
 ## 5. What an optimiser would change
 
 - Replace manual stop ordering with a `solve` call: vehicles = vans (capacity in bike spaces, depot start/end, shift window), tasks = selected legs as `jobs` (single location) rather than `shipments`, since collection and delivery are normally on different days.
