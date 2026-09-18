@@ -1982,9 +1982,18 @@ const BicycleInspections = () => {
                   Receiver approved: {receiverApprovedCount}
                 </Badge>
               )}
+              <Badge variant="outline">
+                Total parts: £{totalPartsCost.toFixed(2)}
+              </Badge>
+              <Badge variant="outline">
+                Total labour: £{totalLabourCost.toFixed(2)}
+              </Badge>
+              <Badge variant="outline" className="font-semibold">
+                Total repairs: £{totalQuotedCost.toFixed(2)}
+              </Badge>
               {isAdmin && (
                 <Badge variant="outline">
-                  Total repairs: £{totalRepairCost.toFixed(2)}
+                  Approved: £{totalRepairCost.toFixed(2)}
                 </Badge>
               )}
             </div>
