@@ -1719,6 +1719,21 @@ const BicycleInspections = () => {
                   </>
                 )}
               </CardDescription>
+              {(order as any).booking_customer_name && (
+                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground break-words">
+                    Account: <span className="font-medium">{(order as any).booking_customer_name}</span>
+                  </span>
+                  {!isWorkshopOnly && (order as any).shopify_order_id && (
+                    <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+                      Shopify
+                    </Badge>
+                  )}
+                  {!isWorkshopOnly && !(order as any).shopify_order_id && (order as any).created_via_api && (
+                    <Badge variant="secondary">API</Badge>
+                  )}
+                </div>
+              )}
               <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
                 {!isWorkshopOnly && (
                   <Button
