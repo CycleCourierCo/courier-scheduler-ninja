@@ -1,6 +1,5 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
-import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { colouredMarkerIcon } from "@/lib/mapMarkers";
 import { Badge } from "@/components/ui/badge";
@@ -22,8 +21,6 @@ const AGE_GRADIENT = {
 };
 
 const JobAgeHeatMap: React.FC<JobAgeHeatMapProps> = ({ orders, jobTypeFilter = "all" }) => {
-  const [map, setMap] = useState<L.Map | null>(null);
-
   const points = useMemo(
     () =>
       extractHeatPoints(orders, {
@@ -84,12 +81,13 @@ const JobAgeHeatMap: React.FC<JobAgeHeatMapProps> = ({ orders, jobTypeFilter = "
           center={[center.lat, center.lng]}
           zoom={6}
           style={{ height: "100%", width: "100%" }}
-          ref={setMap as any}
         >
           <TileLayer
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           />
+
+          <HeatLayer points={heatPoints} gradient={AGE_GRADIENT} />
 
           <Marker position={[DEPOT_LOCATION.lat, DEPOT_LOCATION.lon]} icon={colouredMarkerIcon("black")}>
             <Popup>
@@ -130,8 +128,6 @@ const JobAgeHeatMap: React.FC<JobAgeHeatMapProps> = ({ orders, jobTypeFilter = "
           })}
         </MapContainer>
       </div>
-
-      <HeatLayer map={map} points={heatPoints} gradient={AGE_GRADIENT} />
     </div>
   );
 };
