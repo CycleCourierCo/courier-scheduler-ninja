@@ -1,45 +1,63 @@
-# Make the heavy pages load and stay responsive
+# Make every page load fast and stop the browser hanging
 
-Box My Bike, Bicycle Inspections, Loading & Storage and Job Scheduling can freeze the browser. The pages don't download too much — the live working set is about 330 orders (roughly 0.6 MB) and 325 inspections with 622 repair lines. The stalls come from the browser redoing the same heavy work over and over, plus some avoidable waiting before anything appears.
+Full audit is done: all 60 pages were checked. Most are fine. The hangs come from a small number of pages that download the whole database table and then do heavy maths in the browser while it is trying to draw the screen.
 
-## What is actually causing it
+## What the data actually looks like right now
 
-1. **Inspections re-sorts and re-groups everything on every key press.** The page builds its ten status groups by scanning the whole list a dozen times, and it does that again on every keystroke in the search box, every time a dialog opens or closes, and on every hover. The page is also one single 3,972-line piece, so any small change redraws all of it.
-2. **Inspections runs a tidy-up job before it will show anything.** Each visit first reconciles stuck inspection stages one by one, then loads orders, then inspections, then customer names, then walk-ins — five waits in a row before the first card appears.
-3. **Inspections matches records the slow way.** For every order it searches the whole inspection list twice to find its match.
-4. **Job Scheduling checks every job with the courier system on load.** It asks the delivery provider to verify jobs for all live orders, not just the day being planned.
-5. **Route planning logs a line per job while grouping them by area,** and the grouping compares every job with every group. Each of those log lines is also captured for error reporting, which multiplies the cost.
-6. **Loading & Storage loads every column of every live order,** including large tracking-history blobs it doesn't display.
-7. **Any tab switch reloads everything.** There is no "data is still fresh" window, so returning to the tab from Shipday or email refetches the whole list.
-8. **Printing labels blocks the whole page** while the PDF is built, which is what makes the browser warn that the page isn't responding on big collection days.
+- 7,481 orders in total (about 15 MB if every column is loaded)
+- 335 active jobs, 325 inspections, 622 repair issues, 16 Box My Bike jobs
+- 8,091 fuel stations, 948 timeslips, 301 tasks, 174 stock items
+- Claims, knowledge base, conversations, builds: tiny
 
-## What I'll change
+## The pages causing the freezes
 
-- Group and count the inspections once per data change instead of on every render, and split each inspection card into its own piece so typing a comment only redraws that card. Long groups get windowed so only visible cards are built.
-- Show the inspections list first and run the stage tidy-up quietly afterwards; load the independent bits at the same time rather than one after another.
-- Match orders to inspections by direct lookup instead of searching the list repeatedly.
-- On Job Scheduling, only verify courier jobs for the date being planned, and only when the planner asks.
-- Remove the per-job logging in route grouping.
-- Load only the fields Loading & Storage actually shows, dropping the tracking-history blobs.
-- Give the whole app a short freshness window and stop automatic reloads on tab focus; add a manual refresh where staff need it.
-- Build label PDFs in batches so the page keeps responding, with progress shown.
-- Same review pass over Box My Bike and Warehouse Stock: single-pass grouping, memoised cards, trimmed fields.
+1. **Inspections** — the list is re-filtered around 12 times for every single keystroke or click, every card is redrawn each time, and the page repairs/reconciles statuses in the database *before* it will show you anything.
+2. **Loading & Storage** — loads every column of up to 5,000 orders (including full tracking history) and used to write thousands of log lines while drawing.
+3. **Job Scheduling** — loads the whole active backlog and then checks courier jobs for every order, not just the day you are looking at.
+4. **Analytics** — downloads all 7,481 orders and all inspections in eight sequential batches, with no caching, then recalculates roughly 15 charts on every click because the results are not remembered.
+5. **Fuel Finder** — downloads all 8,091 fuel stations and measures the distance to each one in the browser, every time you search.
+6. **Invoices** — loads the whole invoice history table with no limit, and loads every column of orders during a bulk run.
+7. **User Management** — loads every user with every column (including document links) into one unpaginated table.
+8. **Bulk Availability and Project Management** — update records one at a time in a loop, so the page sits frozen until the last one finishes.
+9. **Dashboard label printing** — builds large PDFs in one go on the main thread, which is what triggers "page took too long to respond".
+10. **Tracking page (public)** — logs the full order object on every redraw.
 
-Nothing about what the pages show, who can see them, or how data is saved changes.
+## Good news — these are already fine
 
-## How I'll check it
+Repair approval pages (both the inspection approval and the receiver repair offer) are clean: one call, small payload, results remembered correctly. Also fine: customer order detail, tracking (apart from the logging), customer service inbox, vehicles, equipment, my stock, storage bays, driver timeslips, trunk runs, tasks, reviews, knowledge base, claims, and all the small admin/settings pages.
 
-- Measure first and after on Inspections, Box My Bike, Loading & Storage and Job Scheduling: time to first content, and the delay after a search keystroke. Target under ~1 second to content and no visible lag while typing.
-- Drive the app in a headless browser to confirm no long blocking tasks and no "page unresponsive" warnings, and that the lists still show the same records and counts.
+## What I will change
+
+**Stop over-fetching**
+- Analytics: only load the date range being viewed, keep results for 5 minutes, and remember every calculation instead of redoing it.
+- Fuel Finder: ask the database for stations near the search point instead of all of them.
+- Loading & Storage: request only the columns the page shows.
+- Invoices: newest 200 invoices, and only needed order columns.
+- User Management: paginate and load display columns only.
+- Job Scheduling: only verify courier jobs for the selected day.
+
+**Stop redundant work while drawing**
+- Inspections: sort into status groups in a single pass, split cards into their own memoised component, and only draw what is on screen for long lists.
+- Inspections: move the status reconciliation into the background so the list appears immediately.
+- Analytics: memoise the status counts and the ~8 chart calculations currently recomputed on every render.
+- Remove logging from inside loops and from the public tracking page.
+
+**Stop the main thread locking up**
+- Label/PDF generation runs in chunks so the browser stays responsive.
+- Bulk availability and project-management updates run in small parallel batches instead of one-by-one.
+
+**Global safety net**
+- Sensible default freshness so heavy lists don't re-download every time a window regains focus.
 
 ## Technical notes
 
-- `src/pages/BicycleInspections.tsx:1581-1611`: replace the twelve chained `.filter()` passes with one `useMemo` bucketing pass; extract `renderInspectionCard` into a `React.memo` `InspectionCard` component file under `src/components/inspections/`; virtualize buckets over ~50 rows.
-- `src/pages/BicycleInspections.tsx:299-311`: drop `await reconcileInspectionStatuses()` from the `queryFn`; run it after first paint and invalidate on completion.
-- `src/services/inspectionService.ts:574-680`: build a `Map` keyed on `order_id`; `Promise.all` the profiles and workshop-inspection queries.
-- `src/pages/JobScheduling.tsx:112-166`: scope `verifyShipdayOrders` to the selected date's orders; keep the wide select but drop `tracking_events` where unused.
-- `src/services/schedulingService.ts:36-190`: remove loop `console.log` calls.
-- `src/services/orderService.ts:99-127`: replace `select("*, bicycle_inspections(status)")` with an explicit column list; drop the per-call `console.log`.
-- `src/App.tsx` QueryClient: `defaultOptions.queries = { staleTime: 60_000, refetchOnWindowFocus: false, retry: 1 }`.
-- `src/utils/labelUtils.ts` + Dashboard bulk labels: chunk page generation with `await new Promise(r => setTimeout(r))` between batches and report progress.
-- No database or edge-function changes.
+- `AnalyticsPage.tsx:109-126, 128-134, 172-190` — add `staleTime`, date-bounded queries, `useMemo`.
+- `analyticsService.ts:9-45`, `inspectionAnalyticsService.ts:35-65` — accept a date range; drop unbounded pagination.
+- `FuelFinderPage.tsx:206-233` — bounding-box filter server side.
+- `BicycleInspections.tsx:1581-1611` — single-pass bucketing; extract memoised card; virtualize.
+- `inspectionService.ts:198-300, 574-680` — background reconcile, parallel queries, Map lookups.
+- `orderService.ts:99-127` — explicit column list.
+- `JobScheduling.tsx:112-166` — scope Shipday verification.
+- `schedulingService.ts:36-190` — remove per-job logs.
+- `InvoicesPage.tsx:115-120, 334-345`; `UserManagement.tsx:64`; `TrackingPage.tsx:103-105`; `BulkAvailabilityPage.tsx:100-166`; `ProjectManagement.tsx:69`; `labelUtils.ts` chunking; `App.tsx` QueryClient defaults.
+- No database schema or business-logic changes; behaviour stays identical.
