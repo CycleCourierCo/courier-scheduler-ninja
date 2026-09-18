@@ -461,8 +461,6 @@ export const getDeliveryCollectionStatus = (
   const scheduled = (order as any).scheduled_pickup_date as string | null | undefined;
   if (scheduled) return { kind: 'scheduled', date: scheduled };
 
-  const pickupDates = order.pickup_date as string[] | null | undefined;
-  if (pickupDates && pickupDates.length > 0) return { kind: 'scheduled', date: pickupDates[0] };
-
+  // Customer availability days are not a booked collection - treat as not collected
   return { kind: 'not_collected' };
 };
