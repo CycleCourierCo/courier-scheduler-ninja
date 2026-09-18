@@ -294,6 +294,13 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
               </div>
             </div>
             
+            {/* Address search */}
+            <AddressSearchInput
+              onSelect={handleSelectAddress}
+              showManualEntry={false}
+              label="Search Address"
+            />
+
             {/* Street Address */}
             <div>
               <Label htmlFor={`${type}-street`} className="text-sm">Street Address</Label>
