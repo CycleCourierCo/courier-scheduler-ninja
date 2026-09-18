@@ -263,6 +263,12 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
 
             <dl className="space-y-1.5 text-sm">
               <div className="flex flex-wrap gap-x-2">
+                <dt className="text-muted-foreground">Guaranteed date:</dt>
+                <dd className="font-medium break-words">
+                  {guaranteedDateLabel || "Not set"}
+                </dd>
+              </div>
+              <div className="flex flex-wrap gap-x-2">
                 <dt className="text-muted-foreground">Extra charge:</dt>
                 <dd className="font-medium break-words">
                   £{currentGross.toFixed(2)}{" "}
@@ -359,6 +365,16 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
                   </Label>
                 </div>
               </RadioGroup>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="gd-date">Guaranteed delivery date</Label>
+              <Input
+                id="gd-date"
+                type="date"
+                value={guaranteedDate}
+                onChange={(e) => setGuaranteedDate(e.target.value)}
+              />
             </div>
 
             <div className="space-y-2">
