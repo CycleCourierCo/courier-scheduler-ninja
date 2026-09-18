@@ -1632,6 +1632,23 @@ const BicycleInspections = () => {
     const approvedCount = approvedIssues.length;
     const declinedCount = orderIssues.filter((i: InspectionIssue) => i.status === "declined").length;
     const totalRepairCost = customerApprovedIssues.reduce((sum: number, i: InspectionIssue) => sum + (Number(i.estimated_cost) || 0), 0);
+    // Quoted totals cover every issue on the inspection, approved or not, so
+    // staff can see the value of the work before any decision is made.
+    const totalPartsCost = orderIssues.reduce(
+      (sum: number, i: any) => sum + (Number(i.parts_cost) || 0),
+      0
+    );
+    const totalLabourCost = orderIssues.reduce(
+      (sum: number, i: any) => sum + (Number(i.labour_cost) || 0),
+      0
+    );
+    // Older issues may carry a single price with no parts/labour split.
+    const totalQuotedCost = orderIssues.reduce((sum: number, i: any) => {
+      const parts = Number(i.parts_cost) || 0;
+      const labour = Number(i.labour_cost) || 0;
+      const split = parts + labour;
+      return sum + (split > 0 ? split : Number(i.estimated_cost) || 0);
+    }, 0);
     // Declined repairs that can still be offered to the receiver (they pay directly)
     const offerableIssues = orderIssues.filter(
       (i: any) => i.status === "declined" && !i.receiver_declined_at
@@ -1702,6 +1719,21 @@ const BicycleInspections = () => {
                   </>
                 )}
               </CardDescription>
+              {(order as any).booking_customer_name && (
+                <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground break-words">
+                    Account: <span className="font-medium">{(order as any).booking_customer_name}</span>
+                  </span>
+                  {!isWorkshopOnly && (order as any).shopify_order_id && (
+                    <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+                      Shopify
+                    </Badge>
+                  )}
+                  {!isWorkshopOnly && !(order as any).shopify_order_id && (order as any).created_via_api && (
+                    <Badge variant="secondary">API</Badge>
+                  )}
+                </div>
+              )}
               <div className="mt-2 flex min-w-0 flex-wrap items-center gap-2">
                 {!isWorkshopOnly && (
                   <Button
@@ -1965,9 +1997,18 @@ const BicycleInspections = () => {
                   Receiver approved: {receiverApprovedCount}
                 </Badge>
               )}
+              <Badge variant="outline">
+                Total parts: £{totalPartsCost.toFixed(2)}
+              </Badge>
+              <Badge variant="outline">
+                Total labour: £{totalLabourCost.toFixed(2)}
+              </Badge>
+              <Badge variant="outline" className="font-semibold">
+                Total repairs: £{totalQuotedCost.toFixed(2)}
+              </Badge>
               {isAdmin && (
                 <Badge variant="outline">
-                  Total repairs: £{totalRepairCost.toFixed(2)}
+                  Approved: £{totalRepairCost.toFixed(2)}
                 </Badge>
               )}
             </div>
