@@ -121,7 +121,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
         email: editedContact.email,
         phone: editedContact.phone,
         address: {
-          ...currentOrder[fieldName].address,
+          ...(orderRow[fieldName]?.address ?? {}),
           street: editedContact.street,
           city: editedContact.city,
           state: editedContact.state,
