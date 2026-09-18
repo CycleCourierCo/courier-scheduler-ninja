@@ -126,6 +126,9 @@ const AnalyticsPage = () => {
   const { data: inspections = [] } = useQuery({
     queryKey: ["inspectionsAnalytics"],
     queryFn: fetchInspectionsForAnalytics,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const inspectionsOverTime = useMemo(() => getInspectionsOverTime(inspections), [inspections]);
