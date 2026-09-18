@@ -169,6 +169,7 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
   const openEdit = () => {
     setPayer((currentPayer as GuaranteedDeliveryPayer) || "account");
     setAmount(currentGross ? currentGross.toFixed(2) : "0");
+    setGuaranteedDate(order?.guaranteed_delivery_date || "");
     setNote(order?.guaranteed_delivery_note || "");
     handleOpenChange(true);
   };
@@ -176,10 +177,20 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
   const openNew = () => {
     setPayer("account");
     setAmount("");
+    setGuaranteedDate("");
     setNote("");
     handleOpenChange(true);
   };
 
+  const guaranteedDateLabel = order?.guaranteed_delivery_date
+    ? new Date(`${order.guaranteed_delivery_date}T12:00:00`).toLocaleDateString("en-GB", {
+        timeZone: "Europe/London",
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      })
+    : null;
 
   const markedAt = order?.guaranteed_delivery_marked_at
     ? new Date(order.guaranteed_delivery_marked_at).toLocaleString("en-GB", {
