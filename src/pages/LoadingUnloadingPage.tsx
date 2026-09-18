@@ -87,27 +87,33 @@ const LoadingUnloadingPage = () => {
   const isAdmin = hasRole(userProfile, 'admin');
 
   // Helper to get bikes for delivery on a given date
-  const getBikesForDelivery = (date: Date) => {
+  const getBikesForDelivery = useCallback((date: Date) => {
+    const targetDate = format(date, 'yyyy-MM-dd');
     return orders.filter(order => {
       if (!order.scheduledDeliveryDate) return false;
       const deliveryDate = format(new Date(order.scheduledDeliveryDate), 'yyyy-MM-dd');
-      const targetDate = format(date, 'yyyy-MM-dd');
       return deliveryDate === targetDate && !order.loaded_onto_van;
     });
-  };
+  }, [orders]);
 
   // Helper to get bikes loaded on a given date
-  const getBikesLoadedOnDate = (date: Date) => {
+  const getBikesLoadedOnDate = useCallback((date: Date) => {
+    const targetDate = format(date, 'yyyy-MM-dd');
     return orders.filter(order => {
       if (!order.scheduledDeliveryDate || !order.loaded_onto_van) return false;
       const deliveryDate = format(new Date(order.scheduledDeliveryDate), 'yyyy-MM-dd');
-      const targetDate = format(date, 'yyyy-MM-dd');
       return deliveryDate === targetDate;
     });
-  };
+  }, [orders]);
 
-  const bikesForDelivery = selectedLoadingDate ? getBikesForDelivery(selectedLoadingDate) : [];
-  const bikesLoadedOnDate = selectedLoadingDate ? getBikesLoadedOnDate(selectedLoadingDate) : [];
+  const bikesForDelivery = useMemo(
+    () => (selectedLoadingDate ? getBikesForDelivery(selectedLoadingDate) : []),
+    [selectedLoadingDate, getBikesForDelivery],
+  );
+  const bikesLoadedOnDate = useMemo(
+    () => (selectedLoadingDate ? getBikesLoadedOnDate(selectedLoadingDate) : []),
+    [selectedLoadingDate, getBikesLoadedOnDate],
+  );
 
   const fetchData = async () => {
     try {
