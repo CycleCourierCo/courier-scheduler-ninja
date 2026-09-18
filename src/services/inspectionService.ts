@@ -603,46 +603,59 @@ export const getPendingInspections = async () => {
     if (error) throw error;
 
     const orderIds = data?.map(o => o.id) || [];
-    const { data: inspections, error: inspError } = await supabase
-      .from('bicycle_inspections')
-      .select('*, inspection_issues(*)')
-      .in('order_id', orderIds);
+    const userIds = Array.from(new Set((data || []).map(o => o.user_id).filter(Boolean))) as string[];
+
+    // These three reads are independent — run them together instead of waiting
+    // for each in turn.
+    const [
+      { data: inspections, error: inspError },
+      { data: profs },
+      { data: workshopInspections, error: workshopError },
+    ] = await Promise.all([
+      supabase
+        .from('bicycle_inspections')
+        .select('*, inspection_issues(*)')
+        .in('order_id', orderIds),
+      userIds.length > 0
+        ? supabase.from('profiles').select('id, name, email, company_name').in('id', userIds)
+        : Promise.resolve({ data: [] as any[], error: null } as any),
+      supabase
+        .from('bicycle_inspections')
+        .select('*, inspection_issues(*)')
+        .is('order_id', null)
+        .order('created_at', { ascending: true }),
+    ]);
 
     if (inspError) throw inspError;
+    if (workshopError) throw workshopError;
 
     // Look up booking-account names so the UI can filter/label by customer.
-    const userIds = Array.from(new Set((data || []).map(o => o.user_id).filter(Boolean))) as string[];
-    let profileMap = new Map<string, { name: string | null; email: string | null; company: string | null }>();
-    if (userIds.length > 0) {
-      const { data: profs } = await supabase
-        .from('profiles')
-        .select('id, name, email, company_name')
-        .in('id', userIds);
-      profileMap = new Map(
-        (profs || []).map(p => [p.id, { name: p.name ?? null, email: p.email ?? null, company: p.company_name ?? null }])
-      );
+    const profileMap = new Map<string, { name: string | null; email: string | null; company: string | null }>(
+      (profs || []).map((p: any) => [p.id, { name: p.name ?? null, email: p.email ?? null, company: p.company_name ?? null }])
+    );
+
+    // Index inspections by order so we don't rescan the list for every order.
+    const inspectionByOrder = new Map<string, any>();
+    for (const insp of inspections || []) {
+      if (insp.order_id && !inspectionByOrder.has(insp.order_id)) inspectionByOrder.set(insp.order_id, insp);
     }
 
     const orderRows = data?.map(order => {
       const prof = order.user_id ? profileMap.get(order.user_id) : undefined;
+      const insp = inspectionByOrder.get(order.id) || null;
       return {
         ...order,
         workshop_only: false,
         booking_customer_name: prof?.company || prof?.name || prof?.email || null,
         booking_customer_email: prof?.email || null,
-        inspection: inspections?.find(i => i.order_id === order.id) || null,
-        issues: inspections?.find(i => i.order_id === order.id)?.inspection_issues || []
+        inspection: insp,
+        issues: insp?.inspection_issues || []
       };
     }) || [];
 
     // Workshop-only inspections (walk-ins) have no transport job, so present
     // them as order-shaped rows the inspections page can render alongside.
-    const { data: workshopInspections, error: workshopError } = await supabase
-      .from('bicycle_inspections')
-      .select('*, inspection_issues(*)')
-      .is('order_id', null)
-      .order('created_at', { ascending: true });
-    if (workshopError) throw workshopError;
+
 
     const workshopRows = (workshopInspections || []).map((insp: any) => ({
       id: insp.id,
