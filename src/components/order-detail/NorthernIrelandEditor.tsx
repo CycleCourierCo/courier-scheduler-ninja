@@ -346,6 +346,32 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
                   : `Not recorded as sent yet — sends the booking details to ${CITY_AIR_EXPRESS.email}`}
               </p>
             </div>
+            {isInbound && (
+              <div className="rounded border bg-muted/30 p-3 space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">Collection day in Northern Ireland</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2"
+                    disabled={savingDay}
+                    onClick={() => setDayDialogOpen(true)}
+                  >
+                    <Pencil className="h-3.5 w-3.5 mr-1" />
+                    {formatCollectionDay(pickupDay) ? "Change" : "Set"}
+                  </Button>
+                </div>
+                <p className="text-sm">
+                  {formatCollectionDay(pickupDay) || (
+                    <span className="text-muted-foreground">No date yet</span>
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Monday to Friday only. Saving emails {CITY_AIR_EXPRESS.email} with the day.
+                </p>
+              </div>
+            )}
             <div className="rounded border bg-muted/30 p-3 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">Partner upload link</span>
