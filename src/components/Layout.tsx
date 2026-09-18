@@ -94,6 +94,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
       { to: "/account-approvals", label: "Account Approvals", icon: Shield },
       { to: "/holidays", label: "Holidays", icon: CalendarOff },
       { to: "/api-keys", label: "API Keys", icon: Key },
+      { to: "/admin/partner-apps", label: "Partner Apps", icon: Plug },
       { to: "/webhooks", label: "Webhooks", icon: Webhook },
       { to: "/shopify-integration", label: "Shopify Integration", icon: Store },
       { to: "/admin/route-permissions", label: "Route Permissions", icon: Lock },
