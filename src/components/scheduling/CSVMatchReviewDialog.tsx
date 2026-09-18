@@ -343,9 +343,13 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
                     {candidates.map((candidate) => {
                       const key = candidateKey(candidate);
                       const checked = selectedKeys.has(key);
-                      const contact = candidate.jobType === 'pickup'
+                      const customer = candidate.jobType === 'pickup'
                         ? candidate.order.sender
                         : candidate.order.receiver;
+                      const ferry = isFerryLeg(candidate.order, candidate.jobType);
+                      const contactLabel = ferry
+                        ? `${CITY_AIR_EXPRESS.name} — ${customer?.name || 'Customer'}`
+                        : customer?.name;
                       return (
                         <label
                           key={key}
