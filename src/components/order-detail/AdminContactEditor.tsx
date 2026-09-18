@@ -81,7 +81,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
       // Get the current contact data
       const { data: currentOrder, error: fetchError } = await supabase
         .from('orders')
-        .select(fieldName)
+        .select(`${fieldName}, shipday_pickup_id, shipday_delivery_id, order_collected, order_delivered, status`)
         .eq('id', orderId)
         .single();
       
