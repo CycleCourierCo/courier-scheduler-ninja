@@ -1,6 +1,10 @@
 import React from "react";
 import { toast } from "sonner";
-import { Ship, Loader2, Mail, Upload, FileCheck, ExternalLink, Copy, Check } from "lucide-react";
+import { Ship, Loader2, Mail, Upload, FileCheck, ExternalLink, Copy, Check, Pencil } from "lucide-react";
+import CollectionDayDialog, {
+  formatCollectionDay,
+  toDayValue,
+} from "@/components/boxmybike/CollectionDayDialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -58,6 +62,41 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
   );
   const [signedLabelUrl, setSignedLabelUrl] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState(false);
+  const [pickupDay, setPickupDay] = React.useState<string>(
+    toDayValue(((order as any).pickupDate ?? (order as any).pickup_date ?? null) as any)
+  );
+  const [dayDialogOpen, setDayDialogOpen] = React.useState(false);
+  const [savingDay, setSavingDay] = React.useState(false);
+
+  // Staff-set collection day for an inbound NI order. Saving always tells the
+  // ferry partner, flagged as an update when a day was already booked with them.
+  const saveCollectionDay = async (day: string) => {
+    setSavingDay(true);
+    const hadDay = Boolean(pickupDay);
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .update({ pickup_date: [day], updated_at: new Date().toISOString() } as any)
+        .eq("id", order.id);
+      if (error) throw error;
+      setPickupDay(day);
+      setDayDialogOpen(false);
+
+      const { data, error: mailError } = await supabase.functions.invoke(
+        "send-ferry-partner-notification",
+        { body: { orderId: order.id, force: true, updated: hadDay } }
+      );
+      if (mailError) throw mailError;
+      setFerryNotifiedAt((data as any)?.notifiedAt || new Date().toISOString());
+      toast.success(`Collection day saved and emailed to ${CITY_AIR_EXPRESS.email}`);
+      onUpdate();
+    } catch (e: any) {
+      console.error("Collection day save failed", e);
+      toast.error(e?.message || "Could not save the collection day");
+    } finally {
+      setSavingDay(false);
+    }
+  };
 
   React.useEffect(() => {
     if (!labelPath) {
@@ -346,6 +385,39 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
                   : `Not recorded as sent yet — sends the booking details to ${CITY_AIR_EXPRESS.email}`}
               </p>
             </div>
+            {isInbound && (
+              <div className="rounded border bg-muted/30 p-3 space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-medium">Collection day in Northern Ireland</span>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2"
+                    disabled={savingDay}
+                    onClick={() => setDayDialogOpen(true)}
+                  >
+                    <Pencil className="h-3.5 w-3.5 mr-1" />
+                    {formatCollectionDay(pickupDay) ? "Change" : "Set"}
+                  </Button>
+                </div>
+                <p className="text-sm">
+                  {formatCollectionDay(pickupDay) || (
+                    <span className="text-muted-foreground">No date yet</span>
+                  )}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Monday to Friday only. Saving emails {CITY_AIR_EXPRESS.email} with the day.
+                </p>
+                <CollectionDayDialog
+                  open={dayDialogOpen}
+                  onOpenChange={setDayDialogOpen}
+                  initial={pickupDay}
+                  saving={savingDay}
+                  onConfirm={saveCollectionDay}
+                />
+              </div>
+            )}
             <div className="rounded border bg-muted/30 p-3 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-medium">Partner upload link</span>

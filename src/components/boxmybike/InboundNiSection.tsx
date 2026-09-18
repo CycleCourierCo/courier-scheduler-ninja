@@ -19,6 +19,7 @@ import { filterOrdersBySearch } from "@/utils/orderSearch";
 import { toPublicFileUrl } from "@/lib/publicFileUrl";
 import { useAuth } from "@/contexts/AuthContext";
 import StageDateTimeDialog, { formatStageDate } from "@/components/boxmybike/StageDateTimeDialog";
+import CollectionDayDialog, { formatCollectionDay, toDayValue } from "@/components/boxmybike/CollectionDayDialog";
 
 interface InboundOrder {
   id: string;
@@ -85,6 +86,8 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
     current: string | null;
     label: string;
   } | null>(null);
+  const [dayEditing, setDayEditing] = React.useState<InboundOrder | null>(null);
+
 
   const { data: orders = [], isLoading } = useQuery({
     queryKey: ["inbound-ni-orders"],
@@ -163,6 +166,37 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
     onError: (e: any) => toast.error(e?.message || "Failed to update date and time"),
   });
 
+  // Staff can set the Northern Ireland collection day themselves, or change one
+  // the customer picked. Either way the ferry partner is emailed with the new day.
+  const setCollectionDay = useMutation({
+    mutationFn: async ({
+      id,
+      day,
+      hadDay,
+    }: {
+      id: string;
+      day: string;
+      hadDay: boolean;
+    }) => {
+      const { error } = await supabase
+        .from("orders")
+        .update({ pickup_date: [day], updated_at: new Date().toISOString() } as any)
+        .eq("id", id);
+      if (error) throw error;
+      const { error: mailError } = await supabase.functions.invoke(
+        "send-ferry-partner-notification",
+        { body: { orderId: id, force: true, updated: hadDay } }
+      );
+      if (mailError) throw new Error("Day saved, but the partner email could not be sent");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inbound-ni-orders"] });
+      toast.success("Collection day saved and emailed to City Air Express");
+    },
+    onError: (e: any) => toast.error(e?.message || "Failed to save the collection day"),
+  });
+
+
   const filtered = React.useMemo(
     () => filterOrdersBySearch(orders, search),
     [orders, search]
@@ -238,6 +272,7 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
                     onEditTime={(column, current, label) =>
                       setEditing({ order, column, current, label })
                     }
+                    onEditDay={() => setDayEditing(order)}
                     disabled={updateStage.isPending}
                   />
                 ))}
@@ -282,6 +317,24 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
           );
         }}
       />
+
+      <CollectionDayDialog
+        open={!!dayEditing}
+        onOpenChange={(o) => !o && setDayEditing(null)}
+        initial={dayEditing?.pickup_date || null}
+        saving={setCollectionDay.isPending}
+        onConfirm={(day) => {
+          if (!dayEditing) return;
+          setCollectionDay.mutate(
+            {
+              id: dayEditing.id,
+              day,
+              hadDay: Boolean(toDayValue(dayEditing.pickup_date)),
+            },
+            { onSuccess: () => setDayEditing(null) }
+          );
+        }}
+      />
     </div>
   );
 };
@@ -291,8 +344,9 @@ const InboundCard: React.FC<{
   onAdvance: () => void;
   onBack: () => void;
   onEditTime: (column: string, current: string | null, label: string) => void;
+  onEditDay: () => void;
   disabled: boolean;
-}> = ({ order, onAdvance, onBack, onEditTime, disabled }) => {
+}> = ({ order, onAdvance, onBack, onEditTime, onEditDay, disabled }) => {
   const [signedLabel, setSignedLabel] = React.useState<string | null>(null);
 
   React.useEffect(() => {
@@ -322,21 +376,8 @@ const InboundCard: React.FC<{
   const canAdvance = Boolean(nextInboundStage(order.ni_inbound_status));
   const canBack = Boolean(prevInboundStage(order.ni_inbound_status));
 
-  // The confirmed collection day chosen by the NI customer, if they've picked one.
-  const rawPickup = Array.isArray(order.pickup_date)
-    ? order.pickup_date[0]
-    : order.pickup_date;
-  const pickupParsed = rawPickup ? new Date(`${String(rawPickup).slice(0, 10)}T12:00:00Z`) : null;
-  const collectionDay =
-    pickupParsed && !isNaN(pickupParsed.getTime())
-      ? pickupParsed.toLocaleDateString("en-GB", {
-          weekday: "short",
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-          timeZone: "Europe/London",
-        })
-      : null;
+  // The collection day — chosen by the NI customer or set by staff.
+  const collectionDay = formatCollectionDay(order.pickup_date);
 
   return (
     <Card>
@@ -355,7 +396,7 @@ const InboundCard: React.FC<{
           <p className="font-medium">{order.bike_brand || ""} {order.bike_model || "Bike"}</p>
           <p className="text-muted-foreground">Quantity: {order.bike_quantity || 1}</p>
         </div>
-        <p className="flex items-center gap-1">
+        <p className="flex flex-wrap items-center gap-1">
           <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
           <span className="font-medium">Collection day:</span>{" "}
           {collectionDay ? (
@@ -363,6 +404,15 @@ const InboundCard: React.FC<{
           ) : (
             <span className="text-muted-foreground">No date yet</span>
           )}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-xs"
+            disabled={disabled}
+            onClick={onEditDay}
+          >
+            <Pencil className="h-3 w-3 mr-1" /> {collectionDay ? "Change" : "Set"}
+          </Button>
         </p>
         <div className="rounded border bg-muted/30 p-3 space-y-1">
           <p className="font-medium flex items-center gap-1">
