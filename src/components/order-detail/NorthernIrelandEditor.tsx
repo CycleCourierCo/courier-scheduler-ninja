@@ -62,6 +62,41 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
   );
   const [signedLabelUrl, setSignedLabelUrl] = React.useState<string | null>(null);
   const [copied, setCopied] = React.useState(false);
+  const [pickupDay, setPickupDay] = React.useState<string>(
+    toDayValue(((order as any).pickupDate ?? (order as any).pickup_date ?? null) as any)
+  );
+  const [dayDialogOpen, setDayDialogOpen] = React.useState(false);
+  const [savingDay, setSavingDay] = React.useState(false);
+
+  // Staff-set collection day for an inbound NI order. Saving always tells the
+  // ferry partner, flagged as an update when a day was already booked with them.
+  const saveCollectionDay = async (day: string) => {
+    setSavingDay(true);
+    const hadDay = Boolean(pickupDay);
+    try {
+      const { error } = await supabase
+        .from("orders")
+        .update({ pickup_date: [day], updated_at: new Date().toISOString() } as any)
+        .eq("id", order.id);
+      if (error) throw error;
+      setPickupDay(day);
+      setDayDialogOpen(false);
+
+      const { data, error: mailError } = await supabase.functions.invoke(
+        "send-ferry-partner-notification",
+        { body: { orderId: order.id, force: true, updated: hadDay } }
+      );
+      if (mailError) throw mailError;
+      setFerryNotifiedAt((data as any)?.notifiedAt || new Date().toISOString());
+      toast.success(`Collection day saved and emailed to ${CITY_AIR_EXPRESS.email}`);
+      onUpdate();
+    } catch (e: any) {
+      console.error("Collection day save failed", e);
+      toast.error(e?.message || "Could not save the collection day");
+    } finally {
+      setSavingDay(false);
+    }
+  };
 
   React.useEffect(() => {
     if (!labelPath) {
