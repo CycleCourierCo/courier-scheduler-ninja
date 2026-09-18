@@ -101,6 +101,11 @@ const JobScheduling = () => {
     }
   }, [searchParams]);
   
+  // Keep the viable-jobs date in step with the route filter date
+  useEffect(() => {
+    if (filterDate) setHeatMapDate(filterDate);
+  }, [filterDate]);
+
   const { data: orders, isLoading } = useQuery({
     queryKey: ['scheduling-orders'],
     queryFn: async () => {
