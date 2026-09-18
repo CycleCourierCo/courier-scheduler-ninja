@@ -127,3 +127,12 @@ verify_jwt = false
 [functions.send-order-updates]
 verify_jwt = false
 
+
+[functions.oauth-authorize]
+verify_jwt = false
+
+[functions.oauth-token]
+verify_jwt = false
+
+[functions.oauth-revoke]
+verify_jwt = false

@@ -4,6 +4,7 @@ import { initSentry, captureException, startSpan } from '../_shared/sentry.ts'
 import { resolveNiDirection } from '../_shared/northernIreland.ts'
 import { buildFerryPartnerEmail } from '../_shared/ferryPartnerEmail.ts'
 import { trackedFetch } from "../_shared/integrationLog.ts";
+import { resolveApiCaller, apiAuthErrorResponse } from "../_shared/apiAuth.ts";
 
 
 // Bike type numeric ID mapping
@@ -76,35 +77,14 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
     if (req.method === 'POST') {
-      // Get API key from header
-      const apiKey = req.headers.get('X-API-Key')
-      if (!apiKey) {
-        return new Response(
-          JSON.stringify({ error: 'API key is required', code: 'MISSING_API_KEY' }),
-          { 
-            status: 401, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        )
+      // API key or partner OAuth access token
+      const caller = await resolveApiCaller(req, supabase)
+      if (!caller.userId) {
+        console.error('API authentication failed', { code: caller.error })
+        return apiAuthErrorResponse(caller, corsHeaders)
       }
 
-      // Verify API key and get user ID
-      console.log('API key received, verifying...')
-      const { data: userId, error: keyError } = await supabase.rpc('verify_api_key', { api_key: apiKey })
-      console.log('API key verification:', userId ? 'success' : 'failed')
-      
-      if (keyError || !userId) {
-        console.error('API key verification failed')
-        return new Response(
-          JSON.stringify({ error: 'Invalid API key', code: 'INVALID_API_KEY' }),
-          { 
-            status: 401, 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-          }
-        )
-      }
-
-      ctx.userId = userId as string
+      ctx.userId = caller.userId
 
       const body = await req.json()
 
@@ -639,23 +619,13 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
 
 
     if (req.method === 'GET') {
-      // Require API key auth for GET, same as POST
-      const apiKey = req.headers.get('X-API-Key')
-      if (!apiKey) {
-        return new Response(
-          JSON.stringify({ error: 'API key is required', code: 'MISSING_API_KEY' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
-      }
-      const { data: userId, error: keyError } = await supabase.rpc('verify_api_key', { api_key: apiKey })
-      if (keyError || !userId) {
-        return new Response(
-          JSON.stringify({ error: 'Invalid API key', code: 'INVALID_API_KEY' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        )
+      // Require API key or partner OAuth token for GET, same as POST
+      const caller = await resolveApiCaller(req, supabase)
+      if (!caller.userId) {
+        return apiAuthErrorResponse(caller, corsHeaders)
       }
 
-      ctx.userId = userId as string
+      ctx.userId = caller.userId
 
 
       const url = new URL(req.url)

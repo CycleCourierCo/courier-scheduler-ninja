@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, PoundSterling, Megaphone, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare, BookOpen, Store, ClipboardCheck, Lock, Boxes, KanbanSquare } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, PoundSterling, Megaphone, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare, BookOpen, Store, ClipboardCheck, Lock, Boxes, KanbanSquare, Plug } from "lucide-react";
 import NoticeBanner from "./NoticeBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -94,6 +94,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
       { to: "/account-approvals", label: "Account Approvals", icon: Shield },
       { to: "/holidays", label: "Holidays", icon: CalendarOff },
       { to: "/api-keys", label: "API Keys", icon: Key },
+      { to: "/admin/partner-apps", label: "Partner Apps", icon: Plug },
       { to: "/webhooks", label: "Webhooks", icon: Webhook },
       { to: "/shopify-integration", label: "Shopify Integration", icon: Store },
       { to: "/admin/route-permissions", label: "Route Permissions", icon: Lock },

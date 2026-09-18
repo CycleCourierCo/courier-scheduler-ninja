@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { User, Building2, MapPin, Clock } from "lucide-react";
 import { DEFAULT_OPENING_HOURS, OpeningHours } from "@/types/user";
 import OpeningHoursEditor from "@/components/user-management/OpeningHoursEditor";
+import ConnectedAppsCard from "@/components/profile/ConnectedAppsCard";
 
 const profileSchema = z.object({
   name: z.string().min(2, "Name is required"),
@@ -382,6 +383,10 @@ const UserProfile = () => {
             </div>
           </form>
         </Form>
+
+        <div className="mt-6">
+          <ConnectedAppsCard />
+        </div>
       </div>
     </Layout>
   );

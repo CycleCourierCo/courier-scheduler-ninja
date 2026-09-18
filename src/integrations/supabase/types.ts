@@ -2776,6 +2776,215 @@ export type Database = {
           },
         ]
       }
+      oauth_access_grants: {
+        Row: {
+          client_uuid: string
+          created_at: string
+          id: string
+          last_used_at: string | null
+          revoked_at: string | null
+          scope: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          client_uuid: string
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          revoked_at?: string | null
+          scope?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          client_uuid?: string
+          created_at?: string
+          id?: string
+          last_used_at?: string | null
+          revoked_at?: string | null
+          scope?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oauth_access_grants_client_uuid_fkey"
+            columns: ["client_uuid"]
+            isOneToOne: false
+            referencedRelation: "oauth_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      oauth_access_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          grant_id: string
+          id: string
+          revoked_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          grant_id: string
+          id?: string
+          revoked_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          grant_id?: string
+          id?: string
+          revoked_at?: string | null
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oauth_access_tokens_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "oauth_access_grants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      oauth_authorization_codes: {
+        Row: {
+          client_uuid: string
+          code_challenge: string
+          code_challenge_method: string
+          code_hash: string
+          created_at: string
+          expires_at: string
+          id: string
+          redirect_uri: string
+          scope: string
+          used_at: string | null
+          user_id: string
+        }
+        Insert: {
+          client_uuid: string
+          code_challenge: string
+          code_challenge_method?: string
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          redirect_uri: string
+          scope?: string
+          used_at?: string | null
+          user_id: string
+        }
+        Update: {
+          client_uuid?: string
+          code_challenge?: string
+          code_challenge_method?: string
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          redirect_uri?: string
+          scope?: string
+          used_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oauth_authorization_codes_client_uuid_fkey"
+            columns: ["client_uuid"]
+            isOneToOne: false
+            referencedRelation: "oauth_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      oauth_clients: {
+        Row: {
+          client_id: string
+          client_secret_hash: string
+          contact_email: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          name: string
+          redirect_uris: string[]
+          secret_prefix: string
+          updated_at: string
+        }
+        Insert: {
+          client_id: string
+          client_secret_hash: string
+          contact_email?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name: string
+          redirect_uris?: string[]
+          secret_prefix: string
+          updated_at?: string
+        }
+        Update: {
+          client_id?: string
+          client_secret_hash?: string
+          contact_email?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name?: string
+          redirect_uris?: string[]
+          secret_prefix?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      oauth_refresh_tokens: {
+        Row: {
+          created_at: string
+          expires_at: string
+          grant_id: string
+          id: string
+          revoked_at: string | null
+          rotated_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          grant_id: string
+          id?: string
+          revoked_at?: string | null
+          rotated_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          grant_id?: string
+          id?: string
+          revoked_at?: string | null
+          rotated_at?: string | null
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oauth_refresh_tokens_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: false
+            referencedRelation: "oauth_access_grants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       oauth_states: {
         Row: {
           created_at: string
@@ -5129,6 +5338,19 @@ export type Database = {
         Returns: Json
       }
       _normalise_postcode: { Args: { p: string }; Returns: string }
+      admin_create_oauth_client: {
+        Args: {
+          p_contact_email?: string
+          p_logo_url?: string
+          p_name: string
+          p_redirect_uris: string[]
+        }
+        Returns: {
+          client_id: string
+          client_secret: string
+          id: string
+        }[]
+      }
       admin_generate_api_key: {
         Args: { customer_id: string; key_name: string }
         Returns: {
@@ -5166,6 +5388,7 @@ export type Database = {
       }
       can_manage_review: { Args: { _cycle_id: string }; Returns: boolean }
       can_view_review: { Args: { _cycle_id: string }; Returns: boolean }
+      cleanup_expired_oauth: { Args: never; Returns: undefined }
       cleanup_integration_call_logs: { Args: never; Returns: undefined }
       create_webhook_secret: {
         Args: { p_name: string; p_secret: string }
@@ -5241,8 +5464,22 @@ export type Database = {
         }[]
       }
       get_cron_secret: { Args: never; Returns: string }
+      get_my_connected_apps: {
+        Args: never
+        Returns: {
+          app_name: string
+          connected_at: string
+          grant_id: string
+          last_used_at: string
+          logo_url: string
+        }[]
+      }
       get_my_pending_availability_orders: { Args: never; Returns: Json }
       get_ni_partner_job: { Args: { p_order_id: string }; Returns: Json }
+      get_oauth_client_public: {
+        Args: { p_client_id: string; p_redirect_uri: string }
+        Returns: Json
+      }
       get_public_inspection_approval: {
         Args: { p_inspection_id: string }
         Returns: Json
@@ -5312,6 +5549,7 @@ export type Database = {
         }[]
       }
       next_custom_repair_id: { Args: never; Returns: string }
+      revoke_oauth_grant: { Args: { p_grant_id: string }; Returns: boolean }
       set_order_availability:
         | {
             Args: {
@@ -5423,6 +5661,7 @@ export type Database = {
         }
       }
       verify_api_key: { Args: { api_key: string }; Returns: string }
+      verify_oauth_token: { Args: { access_token: string }; Returns: string }
     }
     Enums: {
       account_status_type: "pending" | "approved" | "rejected" | "suspended"
