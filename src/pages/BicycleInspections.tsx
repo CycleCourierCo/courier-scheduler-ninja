@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
 import { formatDistanceToNowStrict } from "date-fns";
-import { Wrench, CheckCircle, XCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search, Pencil, Trash2, Plus, Save, Truck } from "lucide-react";
+import { Wrench, CheckCircle, XCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search, Pencil, Trash2, Plus, Save, Truck, Copy } from "lucide-react";
 import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
 import { getCollectionPhotos } from "@/utils/collectionPhotos";
 import { ChangeStorageLocationDialog } from "@/components/loading/ChangeStorageLocationDialog";
@@ -649,14 +649,32 @@ const BicycleInspections = () => {
   });
 
 
+  // Approval link staff can send manually (public, no login needed)
+  const buildApprovalLink = (inspectionId: string) =>
+    `${window.location.origin}/inspection-approval/${inspectionId}`;
+  const [manualApprovalLink, setManualApprovalLink] = useState<string | null>(null);
+  const copyApprovalLink = async (inspectionId: string) => {
+    const link = buildApprovalLink(inspectionId);
+    try {
+      await navigator.clipboard.writeText(link);
+      toast.success("Approval link copied");
+    } catch {
+      setManualApprovalLink(link);
+    }
+  };
+
   // Release inspection to customer (admin gate)
   const releaseMutation = useMutation({
-    mutationFn: async (inspectionId: string) => {
+    mutationFn: async (args: {
+      inspectionId: string;
+      recipient?: "customer" | "receiver" | "walkin";
+    }) => {
       if (!user?.id) throw new Error("User not authenticated");
       return releaseInspectionToCustomer(
-        inspectionId,
+        args.inspectionId,
         user.id,
-        userProfile?.name || user.email || "Admin"
+        userProfile?.name || user.email || "Admin",
+        args.recipient
       );
     },
     onSuccess: () => {
@@ -2779,17 +2797,71 @@ const BicycleInspections = () => {
           {/* Release to Customer Button (admin only, awaiting_pricing once all priced) */}
           {isAdmin && isAwaitingPricing && allPriced && (
             <div className="pt-2">
-              <Button
-                onClick={() => releaseMutation.mutate(inspection.id)}
-                disabled={releaseMutation.isPending}
-              >
-                {releaseMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                ) : (
-                  <Send className="h-4 w-4 mr-1" />
-                )}
-                Release to Customer
-              </Button>
+              {isWorkshopOnly ? (
+                <Button
+                  onClick={() =>
+                    releaseMutation.mutate({ inspectionId: inspection.id, recipient: "walkin" })
+                  }
+                  disabled={releaseMutation.isPending}
+                >
+                  {releaseMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  ) : (
+                    <Send className="h-4 w-4 mr-1" />
+                  )}
+                  Release to Customer
+                </Button>
+              ) : (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button disabled={releaseMutation.isPending}>
+                      {releaseMutation.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                      ) : (
+                        <Send className="h-4 w-4 mr-1" />
+                      )}
+                      Release to Customer
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Who should approve these repairs?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {(order as any).shopify_order_id
+                          ? "This came from Shopify, so the buyer usually approves and pays."
+                          : "The approval request email goes to whoever you pick here."}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <div className="space-y-2">
+                      <AlertDialogAction
+                        className="w-full justify-start"
+                        onClick={() =>
+                          releaseMutation.mutate({
+                            inspectionId: inspection.id,
+                            recipient: "customer",
+                          })
+                        }
+                      >
+                        Ask the seller (account)
+                      </AlertDialogAction>
+                      <AlertDialogAction
+                        className="w-full justify-start"
+                        onClick={() =>
+                          releaseMutation.mutate({
+                            inspectionId: inspection.id,
+                            recipient: "receiver",
+                          })
+                        }
+                      >
+                        Ask the buyer (receiver)
+                      </AlertDialogAction>
+                    </div>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
           )}
 
@@ -2856,9 +2928,19 @@ const BicycleInspections = () => {
                     )}
                     Send approval request
                   </Button>
-                </>
-              )}
-              {(inspection as any).approval_email_sent_at && (
+                 </>
+               )}
+               {inspection.status !== "awaiting_pricing" && (
+                 <Button
+                   size="sm"
+                   variant="outline"
+                   onClick={() => copyApprovalLink(inspection.id)}
+                 >
+                   <Copy className="mr-1 h-4 w-4" />
+                   Copy approval link
+                 </Button>
+               )}
+               {(inspection as any).approval_email_sent_at && (
                 <span className="text-xs text-muted-foreground">
                   Approval request sent{" "}
                   {new Date((inspection as any).approval_email_sent_at).toLocaleDateString("en-GB")}
@@ -3864,6 +3946,23 @@ const BicycleInspections = () => {
             });
           }}
         />
+        <AlertDialog
+          open={!!manualApprovalLink}
+          onOpenChange={(open) => !open && setManualApprovalLink(null)}
+        >
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Approval link</AlertDialogTitle>
+              <AlertDialogDescription>
+                Your browser blocked copying. Select the link below and copy it manually.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <Input readOnly value={manualApprovalLink || ""} onFocus={(e) => e.currentTarget.select()} />
+            <AlertDialogFooter>
+              <AlertDialogCancel>Close</AlertDialogCancel>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );

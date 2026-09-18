@@ -905,7 +905,9 @@ export const setIssuePrice = async (
 export const releaseInspectionToCustomer = async (
   inspectionId: string,
   releasedById: string,
-  releasedByName: string
+  releasedByName: string,
+  /** Who should be asked to approve the repairs. Defaults to the stored choice. */
+  recipient?: 'customer' | 'receiver' | 'walkin'
 ): Promise<BicycleInspection | null> => {
   try {
     const { data: issues, error: issuesError } = await supabase
@@ -936,10 +938,17 @@ export const releaseInspectionToCustomer = async (
       .single();
 
     if (error) throw error;
-    // Generate the customer-facing report, then ask the booking account to approve.
+    // Generate the customer-facing report, then ask the chosen party to approve.
     await regenerateInspectionReport({ inspectionId });
+    if (recipient) {
+      try {
+        await setApprovalRecipient(inspectionId, recipient);
+      } catch (recipientError) {
+        console.error('Failed to store approval recipient:', recipientError);
+      }
+    }
     try {
-      await sendInspectionApprovalEmail(inspectionId);
+      await sendInspectionApprovalEmail(inspectionId, false, recipient);
     } catch (emailError) {
       console.error('Approval email failed after release:', emailError);
     }
