@@ -134,7 +134,7 @@ export default function InvoicesPage() {
         query = query.lte('created_at', endOfDay.toISOString());
       }
 
-      query = query.order('created_at', { ascending: false });
+      query = query.order('created_at', { ascending: false }).limit(200);
 
       const { data, error } = await query;
       if (error) throw error;

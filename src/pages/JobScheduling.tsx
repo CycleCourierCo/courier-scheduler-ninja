@@ -124,7 +124,8 @@ const JobScheduling = () => {
         status: order.status as OrderStatus,
         inspection_status: (order.bicycle_inspections as { status: string }[] | null)?.[0]?.status || null
       })) as OrderData[];
-    }
+    },
+    staleTime: 60 * 1000,
   });
 
   // Shipday verification
@@ -158,12 +159,20 @@ const JobScheduling = () => {
     }
   }, []);
 
-  // Auto-verify when orders load
+  // Auto-verify only the jobs scheduled for the day being viewed — verifying
+  // the entire backlog on every load made this page hang.
   useEffect(() => {
-    if (orders && orders.length > 0) {
-      verifyShipdayOrders(orders);
-    }
-  }, [orders, verifyShipdayOrders]);
+    if (!orders || orders.length === 0) return;
+    const targetDateStr = format(filterDate || new Date(), 'yyyy-MM-dd');
+    const sameDay = (value: string | null | undefined) =>
+      !!value && String(value).slice(0, 10) === targetDateStr;
+    const relevant = orders.filter(
+      (o: any) =>
+        (o.shipday_pickup_id || o.shipday_delivery_id) &&
+        (sameDay(o.scheduled_pickup_date) || sameDay(o.scheduled_delivery_date))
+    );
+    verifyShipdayOrders(relevant);
+  }, [orders, filterDate, verifyShipdayOrders]);
   // This ensures both ClusterMap and RouteBuilder show the same filtered data
   const filteredOrdersForMap = useMemo(() => {
     if (!orders) return [];

@@ -61,7 +61,7 @@ const UserManagement: React.FC = () => {
     try {
       setLoading(true);
       const [{ data, error }, { data: rolesData, error: rolesErr }] = await Promise.all([
-        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+        supabase.from('profiles').select('*').order('created_at', { ascending: false }).limit(1000),
         supabase.from('user_roles').select('user_id, role'),
       ]);
 

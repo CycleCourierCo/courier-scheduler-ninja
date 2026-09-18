@@ -30,6 +30,8 @@ export interface FerryPartnerEmailInput {
   pickup_date?: string[] | string | null
   /** Collection notes the NI customer left when choosing their day. */
   sender_notes?: string | null
+  /** True when this replaces a day already booked with the partner. */
+  isUpdate?: boolean | null
 }
 
 /** Friendly UK-format day, e.g. "Tuesday 23 September 2026". */
@@ -80,9 +82,11 @@ export function buildFerryPartnerEmail(order: FerryPartnerEmailInput) {
   const collectionDay = inbound ? pickupDays[0] || null : null
   const collectionNotes = inbound ? (order.sender_notes || '').trim() : ''
 
+  const isUpdate = order.isUpdate === true
+  const subjectPrefix = isUpdate ? 'UPDATED — ' : ''
   const subject = inbound
-    ? `NI to England — collection booking ${trackingNumber}${collectionDay ? ` — ${collectionDay}` : ''}`
-    : `England to NI — delivery booking ${trackingNumber}`
+    ? `${subjectPrefix}NI to England — collection booking ${trackingNumber}${collectionDay ? ` — ${collectionDay}` : ''}`
+    : `${subjectPrefix}England to NI — delivery booking ${trackingNumber}`
 
   const uploadUrl = order.orderId
     ? `${buildPublicAppUrl()}/ni-partner/${order.orderId}`
@@ -95,6 +99,11 @@ export function buildFerryPartnerEmail(order: FerryPartnerEmailInput) {
         <strong>Direction: ${esc(directionLabel)} (${esc(directionPlain)})</strong>
       </p>
       <p>The Cycle Courier Co. has a Northern Ireland job for you.</p>
+      ${isUpdate
+        ? `<p style="background-color:#fff4e5; border-left:4px solid #f59e0b; padding:10px 12px; border-radius:4px; margin:0 0 16px;">
+             <strong>This is an update to an existing booking</strong> — it replaces the day previously arranged for this tracking number. Please don't treat it as a new job.
+           </p>`
+        : ''}
       ${collectionDay
         ? `<div style="background-color:#ecfdf5; padding:15px; border-radius:5px; margin:20px 0; border-left:4px solid #10b981;">
              <p style="margin:0;"><strong>Please collect on ${esc(collectionDay)}</strong></p>

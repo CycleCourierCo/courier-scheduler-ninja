@@ -18,8 +18,9 @@ Sentry.init({
   integrations: [
     Sentry.browserTracingIntegration(),
     Sentry.replayIntegration(),
-    // Send console.log, console.warn, and console.error calls as logs to Sentry
-    Sentry.consoleLoggingIntegration({ levels: ["log", "warn", "error"] }),
+    // Only forward warnings and errors: routine console.log output on data-heavy
+    // pages produced thousands of events and blocked the UI thread.
+    Sentry.consoleLoggingIntegration({ levels: ["warn", "error"] }),
   ],
   tracesSampleRate: 0.1,
   replaysSessionSampleRate: 0.1,

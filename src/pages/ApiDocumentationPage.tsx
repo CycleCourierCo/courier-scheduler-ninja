@@ -2,9 +2,25 @@ import React from 'react';
 import Layout from '@/components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { Code, Key, Zap, Globe, Shield, Bell, AlertTriangle, CheckCircle, Info } from 'lucide-react';
+import { Code, Key, Zap, Globe, Shield, Bell, AlertTriangle, CheckCircle, Info, Plug, Download } from 'lucide-react';
+import partnerGuideMarkdown from '../../docs/PARTNER_API_INTEGRATION.md?raw';
+
+// Lets staff hand partners a self-contained copy of the integration guide.
+const downloadPartnerGuide = () => {
+  const blob = new Blob([partnerGuideMarkdown], { type: 'text/markdown;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = 'Cycle-Courier-Partner-Integration-Guide.md';
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+};
+
 const ApiDocumentationPage = () => {
   return <Layout>
       <div className="container mx-auto px-4 py-8 max-w-6xl">
@@ -34,11 +50,28 @@ const ApiDocumentationPage = () => {
               <div>
                 <h3 className="font-semibold mb-2">Authentication</h3>
                 <p className="text-sm text-muted-foreground mb-2">
-                  All requests require an API key in the headers:
+                  Every request needs either an API key:
                 </p>
                 <code className="bg-muted px-3 py-1 rounded text-sm block break-all">
                   X-API-Key: your_api_key_here
                 </code>
+                <p className="text-sm text-muted-foreground mt-2 mb-2">
+                  ...or an OAuth access token, if you are a partner app acting for a customer:
+                </p>
+                <code className="bg-muted px-3 py-1 rounded text-sm block break-all">
+                  Authorization: Bearer access_token_here
+                </code>
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Connect with Cycle Courier (partner apps)</h3>
+                <p className="text-sm text-muted-foreground">
+                  Partner apps use OAuth 2.1 with PKCE so customers can connect their own Cycle
+                  Courier account — no API key copying. See the full{" "}
+                  <a href="#partner-integration" className="text-primary underline">
+                    Partner Integration guide
+                  </a>{" "}
+                  below.
+                </p>
               </div>
               <div>
                 <h3 className="font-semibold mb-2">Rate Limiting</h3>
@@ -57,6 +90,256 @@ const ApiDocumentationPage = () => {
               and all orders created via API will appear in your dashboard.
             </AlertDescription>
           </Alert>
+
+          {/* Partner Integration (OAuth 2.1) */}
+          <Card id="partner-integration">
+            <CardHeader>
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Plug className="h-5 w-5" />
+                  Partner Integration — "Connect with Cycle Courier" (OAuth 2.1)
+                </CardTitle>
+                <Button variant="outline" size="sm" onClick={downloadPartnerGuide}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Download partner guide
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6 text-sm">
+              <p className="text-muted-foreground">
+                This section is written for partner platforms (for example a dealer or marketplace
+                system). It lets a Cycle Courier customer approve your product once, after which you
+                can create and read that customer's orders without them copying an API key.
+              </p>
+
+              <div>
+                <h3 className="font-semibold mb-2">1. Getting started</h3>
+                <p className="text-muted-foreground mb-2">Cycle Courier registers your app and gives you:</p>
+                <ul className="text-muted-foreground list-disc pl-5 space-y-1 mb-2">
+                  <li><code className="bg-muted px-1 rounded">client_id</code> (App ID) — safe to put in URLs.</li>
+                  <li><code className="bg-muted px-1 rounded">client_secret</code> (App secret) — shown once, server-side only.</li>
+                </ul>
+                <p className="text-muted-foreground mb-2">You give us:</p>
+                <ul className="text-muted-foreground list-disc pl-5 space-y-1">
+                  <li>Your exact return web address(es). HTTPS only, except <code className="bg-muted px-1 rounded">http://localhost</code> for development.</li>
+                  <li>A technical contact email.</li>
+                </ul>
+                <p className="text-muted-foreground mt-2">
+                  Return addresses are matched exactly, including trailing slashes. Register every
+                  environment you need (production, staging, local).
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2">2. The connect flow</h3>
+                <code className="bg-muted px-3 py-2 rounded text-xs block whitespace-pre-wrap break-all mb-3">
+{`Your app     ──▶ /oauth/authorize   (customer signs in and approves)
+             ◀── redirect back with ?code=...&state=...
+Your server  ──▶ POST /oauth-token   (code + code_verifier + secret)
+             ◀── access_token (1 hour) + refresh_token (180 days)
+Your server  ──▶ Cycle Courier API   Authorization: Bearer <access_token>`}
+                </code>
+
+                <h4 className="font-medium mb-1">Step 1 — send the customer to the approval page</h4>
+                <code className="bg-muted px-3 py-2 rounded text-xs block whitespace-pre-wrap break-all mb-2">
+{`https://booking.cyclecourierco.com/oauth/authorize
+  ?response_type=code
+  &client_id=APP_ID
+  &redirect_uri=YOUR_RETURN_URL
+  &state=RANDOM
+  &code_challenge=CHALLENGE
+  &code_challenge_method=S256`}
+                </code>
+                <div className="overflow-x-auto mb-2">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left border-b">
+                        <th className="py-1 pr-3 font-medium">Parameter</th>
+                        <th className="py-1 pr-3 font-medium">Required</th>
+                        <th className="py-1 font-medium">Notes</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-muted-foreground">
+                      <tr className="border-b"><td className="py-1 pr-3"><code>response_type</code></td><td className="py-1 pr-3">Yes</td><td className="py-1">Always <code>code</code></td></tr>
+                      <tr className="border-b"><td className="py-1 pr-3"><code>client_id</code></td><td className="py-1 pr-3">Yes</td><td className="py-1">Your App ID</td></tr>
+                      <tr className="border-b"><td className="py-1 pr-3"><code>redirect_uri</code></td><td className="py-1 pr-3">Yes</td><td className="py-1">Must exactly match a registered address</td></tr>
+                      <tr className="border-b"><td className="py-1 pr-3"><code>state</code></td><td className="py-1 pr-3">Yes</td><td className="py-1">Opaque value returned to you — always verify it</td></tr>
+                      <tr className="border-b"><td className="py-1 pr-3"><code>code_challenge</code></td><td className="py-1 pr-3">Yes</td><td className="py-1">base64url SHA-256 of your verifier (32–200 chars)</td></tr>
+                      <tr><td className="py-1 pr-3"><code>code_challenge_method</code></td><td className="py-1 pr-3">Yes</td><td className="py-1"><code>S256</code></td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <code className="bg-muted px-3 py-2 rounded text-xs block whitespace-pre-wrap break-all mb-3">
+{`// generating PKCE values (Node.js)
+const b64url = (buf) => buf.toString("base64url");
+const codeVerifier = b64url(crypto.randomBytes(32));  // keep in the user's session
+const codeChallenge = b64url(crypto.createHash("sha256").update(codeVerifier).digest());`}
+                </code>
+                <p className="text-muted-foreground mb-3">
+                  If the customer is not signed in they sign in first and are returned to the approval
+                  screen automatically. The screen shows your app name and the account being connected.
+                </p>
+
+                <h4 className="font-medium mb-1">Step 2 — handle the redirect back</h4>
+                <code className="bg-muted px-3 py-2 rounded text-xs block whitespace-pre-wrap break-all mb-2">
+{`https://your-app.example.com/callback?code=ccode_xxx&state=THE_STATE_YOU_SENT
+// cancelled by the customer:
+https://your-app.example.com/callback?error=access_denied&state=...`}
+                </code>
+                <p className="text-muted-foreground mb-3">
+                  Verify <code className="bg-muted px-1 rounded">state</code>. Codes are single-use and
+                  expire after 60 seconds.
+                </p>
+
+                <h4 className="font-medium mb-1">Step 3 — exchange the code for tokens</h4>
+                <code className="bg-muted px-3 py-2 rounded text-xs block whitespace-pre-wrap break-all mb-2">
+{`POST https://api.cyclecourierco.com/functions/v1/oauth-token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code&code=ccode_xxx&redirect_uri=YOUR_RETURN_URL
+&code_verifier=THE_VERIFIER&client_id=APP_ID&client_secret=APP_SECRET
+
+// response
+{
+  "access_token": "ccat_...",
+  "token_type": "Bearer",
+  "expires_in": 3600,
+  "refresh_token": "ccrt_...",
+  "scope": "api"
+}`}
+                </code>
+                <p className="text-muted-foreground">
+                  Credentials may also be sent as HTTP Basic auth, and JSON bodies are accepted as
+                  well as form encoding.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2">3. Tokens</h3>
+                <ul className="text-muted-foreground list-disc pl-5 space-y-1 mb-2">
+                  <li>Access tokens last 1 hour.</li>
+                  <li>Refresh tokens last 180 days and <strong>rotate on every use</strong> — store the new one immediately and never refresh the same token twice in parallel.</li>
+                  <li>Reusing an already-rotated refresh token revokes the whole connection; the customer must reconnect.</li>
+                  <li>Store tokens encrypted, per customer, server-side only.</li>
+                </ul>
+                <code className="bg-muted px-3 py-2 rounded text-xs block whitespace-pre-wrap break-all mb-2">
+{`POST https://api.cyclecourierco.com/functions/v1/oauth-token
+grant_type=refresh_token&refresh_token=ccrt_...&client_id=APP_ID&client_secret=APP_SECRET`}
+                </code>
+                <p className="text-muted-foreground">
+                  A refresh that returns <code className="bg-muted px-1 rounded">invalid_grant</code>{" "}
+                  means the connection is gone (revoked, app disabled, or token expired or reused).
+                  Stop retrying, mark the customer as disconnected and prompt them to reconnect.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2">4. Calling the API for a customer</h3>
+                <p className="text-muted-foreground mb-2">
+                  Use the same endpoints documented below for API keys — only the auth header changes.
+                  An access token grants exactly the same access as that customer's own API key, and
+                  orders you create appear in their dashboard.
+                </p>
+                <code className="bg-muted px-3 py-2 rounded text-xs block whitespace-pre-wrap break-all">
+{`curl -X POST https://api.cyclecourierco.com/functions/v1/orders \\
+  -H "Authorization: Bearer ccat_..." \\
+  -H "Content-Type: application/json" \\
+  -d '{ "sender": { }, "receiver": { }, "bikes": [ ] }'`}
+                </code>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2">5. Disconnecting</h3>
+                <code className="bg-muted px-3 py-2 rounded text-xs block whitespace-pre-wrap break-all mb-2">
+{`POST https://api.cyclecourierco.com/functions/v1/oauth-revoke
+token=ACCESS_OR_REFRESH_TOKEN&client_id=APP_ID&client_secret=APP_SECRET`}
+                </code>
+                <p className="text-muted-foreground">
+                  Revoking a refresh token ends the whole connection; revoking an access token ends
+                  just that token. Unknown or already-revoked tokens return success. Customers can
+                  also disconnect your app from their profile, and Cycle Courier can disable an app
+                  entirely — both take effect immediately, so always handle 401 gracefully.
+                </p>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2">6. Errors</h3>
+                <div className="overflow-x-auto mb-3">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left border-b">
+                        <th className="py-1 pr-3 font-medium">Approval endpoint</th>
+                        <th className="py-1 font-medium">Meaning / fix</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-muted-foreground">
+                      <tr className="border-b"><td className="py-1 pr-3"><code>unauthorized_client</code></td><td className="py-1">Unknown App ID, or the app has been disabled</td></tr>
+                      <tr className="border-b"><td className="py-1 pr-3"><code>invalid_redirect_uri</code></td><td className="py-1">Return address not registered or not an exact match</td></tr>
+                      <tr className="border-b"><td className="py-1 pr-3"><code>invalid_request</code></td><td className="py-1">Missing parameter, or challenge not 32–200 characters</td></tr>
+                      <tr className="border-b"><td className="py-1 pr-3"><code>login_required</code> (401)</td><td className="py-1">No signed-in customer session</td></tr>
+                      <tr><td className="py-1 pr-3"><code>access_denied</code></td><td className="py-1">Customer pressed Cancel</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="overflow-x-auto mb-3">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left border-b">
+                        <th className="py-1 pr-3 font-medium">Token endpoint</th>
+                        <th className="py-1 pr-3 font-medium">HTTP</th>
+                        <th className="py-1 font-medium">Meaning / fix</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-muted-foreground">
+                      <tr className="border-b"><td className="py-1 pr-3"><code>invalid_client</code></td><td className="py-1 pr-3">401</td><td className="py-1">Wrong App ID or secret, or app disabled</td></tr>
+                      <tr className="border-b"><td className="py-1 pr-3"><code>invalid_request</code></td><td className="py-1 pr-3">400</td><td className="py-1">Missing code, verifier or return address, or unparseable body</td></tr>
+                      <tr className="border-b"><td className="py-1 pr-3"><code>invalid_grant</code></td><td className="py-1 pr-3">400</td><td className="py-1">Code expired (60s), already used, wrong return address, failed PKCE check, or refresh token expired / revoked / reused</td></tr>
+                      <tr className="border-b"><td className="py-1 pr-3"><code>unsupported_grant_type</code></td><td className="py-1 pr-3">400</td><td className="py-1">Only <code>authorization_code</code> and <code>refresh_token</code> are supported</td></tr>
+                      <tr className="border-b"><td className="py-1 pr-3"><code>slow_down</code></td><td className="py-1 pr-3">429</td><td className="py-1">Too many token requests — back off and retry</td></tr>
+                      <tr><td className="py-1 pr-3"><code>server_error</code></td><td className="py-1 pr-3">500</td><td className="py-1">Transient — retry with backoff</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left border-b">
+                        <th className="py-1 pr-3 font-medium">API requests</th>
+                        <th className="py-1 pr-3 font-medium">HTTP</th>
+                        <th className="py-1 font-medium">Meaning</th>
+                      </tr>
+                    </thead>
+                    <tbody className="text-muted-foreground">
+                      <tr className="border-b"><td className="py-1 pr-3"><code>MISSING_API_KEY</code></td><td className="py-1 pr-3">401</td><td className="py-1">No <code>Authorization</code> or <code>X-API-Key</code> header</td></tr>
+                      <tr><td className="py-1 pr-3"><code>INVALID_TOKEN</code></td><td className="py-1 pr-3">401</td><td className="py-1">Access token expired or revoked — refresh, then reconnect if that fails</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-semibold mb-2">7. Checklist before going live</h3>
+                <ul className="text-muted-foreground list-disc pl-5 space-y-1">
+                  <li>App secret stored server-side only — never in a browser or mobile app.</li>
+                  <li><code className="bg-muted px-1 rounded">state</code> generated per attempt and verified on return.</li>
+                  <li><code className="bg-muted px-1 rounded">code_verifier</code> kept in the user's session, never in a URL.</li>
+                  <li>Rotated refresh token persisted on every refresh.</li>
+                  <li>One connection stored per Cycle Courier customer.</li>
+                  <li>401 / <code className="bg-muted px-1 rounded">invalid_grant</code> triggers a reconnect prompt, not a retry loop.</li>
+                  <li>Production and staging return addresses both registered.</li>
+                  <li>Full connect, order create, refresh and disconnect tested end to end.</li>
+                </ul>
+              </div>
+
+              <Alert>
+                <Shield className="h-4 w-4" />
+                <AlertDescription>
+                  Need an App ID, a new return address or a replacement secret? Email{" "}
+                  <strong>Info@cyclecourierco.com</strong> with your App ID — never your secret.
+                </AlertDescription>
+              </Alert>
+            </CardContent>
+          </Card>
         </div>
 
         <Separator className="my-8" />

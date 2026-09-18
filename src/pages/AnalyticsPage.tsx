@@ -108,7 +108,10 @@ const AnalyticsPage = () => {
   // Fetch orders for analytics
   const { data: orders = [], isLoading, error } = useQuery({
     queryKey: ["ordersAnalytics"],
-    queryFn: fetchOrdersForAnalytics
+    queryFn: fetchOrdersForAnalytics,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   // Bike value tab: preset range in days ("all" = whole history)
@@ -123,15 +126,18 @@ const AnalyticsPage = () => {
   const { data: inspections = [] } = useQuery({
     queryKey: ["inspectionsAnalytics"],
     queryFn: fetchInspectionsForAnalytics,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
-  const inspectionsOverTime = getInspectionsOverTime(inspections);
-  const inspectionsWithIssues = getInspectionsWithIssuesRate(inspections);
-  const avgRepairCost = getAverageRepairCost(inspections);
-  const avgBikeValue = getAverageBikeValue(inspections);
-  const avgPartsLabour = getAveragePartsAndLabourPerBike(inspections);
-  const issueApproval = getIssueApprovalRate(inspections);
-  const stageDurations = getInspectionStageDurations(inspections);
+  const inspectionsOverTime = useMemo(() => getInspectionsOverTime(inspections), [inspections]);
+  const inspectionsWithIssues = useMemo(() => getInspectionsWithIssuesRate(inspections), [inspections]);
+  const avgRepairCost = useMemo(() => getAverageRepairCost(inspections), [inspections]);
+  const avgBikeValue = useMemo(() => getAverageBikeValue(inspections), [inspections]);
+  const avgPartsLabour = useMemo(() => getAveragePartsAndLabourPerBike(inspections), [inspections]);
+  const issueApproval = useMemo(() => getIssueApprovalRate(inspections), [inspections]);
+  const stageDurations = useMemo(() => getInspectionStageDurations(inspections), [inspections]);
 
   const { data: vehicleTimeslips = [] } = useQuery({
     queryKey: ["vehiclesAnalytics", vehicleRange?.start ?? "all", vehicleRange?.end ?? "all"],
@@ -167,22 +173,28 @@ const AnalyticsPage = () => {
     : 0;
   const topVehicle = vehicleLeaderboard[0];
 
-  // Calculate quick stats
+  // Calculate quick stats in a single pass (orders can be thousands of rows)
   const totalOrders = orders.length;
-  const pendingOrders = orders.filter(order => 
-    !["delivered", "cancelled"].includes(order.status)
-  ).length;
-  const deliveredOrders = orders.filter(order => order.status === "delivered").length;
-  const cancelledOrders = orders.filter(order => order.status === "cancelled").length;
-  
-  // Calculate analytics data
-  const orderStatusData = getOrderStatusAnalytics(orders);
+  const { pendingOrders, deliveredOrders, cancelledOrders } = useMemo(() => {
+    let pendingOrders = 0;
+    let deliveredOrders = 0;
+    let cancelledOrders = 0;
+    for (const order of orders) {
+      if (order.status === "delivered") deliveredOrders++;
+      else if (order.status === "cancelled") cancelledOrders++;
+      else pendingOrders++;
+    }
+    return { pendingOrders, deliveredOrders, cancelledOrders };
+  }, [orders]);
+
+  // Calculate analytics data (memoised so unrelated state changes don't recompute)
+  const orderStatusData = useMemo(() => getOrderStatusAnalytics(orders), [orders]);
   // orderTimeData removed — Orders Created chart now computes its own series
-  const customerTypeData = getCustomerTypeAnalytics(orders);
-  const topCustomersData = getTopCustomersAnalytics(orders);
-  const partExchangeData = getPartExchangeAnalytics(orders);
-  const paymentRequiredData = getPaymentRequiredAnalytics(orders);
-  const bikeBrandData = getBikeBrandAnalytics(orders);
+  const customerTypeData = useMemo(() => getCustomerTypeAnalytics(orders), [orders]);
+  const topCustomersData = useMemo(() => getTopCustomersAnalytics(orders), [orders]);
+  const partExchangeData = useMemo(() => getPartExchangeAnalytics(orders), [orders]);
+  const paymentRequiredData = useMemo(() => getPaymentRequiredAnalytics(orders), [orders]);
+  const bikeBrandData = useMemo(() => getBikeBrandAnalytics(orders), [orders]);
   
   // Calculate timing analytics (scoped to selected performance range)
   const collectionTimeData = useMemo(() => getCollectionTimeAnalytics(orders, perfRange), [orders, perfRange]);

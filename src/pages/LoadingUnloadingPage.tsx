@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -87,27 +87,33 @@ const LoadingUnloadingPage = () => {
   const isAdmin = hasRole(userProfile, 'admin');
 
   // Helper to get bikes for delivery on a given date
-  const getBikesForDelivery = (date: Date) => {
+  const getBikesForDelivery = useCallback((date: Date) => {
+    const targetDate = format(date, 'yyyy-MM-dd');
     return orders.filter(order => {
       if (!order.scheduledDeliveryDate) return false;
       const deliveryDate = format(new Date(order.scheduledDeliveryDate), 'yyyy-MM-dd');
-      const targetDate = format(date, 'yyyy-MM-dd');
       return deliveryDate === targetDate && !order.loaded_onto_van;
     });
-  };
+  }, [orders]);
 
   // Helper to get bikes loaded on a given date
-  const getBikesLoadedOnDate = (date: Date) => {
+  const getBikesLoadedOnDate = useCallback((date: Date) => {
+    const targetDate = format(date, 'yyyy-MM-dd');
     return orders.filter(order => {
       if (!order.scheduledDeliveryDate || !order.loaded_onto_van) return false;
       const deliveryDate = format(new Date(order.scheduledDeliveryDate), 'yyyy-MM-dd');
-      const targetDate = format(date, 'yyyy-MM-dd');
       return deliveryDate === targetDate;
     });
-  };
+  }, [orders]);
 
-  const bikesForDelivery = selectedLoadingDate ? getBikesForDelivery(selectedLoadingDate) : [];
-  const bikesLoadedOnDate = selectedLoadingDate ? getBikesLoadedOnDate(selectedLoadingDate) : [];
+  const bikesForDelivery = useMemo(
+    () => (selectedLoadingDate ? getBikesForDelivery(selectedLoadingDate) : []),
+    [selectedLoadingDate, getBikesForDelivery],
+  );
+  const bikesLoadedOnDate = useMemo(
+    () => (selectedLoadingDate ? getBikesLoadedOnDate(selectedLoadingDate) : []),
+    [selectedLoadingDate, getBikesLoadedOnDate],
+  );
 
   const fetchData = async () => {
     try {
@@ -117,30 +123,22 @@ const LoadingUnloadingPage = () => {
       
       // Fetch storage allocations from orders' storage_locations field
       const allAllocations: StorageAllocation[] = [];
-      console.log('Processing orders for storage allocations:', ordersData.length);
-      
+
       ordersData.forEach(order => {
-        console.log(`Order ${order.id} storage_locations:`, order.storage_locations);
-        
         if (order.storage_locations) {
           const orderAllocations = Array.isArray(order.storage_locations) 
             ? order.storage_locations 
             : [order.storage_locations];
-          
-          console.log(`Order ${order.id} parsed allocations:`, orderAllocations);
-          
+
           orderAllocations.forEach((allocation: any) => {
-            const parsedAllocation = {
+            allAllocations.push({
               ...allocation,
-              allocatedAt: new Date(allocation.allocatedAt)
-            };
-            console.log('Adding allocation:', parsedAllocation);
-            allAllocations.push(parsedAllocation);
+              allocatedAt: new Date(allocation.allocatedAt),
+            });
           });
         }
       });
-      
-      console.log('Storage allocations loaded:', allAllocations);
+
       setStorageAllocations(allAllocations);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -207,40 +205,39 @@ const LoadingUnloadingPage = () => {
 
 
   // Get bikes that need storage allocation (collected but not delivered, not cancelled, and no storage allocation)
-  const collectedBikes = orders.filter(order => {
-    const hasCollection = hasBeenCollected(order);
-    const hasDelivery = hasBeenDelivered(order);
-    const isCancelled = order.status === 'cancelled';
-    const hasStorage = storageAllocations.some(allocation => allocation.orderId === order.id);
-    const isLoadedOntoVan = order.loaded_onto_van;
-    
-    console.log(`Order ${order.id}: collected=${hasCollection}, delivered=${hasDelivery}, cancelled=${isCancelled}, hasStorage=${hasStorage}, loadedOntoVan=${isLoadedOntoVan}`);
-    
-    return hasCollection && !hasDelivery && !isCancelled && !hasStorage && !isLoadedOntoVan;
-  });
+  const allocatedOrderIds = useMemo(
+    () => new Set(storageAllocations.map(allocation => allocation.orderId)),
+    [storageAllocations],
+  );
+
+  const collectedBikes = useMemo(
+    () =>
+      orders.filter(order =>
+        hasBeenCollected(order) &&
+        !hasBeenDelivered(order) &&
+        order.status !== 'cancelled' &&
+        !allocatedOrderIds.has(order.id) &&
+        !order.loaded_onto_van
+      ),
+    [orders, allocatedOrderIds],
+  );
 
   // Get bikes that are loaded onto van but not yet delivered
-  const bikesLoadedOntoVan = orders.filter(order => {
-    const hasDelivery = hasBeenDelivered(order);
-    const isCancelled = order.status === 'cancelled';
-    const isLoadedOntoVan = order.loaded_onto_van;
-    
-    return isLoadedOntoVan && !hasDelivery && !isCancelled;
-  });
+  const bikesLoadedOntoVan = useMemo(
+    () =>
+      orders.filter(order =>
+        order.loaded_onto_van && !hasBeenDelivered(order) && order.status !== 'cancelled'
+      ),
+    [orders],
+  );
 
   // Get all bikes that have storage allocations (excluding loaded bikes)
-  const bikesInStorage = storageAllocations.map(allocation => {
-    const order = orders.find(o => o.id === allocation.orderId);
-    console.log('Mapping allocation:', allocation, 'Found order:', order);
-    return { allocation, order };
-  }).filter(item => {
-    const hasOrder = !!item.order;
-    const isLoaded = item.order?.loaded_onto_van === true;
-    console.log('Filtering item:', item, 'Has order:', hasOrder, 'Is loaded:', isLoaded);
-    return hasOrder && !isLoaded;
-  });
-
-  console.log('Final bikesInStorage:', bikesInStorage);
+  const bikesInStorage = useMemo(() => {
+    const orderById = new Map(orders.map(order => [order.id, order]));
+    return storageAllocations
+      .map(allocation => ({ allocation, order: orderById.get(allocation.orderId) }))
+      .filter(item => !!item.order && item.order?.loaded_onto_van !== true);
+  }, [orders, storageAllocations]);
 
   const handleAllocateStorage = async (orderId: string, allocationsToMake: { bay: string; position: number; bikeIndex: number }[]) => {
     const order = orders.find(o => o.id === orderId);
@@ -634,15 +631,12 @@ const LoadingUnloadingPage = () => {
             
             // If collection is within 500m of depot, INCLUDE in loading list (driver won't have the bike yet)
             if (distanceToDepot <= DEPOT_PROXIMITY_THRESHOLD_METERS) {
-              console.log(`Order ${order.trackingNumber}: Same-day but collection within ${Math.round(distanceToDepot)}m of depot - INCLUDING in loading list`);
               return deliveryDate === targetDate;
             } else {
-              console.log(`Order ${order.trackingNumber}: Same-day and collection ${Math.round(distanceToDepot)}m from depot - EXCLUDING from loading list`);
               return false;
             }
           } else {
             // No coordinates available, default to original behavior (exclude same-day)
-            console.log(`Order ${order.trackingNumber}: Same-day but no collection coordinates - EXCLUDING from loading list`);
             return false;
           }
         }

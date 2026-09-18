@@ -57,6 +57,13 @@ const Auth = () => {
 
   useEffect(() => {
     if (user && !hasRecoveryToken()) {
+      // Partner app approvals send people here to sign in; return them to the
+      // approval screen instead of the dashboard. Only same-site paths allowed.
+      const next = new URLSearchParams(window.location.search).get("next");
+      if (next && next.startsWith("/oauth/authorize")) {
+        navigate(next, { replace: true });
+        return;
+      }
       navigate("/dashboard");
     }
   }, [user, navigate]);

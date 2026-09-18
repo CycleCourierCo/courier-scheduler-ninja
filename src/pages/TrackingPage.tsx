@@ -99,10 +99,6 @@ const TrackingPage = () => {
   };
 
 
-  // Debug logs
-  console.log("TrackingPage order data:", order);
-  console.log("TrackingPage order tracking:", order?.trackingEvents);
-  console.log("HasAttemptedLoad:", hasAttemptedLoad, "isSuccess:", isSuccess);
 
   return (
     <Layout>

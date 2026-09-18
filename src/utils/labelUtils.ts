@@ -65,6 +65,9 @@ export const generateBulkCollectionLabels = async (orders: Order[]) => {
     const pdf = new jsPDF('portrait', 'pt', [LABEL_WIDTH, LABEL_HEIGHT]);
     let isFirstPage = true;
 
+    // Yield to the browser every few labels so a large batch doesn't freeze the
+    // tab (and trigger "page took too long to respond").
+    let sinceYield = 0;
     for (const order of orders) {
       const quantity = order.bikeQuantity || 1;
       for (let i = 0; i < quantity; i++) {
@@ -73,6 +76,10 @@ export const generateBulkCollectionLabels = async (orders: Order[]) => {
         }
         isFirstPage = false;
         renderLabelPage(pdf, order, i, quantity, LABEL_WIDTH, shouldShowSender(order, allowedAccounts));
+        if (++sinceYield >= 10) {
+          sinceYield = 0;
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        }
       }
     }
 

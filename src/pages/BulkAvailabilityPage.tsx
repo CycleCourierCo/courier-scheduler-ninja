@@ -69,11 +69,6 @@ const BulkAvailabilityPage = () => {
   };
 
   const handleSubmit = async () => {
-    console.log("handleSubmit called", { 
-      selectedOrderIds: selectedOrderIds.length, 
-      datesCount: dates.length,
-      dates 
-    });
 
     if (selectedOrderIds.length === 0) {
       toast.error("Please select at least one order");
@@ -93,55 +88,39 @@ const BulkAvailabilityPage = () => {
     try {
       setIsSubmitting(true);
 
-      // Update each selected order
-      console.log("Starting loop, selectedOrderIds:", selectedOrderIds);
-      console.log("Available orders:", orders.map(o => ({ id: o.id, role: o.displayRole })));
+      // Format dates once — identical for every selected order
+      const dateStrings = dates
+        .map((date) => {
+          const d = new Date(date);
+          d.setHours(0, 0, 0, 0);
+          return d.toISOString();
+        })
+        .sort();
 
-      for (const selectedKey of selectedOrderIds) {
-        console.log("Processing selectedKey:", selectedKey);
+      const processSelection = async (selectedKey: string) => {
         // Split from the LAST hyphen since UUIDs contain hyphens
         const lastHyphenIndex = selectedKey.lastIndexOf('-');
         const orderId = selectedKey.substring(0, lastHyphenIndex);
         const role = selectedKey.substring(lastHyphenIndex + 1) as 'sender' | 'receiver';
-        console.log("Split into orderId:", orderId, "role:", role);
-        
+
         const order = orders.find((o) => o.id === orderId && o.displayRole === role);
-        console.log("Found order:", order ? "Yes" : "No");
-        
-        if (!order) {
-          console.log("Skipping - order not found");
-          continue;
-        }
+        if (!order) return;
 
         const isSender = role === 'sender';
-        // Format dates as ISO strings for database
-        const dateStrings = dates
-          .map((date) => {
-            const d = new Date(date);
-            d.setHours(0, 0, 0, 0);
-            return d.toISOString();
-          })
-          .sort();
 
-        console.log(`Updating order ${orderId} as ${role}`, { 
-          dateStrings, 
-          isSender,
-          receiverConfirmedAt: order.receiverConfirmedAt
+        const { error } = await supabase.rpc("set_order_availability" as any, {
+          p_order_id: orderId,
+          p_side: isSender ? "sender" : "receiver",
+          p_dates: dateStrings,
+          p_notes: notes,
         });
 
+        if (error) {
+          console.error("Error updating availability:", error);
+          throw error;
+        }
+
         if (isSender) {
-          const { error } = await supabase.rpc("set_order_availability" as any, {
-            p_order_id: orderId,
-            p_side: "sender",
-            p_dates: dateStrings,
-            p_notes: notes,
-          });
-
-          if (error) {
-            console.error("Error updating sender availability:", error);
-            throw error;
-          }
-
           // Trigger receiver email when the RPC will have moved status to receiver_availability_pending
           const blockedByInspection = await isReceiverAvailabilityBlockedByInspection(orderId);
           if (!blockedByInspection && !order.receiverConfirmedAt) {
@@ -154,19 +133,13 @@ const BulkAvailabilityPage = () => {
               console.error("Error sending receiver availability email:", emailError);
             }
           }
-        } else {
-          const { error } = await supabase.rpc("set_order_availability" as any, {
-            p_order_id: orderId,
-            p_side: "receiver",
-            p_dates: dateStrings,
-            p_notes: notes,
-          });
-
-          if (error) {
-            console.error("Error updating receiver availability:", error);
-            throw error;
-          }
         }
+      };
+
+      // Run in small parallel batches so the browser stays responsive
+      const BATCH = 4;
+      for (let i = 0; i < selectedOrderIds.length; i += BATCH) {
+        await Promise.all(selectedOrderIds.slice(i, i + BATCH).map(processSelection));
       }
 
 
