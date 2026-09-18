@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
 import { formatDistanceToNowStrict } from "date-fns";
-import { Wrench, CheckCircle, XCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search, Pencil, Trash2, Plus, Save, Truck } from "lucide-react";
+import { Wrench, CheckCircle, XCircle, AlertTriangle, Loader2, RotateCcw, X, MapPin, FileText, ExternalLink, Clock, ArrowUpDown, PoundSterling, PackageCheck, Send, Search, Pencil, Trash2, Plus, Save, Truck, Copy } from "lucide-react";
 import { getDriverAssignment } from "@/utils/driverAssignmentUtils";
 import { getCollectionPhotos } from "@/utils/collectionPhotos";
 import { ChangeStorageLocationDialog } from "@/components/loading/ChangeStorageLocationDialog";
