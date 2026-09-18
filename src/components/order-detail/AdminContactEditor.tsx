@@ -41,9 +41,13 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
     zipCode: contact.address.zipCode,
     country: contact.address.country
   });
+  // Populated only when an address is picked from the search — avoids a second
+  // geocode call and keeps NI routing accurate after an address change.
+  const [searchedAddress, setSearchedAddress] = useState<SelectedAddress | null>(null);
   const { data: allContacts = [], isLoading: contactsLoading } = useContacts(undefined, true);
 
   const handleSelectContact = (selected: Contact) => {
+    setSearchedAddress(null);
     setEditedContact({
       name: selected.name,
       email: selected.email || "",
@@ -54,6 +58,18 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
       zipCode: selected.postal_code || "",
       country: selected.country || "United Kingdom",
     });
+  };
+
+  const handleSelectAddress = (address: SelectedAddress) => {
+    setSearchedAddress(address);
+    setEditedContact(prev => ({
+      ...prev,
+      street: address.street,
+      city: address.city,
+      state: address.state,
+      zipCode: address.zipCode,
+      country: address.country || "United Kingdom",
+    }));
   };
 
   const handleSave = async () => {
