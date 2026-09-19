@@ -246,6 +246,12 @@ Retrieves details for a specific order.
 - `needs_inspection` (boolean, default false)
 - `order_options.*` (all optional, defaults provided)
 - `delivery_instructions` (string)
+- `customer_side` (`"sender"` or `"receiver"`) — for OAuth-connected apps only. Tells us which side of
+  the job the connected account is on. That side's contact name, phone and address are filled
+  automatically from the address the customer saved against your app in their profile (falling back to
+  their profile address), so you do not need to send it. Any address you send for that side is ignored.
+  Returns `400 CUSTOMER_ADDRESS_MISSING` if the customer has no usable address on file.
+
 
 ## Order Status Values
 
