@@ -1105,6 +1105,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Hello ${order.receiver.name || "Customer"},</h2>
           <p>Thank you for using The Cycle Courier Co.</p>
+          ${journeyBlock(order, 'waiting', 'Awaiting your dates', ['Collected', 'Collected NI'], 1)}
           <p>We need to confirm your availability for the delivery of your item:</p>
           <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>${itemName2}</strong> (Quantity: ${order.bike_quantity || 1})</p>
@@ -1135,7 +1136,11 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
           to: order.receiver.email,
           subject: `Please confirm your delivery availability - ${order.tracking_number || orderId}`,
           html: availabilityHtml,
-          reply_to: "Info@cyclecourierco.com"
+          reply_to: "Info@cyclecourierco.com",
+          cccShell: {
+            eyebrow: "DELIVERY",
+            preheader: "Pick the days that work — takes under a minute",
+          },
         });
         
         if (availError) {
