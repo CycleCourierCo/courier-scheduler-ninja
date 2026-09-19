@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
 import './index.css';
+import { supabase } from '@/integrations/supabase/client';
 
 // Initialize Sentry before rendering
 // Enable if DSN is configured (works in both dev preview and production)
@@ -55,8 +56,61 @@ window.addEventListener('unhandledrejection', (event) => {
 });
 
 
-createRoot(document.getElementById("root")!).render(
-  <BrowserRouter>
-    <App />
-  </BrowserRouter>
-);
+const RELEASE_RESET_ID = "2026-09-19-brand-refresh";
+const RELEASE_RESET_KEY = `ccc-release-reset:${RELEASE_RESET_ID}`;
+const RELEASE_RESET_PARAM = "ccc-release";
+
+const renderApp = () => {
+  const root = document.getElementById("root");
+  if (!root) return;
+
+  createRoot(root).render(
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  );
+};
+
+const runOneTimeReleaseReset = async () => {
+  const url = new URL(window.location.href);
+  const returnedFromReset = url.searchParams.get(RELEASE_RESET_PARAM) === RELEASE_RESET_ID;
+  let resetComplete = returnedFromReset;
+
+  try {
+    resetComplete = resetComplete || window.localStorage.getItem(RELEASE_RESET_KEY) === "1";
+  } catch {
+    // Storage can be unavailable in Safari private browsing or through blockers.
+  }
+
+  if (resetComplete) {
+    if (returnedFromReset) {
+      url.searchParams.delete(RELEASE_RESET_PARAM);
+      window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
+    }
+    renderApp();
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(RELEASE_RESET_KEY, "1");
+  } catch {
+    // The query parameter below prevents a reload loop when storage is blocked.
+  }
+
+  await Promise.allSettled([
+    supabase.auth.signOut({ scope: "local" }),
+    "caches" in window
+      ? window.caches.keys().then((keys) => Promise.all(keys.map((key) => window.caches.delete(key))))
+      : Promise.resolve(),
+    "serviceWorker" in navigator
+      ? navigator.serviceWorker.getRegistrations().then((registrations) =>
+          Promise.all(registrations.map((registration) => registration.unregister()))
+        )
+      : Promise.resolve(),
+  ]);
+
+  url.searchParams.set(RELEASE_RESET_PARAM, RELEASE_RESET_ID);
+  window.location.replace(url.toString());
+};
+
+void runOneTimeReleaseReset();
