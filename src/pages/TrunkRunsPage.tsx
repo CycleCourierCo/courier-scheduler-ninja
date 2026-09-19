@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import horizontalLogo from "@/assets/brand/lockup-horizontal.svg.asset.json";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { notify } from "@/lib/notify";
 import { useBikeSpaces, formatSpaces } from "@/lib/bikeSpaces";
@@ -193,9 +194,9 @@ const TrunkRunsPage: React.FC = () => {
       })
       .join("");
     const html = `<!doctype html><html><head><title>Trunk manifest</title>
-      <style>body{font-family:sans-serif;padding:24px}table{width:100%;border-collapse:collapse;margin-top:16px}
-      th,td{border:1px solid #ccc;padding:6px 8px;font-size:12px;text-align:left}h1{font-size:18px}</style></head>
-      <body><h1>Trunk manifest — ${directionLabel(run.direction)}</h1>
+      <style>body{font-family:Overpass,Arial,sans-serif;padding:24px;color:#16191D}.brand{width:260px;height:auto;display:block;margin-bottom:24px}table{width:100%;border-collapse:collapse;margin-top:16px}
+      th,td{border:1px solid #D9DFE5;padding:6px 8px;font-size:12px;text-align:left}th{background:#F2F5F7}h1{font-size:18px}</style></head>
+      <body><img class="brand" src="${horizontalLogo.url}" alt="Cycle Courier Co."><h1>Trunk manifest — ${directionLabel(run.direction)}</h1>
       <p>${format(new Date(run.run_date), "EEEE d MMMM yyyy")} · ${items.length} bikes · ${formatSpaces(items.reduce((t, i) => t + Number(i.spaces), 0))} van spaces</p>
       <table><thead><tr><th>Tracking</th><th>Bike</th><th>Bay</th><th>Spaces</th><th>Destination</th></tr></thead>
       <tbody>${rows}</tbody></table></body></html>`;

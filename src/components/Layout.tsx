@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
 import ThemeToggle from "./ThemeToggle";
 import TaskNotificationBell from "./tasks/TaskNotificationBell";
+import BrandLogo from "./BrandLogo";
 import { hasRole, getRoles } from "@/lib/roles";
 import { useRoutePermissions } from "@/hooks/useRoutePermissions";
 interface LayoutProps {
@@ -173,9 +174,9 @@ const Layout: React.FC<LayoutProps> = ({
       <NoticeBanner />
       <header className="sticky top-0 z-50 border-b bg-card">
         <div className="container mx-auto flex min-h-16 items-center justify-between px-4 py-2">
-          <Link to="/" className="flex items-center gap-2 sm:gap-3" aria-label="Cycle Courier Co. home">
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"><Truck className="h-5 w-5" /></span>
-            <span className="text-xs font-extrabold sm:text-sm">CYCLE COURIER CO.</span>
+          <Link to="/" className="min-w-0" aria-label="Cycle Courier Co. home">
+            <BrandLogo compact showMobileWordmark className="md:hidden" />
+            <BrandLogo className="hidden h-10 w-52 md:block" />
           </Link>
           
           <nav className="hidden items-center gap-5 text-sm font-semibold md:flex">
@@ -441,7 +442,7 @@ const Layout: React.FC<LayoutProps> = ({
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             <div className="space-y-4">
-              <h3 className="mb-4 text-lg font-extrabold text-foreground">CYCLE COURIER CO.</h3>
+              <BrandLogo className="mb-4 h-12 w-60 max-w-full" />
               
               <div className="mt-6 space-y-2">
                 <p className="text-sm opacity-90">Cycorco Ltd T/A Cycle Courier Co.</p>

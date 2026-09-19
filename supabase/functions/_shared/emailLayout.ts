@@ -72,6 +72,8 @@ export const stagesForOrder = (order: any): readonly string[] => {
   return STRIP_BRANCHES.standard;
 };
 
+const EMAIL_LOGO_URL = "https://booking.cyclecourierco.com/__l5e/assets-v1/b57ce027-4e3a-4a23-a45d-01fba1074718/lockup-horizontal-reversed.png";
+
 /** Index of the first matching stage label, else a fallback. */
 export const stageIndex = (stages: readonly string[], labels: string[], fallback: number): number => {
   for (const label of labels) {
@@ -165,7 +167,7 @@ export function emailShell(bodyHtml: string, options: EmailShellOptions = {}): s
             <td style="background:${B.primary};padding:20px 24px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td align="left" style="font-size:16px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${B.primaryText};">${B.name}</td>
+                   <td align="left"><img src="${EMAIL_LOGO_URL}" alt="${B.name}" width="240" height="48" style="width:240px;max-width:100%;height:auto;display:block;border:0;outline:none;text-decoration:none;"></td>
                   ${
                     eyebrow
                       ? `<td align="right" style="font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:${B.primaryText};opacity:0.7;">${escapeHtml(eyebrow)}</td>`

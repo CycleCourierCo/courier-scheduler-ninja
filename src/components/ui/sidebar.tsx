@@ -16,6 +16,7 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasAnyRole, hasRole } from "@/lib/roles";
+import BrandLogo from "@/components/BrandLogo";
 
 export interface SidebarProps {
   className?: string;
@@ -124,18 +125,7 @@ export function Sidebar({
         <div className="flex flex-1 flex-col overflow-y-auto pb-4 pt-5">
           <div className="flex justify-center">
             <Link to="/" onClick={isMobile ? onCloseSidebar : undefined}>
-              <div className="flex items-center justify-center">
-                <img
-                  src="/cycle-courier-logo.png"
-                  alt="Logo"
-                  height={32}
-                  width={32}
-                  className="h-8 w-8"
-                />
-                {isSidebarOpen && (
-                  <span className="ml-3 text-lg font-bold">Cycle Courier</span>
-                )}
-              </div>
+              {isSidebarOpen ? <BrandLogo className="h-10 w-52" /> : <BrandLogo compact />}
             </Link>
           </div>
 

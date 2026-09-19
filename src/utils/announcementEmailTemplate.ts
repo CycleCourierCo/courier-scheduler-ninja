@@ -23,6 +23,8 @@ const BRAND = {
   bg: "#EDF1F4",
 };
 
+const EMAIL_LOGO_URL = "https://booking.cyclecourierco.com/__l5e/assets-v1/b57ce027-4e3a-4a23-a45d-01fba1074718/lockup-horizontal-reversed.png";
+
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -82,12 +84,7 @@ export function wrapAnnouncementEmail(content: string, subject: string): string 
             <td style="background:${BRAND.primary};padding:24px 32px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td style="color:#ffffff;font-size:20px;font-weight:700;letter-spacing:.2px;">
-                    ${BRAND.name}
-                  </td>
-                  <td align="right">
-                    <img src="https://booking.cyclecourierco.com/cycle-courier-logo.png" alt="Cycle Courier Co." height="48" style="height:48px;width:auto;display:block;border:0;outline:none;text-decoration:none;background:#ffffff;border-radius:6px;padding:4px;">
-                  </td>
+                  <td><img src="${EMAIL_LOGO_URL}" alt="Cycle Courier Co." width="260" height="52" style="width:260px;max-width:100%;height:auto;display:block;border:0;outline:none;text-decoration:none;"></td>
                 </tr>
               </table>
             </td>

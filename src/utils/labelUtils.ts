@@ -2,6 +2,7 @@ import jsPDF from 'jspdf';
 import { format } from "date-fns";
 import type { Order } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
+import labelBrandHeader from "@/assets/brand/label-brand-header.png.asset.json";
 
 export const LABEL_WIDTH = 288; // 4 inches in points
 export const LABEL_HEIGHT = 432; // 6 inches in points
@@ -247,22 +248,13 @@ export const renderLabelPage = (pdf: jsPDF, order: Order, bikeIndex: number, qua
   pdf.text(contactText, contactX, currentY);
   currentY += 20;
 
-  // Logo
+  // Supplied 4x6 brand header treatment
   try {
-    const logoWidth = (labelWidth - (2 * MARGIN)) * 0.51;
-    const logoHeight = logoWidth;
-    const logoX = (labelWidth - logoWidth) / 2;
-    pdf.addImage('/cycle-courier-logo.png', 'PNG', logoX, currentY, logoWidth, logoHeight);
-    currentY += logoHeight + 10;
-
-    pdf.setFontSize(10);
-    pdf.setFont("helvetica", "normal");
-    const taglineText = 'Streamlining Bike Transport';
-    const taglineWidth = pdf.getTextWidth(taglineText);
-    const taglineX = (labelWidth - taglineWidth) / 2;
-    pdf.text(taglineText, taglineX, currentY);
+    const headerWidth = labelWidth - (2 * MARGIN);
+    const headerHeight = headerWidth * (258 / 1200);
+    pdf.addImage(labelBrandHeader.url, 'PNG', MARGIN, currentY, headerWidth, headerHeight);
   } catch (error) {
-    console.log('Could not load logo:', error);
+    console.warn('Could not load label branding:', error);
   }
 };
 
