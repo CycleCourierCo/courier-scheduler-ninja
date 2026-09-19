@@ -931,6 +931,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
       const senderHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Dear ${order.sender.name || "Customer"},</h2>
+          ${journeyBlock(order, 'done', 'Collected', ['Collected', 'Collected NI'], 1)}
           <p>Your bicycle has been successfully collected by The Cycle Courier Co.</p>
           <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>Order Details:</strong></p>
@@ -977,6 +978,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
       const receiverHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Dear ${order.receiver.name || "Customer"},</h2>
+          ${journeyBlock(order, 'done', 'Collected', ['Collected', 'Collected NI'], 1)}
           <p>Great news! Your bicycle has been collected and is now with us.</p>
           <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>Order Details:</strong></p>
@@ -1030,6 +1032,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
       const serviceCentreHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Dear ${order.receiver.name || "Customer"},</h2>
+          ${journeyBlock(order, 'inspection', 'In inspection', ['Collected'], 1)}
           <p>Your bicycle has been collected and is now on its way to our service centre.</p>
           <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>Order Details:</strong></p>
