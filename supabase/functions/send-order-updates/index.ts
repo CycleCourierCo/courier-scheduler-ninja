@@ -570,9 +570,15 @@ function deriveUpdates(order: any, inspectionPending = false, inspectionStatus: 
 function buildHtml(order: any, update: Update, name: string): string {
   const trackingUrl = order.tracking_number ? `${BASE_URL}/tracking/${order.tracking_number}` : "";
   const body = update.lines.map((l) => `<p style="line-height:1.6;">${l}</p>`).join("");
+  const pres = presentationFor(update);
+  const stages = stagesForOrder(order);
+  const journey =
+    `<div style="margin:4px 0 0;">${emailUI.statusPill(pres.pill[0] as any, pres.pill[1])}</div>` +
+    emailUI.stripMap(stages, stageIndex(stages, pres.labels, pres.fallback));
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color:#1f2937;">
       <h2>Hello ${name},</h2>
+      ${journey}
       <p>Here's an update on your booking with The Cycle Courier Co. - no action needed unless we've asked for something below.</p>
       <div style="background-color:#f7f7f7;padding:16px;border-radius:5px;margin:20px 0;">
         <p style="margin:0 0 8px;"><strong>${update.headline}</strong></p>
@@ -643,6 +649,11 @@ async function sendUpdatesForOrder(
 
     const name = contact?.name || "Customer";
 
+    const pres = presentationFor(update);
+    const cccShell: Record<string, unknown> = { eyebrow: pres.eyebrow };
+    if (pres.chevron) cccShell.chevron = true;
+    if (pres.preheader) cccShell.preheader = pres.preheader;
+
     try {
       const res = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
         method: "POST",
@@ -655,6 +666,7 @@ async function sendUpdatesForOrder(
           subject: update.subject,
           html: buildHtml(order, update, name),
           text: buildText(order, update, name),
+          cccShell,
           meta: { orderId: order.id, action: "customer_update", stage: update.stageKey },
         }),
       });
