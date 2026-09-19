@@ -5,6 +5,8 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1
 export interface ApiCaller {
   userId?: string;
   authType?: "api_key" | "oauth";
+  /** Present for OAuth callers: the connection between this partner app and the customer. */
+  grantId?: string;
   error?: "MISSING_API_KEY" | "INVALID_API_KEY" | "INVALID_TOKEN";
 }
 
