@@ -702,6 +702,7 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
       }
 
       ctx.userId = caller.userId
+      const userId = caller.userId
 
 
       const url = new URL(req.url)
