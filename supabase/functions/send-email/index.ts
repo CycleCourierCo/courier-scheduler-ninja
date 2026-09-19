@@ -5,25 +5,7 @@ import { initSentry, captureException } from "../_shared/sentry.ts";
 import { requireAuth, createAuthErrorResponse } from "../_shared/auth.ts";
 import { expectationsHtml, expectationsText, expectationsForOrder } from "../_shared/deliveryExpectations.ts";
 import { trackResend } from "../_shared/integrationLog.ts";
-import { emailUI, STRIP_BRANCHES } from "../_shared/emailLayout.ts";
-
-/** Pick the strip-map branch that matches the order's lifecycle. */
-const stagesForOrder = (order: any): readonly string[] => {
-  if (order?.is_box_my_bike) return STRIP_BRANCHES.box;
-  if (order?.ni_direction === "inbound") return STRIP_BRANCHES.niInbound;
-  if (order?.is_northern_ireland || order?.foam_status) return STRIP_BRANCHES.niOutbound;
-  if (order?.needs_inspection) return STRIP_BRANCHES.workshop;
-  return STRIP_BRANCHES.standard;
-};
-
-/** Index of the first matching label, else a fallback. */
-const stageIndex = (stages: readonly string[], labels: string[], fallback: number): number => {
-  for (const label of labels) {
-    const i = stages.indexOf(label);
-    if (i >= 0) return i;
-  }
-  return fallback;
-};
+import { emailUI, stagesForOrder, stageIndex } from "../_shared/emailLayout.ts";
 
 /** Pill + strip map block injected under the greeting of a status email. */
 const journeyBlock = (order: any, pillToken: string, pillLabel: string, labels: string[], fallback: number): string => {

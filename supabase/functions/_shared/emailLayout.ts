@@ -63,6 +63,24 @@ export const STRIP_BRANCHES = {
 
 export type StripBranch = keyof typeof STRIP_BRANCHES;
 
+/** Pick the strip-map branch that matches an order's lifecycle. */
+export const stagesForOrder = (order: any): readonly string[] => {
+  if (order?.is_box_my_bike) return STRIP_BRANCHES.box;
+  if (order?.ni_direction === "inbound") return STRIP_BRANCHES.niInbound;
+  if (order?.is_northern_ireland || order?.foam_status) return STRIP_BRANCHES.niOutbound;
+  if (order?.needs_inspection) return STRIP_BRANCHES.workshop;
+  return STRIP_BRANCHES.standard;
+};
+
+/** Index of the first matching stage label, else a fallback. */
+export const stageIndex = (stages: readonly string[], labels: string[], fallback: number): number => {
+  for (const label of labels) {
+    const i = stages.indexOf(label);
+    if (i >= 0) return i;
+  }
+  return fallback;
+};
+
 /** Marker used so a branded document is never wrapped twice. */
 export const EMAIL_BRAND_MARKER = "ccc-email-shell";
 
