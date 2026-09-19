@@ -3,6 +3,7 @@ import { format } from "date-fns";
 import type { Order } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
 import labelBrandHeader from "@/assets/brand/label-brand-header.png.asset.json";
+import { publicBrandAssetUrl } from "@/lib/brandAssets";
 
 export const LABEL_WIDTH = 288; // 4 inches in points
 export const LABEL_HEIGHT = 432; // 6 inches in points
@@ -252,7 +253,7 @@ export const renderLabelPage = (pdf: jsPDF, order: Order, bikeIndex: number, qua
   try {
     const headerWidth = labelWidth - (2 * MARGIN);
     const headerHeight = headerWidth * (258 / 1200);
-    pdf.addImage(labelBrandHeader.url, 'PNG', MARGIN, currentY, headerWidth, headerHeight);
+    pdf.addImage(publicBrandAssetUrl(labelBrandHeader.url), 'PNG', MARGIN, currentY, headerWidth, headerHeight);
   } catch (error) {
     console.warn('Could not load label branding:', error);
   }
