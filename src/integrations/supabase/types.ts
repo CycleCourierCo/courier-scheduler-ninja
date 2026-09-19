@@ -5612,6 +5612,10 @@ export type Database = {
         }[]
       }
       next_custom_repair_id: { Args: never; Returns: string }
+      resolve_oauth_token_grant: {
+        Args: { access_token: string }
+        Returns: string
+      }
       revoke_oauth_grant: { Args: { p_grant_id: string }; Returns: boolean }
       set_my_connected_app_address: {
         Args: { p_address: Json; p_grant_id: string }
