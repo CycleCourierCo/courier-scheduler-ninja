@@ -10,6 +10,7 @@ import LoginForm from "@/components/auth/LoginForm";
 import RegisterForm from "@/components/auth/RegisterForm";
 import ResetEmailSent from "@/components/auth/ResetEmailSent";
 import BusinessRegistrationComplete from "@/components/auth/BusinessRegistrationComplete";
+import ChevronAlert from "@/components/design/ChevronAlert";
 
 const PRIMARY_RESET_URL = "https://booking.cyclecourierco.com/reset-password";
 
@@ -100,15 +101,15 @@ const Auth = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto max-w-2xl py-12">
+      <div className="container mx-auto max-w-[420px] px-4 py-10">
         <Card>
           <CardHeader>
-            <div className="mb-4 p-4 bg-destructive/10 border border-destructive/20 rounded-md">
-              <p className="text-sm font-bold text-center text-destructive leading-relaxed">
-                DO NOT REGISTER UNLESS YOU ARE A BICYCLE BUSINESS. IF YOU ARE EXPECTING A COLLECTION OR DELIVERY PLEASE GO TO THE TRACKING PAGE OR CONTACT US FOR FURTHER INFO
+            <ChevronAlert className="mb-4">
+              <p className="text-sm font-semibold leading-relaxed">
+                Sending or receiving a bike as an individual? You don't need an account — use the link we emailed you.
               </p>
-            </div>
-            <CardTitle className="text-2xl text-center">Log in or Register</CardTitle>
+            </ChevronAlert>
+            <CardTitle className="text-center">Log in or register</CardTitle>
             <CardDescription className="text-center">
               Sign in to access your account or create a new one
             </CardDescription>

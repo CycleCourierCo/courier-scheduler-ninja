@@ -1769,7 +1769,7 @@ const BicycleInspections = () => {
     const isWorkshopOnly = !!order.workshop_only;
 
     return (
-      <Card key={order.id} className="mb-4 overflow-hidden">
+      <Card key={order.id} className="mb-4 overflow-hidden border-l-4 border-l-status-inspection">
         <CardHeader className="pb-3 p-4 sm:p-6">
           <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="flex min-w-0 flex-1 gap-3">
@@ -1817,7 +1817,7 @@ const BicycleInspections = () => {
                     Account: <span className="font-medium">{(order as any).booking_customer_name}</span>
                   </span>
                   {!isWorkshopOnly && (order as any).shopify_order_id && (
-                    <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200">
+                    <Badge variant="done">
                       Shopify
                     </Badge>
                   )}
@@ -2078,14 +2078,14 @@ const BicycleInspections = () => {
           {/* Issues Section */}
           {orderIssues.length > 0 && (
             <div className="flex flex-wrap items-center gap-2">
-              <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+              <Badge variant="done">
                 Approved: {approvedCount}
               </Badge>
               <Badge variant="destructive">
                 Declined: {declinedCount}
               </Badge>
               {receiverApprovedCount > 0 && (
-                <Badge className="bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200">
+                <Badge variant="inspection">
                   Receiver approved: {receiverApprovedCount}
                 </Badge>
               )}
@@ -2108,7 +2108,7 @@ const BicycleInspections = () => {
 
           {/* Offer declined repairs to the receiver */}
           {canManageInspections && offerableIssues.length > 0 && (
-            <div className="rounded-md border border-sky-200 bg-sky-50 p-3 dark:border-sky-900 dark:bg-sky-950/40 min-w-0">
+            <div className="min-w-0 rounded-md border border-l-4 border-l-status-inspection bg-card p-3">
               <p className="text-sm font-medium break-words">
                 The customer has approved {approvedCount} repair(s) but has not approved{" "}
                 {offerableIssues.length} — worth £{offerableTotal.toFixed(2)}.
@@ -2120,7 +2120,7 @@ const BicycleInspections = () => {
               <Button
                 size="sm"
                 variant="outline"
-                className="mt-2 border-sky-500 text-sky-700 hover:bg-sky-100 dark:text-sky-300 dark:hover:bg-sky-900"
+                className="mt-2"
                 onClick={() => offerToReceiverMutation.mutate(order.id)}
                 disabled={offerToReceiverMutation.isPending}
               >
@@ -2140,12 +2140,12 @@ const BicycleInspections = () => {
               {orderIssues.map((issue: InspectionIssue) => (
                 <div
                   key={issue.id}
-                  className={`p-3 rounded-lg border-l-4 min-w-0 overflow-hidden ${
+                  className={`min-w-0 overflow-hidden rounded-md border-l-4 bg-muted/50 p-3 ${
                     issue.status === "resolved" || issue.status === "approved" || issue.status === "repaired"
-                      ? "bg-muted/50 border-green-500"
+                      ? "border-status-done"
                       : issue.status === "declined"
-                      ? "bg-muted/50 border-destructive"
-                      : "bg-muted/50 border-amber-500"
+                      ? "border-destructive"
+                      : "border-status-waiting"
                   }`}
                 >
                   <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">

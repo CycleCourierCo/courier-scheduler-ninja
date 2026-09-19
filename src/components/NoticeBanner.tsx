@@ -10,11 +10,11 @@ interface NoticeBar {
   restricted_to_roles: string[] | null;
 }
 
-const typeConfig: Record<string, { bg: string; icon: typeof Info }> = {
-  info: { bg: "bg-blue-600 text-white", icon: Info },
-  warning: { bg: "bg-amber-500 text-white", icon: AlertTriangle },
-  success: { bg: "bg-green-600 text-white", icon: CheckCircle },
-  error: { bg: "bg-destructive text-destructive-foreground", icon: AlertCircle },
+const typeConfig: Record<string, { style: string; icon: typeof Info }> = {
+  info: { style: "border-l-primary", icon: Info },
+  warning: { style: "chevron-tape border-l-status-waiting", icon: AlertTriangle },
+  success: { style: "border-l-status-done", icon: CheckCircle },
+  error: { style: "border-l-destructive", icon: AlertCircle },
 };
 
 const NoticeBanner = () => {
@@ -53,10 +53,10 @@ const NoticeBanner = () => {
         const config = typeConfig[notice.type] || typeConfig.info;
         const Icon = config.icon;
         return (
-          <div key={notice.id} className={`${config.bg} px-4 py-2 flex items-center justify-center gap-2 text-sm`}>
+          <div key={notice.id} className={`${config.style} flex min-h-11 items-center justify-center gap-2 border-b border-l-4 bg-card px-4 py-2 text-sm text-card-foreground`}>
             <Icon className="h-4 w-4 shrink-0" />
             <span className="text-center flex-1">{notice.message}</span>
-            <button
+            <button type="button" aria-label="Dismiss notice"
               onClick={() => setDismissed((prev) => new Set(prev).add(notice.id))}
               className="shrink-0 hover:opacity-70 transition-opacity"
             >

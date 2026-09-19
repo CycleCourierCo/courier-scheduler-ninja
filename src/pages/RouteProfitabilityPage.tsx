@@ -187,14 +187,14 @@ const RouteProfitabilityPage = () => {
   return (
     <Layout>
       
-      <div className="container mx-auto p-6 space-y-6">
+      <div className="office-density container mx-auto space-y-6 p-4 sm:p-6">
         <div className="flex items-center gap-2">
           <TrendingUp className="h-8 w-8 text-primary" />
-          <h1 className="text-3xl font-bold">Route Profitability</h1>
+          <h1>Route profitability</h1>
         </div>
 
         {/* Current Week Summary */}
-        <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+        <Card className="border-l-4 border-l-primary">
           <CardHeader>
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>

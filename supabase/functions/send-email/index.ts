@@ -5,6 +5,14 @@ import { initSentry, captureException } from "../_shared/sentry.ts";
 import { requireAuth, createAuthErrorResponse } from "../_shared/auth.ts";
 import { expectationsHtml, expectationsText, expectationsForOrder } from "../_shared/deliveryExpectations.ts";
 import { trackResend } from "../_shared/integrationLog.ts";
+import { emailUI, stagesForOrder, stageIndex } from "../_shared/emailLayout.ts";
+
+/** Pill + strip map block injected under the greeting of a status email. */
+const journeyBlock = (order: any, pillToken: string, pillLabel: string, labels: string[], fallback: number): string => {
+  const stages = stagesForOrder(order);
+  return `<div style="margin:4px 0 0;">${emailUI.statusPill(pillToken as any, pillLabel)}</div>` +
+    emailUI.stripMap(stages, stageIndex(stages, labels, fallback));
+};
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -75,7 +83,7 @@ serve(async (req) => {
       const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
       const { data: orderData } = await adminClient
         .from("orders")
-        .select("user_id, sender, receiver, is_northern_ireland")
+        .select("user_id, sender, receiver, is_northern_ireland, is_box_my_bike, ni_direction, foam_status, needs_inspection")
         .eq("id", checkOrderId)
         .single();
 
@@ -150,6 +158,10 @@ serve(async (req) => {
       text: 'Default email content',
     };
 
+    // Per-template shell options (eyebrow, preheader, chevron) — consumed by the
+    // shared branding wrapper, never sent to Resend.
+    let shellOptions: Record<string, unknown> = {};
+
     
     // Build email based on type
     if (reqData.emailType === 'sender' || reqData.emailType === 'receiver') {
@@ -165,6 +177,11 @@ serve(async (req) => {
       const trackingUrl = trackingNumber ? `${baseUrl}/tracking/${trackingNumber}` : '';
       
       emailOptions.subject = `Please confirm your ${availabilityType} availability`;
+      shellOptions = {
+        eyebrow: availabilityType === 'pickup' ? 'COLLECTION' : 'DELIVERY',
+        preheader: 'Pick the days that work — takes under a minute',
+      };
+      const journey = journeyBlock(orderRow, 'waiting', 'Awaiting your dates', ['Booked'], 0);
 
       // Northern Ireland jobs: this email goes to City Air Express, so include the
       // NI-side party's details (receiver for England → NI, sender for NI → England).
@@ -189,6 +206,7 @@ serve(async (req) => {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Hello ${name},</h2>
           <p>Thank you for using The Cycle Courier Co.</p>
+          ${journey}
           <p>We need to confirm your availability for the ${availabilityType} of your item:</p>
           <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>${item.name}</strong> (Quantity: ${item.quantity})</p>
@@ -257,10 +275,16 @@ The Cycle Courier Co. Team
       const datesText = formattedDates.join('\n  - ');
       
       emailOptions.subject = 'Thanks for confirming your availability';
-      
+      shellOptions = {
+        eyebrow: 'COLLECTION',
+        preheader: 'Dates received — we\'ll send your timeslot the day before',
+      };
+      const journey = journeyBlock(orderRow, 'booked', 'Dates received', ['Dates'], 1);
+
       emailOptions.html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Hello ${name},</h2>
+          ${journey}
           <p>Thank you for confirming your availability dates.</p>
           
           <div style="background-color: #f7f7f7; padding: 20px; border-radius: 5px; margin: 20px 0;">
@@ -335,10 +359,16 @@ The Cycle Courier Co. Team
       const datesText = formattedDates.join('\n  - ');
       
       emailOptions.subject = 'Thanks for confirming your availability';
-      
+      shellOptions = {
+        eyebrow: 'DELIVERY',
+        preheader: 'Dates received — we\'ll send your timeslot the day before',
+      };
+      const journey = journeyBlock(orderRow, 'booked', 'Dates received', ['Dates'], 1);
+
       emailOptions.html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Hello ${name},</h2>
+          ${journey}
           <p>Thank you for confirming your availability dates for delivery.</p>
           
           <div style="background-color: #f7f7f7; padding: 20px; border-radius: 5px; margin: 20px 0;">
@@ -408,6 +438,10 @@ The Cycle Courier Co. Team
       if (reqData.html) {
         emailOptions.html = reqData.html;
       }
+      // Callers (e.g. send-order-updates) may pass per-template shell options.
+      if (reqData.cccShell && typeof reqData.cccShell === 'object') {
+        shellOptions = reqData.cccShell;
+      }
     }
     
     console.log(`Sending email from: ${from} to: ${reqData.to}`);
@@ -417,6 +451,9 @@ The Cycle Courier Co. Team
     try {
       // Tag availability emails so the Resend webhook can correlate delivery events.
       const sendPayload: any = { ...emailOptions, reply_to: "Info@cyclecourierco.com" };
+      if (Object.keys(shellOptions).length > 0) {
+        sendPayload.cccShell = shellOptions;
+      }
       const isAvailability = reqData.emailType === 'sender' || reqData.emailType === 'receiver';
       if (isAvailability && reqData.orderId) {
         sendPayload.tags = [
@@ -540,6 +577,7 @@ async function handleFerryConfirmation(orderId: string, resend: any): Promise<Re
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Hello ${order.receiver.name || "Customer"},</h2>
+        ${journeyBlock(order, 'ni', 'At ferry', ['At ferry'], 3)}
         <p>Good news - your bicycle has reached the ferry port.</p>
         <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
           <p><strong>Bicycle:</strong> ${itemName}</p>
@@ -564,7 +602,11 @@ async function handleFerryConfirmation(orderId: string, resend: any): Promise<Re
         to: order.receiver.email,
         subject: "Your Bicycle Has Reached the Ferry Port - The Cycle Courier Co.",
         html,
-        reply_to: "Info@cyclecourierco.com"
+        reply_to: "Info@cyclecourierco.com",
+        cccShell: {
+          eyebrow: "NORTHERN IRELAND",
+          preheader: "Your bike is at the ferry port — final delivery is confirmed once it crosses",
+        },
       });
       if (sendError) {
         console.error("Error sending ferry confirmation to receiver:", sendError);
@@ -652,6 +694,7 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
       const senderHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Hello ${order.sender.name || "Customer"},</h2>
+          ${journeyBlock(order, 'done', 'Delivered', ['Delivered', 'Delivered NI'], 4)}
           <p>Great news! Your bicycle has been successfully delivered.</p>
           <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>Bicycle:</strong> ${itemName}</p>
@@ -665,12 +708,12 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
           </div>
           <p>We hope you enjoyed our service. Your feedback is important to us - it helps us improve!</p>
           <p>Please consider leaving us a review:</p>
-          <div style="margin: 20px 0; display: flex; justify-content: center; gap: 10px;">
-            <a href="${reviewLinks.trustpilot}" style="background-color: #00b67a; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-              Trustpilot
+          <div style="margin: 20px 0;">
+            <a href="${reviewLinks.trustpilot}" style="display:inline-block;background:#ffffff;color:#0B5FB0;border:1px solid #0B5FB0;padding:11px 20px;text-decoration:none;border-radius:4px;font-weight:600;margin:4px 8px 4px 0;">
+              Review us on Trustpilot
             </a>
-            <a href="${reviewLinks.facebook}" style="background-color: #3b5998; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-              Facebook
+            <a href="${reviewLinks.facebook}" style="display:inline-block;background:#ffffff;color:#0B5FB0;border:1px solid #0B5FB0;padding:11px 20px;text-decoration:none;border-radius:4px;font-weight:600;margin:4px 8px 4px 0;">
+              Review us on Facebook
             </a>
           </div>
           <p>Thank you for choosing The Cycle Courier Co.</p>
@@ -684,7 +727,11 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
           to: order.sender.email,
           subject: "Your Bicycle Has Been Delivered - The Cycle Courier Co.",
           html: senderHtml,
-          reply_to: "Info@cyclecourierco.com"
+          reply_to: "Info@cyclecourierco.com",
+          cccShell: {
+            eyebrow: "DELIVERY",
+            preheader: "Delivered — tell us how we did",
+          },
         });
         
         if (senderError) {
@@ -704,6 +751,7 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
       const receiverHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Hello ${order.receiver.name || "Customer"},</h2>
+          ${journeyBlock(order, 'done', 'Delivered', ['Delivered', 'Delivered NI'], 4)}
           <p>Great news! Your bicycle has been successfully delivered to you.</p>
           <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>Bicycle:</strong> ${itemName}</p>
@@ -717,12 +765,12 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
           </div>
           <p>We hope you enjoyed our service. Your feedback is important to us - it helps us improve!</p>
           <p>Please consider leaving us a review:</p>
-          <div style="margin: 20px 0; display: flex; justify-content: center; gap: 10px;">
-            <a href="${reviewLinks.trustpilot}" style="background-color: #00b67a; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-              Trustpilot
+          <div style="margin: 20px 0;">
+            <a href="${reviewLinks.trustpilot}" style="display:inline-block;background:#ffffff;color:#0B5FB0;border:1px solid #0B5FB0;padding:11px 20px;text-decoration:none;border-radius:4px;font-weight:600;margin:4px 8px 4px 0;">
+              Review us on Trustpilot
             </a>
-            <a href="${reviewLinks.facebook}" style="background-color: #3b5998; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-              Facebook
+            <a href="${reviewLinks.facebook}" style="display:inline-block;background:#ffffff;color:#0B5FB0;border:1px solid #0B5FB0;padding:11px 20px;text-decoration:none;border-radius:4px;font-weight:600;margin:4px 8px 4px 0;">
+              Review us on Facebook
             </a>
           </div>
           <p>Thank you for choosing The Cycle Courier Co.</p>
@@ -736,7 +784,11 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
           to: order.receiver.email,
           subject: "Your Bicycle Has Been Delivered - The Cycle Courier Co.",
           html: receiverHtml,
-          reply_to: "Info@cyclecourierco.com"
+          reply_to: "Info@cyclecourierco.com",
+          cccShell: {
+            eyebrow: "DELIVERY",
+            preheader: "Delivered — tell us how we did",
+          },
         });
         
         if (receiverError) {
@@ -861,6 +913,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
       const senderHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Dear ${order.sender.name || "Customer"},</h2>
+          ${journeyBlock(order, 'done', 'Collected', ['Collected', 'Collected NI'], 1)}
           <p>Your bicycle has been successfully collected by The Cycle Courier Co.</p>
           <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>Order Details:</strong></p>
@@ -886,7 +939,11 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
           to: order.sender.email,
           subject: `Bike Collected - ${order.tracking_number || orderId}`,
           html: senderHtml,
-          reply_to: "Info@cyclecourierco.com"
+          reply_to: "Info@cyclecourierco.com",
+          cccShell: {
+            eyebrow: "COLLECTION",
+            preheader: "Your bike is with us and on its way",
+          },
         });
         
         if (senderError) {
@@ -907,6 +964,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
       const receiverHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Dear ${order.receiver.name || "Customer"},</h2>
+          ${journeyBlock(order, 'done', 'Collected', ['Collected', 'Collected NI'], 1)}
           <p>Great news! Your bicycle has been collected and is now with us.</p>
           <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>Order Details:</strong></p>
@@ -939,7 +997,11 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
           to: order.receiver.email,
           subject: `Bike Collected - ${order.tracking_number || orderId}`,
           html: receiverHtml,
-          reply_to: "Info@cyclecourierco.com"
+          reply_to: "Info@cyclecourierco.com",
+          cccShell: {
+            eyebrow: "COLLECTION",
+            preheader: "Your bike is with us and on its way",
+          },
         });
         
         if (receiverError) {
@@ -960,6 +1022,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
       const serviceCentreHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Dear ${order.receiver.name || "Customer"},</h2>
+          ${journeyBlock(order, 'inspection', 'In inspection', ['Collected'], 1)}
           <p>Your bicycle has been collected and is now on its way to our service centre.</p>
           <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>Order Details:</strong></p>
@@ -992,7 +1055,11 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
           to: order.receiver.email,
           subject: `Your bike is on the way to our service centre - ${order.tracking_number || orderId}`,
           html: serviceCentreHtml,
-          reply_to: "Info@cyclecourierco.com"
+          reply_to: "Info@cyclecourierco.com",
+          cccShell: {
+            eyebrow: "WORKSHOP",
+            preheader: "Collected and heading to our mechanics — delivery confirmed after the work",
+          },
         });
 
         if (serviceErr) {
@@ -1020,6 +1087,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Hello ${order.receiver.name || "Customer"},</h2>
           <p>Thank you for using The Cycle Courier Co.</p>
+          ${journeyBlock(order, 'waiting', 'Awaiting your dates', ['Collected', 'Collected NI'], 1)}
           <p>We need to confirm your availability for the delivery of your item:</p>
           <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>${itemName2}</strong> (Quantity: ${order.bike_quantity || 1})</p>
@@ -1050,7 +1118,11 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
           to: order.receiver.email,
           subject: `Please confirm your delivery availability - ${order.tracking_number || orderId}`,
           html: availabilityHtml,
-          reply_to: "Info@cyclecourierco.com"
+          reply_to: "Info@cyclecourierco.com",
+          cccShell: {
+            eyebrow: "DELIVERY",
+            preheader: "Pick the days that work — takes under a minute",
+          },
         });
         
         if (availError) {

@@ -1,7 +1,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Layout from '@/components/Layout';
+import DoorstepShell from '@/components/design/DoorstepShell';
 import { updateReceiverAvailability } from '@/services/availabilityService';
 import { useAvailability } from '@/hooks/useAvailability';
 import { AvailabilityForm } from '@/components/availability/AvailabilityForm';
@@ -138,43 +138,43 @@ export default function ReceiverAvailability() {
 
   if (paramError) {
     return (
-      <Layout>
+      <DoorstepShell title="Delivery availability" reference={params.id}>
         <ErrorState 
           error={paramError} 
           onHome={() => navigate("/")} 
         />
-      </Layout>
+      </DoorstepShell>
     );
   }
 
   if (!initialCheckCompleted || isLoading) {
     return (
-      <Layout>
+      <DoorstepShell title="Delivery availability" reference={params.id}>
         <LoadingState message="Loading order details..." />
-      </Layout>
+      </DoorstepShell>
     );
   }
 
   if (error) {
     return (
-      <Layout>
+      <DoorstepShell title="Delivery availability" reference={params.id}>
         <ErrorState 
           error={error} 
           onHome={() => navigate("/")} 
         />
-      </Layout>
+      </DoorstepShell>
     );
   }
 
   if (isConfirmed) {
     return (
-      <Layout>
+      <DoorstepShell title="Delivery availability" reference={params.id}>
         <ConfirmedDatesView
           title="Delivery Availability"
           dates={confirmedDates}
           notes={confirmedNotes}
         />
-      </Layout>
+      </DoorstepShell>
     );
   }
 
@@ -203,33 +203,33 @@ export default function ReceiverAvailability() {
 
   if (!senderDatesSet && !alreadyCollected) {
     return (
-      <Layout>
+      <DoorstepShell title="Delivery availability" reference={params.id}>
         <ErrorState
           error="Awaiting sender dates — we're waiting for the sender to confirm when the bike can be collected. As soon as they do, we'll email you so you can pick your delivery dates."
           onHome={() => navigate("/")}
         />
-      </Layout>
+      </DoorstepShell>
     );
   }
 
 
   if (inspectionBlocked) {
     return (
-      <Layout>
+      <DoorstepShell title="Delivery availability" reference={params.id}>
         <ErrorState
           error="This delivery isn't ready to schedule yet — the bike is being inspected and serviced. We'll email you as soon as it's ready so you can pick your delivery dates."
           onHome={() => navigate("/")}
         />
-      </Layout>
+      </DoorstepShell>
     );
   }
 
   if (isBusinessReceiver && mode === 'unset') {
     return (
-      <Layout>
-        <div className="max-w-4xl mx-auto py-8 px-4">
-          <Card className="shadow-lg border-slate-200">
-            <CardHeader className="space-y-1 bg-slate-50 rounded-t-lg border-b">
+      <DoorstepShell title="Delivery availability" reference={params.id}>
+        <div>
+          <Card>
+            <CardHeader className="space-y-1 border-b bg-muted">
               <CardTitle className="text-2xl">When can we deliver?</CardTitle>
               <CardDescription>
                 Choose an option so we can schedule the delivery straight away.
@@ -239,7 +239,7 @@ export default function ReceiverAvailability() {
               <button
                 type="button"
                 onClick={handleBusinessHours}
-                className="text-left rounded-lg border p-4 transition-colors hover:border-primary hover:bg-accent"
+                className="min-h-32 rounded-md border p-4 text-left transition-colors hover:border-primary hover:bg-accent"
               >
                 <div className="flex items-center gap-2 font-medium">
                   <Clock className="h-4 w-4 text-primary" />
@@ -254,7 +254,7 @@ export default function ReceiverAvailability() {
               <button
                 type="button"
                 onClick={handleChooseLater}
-                className="text-left rounded-lg border p-4 transition-colors hover:border-primary hover:bg-accent"
+                className="min-h-32 rounded-md border p-4 text-left transition-colors hover:border-primary hover:bg-accent"
               >
                 <div className="flex items-center gap-2 font-medium">
                   <CalendarClock className="h-4 w-4 text-primary" />
@@ -274,12 +274,12 @@ export default function ReceiverAvailability() {
             </div>
           )}
         </div>
-      </Layout>
+      </DoorstepShell>
     );
   }
 
   return (
-    <Layout>
+    <DoorstepShell title="Delivery availability" reference={params.id}>
       {isBusinessReceiver && (
         <div className="max-w-4xl mx-auto px-4 pt-4">
           <Button variant="ghost" size="sm" onClick={handleBackToOptions}>
@@ -316,6 +316,6 @@ export default function ReceiverAvailability() {
           ? "This bike will be inspected and serviced before delivery, so we've added a short gap between collection and delivery dates. Please pick dates from the earliest available."
           : undefined}
       />
-    </Layout>
+    </DoorstepShell>
   );
 }

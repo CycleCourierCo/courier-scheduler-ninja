@@ -9,7 +9,7 @@ interface LoadingStateProps {
 }
 
 export const LoadingState: React.FC<LoadingStateProps> = ({ message = "Loading order details..." }) => (
-  <div className="flex items-center justify-center h-full">
+  <div className="flex min-h-48 items-center justify-center">
     <Loader2 className="h-8 w-8 animate-spin text-primary" />
     <span className="ml-2">{message}</span>
   </div>
@@ -25,7 +25,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({ error, onHome }) => {
   const isConfirmationSuccess = error === "availability_confirmed";
   
   return (
-    <Card className="max-w-md mx-auto">
+    <Card className="mx-auto max-w-md border-l-4 border-l-destructive">
       <CardHeader>
         <CardTitle className="flex items-center">
           {isAlreadyConfirmed 

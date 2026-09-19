@@ -9,6 +9,8 @@ import PostcodeVerification from "./PostcodeVerification";
 import { verifyPublicOrderPostcode } from "@/services/fetchOrderService";
 import { supabase } from "@/integrations/supabase/client";
 import { toPublicFileUrl, toPublicFileUrls } from "@/lib/publicFileUrl";
+import JourneyStrip from "@/components/design/JourneyStrip";
+import { buildJourneyStops } from "@/utils/journeyStages";
 
 interface TrackingTimelineProps {
   order: Order;
@@ -670,9 +672,8 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
   };
 
   const trackingEvents = getTrackingEvents();
-
-  // For debugging
-  console.log("Processed timeline events:", trackingEvents);
+  const latestTrackingEvent = trackingEvents[trackingEvents.length - 1];
+  const journeyStops = buildJourneyStops(order);
 
   const openVerificationDialog = (type: "collection" | "delivery") => {
     setVerificationDialog({ isOpen: true, type });
@@ -699,12 +700,21 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
   return (
     <div>
       <div className="flex items-center space-x-2">
-        <Truck className="text-courier-600" />
-        <h3 className="font-semibold">Tracking Details</h3>
+        <Truck className="text-primary" />
+        <h3 className="font-bold">Your journey</h3>
       </div>
 
       {trackingEvents.length > 0 ? (
-        <div className="space-y-3 mt-4 overflow-hidden">
+        <div className="mt-5 overflow-hidden">
+          <JourneyStrip compact className="mb-3" stops={journeyStops.map((stop) => ({ ...stop }))} />
+          {latestTrackingEvent && (
+            <div className="mb-6 min-w-0 border-l-4 border-primary bg-secondary px-3 py-2">
+              <p className="break-words text-xs font-bold uppercase text-muted-foreground">Latest update</p>
+              <p className="break-words font-bold">{latestTrackingEvent.title}</p>
+              <p className="data-text break-words text-xs text-muted-foreground">{formatDate(latestTrackingEvent.date)}</p>
+            </div>
+          )}
+          <div className="divide-y border-y">
           {trackingEvents.map((event, index) => {
             const ev = event as any;
             const eventType: "collection" | "delivery" = ev.isPickup ? "collection" : "delivery";
@@ -715,16 +725,10 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
             const hasSignature = !!ev.hasSignature || !!signatureUrl;
 
             return (
-              <div key={index} className="relative pl-6 pb-3 min-w-0">
-                {index < trackingEvents.length - 1 && (
-                  <div className="absolute top-2 left-[7px] h-full w-0.5 bg-gray-200" />
-                )}
-                <div className="absolute top-1 left-0 rounded-full bg-white">
-                  {ev.icon}
-                </div>
+              <div key={index} className="grid min-w-0 gap-2 py-4 sm:grid-cols-[1fr_auto]">
                 <div className="min-w-0 overflow-hidden">
-                  <p className="font-medium text-gray-800 break-words">{ev.title}</p>
-                  <p className="text-xs sm:text-sm text-gray-500 break-words">
+                  <p className="break-words font-bold">{ev.title}</p>
+                  <p className="data-text break-words text-xs text-muted-foreground sm:text-sm">
                     {formatDate(ev.date)}
                   </p>
                   <p className="text-xs sm:text-sm break-words">{ev.description}</p>
@@ -744,8 +748,8 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
                   {hasPod && (
                     <div className="mt-2">
                       <div className="flex items-center gap-1 mb-2">
-                        <Image className="h-4 w-4 text-courier-600" />
-                        <span className="text-sm font-medium text-gray-700">Proof of Delivery:</span>
+                        <Image className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium">Proof of delivery</span>
                       </div>
                       {podUrls.length === 0 ? (
                         <Button
@@ -765,7 +769,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
                               href={url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="block border rounded-lg overflow-hidden hover:shadow-md transition-shadow"
+                              className="block overflow-hidden rounded-md border"
                             >
                               <img
                                 src={url}
@@ -786,8 +790,8 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
                   {hasSignature && (
                     <div className="mt-2">
                       <div className="flex items-center gap-1 mb-2">
-                        <Image className="h-4 w-4 text-courier-600" />
-                        <span className="text-sm font-medium text-gray-700">Signature:</span>
+                        <Image className="h-4 w-4 text-primary" />
+                        <span className="text-sm font-medium">Signature</span>
                       </div>
                       {!signatureUrl ? (
                         <Button
@@ -804,7 +808,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
                           href={signatureUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="block border rounded-lg overflow-hidden hover:shadow-md transition-shadow w-fit"
+                          className="block w-fit overflow-hidden rounded-md border"
                         >
                           <img
                             src={signatureUrl}
@@ -823,9 +827,10 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
               </div>
             );
           })}
+          </div>
         </div>
       ) : (
-        <div className="flex items-center space-x-2 text-gray-500 mt-4">
+        <div className="mt-4 flex items-center space-x-2 text-muted-foreground">
           <Clock className="h-4 w-4" />
           <p>Waiting for the first update</p>
         </div>

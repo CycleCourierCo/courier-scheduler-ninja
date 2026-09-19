@@ -6,7 +6,6 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Check, ChevronLeft, ChevronRight, Loader2, Pencil, RefreshCw, Trash2, Truck, Wrench } from "lucide-react";
 import VehicleMaintenanceDialog from "@/components/vehicles/VehicleMaintenanceDialog";
@@ -41,17 +40,29 @@ const isSoon = (date: string | null) => {
 const startOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
 const addMonths = (d: Date, n: number) => new Date(d.getFullYear(), d.getMonth() + n, 1);
 
+const formatFriendlyDate = (date: string | null) => {
+  if (!date) return "Not available";
+  const parsed = new Date(`${date}T12:00:00`);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return parsed.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+};
 
-const ExpiryCell = ({ status, date }: { status: string | null; date: string | null }) => {
+const isRoutineStatus = (status: string | null) => {
+  const normalised = status?.trim().toLowerCase();
+  return normalised === "taxed" || normalised === "valid";
+};
+
+const ExpiryCell = ({ status, date, label }: { status: string | null; date: string | null; label: string }) => {
   const cls = isExpired(date)
     ? "text-destructive font-medium"
     : isSoon(date)
     ? "text-amber-600 dark:text-amber-400 font-medium"
     : "text-foreground";
   return (
-    <div className="text-sm">
-      <div>{status ?? "—"}</div>
-      {date && <div className={cls}>{date}</div>}
+    <div className="min-w-0 text-xs">
+      <div className="text-muted-foreground">{label}</div>
+      <div className={cls}>{formatFriendlyDate(date)}</div>
+      {status && !isRoutineStatus(status) && <div className="font-medium text-destructive">{status}</div>}
     </div>
   );
 };
@@ -290,165 +301,52 @@ const VehicleManagement = () => {
                 No vehicles yet. Click "Add Vehicle" to get started.
               </Card>
             ) : (
-              <>
-                {/* Desktop */}
-                <Card className="hidden md:block overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Registration</TableHead>
-                        <TableHead>Vehicle</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Purchased</TableHead>
-                        <TableHead>Tax</TableHead>
-                        <TableHead>MOT</TableHead>
-                        <TableHead className="text-right">Miles driven</TableHead>
-                        <TableHead>Auto Pay</TableHead>
-                        <TableHead>Last refreshed</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filtered.map((v) => (
-                        <TableRow key={v.id}>
-                          <TableCell className="font-mono font-semibold">{v.registration}</TableCell>
-                          <TableCell>
-                            <div className="text-sm">
-                              <div>{v.make ?? "—"} {v.colour ? `· ${v.colour}` : ""}</div>
-                              <div className="text-muted-foreground text-xs">
-                                {v.fuel_type ?? ""} {v.year_of_manufacture ?? ""}
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell><StatusDropdown v={v} /></TableCell>
-                          <TableCell className="text-sm whitespace-nowrap">
-                            {v.purchase_date
-                              ? new Date(v.purchase_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-                              : "—"}
-                          </TableCell>
-                          <TableCell><ExpiryCell status={v.tax_status} date={v.tax_due_date} /></TableCell>
-                          <TableCell><ExpiryCell status={v.mot_status} date={v.mot_expiry_date} /></TableCell>
-                          <TableCell className="text-right whitespace-nowrap">
-                            <div className="text-sm font-medium">
-                              {(mileageByVehicle[v.id] || 0).toLocaleString("en-GB")} mi
-                            </div>
-                            {v.status === "sold" && (v as any).sold_mileage != null && (
-                              <div className="text-xs text-muted-foreground">
-                                Sold @ {Number((v as any).sold_mileage).toLocaleString("en-GB")} mi
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell>
-                            <div className="text-xs space-y-0.5">
-                              <div>London: {v.london_auto_pay ? "✓" : "—"}</div>
-                              <div>Dartford: {v.dartford_crossing ? "✓" : "—"}</div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-xs text-muted-foreground">
-                            {v.last_refreshed_at ? new Date(v.last_refreshed_at).toLocaleDateString() : "—"}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-1">
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => setMaintenanceTarget(v)}
-                                title="Maintenance"
-                              >
-                                <Wrench className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => handleRowRefresh(v)}
-                                disabled={refreshingId === v.id}
-                                title="Refresh from DVLA"
-                              >
-                                {refreshingId === v.id
-                                  ? <Loader2 className="h-4 w-4 animate-spin" />
-                                  : <RefreshCw className="h-4 w-4" />}
-                              </Button>
-                              <Button
-                                size="icon"
-                                variant="ghost"
-                                onClick={() => { setEditing(v); setEditOpen(true); }}
-                                title="Edit"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button size="icon" variant="ghost" title="Delete">
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Delete {v.registration}?</AlertDialogTitle>
-                                    <AlertDialogDescription>This cannot be undone.</AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDelete(v)}>Delete</AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </Card>
-
-                {/* Mobile */}
-                <div className="md:hidden space-y-3">
+                <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-3">
                   {filtered.map((v) => (
-                    <Card key={v.id} className="p-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="font-mono font-semibold">{v.registration}</div>
-                        <StatusDropdown v={v} />
-                      </div>
-                      <div className="text-sm">{v.make ?? "—"} {v.colour ? `· ${v.colour}` : ""}</div>
-                      <div className="text-xs text-muted-foreground">
-                        Purchased: {v.purchase_date
-                          ? new Date(v.purchase_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-                          : "—"}
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div>
-                          <div className="text-muted-foreground">Tax</div>
-                          <ExpiryCell status={v.tax_status} date={v.tax_due_date} />
+                    <Card key={v.id} className="min-w-0 p-3">
+                      <div className="flex min-w-0 items-start justify-between gap-2 border-b pb-2">
+                        <div className="min-w-0">
+                          <div className="font-mono text-base font-bold">{v.registration}</div>
+                          <div className="truncate text-xs text-muted-foreground">
+                            {v.make ?? "Unknown make"}{v.colour ? ` · ${v.colour}` : ""}{v.year_of_manufacture ? ` · ${v.year_of_manufacture}` : ""}
+                          </div>
                         </div>
-                        <div>
-                          <div className="text-muted-foreground">MOT</div>
-                          <ExpiryCell status={v.mot_status} date={v.mot_expiry_date} />
+                        <div className="shrink-0"><StatusDropdown v={v} /></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-2 py-3 sm:grid-cols-4">
+                        <ExpiryCell status={v.tax_status} date={v.tax_due_date} label="Tax due" />
+                        <ExpiryCell status={v.mot_status} date={v.mot_expiry_date} label="MOT expires" />
+                        <div className="text-xs">
+                          <div className="text-muted-foreground">Miles driven</div>
+                          <div className="font-medium">{(mileageByVehicle[v.id] || 0).toLocaleString("en-GB")} mi</div>
+                        </div>
+                        <div className="text-xs">
+                          <div className="text-muted-foreground">Purchased</div>
+                          <div>{formatFriendlyDate(v.purchase_date)}</div>
                         </div>
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        London Auto Pay: {v.london_auto_pay ? "✓" : "—"} · Dartford: {v.dartford_crossing ? "✓" : "—"}
-                      </div>
-                      <div className="text-xs">
-                        <span className="text-muted-foreground">Miles driven: </span>
-                        <span className="font-medium">{(mileageByVehicle[v.id] || 0).toLocaleString("en-GB")} mi</span>
+                      <div className="flex min-w-0 items-center justify-between gap-2 border-t pt-2">
+                        <div className="min-w-0 truncate text-xs text-muted-foreground">
+                          London {v.london_auto_pay ? "✓" : "—"} · Dartford {v.dartford_crossing ? "✓" : "—"}
+                          {v.last_refreshed_at ? ` · Refreshed ${new Date(v.last_refreshed_at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : ""}
+                        </div>
                         {v.status === "sold" && (v as any).sold_mileage != null && (
-                          <span className="text-muted-foreground"> · Sold @ {Number((v as any).sold_mileage).toLocaleString("en-GB")} mi</span>
+                          <span className="shrink-0 text-xs text-muted-foreground">Sold @ {Number((v as any).sold_mileage).toLocaleString("en-GB")} mi</span>
                         )}
-                      </div>
-                      <div className="flex gap-2 pt-2">
-                        <Button size="sm" variant="outline" className="flex-1" onClick={() => setMaintenanceTarget(v)}>
-                          <Wrench className="h-3 w-3 mr-1" /> Service
+                        <div className="ml-auto flex shrink-0 gap-1">
+                        <Button size="icon" variant="ghost" onClick={() => setMaintenanceTarget(v)} title="Service and maintenance" aria-label={`Service ${v.registration}`}>
+                          <Wrench className="h-4 w-4" />
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => handleRowRefresh(v)} disabled={refreshingId === v.id}>
-                          {refreshingId === v.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+                        <Button size="icon" variant="ghost" onClick={() => handleRowRefresh(v)} disabled={refreshingId === v.id} title="Refresh from DVLA" aria-label={`Refresh ${v.registration} from DVLA`}>
+                          {refreshingId === v.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
                         </Button>
-                        <Button size="sm" variant="outline" onClick={() => { setEditing(v); setEditOpen(true); }}>
-                          <Pencil className="h-3 w-3" />
+                        <Button size="icon" variant="ghost" onClick={() => { setEditing(v); setEditOpen(true); }} title="Edit vehicle" aria-label={`Edit ${v.registration}`}>
+                          <Pencil className="h-4 w-4" />
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button size="sm" variant="outline">
-                              <Trash2 className="h-3 w-3 text-destructive" />
+                            <Button size="icon" variant="ghost" title="Delete vehicle" aria-label={`Delete ${v.registration}`}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
@@ -462,11 +360,11 @@ const VehicleManagement = () => {
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
+                        </div>
                       </div>
                     </Card>
                   ))}
                 </div>
-              </>
             )}
           </TabsContent>
 

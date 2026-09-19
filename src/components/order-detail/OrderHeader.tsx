@@ -1,5 +1,5 @@
 import React from "react";
-import { ChevronRight, X, User, PackageCheck } from "lucide-react";
+import { ChevronRight, X, User, PackageCheck, PackageX } from "lucide-react";
 import StatusBadge from "@/components/StatusBadge";
 import { OrderStatus } from "@/types/order";
 import { Button } from "@/components/ui/button";
@@ -20,6 +20,7 @@ interface OrderHeaderProps {
   customerEmail?: string;
   orderCollected?: boolean;
   onMarkCollected?: () => void;
+  onMarkNotCollected?: () => void;
 }
 
 const OrderHeader: React.FC<OrderHeaderProps> = ({
@@ -31,6 +32,7 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
   customerEmail,
   orderCollected,
   onMarkCollected,
+  onMarkNotCollected,
 }) => {
   const statusOptions: { value: OrderStatus; label: string }[] = [
     { value: "created", label: "Created" },
@@ -108,6 +110,23 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
             >
               <PackageCheck className="h-4 w-4" />
               Mark as collected
+            </Button>
+          )}
+
+          {orderCollected && onMarkNotCollected && status !== 'cancelled' && status !== 'delivered' && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => {
+                if (window.confirm("Mark this bike as not collected? This will clear its van and bay allocation.")) {
+                  onMarkNotCollected();
+                }
+              }}
+              disabled={statusUpdating}
+              className="flex items-center gap-2"
+            >
+              <PackageX className="h-4 w-4" />
+              Mark as not collected
             </Button>
           )}
 

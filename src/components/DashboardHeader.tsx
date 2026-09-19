@@ -11,10 +11,10 @@ const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   userRole
 }) => {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4">
+    <div className="flex flex-col gap-4 border-b pb-4 sm:flex-row sm:items-center sm:justify-between">
       {children || (
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Orders</h1>
+          <h1>Orders</h1>
           <p className="text-muted-foreground">
             Manage your delivery orders
           </p>

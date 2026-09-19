@@ -5,7 +5,7 @@ import { hasRole, getRoles } from "@/lib/roles";
 import { useRoutePermissions } from "@/hooks/useRoutePermissions";
 
 import { Button } from "@/components/ui/button";
-import { Lock } from "lucide-react";
+import { Lock, MapPin } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -16,16 +16,26 @@ interface ProtectedRouteProps {
 const NoAccessScreen: React.FC = () => {
   const { signOut } = useAuth();
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-6 text-center">
-      <div className="rounded-full bg-muted p-4">
-        <Lock className="h-8 w-8 text-muted-foreground" />
-      </div>
-      <h1 className="text-2xl font-semibold">Access unavailable</h1>
-      <p className="max-w-md text-muted-foreground">
-        Your account doesn't have access to this portal. If you need help with an order,
-        please contact us at info@cyclecourierco.com or +44 121 798 0767.
-      </p>
-      <Button variant="outline" onClick={() => signOut()}>Sign out</Button>
+    <div className="flex min-h-screen items-center justify-center bg-background p-6">
+      <section className="w-full max-w-lg overflow-hidden rounded-md border bg-card shadow-card">
+        <div className="signboard rounded-none">
+          <div className="mb-2 flex items-center gap-2 text-sm font-bold uppercase"><Lock className="h-4 w-4" /> Account access</div>
+          <h1>Access unavailable</h1>
+        </div>
+        <div className="space-y-5 p-6 text-left">
+          <p className="text-muted-foreground">
+            The customer portal is for approved business accounts. If you're expecting a delivery, use the tracking link we emailed you — no account is needed.
+          </p>
+          <div className="rounded-md border bg-muted p-4 text-sm">
+            <strong className="block text-foreground">Need help?</strong>
+            Info@cyclecourierco.com · +44 121 798 0767
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button asChild><a href="/tracking"><MapPin className="h-4 w-4" />Track an order</a></Button>
+            <Button variant="outline" onClick={() => signOut()}>Sign out</Button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
@@ -63,13 +73,13 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   if (isLoading || !initialLoadComplete) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600"></div>
+        <div className="h-12 w-12 animate-spin rounded-full border-2 border-muted border-t-primary"></div>
       </div>
     );
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to={`/auth?next=${encodeURIComponent(location.pathname + location.search)}`} replace />;
   }
 
   // Admin short-circuit — full access
@@ -84,14 +94,14 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Business accounts must be approved
   if (userProfile?.is_business && userProfile?.account_status !== 'approved') {
-    return <Navigate to="/auth" replace />;
+    return <NoAccessScreen />;
   }
 
   if (permsLoading) {
 
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600"></div>
+        <div className="h-12 w-12 animate-spin rounded-full border-2 border-muted border-t-primary"></div>
       </div>
     );
   }

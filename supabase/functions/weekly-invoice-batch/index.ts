@@ -8,6 +8,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { trackedFetch } from "../_shared/integrationLog.ts";
+import { applyEmailBrand } from "../_shared/emailLayout.ts";
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
@@ -49,7 +50,7 @@ async function sendReportEmail(
         to: [REPORT_RECIPIENT],
         reply_to: 'Info@cyclecourierco.com',
         subject,
-        html,
+        html: applyEmailBrand(html, { subject, eyebrow: "Internal report", wide: true }),
       }),
     });
 

@@ -819,12 +819,12 @@ const LoadingUnloadingPage = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
-        <div className="mb-8">
+      <div className="floor-density container mx-auto px-2 py-4 sm:px-4 sm:py-8">
+        <div className="mb-8 border-b pb-4">
           <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
             <div className="flex items-center gap-3">
               <Truck className="h-8 w-8 text-primary" />
-              <h1 className="text-2xl md:text-3xl font-bold">Loading & Unloading</h1>
+               <h1>Loading &amp; storage</h1>
             </div>
             
             {/* Action buttons */}
@@ -1120,8 +1120,8 @@ const LoadingUnloadingPage = () => {
                                      .filter(([_, orders]) => orders.length > 0)
                                      .map(([locationName, orders]) => (
                                        <div key={locationName} className="space-y-2">
-                                         <h4 className="font-semibold text-orange-800 text-sm uppercase tracking-wide border-b border-orange-300 pb-1">
-                                           📍 {locationName} ({orders.length})
+                                          <h4 className="border-b border-status-waiting pb-1 text-sm font-bold uppercase tracking-wide">
+                                            {locationName} ({orders.length})
                                          </h4>
                                          <div className="space-y-2">
                                            {orders
@@ -1138,15 +1138,15 @@ const LoadingUnloadingPage = () => {
                                              const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
                                              
                                              return (
-                                               <Card key={order.id} className="p-3 bg-white border-orange-300">
+                                                <Card key={order.id} className="border-l-4 border-l-status-waiting p-3">
                                                  <div className="space-y-2">
                                                    <div className="flex items-center justify-between">
-                                                     <div className="font-medium text-orange-800">
+                                                      <div className="font-bold">
                                                        {order.receiver?.name || 'Unknown Customer'}
                                                      </div>
                                                      <div className="flex items-center gap-2">
                                                        {quantity > 1 && (
-                                                         <div className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">
+                                                          <div className="rounded-sm bg-secondary px-2 py-1 text-xs">
                                                            {quantity} bikes
                                                          </div>
                                                        )}
@@ -1158,7 +1158,7 @@ const LoadingUnloadingPage = () => {
                                                                return a.position - b.position;
                                                              })
                                                             .map((allocation) => (
-                                                              <div key={allocation.id} className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded font-mono">
+                                                               <div key={allocation.id} className="rounded-sm bg-status-done/10 px-2 py-1 font-mono text-xs text-status-done">
                                                                 {allocation.bay}{allocation.position}
                                                               </div>
                                                             ))}
@@ -1166,7 +1166,7 @@ const LoadingUnloadingPage = () => {
                                                       )}
                                                     </div>
                                                   </div>
-                                                  <div className="text-sm text-orange-700">
+                                                   <div className="text-sm">
                                                     <div>{order.bikeBrand} {order.bikeModel}</div>
                                                     <div>Tracking: {order.trackingNumber}</div>
                                                     <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
@@ -1177,7 +1177,7 @@ const LoadingUnloadingPage = () => {
                                                       if (deliveryDriverName) {
                                                         return (
                                                           <div className="mt-1">
-                                                            <Badge className="bg-orange-600 text-white hover:bg-orange-700">
+                                                             <Badge variant="waiting">
                                                               Load onto {deliveryDriverName} van
                                                             </Badge>
                                                           </div>
@@ -1185,7 +1185,7 @@ const LoadingUnloadingPage = () => {
                                                       }
                                                       return (
                                                         <div className="mt-1">
-                                                          <Badge variant="outline" className="text-orange-600 border-orange-600">
+                                                           <Badge variant="outline">
                                                             Driver unassigned
                                                           </Badge>
                                                         </div>
@@ -1211,7 +1211,7 @@ const LoadingUnloadingPage = () => {
                                 })()}
                               </div>
                             ) : (
-                             <div className="text-center py-8 text-muted-foreground bg-orange-50 rounded-lg border border-orange-200">
+                              <div className="rounded-md border bg-muted py-8 text-center text-muted-foreground">
                                <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
                                <p>No bikes need loading for this date</p>
                              </div>
@@ -1329,7 +1329,7 @@ const LoadingUnloadingPage = () => {
             </DialogHeader>
             <div className="space-y-6">
               {/* Loader Section */}
-              <div className="space-y-3 p-4 bg-primary/5 rounded-lg border border-primary/20">
+              <div className="space-y-3 rounded-md border-l-4 border-l-primary bg-card p-4">
                 <div className="font-medium text-sm flex items-center gap-2">
                   📦 Loader (optional)
                 </div>
@@ -1380,7 +1380,7 @@ const LoadingUnloadingPage = () => {
 
               {/* Driver Sections */}
               {driversForLoading.map((driver) => (
-                <div key={driver} className="space-y-3 p-4 bg-muted/50 rounded-lg">
+                <div key={driver} className="space-y-3 rounded-md border bg-muted/50 p-4">
                   <div className="font-medium text-sm">{driver}</div>
                   <div className="space-y-2">
                     <Label className="text-xs text-muted-foreground">Select driver profile</Label>

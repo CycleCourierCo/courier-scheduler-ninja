@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { format, isValid, parseISO } from "date-fns";
-import { getOrderById, updateOrderSchedule, updateAdminOrderStatus, resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail, createOrder, markOrderCollected } from "@/services/orderService";
+import { getOrderById, updateOrderSchedule, updateAdminOrderStatus, resendSenderAvailabilityEmail, resendReceiverAvailabilityEmail, createOrder, markOrderCollected, markOrderNotCollected } from "@/services/orderService";
 import { createShipdayOrder, deleteShipdayJobs, cancelOrderWithShipday } from "@/services/shipdayService";
 import { sendOrderCancellationEmails } from "@/services/emailService";
 import { isReceiverAvailabilityBlockedByInspection } from "@/services/inspectionService";
@@ -1074,6 +1074,34 @@ const OrderDetail = () => {
     }
   };
 
+  /**
+   * Reverse a mistaken collection: unset the flag, free any van/bay allocation
+   * and smart-revert the status to where the order actually stands.
+   */
+  const handleMarkNotCollected = async () => {
+    if (!id) return;
+    if (!order?.orderCollected) {
+      toast.info("This bike isn't marked as collected");
+      return;
+    }
+
+    try {
+      setStatusUpdating(true);
+
+      const updated = await markOrderNotCollected(id);
+      if (!updated) throw new Error("Couldn't mark the bike as not collected");
+
+      setOrder(updated);
+      setSelectedStatus(updated.status);
+      toast.success("Bike marked as not collected. Van/bay allocation cleared.");
+    } catch (error) {
+      console.error("Error marking order not collected:", error);
+      toast.error(`Failed to mark as not collected: ${error instanceof Error ? error.message : "Unknown error"}`);
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
   const handleStatusChange = async (newStatus: OrderStatus) => {
     if (!id || !newStatus || newStatus === order?.status) return;
 
@@ -1337,6 +1365,7 @@ const OrderDetail = () => {
           customerEmail={bookingCustomer?.email}
           orderCollected={order.orderCollected}
           onMarkCollected={handleMarkCollected}
+          onMarkNotCollected={handleMarkNotCollected}
         />
 
         <Card>
@@ -1751,7 +1780,7 @@ const OrderDetail = () => {
             
             <Separator className="my-6" />
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
               <div className="space-y-4">
                 {isAdminOrRoutePlanner ? (
                   <AdminContactEditor 

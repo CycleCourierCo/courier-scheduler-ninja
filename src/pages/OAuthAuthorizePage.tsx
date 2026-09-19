@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, ShieldCheck, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import Signboard from "@/components/design/Signboard";
 
 interface ClientInfo {
   valid: boolean;
@@ -132,8 +133,9 @@ const OAuthAuthorizePage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
-      <Card className="w-full max-w-md">
+    <div className="doorstep-page flex min-h-screen items-center justify-center p-4">
+      <Card className="w-full max-w-md overflow-hidden">
+        <Signboard title="Connect your account" className="rounded-none" />
         {failure ? (
           <>
             <CardHeader>
