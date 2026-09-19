@@ -85,15 +85,15 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
                 openOrder(order.id);
               }
             }}
-            className="grid w-full min-w-0 gap-3 p-4 text-left transition-colors hover:bg-accent sm:grid-cols-[90px_minmax(0,1fr)_auto] sm:items-center"
+            className="grid w-full min-w-0 gap-3 p-4 text-left transition-colors hover:bg-accent xl:grid-cols-[110px_minmax(0,1fr)_auto] xl:items-center"
           >
-            <JourneyStrip compact stops={[
-              { label: "Booked", state: "complete" },
-              { label: "Collected", state: order.orderCollected ? "complete" : "current" },
-              { label: "In transit", state: order.orderCollected && order.status !== "delivered" ? "current" : "upcoming" },
-              { label: "Delivered", state: order.status === "delivered" ? "complete" : "upcoming" },
+            <JourneyStrip compact className="w-full max-w-[180px] xl:col-start-1 xl:row-start-1" stops={[
+              { label: "Booked", state: "complete", icon: "booked" },
+              { label: "Collected", state: order.orderCollected ? "complete" : "current", icon: "collected" },
+              { label: "In transit", state: order.status === "delivered" ? "complete" : order.orderCollected ? "current" : "upcoming", icon: "transit" },
+              { label: "Delivered", state: order.status === "delivered" ? "complete" : "upcoming", icon: "delivered" },
             ]} />
-            <div className="min-w-0">
+            <div className="min-w-0 xl:col-start-2 xl:row-start-1">
               <p className="data-text truncate text-sm text-foreground">
                 {order.trackingNumber || `${order.id.substring(0, 8)}…`}
               </p>
@@ -132,13 +132,13 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
               )}
             </div>
 
-            <div className="flex min-w-0 items-center gap-1 text-sm text-foreground">
-              <span className="truncate">{order.sender?.name || "—"}</span>
+            <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 text-sm text-foreground xl:col-start-2 xl:row-start-2">
+              <span className="min-w-0 truncate" title={order.sender?.name || undefined}>{order.sender?.name || "—"}</span>
               <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground" />
-              <span className="truncate">{order.receiver?.name || "—"}</span>
+              <span className="min-w-0 truncate" title={order.receiver?.name || undefined}>{order.receiver?.name || "—"}</span>
             </div>
 
-            <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+            <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground xl:col-start-2 xl:row-start-3">
               <Bike className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">
                 {order.bikeBrand && order.bikeModel
@@ -149,7 +149,7 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-xs sm:col-start-2">
+            <div className="grid grid-cols-2 gap-2 text-xs xl:col-start-2 xl:row-start-4">
               <div className="min-w-0">
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Collection</p>
                 <p className="truncate text-foreground">{formatDate(order.scheduledPickupDate)}</p>
@@ -170,7 +170,7 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 sm:col-start-3 sm:row-span-3 sm:row-start-1 sm:justify-end" onClick={(e) => e.stopPropagation()}>
+            <div className="flex min-w-0 flex-wrap items-center gap-2 xl:col-start-3 xl:row-span-4 xl:row-start-1 xl:justify-end" onClick={(e) => e.stopPropagation()}>
               <StatusBadge status={order.status} />
               {isStaff && (
                 <Button variant="outline" size="sm" asChild className="h-8 px-2">
