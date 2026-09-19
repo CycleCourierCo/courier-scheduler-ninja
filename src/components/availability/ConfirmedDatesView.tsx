@@ -23,11 +23,11 @@ export function ConfirmedDatesView({ title, dates, notes }: ConfirmedDatesViewPr
     .sort();
 
   return (
-    <div className="container max-w-lg mx-auto py-8 px-4">
+    <div>
       <Card>
         <CardHeader className="text-center pb-2">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-            <CheckCircle2 className="h-6 w-6 text-green-600 dark:text-green-400" />
+          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-md bg-status-done/10">
+            <CheckCircle2 className="h-6 w-6 text-status-done" />
           </div>
           <CardTitle className="text-xl">{title}</CardTitle>
           <CardDescription>Your dates have already been confirmed</CardDescription>
@@ -40,7 +40,7 @@ export function ConfirmedDatesView({ title, dates, notes }: ConfirmedDatesViewPr
             </div>
             <div className="flex flex-wrap gap-2">
               {formattedDates.map((date, i) => (
-                <Badge key={i} variant="secondary" className="text-sm py-1 px-3">
+                <Badge key={i} variant="done" className="px-3 py-1 text-sm">
                   {date}
                 </Badge>
               ))}
