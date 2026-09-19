@@ -1,8 +1,9 @@
 // Shared email design for every message this system sends.
 //
-// Emails cannot read the portal's CSS variables, so the portal palette is
-// mirrored here once as email-safe literal values. Change it here and every
-// email (customer, partner, internal, announcement) follows.
+// Implements ccc-email-design.md v1.0. Emails cannot read the portal's CSS
+// variables, so the portal palette is mirrored here once as email-safe literal
+// values. Change it here and every email (customer, partner, internal,
+// announcement) follows.
 //
 // `applyEmailBrand(html)` is intentionally forgiving: it takes whatever HTML a
 // sender already produces, normalises the legacy inline styling, and wraps it in
@@ -18,19 +19,67 @@ export const EMAIL_BRAND = {
   email: "Info@cyclecourierco.com",
   phone: "+44 121 798 0767",
   website: "https://booking.cyclecourierco.com",
-  // Portal tokens, mirrored: primary 209 88% 37%, background 207 24% 96%,
-  // foreground 213 14% 10%, muted-foreground 213 10% 40%, border 210 18% 87%.
-  primary: "#0B61B1",
+  // Portal tokens, mirrored exactly (ccc-email-design.md §1).
+  primary: "#0B5FB0",
   primaryDark: "#084C8B",
+  primaryText: "#FFFFFF",
   text: "#16191D",
-  muted: "#5C6570",
-  border: "#D8DEE4",
+  muted: "#5B6470",
+  border: "#D9DFE5",
   panel: "#F2F5F7",
   page: "#EDF1F4",
+  surface: "#FFFFFF",
+  routeTint: "#E3EEF8",
   radius: "6px",
   font:
-    "Overpass,'Overpass',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif",
+    "Overpass,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif",
+  mono: "'Overpass Mono',ui-monospace,SFMono-Regular,Consolas,'Courier New',monospace",
 } as const;
+
+/** Status tokens — mirror ccc-design.md §2. Yellow only when a human must act. */
+export const EMAIL_STATUS = {
+  neutral: { bg: "#6B7580", text: "#FFFFFF" },
+  waiting: { bg: "#F5B800", text: "#16191D" },
+  booked: { bg: "#0B5FB0", text: "#FFFFFF" },
+  transit: { bg: "#6B4FBF", text: "#FFFFFF" },
+  done: { bg: "#1E7A46", text: "#FFFFFF" },
+  failed: { bg: "#C22F2E", text: "#FFFFFF" },
+  ni: { bg: "#3F51B5", text: "#FFFFFF" },
+  trunk: { bg: "#0E7C8C", text: "#FFFFFF" },
+  inspection: { bg: "#2B8CD8", text: "#FFFFFF" },
+} as const;
+
+export type EmailStatusToken = keyof typeof EMAIL_STATUS;
+
+/** Lifecycle strip-map branches (ccc-email-design.md §3.2). */
+export const STRIP_BRANCHES = {
+  standard: ["Booked", "Dates", "Collected", "In transit", "Delivered"],
+  box: ["Booked", "At depot", "Boxed", "Courier collected", "Delivered"],
+  niOutbound: ["Booked", "Collected", "Foamed", "At ferry", "Delivered NI"],
+  niInbound: ["Booked", "Collected NI", "Crossed ferry", "With us", "Delivered"],
+  scotlandTrunk: ["Booked", "Collected", "Trunk north", "At depot", "Delivered"],
+  workshop: ["Booked", "Collected", "Inspected", "Repairs", "Delivered"],
+} as const;
+
+export type StripBranch = keyof typeof STRIP_BRANCHES;
+
+/** Pick the strip-map branch that matches an order's lifecycle. */
+export const stagesForOrder = (order: any): readonly string[] => {
+  if (order?.is_box_my_bike) return STRIP_BRANCHES.box;
+  if (order?.ni_direction === "inbound") return STRIP_BRANCHES.niInbound;
+  if (order?.is_northern_ireland || order?.foam_status) return STRIP_BRANCHES.niOutbound;
+  if (order?.needs_inspection) return STRIP_BRANCHES.workshop;
+  return STRIP_BRANCHES.standard;
+};
+
+/** Index of the first matching stage label, else a fallback. */
+export const stageIndex = (stages: readonly string[], labels: string[], fallback: number): number => {
+  for (const label of labels) {
+    const i = stages.indexOf(label);
+    if (i >= 0) return i;
+  }
+  return fallback;
+};
 
 /** Marker used so a branded document is never wrapped twice. */
 export const EMAIL_BRAND_MARKER = "ccc-email-shell";
@@ -54,27 +103,47 @@ function normaliseLegacyStyles(html: string): string {
     .replace(/#e5e7eb|#eeeeee|#dddddd/gi, EMAIL_BRAND.border)
     .replace(/#0F766E|#0f766e/g, EMAIL_BRAND.primary)
     .replace(/#0B5A53|#0b5a53/g, EMAIL_BRAND.primaryDark)
+    .replace(/#0B61B1/gi, EMAIL_BRAND.primary)
+    .replace(/#5C6570/gi, EMAIL_BRAND.muted)
+    .replace(/#D8DEE4/gi, EMAIL_BRAND.border)
     .replace(/font-family:\s*Arial,\s*sans-serif;?/gi, `font-family: ${EMAIL_BRAND.font};`)
     .replace(/font-family:\s*['"]?Helvetica Neue['"]?[^;"]*;?/gi, `font-family: ${EMAIL_BRAND.font};`)
     .replace(/border-radius:\s*(5px|8px|10px|12px)/gi, `border-radius: ${EMAIL_BRAND.radius}`);
 }
 
 export interface EmailShellOptions {
-  /** Preheader / hidden preview text, usually the subject. */
+  /** Subject — used for the document title and as the preheader fallback. */
   subject?: string;
-  /** Small label under the wordmark, e.g. "Order update" or "Internal report". */
+  /** Hidden inbox preview line. Read far more often than the body — set it. */
+  preheader?: string;
+  /** One-word context label beside the wordmark, e.g. "COLLECTION". */
   eyebrow?: string;
-  /** Internal reports are wider and denser than customer mail. */
+  /** Internal reports are wider and denser than customer mail (760px). */
   wide?: boolean;
-  /** Set false to drop the company legal block (rare). */
+  /** Exception treatment: 6px amber bar under the header. Human must act. */
+  chevron?: boolean;
+  /** Set false to drop the company legal block (partner/operational mail). */
   legalFooter?: boolean;
+  /** Extra footer links, e.g. an unsubscribe link for announcements. */
+  footerExtra?: string;
 }
 
 /** Wrap body HTML in the standard branded shell. */
 export function emailShell(bodyHtml: string, options: EmailShellOptions = {}): string {
-  const { subject = "", eyebrow = "", wide = false, legalFooter = true } = options;
+  const {
+    subject = "",
+    preheader = "",
+    eyebrow = "",
+    wide = false,
+    chevron = false,
+    legalFooter = true,
+    footerExtra = "",
+  } = options;
   const width = wide ? 760 : 600;
   const B = EMAIL_BRAND;
+  const preview = preheader || subject;
+  // Stop clients pulling footer text into the inbox preview.
+  const preheaderPad = "&#847;&zwnj;&nbsp;".repeat(40);
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -82,33 +151,42 @@ export function emailShell(bodyHtml: string, options: EmailShellOptions = {}): s
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="x-apple-disable-message-reformatting">
-<meta name="color-scheme" content="light only">
+<meta name="color-scheme" content="light">
 <meta name="supported-color-schemes" content="light">
 <title>${escapeHtml(subject)}</title>
 </head>
-<body data-${EMAIL_BRAND_MARKER}="1" style="margin:0;padding:0;background:${B.page};font-family:${B.font};color:${B.text};-webkit-font-smoothing:antialiased;">
-  <span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;mso-hide:all;">${escapeHtml(subject)}</span>
+<body data-${EMAIL_BRAND_MARKER}="1" style="margin:0;padding:0;background:${B.page};font-family:${B.font};color:${B.text};-webkit-font-smoothing:antialiased;color-scheme:light;">
+  <div style="display:none!important;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;max-height:0;max-width:0;">${escapeHtml(preview)}${preheaderPad}</div>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${B.page};">
     <tr>
       <td align="center" style="padding:24px 12px;">
-        <table role="presentation" width="${width}" cellpadding="0" cellspacing="0" border="0" style="max-width:${width}px;width:100%;background:#ffffff;border:1px solid ${B.border};border-radius:${B.radius};overflow:hidden;">
+        <table role="presentation" width="${width}" cellpadding="0" cellspacing="0" border="0" style="max-width:${width}px;width:100%;background:${B.surface};border:1px solid ${B.border};border-radius:${B.radius};overflow:hidden;">
           <tr>
-            <td style="background:${B.primary};padding:18px 24px;">
-              <div style="font-size:16px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#ffffff;">${B.name}</div>
-              ${
-                eyebrow
-                  ? `<div style="margin-top:4px;font-size:12px;letter-spacing:0.04em;color:#DCE9F6;">${escapeHtml(eyebrow)}</div>`
-                  : ""
-              }
+            <td style="background:${B.primary};padding:20px 24px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="left" style="font-size:16px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:${B.primaryText};">${B.name}</td>
+                  ${
+                    eyebrow
+                      ? `<td align="right" style="font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:${B.primaryText};opacity:0.7;">${escapeHtml(eyebrow)}</td>`
+                      : ""
+                  }
+                </tr>
+              </table>
             </td>
           </tr>
+          ${
+            chevron
+              ? `<tr><td style="height:6px;line-height:6px;font-size:0;background:#F5B800;">&nbsp;</td></tr>`
+              : ""
+          }
           <tr>
-            <td style="padding:24px;font-size:15px;line-height:1.6;color:${B.text};">
+            <td style="padding:32px;font-size:16px;line-height:1.6;color:${B.text};">
               ${bodyHtml}
             </td>
           </tr>
           <tr>
-            <td style="border-top:1px solid ${B.border};background:${B.panel};padding:18px 24px;font-size:12px;line-height:1.6;color:${B.muted};">
+            <td style="border-top:1px solid ${B.border};background:${B.panel};padding:24px;font-size:13px;line-height:1.5;color:${B.muted};">
               <div style="font-weight:600;color:${B.text};">${B.name}</div>
               <div><a href="mailto:${B.email}" style="color:${B.primary};text-decoration:none;">${B.email}</a> &nbsp;&middot;&nbsp; ${B.phone}</div>
               <div><a href="${B.website}" style="color:${B.primary};text-decoration:none;">${B.website}</a></div>
@@ -117,6 +195,7 @@ export function emailShell(bodyHtml: string, options: EmailShellOptions = {}): s
                   ? `<div style="margin-top:8px;">${B.legalName}, ${B.address}. Company no. ${B.companyNo}. VAT ${B.vatNo}.</div>`
                   : ""
               }
+              ${footerExtra ? `<div style="margin-top:8px;">${footerExtra}</div>` : ""}
             </td>
           </tr>
         </table>
@@ -161,18 +240,141 @@ export function applyEmailBrand(html: string, options: EmailShellOptions = {}): 
   return emailShell(normaliseLegacyStyles(body), options);
 }
 
+/**
+ * Generate the plain-text alternative for an HTML email. Every send must ship
+ * one — its absence is a spam signal and breaks accessibility.
+ */
+export function htmlToPlainText(html: string): string {
+  if (typeof html !== "string") return "";
+  return html
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<script[\s\S]*?<\/script>/gi, "")
+    .replace(/<head[\s\S]*?<\/head>/gi, "")
+    .replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, href, label) => {
+      const text = String(label).replace(/<[^>]+>/g, "").trim();
+      return text && text !== href ? `${text} (${href})` : href;
+    })
+    .replace(/<\/(p|div|tr|h1|h2|h3|li|table)>/gi, "\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<li[^>]*>/gi, "- ")
+    .replace(/<\/t[dh]>/gi, "  ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&middot;/gi, "·")
+    .replace(/&#847;|&zwnj;/gi, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 /** Reusable pieces so new emails do not hand-roll styling. */
 export const emailUI = {
   heading: (text: string) =>
-    `<h1 style="margin:0 0 12px;font-size:20px;line-height:1.3;font-weight:700;color:${EMAIL_BRAND.text};">${text}</h1>`,
+    `<h1 style="margin:0 0 12px;font-size:26px;line-height:1.25;font-weight:700;color:${EMAIL_BRAND.text};">${text}</h1>`,
   paragraph: (text: string) =>
-    `<p style="margin:0 0 14px;font-size:15px;line-height:1.6;color:${EMAIL_BRAND.text};">${text}</p>`,
+    `<p style="margin:0 0 14px;font-size:16px;line-height:1.6;color:${EMAIL_BRAND.text};">${text}</p>`,
+  small: (text: string) =>
+    `<p style="margin:0 0 10px;font-size:13px;line-height:1.5;color:${EMAIL_BRAND.muted};">${text}</p>`,
+  mono: (text: string) =>
+    `<span style="font-family:${EMAIL_BRAND.mono};font-size:15px;font-weight:600;color:${EMAIL_BRAND.text};">${text}</span>`,
   panel: (inner: string) =>
-    `<div style="background:${EMAIL_BRAND.panel};border:1px solid ${EMAIL_BRAND.border};border-radius:${EMAIL_BRAND.radius};padding:14px 16px;margin:16px 0;font-size:14px;line-height:1.6;">${inner}</div>`,
+    `<div style="background:${EMAIL_BRAND.panel};border:1px solid ${EMAIL_BRAND.border};border-radius:${EMAIL_BRAND.radius};padding:20px;margin:16px 0;font-size:14px;line-height:1.6;color:${EMAIL_BRAND.text};">${inner}</div>`,
   detailRow: (label: string, value: string) =>
     `<div style="margin:0 0 6px;"><span style="color:${EMAIL_BRAND.muted};">${label}:</span> <strong style="color:${EMAIL_BRAND.text};">${value}</strong></div>`,
+
+  /** §3.3 — label/value detail panel. Pass mono=true for refs, postcodes, slots. */
+  detailPanel: (rows: Array<{ label: string; value: string; mono?: boolean }>) => {
+    const body = rows
+      .slice(0, 6)
+      .map(
+        (r) => `<tr>
+          <td style="padding:6px 12px 6px 0;font-size:12px;line-height:1.4;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;color:${EMAIL_BRAND.muted};vertical-align:top;white-space:nowrap;">${escapeHtml(r.label)}</td>
+          <td style="padding:6px 0;font-size:16px;line-height:1.45;font-weight:600;color:${EMAIL_BRAND.text};${r.mono ? `font-family:${EMAIL_BRAND.mono};` : ""}">${r.value}</td>
+        </tr>`,
+      )
+      .join("");
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${EMAIL_BRAND.panel};border:1px solid ${EMAIL_BRAND.border};border-radius:${EMAIL_BRAND.radius};padding:14px 20px;margin:16px 0;">${body}</table>`;
+  },
+
+  /** §3.2 — the strip map. Completed cells blue, current blue, upcoming edge. */
+  stripMap: (stages: readonly string[] | string[], currentIndex: number) => {
+    const B = EMAIL_BRAND;
+    const cells = stages
+      .map((label, i) => {
+        const done = i <= currentIndex;
+        const current = i === currentIndex;
+        const bar = done ? B.primary : B.border;
+        const labelColor = current ? B.text : B.muted;
+        const weight = current ? 700 : 400;
+        return `<td width="${Math.floor(100 / stages.length)}%" style="padding:0 2px;">
+          <div style="height:4px;background:${bar};font-size:0;line-height:4px;">&nbsp;</div>
+          <div style="font-family:${B.font};font-size:11px;line-height:1.3;font-weight:${weight};color:${labelColor};padding-top:8px;">${escapeHtml(label)}</div>
+        </td>`;
+      })
+      .join("");
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;"><tr>${cells}</tr></table>`;
+  },
+
+  /** §3.4 — status pill. Always carries the word, never colour alone. */
+  statusPill: (token: EmailStatusToken, label: string) => {
+    const t = EMAIL_STATUS[token];
+    return `<span style="display:inline-block;background:${t.bg};color:${t.text};font-size:13px;font-weight:600;line-height:1;padding:6px 12px;border-radius:4px;">${escapeHtml(label)}</span>`;
+  },
+
+  /** §3.6 — bulletproof primary button with Outlook VML fallback. */
   button: (href: string, label: string) =>
-    `<div style="margin:22px 0;"><a href="${href}" style="display:inline-block;background:${EMAIL_BRAND.primary};color:#ffffff;font-weight:700;font-size:15px;padding:12px 20px;border-radius:${EMAIL_BRAND.radius};text-decoration:none;">${label}</a></div>`,
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:22px 0;"><tr><td align="center" bgcolor="${EMAIL_BRAND.primary}" style="border-radius:4px;">
+      <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${href}" style="height:44px;v-text-anchor:middle;width:220px;" fillcolor="${EMAIL_BRAND.primary}" stroke="f"><center style="color:#FFFFFF;font-family:Arial,sans-serif;font-size:16px;font-weight:600;">${escapeHtml(label)}</center></v:roundrect><![endif]-->
+      <!--[if !mso]><!--><a href="${href}" style="display:inline-block;background:${EMAIL_BRAND.primary};color:#FFFFFF;font-family:${EMAIL_BRAND.font};font-weight:600;font-size:16px;padding:14px 28px;border-radius:4px;text-decoration:none;min-height:44px;line-height:1.2;">${escapeHtml(label)}</a><!--<![endif]-->
+    </td></tr></table>`,
+
+  /** §3.6 — secondary button (review links on the delivered email). */
+  secondaryButton: (href: string, label: string) =>
+    `<a href="${href}" style="display:inline-block;background:#FFFFFF;color:${EMAIL_BRAND.primary};border:1px solid ${EMAIL_BRAND.primary};font-family:${EMAIL_BRAND.font};font-weight:600;font-size:15px;padding:11px 20px;border-radius:4px;text-decoration:none;margin:4px 8px 4px 0;">${escapeHtml(label)}</a>`,
+
   link: (href: string, label = href) =>
     `<a href="${href}" style="color:${EMAIL_BRAND.primary};text-decoration:underline;word-break:break-all;">${label}</a>`,
+
+  /** §3.7 — internal report table. Figures right-aligned and mono. */
+  table: (headers: string[], rows: string[][]) => {
+    const B = EMAIL_BRAND;
+    const head = headers
+      .map(
+        (h, i) =>
+          `<th align="${i === headers.length - 1 && headers.length > 1 ? "right" : "left"}" style="padding:8px 12px;font-size:12px;font-weight:600;letter-spacing:0.6px;text-transform:uppercase;color:${B.muted};background:${B.panel};border-bottom:1px solid ${B.border};">${escapeHtml(h)}</th>`,
+      )
+      .join("");
+    const body = rows
+      .map(
+        (r) =>
+          `<tr>${r
+            .map(
+              (c, i) =>
+                `<td align="${i === r.length - 1 && r.length > 1 ? "right" : "left"}" style="padding:10px 12px;font-size:14px;line-height:1.4;color:${B.text};border-bottom:1px solid ${B.border};${i === r.length - 1 && r.length > 1 ? `font-family:${B.mono};` : ""}">${c}</td>`,
+            )
+            .join("")}</tr>`,
+      )
+      .join("");
+    return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:16px 0;border-collapse:collapse;">${head}${body}</table>`;
+  },
+
+  /** §3.7 — totals row: 600 weight, 2px top border, no fill. */
+  totalsRow: (label: string, value: string) =>
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:4px 0 16px;border-top:2px solid ${EMAIL_BRAND.text};"><tr>
+      <td style="padding:10px 12px;font-size:14px;font-weight:600;color:${EMAIL_BRAND.text};">${escapeHtml(label)}</td>
+      <td align="right" style="padding:10px 12px;font-size:14px;font-weight:600;color:${EMAIL_BRAND.text};font-family:${EMAIL_BRAND.mono};">${value}</td>
+    </tr></table>`,
+
+  /** §3.9 — attachment note for document emails. */
+  attachmentNote: (fileName: string, attached: boolean, linkHref?: string) =>
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${EMAIL_BRAND.panel};border:1px solid ${EMAIL_BRAND.border};border-radius:${EMAIL_BRAND.radius};margin:16px 0;"><tr>
+      <td style="padding:14px 20px;font-size:14px;color:${EMAIL_BRAND.text};">
+        <span style="font-family:${EMAIL_BRAND.mono};font-weight:600;">${escapeHtml(fileName)}</span>
+        <span style="color:${EMAIL_BRAND.muted};"> — ${attached ? "attached to this email as a PDF" : "available to download"}</span>
+        ${linkHref ? `<div style="margin-top:6px;"><a href="${linkHref}" style="color:${EMAIL_BRAND.primary};text-decoration:underline;">Download</a></div>` : ""}
+      </td>
+    </tr></table>`,
 };
