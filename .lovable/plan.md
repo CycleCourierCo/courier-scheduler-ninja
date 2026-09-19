@@ -18,12 +18,14 @@ Move every portal user onto the latest release once, without adding a permanent 
 2. Invalidate existing Supabase user sessions and refresh tokens centrally when the release is ready.
    - This forces users on other devices or stale open tabs to authenticate again when their session is checked or refreshed.
    - Do not touch partner OAuth tokens, API keys, customer data, or user accounts.
-3. Send users to sign-in with a clear message explaining that the portal was updated and they need to sign in again.
+3. Perform the reset silently.
+   - Do not show an update notice, toast, banner, or explanatory message.
+   - Signed-in users are quietly redirected to the normal sign-in page after their session is cleared.
 4. Build and verify the flow in desktop and mobile browsers, including blocked-storage/Safari-safe fallbacks and protection against reload loops.
 5. Publish the release first, then perform the one-time session invalidation so nobody is forced back into the older version.
 
 ## Expected impact
-- All currently signed-in portal users will need to sign in again once.
+- All currently signed-in portal users will quietly need to sign in again once, without an update message.
 - Public tracking and other unsigned links remain available.
 - Unsaved form changes in open tabs can be lost when those tabs refresh; the release should therefore be done at a quiet time.
 - Browsers that are completely closed will receive the reset on their next visit.
