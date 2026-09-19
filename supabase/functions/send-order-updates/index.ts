@@ -1,6 +1,104 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { expectationsHtml, expectationsText, expectationsForOrder } from "../_shared/deliveryExpectations.ts";
+import { emailUI, stagesForOrder, stageIndex } from "../_shared/emailLayout.ts";
+
+/**
+ * Per-template presentation (ccc-email-design.md §5): eyebrow, status pill,
+ * strip-map position, exception chevron and preheader for each update kind.
+ */
+function presentationFor(update: Update): {
+  eyebrow: string;
+  pill: [string, string];
+  labels: string[];
+  fallback: number;
+  chevron?: boolean;
+  preheader?: string;
+} {
+  const k = update.stageKey;
+
+  // Exceptions — amber chevron bar, failed pill.
+  if (k === "collection_delayed") {
+    return { eyebrow: "COLLECTION", pill: ["failed", "Missed"], labels: ["Dates"], fallback: 1, chevron: true, preheader: "We missed your collection — we're rebooking it now" };
+  }
+  if (k === "delivery_delayed") {
+    return { eyebrow: "DELIVERY", pill: ["failed", "Missed"], labels: ["In transit"], fallback: 3, chevron: true, preheader: "We missed your delivery — here's what happens next" };
+  }
+
+  // Box My Bike.
+  if (k.startsWith("box_")) {
+    const map: Record<string, { pill: [string, string]; labels: string[]; fb: number }> = {
+      box_awaiting_depot: { pill: ["transit", "On its way to depot"], labels: ["Booked"], fb: 0 },
+      box_in_depot: { pill: ["booked", "At depot"], labels: ["At depot"], fb: 1 },
+      box_boxed: { pill: ["done", "Boxed"], labels: ["Boxed"], fb: 2 },
+      box_awaiting_3p: { pill: ["neutral", "Ready for courier"], labels: ["Boxed"], fb: 2 },
+      box_collected_3p: { pill: ["done", "Courier collected"], labels: ["Courier collected"], fb: 3 },
+    };
+    const m = map[k] || map.box_awaiting_depot;
+    return { eyebrow: "BOXING", pill: m.pill, labels: m.labels, fallback: m.fb };
+  }
+
+  // Northern Ireland.
+  if (k.startsWith("foam_")) {
+    const map: Record<string, { pill: [string, string]; labels: string[]; fb: number }> = {
+      foam_pending_collection: { pill: ["ni", "Arranging collection"], labels: ["Booked"], fb: 0 },
+      foam_pending_foaming: { pill: ["ni", "At depot"], labels: ["Collected"], fb: 1 },
+      foam_ready: { pill: ["ni", "Foamed"], labels: ["Foamed"], fb: 2 },
+      foam_at_ferry: { pill: ["ni", "At ferry"], labels: ["At ferry"], fb: 3 },
+      foam_crossed_to_ni: { pill: ["ni", "Crossed ferry"], labels: ["Delivered NI"], fb: 3 },
+      foam_delivered_ni: { pill: ["done", "Delivered"], labels: ["Delivered NI"], fb: 4 },
+    };
+    const m = map[k] || map.foam_pending_collection;
+    return { eyebrow: "NORTHERN IRELAND", pill: m.pill, labels: m.labels, fallback: m.fb };
+  }
+  if (k.startsWith("ni_")) {
+    const map: Record<string, { pill: [string, string]; labels: string[]; fb: number }> = {
+      ni_awaiting_collection: { pill: ["ni", "Arranging collection"], labels: ["Booked"], fb: 0 },
+      ni_collected: { pill: ["ni", "Collected NI"], labels: ["Collected NI"], fb: 1 },
+      ni_crossed_ferry: { pill: ["ni", "Crossed ferry"], labels: ["Crossed ferry"], fb: 2 },
+      ni_received_from_partner: { pill: ["ni", "With us"], labels: ["With us"], fb: 3 },
+    };
+    const m = map[k] || map.ni_awaiting_collection;
+    return { eyebrow: "NORTHERN IRELAND", pill: m.pill, labels: m.labels, fallback: m.fb };
+  }
+
+  // Workshop states.
+  if (k.startsWith("in_depot_")) {
+    const map: Record<string, { pill: [string, string]; labels: string[]; fb: number }> = {
+      in_depot_awaiting_inspection: { pill: ["inspection", "In inspection"], labels: ["Collected"], fb: 1 },
+      in_depot_inspected: { pill: ["inspection", "Inspected"], labels: ["Inspected"], fb: 2 },
+      in_depot_issues_found: { pill: ["inspection", "Inspected"], labels: ["Inspected"], fb: 2 },
+      in_depot_in_repair: { pill: ["inspection", "Repairs underway"], labels: ["Repairs"], fb: 3 },
+      in_depot_ship_as_is: { pill: ["neutral", "Checked over"], labels: ["Inspected"], fb: 2 },
+      in_depot_service_complete: { pill: ["done", "Work complete"], labels: ["Repairs"], fb: 3 },
+    };
+    const m = map[k] || map.in_depot_awaiting_inspection;
+    return { eyebrow: "WORKSHOP", pill: m.pill, labels: m.labels, fallback: m.fb };
+  }
+
+  // Standard lifecycle.
+  switch (k) {
+    case "booked_awaiting_request":
+    case "awaiting_sender_dates":
+      return { eyebrow: "COLLECTION", pill: ["waiting", "Awaiting your dates"], labels: ["Booked"], fallback: 0, preheader: "Pick the days that work — takes under a minute" };
+    case "awaiting_receiver_dates":
+      return { eyebrow: "DELIVERY", pill: ["waiting", "Awaiting your dates"], labels: ["Booked"], fallback: 0, preheader: "Pick the days that work — takes under a minute" };
+    case "sender_dates_received":
+      return { eyebrow: "COLLECTION", pill: ["neutral", "Being planned"], labels: ["Dates"], fallback: 1 };
+    case "collection_scheduled":
+    case "collection_scheduled_receiver":
+      return { eyebrow: "COLLECTION", pill: ["booked", "Booked"], labels: ["Dates"], fallback: 1 };
+    case "in_depot":
+      return { eyebrow: "COLLECTION", pill: ["done", "Collected"], labels: ["Collected"], fallback: 2 };
+    case "sender_bike_on_way":
+      return { eyebrow: "DELIVERY", pill: ["transit", "In transit"], labels: ["In transit"], fallback: 3 };
+    case "delivery_scheduled":
+    case "delivery_scheduled_sender":
+      return { eyebrow: "DELIVERY", pill: ["booked", "Booked"], labels: ["In transit"], fallback: 3 };
+    default:
+      return { eyebrow: "ORDER UPDATE", pill: ["neutral", "Update"], labels: [], fallback: 0 };
+  }
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
