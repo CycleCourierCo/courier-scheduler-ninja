@@ -10,6 +10,7 @@ import { verifyPublicOrderPostcode } from "@/services/fetchOrderService";
 import { supabase } from "@/integrations/supabase/client";
 import { toPublicFileUrl, toPublicFileUrls } from "@/lib/publicFileUrl";
 import JourneyStrip from "@/components/design/JourneyStrip";
+import { buildJourneyStops } from "@/utils/journeyStages";
 
 interface TrackingTimelineProps {
   order: Order;
