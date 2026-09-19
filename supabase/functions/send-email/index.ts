@@ -957,7 +957,11 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
           to: order.sender.email,
           subject: `Bike Collected - ${order.tracking_number || orderId}`,
           html: senderHtml,
-          reply_to: "Info@cyclecourierco.com"
+          reply_to: "Info@cyclecourierco.com",
+          cccShell: {
+            eyebrow: "COLLECTION",
+            preheader: "Your bike is with us and on its way",
+          },
         });
         
         if (senderError) {
@@ -1011,7 +1015,11 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
           to: order.receiver.email,
           subject: `Bike Collected - ${order.tracking_number || orderId}`,
           html: receiverHtml,
-          reply_to: "Info@cyclecourierco.com"
+          reply_to: "Info@cyclecourierco.com",
+          cccShell: {
+            eyebrow: "COLLECTION",
+            preheader: "Your bike is with us and on its way",
+          },
         });
         
         if (receiverError) {
@@ -1065,7 +1073,11 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
           to: order.receiver.email,
           subject: `Your bike is on the way to our service centre - ${order.tracking_number || orderId}`,
           html: serviceCentreHtml,
-          reply_to: "Info@cyclecourierco.com"
+          reply_to: "Info@cyclecourierco.com",
+          cccShell: {
+            eyebrow: "WORKSHOP",
+            preheader: "Collected and heading to our mechanics — delivery confirmed after the work",
+          },
         });
 
         if (serviceErr) {
