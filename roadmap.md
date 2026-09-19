@@ -1,9 +1,9 @@
 # Cycle Courier Co. redesign
 
 - [x] Establish tokens, typography, semantic status colours and shared controls.
-- [ ] Rebuild shared navigation, access states and notices.
-- [ ] Build strip map and doorstep pages.
-- [ ] Redesign public and account-entry pages.
+- [x] Rebuild shared navigation, access states and notices.
+- [x] Build strip map and doorstep pages.
+- [x] Redesign public and account-entry pages.
 - [ ] Redesign customer portal pages.
 - [ ] Redesign warehouse and workshop pages.
 - [ ] Redesign office operations pages.

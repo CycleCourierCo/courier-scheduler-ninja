@@ -90,8 +90,8 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
             <JourneyStrip compact stops={[
               { label: "Booked", state: "complete" },
               { label: "Collected", state: order.orderCollected ? "complete" : "current" },
-              { label: "In transit", state: order.orderCollected && !order.orderDelivered ? "current" : "upcoming" },
-              { label: "Delivered", state: order.orderDelivered ? "complete" : "upcoming" },
+              { label: "In transit", state: order.orderCollected && order.status !== "delivered" ? "current" : "upcoming" },
+              { label: "Delivered", state: order.status === "delivered" ? "complete" : "upcoming" },
             ]} />
             <div className="min-w-0">
               <p className="data-text truncate text-sm text-foreground">
