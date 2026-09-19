@@ -136,7 +136,7 @@ export const AltLocationFields: React.FC<AltLocationFieldsProps> = ({ value, onC
     .find(Boolean) || DEFAULT_WINDOW;
 
   return (
-    <div className="space-y-5 rounded-lg border p-4">
+    <div className="space-y-5 rounded-md border bg-card p-4">
       <div>
         <h3 className="text-lg font-medium">Alternative {mode} options</h3>
         <p className="text-sm text-muted-foreground">
@@ -218,7 +218,7 @@ export const AltLocationFields: React.FC<AltLocationFieldsProps> = ({ value, onC
                 <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               </div>
               {showSuggestions && (
-                <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-popover shadow-lg">
+                <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-popover shadow-card">
                   {loading && (
                     <div className="flex items-center justify-center p-4">
                       <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
