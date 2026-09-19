@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect } from 'react';
-import { DayPicker } from 'react-day-picker';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { format, isBefore, startOfDay } from 'date-fns';
@@ -134,10 +133,10 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
   const disableDate = isDateDisabled || defaultIsDateDisabled;
   
   return (
-    <form onSubmit={onSubmit} className="max-w-4xl mx-auto py-8 px-4">
-      <Card className="shadow-lg border-slate-200">
-        <CardHeader className="space-y-1 bg-slate-50 rounded-t-lg border-b">
-          <CardTitle className="text-2xl">{title}</CardTitle>
+    <form onSubmit={onSubmit} className="doorstep-page mx-auto max-w-3xl px-4 py-6">
+      <Card className="overflow-hidden">
+        <CardHeader className="signboard rounded-none space-y-2">
+          <CardTitle className="text-[30px] text-primary-foreground">{title}</CardTitle>
           <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
@@ -150,12 +149,12 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
             </Alert>
           )}
           <div className="flex flex-col md:flex-row gap-8">
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               <h3 className="text-lg font-medium mb-4 flex items-center">
                 <CalendarIcon className="mr-2 h-5 w-5 text-primary" />
                 {singleDay ? 'Select Your Collection Day' : 'Select Available Dates'}
               </h3>
-              <div className="border rounded-md p-2 bg-white shadow-sm">
+              <div className="overflow-x-auto rounded-md border bg-card p-2">
                 <CalendarComponent
                   mode="multiple"
                   min={1}
@@ -236,7 +235,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder={placeholder}
                   rows={4}
-                  className="border-slate-200 resize-none"
+                  className="min-h-28 resize-none"
                 />
               </div>
 
@@ -248,11 +247,11 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
                   id="postcode"
                   type="text"
                   value={postcode}
-                  onChange={(e) => setPostcode(e.target.value)}
+                  onChange={(e) => setPostcode(e.target.value.toUpperCase())}
                   required
                   autoComplete="postal-code"
                   placeholder="e.g. SW1A 1AA"
-                  className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="data-text h-12 w-full rounded-md border bg-card px-3 py-2 uppercase focus:outline-none focus:ring-2 focus:ring-ring"
                 />
                 <p className="text-xs text-muted-foreground mt-1">
                   We use this to confirm you're the right person for this order.
@@ -270,12 +269,13 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
           
           <Button 
             type="submit" 
-            className="w-full mt-4" 
+            variant="doorstep"
+            className="mt-4" 
             disabled={dates.length < requiredDates || isSubmitting}
           >
             {isSubmitting ? (
               <>
-                <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <svg className="-ml-1 mr-2 h-4 w-4 animate-spin text-primary-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>

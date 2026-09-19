@@ -9,10 +9,9 @@ interface ErrorFallbackProps {
 const ErrorFallback = ({ error, resetError }: ErrorFallbackProps) => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="text-center max-w-md">
-        <AlertTriangle className="h-16 w-16 text-destructive mx-auto mb-4" />
-        <h1 className="text-2xl font-bold text-foreground mb-2">Something went wrong</h1>
-        <p className="text-muted-foreground mb-6">
+      <div className="w-full max-w-md overflow-hidden rounded-md border bg-card shadow-card">
+        <div className="signboard rounded-none"><AlertTriangle className="mb-3 h-7 w-7" /><h1>Something went wrong</h1></div>
+        <div className="p-6 text-center"><p className="text-muted-foreground mb-6">
           We've been notified and are working to fix the issue.
         </p>
         <div className="flex gap-4 justify-center">
@@ -24,7 +23,7 @@ const ErrorFallback = ({ error, resetError }: ErrorFallbackProps) => {
               Try Again
             </Button>
           )}
-        </div>
+        </div></div>
       </div>
     </div>
   );

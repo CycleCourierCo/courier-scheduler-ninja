@@ -2,47 +2,22 @@
 import { useLocation, Link } from "react-router-dom";
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle } from "lucide-react";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { MapPinOff } from "lucide-react";
 
 const NotFound = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Log comprehensive domain and routing information
-    console.error("=== 404 ERROR DIAGNOSTICS ===");
-    console.error("Current domain:", window.location.origin);
-    console.error("Full URL:", window.location.href);
-    console.error("Path:", location.pathname);
-    console.error("Search params:", location.search);
-    console.error("Hash:", location.hash);
-    console.error("Host:", window.location.host);
-    console.error("Hostname:", window.location.hostname);
-    console.error("Protocol:", window.location.protocol);
-    console.error("============================");
+    console.error("Page not found", location.pathname);
   }, [location]);
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-md space-y-6 text-center">
-        <h1 className="text-6xl font-bold text-gray-900">404</h1>
-        <h2 className="text-2xl font-semibold text-gray-800">Page Not Found</h2>
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="w-full max-w-md overflow-hidden rounded-md border bg-card shadow-card">
+        <div className="signboard rounded-none"><MapPinOff className="mb-3 h-7 w-7" /><h1>Wrong turn</h1><p className="data-text mt-2 text-primary-foreground">404 · {location.pathname}</p></div>
+        <div className="space-y-5 p-6"><p className="text-muted-foreground">We couldn't find this page. The link may be old, or the item may no longer exist.</p>
         
-        <p className="text-gray-600 mt-2">
-          We couldn't find the page you're looking for.
-        </p>
-        
-        <Alert variant="destructive" className="mt-6 text-left">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>
-            <p>The requested resource could not be found: <strong>{location.pathname}</strong></p>
-            <p className="mt-2">Current domain: <code>{window.location.origin}</code></p>
-            <p>If you were accessing an order or function, it may have been deleted or may not exist.</p>
-          </AlertDescription>
-        </Alert>
-        
-        <div className="mt-8 space-y-3">
+        <div className="space-y-3">
           <Button className="w-full" asChild>
             <Link to="/dashboard">Go to Dashboard</Link>
           </Button>
@@ -50,7 +25,7 @@ const NotFound = () => {
           <Button variant="outline" className="w-full" asChild>
             <Link to="/">Return to Home</Link>
           </Button>
-        </div>
+        </div></div>
       </div>
     </div>
   );

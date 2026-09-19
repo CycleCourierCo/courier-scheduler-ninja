@@ -2,22 +2,18 @@ import React, { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/Layout";
-import { Package, CalendarCheck, LogIn } from "lucide-react";
+import { Package, Wrench, MapPinned, LogIn, ArrowRight } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import MyTasksPanel from "@/components/tasks/MyTasksPanel";
 import { hasAnyRole } from "@/lib/roles";
 
 
 
-const features = [{
-  title: "Easy Order Creation",
-  description: "Create shipping orders in minutes with our intuitive form.",
-  icon: <Package className="h-12 w-12 text-courier-500" />
-}, {
-  title: "Smart Scheduling",
-  description: "Automatically coordinate pickup and delivery times between sender and receiver.",
-  icon: <CalendarCheck className="h-12 w-12 text-courier-500" />
-}];
+const features = [
+  { title: "Unboxed, door to door", description: "Specialist bicycle collection and delivery across the UK and Ireland.", icon: Package },
+  { title: "Inspection and repair en route", description: "Workshop inspection, clear approval links and one connected journey.", icon: Wrench },
+  { title: "Tracking your buyer can follow", description: "Every stage, date and next step shown in one clear route.", icon: MapPinned },
+];
 
 const Index = () => {
   const { user, userProfile } = useAuth();
@@ -52,57 +48,41 @@ const Index = () => {
 
   return (
     <Layout>
-      {/* Hero Section with stunning gradient background filling entire space */}
-      <section className="relative flex-1 flex items-center justify-center overflow-hidden py-12 md:py-16 min-h-[70vh] md:min-h-[60vh]">
-        <div className="absolute inset-0 bg-gradient-hero opacity-90"></div>
-        <div className="absolute inset-0">
-          <div className="absolute top-10 left-10 w-56 h-56 xl:w-72 xl:h-72 bg-primary/20 rounded-full blur-3xl animate-float"></div>
-          <div className="absolute bottom-10 right-10 w-64 h-64 xl:w-96 xl:h-96 bg-primary-glow/10 rounded-full blur-3xl animate-float" style={{
-            animationDelay: '-3s'
-          }}></div>
-        </div>
-        
-        <div className="container px-4 md:px-6 relative z-10 mx-auto">
-          <div className="flex flex-col items-center space-y-6 lg:space-y-8 text-center justify-center">
-            <div className="space-y-4 lg:space-y-6 animate-fade-in">
-              <h1 className="text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl xl:text-7xl 2xl:text-8xl text-gradient">
-                Book your Bike 
-                <br />
-                <span className="text-primary">Delivery</span> now!
-              </h1>
-              <p className="text-lg md:text-xl xl:text-2xl text-muted-foreground max-w-2xl xl:max-w-3xl mx-auto leading-relaxed">
-                Streamlining Bike Transport
-                Fast, friendly and reliable courier services for your business needs
-              </p>
-            </div>
-            
-            <div className="flex flex-col sm:flex-row gap-4 animate-slide-up justify-center" style={{
-              animationDelay: '0.3s'
-            }}>
+      <section className="bg-primary py-12 text-primary-foreground md:py-16">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="max-w-4xl">
+            <p className="mb-4 flex items-center gap-2 text-sm font-bold uppercase"><MapPinned className="h-5 w-5" /> Specialist bicycle transport</p>
+            <h1 className="max-w-3xl text-[40px] font-extrabold leading-[1.1] text-primary-foreground md:text-6xl">Book your bike delivery now!</h1>
+            <p className="mt-5 max-w-2xl text-lg text-primary-foreground/90">Fast, friendly and reliable door-to-door bicycle collection, delivery and tracking.</p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               {user ? (
                 <>
-                  <Link to="/create-order">
-                    <Button variant="premium" size="lg" className="min-w-[200px]">
+                  <Button asChild size="lg" className="min-w-[200px] bg-card text-foreground hover:bg-card/90"><Link to="/create-order">
                       <Package className="mr-2 h-5 w-5" />
                       Create Order
-                    </Button>
-                  </Link>
-                  <Link to="/dashboard">
-                    <Button variant="glass" size="lg" className="min-w-[200px]">
-                      View Dashboard
-                    </Button>
-                  </Link>
+                  </Link></Button>
+                  <Button asChild variant="outline" size="lg" className="min-w-[200px] border-primary-foreground bg-transparent text-primary-foreground hover:bg-card hover:text-foreground"><Link to="/dashboard">View Dashboard <ArrowRight /></Link></Button>
                 </>
               ) : (
-                <Link to="/auth">
-                  <Button variant="premium" size="lg" className="min-w-[250px]">
+                <Button asChild size="lg" className="min-w-[250px] bg-card text-foreground hover:bg-card/90"><Link to="/auth">
                     <LogIn className="mr-2 h-5 w-5" />
                     Sign In / Sign Up
-                  </Button>
-                </Link>
+                </Link></Button>
               )}
             </div>
           </div>
+        </div>
+      </section>
+
+      <section className="container mx-auto px-4 py-4 md:px-6">
+        <div className="divide-y border-y">
+          {features.map(({ title, description, icon: Icon }) => (
+            <div key={title} className="grid gap-3 py-6 sm:grid-cols-[48px_1fr_2fr] sm:items-center">
+              <Icon className="h-7 w-7 text-primary" />
+              <h2 className="text-lg">{title}</h2>
+              <p className="text-muted-foreground">{description}</p>
+            </div>
+          ))}
         </div>
       </section>
 
