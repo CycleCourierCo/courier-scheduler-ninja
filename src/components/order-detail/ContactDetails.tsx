@@ -69,19 +69,19 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({ type, contact, notes, o
           </Button>
         )}
       </div>
-      <div className="bg-gray-50 p-4 rounded-md space-y-3">
-        <p className="font-medium text-gray-800">{contact.name}</p>
+      <div className="bg-muted p-4 rounded-md space-y-3">
+        <p className="font-medium text-foreground">{contact.name}</p>
         <div className="space-y-2">
           <div className="flex items-start space-x-2">
-            <Mail className="h-4 w-4 mt-1 text-gray-500" />
+            <Mail className="h-4 w-4 mt-1 text-muted-foreground" />
             <p className="break-all">{contact.email}</p>
           </div>
           <div className="flex items-start space-x-2">
-            <Phone className="h-4 w-4 mt-1 text-gray-500" />
+            <Phone className="h-4 w-4 mt-1 text-muted-foreground" />
             <p>{contact.phone}</p>
           </div>
           <div className="flex items-start space-x-2">
-            <MapPin className="h-4 w-4 mt-1 text-gray-500" />
+            <MapPin className="h-4 w-4 mt-1 text-muted-foreground" />
             <div>
               <p>{contact.address.street}</p>
               <p>{contact.address.city}, {contact.address.state} {contact.address.zipCode}</p>
@@ -89,8 +89,8 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({ type, contact, notes, o
             </div>
           </div>
           {notes && (
-            <div className="flex items-start space-x-2 mt-2 pt-2 border-t border-gray-200">
-              <FileText className="h-4 w-4 mt-1 text-gray-500" />
+            <div className="flex items-start space-x-2 mt-2 pt-2 border-t border-border">
+              <FileText className="h-4 w-4 mt-1 text-muted-foreground" />
               <div>
                 <p className="font-medium mb-1">{type === "sender" ? "Sender" : "Receiver"} Notes:</p>
                 <p className="text-sm whitespace-pre-line">{notes}</p>

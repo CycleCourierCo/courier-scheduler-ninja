@@ -114,7 +114,7 @@ const EmailDeliveryStatus: React.FC<EmailDeliveryStatusProps> = ({ orderId, side
 
   if (scopedEvents.length === 0) {
     return (
-      <Badge variant="outline" className="text-xs text-gray-500">
+      <Badge variant="outline" className="text-xs text-muted-foreground">
         No email sent
       </Badge>
     );
