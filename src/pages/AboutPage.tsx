@@ -1,6 +1,7 @@
 import React from "react";
 import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import BrandLogo from "@/components/BrandLogo";
 const AboutPage: React.FC = () => {
   return <Layout>
       <div className="mx-auto max-w-4xl">
@@ -10,7 +11,7 @@ const AboutPage: React.FC = () => {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex justify-center mb-8">
-              <img src="https://cyclecourierco.com/cdn/shop/files/ERY.png?v=1740100482&width=240" alt="The Cycle Courier Co." className="h-32 object-contain" />
+              <BrandLogo className="h-24 w-full max-w-md" />
             </div>
             
             <p className="text-center text-xl font-semibold text-primary">
