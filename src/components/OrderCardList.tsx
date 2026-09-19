@@ -12,6 +12,7 @@ import { resendSenderAvailabilityEmail } from "@/services/orderService";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 import { supabase } from "@/integrations/supabase/client";
 import JourneyStrip from "@/components/design/JourneyStrip";
+import { buildJourneyStops } from "@/utils/journeyStages";
 
 interface OrderCardListProps {
   orders: Order[];
@@ -87,12 +88,7 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
             }}
             className="grid w-full min-w-0 gap-3 p-4 text-left transition-colors hover:bg-accent xl:grid-cols-[110px_minmax(0,1fr)_auto] xl:items-center"
           >
-            <JourneyStrip compact className="w-full max-w-[180px] xl:col-start-1 xl:row-start-1" stops={[
-              { label: "Booked", state: "complete", icon: "booked" },
-              { label: "Collected", state: order.orderCollected ? "complete" : "current", icon: "collected" },
-              { label: "In transit", state: order.status === "delivered" ? "complete" : order.orderCollected ? "current" : "upcoming", icon: "transit" },
-              { label: "Delivered", state: order.status === "delivered" ? "complete" : "upcoming", icon: "delivered" },
-            ]} />
+            <JourneyStrip compact className="w-full max-w-[220px] xl:col-start-1 xl:row-start-1" stops={buildJourneyStops(order)} />
             <div className="min-w-0 xl:col-start-2 xl:row-start-1">
               <p className="data-text truncate text-sm text-foreground">
                 {order.trackingNumber || `${order.id.substring(0, 8)}…`}
