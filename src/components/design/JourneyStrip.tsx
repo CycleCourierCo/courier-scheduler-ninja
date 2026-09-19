@@ -60,7 +60,7 @@ const JourneyStrip = ({ stops, compact = false, className }: JourneyStripProps) 
         const MilestoneIcon = stop.icon ? ICONS[stop.icon] : null;
         return (
           <li key={`${stop.label}-${index}`} title={compact ? stop.label : undefined} className={cn("relative flex min-w-0 gap-3 pb-5 sm:block sm:pb-0", compact && "pb-0", !compact && "min-h-16")}>
-            {index < stops.length - 1 && <span className={cn("journey-line absolute left-[11px] top-6 h-[calc(100%-18px)] w-1 sm:left-6 sm:top-[11px)] sm:h-1 sm:w-[calc(100%-24px)]", active ? "bg-primary" : "bg-border")} />}
+            {index < stops.length - 1 && <span className={cn("journey-line absolute left-[11px] top-6 h-[calc(100%-18px)] w-1 sm:left-6 sm:top-[11px] sm:h-1 sm:w-[calc(100%-24px)]", active ? "bg-primary" : "bg-border")} />}
             <span className={cn("relative z-10 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 bg-card", active ? "border-primary text-primary" : "border-border text-muted-foreground", stop.state === "failed" && "border-destructive text-destructive")}>
               {MilestoneIcon ? <MilestoneIcon className="h-3.5 w-3.5" aria-hidden="true" /> : <span className={cn("h-2 w-2 rounded-full", active ? "bg-primary" : "bg-border")} />}
             </span>
