@@ -5,6 +5,8 @@ import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1
 export interface ApiCaller {
   userId?: string;
   authType?: "api_key" | "oauth";
+  /** Present for OAuth callers: the connection between this partner app and the customer. */
+  grantId?: string;
   error?: "MISSING_API_KEY" | "INVALID_API_KEY" | "INVALID_TOKEN";
 }
 
@@ -25,7 +27,14 @@ export async function resolveApiCaller(
     if (!token) return { error: "INVALID_TOKEN" };
     const { data, error } = await supabase.rpc("verify_oauth_token", { access_token: token });
     if (error || !data) return { error: "INVALID_TOKEN" };
-    return { userId: data as string, authType: "oauth" };
+    const { data: grantId } = await supabase.rpc("resolve_oauth_token_grant", {
+      access_token: token,
+    });
+    return {
+      userId: data as string,
+      authType: "oauth",
+      grantId: (grantId as string | null) ?? undefined,
+    };
   }
 
   return { error: "MISSING_API_KEY" };

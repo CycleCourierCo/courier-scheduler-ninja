@@ -2947,6 +2947,68 @@ export type Database = {
         }
         Relationships: []
       }
+      oauth_grant_addresses: {
+        Row: {
+          address_line_1: string
+          address_line_2: string | null
+          city: string
+          contact_name: string | null
+          contact_phone: string | null
+          country: string
+          county: string | null
+          created_at: string
+          grant_id: string
+          id: string
+          lat: number | null
+          lon: number | null
+          postcode: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address_line_1: string
+          address_line_2?: string | null
+          city: string
+          contact_name?: string | null
+          contact_phone?: string | null
+          country?: string
+          county?: string | null
+          created_at?: string
+          grant_id: string
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          postcode: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address_line_1?: string
+          address_line_2?: string | null
+          city?: string
+          contact_name?: string | null
+          contact_phone?: string | null
+          country?: string
+          county?: string | null
+          created_at?: string
+          grant_id?: string
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          postcode?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "oauth_grant_addresses_grant_id_fkey"
+            columns: ["grant_id"]
+            isOneToOne: true
+            referencedRelation: "oauth_access_grants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       oauth_refresh_tokens: {
         Row: {
           created_at: string
@@ -5467,6 +5529,7 @@ export type Database = {
       get_my_connected_apps: {
         Args: never
         Returns: {
+          address: Json
           app_name: string
           connected_at: string
           grant_id: string
@@ -5550,6 +5613,10 @@ export type Database = {
       }
       next_custom_repair_id: { Args: never; Returns: string }
       revoke_oauth_grant: { Args: { p_grant_id: string }; Returns: boolean }
+      set_my_connected_app_address: {
+        Args: { p_address: Json; p_grant_id: string }
+        Returns: boolean
+      }
       set_order_availability:
         | {
             Args: {
