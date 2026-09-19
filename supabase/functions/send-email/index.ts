@@ -101,7 +101,7 @@ serve(async (req) => {
       const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
       const { data: orderData } = await adminClient
         .from("orders")
-        .select("user_id, sender, receiver, is_northern_ireland")
+        .select("user_id, sender, receiver, is_northern_ireland, is_box_my_bike, ni_direction, foam_status, needs_inspection")
         .eq("id", checkOrderId)
         .single();
 
@@ -175,6 +175,10 @@ serve(async (req) => {
       subject: 'Notification from The Cycle Courier Co.',
       text: 'Default email content',
     };
+
+    // Per-template shell options (eyebrow, preheader, chevron) — consumed by the
+    // shared branding wrapper, never sent to Resend.
+    let shellOptions: Record<string, unknown> = {};
 
     
     // Build email based on type
