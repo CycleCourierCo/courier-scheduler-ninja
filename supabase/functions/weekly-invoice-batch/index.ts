@@ -50,7 +50,7 @@ async function sendReportEmail(
         to: [REPORT_RECIPIENT],
         reply_to: 'Info@cyclecourierco.com',
         subject,
-        html,
+        html: applyEmailBrand(html, { subject, eyebrow: "Internal report", wide: true }),
       }),
     });
 

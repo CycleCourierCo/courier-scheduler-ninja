@@ -53,7 +53,7 @@ const sendEmail = async (subject: string, html: string) => {
       to: RECIPIENTS,
       reply_to: "Info@cyclecourierco.com",
       subject,
-      html,
+      html: applyEmailBrand(html, { subject, eyebrow: "Internal report", wide: true }),
     }),
   });
   if (!res.ok) {
