@@ -246,28 +246,39 @@ export function applyEmailBrand(html: string, options: EmailShellOptions = {}): 
  */
 export function htmlToPlainText(html: string): string {
   if (typeof html !== "string") return "";
-  return html
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<head[\s\S]*?<\/head>/gi, "")
-    .replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, href, label) => {
-      const text = String(label).replace(/<[^>]+>/g, "").trim();
-      return text && text !== href ? `${text} (${href})` : href;
-    })
-    .replace(/<\/(p|div|tr|h1|h2|h3|li|table)>/gi, "\n")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<li[^>]*>/gi, "- ")
-    .replace(/<\/t[dh]>/gi, "  ")
-    .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&middot;/gi, "·")
-    .replace(/&#847;|&zwnj;/gi, "")
-    .replace(/[ \t]+\n/g, "\n")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  // One pass can re-form dangerous patterns (e.g. "&lt;script&gt;" decodes to a
+  // live tag after tag-stripping already ran), so run to a fixed point. The cap
+  // bounds adversarial input; legitimate email HTML stabilizes in 1–2 passes.
+  let current = html;
+  let previous: string;
+  let passes = 0;
+  do {
+    previous = current;
+    current = current
+      .replace(/<style[\s\S]*?<\/style>/gi, "")
+      .replace(/<script[\s\S]*?<\/script>/gi, "")
+      .replace(/<head[\s\S]*?<\/head>/gi, "")
+      .replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, href, label) => {
+        const text = String(label).replace(/<[^>]+>/g, "").trim();
+        return text && text !== href ? `${text} (${href})` : href;
+      })
+      .replace(/<\/(p|div|tr|h1|h2|h3|li|table)>/gi, "\n")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<li[^>]*>/gi, "- ")
+      .replace(/<\/t[dh]>/gi, "  ")
+      .replace(/<[^>]+>/g, "")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/&amp;/gi, "&")
+      .replace(/&lt;/gi, "<")
+      .replace(/&gt;/gi, ">")
+      .replace(/&middot;/gi, "·")
+      .replace(/&#847;|&zwnj;/gi, "")
+      .replace(/[ \t]+\n/g, "\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
+    passes++;
+  } while (current !== previous && passes < 10);
+  return current;
 }
 
 /** Reusable pieces so new emails do not hand-roll styling. */
