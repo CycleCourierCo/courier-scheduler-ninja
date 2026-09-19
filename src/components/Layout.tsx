@@ -178,9 +178,9 @@ const Layout: React.FC<LayoutProps> = ({
       <NoticeBanner />
       <header className="sticky top-0 z-50 border-b bg-card">
         <div className="container mx-auto flex min-h-16 items-center justify-between px-4 py-2">
-          <Link to="/" className="flex items-center gap-3" aria-label="Cycle Courier Co. home">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground"><Truck className="h-5 w-5" /></span>
-            <span className="hidden text-sm font-extrabold sm:block">CYCLE COURIER CO.</span>
+          <Link to="/" className="flex items-center gap-2 sm:gap-3" aria-label="Cycle Courier Co. home">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground"><Truck className="h-5 w-5" /></span>
+            <span className="text-xs font-extrabold sm:text-sm">CYCLE COURIER CO.</span>
           </Link>
           
           <nav className="hidden items-center gap-5 text-sm font-semibold md:flex">

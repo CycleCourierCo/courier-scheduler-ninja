@@ -2,7 +2,7 @@ import React, { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import Layout from "@/components/Layout";
-import { Package, Wrench, MapPinned, LogIn, ArrowRight } from "lucide-react";
+import { Package, Wrench, MapPinned, LogIn, ArrowRight, MapPin } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import MyTasksPanel from "@/components/tasks/MyTasksPanel";
 import { hasAnyRole } from "@/lib/roles";
@@ -10,7 +10,7 @@ import { hasAnyRole } from "@/lib/roles";
 
 
 const features = [
-  { title: "Unboxed, door to door", description: "Specialist bicycle collection and delivery across the UK and Ireland.", icon: Package },
+  { title: "Unboxed, door to door", description: "Specialist bicycle collection and delivery across England, Wales and Northern Ireland.", icon: Package },
   { title: "Inspection and repair en route", description: "Workshop inspection, clear approval links and one connected journey.", icon: Wrench },
   { title: "Tracking your buyer can follow", description: "Every stage, date and next step shown in one clear route.", icon: MapPinned },
 ];
@@ -54,6 +54,7 @@ const Index = () => {
             <p className="mb-4 flex items-center gap-2 text-sm font-bold uppercase"><MapPinned className="h-5 w-5" /> Specialist bicycle transport</p>
             <h1 className="max-w-3xl text-[40px] font-extrabold leading-[1.1] text-primary-foreground md:text-6xl">Book your bike delivery now!</h1>
             <p className="mt-5 max-w-2xl text-lg text-primary-foreground/90">Fast, friendly and reliable door-to-door bicycle collection, delivery and tracking.</p>
+            <p className="mt-3 flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-primary-foreground/90"><MapPin className="h-4 w-4" /> Serving England, Wales and Northern Ireland</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               {user ? (
                 <>
