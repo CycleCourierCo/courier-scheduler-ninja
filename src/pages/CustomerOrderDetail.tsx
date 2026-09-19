@@ -218,7 +218,7 @@ const CustomerOrderDetail = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-4 sm:py-8 max-w-6xl">
+      <div className="container mx-auto max-w-6xl px-4 py-4 sm:py-8">
         <div className="space-y-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:justify-between sm:items-center">
           <div className="flex items-center space-x-4">
@@ -229,7 +229,7 @@ const CustomerOrderDetail = () => {
                 <span className="sm:hidden">Back</span>
               </Link>
             </Button>
-            <h1 className="text-xl sm:text-2xl font-bold">Order Details</h1>
+            <h1 className="text-xl sm:text-2xl">Order details</h1>
           </div>
            <div className="flex items-center gap-2 flex-wrap">
             <div className="flex-1 sm:flex-none">
@@ -273,7 +273,7 @@ const CustomerOrderDetail = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="bg-muted p-3 rounded-md flex flex-col gap-2">
-              <p className="font-medium">Tracking Number: {order.trackingNumber || "Not assigned"}</p>
+              <p className="data-text">Tracking number: {order.trackingNumber || "Not assigned"}</p>
               {order.customerOrderNumber && (
                 <p className="font-medium">Customer Order Number: {order.customerOrderNumber}</p>
               )}
@@ -287,7 +287,7 @@ const CustomerOrderDetail = () => {
                 </div>
                 
                 {(order.scheduledPickupDate || order.status === 'collected') ? (
-                  <div className="bg-green-50 p-2 rounded-md border border-green-200">
+                  <div className="rounded-md border border-status-done bg-status-done/10 p-2">
                     <div className="flex items-center">
                       <p className="font-medium">
                         {order.scheduledPickupDate 
@@ -311,13 +311,13 @@ const CustomerOrderDetail = () => {
                 </div>
                 
                 {isOutboundNi(order) ? (
-                  <div className="bg-green-50 p-2 rounded-md border border-green-200">
+                  <div className="rounded-md border bg-muted p-2">
                     <p className="text-sm text-muted-foreground">
                       To be confirmed — your bike travels onward by ferry once it reaches the ferry port.
                     </p>
                   </div>
                 ) : order.scheduledDeliveryDate ? (
-                  <div className="bg-green-50 p-2 rounded-md border border-green-200">
+                  <div className="rounded-md border border-status-done bg-status-done/10 p-2">
                     <div className="flex items-center">
                       <p className="font-medium">
                         {safeFormat(order.scheduledDeliveryDate, "PPP")}
@@ -410,19 +410,19 @@ const CustomerOrderDetail = () => {
                   <User className="text-courier-600" />
                   <h3 className="font-semibold text-lg">Sender Information</h3>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-md space-y-3">
-                  <p className="font-medium text-gray-800">{order.sender.name}</p>
+                <div className="space-y-3 rounded-md border bg-muted p-4">
+                  <p className="font-medium">{order.sender.name}</p>
                   <div className="space-y-2">
                     <div className="flex items-start space-x-2">
-                      <Mail className="h-4 w-4 mt-1 text-gray-500" />
+                       <Mail className="mt-1 h-4 w-4 text-muted-foreground" />
                       <p>{order.sender.email}</p>
                     </div>
                     <div className="flex items-start space-x-2">
-                      <Phone className="h-4 w-4 mt-1 text-gray-500" />
+                       <Phone className="mt-1 h-4 w-4 text-muted-foreground" />
                       <p>{order.sender.phone}</p>
                     </div>
                     <div className="flex items-start space-x-2">
-                      <MapPin className="h-4 w-4 mt-1 text-gray-500" />
+                       <MapPin className="mt-1 h-4 w-4 text-muted-foreground" />
                       <div>
                         <p>{order.sender.address.street}</p>
                         <p>{order.sender.address.city}, {order.sender.address.state} {order.sender.address.zipCode}</p>
@@ -439,19 +439,19 @@ const CustomerOrderDetail = () => {
                   <User className="text-courier-600" />
                   <h3 className="font-semibold text-lg">Receiver Information</h3>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-md space-y-3">
-                  <p className="font-medium text-gray-800">{order.receiver.name}</p>
+                <div className="space-y-3 rounded-md border bg-muted p-4">
+                  <p className="font-medium">{order.receiver.name}</p>
                   <div className="space-y-2">
                     <div className="flex items-start space-x-2">
-                      <Mail className="h-4 w-4 mt-1 text-gray-500" />
+                       <Mail className="mt-1 h-4 w-4 text-muted-foreground" />
                       <p>{order.receiver.email}</p>
                     </div>
                     <div className="flex items-start space-x-2">
-                      <Phone className="h-4 w-4 mt-1 text-gray-500" />
+                       <Phone className="mt-1 h-4 w-4 text-muted-foreground" />
                       <p>{order.receiver.phone}</p>
                     </div>
                     <div className="flex items-start space-x-2">
-                      <MapPin className="h-4 w-4 mt-1 text-gray-500" />
+                       <MapPin className="mt-1 h-4 w-4 text-muted-foreground" />
                       <div>
                         <p>{order.receiver.address.street}</p>
                         <p>{order.receiver.address.city}, {order.receiver.address.state} {order.receiver.address.zipCode}</p>

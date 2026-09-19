@@ -6,6 +6,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Bike, PackageCheck, Truck, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import DashboardHeader from "@/components/DashboardHeader";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -557,8 +558,13 @@ const CreateOrder = () => {
 
   return (
     <Layout>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6">
-        <h1 className="text-3xl font-bold text-courier-800 mb-6">Create New Order</h1>
+      <div className="mx-auto max-w-5xl px-4 sm:px-6">
+        <DashboardHeader>
+          <div>
+            <h1>Create new order</h1>
+            <p className="text-muted-foreground">Add the bike, collection contact and delivery contact.</p>
+          </div>
+        </DashboardHeader>
         <Card>
           <CardHeader>
             <CardTitle>Order Details</CardTitle>
@@ -611,9 +617,9 @@ const CreateOrder = () => {
                   }
                   setActiveTab(value);
                 }} className="flex flex-col lg:flex-row gap-6">
-                  <div className="w-full lg:w-64 space-y-4 shrink-0">
+                  <div className="w-full shrink-0 space-y-4 lg:w-64">
                     <h3 className="text-base font-medium mb-2">Order Steps</h3>
-                    <TabsList orientation="vertical" className="w-full bg-muted/60">
+                    <TabsList orientation="vertical" className="w-full border bg-muted/60">
                       <TabsTrigger 
                         value="details" 
                         className="justify-start text-left"
@@ -649,7 +655,7 @@ const CreateOrder = () => {
                       <OrderDetails control={form.control} />
                       <OrderOptions control={form.control} />
                       {isBoxMyBike && (
-                        <div className="border rounded-lg p-4 space-y-4">
+                        <div className="space-y-4 rounded-md border p-4">
                           <div>
                             <h3 className="text-lg font-medium">Buyer Details</h3>
                             <p className="text-sm text-muted-foreground">
@@ -706,7 +712,6 @@ const CreateOrder = () => {
                          <Button 
                           type="button" 
                           onClick={handleNextToSender}
-                          className="bg-courier-600 hover:bg-courier-700"
                         >
                           Next: Collection Information
                         </Button>
@@ -721,7 +726,7 @@ const CreateOrder = () => {
                             type="button"
                             size="sm"
                             onClick={() => fillMyDetails("sender")}
-                            className="flex items-center gap-2 w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
+                            className="flex w-full items-center gap-2 sm:w-auto"
                           >
                             <User className="h-4 w-4" />
                             Fill in my details
@@ -759,7 +764,7 @@ const CreateOrder = () => {
                         {isBoxMyBike ? (
                           <Button 
                             type="submit"
-                            className="bg-courier-600 hover:bg-courier-700 w-full sm:w-auto"
+                            className="w-full sm:w-auto"
                             disabled={isSubmitting}
                           >
                             {isSubmitting ? "Creating Order..." : "Book Box My Bike"}
@@ -768,7 +773,7 @@ const CreateOrder = () => {
                           <Button 
                             type="button" 
                             onClick={handleNextToReceiver}
-                            className="bg-courier-600 hover:bg-courier-700 w-full sm:w-auto"
+                              className="w-full sm:w-auto"
                           >
                             Next: Delivery Information
                           </Button>
@@ -784,7 +789,7 @@ const CreateOrder = () => {
                             type="button"
                             size="sm"
                             onClick={() => fillMyDetails("receiver")}
-                            className="flex items-center gap-2 w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white"
+                            className="flex w-full items-center gap-2 sm:w-auto"
                           >
                             <User className="h-4 w-4" />
                             Fill in my details
@@ -821,7 +826,7 @@ const CreateOrder = () => {
                         </Button>
                         <Button 
                           type="submit" 
-                          className="bg-courier-600 hover:bg-courier-700 w-full sm:w-auto"
+                          className="w-full sm:w-auto"
                           disabled={isSubmitting}
                         >
                           {isSubmitting ? "Creating Order..." : "Create Order"}
