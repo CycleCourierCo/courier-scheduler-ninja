@@ -726,12 +726,12 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
           </div>
           <p>We hope you enjoyed our service. Your feedback is important to us - it helps us improve!</p>
           <p>Please consider leaving us a review:</p>
-          <div style="margin: 20px 0; display: flex; justify-content: center; gap: 10px;">
-            <a href="${reviewLinks.trustpilot}" style="background-color: #00b67a; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-              Trustpilot
+          <div style="margin: 20px 0;">
+            <a href="${reviewLinks.trustpilot}" style="display:inline-block;background:#ffffff;color:#0B5FB0;border:1px solid #0B5FB0;padding:11px 20px;text-decoration:none;border-radius:4px;font-weight:600;margin:4px 8px 4px 0;">
+              Review us on Trustpilot
             </a>
-            <a href="${reviewLinks.facebook}" style="background-color: #3b5998; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; font-weight: bold;">
-              Facebook
+            <a href="${reviewLinks.facebook}" style="display:inline-block;background:#ffffff;color:#0B5FB0;border:1px solid #0B5FB0;padding:11px 20px;text-decoration:none;border-radius:4px;font-weight:600;margin:4px 8px 4px 0;">
+              Review us on Facebook
             </a>
           </div>
           <p>Thank you for choosing The Cycle Courier Co.</p>
