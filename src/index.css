@@ -1,3 +1,5 @@
+@import 'leaflet/dist/leaflet.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -182,7 +184,6 @@
   header, footer, nav, [data-print-hidden="true"] { display: none !important; }
 }
 
-@import 'leaflet/dist/leaflet.css';
 .leaflet-container { z-index: 1; width: 100% !important; height: 100% !important; position: relative !important; background: hsl(var(--daylight)); font-family: Overpass, sans-serif; }
 .leaflet-popup-content-wrapper { border: 1px solid hsl(var(--edge)); border-radius: var(--radius); background: hsl(var(--surface)); color: hsl(var(--tarmac)); box-shadow: var(--shadow-card); }
 .leaflet-popup-content { margin: 0; min-width: 200px; }

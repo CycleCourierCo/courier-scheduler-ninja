@@ -137,14 +137,14 @@ const Layout: React.FC<LayoutProps> = ({
     !isAdmin && !isRoutePlanner && !isSales && !isB2B && !isDriver && !isB2C;
 
   const navLinks = !onlyLoaderOrMechanic ? <>
-      <Link to="/" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+      <Link to="/" onClick={closeSheet} className="text-foreground hover:text-primary transition-colors">
         Home
       </Link>
       {!user && <>
-          <Link to="/tracking" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+          <Link to="/tracking" onClick={closeSheet} className="text-foreground hover:text-primary transition-colors">
             Track Order
           </Link>
-          <Link to="/auth/login" onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+          <Link to="/auth/login" onClick={closeSheet} className="text-foreground hover:text-primary transition-colors">
             Sign In
           </Link>
         </>}
@@ -158,7 +158,7 @@ const Layout: React.FC<LayoutProps> = ({
 
   const staffNavLinks = user && !isAdmin ? <>
       {permittedPages.slice(0, 6).map(page => (
-        <Link key={page.key} to={page.path} onClick={closeSheet} className="text-foreground hover:text-courier-500 transition-colors">
+        <Link key={page.key} to={page.path} onClick={closeSheet} className="text-foreground hover:text-primary transition-colors">
           {page.label}
         </Link>
       ))}
@@ -166,7 +166,7 @@ const Layout: React.FC<LayoutProps> = ({
 
   const staffMenuLinks = user && !isAdmin ? <>
       {permittedPages.map(page => (
-        <Link key={page.key} to={page.path} onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+        <Link key={page.key} to={page.path} onClick={closeSheet} className="flex items-center text-foreground hover:text-primary transition-colors">
           <page.icon className="mr-2 h-4 w-4" />
           {page.label}
         </Link>
@@ -176,13 +176,14 @@ const Layout: React.FC<LayoutProps> = ({
 
   return <div className="min-h-screen flex flex-col">
       <NoticeBanner />
-      <header className="sticky top-0 z-50 glass border-b border-border/30">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center space-x-2 pl-4">
-            <img src="/cycle-courier-logo.png" alt="The Cycle Courier Co." className="h-14 md:h-14 xl:h-20 w-auto hover:scale-105 transition-transform duration-200" />
+      <header className="sticky top-0 z-50 border-b bg-card">
+        <div className="container mx-auto flex min-h-16 items-center justify-between px-4 py-2">
+          <Link to="/" className="flex items-center gap-3" aria-label="Cycle Courier Co. home">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground"><Truck className="h-5 w-5" /></span>
+            <span className="hidden text-sm font-extrabold sm:block">CYCLE COURIER CO.</span>
           </Link>
           
-          <nav className="hidden md:flex space-x-6">
+          <nav className="hidden items-center gap-5 text-sm font-semibold md:flex">
             {navLinks}
             {staffNavLinks}
 
@@ -200,7 +201,7 @@ const Layout: React.FC<LayoutProps> = ({
                   <span className="sr-only">Toggle Menu</span>
                 </Button>
               </SheetTrigger>
-              <SheetContent side="right" className="w-[250px] overflow-hidden">
+              <SheetContent side="right" className="w-[250px] overflow-hidden border-l bg-card">
                 <div className="flex flex-col space-y-4 py-4 h-full overflow-y-auto">
                   {navLinks}
                   {staffMenuLinks}
@@ -278,13 +279,13 @@ const Layout: React.FC<LayoutProps> = ({
                           <Clock className="mr-2 h-4 w-4" />
                           Driver Timeslips
                         </Link>}
-                      <button onClick={() => {
+                      <Button variant="ghost" onClick={() => {
                         signOut();
                         closeSheet();
-                      }} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                      }} className="flex w-full items-center justify-start px-0 text-foreground hover:text-primary">
                         <LogOut className="mr-2 h-4 w-4" />
                         Logout
-                      </button>
+                      </Button>
                     </>}
                 </div>
               </SheetContent>
@@ -438,18 +439,14 @@ const Layout: React.FC<LayoutProps> = ({
           </div>
         </div>
       </header>
-      <main className="flex-1 flex flex-col">
+      <main className="flex flex-1 flex-col">
         {children}
       </main>
-      <footer className="relative bg-gradient-primary text-primary-foreground py-12 overflow-hidden">
-        <div className="absolute inset-0 bg-black/20"></div>
-        <div className="absolute top-10 right-10 w-64 h-64 bg-primary-glow/20 rounded-full blur-3xl"></div>
-        <div className="absolute bottom-10 left-10 w-48 h-48 bg-primary-foreground/10 rounded-full blur-2xl"></div>
-        
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+      <footer className="border-t bg-background py-10 text-muted-foreground">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             <div className="space-y-4">
-              <h3 className="text-2xl font-bold mb-6">The Cycle Courier Co.</h3>
+              <h3 className="mb-4 text-lg font-extrabold text-foreground">CYCLE COURIER CO.</h3>
               
               <div className="mt-6 space-y-2">
                 <p className="text-sm opacity-90">Cycorco Ltd T/A Cycle Courier Co.</p>
@@ -467,29 +464,29 @@ const Layout: React.FC<LayoutProps> = ({
             </div>
             
             <div>
-              <h3 className="text-xl font-bold mb-6">Contact Us</h3>
+              <h3 className="mb-4 text-base font-bold text-foreground">Contact</h3>
               <ul className="space-y-2">
                 <li>
                   <div className="flex items-start text-sm opacity-90 hover:opacity-100 transition-opacity">
-                    <span className="mt-1 mr-3 p-2 bg-primary-foreground/10 rounded-lg"><Mail className="h-4 w-4" /></span>
+                    <span className="mt-1 mr-3 rounded-md border p-2"><Mail className="h-4 w-4" /></span>
                     <span>info@cyclecourierco.com</span>
                   </div>
                 </li>
                 <li>
                   <div className="flex items-start text-sm opacity-90 hover:opacity-100 transition-opacity">
-                    <span className="mt-1 mr-3 p-2 bg-primary-foreground/10 rounded-lg"><Phone className="h-4 w-4" /></span>
+                    <span className="mt-1 mr-3 rounded-md border p-2"><Phone className="h-4 w-4" /></span>
                     <span>+44 121 798 0767 (Call or WhatsApp)</span>
                   </div>
                 </li>
               </ul>
               <div className="mt-6 flex space-x-4">
-                <a href="https://www.instagram.com/cyclecourierco" target="_blank" rel="noopener noreferrer" className="bg-primary-foreground/10 p-3 rounded-xl hover:bg-primary-foreground/20 transition-all duration-300 hover:scale-110" aria-label="Instagram">
+                <a href="https://www.instagram.com/cyclecourierco" target="_blank" rel="noopener noreferrer" className="rounded-md border p-3 hover:bg-accent" aria-label="Instagram">
                   <Instagram className="h-5 w-5" />
                 </a>
-                <a href="https://www.facebook.com/people/The-Cycle-Courier-Co/61573561676506" target="_blank" rel="noopener noreferrer" className="bg-primary-foreground/10 p-3 rounded-xl hover:bg-primary-foreground/20 transition-all duration-300 hover:scale-110" aria-label="Facebook">
+                <a href="https://www.facebook.com/people/The-Cycle-Courier-Co/61573561676506" target="_blank" rel="noopener noreferrer" className="rounded-md border p-3 hover:bg-accent" aria-label="Facebook">
                   <Facebook className="h-5 w-5" />
                 </a>
-                <a href="https://www.trustpilot.com/review/cyclecourierco.com" target="_blank" rel="noopener noreferrer" className="bg-primary-foreground/10 p-3 rounded-xl hover:bg-primary-foreground/20 transition-all duration-300 hover:scale-110" aria-label="Trustpilot Reviews">
+                <a href="https://www.trustpilot.com/review/cyclecourierco.com" target="_blank" rel="noopener noreferrer" className="rounded-md border p-3 hover:bg-accent" aria-label="Trustpilot Reviews">
                   <ExternalLink className="h-5 w-5" />
                   <span className="sr-only">Trustpilot Reviews</span>
                 </a>
@@ -497,7 +494,7 @@ const Layout: React.FC<LayoutProps> = ({
             </div>
             
             <div>
-              <h3 className="text-xl font-bold mb-6">Quick Links</h3>
+              <h3 className="mb-4 text-base font-bold text-foreground">Quick links</h3>
               <ul className="space-y-2">
                 <li>
                   <Link to="/" className="text-sm opacity-90 hover:opacity-100 hover:text-primary-foreground hover:translate-x-1 transition-all duration-300">
@@ -529,8 +526,8 @@ const Layout: React.FC<LayoutProps> = ({
               </ul>
             </div>
             
-            <div>
-              <h3 className="text-xl font-bold mb-6">Legal</h3>
+            <div className="md:col-start-3">
+              <h3 className="mb-4 text-base font-bold text-foreground">Legal</h3>
               <ul className="space-y-2">
                 <li>
                   <Link to="/privacy" className="text-sm opacity-80 hover:opacity-100 transition-opacity flex items-center">
@@ -559,7 +556,7 @@ const Layout: React.FC<LayoutProps> = ({
               </ul>
             </div>
           </div>
-          <div className="border-t border-primary-foreground/20 mt-12 pt-8 text-center">
+          <div className="mt-10 border-t pt-6 text-center">
             <p className="text-sm opacity-90">&copy; {new Date().getFullYear()} The Cycle Courier Co. All rights reserved.</p>
           </div>
         </div>
