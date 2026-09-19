@@ -23,9 +23,9 @@ const downloadPartnerGuide = () => {
 
 const ApiDocumentationPage = () => {
   return <Layout>
-      <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <div className="mb-8">
-          <h1 className="text-2xl md:text-4xl font-bold text-primary mb-2">API Documentation</h1>
+      <div className="office-density container mx-auto max-w-6xl px-4 py-8">
+        <div className="signboard mb-8">
+          <h1 className="mb-2 text-2xl md:text-4xl">API documentation</h1>
           <p className="text-muted-foreground text-base md:text-lg">
             Integrate with Cycle Courier's REST API to create and manage orders programmatically.
           </p>

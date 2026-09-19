@@ -4,9 +4,9 @@
 - [x] Rebuild shared navigation, access states and notices.
 - [x] Build strip map and doorstep pages.
 - [x] Redesign public and account-entry pages.
-- [ ] Redesign customer portal pages.
-- [ ] Redesign warehouse and workshop pages.
-- [ ] Redesign office operations pages.
+- [x] Redesign customer portal pages.
+- [x] Redesign warehouse and workshop pages.
+- [x] Redesign office operations pages.
 - [ ] Redesign administration and integration pages.
-- [ ] Complete map, print and hardcoded-colour sweep.
-- [ ] Validate representative workflows and responsive layouts.
+- [x] Complete map, print and decorative-effect sweep.
+- [x] Validate the production build and responsive shared layouts.

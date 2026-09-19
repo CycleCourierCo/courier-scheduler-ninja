@@ -3,17 +3,17 @@ import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 const AboutPage: React.FC = () => {
   return <Layout>
-      <div className="max-w-4xl mx-auto">
-        <Card>
+      <div className="mx-auto max-w-4xl">
+        <Card className="border-t-4 border-t-primary">
           <CardHeader>
-            <CardTitle className="text-3xl font-bold text-center">About The Cycle Courier Co.</CardTitle>
+            <CardTitle className="text-center text-3xl">About The Cycle Courier Co.</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="flex justify-center mb-8">
               <img src="https://cyclecourierco.com/cdn/shop/files/ERY.png?v=1740100482&width=240" alt="The Cycle Courier Co." className="h-32 object-contain" />
             </div>
             
-            <p className="text-xl font-semibold text-courier-500 text-center">
+            <p className="text-center text-xl font-semibold text-primary">
               Streamlining Bike Transport - Bikes Delivered Safely, Inspected Thoroughly, Hassle Free and Backed by Warranty!
             </p>
             
@@ -35,9 +35,9 @@ const AboutPage: React.FC = () => {
               With Cytech-certified drivers, next-day and same-day delivery options and a relentless commitment to excellence, The Cycle Courier Co. is setting a new standard in bike transportation. By combining innovation, expertise, and a passion for cycling, we're revolutionizing the way bikes are delivered - safely, securely and with unparalleled customer care.
             </p>
             
-            <h2 className="text-2xl font-semibold mt-6">Contact Us</h2>
+            <h2 className="mt-6 text-2xl font-semibold">Contact us</h2>
             <p>
-              Have questions or want to learn more about our services? Please visit our <a href="/" className="text-courier-500 hover:underline">home page</a> to get in touch or call us at +44 121 798 0767.
+              Have questions or want to learn more about our services? Please visit our <a href="/" className="text-primary underline">home page</a> to get in touch or call us at +44 121 798 0767.
             </p>
           </CardContent>
         </Card>
