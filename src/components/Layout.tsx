@@ -136,18 +136,13 @@ const Layout: React.FC<LayoutProps> = ({
     (isLoader || isMechanic || isTimeslipAdmin || isCsAgent) &&
     !isAdmin && !isRoutePlanner && !isSales && !isB2B && !isDriver && !isB2C;
 
-  const navLinks = !onlyLoaderOrMechanic ? <>
-      <Link to="/" onClick={closeSheet} className="text-foreground hover:text-primary transition-colors">
-        Home
+  const navLinks = !onlyLoaderOrMechanic && !user ? <>
+      <Link to="/tracking" onClick={closeSheet} className="text-foreground hover:text-primary transition-colors">
+        Track Order
       </Link>
-      {!user && <>
-          <Link to="/tracking" onClick={closeSheet} className="text-foreground hover:text-primary transition-colors">
-            Track Order
-          </Link>
-          <Link to="/auth/login" onClick={closeSheet} className="text-foreground hover:text-primary transition-colors">
-            Sign In
-          </Link>
-        </>}
+      <Link to="/auth/login" onClick={closeSheet} className="text-foreground hover:text-primary transition-colors">
+        Sign In
+      </Link>
     </> : null;
 
   // Pages this (non-admin) user is permitted to see, from the role/route matrix
