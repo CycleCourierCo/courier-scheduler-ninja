@@ -7,10 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Upload, FileCheck, ExternalLink, Ship, ArrowRightLeft, Phone } from "lucide-react";
 import { toast } from "sonner";
-import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { toPublicFileUrl } from "@/lib/publicFileUrl";
 import { CITY_AIR_EXPRESS } from "@/constants/depot";
+import DoorstepShell from "@/components/design/DoorstepShell";
 
 interface PartnerJob {
   id: string;
@@ -167,19 +167,9 @@ export default function NiPartnerUpload() {
       : "To Northern Ireland";
 
   return (
-    <Layout>
-      <div className="container mx-auto px-4 py-8 max-w-2xl">
-        <Card>
-          <CardHeader className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Ship className="h-5 w-5 text-primary" />
-              <CardTitle>Northern Ireland partner upload</CardTitle>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              For {CITY_AIR_EXPRESS.name} — upload the shipping label and BFS consignment number.
-            </p>
-          </CardHeader>
-          <CardContent className="space-y-6">
+    <DoorstepShell title="Northern Ireland partner upload" reference={job?.tracking_number ?? undefined}>
+      <p className="text-muted-foreground">For {CITY_AIR_EXPRESS.name} — upload the shipping label and BFS consignment number.</p>
+          <div className="space-y-6">
             {loading ? (
               <div className="flex items-center gap-2 text-muted-foreground py-8">
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -201,7 +191,7 @@ export default function NiPartnerUpload() {
                   )}
                 </div>
 
-                <div className="rounded-lg border bg-card p-4 space-y-2 text-sm">
+                <div className="space-y-2 rounded-md border bg-card p-4">
                   <p>
                     <strong>Item:</strong>{" "}
                     {[job.bike_brand, job.bike_model].filter(Boolean).join(" ") || "Bicycle"}
@@ -225,7 +215,7 @@ export default function NiPartnerUpload() {
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
                     <Label htmlFor="bfs">BFS consignment number</Label>
-                    <Input
+                    <Input className="data-text h-12"
                       id="bfs"
                       value={bfs}
                       onChange={(e) => setBfs(e.target.value)}
@@ -240,7 +230,7 @@ export default function NiPartnerUpload() {
                     )}
                   </div>
 
-                  <div className="space-y-2">
+                  <div className="space-y-2 rounded-md border-2 border-dashed p-5">
                     <Label htmlFor="label">Shipping label</Label>
                     <Input
                       id="label"
@@ -277,7 +267,7 @@ export default function NiPartnerUpload() {
                       submitting ||
                       (!bfs.trim() && !file && !labelUrl)
                     }
-                    className="w-full sm:w-auto"
+                    variant="doorstep"
                   >
                     {submitting ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -289,9 +279,7 @@ export default function NiPartnerUpload() {
                 </form>
               </>
             )}
-          </CardContent>
-        </Card>
-      </div>
-    </Layout>
+          </div>
+    </DoorstepShell>
   );
 }

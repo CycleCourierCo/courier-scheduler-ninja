@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import Layout from "@/components/Layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,6 +12,7 @@ import {
   submitPublicRepairOffer,
   type PublicRepairOffer,
 } from "@/services/inspectionService";
+import DoorstepShell from "@/components/design/DoorstepShell";
 
 const money = (n: number) => `£${Number(n || 0).toFixed(2)}`;
 
@@ -76,28 +76,17 @@ export default function RepairOffer() {
 
   if (loading) {
     return (
-      <Layout>
-        <div className="flex justify-center py-20">
+      <div className="doorstep-page flex justify-center py-20">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
-      </Layout>
+      </div>
     );
   }
 
   if (!offer?.found) {
     return (
-      <Layout>
-        <div className="max-w-2xl mx-auto px-4 py-12">
-          <Card>
-            <CardHeader>
-              <CardTitle>Repair offer not found</CardTitle>
-            </CardHeader>
-            <CardContent className="text-muted-foreground">
-              <p>We couldn't find this repair offer. Please check the link in your email or message.</p>
-            </CardContent>
-          </Card>
-        </div>
-      </Layout>
+      <DoorstepShell title="Repair offer not found">
+        <p className="text-muted-foreground">We couldn't find this repair offer. Check the link in your email or message, or contact us.</p>
+      </DoorstepShell>
     );
   }
 
@@ -106,14 +95,9 @@ export default function RepairOffer() {
   const reportUrl = toPublicFileUrl(offer.report_url ?? null);
 
   return (
-    <Layout>
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-6">
-        <div className="space-y-1">
-          <h1 className="text-2xl font-semibold break-words">Optional repairs for {bike}</h1>
-          {offer.tracking_number && (
-            <p className="text-sm text-muted-foreground break-all">Job #{offer.tracking_number}</p>
-          )}
-        </div>
+    <DoorstepShell title="Repairs for your bike" reference={offer.tracking_number ?? undefined}>
+        <p className="doorstep-data break-words">{bike}</p>
+        <p className="text-muted-foreground">Our mechanic found the following. Approve what you'd like us to do.</p>
 
         {reportUrl && (
           <Button
@@ -128,9 +112,9 @@ export default function RepairOffer() {
 
 
         {alreadyResponded ? (
-          <Card>
+          <Card className="border-status-done">
             <CardContent className="pt-6 space-y-3">
-              <div className="flex items-center gap-2 text-emerald-600 font-medium">
+              <div className="flex items-center gap-2 font-medium text-status-done">
                 <CheckCircle2 className="h-5 w-5 shrink-0" />
                 Thanks — your choice has been recorded
               </div>
@@ -156,10 +140,10 @@ export default function RepairOffer() {
             </CardContent>
           </Card>
         ) : (
-          <Card>
+          <Card className="shadow-none">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Wrench className="h-4 w-4 text-courier-600 shrink-0" />
+                <Wrench className="h-4 w-4 shrink-0 text-primary" />
                 Our workshop found work this bike needs
               </CardTitle>
             </CardHeader>
@@ -194,7 +178,7 @@ export default function RepairOffer() {
                   {offered.map((i) => (
                     <label
                       key={i.id}
-                      className="flex items-start gap-3 rounded-md border p-3 cursor-pointer"
+                      className="flex min-h-14 cursor-pointer items-center gap-3 rounded-md border p-3 hover:bg-accent"
                     >
                       <Checkbox
                         checked={!!selected[i.id]}
@@ -203,17 +187,17 @@ export default function RepairOffer() {
                         }
                         className="mt-0.5"
                       />
-                      <span className="min-w-0 flex-1 text-sm">
+                      <span className="flex min-w-0 flex-1 items-center justify-between gap-3">
                         <span className="block break-words">{i.description}</span>
-                        <span className="block text-muted-foreground">
+                        <span className="data-text block shrink-0">
                           {money(Number(i.cost || 0))}
                         </span>
                       </span>
                     </label>
                   ))}
                 </div>
-                <p className="mt-3 text-sm">
-                  Selected total: <span className="font-semibold">{money(selectedTotal)}</span>
+                <p className="mt-4 flex items-baseline justify-between border-t pt-4">
+                  <span>Selected total</span> <span className="doorstep-data">{money(selectedTotal)}</span>
                   {offered.length > 1 && (
                     <span className="text-muted-foreground"> (all repairs: {money(offeredTotal)})</span>
                   )}
@@ -225,11 +209,11 @@ export default function RepairOffer() {
                 touch about payment before your bike is delivered.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-2">
+              <div className="flex flex-col gap-2">
                 <Button
                   onClick={() => handleSubmit(false)}
                   disabled={submitting || selectedTotal === 0}
-                  className="w-full sm:w-auto"
+                  variant="doorstep"
                 >
                   {submitting ? "Sending..." : "Approve selected repairs"}
                 </Button>
@@ -237,7 +221,7 @@ export default function RepairOffer() {
                   variant="outline"
                   onClick={() => handleSubmit(true)}
                   disabled={submitting}
-                  className="w-full sm:w-auto"
+                  className="h-14 w-full"
                 >
                   Approve all ({money(offeredTotal)})
                 </Button>
@@ -245,7 +229,7 @@ export default function RepairOffer() {
                   variant="ghost"
                   onClick={() => handleSubmit(false)}
                   disabled={submitting}
-                  className="w-full sm:w-auto"
+                  className="h-14 w-full"
                 >
                   No thanks
                 </Button>
@@ -253,7 +237,6 @@ export default function RepairOffer() {
             </CardContent>
           </Card>
         )}
-      </div>
-    </Layout>
+    </DoorstepShell>
   );
 }
