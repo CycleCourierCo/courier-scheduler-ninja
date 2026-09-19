@@ -131,8 +131,38 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
       }
 
       ctx.userId = caller.userId
+      const userId = caller.userId
 
       const body = await req.json()
+
+      // Partner apps tell us which side of the job their customer is on; we fill that side
+      // from the address saved against the connected app, falling back to the profile address.
+      const rawCustomerSide = body.customerSide || body.customer_side || null
+      const customerSide = rawCustomerSide === 'sender' || rawCustomerSide === 'receiver'
+        ? rawCustomerSide
+        : null
+      if (customerSide) {
+        const customerContact = await resolveCustomerContact(supabase, userId, caller.grantId ?? null)
+        if (!customerContact) {
+          return new Response(
+            JSON.stringify({
+              error: 'No collection/delivery address is set for this account. Add one in your profile under Connected apps.',
+              code: 'CUSTOMER_ADDRESS_MISSING',
+            }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+        const provided = body[customerSide] && typeof body[customerSide] === 'object' ? body[customerSide] : {}
+        body[customerSide] = {
+          ...provided,
+          name: customerContact.name,
+          email: provided.email || customerContact.email,
+          phone: customerContact.phone || provided.phone,
+          address: customerContact.address,
+        }
+      }
+
+
 
 
       // Box My Bike: auto-fill depot as receiver so caller doesn't need to provide it.
