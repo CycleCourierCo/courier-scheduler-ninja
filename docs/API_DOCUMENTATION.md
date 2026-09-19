@@ -59,7 +59,7 @@ You can specify bike types using either a string name or a numeric `type_id`. Us
 | 11 | Boxed Kids Bikes | £35 |
 | 12 | Folding Bikes | £40 |
 | 13 | Tandem | £110 |
-| 14 | Travel Bike Box | £60 |
+| 14 | Travel Bike Box | £50 |
 | 15 | Wheelset/Frameset | £35 |
 | 16 | Bike Rack | £40 |
 | 17 | Turbo Trainer | £40 |
