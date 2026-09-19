@@ -249,20 +249,21 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex items-center space-x-2 min-w-0 flex-1">
+      <div className="grid min-w-0 gap-3">
+        <div className="flex min-w-0 items-center gap-2">
           <User className="text-courier-600 shrink-0" />
-          <h3 className="font-semibold text-lg break-words">
+          <h3 className="min-w-0 break-words text-lg font-semibold">
             {type === "sender" ? "Sender" : "Receiver"} Information
           </h3>
         </div>
         {!isEditing ? (
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
 
             {contact.phone && (
               <Button
                 variant="outline"
                 size="sm"
+                className="w-full"
                 onClick={handleSendReview}
                 disabled={isSendingReview}
               >
@@ -273,6 +274,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
             <Button
               variant="outline"
               size="sm"
+              className="w-full"
               onClick={() => setIsEditing(true)}
             >
               <Edit2 className="h-4 w-4 mr-2" />
@@ -280,10 +282,11 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
             </Button>
           </div>
         ) : (
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-1 gap-2 min-[420px]:grid-cols-2">
             <Button
               variant="outline"
               size="sm"
+              className="w-full"
               onClick={handleCancel}
               disabled={isSaving}
             >
@@ -292,6 +295,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
             </Button>
             <Button
               size="sm"
+              className="w-full"
               onClick={handleSave}
               disabled={isSaving}
             >

@@ -48,10 +48,10 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({ type, contact, notes, o
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="flex items-center space-x-2 min-w-0 flex-1">
+      <div className="grid min-w-0 gap-3">
+        <div className="flex min-w-0 items-center gap-2">
           <User className="text-courier-600 shrink-0" />
-          <h3 className="font-semibold text-lg break-words">
+          <h3 className="min-w-0 break-words text-lg font-semibold">
             {type === "sender" ? "Sender" : "Receiver"} Information
           </h3>
         </div>
@@ -60,6 +60,7 @@ const ContactDetails: React.FC<ContactDetailsProps> = ({ type, contact, notes, o
           <Button
             variant="outline"
             size="sm"
+            className="w-full sm:w-auto sm:justify-self-start"
             onClick={handleSendReview}
             disabled={isSendingReview}
           >
