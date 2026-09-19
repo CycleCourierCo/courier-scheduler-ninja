@@ -195,6 +195,11 @@ serve(async (req) => {
       const trackingUrl = trackingNumber ? `${baseUrl}/tracking/${trackingNumber}` : '';
       
       emailOptions.subject = `Please confirm your ${availabilityType} availability`;
+      shellOptions = {
+        eyebrow: availabilityType === 'pickup' ? 'COLLECTION' : 'DELIVERY',
+        preheader: 'Pick the days that work — takes under a minute',
+      };
+      const journey = journeyBlock(orderRow, 'waiting', 'Awaiting your dates', ['Booked'], 0);
 
       // Northern Ireland jobs: this email goes to City Air Express, so include the
       // NI-side party's details (receiver for England → NI, sender for NI → England).
@@ -219,6 +224,7 @@ serve(async (req) => {
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Hello ${name},</h2>
           <p>Thank you for using The Cycle Courier Co.</p>
+          ${journey}
           <p>We need to confirm your availability for the ${availabilityType} of your item:</p>
           <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>${item.name}</strong> (Quantity: ${item.quantity})</p>
