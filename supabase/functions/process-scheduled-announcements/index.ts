@@ -10,7 +10,7 @@ const BRAND = {
   email: "info@cyclecourierco.com",
   phone: "+44 121 798 0767",
   website: "https://booking.cyclecourierco.com",
-  primary: "#0F766E",
+  primary: "#0B61B1", // motorway blue (portal primary)
   primaryDark: "#084C8B",
   text: "#16191D",
   muted: "#5C6570",
