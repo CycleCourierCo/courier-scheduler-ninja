@@ -1,7 +1,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import Layout from '@/components/Layout';
+import DoorstepShell from '@/components/design/DoorstepShell';
 import { updateSenderAvailability } from '@/services/availabilityService';
 import { useAvailability } from '@/hooks/useAvailability';
 import { AvailabilityForm } from '@/components/availability/AvailabilityForm';
@@ -141,52 +141,52 @@ export default function SenderAvailability() {
 
   if (paramError) {
     return (
-      <Layout>
+      <DoorstepShell title="Collection availability" reference={params.id}>
         <ErrorState 
           error={paramError} 
           onHome={() => navigate("/")} 
         />
-      </Layout>
+      </DoorstepShell>
     );
   }
 
   if (!initialCheckCompleted || isLoading) {
     return (
-      <Layout>
+      <DoorstepShell title="Collection availability" reference={params.id}>
         <LoadingState message="Loading order details..." />
-      </Layout>
+      </DoorstepShell>
     );
   }
 
   if (error) {
     return (
-      <Layout>
+      <DoorstepShell title="Collection availability" reference={params.id}>
         <ErrorState 
           error={error} 
           onHome={() => navigate("/")} 
         />
-      </Layout>
+      </DoorstepShell>
     );
   }
 
   if (isConfirmed) {
     return (
-      <Layout>
+      <DoorstepShell title="Collection availability" reference={params.id}>
         <ConfirmedDatesView
           title="Pickup Availability"
           dates={confirmedDates}
           notes={confirmedNotes}
         />
-      </Layout>
+      </DoorstepShell>
     );
   }
 
   if (isBusinessSender && !singleDay && mode === 'unset') {
     return (
-      <Layout>
-        <div className="max-w-4xl mx-auto py-8 px-4">
-          <Card className="shadow-lg border-slate-200">
-            <CardHeader className="space-y-1 bg-slate-50 rounded-t-lg border-b">
+      <DoorstepShell title="Collection availability" reference={params.id}>
+        <div>
+          <Card>
+            <CardHeader className="space-y-1 border-b bg-muted">
               <CardTitle className="text-2xl">Is the bike ready for collection?</CardTitle>
               <CardDescription>
                 Choose an option so we can schedule your collection straight away.
@@ -196,7 +196,7 @@ export default function SenderAvailability() {
               <button
                 type="button"
                 onClick={handleAvailableNow}
-                className="text-left rounded-lg border p-4 transition-colors hover:border-primary hover:bg-accent"
+                className="min-h-32 rounded-md border p-4 text-left transition-colors hover:border-primary hover:bg-accent"
               >
                 <div className="flex items-center gap-2 font-medium">
                   <Clock className="h-4 w-4 text-primary" />
@@ -211,7 +211,7 @@ export default function SenderAvailability() {
               <button
                 type="button"
                 onClick={handleAvailableLater}
-                className="text-left rounded-lg border p-4 transition-colors hover:border-primary hover:bg-accent"
+                className="min-h-32 rounded-md border p-4 text-left transition-colors hover:border-primary hover:bg-accent"
               >
                 <div className="flex items-center gap-2 font-medium">
                   <CalendarClock className="h-4 w-4 text-primary" />
@@ -231,12 +231,12 @@ export default function SenderAvailability() {
             </div>
           )}
         </div>
-      </Layout>
+      </DoorstepShell>
     );
   }
 
   return (
-    <Layout>
+    <DoorstepShell title="Collection availability" reference={params.id}>
       {isBusinessSender && !singleDay && (
         <div className="max-w-4xl mx-auto px-4 pt-4">
           <Button variant="ghost" size="sm" onClick={handleBackToOptions}>
@@ -283,7 +283,7 @@ export default function SenderAvailability() {
         requiredDates={requiredDates}
         maxDates={singleDay ? 1 : undefined}
       />
-    </Layout>
+    </DoorstepShell>
 
   );
 

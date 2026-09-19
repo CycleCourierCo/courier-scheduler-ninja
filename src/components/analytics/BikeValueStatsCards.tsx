@@ -20,7 +20,7 @@ const Stat = ({
   description?: string;
   icon: any;
 }) => (
-  <Card className="hover-lift">
+  <Card className="border-l-4 border-l-primary">
     <CardHeader className="flex flex-row items-center justify-between pb-2 p-3 sm:p-6">
       <CardTitle className="text-xs sm:text-sm font-medium truncate pr-2">{title}</CardTitle>
       <Icon className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground flex-shrink-0" />

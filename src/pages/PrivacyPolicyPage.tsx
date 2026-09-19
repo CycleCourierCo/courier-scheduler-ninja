@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 const PrivacyPolicyPage: React.FC = () => {
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto">
-        <Card>
+      <div className="mx-auto max-w-4xl">
+        <Card className="border-t-4 border-t-primary">
           <CardHeader>
-            <CardTitle className="text-3xl font-bold text-center">Privacy Policy</CardTitle>
+            <CardTitle className="text-center text-3xl">Privacy policy</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground text-center">Last updated: April 4, 2025</p>

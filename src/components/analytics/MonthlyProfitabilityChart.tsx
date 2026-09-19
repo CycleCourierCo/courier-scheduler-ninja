@@ -47,7 +47,7 @@ const MonthlyProfitabilityChart = ({
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-background border rounded-lg p-3 shadow-lg">
+        <div className="rounded-md border bg-background p-3 shadow-card">
           <p className="font-medium mb-2">{label}</p>
           {payload.map((entry: any, index: number) => (
             <p key={index} style={{ color: entry.color }} className="text-sm">
@@ -67,9 +67,9 @@ const MonthlyProfitabilityChart = ({
           <div>
             <CardTitle className="flex items-center gap-2">
               {isProfitable ? (
-                <TrendingUp className="h-5 w-5 text-green-600" />
+                <TrendingUp className="h-5 w-5 text-status-done" />
               ) : (
-                <TrendingDown className="h-5 w-5 text-red-600" />
+                <TrendingDown className="h-5 w-5 text-destructive" />
               )}
               Monthly Profitability Trend
             </CardTitle>

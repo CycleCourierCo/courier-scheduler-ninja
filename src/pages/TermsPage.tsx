@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 const TermsPage: React.FC = () => {
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto">
-        <Card>
+      <div className="mx-auto max-w-4xl">
+        <Card className="border-t-4 border-t-primary">
           <CardHeader>
-            <CardTitle className="text-3xl font-bold text-center">Terms and Conditions</CardTitle>
+            <CardTitle className="text-center text-3xl">Terms and conditions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6 text-sm leading-relaxed text-foreground">
             <p className="text-muted-foreground text-center">Last updated: March 16, 2026</p>

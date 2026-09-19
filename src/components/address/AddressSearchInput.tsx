@@ -152,7 +152,7 @@ const AddressSearchInput: React.FC<AddressSearchInputProps> = ({
         </div>
 
         {showSuggestions && (
-          <div className="absolute z-50 w-full mt-1 bg-popover text-popover-foreground rounded-md shadow-lg border max-h-60 overflow-auto">
+          <div className="absolute z-50 mt-1 max-h-60 w-full overflow-auto rounded-md border bg-popover text-popover-foreground shadow-card">
             {loading && (
               <div className="flex items-center justify-center p-4">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -168,7 +168,7 @@ const AddressSearchInput: React.FC<AddressSearchInputProps> = ({
                 {suggestions.map((suggestion, index) => (
                   <li
                     key={index}
-                    className="px-4 py-2 text-sm hover:bg-accent cursor-pointer"
+                    className="min-h-11 cursor-pointer px-4 py-3 text-sm hover:bg-accent"
                     onClick={() => handleSuggestionClick(suggestion)}
                   >
                     {suggestion.properties.formatted}

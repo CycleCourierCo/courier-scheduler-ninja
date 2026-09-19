@@ -11,6 +11,7 @@ import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 import { resendSenderAvailabilityEmail } from "@/services/orderService";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 import { supabase } from "@/integrations/supabase/client";
+import JourneyStrip from "@/components/design/JourneyStrip";
 
 interface OrderCardListProps {
   orders: Order[];
@@ -69,7 +70,7 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
   };
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+    <div className="divide-y border-y bg-card">
       {orders.map((order) => {
         const isStaff = userRole === "admin" || userRole === "route_planner";
         return (
@@ -84,42 +85,45 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
                 openOrder(order.id);
               }
             }}
-            className="flex h-full w-full min-w-0 flex-col rounded-lg border border-border bg-card p-3 text-left shadow-sm transition-colors hover:bg-accent/40 active:bg-accent/50 sm:p-4"
+            className="grid w-full min-w-0 gap-3 p-4 text-left transition-colors hover:bg-accent sm:grid-cols-[90px_minmax(0,1fr)_auto] sm:items-center"
           >
+            <JourneyStrip compact stops={[
+              { label: "Booked", state: "complete" },
+              { label: "Collected", state: order.orderCollected ? "complete" : "current" },
+              { label: "In transit", state: order.orderCollected && order.status !== "delivered" ? "current" : "upcoming" },
+              { label: "Delivered", state: order.status === "delivered" ? "complete" : "upcoming" },
+            ]} />
             <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-foreground">
+              <p className="data-text truncate text-sm text-foreground">
                 {order.trackingNumber || `${order.id.substring(0, 8)}…`}
               </p>
               <p className="truncate text-xs text-muted-foreground">
                 {creatorNames[order.user_id] || "Unknown"}
               </p>
-              <div className="mt-1">
-                <StatusBadge status={order.status} />
-              </div>
               {(order.isNorthernIreland || order.guaranteedDelivery || order.isBoxMyBike || order.needsInspection || order.isEbayOrder) && (
                 <div className="mt-1.5 flex flex-wrap items-center gap-1">
                   {order.isNorthernIreland && (
-                    <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-[10px] px-1.5 py-0">
+                    <Badge variant="ni">
                       NI
                     </Badge>
                   )}
                   {order.guaranteedDelivery && (
-                    <Badge variant="secondary" className="bg-purple-100 text-purple-700 hover:bg-purple-100 text-[10px] px-1.5 py-0">
+                    <Badge variant="booked">
                       Guaranteed
                     </Badge>
                   )}
                   {order.isBoxMyBike && (
-                    <Badge variant="secondary" className="bg-courier-100 text-courier-700 hover:bg-courier-100 text-[10px] px-1.5 py-0">
+                    <Badge variant="neutral">
                       Box
                     </Badge>
                   )}
                   {order.isEbayOrder && (
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100 text-[10px] px-1.5 py-0">
+                    <Badge variant="booked">
                       eBay
                     </Badge>
                   )}
                   {order.needsInspection && (
-                    <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100 text-[10px] px-1.5 py-0">
+                    <Badge variant="inspection">
                       Inspect
                     </Badge>
                   )}
@@ -128,13 +132,13 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
               )}
             </div>
 
-            <div className="mt-2 flex items-center gap-1 min-w-0 text-xs text-foreground">
+            <div className="flex min-w-0 items-center gap-1 text-sm text-foreground">
               <span className="truncate">{order.sender?.name || "—"}</span>
               <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground" />
               <span className="truncate">{order.receiver?.name || "—"}</span>
             </div>
 
-            <div className="mt-1 flex items-center gap-1 min-w-0 text-xs text-muted-foreground">
+            <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
               <Bike className="h-3.5 w-3.5 shrink-0" />
               <span className="truncate">
                 {order.bikeBrand && order.bikeModel
@@ -145,7 +149,7 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
               </span>
             </div>
 
-            <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+            <div className="grid grid-cols-2 gap-2 text-xs sm:col-start-2">
               <div className="min-w-0">
                 <p className="text-[11px] uppercase tracking-wide text-muted-foreground">Collection</p>
                 <p className="truncate text-foreground">{formatDate(order.scheduledPickupDate)}</p>
@@ -166,10 +170,8 @@ const OrderCardList: React.FC<OrderCardListProps> = memo(({ orders, userRole }) 
               </div>
             </div>
 
-            <div
-              className="mt-3 flex flex-wrap items-center gap-2 border-t border-border pt-2 sm:mt-auto"
-              onClick={(e) => e.stopPropagation()}
-            >
+            <div className="flex flex-wrap items-center gap-2 sm:col-start-3 sm:row-span-3 sm:row-start-1 sm:justify-end" onClick={(e) => e.stopPropagation()}>
+              <StatusBadge status={order.status} />
               {isStaff && (
                 <Button variant="outline" size="sm" asChild className="h-8 px-2">
                   <Link to={`/orders/${order.id}`}>

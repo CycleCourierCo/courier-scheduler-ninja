@@ -13,7 +13,7 @@ const ThemeToggle = () => {
       size="icon"
       onClick={toggleTheme}
       aria-label="Toggle theme"
-      className="rounded-full"
+      className="rounded-md"
     >
       {theme === "light" ? (
         <Moon className="h-5 w-5" />

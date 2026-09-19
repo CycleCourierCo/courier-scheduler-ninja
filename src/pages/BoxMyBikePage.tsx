@@ -321,7 +321,7 @@ const BoxMyBikePage: React.FC = () => {
     const serviceBlocked = next === "boxed_awaiting_label" && !serviceDone;
     const serviceStage = serviceGateLabel(inspectionStages[o.id]);
     return (
-      <Card key={o.id} className="mb-3">
+      <Card key={o.id} className="mb-3 border-l-4 border-l-status-inspection">
         <CardContent className="p-4 space-y-3">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
@@ -482,13 +482,15 @@ const BoxMyBikePage: React.FC = () => {
 
   return (
     <Layout>
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
-        <h1 className="text-3xl font-bold mb-2">Box My Bike</h1>
+      <div className="floor-density mx-auto max-w-6xl px-4 py-6 sm:px-6">
+        <div className="mb-6 border-b pb-4">
+        <h1>Box My Bike</h1>
         <p className="text-muted-foreground mb-6">
           {isStaff
             ? "Track Box My Bike orders through every stage from collection to 3rd-party handover."
             : "Your bikes being boxed at our depot for international shipping."}
         </p>
+        </div>
 
         <Tabs value={section} onValueChange={(v) => setSection(v as "box" | "foam" | "inbound-ni")} className="mb-6">
           <TabsList>
@@ -627,7 +629,7 @@ const TrackingUrlEditor: React.FC<{
             placeholder="https://tracking.example.com/..."
             value={value}
             onChange={(e) => setValue(e.target.value)}
-            className={`flex-1 min-w-[220px] rounded-md border bg-background px-3 py-2 text-sm ${
+            className={`min-h-12 min-w-[220px] flex-1 rounded-md border bg-card px-3 py-2 text-sm ${
               !order.box_tracking_url ? "border-destructive" : ""
             }`}
           />

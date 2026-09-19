@@ -4,11 +4,10 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getPublicOrder } from "@/services/fetchOrderService";
-import Layout from "@/components/Layout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
-import { ArrowLeft, Package, Calendar, Bike, Clock } from "lucide-react";
+import { Package, Calendar, Bike, Clock } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -16,6 +15,7 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 import type { Order } from "@/types/order";
+import DoorstepShell from "@/components/design/DoorstepShell";
 
 
 const formSchema = z.object({
@@ -47,7 +47,7 @@ const TrackingForm = ({ onSearch }: { onSearch: (orderId: string) => void }) => 
                 <FormControl>
                   <Input placeholder="Enter your order ID (e.g., CCC754...)" {...field} />
                 </FormControl>
-                <Button type="submit" className="bg-courier-500 hover:bg-courier-600">
+                <Button type="submit">
                   Track
                 </Button>
               </div>
@@ -101,37 +101,24 @@ const TrackingPage = () => {
 
 
   return (
-    <Layout>
-      <div className="container py-8">
-        <div className="mb-8">
-          <Button
-            variant="outline"
-            onClick={() => navigate("/")}
-            className="mb-4"
-          >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Home
-          </Button>
-          <h1 className="text-2xl font-bold mb-6">Track Your Order</h1>
-          
-          <Card className="mb-8">
+    <DoorstepShell title="Track your bike" reference={order?.trackingNumber ?? searchId}>
+          {!order && <Card className="mb-8">
             <CardContent className="pt-6">
               <TrackingForm onSearch={handleSearch} />
             </CardContent>
-          </Card>
-        </div>
+          </Card>}
 
         {isLoading && (
           <div className="text-center py-8">
-            <Package className="h-12 w-12 mx-auto mb-4 text-courier-500 animate-pulse" />
+            <Package className="mx-auto mb-4 h-12 w-12 animate-pulse text-primary" />
             <p>Loading order information...</p>
           </div>
         )}
 
         {error && (
-          <Card className="border-red-200 bg-red-50">
+          <Card className="border-destructive">
             <CardContent className="pt-6 text-center py-8">
-              <p className="text-red-600">Error loading order. Please check the order ID and try again.</p>
+              <p className="text-destructive">We couldn't load this order. Check the order ID and try again.</p>
             </CardContent>
           </Card>
         )}
@@ -145,7 +132,7 @@ const TrackingPage = () => {
                   <div className="flex flex-col gap-4 min-w-0">
                     <div className="min-w-0 overflow-hidden">
                       <h2 className="text-lg sm:text-xl font-semibold flex items-start gap-2 mb-2">
-                        <Package className="h-5 w-5 text-courier-500 shrink-0 mt-0.5" />
+                         <Package className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                         <span className="break-all text-sm sm:text-base leading-tight">
                           {order.customerOrderNumber ? (
                             `Order #${order.customerOrderNumber}`
@@ -180,9 +167,9 @@ const TrackingPage = () => {
                       </h3>
                    <div className="space-y-4 min-w-0">
                      {order.scheduledPickupDate && (
-                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 min-w-0 overflow-hidden">
-                         <p className="text-sm font-medium text-blue-900 mb-2">Collection Date</p>
-                         <div className="flex flex-col sm:flex-row sm:items-start text-blue-700 mb-2 gap-1 sm:gap-2">
+                        <div className="min-w-0 overflow-hidden rounded-md border bg-secondary p-3 sm:p-4">
+                          <p className="mb-2 text-sm font-bold">Collection</p>
+                          <div className="data-text mb-2 flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-2">
                            <div className="flex items-start gap-2 min-w-0">
                              <Calendar className="w-4 h-4 mt-0.5 shrink-0" />
                              <span className="text-xs sm:text-sm break-words leading-tight">
@@ -204,7 +191,7 @@ const TrackingPage = () => {
                            </div>
                          </div>
                          {order.pickupTimeslot && (
-                           <div className="flex items-start text-blue-600 gap-2 min-w-0">
+                            <div className="data-text flex min-w-0 items-start gap-2">
                              <Clock className="w-4 h-4 mt-0.5 shrink-0" />
                               <span className="text-xs sm:text-sm break-words leading-tight">Timeslot: {formatTimeslotWindow(order.pickupTimeslot)}</span>
                            </div>
@@ -213,16 +200,16 @@ const TrackingPage = () => {
                      )}
                      
                      {isOutboundNi(order) ? (
-                       <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4 min-w-0 overflow-hidden">
-                         <p className="text-sm font-medium text-green-900 mb-2">Delivery Date</p>
-                         <p className="text-xs sm:text-sm text-green-700 leading-tight break-words">
+                        <div className="min-w-0 overflow-hidden rounded-md border bg-muted p-3 sm:p-4">
+                          <p className="mb-2 text-sm font-bold">Delivery</p>
+                          <p className="text-sm leading-tight">
                            To be confirmed — your bike travels onward by ferry once it reaches the ferry port.
                          </p>
                        </div>
                      ) : order.scheduledDeliveryDate && (
-                       <div className="bg-green-50 border border-green-200 rounded-lg p-3 sm:p-4 min-w-0 overflow-hidden">
-                         <p className="text-sm font-medium text-green-900 mb-2">Delivery Date</p>
-                         <div className="flex flex-col sm:flex-row sm:items-start text-green-700 mb-2 gap-1 sm:gap-2">
+                        <div className="min-w-0 overflow-hidden rounded-md border bg-secondary p-3 sm:p-4">
+                          <p className="mb-2 text-sm font-bold">Delivery</p>
+                          <div className="data-text mb-2 flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-2">
                            <div className="flex items-start gap-2 min-w-0">
                              <Calendar className="w-4 h-4 mt-0.5 shrink-0" />
                              <span className="text-xs sm:text-sm break-words leading-tight">
@@ -244,7 +231,7 @@ const TrackingPage = () => {
                            </div>
                          </div>
                          {order.deliveryTimeslot && (
-                           <div className="flex items-start text-green-600 gap-2 min-w-0">
+                            <div className="data-text flex min-w-0 items-start gap-2">
                              <Clock className="w-4 h-4 mt-0.5 shrink-0" />
                               <span className="text-xs sm:text-sm break-words leading-tight">Timeslot: {formatTimeslotWindow(order.deliveryTimeslot)}</span>
                            </div>
@@ -273,14 +260,13 @@ const TrackingPage = () => {
 
         {/* Only show the "not found" message after we've attempted to load the order and it wasn't found */}
         {!isLoading && !error && hasAttemptedLoad && searchId && !order && (
-          <Card className="border-yellow-200 bg-yellow-50">
+           <Card className="chevron-tape">
             <CardContent className="pt-6 text-center py-8">
-              <p className="text-yellow-700">No order found with this ID. Please check the order ID and try again.</p>
+               <p>No order found with this ID. Check the order ID and try again.</p>
             </CardContent>
           </Card>
         )}
-      </div>
-    </Layout>
+    </DoorstepShell>
   );
 };
 
