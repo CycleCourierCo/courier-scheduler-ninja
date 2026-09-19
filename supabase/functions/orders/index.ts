@@ -60,6 +60,52 @@ async function getCoordinates(addressString: string): Promise<{ lat: number; lon
   return null;
 }
 
+// Resolves the address we collect from / deliver to for the customer behind a partner app.
+// Preference: the address the customer saved against that connected app, otherwise their profile.
+async function resolveCustomerContact(
+  supabase: any,
+  userId: string,
+  grantId: string | null,
+): Promise<any | null> {
+  let saved: any = null
+  if (grantId) {
+    const { data } = await supabase
+      .from('oauth_grant_addresses')
+      .select('contact_name, contact_phone, address_line_1, address_line_2, city, county, postcode, country, lat, lon')
+      .eq('grant_id', grantId)
+      .maybeSingle()
+    saved = data || null
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('name, company_name, email, phone, address_line_1, address_line_2, city, county, postal_code, country')
+    .eq('id', userId)
+    .maybeSingle()
+
+  const street = [saved?.address_line_1 ?? profile?.address_line_1, saved?.address_line_2 ?? profile?.address_line_2]
+    .filter((part: string | null | undefined) => part && String(part).trim().length > 0)
+    .join(', ')
+  const city = saved?.city ?? profile?.city ?? ''
+  const postcode = saved?.postcode ?? profile?.postal_code ?? ''
+
+  if (!street || !city || !postcode) return null
+
+  return {
+    name: saved?.contact_name || profile?.company_name || profile?.name || 'Customer',
+    email: profile?.email || '',
+    phone: saved?.contact_phone || profile?.phone || '',
+    address: {
+      street,
+      city,
+      state: saved?.county ?? profile?.county ?? '',
+      zipCode: postcode,
+      country: saved?.country ?? profile?.country ?? 'United Kingdom',
+      ...(saved?.lat != null && saved?.lon != null ? { lat: Number(saved.lat), lon: Number(saved.lon) } : {}),
+    },
+  }
+}
+
 const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
   // Initialize Sentry for this request
   initSentry("orders");
