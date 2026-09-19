@@ -311,6 +311,56 @@ export const markOrderCollected = async (id: string): Promise<Order | null> => {
   return mapDbOrderToOrderType(data);
 };
 
+/**
+ * Reverse a collection: unset the collected flag, free any van/bay allocation,
+ * and smart-revert the status to wherever the order actually stands.
+ */
+export const markOrderNotCollected = async (id: string): Promise<Order | null> => {
+  const { data: current, error: fetchError } = await supabase
+    .from("orders")
+    .select("scheduled_pickup_date, sender_confirmed_at, pickup_date")
+    .eq("id", id)
+    .single();
+
+  if (fetchError) {
+    console.error("Error fetching order before un-marking collected:", fetchError);
+    return null;
+  }
+
+  const senderDatesGiven =
+    !!current.sender_confirmed_at ||
+    (Array.isArray(current.pickup_date) && current.pickup_date.length > 0);
+
+  const revertedStatus = current.scheduled_pickup_date
+    ? "collection_scheduled"
+    : senderDatesGiven
+      ? "sender_availability_confirmed"
+      : "sender_availability_pending";
+
+  const { data, error } = await supabase
+    .from("orders")
+    .update({
+      order_collected: false,
+      status: revertedStatus,
+      loaded_onto_van: false,
+      loaded_onto_van_at: null,
+      held_by_driver_name: null,
+      held_by_driver_at: null,
+      storage_locations: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error marking order not collected:", error);
+    return null;
+  }
+
+  return mapDbOrderToOrderType(data);
+};
+
 export const updateOrderBikes = async (
   id: string,
   bikes: Array<{ brand: string; model: string; type: string; value?: string }>
