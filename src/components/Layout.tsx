@@ -221,26 +221,6 @@ const Layout: React.FC<LayoutProps> = ({
                             </Link>)}
                           </div>)}
                         </>}
-                      {isB2B && (
-                        <>
-                          <Link to="/my-stock" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Warehouse className="mr-2 h-4 w-4" />
-                            My Stock
-                          </Link>
-                          <Link to="/pricing" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <PoundSterling className="mr-2 h-4 w-4" />
-                            Pricing
-                          </Link>
-                          <Link to="/bulk-availability" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Clock className="mr-2 h-4 w-4" />
-                            Bulk Availability
-                          </Link>
-                          <Link to="/bicycle-inspections" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
-                            <Wrench className="mr-2 h-4 w-4" />
-                            My Inspections
-                          </Link>
-                        </>
-                      )}
                       {isRoutePlanner && !isAdmin && <>
                         <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Calendar className="mr-2 h-4 w-4" />
@@ -335,35 +315,6 @@ const Layout: React.FC<LayoutProps> = ({
                         </DropdownMenuItem>)}
                       </MenuGroup>)}
                     </>}
-                  
-                  {isB2B && (
-                    <>
-                      <DropdownMenuItem asChild>
-                        <Link to="/my-stock" className="cursor-pointer flex w-full items-center">
-                          <Warehouse className="mr-2 h-4 w-4" />
-                          <span>My Stock</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/pricing" className="cursor-pointer flex w-full items-center">
-                          <PoundSterling className="mr-2 h-4 w-4" />
-                          <span>Pricing</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/bulk-availability" className="cursor-pointer flex w-full items-center">
-                          <Clock className="mr-2 h-4 w-4" />
-                          <span>Bulk Availability</span>
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link to="/bicycle-inspections" className="cursor-pointer flex w-full items-center">
-                          <Wrench className="mr-2 h-4 w-4" />
-                          <span>My Inspections</span>
-                        </Link>
-                      </DropdownMenuItem>
-                    </>
-                  )}
                   
                   {isRoutePlanner && <>
                     <DropdownMenuItem asChild>
