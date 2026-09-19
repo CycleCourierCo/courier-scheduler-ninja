@@ -12,6 +12,7 @@ import { resendSenderAvailabilityEmail } from "@/services/orderService";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 import { supabase } from "@/integrations/supabase/client";
 import JourneyStrip from "@/components/design/JourneyStrip";
+import { buildJourneyStops } from "@/utils/journeyStages";
 
 interface OrderCardListProps {
   orders: Order[];
