@@ -53,7 +53,7 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Collection Date Picker */}
         {setPickupDatePicker && (
-          <div className="space-y-3 bg-gray-50 p-3 rounded-md">
+          <div className="space-y-3 bg-muted p-3 rounded-md">
             <p className="text-sm font-medium">Select collection date:</p>
             <div>
               <Popover>
@@ -85,7 +85,7 @@ const SchedulingButtons: React.FC<SchedulingButtonsProps> = ({
 
         {/* Delivery Date Picker */}
         {setDeliveryDatePicker && (
-          <div className="space-y-3 bg-gray-50 p-3 rounded-md">
+          <div className="space-y-3 bg-muted p-3 rounded-md">
             <p className="text-sm font-medium">Select delivery date:</p>
             <div>
               <Popover>
