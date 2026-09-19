@@ -5,6 +5,7 @@
 // error label. Never log request/response bodies, customer data or secrets here.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
+import { applyEmailBrand } from "./emailLayout.ts";
 
 export type IntegrationProvider =
   | "shipday"
@@ -182,7 +183,21 @@ export function trackResend<T extends { emails: { send: (...args: any[]) => Prom
   operation = "send email",
 ): T {
   const originalSend = client.emails.send.bind(client.emails);
+  // Reports and operational lists are denser, so they get the wider shell.
+  const wide = /report|timeslip|loading list|invoice batch/i.test(operation);
   client.emails.send = async (...args: any[]) => {
+    // Every outgoing email picks up the shared design here.
+    try {
+      const payload = args[0];
+      if (payload && typeof payload === "object" && typeof payload.html === "string") {
+        payload.html = applyEmailBrand(payload.html, {
+          subject: typeof payload.subject === "string" ? payload.subject : "",
+          wide,
+        });
+      }
+    } catch (_err) {
+      // Styling must never stop a send.
+    }
     const started = Date.now();
     const backoffs = [1000, 2000, 4000];
     let attempt = 0;
