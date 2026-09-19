@@ -17,7 +17,7 @@ const BRAND = {
   border: "#D8DEE4",
   bg: "#EDF1F4",
 };
-const EMAIL_LOGO_URL = "https://booking.cyclecourierco.com/__l5e/assets-v1/b57ce027-4e3a-4a23-a45d-01fba1074718/lockup-horizontal-reversed.png";
+const EMAIL_LOGO_URL = "https://booking.cyclecourierco.com/__l5e/assets-v1/51b80c2a-5208-455f-87d8-ac99bb81b6b7/lockup-horizontal-reversed.png";
 
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
