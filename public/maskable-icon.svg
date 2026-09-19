@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192" role="img" aria-label="Cycle Courier Co.">
+  <title>Maskable icon - safe zone padded for Android</title>
+  <rect width="192" height="192" fill="#0B5FB0"/>
+  <g transform="translate(32 32) scale(1.0)">
+    <g transform="rotate(44.5 64 64)">
+      <circle cx="64" cy="64" r="38" fill="none" stroke="#FFFFFF" stroke-width="20" stroke-dasharray="180 59"/>
+    </g>
+  </g>
+</svg>
