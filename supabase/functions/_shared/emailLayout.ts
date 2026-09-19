@@ -246,39 +246,180 @@ export function applyEmailBrand(html: string, options: EmailShellOptions = {}): 
  */
 export function htmlToPlainText(html: string): string {
   if (typeof html !== "string") return "";
-  // One pass can re-form dangerous patterns (e.g. "&lt;script&gt;" decodes to a
-  // live tag after tag-stripping already ran), so run to a fixed point. The cap
-  // bounds adversarial input; legitimate email HTML stabilizes in 1–2 passes.
-  let current = html;
-  let previous: string;
-  let passes = 0;
-  do {
-    previous = current;
-    current = current
-      .replace(/<style[\s\S]*?<\/style>/gi, "")
-      .replace(/<script[\s\S]*?<\/script>/gi, "")
-      .replace(/<head[\s\S]*?<\/head>/gi, "")
-      .replace(/<a[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi, (_m, href, label) => {
-        const text = String(label).replace(/<[^>]+>/g, "").trim();
-        return text && text !== href ? `${text} (${href})` : href;
-      })
-      .replace(/<\/(p|div|tr|h1|h2|h3|li|table)>/gi, "\n")
-      .replace(/<br\s*\/?>/gi, "\n")
-      .replace(/<li[^>]*>/gi, "- ")
-      .replace(/<\/t[dh]>/gi, "  ")
-      .replace(/<[^>]+>/g, "")
-      .replace(/&nbsp;/gi, " ")
-      .replace(/&amp;/gi, "&")
-      .replace(/&lt;/gi, "<")
-      .replace(/&gt;/gi, ">")
-      .replace(/&middot;/gi, "·")
-      .replace(/&#847;|&zwnj;/gi, "")
-      .replace(/[ \t]+\n/g, "\n")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-    passes++;
-  } while (current !== previous && passes < 10);
-  return current;
+
+  // This is a single-pass character scanner, not regex-based HTML stripping.
+  // Markup is removed structurally before any entity decoding happens, and
+  // each entity is decoded exactly once with no re-scan, so there is no path
+  // for stripped or decoded content to re-form markup (CodeQL:
+  // js/incomplete-multi-character-sanitization, js/bad-tag-filter,
+  // js/double-escaping).
+  const len = html.length;
+  const DROP_CONTENT_TAGS = new Set(["script", "style", "head"]);
+  const NEWLINE_ON_CLOSE_TAGS = new Set(["p", "div", "tr", "h1", "h2", "h3", "li", "table"]);
+  const NAMED_ENTITIES: Record<string, string> = {
+    nbsp: " ", amp: "&", lt: "<", gt: ">", quot: '"', apos: "'",
+    middot: "·", zwnj: "", "#847": "", "#39": "'", "#8217": "'",
+    "#8211": "–", "#8212": "—", "#8220": '"', "#8221": '"',
+  };
+  const ZERO_WIDTH_CODEPOINTS = new Set([0x200b, 0x200c, 0x200d, 0xfeff]);
+
+  const out: string[] = [];
+
+  /** Case-insensitive substring search without regex. `needle` must be lowercase. */
+  const lowerIndexOf = (needle: string, from: number): number => {
+    const nl = needle.length;
+    outer: for (let s = from; s + nl <= len; s++) {
+      for (let k = 0; k < nl; k++) {
+        if (html[s + k].toLowerCase() !== needle[k]) continue outer;
+      }
+      return s;
+    }
+    return -1;
+  };
+
+  /** Read a tag name starting at `start` (just after `<` or `</`). */
+  const readTag = (start: number): { name: string; closing: boolean; afterName: number } => {
+    let p = start;
+    let closing = false;
+    if (html[p] === "/") { closing = true; p++; }
+    let name = "";
+    while (p < len) {
+      const c = html[p];
+      const lc = c.toLowerCase();
+      if ((lc >= "a" && lc <= "z") || (c >= "0" && c <= "9")) { name += lc; p++; } else break;
+    }
+    return { name, closing, afterName: p };
+  };
+
+  /** Advance past the next `>` that is not inside a quoted attribute value. */
+  const skipTagEnd = (p: number): number => {
+    let quote = "";
+    while (p < len) {
+      const c = html[p];
+      if (quote) { if (c === quote) quote = ""; }
+      else if (c === '"' || c === "'") quote = c;
+      else if (c === ">") return p + 1;
+      p++;
+    }
+    return p;
+  };
+
+  /** Extract the href value from a raw `<a ...>` tag fragment without regex. */
+  const extractHref = (tagText: string): string => {
+    const lower = tagText.toLowerCase();
+    let p = lower.indexOf("href");
+    while (p !== -1) {
+      let q = p + 4;
+      while (q < lower.length && (lower[q] === " " || lower[q] === "\t")) q++;
+      if (lower[q] === "=") {
+        q++;
+        while (q < lower.length && (lower[q] === " " || lower[q] === "\t")) q++;
+        const quote = lower[q];
+        if (quote === '"' || quote === "'") {
+          const end = lower.indexOf(quote, q + 1);
+          return end === -1 ? tagText.slice(q + 1) : tagText.slice(q + 1, end);
+        }
+        let end = q;
+        while (end < lower.length && lower[end] !== " " && lower[end] !== "\t" && lower[end] !== ">") end++;
+        return tagText.slice(q, end);
+      }
+      p = lower.indexOf("href", p + 4);
+    }
+    return "";
+  };
+
+  let pos = 0;
+  while (pos < len) {
+    const ch = html[pos];
+
+    if (ch === "<") {
+      // Comments and declarations: <!-- ... -->, <!DOCTYPE ...>, <? ... ?>
+      if (html.startsWith("!--", pos + 1)) {
+        const end = html.indexOf("-->", pos + 4);
+        pos = end === -1 ? len : end + 3;
+        continue;
+      }
+      if (html[pos + 1] === "!" || html[pos + 1] === "?") {
+        pos = skipTagEnd(pos + 2);
+        continue;
+      }
+      const tag = readTag(pos + 1);
+      if (!tag.name) {
+        // A lone `<` that does not open a tag — keep it as literal text.
+        out.push("<");
+        pos++;
+        continue;
+      }
+      const tagEnd = skipTagEnd(tag.afterName);
+
+      if (tag.closing) {
+        if (NEWLINE_ON_CLOSE_TAGS.has(tag.name)) out.push("\n");
+        else if (tag.name === "td" || tag.name === "th") out.push("  ");
+        pos = tagEnd;
+        continue;
+      }
+      if (DROP_CONTENT_TAGS.has(tag.name)) {
+        // Drop the element and its entire contents. The end tag is located by
+        // scanning (not a regex), so `</script >`-style variants are matched.
+        const close = lowerIndexOf("</" + tag.name, tagEnd);
+        pos = close === -1 ? tagEnd : skipTagEnd(close + tag.name.length + 2);
+        continue;
+      }
+      if (tag.name === "br") { out.push("\n"); pos = tagEnd; continue; }
+      if (tag.name === "li") { out.push("- "); pos = tagEnd; continue; }
+      if (tag.name === "a") {
+        const href = extractHref(html.slice(pos, tagEnd));
+        const close = lowerIndexOf("</a", tagEnd);
+        const innerEnd = close === -1 ? len : close;
+        const text = htmlToPlainText(html.slice(tagEnd, innerEnd)).replace(/\s+/g, " ").trim();
+        if (href && text && text !== href) out.push(`${text} (${href})`);
+        else out.push(text || href || "");
+        pos = close === -1 ? len : skipTagEnd(close + 2);
+        continue;
+      }
+      pos = tagEnd;
+      continue;
+    }
+
+    if (ch === "&") {
+      const semi = html.indexOf(";", pos + 1);
+      if (semi !== -1 && semi - pos <= 10) {
+        const name = html.slice(pos + 1, semi).toLowerCase();
+        if (name in NAMED_ENTITIES) {
+          out.push(NAMED_ENTITIES[name]);
+          pos = semi + 1;
+          continue;
+        }
+        if (name[0] === "#") {
+          const code = Number(name.slice(1));
+          if (Number.isInteger(code) && code >= 0 && code <= 0x10ffff) {
+            if (!ZERO_WIDTH_CODEPOINTS.has(code) && code !== 847) {
+              out.push(String.fromCodePoint(code));
+            }
+            pos = semi + 1;
+            continue;
+          }
+        }
+        // Unknown entity — emit it literally rather than dropping content.
+        out.push(html.slice(pos, semi + 1));
+        pos = semi + 1;
+        continue;
+      }
+      out.push("&");
+      pos++;
+      continue;
+    }
+
+    const code = ch.codePointAt(0)!;
+    if (ZERO_WIDTH_CODEPOINTS.has(code)) { pos += ch.length; continue; }
+    out.push(ch);
+    pos++;
+  }
+
+  return out.join("")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 /** Reusable pieces so new emails do not hand-roll styling. */
