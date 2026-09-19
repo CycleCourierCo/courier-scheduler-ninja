@@ -248,12 +248,12 @@ const JobScheduling = () => {
 
   return (
     <Layout>
-      <div className="container py-6">
+      <div className="office-density container py-6">
         <DashboardHeader>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Job Scheduling</h1>
+            <h1>Job scheduling</h1>
             <p className="text-muted-foreground">
-              Manage and schedule deliveries with K-means clustering
+              Review viable work, route urgency and operational capacity.
             </p>
           </div>
         </DashboardHeader>
@@ -265,7 +265,7 @@ const JobScheduling = () => {
         ) : (
           <>
             {/* Filter row */}
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6 mb-4">
+            <div className="mb-4 flex flex-col gap-3 border-y bg-card px-3 py-3 sm:flex-row sm:items-center sm:gap-6">
               <div className="flex items-center gap-2">
                 <Label className="text-sm text-muted-foreground">Map:</Label>
                 <ToggleGroup

@@ -68,6 +68,7 @@ import StatsCard from "@/components/analytics/StatsCard";
 import ApiWebhookSection from "@/components/analytics/ApiWebhookSection";
 import IntegrationsSection from "@/components/analytics/IntegrationsSection";
 import { Bike, Calendar as CalendarLucide, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer, ClipboardCheck, AlertTriangle, PoundSterling, ThumbsUp, Route, Users, Webhook, PlugZap } from "lucide-react";
+import DashboardHeader from "@/components/DashboardHeader";
 
 import {
   getBikeValueMetrics,
@@ -287,15 +288,20 @@ const AnalyticsPage = () => {
 
   return (
     <Layout>
-      <div className="container px-2 sm:px-4 py-4 sm:py-6 mx-auto max-w-7xl">
-        <h1 className="text-2xl sm:text-3xl font-bold mb-4 sm:mb-8">Order Analytics</h1>
+      <div className="office-density container mx-auto max-w-7xl px-2 py-4 sm:px-4 sm:py-6">
+        <DashboardHeader>
+          <div>
+            <h1>Order analytics</h1>
+            <p className="text-muted-foreground">Orders, customers, workshop, fleet and integration performance.</p>
+          </div>
+        </DashboardHeader>
         
         {isLoading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
           </div>
         ) : error ? (
-          <div className="rounded-lg border border-destructive bg-destructive/10 p-4">
+          <div className="rounded-md border border-l-4 border-destructive bg-card p-4">
             <p className="text-sm text-destructive">Error loading analytics data. Please try again later.</p>
           </div>
         ) : (
@@ -330,7 +336,7 @@ const AnalyticsPage = () => {
               onValueChange={setActiveTab}
               className="mb-4 sm:mb-8"
             >
-              <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 lg:grid-cols-10 gap-1 h-auto mb-4 sm:mb-8">
+              <TabsList className="mb-4 grid h-auto w-full grid-cols-2 gap-1 sm:mb-8 sm:grid-cols-3 lg:grid-cols-10">
                 <TabsTrigger value="bike-value" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
                   <PoundSterling className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Bike Value</span>
