@@ -14,11 +14,12 @@ Replace the retired green/blob branding across the live digital product with the
    - Replace the temporary truck-circle/text treatment in the shared top bar with the horizontal lockup at a legible desktop size and the solid road-C plus compact wordmark treatment on mobile.
    - Replace the existing image in the collapsible internal sidebar, using the solid road-C when collapsed and the horizontal lockup when expanded.
    - Add the appropriate lockup to the shared footer without changing its company, contact, legal, or navigation content.
+   - Replace the externally hosted legacy mark on the About page with the supplied local brand artwork.
    - Ensure light and dark modes use the supplied normal/reversed variants with suitable contrast and no layout shift or navigation overlap.
 
 3. **Browser and device identity**
    - Replace the old browser favicon with the supplied favicon package.
-   - Add the supplied SVG/PNG icon variants and Apple touch icon metadata where supported, while keeping the existing page title and description.
+   - Add the supplied SVG/PNG icon variants, Apple touch icon metadata, and a minimal web app manifest for the supplied 192px, 512px, and maskable icons, while keeping the existing page title and description.
    - Keep the startup/loading fallback lightweight and readable if application files are blocked.
 
 4. **Emails and announcements**
