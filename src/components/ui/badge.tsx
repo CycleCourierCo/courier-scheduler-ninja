@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const badgeVariants = cva(
-  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  "inline-flex items-center rounded-sm border px-2 py-1 text-xs font-bold leading-none transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
   {
     variants: {
       variant: {
@@ -16,19 +16,27 @@ const badgeVariants = cva(
         destructive:
           "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
         outline: "text-foreground",
-        success: "border-transparent bg-green-500 text-white",
-        warning: "border-transparent bg-amber-500 text-white",
-        progress: "border-transparent bg-courier-200 text-courier-800",
-        active: "border-transparent bg-courier-600 text-white",
-        // New polygon segment color variants
-        "p1-segment": "border-transparent bg-[#8B5CF6] text-white", // Vivid Purple
-        "p2-segment": "border-transparent bg-[#F97316] text-white", // Bright Orange
-        "p3-segment": "border-transparent bg-[#0EA5E9] text-white", // Ocean Blue
-        "p4-segment": "border-transparent bg-[#10B981] text-white", // Soft Green
-        "p5-segment": "border-transparent bg-[#F43F5E] text-white", // Soft Pink
-        "p6-segment": "border-transparent bg-[#14B8A6] text-white", // Teal
-        "p7-segment": "border-transparent bg-[#6366F1] text-white", // Indigo
-        "p8-segment": "border-transparent bg-[#EC4899] text-white", // Pink
+        success: "border-transparent bg-status-done text-primary-foreground",
+        warning: "border-transparent bg-status-waiting text-foreground",
+        progress: "border-transparent bg-status-transit text-primary-foreground",
+        active: "border-transparent bg-status-booked text-primary-foreground",
+        neutral: "border-transparent bg-status-neutral text-primary-foreground",
+        waiting: "border-transparent bg-status-waiting text-foreground",
+        booked: "border-transparent bg-status-booked text-primary-foreground",
+        transit: "border-transparent bg-status-transit text-primary-foreground",
+        done: "border-transparent bg-status-done text-primary-foreground",
+        failed: "border-transparent bg-status-failed text-primary-foreground",
+        ni: "border-transparent bg-status-ni text-primary-foreground",
+        trunk: "border-transparent bg-status-trunk text-primary-foreground",
+        inspection: "border-transparent bg-status-inspection text-primary-foreground",
+        "p1-segment": "border-transparent bg-segment-1 text-primary-foreground",
+        "p2-segment": "border-transparent bg-segment-2 text-primary-foreground",
+        "p3-segment": "border-transparent bg-segment-3 text-primary-foreground",
+        "p4-segment": "border-transparent bg-segment-4 text-primary-foreground",
+        "p5-segment": "border-transparent bg-segment-5 text-primary-foreground",
+        "p6-segment": "border-transparent bg-segment-6 text-primary-foreground",
+        "p7-segment": "border-transparent bg-segment-7 text-primary-foreground",
+        "p8-segment": "border-transparent bg-segment-8 text-primary-foreground",
       },
     },
     defaultVariants: {

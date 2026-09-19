@@ -12,70 +12,70 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
   const getStatusConfig = (status: OrderStatus) => {
     switch (status) {
       case "created":
-        return { label: "Created", className: "bg-gray-500" };
+        return { label: "Created", variant: "neutral" as const };
       case "sender_availability_pending":
-        return { label: "Sender Confirmation Pending", className: "bg-yellow-500" };
+        return { label: "Sender Confirmation Pending", variant: "waiting" as const };
       case "sender_availability_confirmed":
-        return { label: "Sender Confirmed", className: "bg-blue-500" };
+        return { label: "Sender Confirmed", variant: "booked" as const };
       case "receiver_availability_pending":
-        return { label: "Receiver Confirmation Pending", className: "bg-yellow-500" };
+        return { label: "Receiver Confirmation Pending", variant: "waiting" as const };
       case "receiver_availability_confirmed":
-        return { label: "Receiver Confirmed", className: "bg-blue-500" };
+        return { label: "Receiver Confirmed", variant: "booked" as const };
       case "scheduled_dates_pending":
       case "pending_approval":
-        return { label: "Scheduled Dates Pending", className: "bg-purple-300" };
+        return { label: "Scheduled Dates Pending", variant: "waiting" as const };
       case "scheduled":
-        return { label: "Scheduled", className: "bg-purple-500" };
+        return { label: "Scheduled", variant: "booked" as const };
       case "collection_scheduled":
-        return { label: "Collection Scheduled", className: "bg-green-400" };
+        return { label: "Collection Scheduled", variant: "booked" as const };
       case "delivery_scheduled":
-        return { label: "Delivery Scheduled", className: "bg-blue-400" };
+        return { label: "Delivery Scheduled", variant: "booked" as const };
       case "driver_to_collection":
-        return { label: "Driver En Route to Pickup", className: "bg-blue-600" };
+        return { label: "Driver En Route to Pickup", variant: "transit" as const };
       case "collected":
-        return { label: "Bike Collected", className: "bg-green-400" };
+        return { label: "Bike Collected", variant: "done" as const };
       case "driver_to_delivery":
-        return { label: "Driver En Route to Delivery", className: "bg-blue-600" };
+        return { label: "Driver En Route to Delivery", variant: "transit" as const };
       case "shipped":
-        return { label: "Shipped", className: "bg-courier-600" };
+        return { label: "Shipped", variant: "neutral" as const };
       case "delivered":
-        return { label: "Delivered", className: "bg-green-500" };
+        return { label: "Delivered", variant: "done" as const };
       case "cancelled":
-        return { label: "Cancelled", className: "bg-red-500" };
+        return { label: "Cancelled", variant: "failed" as const };
       case "awaiting_depot":
-        return { label: "Awaiting delivery to depot", className: "bg-amber-500" };
+        return { label: "Awaiting delivery to depot", variant: "waiting" as const };
       case "in_depot_awaiting_boxing":
-        return { label: "In depot, awaiting boxing", className: "bg-blue-500" };
+        return { label: "In depot, awaiting boxing", variant: "inspection" as const };
       case "boxed_awaiting_label":
-        return { label: "Boxed, awaiting label", className: "bg-indigo-500" };
+        return { label: "Boxed, awaiting label", variant: "ni" as const };
       case "awaiting_3p_collection":
-        return { label: "Awaiting 3rd-party collection", className: "bg-purple-500" };
+        return { label: "Awaiting 3rd-party collection", variant: "waiting" as const };
       case "collected_by_3p":
-        return { label: "Collected by 3rd-party courier", className: "bg-green-500" };
+        return { label: "Collected by 3rd-party courier", variant: "done" as const };
       case "delivered_by_3p":
-        return { label: "Delivered by 3rd-party courier", className: "bg-green-600" };
+        return { label: "Delivered by 3rd-party courier", variant: "done" as const };
       case "delivered_to_ferry":
-        return { label: "Delivered to ferry — awaiting transport across the Irish Sea", className: "bg-cyan-600" };
+        return { label: "Delivered to ferry — awaiting transport across the Irish Sea", variant: "ni" as const };
       case "awaiting_trunk_to_scotland":
-        return { label: "At depot — awaiting transport to Scotland", className: "bg-amber-500" };
+        return { label: "At depot — awaiting transport to Scotland", variant: "waiting" as const };
       case "in_transit_to_scotland":
-        return { label: "In transit to our Scotland depot", className: "bg-blue-600" };
+        return { label: "In transit to our Scotland depot", variant: "trunk" as const };
       case "at_scotland_depot":
-        return { label: "At our Scotland depot", className: "bg-indigo-500" };
+        return { label: "At our Scotland depot", variant: "trunk" as const };
       case "awaiting_trunk_to_depot":
-        return { label: "At Scotland depot — awaiting transport south", className: "bg-amber-500" };
+        return { label: "At Scotland depot — awaiting transport south", variant: "waiting" as const };
       case "in_transit_to_depot":
-        return { label: "In transit to our main depot", className: "bg-blue-600" };
+        return { label: "In transit to our main depot", variant: "trunk" as const };
 
       default:
-        return { label: status, className: "bg-gray-500" };
+        return { label: status, variant: "neutral" as const };
     }
   };
 
-  const { label, className } = getStatusConfig(status);
+  const { label, variant } = getStatusConfig(status);
 
   return (
-    <Badge className={cn("text-white font-medium", className)}>
+    <Badge variant={variant} className={cn("font-semibold")}>
       {label}
     </Badge>
   );
