@@ -5,7 +5,7 @@
 // error label. Never log request/response bodies, customer data or secrets here.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
-import { applyEmailBrand } from "./emailLayout.ts";
+import { applyEmailBrand, htmlToPlainText, EmailShellOptions } from "./emailLayout.ts";
 
 export type IntegrationProvider =
   | "shipday"
@@ -190,10 +190,20 @@ export function trackResend<T extends { emails: { send: (...args: any[]) => Prom
     try {
       const payload = args[0];
       if (payload && typeof payload === "object" && typeof payload.html === "string") {
+        // Senders may attach per-template shell options (eyebrow, preheader,
+        // chevron...) as `cccShell`; it is consumed here and never sent.
+        const shellOpts: EmailShellOptions =
+          payload.cccShell && typeof payload.cccShell === "object" ? payload.cccShell : {};
+        delete payload.cccShell;
         payload.html = applyEmailBrand(payload.html, {
           subject: typeof payload.subject === "string" ? payload.subject : "",
           wide,
+          ...shellOpts,
         });
+        // Every email ships a plain-text alternative (deliverability + a11y).
+        if (typeof payload.text !== "string" || !payload.text.trim() || payload.text === "Default email content") {
+          payload.text = htmlToPlainText(payload.html);
+        }
       }
     } catch (_err) {
       // Styling must never stop a send.
