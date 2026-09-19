@@ -671,6 +671,31 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
   };
 
   const trackingEvents = getTrackingEvents();
+  const latestTrackingEvent = trackingEvents[trackingEvents.length - 1];
+  const journeyStops = [
+    {
+      label: "Booked",
+      state: trackingEvents.length > 1 ? "complete" : "current",
+    },
+    {
+      label: isInboundNiOrder ? "NI collection" : "Collection",
+      state: trackingEvents.some((event) => /collect|pickup/i.test(event.title))
+        ? "complete"
+        : "upcoming",
+    },
+    {
+      label: isNorthernIrelandOrder || isInboundNiOrder ? "Ferry journey" : "In transit",
+      state: trackingEvents.some((event) => /ferry|transit|en route|received from partner/i.test(event.title))
+        ? "complete"
+        : "upcoming",
+    },
+    {
+      label: isNorthernIrelandOrder ? "Partner hand-off" : "Delivered",
+      state: trackingEvents.some((event) => /delivered|partner hand-off|received by.*partner/i.test(event.title))
+        ? "current"
+        : "upcoming",
+    },
+  ] as const;
 
   const openVerificationDialog = (type: "collection" | "delivery") => {
     setVerificationDialog({ isOpen: true, type });
@@ -703,11 +728,14 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
 
       {trackingEvents.length > 0 ? (
         <div className="mt-5 overflow-hidden">
-          <JourneyStrip className="mb-6" stops={trackingEvents.map((event, index) => ({
-            label: event.title,
-            detail: formatDate(event.date),
-            state: index < trackingEvents.length - 1 ? "complete" : "current",
-          }))} />
+          <JourneyStrip compact className="mb-3" stops={journeyStops.map((stop) => ({ ...stop }))} />
+          {latestTrackingEvent && (
+            <div className="mb-6 min-w-0 border-l-4 border-primary bg-secondary px-3 py-2">
+              <p className="break-words text-xs font-bold uppercase text-muted-foreground">Latest update</p>
+              <p className="break-words font-bold">{latestTrackingEvent.title}</p>
+              <p className="data-text break-words text-xs text-muted-foreground">{formatDate(latestTrackingEvent.date)}</p>
+            </div>
+          )}
           <div className="divide-y border-y">
           {trackingEvents.map((event, index) => {
             const ev = event as any;

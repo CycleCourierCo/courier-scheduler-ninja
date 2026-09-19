@@ -16,6 +16,7 @@ import * as z from "zod";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 import type { Order } from "@/types/order";
 import DoorstepShell from "@/components/design/DoorstepShell";
+import Layout from "@/components/Layout";
 
 
 const formSchema = z.object({
@@ -101,7 +102,8 @@ const TrackingPage = () => {
 
 
   return (
-    <DoorstepShell title="Track your bike" reference={order?.trackingNumber ?? searchId}>
+    <Layout>
+      <DoorstepShell title="Track your bike" reference={order?.trackingNumber ?? searchId}>
           {!order && <Card className="mb-8">
             <CardContent className="pt-6">
               <TrackingForm onSearch={handleSearch} />
@@ -266,7 +268,8 @@ const TrackingPage = () => {
             </CardContent>
           </Card>
         )}
-    </DoorstepShell>
+      </DoorstepShell>
+    </Layout>
   );
 };
 
