@@ -712,6 +712,7 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
       const senderHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Hello ${order.sender.name || "Customer"},</h2>
+          ${journeyBlock(order, 'done', 'Delivered', ['Delivered', 'Delivered NI'], 4)}
           <p>Great news! Your bicycle has been successfully delivered.</p>
           <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>Bicycle:</strong> ${itemName}</p>
@@ -764,6 +765,7 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
       const receiverHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Hello ${order.receiver.name || "Customer"},</h2>
+          ${journeyBlock(order, 'done', 'Delivered', ['Delivered', 'Delivered NI'], 4)}
           <p>Great news! Your bicycle has been successfully delivered to you.</p>
           <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
             <p><strong>Bicycle:</strong> ${itemName}</p>
