@@ -456,6 +456,10 @@ The Cycle Courier Co. Team
       if (reqData.html) {
         emailOptions.html = reqData.html;
       }
+      // Callers (e.g. send-order-updates) may pass per-template shell options.
+      if (reqData.cccShell && typeof reqData.cccShell === 'object') {
+        shellOptions = reqData.cccShell;
+      }
     }
     
     console.log(`Sending email from: ${from} to: ${reqData.to}`);
@@ -465,6 +469,9 @@ The Cycle Courier Co. Team
     try {
       // Tag availability emails so the Resend webhook can correlate delivery events.
       const sendPayload: any = { ...emailOptions, reply_to: "Info@cyclecourierco.com" };
+      if (Object.keys(shellOptions).length > 0) {
+        sendPayload.cccShell = shellOptions;
+      }
       const isAvailability = reqData.emailType === 'sender' || reqData.emailType === 'receiver';
       if (isAvailability && reqData.orderId) {
         sendPayload.tags = [
