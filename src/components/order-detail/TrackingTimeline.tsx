@@ -672,30 +672,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
 
   const trackingEvents = getTrackingEvents();
   const latestTrackingEvent = trackingEvents[trackingEvents.length - 1];
-  const journeyStops = [
-    {
-      label: "Booked",
-      state: trackingEvents.length > 1 ? "complete" : "current",
-    },
-    {
-      label: isInboundNiOrder ? "NI collection" : "Collection",
-      state: trackingEvents.some((event) => /collect|pickup/i.test(event.title))
-        ? "complete"
-        : "upcoming",
-    },
-    {
-      label: isNorthernIrelandOrder || isInboundNiOrder ? "Ferry journey" : "In transit",
-      state: trackingEvents.some((event) => /ferry|transit|en route|received from partner/i.test(event.title))
-        ? "complete"
-        : "upcoming",
-    },
-    {
-      label: isNorthernIrelandOrder ? "Partner hand-off" : "Delivered",
-      state: trackingEvents.some((event) => /delivered|partner hand-off|received by.*partner/i.test(event.title))
-        ? "current"
-        : "upcoming",
-    },
-  ] as const;
+  const journeyStops = buildJourneyStops(order);
 
   const openVerificationDialog = (type: "collection" | "delivery") => {
     setVerificationDialog({ isOpen: true, type });
