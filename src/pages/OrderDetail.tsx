@@ -1751,7 +1751,7 @@ const OrderDetail = () => {
             
             <Separator className="my-6" />
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
               <div className="space-y-4">
                 {isAdminOrRoutePlanner ? (
                   <AdminContactEditor 
