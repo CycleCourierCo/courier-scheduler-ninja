@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
-import horizontalLogo from "@/assets/brand/lockup-horizontal.svg.asset.json";
-import reversedHorizontalLogo from "@/assets/brand/lockup-horizontal-reversed.svg.asset.json";
-import solidLogo from "@/assets/brand/c-solid-blue.svg.asset.json";
+import horizontalLogo from "@/assets/brand/lockup-horizontal.png.asset.json";
+import reversedHorizontalLogo from "@/assets/brand/lockup-horizontal-reversed.png.asset.json";
+import solidLogo from "@/assets/brand/c-solid-blue.png.asset.json";
 
 type BrandLogoProps = {
   className?: string;

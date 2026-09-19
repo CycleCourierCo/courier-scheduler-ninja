@@ -35,7 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import horizontalLogo from "@/assets/brand/lockup-horizontal.svg.asset.json";
+import horizontalLogo from "@/assets/brand/lockup-horizontal.png.asset.json";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { notify } from "@/lib/notify";
 import { useBikeSpaces, formatSpaces } from "@/lib/bikeSpaces";
