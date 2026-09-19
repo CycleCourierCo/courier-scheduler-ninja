@@ -293,10 +293,16 @@ The Cycle Courier Co. Team
       const datesText = formattedDates.join('\n  - ');
       
       emailOptions.subject = 'Thanks for confirming your availability';
-      
+      shellOptions = {
+        eyebrow: 'COLLECTION',
+        preheader: 'Dates received — we\'ll send your timeslot the day before',
+      };
+      const journey = journeyBlock(orderRow, 'booked', 'Dates received', ['Dates'], 1);
+
       emailOptions.html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Hello ${name},</h2>
+          ${journey}
           <p>Thank you for confirming your availability dates.</p>
           
           <div style="background-color: #f7f7f7; padding: 20px; border-radius: 5px; margin: 20px 0;">
@@ -371,10 +377,16 @@ The Cycle Courier Co. Team
       const datesText = formattedDates.join('\n  - ');
       
       emailOptions.subject = 'Thanks for confirming your availability';
-      
+      shellOptions = {
+        eyebrow: 'DELIVERY',
+        preheader: 'Dates received — we\'ll send your timeslot the day before',
+      };
+      const journey = journeyBlock(orderRow, 'booked', 'Dates received', ['Dates'], 1);
+
       emailOptions.html = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2>Hello ${name},</h2>
+          ${journey}
           <p>Thank you for confirming your availability dates for delivery.</p>
           
           <div style="background-color: #f7f7f7; padding: 20px; border-radius: 5px; margin: 20px 0;">
