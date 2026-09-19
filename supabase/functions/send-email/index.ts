@@ -595,6 +595,7 @@ async function handleFerryConfirmation(orderId: string, resend: any): Promise<Re
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Hello ${order.receiver.name || "Customer"},</h2>
+        ${journeyBlock(order, 'ni', 'At ferry', ['At ferry'], 3)}
         <p>Good news - your bicycle has reached the ferry port.</p>
         <div style="background-color: #f7f7f7; padding: 15px; border-radius: 5px; margin: 20px 0;">
           <p><strong>Bicycle:</strong> ${itemName}</p>
@@ -619,7 +620,11 @@ async function handleFerryConfirmation(orderId: string, resend: any): Promise<Re
         to: order.receiver.email,
         subject: "Your Bicycle Has Reached the Ferry Port - The Cycle Courier Co.",
         html,
-        reply_to: "Info@cyclecourierco.com"
+        reply_to: "Info@cyclecourierco.com",
+        cccShell: {
+          eyebrow: "NORTHERN IRELAND",
+          preheader: "Your bike is at the ferry port — final delivery is confirmed once it crosses",
+        },
       });
       if (sendError) {
         console.error("Error sending ferry confirmation to receiver:", sendError);
