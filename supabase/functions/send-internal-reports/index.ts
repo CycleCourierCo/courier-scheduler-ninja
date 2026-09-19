@@ -13,6 +13,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { trackedFetch } from "../_shared/integrationLog.ts";
+import { applyEmailBrand } from "../_shared/emailLayout.ts";
 import {
 
   addDays,
