@@ -149,8 +149,14 @@ export function applyEmailBrand(html: string, options: EmailShellOptions = {}): 
   );
   if (outer) body = outer[1];
 
-  // Full documents that are not ours: keep their structure, restyle only.
-  if (/<html[\s>]/i.test(body)) return normaliseLegacyStyles(body);
+  // Full documents that are not ours: lift the body content into our shell so
+  // the header, footer and palette match everything else. If the body cannot be
+  // isolated, restyle in place rather than risk mangling the document.
+  if (/<html[\s>]/i.test(body)) {
+    const inner = body.match(/<body[^>]*>([\s\S]*)<\/body>/i);
+    if (!inner) return normaliseLegacyStyles(body);
+    body = inner[1];
+  }
 
   return emailShell(normaliseLegacyStyles(body), options);
 }
