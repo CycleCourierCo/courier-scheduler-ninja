@@ -3,6 +3,7 @@
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { emailShell, emailUI, htmlToPlainText } from "./emailLayout.ts";
 import { trackResend } from "./integrationLog.ts";
+import { buildThreadHeaders, threadSubject } from "./cs-thread.ts";
 
 const FROM = "CCC - Cycle Courier Co. <support@mail.cyclecourierco.com>";
 const REPLY_TO = "support@mail.cyclecourierco.com";
@@ -55,6 +56,8 @@ async function sendAndLog(
   const text = htmlToPlainText(opts.html);
   // Pre-allocate the thread message id so delivery events can be matched back to it.
   const messageId = crypto.randomUUID();
+  // Thread this email onto the existing ticket conversation.
+  const thread = await buildThreadHeaders(supabase, opts.conversationId, messageId);
   let externalId: string | null = null;
   let status: "sent" | "failed" = "sent";
   let errorMsg: string | null = null;
@@ -68,7 +71,7 @@ async function sendAndLog(
       subject: opts.subject,
       html: opts.html,
       text,
-      headers: { "Auto-Submitted": "auto-replied", ...(opts.headers || {}) },
+      headers: { "Auto-Submitted": "auto-replied", ...thread.headers, ...(opts.headers || {}) },
       tags: [
         { name: "cs_conversation_id", value: opts.conversationId },
         { name: "cs_message_id", value: messageId },
@@ -95,6 +98,8 @@ async function sendAndLog(
     error: errorMsg,
     is_automatic: true,
     system_event: opts.systemEvent ?? null,
+    email_message_id: thread.emailMessageId,
+    in_reply_to: thread.inReplyTo,
   });
 
   return status === "sent";
@@ -159,7 +164,7 @@ export async function sendTicketReceivedEmail(supabase: any, conversationId: str
   const ok = await sendAndLog(supabase, {
     conversationId,
     to,
-    subject: ref ? `Re: ${subjectLine} [${ref}]` : `Re: ${subjectLine}`,
+    subject: threadSubject(conv),
     html,
     systemEvent: "ticket_acknowledged",
   });
@@ -215,7 +220,7 @@ export async function sendTicketClosedEmail(supabase: any, conversationId: strin
   const ok = await sendAndLog(supabase, {
     conversationId,
     to,
-    subject: ref ? `Re: ${subjectLine} [${ref}] - ticket closed` : `Re: ${subjectLine} - ticket closed`,
+    subject: threadSubject(conv),
     html,
     systemEvent: "ticket_closed",
   });

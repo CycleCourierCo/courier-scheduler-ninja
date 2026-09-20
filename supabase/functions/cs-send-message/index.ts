@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { trackResend, trackedFetch } from "../_shared/integrationLog.ts";
+import { buildThreadHeaders, threadSubject } from "../_shared/cs-thread.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -63,6 +64,8 @@ serve(async (req) => {
     let errorMsg: string | null = null;
     // Pre-allocate the thread message id so Resend delivery events map back to it.
     const messageId = crypto.randomUUID();
+    let emailMessageId: string | null = null;
+    let emailInReplyTo: string | null = null;
 
 
     if (conv.channel === 'email') {
@@ -70,26 +73,13 @@ serve(async (req) => {
       if (!RESEND_API_KEY) throw new Error('RESEND_API_KEY missing');
       const resend = trackResend(new Resend(RESEND_API_KEY), "cs reply email");
 
-      // Build threading headers
-      const { data: lastIn } = await admin
-        .from('cs_messages')
-        .select('email_message_id')
-        .eq('conversation_id', conversation_id)
-        .eq('direction', 'in')
-        .order('created_at', { ascending: false })
-        .limit(1).maybeSingle();
+      // Thread onto every message already on this ticket so the customer sees one conversation.
+      const thread = await buildThreadHeaders(admin, conversation_id, messageId);
+      const headers: Record<string, string> = { ...thread.headers };
+      emailMessageId = thread.emailMessageId;
+      emailInReplyTo = thread.inReplyTo;
 
-      const headers: Record<string, string> = {};
-      if (lastIn?.email_message_id) {
-        headers['In-Reply-To'] = lastIn.email_message_id;
-        headers['References'] = lastIn.email_message_id;
-      }
-
-      const baseSubject = conv.subject?.startsWith('Re:') ? conv.subject : `Re: ${conv.subject || '(no subject)'}`;
-      // Keep the ticket reference in the subject so customer replies stay on this ticket.
-      const subject = conv.ticket_ref && !baseSubject.includes(conv.ticket_ref)
-        ? `${baseSubject} [${conv.ticket_ref}]`
-        : baseSubject;
+      const subject = threadSubject(conv);
       const html = body_html || `<div style="font-family:Arial,sans-serif">${(body_text || '').replace(/\n/g, '<br>')}</div>`;
       try {
         // Send from the receiving subdomain so customer replies land back in this inbox.
@@ -162,6 +152,8 @@ serve(async (req) => {
       delivery_status: status === 'sent' ? 'sent' : 'failed',
       status,
       error: errorMsg,
+      email_message_id: emailMessageId,
+      in_reply_to: emailInReplyTo,
     });
 
     if (status === 'sent') {
