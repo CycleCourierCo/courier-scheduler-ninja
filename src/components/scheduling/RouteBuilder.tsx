@@ -3986,6 +3986,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                     openingHoursMap={profileOpeningHours}
                   />
                 ))}
+                </div>
 
                 <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                   <MapPin className="h-4 w-4" />
