@@ -181,7 +181,7 @@ export async function sendTicketReceivedEmail(supabase: any, conversationId: str
 export async function sendTicketClosedEmail(supabase: any, conversationId: string): Promise<void> {
   const { data: conv } = await supabase
     .from("cs_conversations")
-    .select("id, channel, subject, ticket_ref, closure_email_sent_at, contact:cs_contacts(handle, display_name)")
+    .select("id, channel, subject, ticket_ref, closed_at, closure_email_sent_at, contact:cs_contacts(handle, display_name)")
     .eq("id", conversationId)
     .maybeSingle();
 
@@ -189,11 +189,14 @@ export async function sendTicketClosedEmail(supabase: any, conversationId: strin
   const to = conv.contact?.handle;
   if (!to || isAutomatedSender(to)) return;
 
-  const { data: claimed } = await supabase
+  // One email per closure, not per ticket: a ticket reopened and closed again must email again.
+  const closedAt = conv.closed_at || new Date().toISOString();
+  const claim = supabase
     .from("cs_conversations")
     .update({ closure_email_sent_at: new Date().toISOString() })
-    .eq("id", conversationId)
-    .is("closure_email_sent_at", null)
+    .eq("id", conversationId);
+  const { data: claimed } = await claim
+    .or(`closure_email_sent_at.is.null,closure_email_sent_at.lt.${closedAt}`)
     .select("id");
   if (!claimed?.length) return;
 
