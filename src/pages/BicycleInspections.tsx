@@ -1654,8 +1654,16 @@ const BicycleInspections = () => {
       // Bikes with declined work still available to offer to the receiver.
       // Includes partial rejections (some work approved, some declined) so they
       // can be offered straight away rather than waiting for repairs to finish.
+      // Workshop-only bikes (no transport job) and approvals that already went to
+      // the receiver / walk-in customer have nobody else to offer to, so they are
+      // never listed here.
       const terminal = status === "inspected" || status === "repaired" || status === "ship_as_is";
-      if (status === "repairs_declined") {
+      const recipient = i.inspection?.approval_recipient;
+      const noOnwardOfferee =
+        !i.inspection?.order_id || recipient === "receiver" || recipient === "walkin";
+      if (noOnwardOfferee) {
+        // skip Repairs Declined entirely
+      } else if (status === "repairs_declined") {
         repairsDeclined.push(i);
       } else if (!terminal) {
         const offerable = (i.issues || []).some(
