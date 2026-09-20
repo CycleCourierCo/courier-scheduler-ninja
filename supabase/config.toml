@@ -100,6 +100,9 @@ verify_jwt = false
 [functions.cs-send-message]
 verify_jwt = true
 
+[functions.cs-close-ticket]
+verify_jwt = true
+
 [functions.resend-webhook]
 verify_jwt = false
 
