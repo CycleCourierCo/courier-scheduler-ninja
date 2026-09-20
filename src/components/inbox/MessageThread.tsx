@@ -28,6 +28,7 @@ const sanitizeMessageHtml = (html: string) =>
 
 const SYSTEM_LABELS: Record<string, string> = {
   ticket_closed: 'This ticket has been closed — the customer was emailed',
+  ticket_acknowledged: 'Confirmation email sent to the customer',
   ticket_reopened: 'This ticket was reopened',
 };
 
