@@ -61,9 +61,13 @@ const CustomerServiceInbox: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['cs-conversations'] });
       queryClient.invalidateQueries({ queryKey: ['cs-queue-counts'] });
       const imported = result?.imported ?? 0;
+      const acks = result?.acks_sent ?? 0;
+      const ackNote = acks > 0
+        ? ` — ${acks} confirmation${acks === 1 ? '' : 's'} sent`
+        : '';
       toast.success(imported > 0
-        ? `${imported} new email${imported === 1 ? '' : 's'} added to the inbox`
-        : 'Inbox is up to date');
+        ? `${imported} new email${imported === 1 ? '' : 's'} added to the inbox${ackNote}`
+        : (acks > 0 ? `Inbox is up to date${ackNote}` : 'Inbox is up to date'));
     } catch (err) {
       toast.error('Could not check for new emails. Please try again.');
       console.error('Inbox sync failed:', err);

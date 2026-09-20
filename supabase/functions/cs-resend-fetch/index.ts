@@ -141,6 +141,7 @@ serve(async (req) => {
 
     let imported = 0;
     let duplicates = 0;
+    let acksSent = 0;
     const failures: Array<{ id: string; reason: string }> = [];
 
     for (const id of ids) {
@@ -170,8 +171,29 @@ serve(async (req) => {
           continue;
         }
 
-        await ingestInboundEmail(supabase, email);
+        const conversationId = await ingestInboundEmail(supabase, email);
         imported++;
+
+        // Confirm receipt for anything this sync brought in. The one-per-ticket
+        // guard inside the helper stops a second email on an existing thread.
+        try {
+          const before = await supabase
+            .from('cs_conversations')
+            .select('ack_sent_at')
+            .eq('id', conversationId)
+            .maybeSingle();
+          if (!before.data?.ack_sent_at) {
+            await sendTicketReceivedEmail(supabase, conversationId);
+            const after = await supabase
+              .from('cs_conversations')
+              .select('ack_sent_at')
+              .eq('id', conversationId)
+              .maybeSingle();
+            if (after.data?.ack_sent_at) acksSent++;
+          }
+        } catch (ackErr) {
+          console.error('cs-resend-fetch ack send failed', (ackErr as Error).message);
+        }
       } catch (err) {
         console.error('cs-resend-fetch failed for received email', { id, message: (err as Error).message });
         failures.push({ id, reason: (err as Error).message.slice(0, 200) });
@@ -182,7 +204,7 @@ serve(async (req) => {
     // where nobody has replied yet and the ticket is still open.
     let acksRetried = 0;
     try {
-      const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const { data: pending } = await supabase
         .from('cs_conversations')
         .select('id')
@@ -209,8 +231,9 @@ serve(async (req) => {
       console.error('cs-resend-fetch ack sweep failed', (sweepErr as Error).message);
     }
 
-    console.log('cs-resend-fetch complete', { checked: ids.length, imported, duplicates, failed: failures.length, acksRetried });
-    return json({ ok: true, checked: ids.length, imported, duplicates, acks_retried: acksRetried, failures });
+    const acks = acksSent + acksRetried;
+    console.log('cs-resend-fetch complete', { checked: ids.length, imported, duplicates, failed: failures.length, acksSent, acksRetried });
+    return json({ ok: true, checked: ids.length, imported, duplicates, acks_sent: acks, acks_retried: acksRetried, failures });
   } catch (e: any) {
     console.error('cs-resend-fetch error:', e?.message);
     return json({ error: 'sync failed', details: String(e?.message ?? '').slice(0, 300) }, 502);
