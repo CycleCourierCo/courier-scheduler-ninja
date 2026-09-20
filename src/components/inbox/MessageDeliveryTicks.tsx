@@ -40,30 +40,31 @@ const MessageDeliveryTicks: React.FC<Props> = ({ status, events, className }) =>
   const history = (events || []).map(e => `${LABELS[e.type] || e.type} · ${format(new Date(e.at), 'PP p')}`);
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span
-          className={cn(
-            "inline-flex items-center gap-1",
-            problem && "text-destructive-foreground",
-            opened && "opacity-100 font-medium",
-            className,
+    <TooltipProvider delayDuration={150}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            className={cn(
+              "inline-flex items-center gap-1",
+              opened && "opacity-100 font-medium",
+              className,
+            )}
+            aria-label={LABELS[status] || status}
+          >
+            {icon}
+            <span className="sr-only">{LABELS[status] || status}</span>
+          </span>
+        </TooltipTrigger>
+        <TooltipContent side="top" className="text-xs">
+          <div className="font-medium">{LABELS[status] || status}</div>
+          {history.length > 0 && (
+            <div className="mt-1 space-y-0.5 opacity-80">
+              {history.map((h, i) => <div key={i}>{h}</div>)}
+            </div>
           )}
-          aria-label={LABELS[status] || status}
-        >
-          {icon}
-          <span className="sr-only">{LABELS[status] || status}</span>
-        </span>
-      </TooltipTrigger>
-      <TooltipContent side="top" className="text-xs">
-        <div className="font-medium">{LABELS[status] || status}</div>
-        {history.length > 0 && (
-          <div className="mt-1 space-y-0.5 opacity-80">
-            {history.map((h, i) => <div key={i}>{h}</div>)}
-          </div>
-        )}
-      </TooltipContent>
-    </Tooltip>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 
