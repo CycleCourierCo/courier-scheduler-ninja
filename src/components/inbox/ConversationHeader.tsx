@@ -172,6 +172,20 @@ const ConversationHeader: React.FC<Props> = ({ conversation, onDismiss }) => {
           </Button>
         )}
 
+        {isClosed && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs"
+            onClick={() => patch(
+              { status: 'open', closed_at: null, closure_email_sent_at: null },
+              'Ticket reopened',
+            )}
+          >
+            Reopen ticket
+          </Button>
+        )}
+
         {isEmail && (
           <Button
             size="sm"

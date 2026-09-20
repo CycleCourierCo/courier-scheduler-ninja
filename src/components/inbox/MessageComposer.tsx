@@ -23,6 +23,7 @@ const TWENTYFOUR_HOURS = 24 * 60 * 60 * 1000;
 
 const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) => {
   const { user } = useAuth();
+  const isClosed = conversation.status === 'closed';
   const [text, setText] = useState("");
   const [isNote, setIsNote] = useState(false);
   const [sending, setSending] = useState(false);
@@ -70,7 +71,7 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
 
   const send = async () => {
     const body = text.trim();
-    if (!body) return;
+    if (!body || isClosed) return;
     setSending(true);
     try {
       if (isNote) {
@@ -89,6 +90,16 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
       setSending(false);
     }
   };
+
+  if (isClosed) {
+    return (
+      <div className="border-t p-3 bg-background">
+        <div className="text-xs text-muted-foreground bg-muted border rounded p-3 text-center">
+          This ticket is closed. Reopen it to reply or add a note.
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="border-t p-3 space-y-2 bg-background">
