@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCsQueues, useCsStaff } from "@/hooks/useCsQueues";
 import { CS_PRIORITIES, type CsPriority } from "@/types/customerService";
 import { toast } from "sonner";
-import { Inbox, Mail, MessageCircle, RefreshCw, Settings } from "lucide-react";
+import { ChevronDown, ChevronUp, Inbox, Mail, MessageCircle, Maximize2, Minimize2, PanelRight, RefreshCw, Settings, SlidersHorizontal } from "lucide-react";
 
 const CustomerServiceInbox: React.FC = () => {
   const navigate = useNavigate();
@@ -35,6 +35,10 @@ const CustomerServiceInbox: React.FC = () => {
   const [search, setSearch] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [suppressAutoSelect, setSuppressAutoSelect] = useState(false);
+  // Layout controls so the conversation can take almost the whole screen.
+  const [focusMode, setFocusMode] = useState(false);
+  const [showContext, setShowContext] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
 
   const clearSelection = () => {
     setSuppressAutoSelect(true);
