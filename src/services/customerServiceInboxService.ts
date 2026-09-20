@@ -1,5 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
-import type { CsConversation, CsMessage, CsConversationStatus } from "@/types/customerService";
+import type { CsConversation, CsMessage, CsConversationStatus, CsPriority } from "@/types/customerService";
 
 const conv = () => (supabase as any).from('cs_conversations');
 const msg = () => (supabase as any).from('cs_messages');
