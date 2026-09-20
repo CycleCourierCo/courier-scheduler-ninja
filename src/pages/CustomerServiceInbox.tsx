@@ -78,6 +78,16 @@ const CustomerServiceInbox: React.FC = () => {
         <div className="flex items-center gap-2 mb-3">
           <Inbox className="h-5 w-5 text-primary" />
           <h1 className="text-xl font-semibold">Customer Service Inbox</h1>
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto h-8"
+            onClick={handleSync}
+            disabled={syncing}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Checking…' : 'Sync now'}
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-[320px_1fr_300px] gap-3 flex-1 min-h-[70vh]">
