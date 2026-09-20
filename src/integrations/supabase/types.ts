@@ -988,10 +988,13 @@ export type Database = {
       }
       cs_conversations: {
         Row: {
+          ack_sent_at: string | null
           assigned_manually: boolean
           assignee_id: string | null
           auto_link_locked: boolean
           channel: string
+          closed_at: string | null
+          closure_email_sent_at: string | null
           contact_id: string
           created_at: string
           first_response_due_at: string | null
@@ -1011,10 +1014,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ack_sent_at?: string | null
           assigned_manually?: boolean
           assignee_id?: string | null
           auto_link_locked?: boolean
           channel: string
+          closed_at?: string | null
+          closure_email_sent_at?: string | null
           contact_id: string
           created_at?: string
           first_response_due_at?: string | null
@@ -1034,10 +1040,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ack_sent_at?: string | null
           assigned_manually?: boolean
           assignee_id?: string | null
           auto_link_locked?: boolean
           channel?: string
+          closed_at?: string | null
+          closure_email_sent_at?: string | null
           contact_id?: string
           created_at?: string
           first_response_due_at?: string | null
@@ -1101,6 +1110,7 @@ export type Database = {
           external_id: string | null
           id: string
           in_reply_to: string | null
+          is_automatic: boolean
           status: string
         }
         Insert: {
@@ -1116,6 +1126,7 @@ export type Database = {
           external_id?: string | null
           id?: string
           in_reply_to?: string | null
+          is_automatic?: boolean
           status?: string
         }
         Update: {
@@ -1131,6 +1142,7 @@ export type Database = {
           external_id?: string | null
           id?: string
           in_reply_to?: string | null
+          is_automatic?: boolean
           status?: string
         }
         Relationships: [
