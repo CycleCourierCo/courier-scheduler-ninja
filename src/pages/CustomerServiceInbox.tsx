@@ -104,19 +104,61 @@ const CustomerServiceInbox: React.FC = () => {
   return (
     <Layout>
       <div className="container mx-auto px-2 md:px-4 py-4 flex-1 flex flex-col">
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center flex-wrap gap-2 mb-3">
           <Inbox className="h-5 w-5 text-primary" />
           <h1 className="text-xl font-semibold">Customer Service Inbox</h1>
+          {totalOverdue > 0 && (
+            <Badge className="bg-destructive text-destructive-foreground border-transparent">
+              {totalOverdue} past reply time
+            </Badge>
+          )}
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outline" size="sm" className="h-8" asChild>
+              <Link to="/inbox/queues">
+                <Settings className="h-3.5 w-3.5 mr-1" />Queues
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={handleSync}
+              disabled={syncing}
+            >
+              <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Checking…' : 'Sync now'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Queue tabs with live counts */}
+        <div className="flex gap-1 flex-wrap mb-3">
           <Button
-            variant="outline"
+            variant={queueId === 'all' ? 'default' : 'outline'}
             size="sm"
-            className="ml-auto h-8"
-            onClick={handleSync}
-            disabled={syncing}
+            className="h-7 px-2 text-xs"
+            onClick={() => setQueueId('all')}
           >
-            <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Checking…' : 'Sync now'}
+            All queues
           </Button>
+          {queues.filter(q => q.is_active).map(q => {
+            const c = queueCounts[q.id];
+            return (
+              <Button
+                key={q.id}
+                variant={queueId === q.id ? 'default' : 'outline'}
+                size="sm"
+                className="h-7 px-2 text-xs gap-1"
+                onClick={() => setQueueId(q.id)}
+              >
+                {q.name}
+                {c?.open ? <span className="opacity-80">{c.open}</span> : null}
+                {c?.overdue ? (
+                  <span className="text-destructive font-medium">!{c.overdue}</span>
+                ) : null}
+              </Button>
+            );
+          })}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-[320px_1fr_300px] gap-3 flex-1 min-h-[70vh]">
