@@ -3327,7 +3327,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       />
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+          <CardTitle className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <span className="flex items-center gap-2">
               <Route className="h-5 w-5" />
               Route Builder
@@ -3362,6 +3362,15 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
               })()}
             </div>
           </CardTitle>
+          <Button
+            variant="default"
+            onClick={handleAddAllMissingToShipday}
+            disabled={isLoadingShipday || isVerifyingShipday || missingVisibleShipdayJobs.length === 0}
+            className="mt-3 flex w-full items-center gap-2 sm:w-auto"
+          >
+            {isLoadingShipday ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            Add all missing ({missingVisibleShipdayJobs.length})
+          </Button>
         </CardHeader>
         <CardContent>
           <div className="flex gap-4 mb-4">
@@ -3472,16 +3481,6 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
             
             
             {/* Load filtered jobs into Shipday */}
-            <Button
-              variant="default"
-              onClick={handleAddAllMissingToShipday}
-              disabled={isLoadingShipday || isVerifyingShipday || missingVisibleShipdayJobs.length === 0}
-              className="flex items-center gap-2"
-            >
-              {isLoadingShipday ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Add all missing ({missingVisibleShipdayJobs.length})
-            </Button>
-
             <Button
               variant="outline"
               onClick={handleLoadFilteredIntoShipday}
