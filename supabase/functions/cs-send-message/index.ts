@@ -85,9 +85,10 @@ serve(async (req) => {
       const subject = conv.subject?.startsWith('Re:') ? conv.subject : `Re: ${conv.subject || '(no subject)'}`;
       const html = body_html || `<div style="font-family:Arial,sans-serif">${(body_text || '').replace(/\n/g, '<br>')}</div>`;
       try {
+        // Send from the receiving subdomain so customer replies land back in this inbox.
         const { data: sent, error } = await resend.emails.send({
-          from: "CCC - Cycle Courier Co. <Info@notification.cyclecourierco.com>",
-          reply_to: 'Info@cyclecourierco.com',
+          from: "CCC - Cycle Courier Co. <support@mail.cyclecourierco.com>",
+          reply_to: 'support@mail.cyclecourierco.com',
           to: [conv.contact.handle],
           subject,
           html,
