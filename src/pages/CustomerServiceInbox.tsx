@@ -171,7 +171,7 @@ const CustomerServiceInbox: React.FC = () => {
           })}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-[320px_1fr_300px] gap-3 flex-1 min-h-[70vh]">
+        <div className="grid grid-cols-1 md:grid-cols-[320px_1fr_300px] gap-3 h-[calc(100dvh-240px)] min-h-[420px]">
           {/* LEFT — list + filters */}
           <div className="border rounded-md flex flex-col bg-card overflow-hidden">
             <div className="p-2 border-b space-y-2">
