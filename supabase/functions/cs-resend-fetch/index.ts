@@ -171,8 +171,29 @@ serve(async (req) => {
           continue;
         }
 
-        await ingestInboundEmail(supabase, email);
+        const conversationId = await ingestInboundEmail(supabase, email);
         imported++;
+
+        // Confirm receipt for anything this sync brought in. The one-per-ticket
+        // guard inside the helper stops a second email on an existing thread.
+        try {
+          const before = await supabase
+            .from('cs_conversations')
+            .select('ack_sent_at')
+            .eq('id', conversationId)
+            .maybeSingle();
+          if (!before.data?.ack_sent_at) {
+            await sendTicketReceivedEmail(supabase, conversationId);
+            const after = await supabase
+              .from('cs_conversations')
+              .select('ack_sent_at')
+              .eq('id', conversationId)
+              .maybeSingle();
+            if (after.data?.ack_sent_at) acksSent++;
+          }
+        } catch (ackErr) {
+          console.error('cs-resend-fetch ack send failed', (ackErr as Error).message);
+        }
       } catch (err) {
         console.error('cs-resend-fetch failed for received email', { id, message: (err as Error).message });
         failures.push({ id, reason: (err as Error).message.slice(0, 200) });
