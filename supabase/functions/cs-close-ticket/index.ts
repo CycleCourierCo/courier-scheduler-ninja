@@ -63,6 +63,12 @@ serve(async (req) => {
       .eq('id', conversationId);
     if (updErr) throw updErr;
 
+    // A closed ticket should never receive the "we've got your message" email afterwards.
+    await admin.from('cs_conversations')
+      .update({ ack_sent_at: new Date().toISOString() })
+      .eq('id', conversationId)
+      .is('ack_sent_at', null);
+
     if (notify) {
       await sendTicketClosedEmail(admin, conversationId);
     }
