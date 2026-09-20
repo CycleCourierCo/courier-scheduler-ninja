@@ -117,16 +117,35 @@ const CustomerServiceInbox: React.FC = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto px-2 md:px-4 py-4 flex-1 flex flex-col">
-        <div className="flex items-center flex-wrap gap-2 mb-3">
-          <Inbox className="h-5 w-5 text-primary" />
-          <h1 className="text-xl font-semibold">Customer Service Inbox</h1>
+      <div className="w-full px-2 md:px-4 py-2 flex-1 flex flex-col min-h-0">
+        <div className="flex items-center flex-wrap gap-2 mb-2">
+          <Inbox className="h-4 w-4 text-primary" />
+          <h1 className="text-base font-semibold">Customer Service Inbox</h1>
           {totalOverdue > 0 && (
             <Badge className="bg-destructive text-destructive-foreground border-transparent">
               {totalOverdue} past reply time
             </Badge>
           )}
           <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8"
+              onClick={() => setFocusMode(f => !f)}
+              title={focusMode ? 'Show ticket list' : 'Give the chat the whole screen'}
+            >
+              {focusMode ? <Minimize2 className="h-3.5 w-3.5 mr-1" /> : <Maximize2 className="h-3.5 w-3.5 mr-1" />}
+              {focusMode ? 'Exit full screen' : 'Full screen chat'}
+            </Button>
+            <Button
+              variant={showContext ? 'secondary' : 'outline'}
+              size="sm"
+              className="h-8 hidden lg:inline-flex"
+              onClick={() => setShowContext(s => !s)}
+              title="Show or hide the contact and order panel"
+            >
+              <PanelRight className="h-3.5 w-3.5 mr-1" />Details
+            </Button>
             <Button variant="outline" size="sm" className="h-8" asChild>
               <Link to="/inbox/queues">
                 <Settings className="h-3.5 w-3.5 mr-1" />Queues
