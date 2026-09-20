@@ -132,6 +132,20 @@ export async function ingestInboundEmail(
     }).eq('id', conversationId);
   }
 
+  // Confirm brand new tickets to the customer. Never blocks the webhook response,
+  // and never fails the ingest if the email cannot be sent.
+  if (isNewTicket) {
+    const ack = sendTicketReceivedEmail(supabase, conversationId!)
+      .catch((e) => console.error('cs ack email failed:', e?.message));
+    try {
+      (globalThis as any).EdgeRuntime?.waitUntil
+        ? (globalThis as any).EdgeRuntime.waitUntil(ack)
+        : await ack;
+    } catch {
+      // ignore — acknowledgement is best effort
+    }
+  }
+
   return conversationId!;
 }
 
