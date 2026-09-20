@@ -63,6 +63,20 @@ const ConversationHeader: React.FC<Props> = ({ conversation }) => {
     patch({ status: v }, `Status: ${v}`);
   };
 
+  const handleSendConfirmation = async () => {
+    if (confirming) return;
+    setConfirming(true);
+    try {
+      await sendTicketConfirmation(conversation.id, confirmationSent);
+      toast.success('Confirmation email sent to the customer');
+      refresh();
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not send the confirmation email');
+    } finally {
+      setConfirming(false);
+    }
+  };
+
   return (
     <div className="border-b px-4 py-3 bg-background space-y-2">
       <div className="flex items-center gap-3">
@@ -76,6 +90,11 @@ const ConversationHeader: React.FC<Props> = ({ conversation }) => {
             {conversation.subject && <span className="truncate">{conversation.subject}</span>}
           </div>
         </div>
+        {conversation.has_delivery_problem && (
+          <Badge variant="destructive" className="h-5 px-2 text-[11px] gap-1 shrink-0">
+            <AlertTriangle className="h-3 w-3" />Email problem
+          </Badge>
+        )}
         {due && (
           <Badge className={cn("h-5 px-2 text-[11px] gap-1 border-transparent shrink-0", dueBadgeClass(due))}>
             <Clock className="h-3 w-3" />{due.label}
