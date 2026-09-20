@@ -2,6 +2,7 @@
 // Used by cs-inbound-email (generic JSON) and cs-resend-inbound (Resend webhook).
 import { resolveOrderLink } from "./cs-order-linker.ts";
 import { sanitizeInboundHtml } from "./sanitizeHtml.ts";
+import { sendTicketReceivedEmail } from "./cs-auto-email.ts";
 
 export interface InboundEmail {
   from: string;            // "Jane Doe <jane@x.com>"
