@@ -82,7 +82,11 @@ serve(async (req) => {
         headers['References'] = lastIn.email_message_id;
       }
 
-      const subject = conv.subject?.startsWith('Re:') ? conv.subject : `Re: ${conv.subject || '(no subject)'}`;
+      const baseSubject = conv.subject?.startsWith('Re:') ? conv.subject : `Re: ${conv.subject || '(no subject)'}`;
+      // Keep the ticket reference in the subject so customer replies stay on this ticket.
+      const subject = conv.ticket_ref && !baseSubject.includes(conv.ticket_ref)
+        ? `${baseSubject} [${conv.ticket_ref}]`
+        : baseSubject;
       const html = body_html || `<div style="font-family:Arial,sans-serif">${(body_text || '').replace(/\n/g, '<br>')}</div>`;
       try {
         // Send from the receiving subdomain so customer replies land back in this inbox.
