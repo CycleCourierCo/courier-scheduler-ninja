@@ -5675,6 +5675,10 @@ export type Database = {
         Returns: string
       }
       cs_pick_queue_assignee: { Args: { p_queue_id: string }; Returns: string }
+      cs_update_order_bikes: {
+        Args: { p_bikes: Json; p_order_id: string }
+        Returns: boolean
+      }
       get_business_accounts_for_admin: {
         Args: never
         Returns: {
