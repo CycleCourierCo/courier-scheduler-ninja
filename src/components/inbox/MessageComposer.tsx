@@ -65,7 +65,7 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
       orderStatus: linkedOrder?.status || null,
       myName,
     });
-    setText((prev) => (prev.trim() ? `${prev.trimEnd()}\n\n${filled}` : filled));
+    setText(filled);
   };
 
   const send = async () => {
