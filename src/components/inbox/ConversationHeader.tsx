@@ -101,6 +101,18 @@ const ConversationHeader: React.FC<Props> = ({ conversation, onDismiss }) => {
             <Clock className="h-3 w-3" />{due.label}
           </Badge>
         )}
+        {onDismiss && (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 shrink-0"
+            onClick={onDismiss}
+            aria-label="Clear ticket from view"
+            title="Clear this ticket from view"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-wrap gap-2">
