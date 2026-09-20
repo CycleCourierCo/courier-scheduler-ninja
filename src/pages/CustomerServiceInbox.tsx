@@ -230,7 +230,7 @@ const CustomerServiceInbox: React.FC = () => {
               <ConversationList
                 conversations={conversations}
                 selectedId={conversationId || null}
-                onSelect={(id) => navigate(`/inbox/${id}`)}
+                onSelect={(id) => { setSuppressAutoSelect(false); navigate(`/inbox/${id}`); }}
                 isLoading={isLoading}
                 staffNames={staffNames}
               />
@@ -241,7 +241,7 @@ const CustomerServiceInbox: React.FC = () => {
           <div className="border rounded-md flex flex-col bg-card overflow-hidden min-h-[400px]">
             {conversation ? (
               <>
-                <ConversationHeader conversation={conversation} />
+                <ConversationHeader conversation={conversation} onDismiss={clearSelection} />
                 <div className="flex-1 overflow-y-auto">
                   <MessageThread messages={messages} />
                 </div>
