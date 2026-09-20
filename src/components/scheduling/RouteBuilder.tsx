@@ -572,6 +572,7 @@ const JobItem: React.FC<JobItemProps> = ({
   index, 
   onReorder, 
   onMove,
+  onMoveTo,
   onUpdateTime,
   isFirstStop,
   isLastStop,
