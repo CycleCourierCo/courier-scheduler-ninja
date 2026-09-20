@@ -988,53 +988,71 @@ export type Database = {
       }
       cs_conversations: {
         Row: {
+          assigned_manually: boolean
           assignee_id: string | null
           auto_link_locked: boolean
           channel: string
           contact_id: string
           created_at: string
+          first_response_due_at: string | null
           id: string
           last_message_at: string
           last_message_preview: string | null
           linked_order_id: string | null
+          next_response_due_at: string | null
+          priority: Database["public"]["Enums"]["cs_priority"]
+          queue_id: string | null
           snooze_until: string | null
           status: string
           subject: string | null
           suggested_order_ids: string[]
+          ticket_ref: string | null
           unread_count: number
           updated_at: string
         }
         Insert: {
+          assigned_manually?: boolean
           assignee_id?: string | null
           auto_link_locked?: boolean
           channel: string
           contact_id: string
           created_at?: string
+          first_response_due_at?: string | null
           id?: string
           last_message_at?: string
           last_message_preview?: string | null
           linked_order_id?: string | null
+          next_response_due_at?: string | null
+          priority?: Database["public"]["Enums"]["cs_priority"]
+          queue_id?: string | null
           snooze_until?: string | null
           status?: string
           subject?: string | null
           suggested_order_ids?: string[]
+          ticket_ref?: string | null
           unread_count?: number
           updated_at?: string
         }
         Update: {
+          assigned_manually?: boolean
           assignee_id?: string | null
           auto_link_locked?: boolean
           channel?: string
           contact_id?: string
           created_at?: string
+          first_response_due_at?: string | null
           id?: string
           last_message_at?: string
           last_message_preview?: string | null
           linked_order_id?: string | null
+          next_response_due_at?: string | null
+          priority?: Database["public"]["Enums"]["cs_priority"]
+          queue_id?: string | null
           snooze_until?: string | null
           status?: string
           subject?: string | null
           suggested_order_ids?: string[]
+          ticket_ref?: string | null
           unread_count?: number
           updated_at?: string
         }
@@ -1058,6 +1076,13 @@ export type Database = {
             columns: ["linked_order_id"]
             isOneToOne: false
             referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_conversations_queue_id_fkey"
+            columns: ["queue_id"]
+            isOneToOne: false
+            referencedRelation: "cs_queues"
             referencedColumns: ["id"]
           },
         ]
@@ -1124,6 +1149,133 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      cs_queue_members: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          queue_id: string
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          queue_id: string
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          queue_id?: string
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_queue_members_queue_id_fkey"
+            columns: ["queue_id"]
+            isOneToOne: false
+            referencedRelation: "cs_queues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cs_queue_slas: {
+        Row: {
+          created_at: string
+          id: string
+          priority: Database["public"]["Enums"]["cs_priority"]
+          queue_id: string
+          target_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          priority: Database["public"]["Enums"]["cs_priority"]
+          queue_id: string
+          target_minutes?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          priority?: Database["public"]["Enums"]["cs_priority"]
+          queue_id?: string
+          target_minutes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_queue_slas_queue_id_fkey"
+            columns: ["queue_id"]
+            isOneToOne: false
+            referencedRelation: "cs_queues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cs_queues: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          rr_cursor: number
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          rr_cursor?: number
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          rr_cursor?: number
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cs_ticket_ref_counters: {
+        Row: {
+          last_value: number
+          scope: string
+        }
+        Insert: {
+          last_value?: number
+          scope: string
+        }
+        Update: {
+          last_value?: number
+          scope?: string
+        }
+        Relationships: []
       }
       customer_shopify_order_log: {
         Row: {
@@ -5456,6 +5608,7 @@ export type Database = {
         Args: { p_name: string; p_secret: string }
         Returns: string
       }
+      cs_pick_queue_assignee: { Args: { p_queue_id: string }; Returns: string }
       get_business_accounts_for_admin: {
         Args: never
         Returns: {
@@ -5612,6 +5765,7 @@ export type Database = {
           name: string
         }[]
       }
+      next_cs_ticket_ref: { Args: never; Returns: string }
       next_custom_repair_id: { Args: never; Returns: string }
       resolve_oauth_token_grant: {
         Args: { access_token: string }
@@ -5760,6 +5914,7 @@ export type Database = {
         | "settlement_proposed"
         | "negotiation"
         | "settlement_agreed"
+      cs_priority: "low" | "normal" | "high" | "urgent"
       equipment_assignment_kind: "site" | "vehicle" | "person"
       equipment_condition: "new" | "good" | "fair" | "poor" | "unusable"
       equipment_maintenance_result: "pass" | "advisory" | "fail"
@@ -6022,6 +6177,7 @@ export const Constants = {
         "negotiation",
         "settlement_agreed",
       ],
+      cs_priority: ["low", "normal", "high", "urgent"],
       equipment_assignment_kind: ["site", "vehicle", "person"],
       equipment_condition: ["new", "good", "fair", "poor", "unusable"],
       equipment_maintenance_result: ["pass", "advisory", "fail"],
