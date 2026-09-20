@@ -161,6 +161,9 @@ serve(async (req) => {
         last_message_at: new Date().toISOString(),
         last_message_preview: (body_text || '').slice(0, 140),
         status: 'pending',
+        // Replying reopens a closed ticket, so the next close emails the customer again.
+        closed_at: null,
+        closure_email_sent_at: null,
       }).eq('id', conversation_id);
 
       // A human has answered, so the automatic confirmation is no longer wanted.
