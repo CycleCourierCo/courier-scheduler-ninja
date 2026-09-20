@@ -63,6 +63,9 @@ export interface CsConversation {
   first_response_due_at: string | null;
   next_response_due_at: string | null;
   assigned_manually: boolean;
+  has_delivery_problem?: boolean | null;
+  ack_sent_at?: string | null;
+  closed_at?: string | null;
   created_at: string;
   updated_at: string;
   // Joined
@@ -75,6 +78,15 @@ export interface CsAttachment {
   filename?: string;
   content_type?: string;
   size?: number;
+}
+
+export type CsDeliveryStatus =
+  | 'sent' | 'delivered' | 'opened' | 'clicked'
+  | 'bounced' | 'complained' | 'failed' | 'delayed';
+
+export interface CsDeliveryEvent {
+  type: CsDeliveryStatus;
+  at: string;
 }
 
 export interface CsMessage {
@@ -91,4 +103,9 @@ export interface CsMessage {
   status: CsMessageStatus;
   error: string | null;
   created_at: string;
+  is_automatic?: boolean | null;
+  provider_message_id?: string | null;
+  delivery_status?: CsDeliveryStatus | null;
+  delivery_events?: CsDeliveryEvent[] | null;
+  system_event?: string | null;
 }

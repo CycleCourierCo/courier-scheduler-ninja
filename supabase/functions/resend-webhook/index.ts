@@ -2,6 +2,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { Webhook } from "https://esm.sh/svix@1.24.0";
 import { logInboundWebhook } from "../_shared/integrationLog.ts";
+import { applyCsDeliveryEvent } from "../_shared/cs-delivery.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -104,6 +105,15 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Customer-service thread messages: reflect the delivery state on the message itself.
+    await applyCsDeliveryEvent(supabase, {
+      csMessageId: tagMap.cs_message_id ?? null,
+      providerMessageId: data.email_id ?? null,
+      eventType,
+      createdAt: evt?.created_at ?? new Date().toISOString(),
+    });
+
 
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,

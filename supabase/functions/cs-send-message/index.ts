@@ -61,6 +61,9 @@ serve(async (req) => {
     let externalId: string | null = null;
     let status: 'sent' | 'failed' = 'sent';
     let errorMsg: string | null = null;
+    // Pre-allocate the thread message id so Resend delivery events map back to it.
+    const messageId = crypto.randomUUID();
+
 
     if (conv.channel === 'email') {
       const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
@@ -98,6 +101,10 @@ serve(async (req) => {
           html,
           text: body_text,
           headers,
+          tags: [
+            { name: 'cs_conversation_id', value: conversation_id },
+            { name: 'cs_message_id', value: messageId },
+          ],
         } as any);
         if (error) throw error;
         externalId = (sent as any)?.id || null;
@@ -144,12 +151,15 @@ serve(async (req) => {
 
     // Insert outbound message
     await admin.from('cs_messages').insert({
+      id: messageId,
       conversation_id,
       direction: 'out',
       author_id: userId,
       body_text: body_text || null,
       body_html: body_html || null,
       external_id: externalId,
+      provider_message_id: externalId,
+      delivery_status: status === 'sent' ? 'sent' : 'failed',
       status,
       error: errorMsg,
     });

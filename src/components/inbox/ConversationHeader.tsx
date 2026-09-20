@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { updateConversation, closeTicket } from "@/services/customerServiceInboxService";
+import { updateConversation, closeTicket, sendTicketConfirmation } from "@/services/customerServiceInboxService";
 import type { CsConversation, CsConversationStatus, CsPriority } from "@/types/customerService";
 import { CS_PRIORITIES } from "@/types/customerService";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Mail, MessageCircle, Clock, CheckCircle2, Loader2 } from "lucide-react";
+import { Mail, MessageCircle, Clock, CheckCircle2, Loader2, Send, AlertTriangle } from "lucide-react";
 import { useCsQueues, useCsStaff } from "@/hooks/useCsQueues";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,10 @@ const ConversationHeader: React.FC<Props> = ({ conversation }) => {
   const { data: staff = [] } = useCsStaff();
   const due = describeDue(conversation.next_response_due_at);
   const [closing, setClosing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const isClosed = conversation.status === 'closed';
+  const isEmail = conversation.channel === 'email';
+  const confirmationSent = !!conversation.ack_sent_at;
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['cs-conversations'] });
@@ -60,6 +63,20 @@ const ConversationHeader: React.FC<Props> = ({ conversation }) => {
     patch({ status: v }, `Status: ${v}`);
   };
 
+  const handleSendConfirmation = async () => {
+    if (confirming) return;
+    setConfirming(true);
+    try {
+      await sendTicketConfirmation(conversation.id, confirmationSent);
+      toast.success('Confirmation email sent to the customer');
+      refresh();
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not send the confirmation email');
+    } finally {
+      setConfirming(false);
+    }
+  };
+
   return (
     <div className="border-b px-4 py-3 bg-background space-y-2">
       <div className="flex items-center gap-3">
@@ -73,6 +90,11 @@ const ConversationHeader: React.FC<Props> = ({ conversation }) => {
             {conversation.subject && <span className="truncate">{conversation.subject}</span>}
           </div>
         </div>
+        {conversation.has_delivery_problem && (
+          <Badge variant="destructive" className="h-5 px-2 text-[11px] gap-1 shrink-0">
+            <AlertTriangle className="h-3 w-3" />Email problem
+          </Badge>
+        )}
         {due && (
           <Badge className={cn("h-5 px-2 text-[11px] gap-1 border-transparent shrink-0", dueBadgeClass(due))}>
             <Clock className="h-3 w-3" />{due.label}
@@ -134,6 +156,24 @@ const ConversationHeader: React.FC<Props> = ({ conversation }) => {
               ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
               : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
             Close ticket
+          </Button>
+        )}
+
+        {isEmail && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 text-xs"
+            onClick={handleSendConfirmation}
+            disabled={confirming}
+            title={confirmationSent
+              ? 'Send the "we\'ve received your message" email again'
+              : 'Send the "we\'ve received your message" email'}
+          >
+            {confirming
+              ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+              : <Send className="h-3.5 w-3.5 mr-1" />}
+            {confirmationSent ? 'Resend confirmation' : 'Send confirmation'}
           </Button>
         )}
       </div>

@@ -6,6 +6,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { ingestInboundEmail, isDuplicateInbound, type InboundEmail } from "../_shared/cs-inbound.ts";
+import { sendTicketReceivedEmail } from "../_shared/cs-auto-email.ts";
 import { requireAdminOrCronAuth, requireOpsAuth, createAuthErrorResponse } from "../_shared/auth.ts";
 
 const corsHeaders = {
@@ -177,8 +178,32 @@ serve(async (req) => {
       }
     }
 
-    console.log('cs-resend-fetch complete', { checked: ids.length, imported, duplicates, failed: failures.length });
-    return json({ ok: true, checked: ids.length, imported, duplicates, failures });
+    // Retry confirmations for recent email tickets that never got one.
+    let acksRetried = 0;
+    try {
+      const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const { data: pending } = await supabase
+        .from('cs_conversations')
+        .select('id')
+        .eq('channel', 'email')
+        .is('ack_sent_at', null)
+        .neq('status', 'closed')
+        .gte('created_at', since)
+        .limit(25);
+      for (const row of pending || []) {
+        try {
+          await sendTicketReceivedEmail(supabase, row.id);
+          acksRetried++;
+        } catch (ackErr) {
+          console.error('cs-resend-fetch ack retry failed', (ackErr as Error).message);
+        }
+      }
+    } catch (sweepErr) {
+      console.error('cs-resend-fetch ack sweep failed', (sweepErr as Error).message);
+    }
+
+    console.log('cs-resend-fetch complete', { checked: ids.length, imported, duplicates, failed: failures.length, acksRetried });
+    return json({ ok: true, checked: ids.length, imported, duplicates, acks_retried: acksRetried, failures });
   } catch (e: any) {
     console.error('cs-resend-fetch error:', e?.message);
     return json({ error: 'sync failed', details: String(e?.message ?? '').slice(0, 300) }, 502);
