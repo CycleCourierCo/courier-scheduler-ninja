@@ -32,5 +32,5 @@ Sending already works end-to-end: replies from the inbox go out through `cs-send
 ## Technical details
 - New file: `supabase/functions/cs-resend-inbound/index.ts`
 - Refactor: shared receive logic into `supabase/functions/_shared/cs-inbound.ts` (used by both `cs-inbound-email` and `cs-resend-inbound`)
-- Optional small edit in `cs-send-message` for the reply-from address
+- Edit `cs-send-message`: inbox from/reply-to becomes `support@mail.cyclecourierco.com`
 - No database changes, no frontend changes
