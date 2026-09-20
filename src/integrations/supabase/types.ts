@@ -998,6 +998,7 @@ export type Database = {
           contact_id: string
           created_at: string
           first_response_due_at: string | null
+          has_delivery_problem: boolean
           id: string
           last_message_at: string
           last_message_preview: string | null
@@ -1024,6 +1025,7 @@ export type Database = {
           contact_id: string
           created_at?: string
           first_response_due_at?: string | null
+          has_delivery_problem?: boolean
           id?: string
           last_message_at?: string
           last_message_preview?: string | null
@@ -1050,6 +1052,7 @@ export type Database = {
           contact_id?: string
           created_at?: string
           first_response_due_at?: string | null
+          has_delivery_problem?: boolean
           id?: string
           last_message_at?: string
           last_message_preview?: string | null
@@ -1104,6 +1107,8 @@ export type Database = {
           body_text: string | null
           conversation_id: string
           created_at: string
+          delivery_events: Json
+          delivery_status: string | null
           direction: string
           email_message_id: string | null
           error: string | null
@@ -1111,7 +1116,9 @@ export type Database = {
           id: string
           in_reply_to: string | null
           is_automatic: boolean
+          provider_message_id: string | null
           status: string
+          system_event: string | null
         }
         Insert: {
           attachments?: Json
@@ -1120,6 +1127,8 @@ export type Database = {
           body_text?: string | null
           conversation_id: string
           created_at?: string
+          delivery_events?: Json
+          delivery_status?: string | null
           direction: string
           email_message_id?: string | null
           error?: string | null
@@ -1127,7 +1136,9 @@ export type Database = {
           id?: string
           in_reply_to?: string | null
           is_automatic?: boolean
+          provider_message_id?: string | null
           status?: string
+          system_event?: string | null
         }
         Update: {
           attachments?: Json
@@ -1136,6 +1147,8 @@ export type Database = {
           body_text?: string | null
           conversation_id?: string
           created_at?: string
+          delivery_events?: Json
+          delivery_status?: string | null
           direction?: string
           email_message_id?: string | null
           error?: string | null
@@ -1143,7 +1156,9 @@ export type Database = {
           id?: string
           in_reply_to?: string | null
           is_automatic?: boolean
+          provider_message_id?: string | null
           status?: string
+          system_event?: string | null
         }
         Relationships: [
           {
