@@ -118,3 +118,12 @@ export const fetchOrdersByIds = async (ids: string[]) => {
   if (error) throw error;
   return data || [];
 };
+
+/** Pulls any inbound emails Resend failed to push to the webhook. */
+export const syncInboundEmails = async (emailId?: string) => {
+  const { data, error } = await supabase.functions.invoke('cs-resend-fetch', {
+    body: emailId ? { email_id: emailId } : {},
+  });
+  if (error) throw error;
+  return data as { checked: number; imported: number; duplicates: number };
+};

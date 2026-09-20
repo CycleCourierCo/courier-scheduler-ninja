@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConversation, useConversations, useMessages } from "@/hooks/useConversations";
-import { markConversationRead } from "@/services/customerServiceInboxService";
+import { markConversationRead, syncInboundEmails } from "@/services/customerServiceInboxService";
 import ConversationList from "@/components/inbox/ConversationList";
 import ConversationHeader from "@/components/inbox/ConversationHeader";
 import MessageThread from "@/components/inbox/MessageThread";
@@ -12,17 +13,37 @@ import ContextPanel from "@/components/inbox/ContextPanel";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Inbox, Mail, MessageCircle } from "lucide-react";
+import { toast } from "sonner";
+import { Inbox, Mail, MessageCircle, RefreshCw } from "lucide-react";
 
 const CustomerServiceInbox: React.FC = () => {
   const navigate = useNavigate();
   const { conversationId } = useParams();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const [status, setStatus] = useState<'open'|'pending'|'snoozed'|'closed'|'all'>('open');
   const [channel, setChannel] = useState<'all'|'email'|'whatsapp'>('all');
   const [scope, setScope] = useState<'all'|'mine'|'unassigned'>('all');
   const [search, setSearch] = useState('');
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const result = await syncInboundEmails();
+      queryClient.invalidateQueries({ queryKey: ['cs-conversations'] });
+      const imported = result?.imported ?? 0;
+      toast.success(imported > 0
+        ? `${imported} new email${imported === 1 ? '' : 's'} added to the inbox`
+        : 'Inbox is up to date');
+    } catch (err) {
+      toast.error('Could not check for new emails. Please try again.');
+      console.error('Inbox sync failed:', err);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const params = useMemo(() => ({
     status,
@@ -57,6 +78,16 @@ const CustomerServiceInbox: React.FC = () => {
         <div className="flex items-center gap-2 mb-3">
           <Inbox className="h-5 w-5 text-primary" />
           <h1 className="text-xl font-semibold">Customer Service Inbox</h1>
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto h-8"
+            onClick={handleSync}
+            disabled={syncing}
+          >
+            <RefreshCw className={`h-3.5 w-3.5 mr-1 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Checking…' : 'Sync now'}
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-[320px_1fr_300px] gap-3 flex-1 min-h-[70vh]">

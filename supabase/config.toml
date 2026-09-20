@@ -90,6 +90,10 @@ verify_jwt = false
 [functions.cs-resend-inbound]
 verify_jwt = false
 
+# Cron calls this with X-Cron-Secret; staff calls carry an admin JWT checked in code.
+[functions.cs-resend-fetch]
+verify_jwt = false
+
 [functions.cs-inbound-whatsapp]
 verify_jwt = false
 
