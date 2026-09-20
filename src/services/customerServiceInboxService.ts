@@ -192,5 +192,5 @@ export const syncInboundEmails = async (emailId?: string) => {
     body: emailId ? { email_id: emailId } : {},
   });
   if (error) throw error;
-  return data as { checked: number; imported: number; duplicates: number };
+  return data as { checked: number; imported: number; duplicates: number; acks_sent?: number };
 };
