@@ -204,7 +204,7 @@ serve(async (req) => {
     // where nobody has replied yet and the ticket is still open.
     let acksRetried = 0;
     try {
-      const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+      const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const { data: pending } = await supabase
         .from('cs_conversations')
         .select('id')
