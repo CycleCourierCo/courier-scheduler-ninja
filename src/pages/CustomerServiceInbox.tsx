@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useCsQueues, useCsStaff } from "@/hooks/useCsQueues";
 import { CS_PRIORITIES, type CsPriority } from "@/types/customerService";
 import { toast } from "sonner";
@@ -36,6 +37,7 @@ const CustomerServiceInbox: React.FC = () => {
   const [syncing, setSyncing] = useState(false);
   const [suppressAutoSelect, setSuppressAutoSelect] = useState(false);
   const [showContext, setShowContext] = useState(true);
+  const [mobileContextOpen, setMobileContextOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
   const clearSelection = () => {
@@ -131,6 +133,16 @@ const CustomerServiceInbox: React.FC = () => {
               className="h-8 hidden md:inline-flex"
               onClick={() => setShowContext(s => !s)}
               title="Show or hide the contact and order panel"
+            >
+              <PanelRight className="h-3.5 w-3.5 mr-1" />Details
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 md:hidden"
+              onClick={() => setMobileContextOpen(true)}
+              title="Show contact, linked orders and tasks"
+              disabled={!conversation}
             >
               <PanelRight className="h-3.5 w-3.5 mr-1" />Details
             </Button>
@@ -298,6 +310,13 @@ const CustomerServiceInbox: React.FC = () => {
             </div>
           )}
         </div>
+
+        <Sheet open={mobileContextOpen} onOpenChange={setMobileContextOpen}>
+          <SheetContent side="right" className="w-[92vw] max-w-md overflow-y-auto p-0">
+            <SheetTitle className="sr-only">Ticket details</SheetTitle>
+            {conversation && <ContextPanel conversation={conversation} />}
+          </SheetContent>
+        </Sheet>
       </div>
     </Layout>
   );
