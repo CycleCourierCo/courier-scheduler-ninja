@@ -2088,6 +2088,38 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     calculateTimeslots(updated);
   };
 
+  /** Planner typed a position: move the whole stop so it lands at that number. */
+  const moveStopToPosition = (index: number, position: number) => {
+    const list = [...selectedJobs];
+    if (!list[index]) return;
+    const block = getStopBlock(list, index);
+    const start = block[0];
+    const end = block[block.length - 1];
+
+    const target = Math.max(1, Math.min(position, list.length)) - 1;
+    if (target === start) return;
+
+    const moving = list.slice(start, end + 1);
+    const rest = [...list.slice(0, start), ...list.slice(end + 1)];
+
+    // Snap to a stop boundary so grouped stops never get split apart.
+    let insertAt = target > start ? target - moving.length + 1 : target;
+    insertAt = Math.max(0, Math.min(insertAt, rest.length));
+    if (insertAt > 0 && insertAt < rest.length) {
+      const prevGroup = (rest[insertAt - 1] as any)?.locationGroupId;
+      const nextGroup = (rest[insertAt] as any)?.locationGroupId;
+      if (prevGroup && prevGroup === nextGroup) {
+        while (insertAt < rest.length && (rest[insertAt] as any)?.locationGroupId === prevGroup) insertAt++;
+      }
+    }
+
+    rest.splice(insertAt, 0, ...moving);
+    const updated = rest.map((job, i) => ({ ...job, order: i + 1 }));
+    setSelectedJobs(updated);
+    calculateTimeslots(updated);
+  };
+
+
   /**
    * Planner typed a time for one stop: keep that time, then re-time every later
    * stop from there using real travel times. Earlier stops stay untouched.
