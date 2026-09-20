@@ -613,6 +613,13 @@ const JobItem: React.FC<JobItemProps> = ({
     if (dropRef) dropRef.current = el;
   };
 
+  // Typed stop position (kept in step with the stop's current number)
+  const totalStops = allJobs.length;
+  const [positionInput, setPositionInput] = useState(String(job.order));
+  useEffect(() => {
+    setPositionInput(String(job.order));
+  }, [job.order]);
+
   // Check if this job is part of a group and get all jobs in the same group
   const groupedJobs = job.isGroupedLocation && job.locationGroupId 
     ? allJobs.filter(j => j.locationGroupId === job.locationGroupId && j.type !== 'break')
