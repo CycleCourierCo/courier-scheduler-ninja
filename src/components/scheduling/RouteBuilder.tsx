@@ -667,7 +667,7 @@ const JobItem: React.FC<JobItemProps> = ({
               // Multiple jobs at same location
               <div className="space-y-1.5">
                 <p className="text-xs font-medium">📍 Multiple stops</p>
-                <p className="text-xs text-muted-foreground line-clamp-1 break-words">{job.address}</p>
+                <p className="text-xs text-muted-foreground break-words min-w-0">{job.address}</p>
                 <div className="space-y-1">
                   {(() => {
                     // Sort grouped jobs: deliveries first, then pickups
@@ -3876,7 +3876,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         </Drawer>
       ) : (
         <Dialog open={showTimeslotDialog} onOpenChange={setShowTimeslotDialog}>
-          <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogContent className="w-[95vw] sm:max-w-7xl max-h-[92vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Route Timeslots</DialogTitle>
             </DialogHeader>
@@ -3956,6 +3956,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                   </Badge>
                 </div>
 
+                <div className="grid gap-3 lg:grid-cols-2 items-start">
                 {selectedJobs.map((job, index) => (
                   <JobItem 
                     key={`${job.orderId}-${job.type}-${job.order}`}
