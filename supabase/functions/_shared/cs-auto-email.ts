@@ -161,6 +161,7 @@ export async function sendTicketReceivedEmail(supabase: any, conversationId: str
     to,
     subject: ref ? `Re: ${subjectLine} [${ref}]` : `Re: ${subjectLine}`,
     html,
+    systemEvent: "ticket_acknowledged",
   });
 
   // Let a later attempt try again if the send itself failed.
