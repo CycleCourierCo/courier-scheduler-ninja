@@ -231,8 +231,9 @@ serve(async (req) => {
       console.error('cs-resend-fetch ack sweep failed', (sweepErr as Error).message);
     }
 
-    console.log('cs-resend-fetch complete', { checked: ids.length, imported, duplicates, failed: failures.length, acksRetried });
-    return json({ ok: true, checked: ids.length, imported, duplicates, acks_retried: acksRetried, failures });
+    const acks = acksSent + acksRetried;
+    console.log('cs-resend-fetch complete', { checked: ids.length, imported, duplicates, failed: failures.length, acksSent, acksRetried });
+    return json({ ok: true, checked: ids.length, imported, duplicates, acks_sent: acks, acks_retried: acksRetried, failures });
   } catch (e: any) {
     console.error('cs-resend-fetch error:', e?.message);
     return json({ error: 'sync failed', details: String(e?.message ?? '').slice(0, 300) }, 502);
