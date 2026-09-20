@@ -122,6 +122,7 @@ interface JobItemProps {
   index: number;
   onReorder: (dragIndex: number, hoverIndex: number) => void;
   onMove?: (index: number, direction: 'up' | 'down') => void;
+  onMoveTo?: (index: number, position: number) => void;
   onUpdateTime?: (index: number, time: string) => void;
   isFirstStop?: boolean;
   isLastStop?: boolean;
@@ -571,6 +572,7 @@ const JobItem: React.FC<JobItemProps> = ({
   index, 
   onReorder, 
   onMove,
+  onMoveTo,
   onUpdateTime,
   isFirstStop,
   isLastStop,
@@ -610,6 +612,13 @@ const JobItem: React.FC<JobItemProps> = ({
     if (dragRef) dragRef.current = el;
     if (dropRef) dropRef.current = el;
   };
+
+  // Typed stop position (kept in step with the stop's current number)
+  const totalStops = allJobs.length;
+  const [positionInput, setPositionInput] = useState(String(job.order));
+  useEffect(() => {
+    setPositionInput(String(job.order));
+  }, [job.order]);
 
   // Check if this job is part of a group and get all jobs in the same group
   const groupedJobs = job.isGroupedLocation && job.locationGroupId 
@@ -661,7 +670,37 @@ const JobItem: React.FC<JobItemProps> = ({
               </div>
             )}
           </div>
-          <Badge variant="outline" className="flex-shrink-0 text-xs">#{job.order}</Badge>
+          {onMoveTo ? (
+            <input
+              type="number"
+              min={1}
+              max={totalStops || undefined}
+              value={positionInput}
+              disabled={!!isRetiming}
+              aria-label="Stop position"
+              title="Type a position to move this stop"
+              className="h-6 w-12 flex-shrink-0 rounded border bg-background px-1 text-center text-xs"
+              draggable={false}
+              onPointerDown={(e) => e.stopPropagation()}
+              onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => setPositionInput(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+              }}
+              onBlur={() => {
+                const next = parseInt(positionInput, 10);
+                if (!Number.isNaN(next) && next >= 1 && (!totalStops || next <= totalStops) && next !== job.order) {
+                  onMoveTo(index, next);
+                } else {
+                  setPositionInput(String(job.order));
+                }
+              }}
+            />
+          ) : (
+            <Badge variant="outline" className="flex-shrink-0 text-xs">#{job.order}</Badge>
+          )}
           <div className="flex-1 min-w-0">
             {groupedJobs.length > 1 ? (
               // Multiple jobs at same location
@@ -2048,6 +2087,38 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     setSelectedJobs(updated);
     calculateTimeslots(updated);
   };
+
+  /** Planner typed a position: move the whole stop so it lands at that number. */
+  const moveStopToPosition = (index: number, position: number) => {
+    const list = [...selectedJobs];
+    if (!list[index]) return;
+    const block = getStopBlock(list, index);
+    const start = block[0];
+    const end = block[block.length - 1];
+
+    const target = Math.max(1, Math.min(position, list.length)) - 1;
+    if (target === start) return;
+
+    const moving = list.slice(start, end + 1);
+    const rest = [...list.slice(0, start), ...list.slice(end + 1)];
+
+    // Snap to a stop boundary so grouped stops never get split apart.
+    let insertAt = target > start ? target - moving.length + 1 : target;
+    insertAt = Math.max(0, Math.min(insertAt, rest.length));
+    if (insertAt > 0 && insertAt < rest.length) {
+      const prevGroup = (rest[insertAt - 1] as any)?.locationGroupId;
+      const nextGroup = (rest[insertAt] as any)?.locationGroupId;
+      if (prevGroup && prevGroup === nextGroup) {
+        while (insertAt < rest.length && (rest[insertAt] as any)?.locationGroupId === prevGroup) insertAt++;
+      }
+    }
+
+    rest.splice(insertAt, 0, ...moving);
+    const updated = rest.map((job, i) => ({ ...job, order: i + 1 }));
+    setSelectedJobs(updated);
+    calculateTimeslots(updated);
+  };
+
 
   /**
    * Planner typed a time for one stop: keep that time, then re-time every later
@@ -3768,6 +3839,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                       index={index}
                       onReorder={reorderJobs}
                       onMove={moveStop}
+                      onMoveTo={moveStopToPosition}
                       onUpdateTime={updateStopTime}
                       isFirstStop={index === 0}
                       isLastStop={index === selectedJobs.length - 1}
@@ -3964,6 +4036,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                     index={index}
                     onReorder={reorderJobs}
                     onMove={moveStop}
+                    onMoveTo={moveStopToPosition}
                     onUpdateTime={updateStopTime}
                     isFirstStop={index === 0}
                     isLastStop={index === selectedJobs.length - 1}
