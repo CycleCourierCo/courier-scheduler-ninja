@@ -6,7 +6,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { ingestInboundEmail, isDuplicateInbound, type InboundEmail } from "../_shared/cs-inbound.ts";
-import { requireAdminOrCronAuth, createAuthErrorResponse } from "../_shared/auth.ts";
+import { requireAdminOrCronAuth, requireOpsAuth, createAuthErrorResponse } from "../_shared/auth.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
