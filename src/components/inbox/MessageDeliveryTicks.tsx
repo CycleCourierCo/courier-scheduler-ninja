@@ -1,6 +1,6 @@
 import React from "react";
 import { Check, CheckCheck, AlertCircle, Clock } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import type { CsDeliveryEvent, CsDeliveryStatus } from "@/types/customerService";
