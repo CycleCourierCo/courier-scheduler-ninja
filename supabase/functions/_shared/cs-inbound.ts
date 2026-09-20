@@ -50,6 +50,19 @@ export async function ingestInboundEmail(
     if (priorMsg?.conversation_id) conversationId = priorMsg.conversation_id;
   }
 
+  // Thread on the ticket reference we put in outgoing subjects.
+  if (!conversationId) {
+    const ref = (body.subject || '').match(/TCK-\d+/i)?.[0]?.toUpperCase();
+    if (ref) {
+      const { data: refConv } = await supabase
+        .from('cs_conversations')
+        .select('id')
+        .eq('ticket_ref', ref)
+        .limit(1).maybeSingle();
+      if (refConv?.id) conversationId = refConv.id;
+    }
+  }
+
   // Fall back to the contact's most recent open conversation so replies that
   // drop the In-Reply-To header still land in the same thread.
   if (!conversationId) {

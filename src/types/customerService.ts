@@ -2,6 +2,36 @@ export type CsChannel = 'email' | 'whatsapp';
 export type CsConversationStatus = 'open' | 'pending' | 'snoozed' | 'closed';
 export type CsMessageDirection = 'in' | 'out' | 'note';
 export type CsMessageStatus = 'received' | 'sent' | 'failed' | 'delivered' | 'read';
+export type CsPriority = 'low' | 'normal' | 'high' | 'urgent';
+
+export const CS_PRIORITIES: CsPriority[] = ['low', 'normal', 'high', 'urgent'];
+
+export interface CsQueue {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  is_default: boolean;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CsQueueMember {
+  id: string;
+  queue_id: string;
+  user_id: string;
+  is_active: boolean;
+  sort_order: number;
+}
+
+export interface CsQueueSla {
+  id: string;
+  queue_id: string;
+  priority: CsPriority;
+  target_minutes: number;
+}
 
 export interface CsContact {
   id: string;
@@ -27,10 +57,17 @@ export interface CsConversation {
   linked_order_id: string | null;
   suggested_order_ids: string[];
   auto_link_locked: boolean;
+  ticket_ref: string | null;
+  queue_id: string | null;
+  priority: CsPriority;
+  first_response_due_at: string | null;
+  next_response_due_at: string | null;
+  assigned_manually: boolean;
   created_at: string;
   updated_at: string;
   // Joined
   contact?: CsContact;
+  queue?: Pick<CsQueue, 'id' | 'name' | 'slug'> | null;
 }
 
 export interface CsAttachment {

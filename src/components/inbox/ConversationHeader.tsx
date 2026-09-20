@@ -1,45 +1,106 @@
 import React from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { updateConversation } from "@/services/customerServiceInboxService";
-import type { CsConversation, CsConversationStatus } from "@/types/customerService";
+import type { CsConversation, CsConversationStatus, CsPriority } from "@/types/customerService";
+import { CS_PRIORITIES } from "@/types/customerService";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Mail, MessageCircle } from "lucide-react";
+import { Mail, MessageCircle, Clock } from "lucide-react";
+import { useCsQueues, useCsStaff } from "@/hooks/useCsQueues";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+import { describeDue, dueBadgeClass } from "@/lib/csTickets";
 
 interface Props { conversation: CsConversation }
 
 const STATUSES: CsConversationStatus[] = ['open','pending','snoozed','closed'];
+const UNASSIGNED = '__unassigned__';
 
 const ConversationHeader: React.FC<Props> = ({ conversation }) => {
   const qc = useQueryClient();
   const Icon = conversation.channel === 'email' ? Mail : MessageCircle;
+  const { data: queues = [] } = useCsQueues();
+  const { data: staff = [] } = useCsStaff();
+  const due = describeDue(conversation.next_response_due_at);
 
-  const setStatus = async (s: CsConversationStatus) => {
+  const patch = async (p: Record<string, unknown>, message: string) => {
     try {
-      await updateConversation(conversation.id, { status: s } as any);
-      toast.success(`Status: ${s}`);
+      await updateConversation(conversation.id, p as any);
+      toast.success(message);
       qc.invalidateQueries({ queryKey: ['cs-conversations'] });
       qc.invalidateQueries({ queryKey: ['cs-conversation', conversation.id] });
+      qc.invalidateQueries({ queryKey: ['cs-queue-counts'] });
     } catch (e: any) { toast.error(e?.message || 'Failed'); }
   };
 
   return (
-    <div className="border-b px-4 py-3 flex items-center gap-3 bg-background">
-      <Icon className={`h-4 w-4 ${conversation.channel === 'email' ? 'text-blue-600' : 'text-green-600'}`} />
-      <div className="flex-1 min-w-0">
-        <div className="font-medium truncate">
-          {conversation.contact?.display_name || conversation.contact?.handle || 'Unknown'}
+    <div className="border-b px-4 py-3 bg-background space-y-2">
+      <div className="flex items-center gap-3">
+        <Icon className={cn("h-4 w-4", conversation.channel === 'email' ? "text-primary" : "text-success")} />
+        <div className="flex-1 min-w-0">
+          <div className="font-medium truncate">
+            {conversation.contact?.display_name || conversation.contact?.handle || 'Unknown'}
+          </div>
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            {conversation.ticket_ref && <span className="font-mono">{conversation.ticket_ref}</span>}
+            {conversation.subject && <span className="truncate">{conversation.subject}</span>}
+          </div>
         </div>
-        {conversation.subject && (
-          <div className="text-xs text-muted-foreground truncate">{conversation.subject}</div>
+        {due && (
+          <Badge className={cn("h-5 px-2 text-[11px] gap-1 border-transparent shrink-0", dueBadgeClass(due))}>
+            <Clock className="h-3 w-3" />{due.label}
+          </Badge>
         )}
       </div>
-      <Select value={conversation.status} onValueChange={(v) => setStatus(v as CsConversationStatus)}>
-        <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          {STATUSES.map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
-        </SelectContent>
-      </Select>
+
+      <div className="flex flex-wrap gap-2">
+        <Select
+          value={conversation.queue_id || ''}
+          onValueChange={(v) => patch({ queue_id: v }, 'Queue updated')}
+        >
+          <SelectTrigger className="w-36 h-8 text-xs"><SelectValue placeholder="Queue" /></SelectTrigger>
+          <SelectContent>
+            {queues.filter(q => q.is_active || q.id === conversation.queue_id).map(q => (
+              <SelectItem key={q.id} value={q.id}>{q.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={conversation.priority}
+          onValueChange={(v) => patch({ priority: v as CsPriority }, `Priority: ${v}`)}
+        >
+          <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {CS_PRIORITIES.map(p => (
+              <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={conversation.assignee_id || UNASSIGNED}
+          onValueChange={(v) => patch(
+            { assignee_id: v === UNASSIGNED ? null : v },
+            v === UNASSIGNED ? 'Returned to the queue' : 'Assigned',
+          )}
+        >
+          <SelectTrigger className="w-40 h-8 text-xs"><SelectValue placeholder="Owner" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+            {staff.map(s => (
+              <SelectItem key={s.id} value={s.id}>{s.name || s.email}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={conversation.status} onValueChange={(v) => patch({ status: v }, `Status: ${v}`)}>
+          <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {STATUSES.map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 };
