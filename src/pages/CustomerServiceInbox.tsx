@@ -20,11 +20,30 @@ const CustomerServiceInbox: React.FC = () => {
   const navigate = useNavigate();
   const { conversationId } = useParams();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const [status, setStatus] = useState<'open'|'pending'|'snoozed'|'closed'|'all'>('open');
   const [channel, setChannel] = useState<'all'|'email'|'whatsapp'>('all');
   const [scope, setScope] = useState<'all'|'mine'|'unassigned'>('all');
   const [search, setSearch] = useState('');
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const result = await syncInboundEmails();
+      queryClient.invalidateQueries({ queryKey: ['cs-conversations'] });
+      const imported = result?.imported ?? 0;
+      toast.success(imported > 0
+        ? `${imported} new email${imported === 1 ? '' : 's'} added to the inbox`
+        : 'Inbox is up to date');
+    } catch (err) {
+      toast.error('Could not check for new emails. Please try again.');
+      console.error('Inbox sync failed:', err);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const params = useMemo(() => ({
     status,
