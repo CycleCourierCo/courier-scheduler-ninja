@@ -122,6 +122,7 @@ interface JobItemProps {
   index: number;
   onReorder: (dragIndex: number, hoverIndex: number) => void;
   onMove?: (index: number, direction: 'up' | 'down') => void;
+  onMoveTo?: (index: number, position: number) => void;
   onUpdateTime?: (index: number, time: string) => void;
   isFirstStop?: boolean;
   isLastStop?: boolean;
