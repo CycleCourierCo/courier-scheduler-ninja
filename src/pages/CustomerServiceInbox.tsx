@@ -171,9 +171,9 @@ const CustomerServiceInbox: React.FC = () => {
           })}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-[320px_1fr_300px] gap-3 flex-1 min-h-[70vh]">
+        <div className="grid grid-cols-1 md:grid-cols-[320px_1fr_300px] gap-3 h-[calc(100dvh-240px)] min-h-[420px]">
           {/* LEFT — list + filters */}
-          <div className="border rounded-md flex flex-col bg-card overflow-hidden">
+          <div className="border rounded-md flex flex-col bg-card overflow-hidden min-h-0">
             <div className="p-2 border-b space-y-2">
               <Input
                 placeholder="Search…"
@@ -230,7 +230,7 @@ const CustomerServiceInbox: React.FC = () => {
                 </Select>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 min-h-0 overflow-y-auto">
               <ConversationList
                 conversations={conversations}
                 selectedId={conversationId || null}
@@ -242,11 +242,11 @@ const CustomerServiceInbox: React.FC = () => {
           </div>
 
           {/* MIDDLE — thread */}
-          <div className="border rounded-md flex flex-col bg-card overflow-hidden min-h-[400px]">
+          <div className="border rounded-md flex flex-col bg-card overflow-hidden min-h-0">
             {conversation ? (
               <>
                 <ConversationHeader conversation={conversation} onDismiss={clearSelection} />
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 min-h-0 overflow-y-auto">
                   <MessageThread messages={messages} />
                 </div>
                 <MessageComposer conversation={conversation} messages={messages} />
@@ -259,7 +259,7 @@ const CustomerServiceInbox: React.FC = () => {
           </div>
 
           {/* RIGHT — context */}
-          <div className="border rounded-md bg-card overflow-y-auto hidden md:block">
+          <div className="border rounded-md bg-card overflow-y-auto hidden md:block min-h-0">
             {conversation && <ContextPanel conversation={conversation} />}
           </div>
         </div>
