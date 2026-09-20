@@ -80,6 +80,7 @@ export async function ingestInboundEmail(
 
   const preview = (body.text || '').slice(0, 140);
 
+  let isNewTicket = false;
   if (!conversationId) {
     const { data: newConv, error: convErr } = await supabase
       .from('cs_conversations')
@@ -95,6 +96,7 @@ export async function ingestInboundEmail(
       .select().single();
     if (convErr) throw convErr;
     conversationId = newConv.id;
+    isNewTicket = true;
   } else {
     await supabase.from('cs_conversations').update({
       status: 'open',
