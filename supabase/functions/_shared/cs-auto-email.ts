@@ -190,14 +190,19 @@ export async function sendTicketClosedEmail(supabase: any, conversationId: strin
   if (!to || isAutomatedSender(to)) return;
 
   // One email per closure, not per ticket: a ticket reopened and closed again must email again.
-  const closedAt = conv.closed_at || new Date().toISOString();
-  const claim = supabase
+  const previousSend = conv.closure_email_sent_at ? new Date(conv.closure_email_sent_at).getTime() : 0;
+  const closedAtMs = conv.closed_at ? new Date(conv.closed_at).getTime() : Date.now();
+  if (previousSend && previousSend >= closedAtMs) return;
+
+  // Claim against the value we just read so two concurrent closes cannot both send.
+  let claim = supabase
     .from("cs_conversations")
     .update({ closure_email_sent_at: new Date().toISOString() })
     .eq("id", conversationId);
-  const { data: claimed } = await claim
-    .or(`closure_email_sent_at.is.null,closure_email_sent_at.lt.${closedAt}`)
-    .select("id");
+  claim = conv.closure_email_sent_at
+    ? claim.eq("closure_email_sent_at", conv.closure_email_sent_at)
+    : claim.is("closure_email_sent_at", null);
+  const { data: claimed } = await claim.select("id");
   if (!claimed?.length) return;
 
   const ref = conv.ticket_ref || "";
