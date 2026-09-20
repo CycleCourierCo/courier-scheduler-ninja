@@ -141,6 +141,7 @@ serve(async (req) => {
 
     let imported = 0;
     let duplicates = 0;
+    let acksSent = 0;
     const failures: Array<{ id: string; reason: string }> = [];
 
     for (const id of ids) {
