@@ -97,7 +97,11 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return json({ error: 'method not allowed' }, 405);
 
-  const auth = await requireAdminOrCronAuth(req);
+  let auth = await requireAdminOrCronAuth(req);
+  if (!auth.success) {
+    // Also allow internal service-role invocation and route planners.
+    auth = await requireOpsAuth(req, ['admin', 'route_planner']);
+  }
   if (!auth.success) {
     return createAuthErrorResponse(auth.error ?? 'Unauthorized', auth.status ?? 401);
   }
