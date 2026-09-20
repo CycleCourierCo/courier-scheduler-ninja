@@ -3169,6 +3169,53 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
   const [isLoadingShipday, setIsLoadingShipday] = useState(false);
 
+  const missingVisibleShipdayJobs = availableJobs.filter(
+    (job): job is typeof job & { type: 'pickup' | 'delivery' } =>
+      (job.type === 'pickup' || job.type === 'delivery') &&
+      getShipdayStatus(job.order, job.type) === 'missing'
+  );
+
+  const handleAddAllMissingToShipday = async () => {
+    if (missingVisibleShipdayJobs.length === 0) {
+      toast.info('No confirmed missing jobs to add');
+      return;
+    }
+
+    const jobsToAdd = [...missingVisibleShipdayJobs];
+    const doPush = async () => {
+      setIsLoadingShipday(true);
+      toast.info(`Adding ${jobsToAdd.length} missing jobs to Shipday...`);
+      let success = 0;
+      let failed = 0;
+
+      for (const job of jobsToAdd) {
+        try {
+          await createShipdayOrder(job.orderId, job.type);
+          success++;
+        } catch (err) {
+          console.error('Failed to add missing job to Shipday', job, err);
+          failed++;
+        }
+      }
+
+      if (failed === 0) toast.success(`${success} missing jobs added to Shipday`);
+      else toast.warning(`${success} added, ${failed} failed`);
+      onReVerifyShipday?.();
+      setIsLoadingShipday(false);
+    };
+
+    if (jobsToAdd.length > 20) {
+      notify.confirm({
+        title: `Add ${jobsToAdd.length} missing jobs to Shipday?`,
+        confirmLabel: 'Add all',
+        onConfirm: doPush,
+      });
+      return;
+    }
+
+    await doPush();
+  };
+
   const handleLoadFilteredIntoShipday = async () => {
     const jobs = availableJobs.filter(j => j.type === 'pickup' || j.type === 'delivery') as Array<{ orderId: string; type: 'pickup' | 'delivery'; order: OrderData }>;
     if (jobs.length === 0) {
@@ -3425,6 +3472,16 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
             
             
             {/* Load filtered jobs into Shipday */}
+            <Button
+              variant="default"
+              onClick={handleAddAllMissingToShipday}
+              disabled={isLoadingShipday || isVerifyingShipday || missingVisibleShipdayJobs.length === 0}
+              className="flex items-center gap-2"
+            >
+              {isLoadingShipday ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Add all missing ({missingVisibleShipdayJobs.length})
+            </Button>
+
             <Button
               variant="outline"
               onClick={handleLoadFilteredIntoShipday}
