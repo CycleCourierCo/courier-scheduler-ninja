@@ -663,7 +663,37 @@ const JobItem: React.FC<JobItemProps> = ({
               </div>
             )}
           </div>
-          <Badge variant="outline" className="flex-shrink-0 text-xs">#{job.order}</Badge>
+          {onMoveTo ? (
+            <input
+              type="number"
+              min={1}
+              max={totalStops || undefined}
+              value={positionInput}
+              disabled={!!isRetiming}
+              aria-label="Stop position"
+              title="Type a position to move this stop"
+              className="h-6 w-12 flex-shrink-0 rounded border bg-background px-1 text-center text-xs"
+              draggable={false}
+              onPointerDown={(e) => e.stopPropagation()}
+              onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => setPositionInput(e.target.value)}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+              }}
+              onBlur={() => {
+                const next = parseInt(positionInput, 10);
+                if (!Number.isNaN(next) && next >= 1 && (!totalStops || next <= totalStops) && next !== job.order) {
+                  onMoveTo(index, next);
+                } else {
+                  setPositionInput(String(job.order));
+                }
+              }}
+            />
+          ) : (
+            <Badge variant="outline" className="flex-shrink-0 text-xs">#{job.order}</Badge>
+          )}
           <div className="flex-1 min-w-0">
             {groupedJobs.length > 1 ? (
               // Multiple jobs at same location
