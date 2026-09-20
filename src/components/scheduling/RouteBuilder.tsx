@@ -3839,6 +3839,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                       index={index}
                       onReorder={reorderJobs}
                       onMove={moveStop}
+                      onMoveTo={moveStopToPosition}
                       onUpdateTime={updateStopTime}
                       isFirstStop={index === 0}
                       isLastStop={index === selectedJobs.length - 1}
@@ -4035,6 +4036,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                     index={index}
                     onReorder={reorderJobs}
                     onMove={moveStop}
+                    onMoveTo={moveStopToPosition}
                     onUpdateTime={updateStopTime}
                     isFirstStop={index === 0}
                     isLastStop={index === selectedJobs.length - 1}
