@@ -158,6 +158,24 @@ const ConversationHeader: React.FC<Props> = ({ conversation }) => {
             Close ticket
           </Button>
         )}
+
+        {isEmail && (
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-8 text-xs"
+            onClick={handleSendConfirmation}
+            disabled={confirming}
+            title={confirmationSent
+              ? 'Send the "we\'ve received your message" email again'
+              : 'Send the "we\'ve received your message" email'}
+          >
+            {confirming
+              ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+              : <Send className="h-3.5 w-3.5 mr-1" />}
+            {confirmationSent ? 'Resend confirmation' : 'Send confirmation'}
+          </Button>
+        )}
       </div>
     </div>
   );
