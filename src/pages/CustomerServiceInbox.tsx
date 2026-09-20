@@ -200,6 +200,25 @@ const CustomerServiceInbox: React.FC = () => {
                   >{s}</Button>
                 ))}
               </div>
+              <div className="flex gap-1">
+                <Select value={priority} onValueChange={(v) => setPriority(v as CsPriority | 'all')}>
+                  <SelectTrigger className="h-7 text-xs flex-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Any priority</SelectItem>
+                    {CS_PRIORITIES.map(p => (
+                      <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select value={sort} onValueChange={(v) => setSort(v as typeof sort)}>
+                  <SelectTrigger className="h-7 text-xs flex-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="due">Reply time</SelectItem>
+                    <SelectItem value="priority">Priority</SelectItem>
+                    <SelectItem value="recent">Most recent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
             <div className="flex-1 overflow-y-auto">
               <ConversationList
@@ -207,6 +226,7 @@ const CustomerServiceInbox: React.FC = () => {
                 selectedId={conversationId || null}
                 onSelect={(id) => navigate(`/inbox/${id}`)}
                 isLoading={isLoading}
+                staffNames={staffNames}
               />
             </div>
           </div>
