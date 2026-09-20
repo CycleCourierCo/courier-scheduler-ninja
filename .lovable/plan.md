@@ -17,19 +17,20 @@ Sending already works end-to-end: replies from the inbox go out through `cs-send
 
 2. **Deploy** `cs-resend-inbound` (and the refactored shared module).
 
-3. **Resend dashboard steps (you do these, ~5 min)** — I'll give you exact values:
-   - In Resend → Inbound/Receiving: add your test address (or the subdomain it's on) and add the required MX records in DNS if not already done.
-   - Add a webhook for the `email.received` event pointing at:
-     `https://api.cyclecourierco.com/functions/v1/cs-resend-inbound`
-   - Use the same signing secret already stored as `RESEND_WEBHOOK_SECRET` (or tell me if Resend generated a new one and I'll update it).
+3. **Resend dashboard steps (you do these, ~5 min)** — using `mail.cyclecourierco.com`:
+   - Resend → Domains: confirm `mail.cyclecourierco.com` is verified for **sending** (SPF/DKIM) and has the **MX record** added for receiving.
+   - Resend → Inbound/Receiving: route mail for `mail.cyclecourierco.com` (e.g. `support@mail.cyclecourierco.com`) to a webhook.
+   - Webhook URL: `https://api.cyclecourierco.com/functions/v1/cs-resend-inbound`, event `email.received`.
+   - Signing secret: I'll reuse `RESEND_WEBHOOK_SECRET` if Resend uses the same one; if it generates a new secret for this webhook, paste it and I'll store it as `RESEND_INBOUND_WEBHOOK_SECRET`.
 
-4. **Outbound from/reply-to**
-   - Keep sending from `Info@notification.cyclecourierco.com` with `reply_to: Info@cyclecourierco.com`, or switch the inbox reply address to your new test address — tell me which the test address is and I'll set it.
+4. **Outbound from/reply-to for the inbox**
+   - Change `cs-send-message` so inbox replies send **from** `Customer Service <support@mail.cyclecourierco.com>` with `reply_to` on the same address, so customer replies come straight back into the inbox and thread.
+   - Order/notification emails keep using `notification.cyclecourierco.com` — unchanged.
 
-5. **Test**: send an email to the test address → confirm it appears in `/inbox` → reply from the inbox → confirm it lands in the sender's mailbox and threads correctly.
+5. **Test**: email `support@mail.cyclecourierco.com` → confirm it appears in `/inbox` → reply from the inbox → confirm it arrives and that the customer's reply threads back into the same conversation.
 
 ## Technical details
 - New file: `supabase/functions/cs-resend-inbound/index.ts`
 - Refactor: shared receive logic into `supabase/functions/_shared/cs-inbound.ts` (used by both `cs-inbound-email` and `cs-resend-inbound`)
-- Optional small edit in `cs-send-message` for the reply-from address
+- Edit `cs-send-message`: inbox from/reply-to becomes `support@mail.cyclecourierco.com`
 - No database changes, no frontend changes
