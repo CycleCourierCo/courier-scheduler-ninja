@@ -20,7 +20,7 @@ import { updateOrderBikes } from "@/services/orderService";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { getGroupedBikes } from "@/utils/bikeSummary";
-import { hasRole } from "@/lib/roles";
+import { hasAnyRole } from "@/lib/roles";
 
 interface ItemDetailsProps {
   order: Order;
@@ -30,7 +30,7 @@ interface ItemDetailsProps {
 
 const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
   const { userProfile } = useAuth();
-  const isAdmin = hasRole(userProfile, 'admin');
+  const canEditBikes = hasAnyRole(userProfile, ['admin', 'cs_agent']);
   const [editOpen, setEditOpen] = useState(false);
   const [savingBikes, setSavingBikes] = useState(false);
   const computeBikesFromOrder = React.useCallback(() => {

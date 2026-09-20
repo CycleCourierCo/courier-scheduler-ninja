@@ -365,16 +365,12 @@ export const updateOrderBikes = async (
   id: string,
   bikes: Array<{ brand: string; model: string; type: string; value?: string }>
 ): Promise<boolean> => {
-  const first = bikes[0] || { brand: "", model: "" };
-  const { error } = await supabase
-    .from("orders")
-    .update({
-      bikes: bikes as any,
-      bike_brand: first.brand || null,
-      bike_model: first.model || null,
-      bike_quantity: bikes.length,
-    })
-    .eq("id", id);
+  // Routed through a role-gated database function so customer service can fix
+  // bike details without being able to change anything else on the order.
+  const { error } = await (supabase as any).rpc("cs_update_order_bikes", {
+    p_order_id: id,
+    p_bikes: bikes,
+  });
   if (error) {
     console.error("updateOrderBikes error", error);
     return false;
