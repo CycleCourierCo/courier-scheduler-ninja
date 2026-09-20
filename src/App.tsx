@@ -67,6 +67,7 @@ const ClaimDetail = lazy(() => import("./pages/ClaimDetail"));
 const BoxMyBikePage = lazy(() => import("./pages/BoxMyBikePage"));
 const BuildMyBikePage = lazy(() => import("./pages/BuildMyBikePage"));
 const CustomerServiceInbox = lazy(() => import("./pages/CustomerServiceInbox"));
+const CustomerServiceQueues = lazy(() => import("./pages/CustomerServiceQueues"));
 const Tasks = lazy(() => import("./pages/Tasks"));
 const ProjectManagement = lazy(() => import("./pages/ProjectManagement"));
 const RoutePermissionsPage = lazy(() => import("./pages/RoutePermissionsPage"));
@@ -239,6 +240,11 @@ function App() {
               <Route path="/inbox" element={
                 <ProtectedRoute>
                   <CustomerServiceInbox />
+                </ProtectedRoute>
+              } />
+              <Route path="/inbox/queues" element={
+                <ProtectedRoute>
+                  <CustomerServiceQueues />
                 </ProtectedRoute>
               } />
               <Route path="/inbox/:conversationId" element={
