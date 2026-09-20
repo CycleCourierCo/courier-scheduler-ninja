@@ -1,13 +1,14 @@
-import React from "react";
+import React, { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { updateConversation } from "@/services/customerServiceInboxService";
+import { updateConversation, closeTicket } from "@/services/customerServiceInboxService";
 import type { CsConversation, CsConversationStatus, CsPriority } from "@/types/customerService";
 import { CS_PRIORITIES } from "@/types/customerService";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Mail, MessageCircle, Clock } from "lucide-react";
+import { Mail, MessageCircle, Clock, CheckCircle2, Loader2 } from "lucide-react";
 import { useCsQueues, useCsStaff } from "@/hooks/useCsQueues";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { describeDue, dueBadgeClass } from "@/lib/csTickets";
 
@@ -22,15 +23,41 @@ const ConversationHeader: React.FC<Props> = ({ conversation }) => {
   const { data: queues = [] } = useCsQueues();
   const { data: staff = [] } = useCsStaff();
   const due = describeDue(conversation.next_response_due_at);
+  const [closing, setClosing] = useState(false);
+  const isClosed = conversation.status === 'closed';
+
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['cs-conversations'] });
+    qc.invalidateQueries({ queryKey: ['cs-conversation', conversation.id] });
+    qc.invalidateQueries({ queryKey: ['cs-messages', conversation.id] });
+    qc.invalidateQueries({ queryKey: ['cs-queue-counts'] });
+  };
 
   const patch = async (p: Record<string, unknown>, message: string) => {
     try {
       await updateConversation(conversation.id, p as any);
       toast.success(message);
-      qc.invalidateQueries({ queryKey: ['cs-conversations'] });
-      qc.invalidateQueries({ queryKey: ['cs-conversation', conversation.id] });
-      qc.invalidateQueries({ queryKey: ['cs-queue-counts'] });
+      refresh();
     } catch (e: any) { toast.error(e?.message || 'Failed'); }
+  };
+
+  const handleClose = async () => {
+    if (closing || isClosed) return;
+    setClosing(true);
+    try {
+      await closeTicket(conversation.id);
+      toast.success('Ticket closed and the customer has been emailed');
+      refresh();
+    } catch (e: any) {
+      toast.error(e?.message || 'Could not close the ticket');
+    } finally {
+      setClosing(false);
+    }
+  };
+
+  const handleStatusChange = (v: string) => {
+    if (v === 'closed') { handleClose(); return; }
+    patch({ status: v }, `Status: ${v}`);
   };
 
   return (
@@ -94,12 +121,21 @@ const ConversationHeader: React.FC<Props> = ({ conversation }) => {
           </SelectContent>
         </Select>
 
-        <Select value={conversation.status} onValueChange={(v) => patch({ status: v }, `Status: ${v}`)}>
+        <Select value={conversation.status} onValueChange={handleStatusChange}>
           <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             {STATUSES.map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
           </SelectContent>
         </Select>
+
+        {!isClosed && (
+          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={handleClose} disabled={closing}>
+            {closing
+              ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+              : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+            Close ticket
+          </Button>
+        )}
       </div>
     </div>
   );

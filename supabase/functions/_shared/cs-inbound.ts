@@ -2,6 +2,7 @@
 // Used by cs-inbound-email (generic JSON) and cs-resend-inbound (Resend webhook).
 import { resolveOrderLink } from "./cs-order-linker.ts";
 import { sanitizeInboundHtml } from "./sanitizeHtml.ts";
+import { sendTicketReceivedEmail } from "./cs-auto-email.ts";
 
 export interface InboundEmail {
   from: string;            // "Jane Doe <jane@x.com>"
@@ -79,6 +80,7 @@ export async function ingestInboundEmail(
 
   const preview = (body.text || '').slice(0, 140);
 
+  let isNewTicket = false;
   if (!conversationId) {
     const { data: newConv, error: convErr } = await supabase
       .from('cs_conversations')
@@ -94,6 +96,7 @@ export async function ingestInboundEmail(
       .select().single();
     if (convErr) throw convErr;
     conversationId = newConv.id;
+    isNewTicket = true;
   } else {
     await supabase.from('cs_conversations').update({
       status: 'open',
@@ -127,6 +130,20 @@ export async function ingestInboundEmail(
       linked_order_id: link.linked_order_id ?? conv.linked_order_id,
       suggested_order_ids: link.suggested_order_ids,
     }).eq('id', conversationId);
+  }
+
+  // Confirm brand new tickets to the customer. Never blocks the webhook response,
+  // and never fails the ingest if the email cannot be sent.
+  if (isNewTicket) {
+    const ack = sendTicketReceivedEmail(supabase, conversationId!)
+      .catch((e) => console.error('cs ack email failed:', e?.message));
+    try {
+      (globalThis as any).EdgeRuntime?.waitUntil
+        ? (globalThis as any).EdgeRuntime.waitUntil(ack)
+        : await ack;
+    } catch {
+      // ignore — acknowledgement is best effort
+    }
   }
 
   return conversationId!;

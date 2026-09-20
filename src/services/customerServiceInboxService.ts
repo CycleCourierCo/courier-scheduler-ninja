@@ -114,6 +114,15 @@ export const updateConversation = async (id: string, patch: Partial<CsConversati
   if (error) throw error;
 };
 
+/** Closes a ticket and emails the customer to confirm it has been dealt with. */
+export const closeTicket = async (conversationId: string, notify = true) => {
+  const { data, error } = await supabase.functions.invoke('cs-close-ticket', {
+    body: { conversation_id: conversationId, notify },
+  });
+  if (error) throw error;
+  return data;
+};
+
 export const addNote = async (conversationId: string, body: string, authorId: string) => {
   const { error } = await msg().insert({
     conversation_id: conversationId,
