@@ -4028,7 +4028,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                   </Badge>
                 </div>
 
-                <div className="grid gap-3 lg:grid-cols-2 items-start">
+                <div className="grid gap-3">
                 {selectedJobs.map((job, index) => (
                   <JobItem 
                     key={`${job.orderId}-${job.type}-${job.order}`}
