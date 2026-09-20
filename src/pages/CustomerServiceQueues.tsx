@@ -13,6 +13,8 @@ import {
   addQueueMember, createQueue, removeQueueMember, setDefaultQueue,
   setQueueMemberActive, updateQueue, upsertQueueSla,
 } from "@/services/customerServiceQueueService";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import CannedResponseManager from "@/components/inbox/CannedResponseManager";
 import { CS_PRIORITIES, type CsPriority } from "@/types/customerService";
 import { formatTargetMinutes } from "@/lib/csTickets";
 import { toast } from "sonner";
@@ -60,9 +62,20 @@ const CustomerServiceQueues: React.FC = () => {
           <Button variant="ghost" size="sm" asChild>
             <Link to="/inbox"><ArrowLeft className="h-4 w-4 mr-1" />Back to inbox</Link>
           </Button>
-          <h1 className="text-xl font-semibold">Inbox queues</h1>
+          <h1 className="text-xl font-semibold">Inbox settings</h1>
         </div>
 
+        <Tabs defaultValue="queues" className="space-y-4">
+          <TabsList>
+            <TabsTrigger value="queues">Queues</TabsTrigger>
+            <TabsTrigger value="responses">Instant responses</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="responses">
+            <CannedResponseManager />
+          </TabsContent>
+
+          <TabsContent value="queues" className="space-y-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Add a queue</CardTitle>
@@ -216,6 +229,8 @@ const CustomerServiceQueues: React.FC = () => {
             </Card>
           );
         })}
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );
