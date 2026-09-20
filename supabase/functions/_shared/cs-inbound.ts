@@ -102,8 +102,12 @@ export async function ingestInboundEmail(
     conversationId = newConv.id;
     isNewTicket = true;
   } else {
+    // A reply reopens the ticket. Clear the previous closure markers so the next
+    // time it is closed the customer gets a fresh closure email.
     await supabase.from('cs_conversations').update({
       status: 'open',
+      closed_at: null,
+      closure_email_sent_at: null,
       last_message_at: new Date().toISOString(),
       last_message_preview: preview,
       unread_count: 1,

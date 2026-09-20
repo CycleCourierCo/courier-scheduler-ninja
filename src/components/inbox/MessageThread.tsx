@@ -76,7 +76,7 @@ const MessageThread: React.FC<Props> = ({ messages }) => {
   }
 
   return (
-    <div className="flex flex-col gap-3 p-4">
+    <div className="flex flex-col gap-4 p-5">
       {messages.map((m) => {
         if (m.system_event) return <SystemLine key={m.id} message={m} />;
 
@@ -86,7 +86,7 @@ const MessageThread: React.FC<Props> = ({ messages }) => {
           <div
             key={m.id}
             className={cn(
-              "max-w-[80%] rounded-lg px-3 py-2 text-sm",
+              "max-w-[92%] lg:max-w-[75%] rounded-lg px-4 py-3 text-sm leading-relaxed",
               isNote && "bg-yellow-50 border border-yellow-200 text-yellow-900 self-center max-w-full w-full",
               isInbound && !isNote && "bg-muted self-start",
               !isInbound && !isNote && "bg-primary text-primary-foreground self-end",
