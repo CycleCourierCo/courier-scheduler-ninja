@@ -170,6 +170,12 @@ serve(async (req) => {
         last_message_preview: (body_text || '').slice(0, 140),
         status: 'pending',
       }).eq('id', conversation_id);
+
+      // A human has answered, so the automatic confirmation is no longer wanted.
+      await admin.from('cs_conversations')
+        .update({ ack_sent_at: new Date().toISOString() })
+        .eq('id', conversation_id)
+        .is('ack_sent_at', null);
     }
 
     return new Response(JSON.stringify({ ok: status === 'sent', status, error: errorMsg }), {

@@ -3,6 +3,7 @@
 import { resolveOrderLink } from "./cs-order-linker.ts";
 import { sanitizeInboundHtml } from "./sanitizeHtml.ts";
 import { sendTicketReceivedEmail } from "./cs-auto-email.ts";
+import { stripQuotedHtml, stripQuotedText } from "./cs-quoted-reply.ts";
 
 export interface InboundEmail {
   from: string;            // "Jane Doe <jane@x.com>"
@@ -78,7 +79,10 @@ export async function ingestInboundEmail(
     if (openConv?.id) conversationId = openConv.id;
   }
 
-  const preview = (body.text || '').slice(0, 140);
+  // Show only what the customer wrote in this reply, not our quoted email.
+  const replyText = stripQuotedText(body.text);
+  const replyHtml = stripQuotedHtml(body.html);
+  const preview = (replyText || '').slice(0, 140);
 
   let isNewTicket = false;
   if (!conversationId) {
@@ -109,8 +113,8 @@ export async function ingestInboundEmail(
   await supabase.from('cs_messages').insert({
     conversation_id: conversationId,
     direction: 'in',
-    body_text: body.text || null,
-    body_html: sanitizeInboundHtml(body.html) || null,
+    body_text: replyText || null,
+    body_html: sanitizeInboundHtml(replyHtml || undefined) || null,
     attachments: body.attachments || [],
     email_message_id: body.message_id || null,
     in_reply_to: body.in_reply_to || null,

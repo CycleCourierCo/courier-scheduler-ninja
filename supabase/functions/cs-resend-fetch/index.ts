@@ -178,7 +178,8 @@ serve(async (req) => {
       }
     }
 
-    // Retry confirmations for recent email tickets that never got one.
+    // Retry confirmations for recent email tickets that never got one — but only
+    // where nobody has replied yet and the ticket is still open.
     let acksRetried = 0;
     try {
       const since = new Date(Date.now() - 60 * 60 * 1000).toISOString();
@@ -192,6 +193,12 @@ serve(async (req) => {
         .limit(25);
       for (const row of pending || []) {
         try {
+          const { count } = await supabase
+            .from('cs_messages')
+            .select('id', { count: 'exact', head: true })
+            .eq('conversation_id', row.id)
+            .eq('direction', 'out');
+          if ((count ?? 0) > 0) continue;
           await sendTicketReceivedEmail(supabase, row.id);
           acksRetried++;
         } catch (ackErr) {
