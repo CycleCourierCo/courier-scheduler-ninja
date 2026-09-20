@@ -59,7 +59,7 @@ You can specify bike types using either a string name or a numeric `type_id`. Us
 | 11 | Boxed Kids Bikes | £35 |
 | 12 | Folding Bikes | £40 |
 | 13 | Tandem | £110 |
-| 14 | Travel Bike Box | £60 |
+| 14 | Travel Bike Box | £50 |
 | 15 | Wheelset/Frameset | £35 |
 | 16 | Bike Rack | £40 |
 | 17 | Turbo Trainer | £40 |
@@ -125,6 +125,35 @@ Idempotency-Key: unique_identifier_here
   "needs_inspection": false
 }
 ```
+
+**Request Body — OAuth-connected apps** (e.g. VeloDealer):
+
+If your app is connected to the customer's account via OAuth, you do not send the customer's
+contact details or address at all. Send `customer_side` to say which side of the job the customer
+is on (`"sender"` when the bike is collected from the customer, `"receiver"` when it is delivered
+to them). We fill that side's name, phone and address automatically from the address the customer
+saved against your app in their profile (falling back to their profile address). Any contact or
+address fields you send for that side are ignored.
+
+```json
+{
+  "customer_side": "sender",
+  "bikes": [
+    {
+      "brand": "Trek",
+      "model": "Domane AL 2",
+      "type_id": 2,
+      "value": 1200
+    }
+  ],
+  "bike_type_id": 2,
+  "bike_value": 1200,
+  "delivery_instructions": "Leave with concierge if not home"
+}
+```
+
+The other side of the job (the dealer/workshop) is supplied exactly as in the full example above.
+Returns `400 CUSTOMER_ADDRESS_MISSING` if the customer has no usable address on file.
 
 **Response** (201 Created):
 ```json
@@ -232,6 +261,11 @@ Retrieves details for a specific order.
 - `bikes[].brand` (string, max 50 chars)
 - `bikes[].model` (string, max 100 chars)
 
+> **OAuth-connected apps:** when `customer_side` is present, the corresponding side's `name`,
+> `email`, `phone` and `address` fields are NOT required — they are filled automatically from the
+> customer's saved address, and any values you send for that side are ignored.
+
+
 ### Optional Fields
 
 - `sender.company` (string, max 100 chars)
@@ -246,6 +280,12 @@ Retrieves details for a specific order.
 - `needs_inspection` (boolean, default false)
 - `order_options.*` (all optional, defaults provided)
 - `delivery_instructions` (string)
+- `customer_side` (`"sender"` or `"receiver"`) — for OAuth-connected apps only. Tells us which side of
+  the job the connected account is on. That side's contact name, phone and address are filled
+  automatically from the address the customer saved against your app in their profile (falling back to
+  their profile address), so you do not need to send it. Any address you send for that side is ignored.
+  Returns `400 CUSTOMER_ADDRESS_MISSING` if the customer has no usable address on file.
+
 
 ## Order Status Values
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
@@ -67,6 +67,7 @@ const JobScheduling = () => {
   const [shipdayVerification, setShipdayVerification] = useState<ShipdayVerificationResults>({});
   const [shipdayPickupAddresses, setShipdayPickupAddresses] = useState<ShipdayPickupAddresses>({});
   const [isVerifyingShipday, setIsVerifyingShipday] = useState(false);
+  const shipdayVerificationRun = useRef(0);
   
   
   // Lifted filter state from RouteBuilder
@@ -129,12 +130,10 @@ const JobScheduling = () => {
   });
 
   // Shipday verification
-  const verifyShipdayOrders = useCallback(async (ordersToVerify: OrderData[]) => {
-    const shipdayIds: string[] = [];
-    ordersToVerify.forEach(order => {
-      if (order.shipday_pickup_id) shipdayIds.push(order.shipday_pickup_id);
-      if (order.shipday_delivery_id) shipdayIds.push(order.shipday_delivery_id);
-    });
+  const verifyShipdayIds = useCallback(async (idsToVerify: string[]) => {
+    const shipdayIds = [...new Set(idsToVerify.filter(Boolean))];
+    const runId = shipdayVerificationRun.current + 1;
+    shipdayVerificationRun.current = runId;
 
     if (shipdayIds.length === 0) {
       setShipdayVerification({});
@@ -144,35 +143,38 @@ const JobScheduling = () => {
 
     setIsVerifyingShipday(true);
     try {
-      const { data, error } = await supabase.functions.invoke('verify-shipday-orders', {
-        body: { shipdayIds }
-      });
+      const results: ShipdayVerificationResults = {};
+      const pickupAddresses: ShipdayPickupAddresses = {};
+      const batchSize = 200;
 
-      if (error) throw error;
-      setShipdayVerification(data.results || {});
-      setShipdayPickupAddresses(data.pickupAddresses || {});
+      for (let start = 0; start < shipdayIds.length; start += batchSize) {
+        const batch = shipdayIds.slice(start, start + batchSize);
+        const { data, error } = await supabase.functions.invoke('verify-shipday-orders', {
+          body: { shipdayIds: batch }
+        });
+
+        if (error) throw error;
+        if (shipdayVerificationRun.current !== runId) return;
+
+        Object.assign(results, data.results || {});
+        Object.assign(pickupAddresses, data.pickupAddresses || {});
+        setShipdayVerification({ ...results });
+        setShipdayPickupAddresses({ ...pickupAddresses });
+      }
     } catch (err) {
       console.error('Error verifying Shipday orders:', err);
       toast.error('Failed to verify Shipday orders');
     } finally {
-      setIsVerifyingShipday(false);
+      if (shipdayVerificationRun.current === runId) setIsVerifyingShipday(false);
     }
   }, []);
 
-  // Auto-verify only the jobs scheduled for the day being viewed — verifying
-  // the entire backlog on every load made this page hang.
-  useEffect(() => {
-    if (!orders || orders.length === 0) return;
-    const targetDateStr = format(filterDate || new Date(), 'yyyy-MM-dd');
-    const sameDay = (value: string | null | undefined) =>
-      !!value && String(value).slice(0, 10) === targetDateStr;
-    const relevant = orders.filter(
-      (o: any) =>
-        (o.shipday_pickup_id || o.shipday_delivery_id) &&
-        (sameDay(o.scheduled_pickup_date) || sameDay(o.scheduled_delivery_date))
+  const verifyShipdayOrders = useCallback((ordersToVerify: OrderData[]) => {
+    const shipdayIds = ordersToVerify.flatMap(order =>
+      [order.shipday_pickup_id, order.shipday_delivery_id].filter((id): id is string => Boolean(id))
     );
-    verifyShipdayOrders(relevant);
-  }, [orders, filterDate, verifyShipdayOrders]);
+    return verifyShipdayIds(shipdayIds);
+  }, [verifyShipdayIds]);
   // This ensures both ClusterMap and RouteBuilder show the same filtered data
   const filteredOrdersForMap = useMemo(() => {
     if (!orders) return [];
@@ -354,6 +356,7 @@ const JobScheduling = () => {
                 shipdayVerification={shipdayVerification}
                 shipdayPickupAddresses={shipdayPickupAddresses}
                 isVerifyingShipday={isVerifyingShipday}
+                onVerifyVisibleShipday={verifyShipdayIds}
                 onReVerifyShipday={() => orders && verifyShipdayOrders(orders)}
               />
             </div>

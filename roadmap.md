@@ -10,3 +10,4 @@
 - [ ] Redesign administration and integration pages.
 - [x] Complete map, print and decorative-effect sweep.
 - [x] Validate the production build and responsive shared layouts.
+- [x] Restore Shipday tick/cross indicators on all visible Job Scheduling cards.

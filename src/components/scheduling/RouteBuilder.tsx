@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, Minus, RefreshCw, Loader2, Zap, Truck, ArrowUpDown, ChevronUp, ChevronDown, Ship, AlertCircle } from "lucide-react";
+import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, RefreshCw, Loader2, Zap, Truck, ArrowUpDown, ChevronUp, ChevronDown, Ship, AlertCircle } from "lucide-react";
 import { OrderData, ShipdayVerificationResults } from "@/pages/JobScheduling";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
@@ -99,6 +99,7 @@ interface RouteBuilderProps {
   shipdayVerification?: ShipdayVerificationResults;
   shipdayPickupAddresses?: Record<string, string>;
   isVerifyingShipday?: boolean;
+  onVerifyVisibleShipday?: (shipdayIds: string[]) => void;
   onReVerifyShipday?: () => void;
 }
 
@@ -1168,6 +1169,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   shipdayVerification = {},
   shipdayPickupAddresses = {},
   isVerifyingShipday = false,
+  onVerifyVisibleShipday,
   onReVerifyShipday
 }) => {
   const [isMobile, setIsMobile] = useState<boolean | undefined>(undefined);
@@ -3105,6 +3107,16 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const availableJobs = getJobsFromOrders();
   const totalUnfilteredJobs = getJobsFromOrders(false).length;
   const hasActiveFilters = filterDate || showCollectedOnly || showCollectionToday || showExpiredDatesOnly;
+  const visibleShipdayIds = [...new Set(availableJobs.flatMap(job => {
+    const id = job.type === 'pickup' ? job.order.shipday_pickup_id : job.order.shipday_delivery_id;
+    return id ? [id] : [];
+  }))];
+  const visibleShipdaySignature = visibleShipdayIds.slice().sort().join('|');
+
+  React.useEffect(() => {
+    if (!onVerifyVisibleShipday) return;
+    onVerifyVisibleShipday(visibleShipdayIds);
+  }, [onVerifyVisibleShipday, visibleShipdaySignature]);
 
   if (import.meta.env.DEV) {
     // eslint-disable-next-line no-console
@@ -3121,7 +3133,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
 
   // Helper to get Shipday status for a job
-  const getShipdayStatus = (order: OrderData, jobType: 'pickup' | 'delivery'): 'verified' | 'missing' | 'none' | 'stale' => {
+  const getShipdayStatus = (order: OrderData, jobType: 'pickup' | 'delivery'): 'verified' | 'missing' | 'none' | 'pending' | 'stale' => {
     const shipdayId = jobType === 'pickup' ? order.shipday_pickup_id : order.shipday_delivery_id;
     if (!shipdayId) return 'none';
     if (shipdayVerification[shipdayId] === true) {
@@ -3135,7 +3147,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       return 'verified';
     }
     if (shipdayVerification[shipdayId] === false) return 'missing';
-    return 'none'; // not yet checked
+    return 'pending';
   };
 
   const [syncingShipdayIds, setSyncingShipdayIds] = useState<Set<string>>(new Set());
@@ -3156,6 +3168,53 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   };
 
   const [isLoadingShipday, setIsLoadingShipday] = useState(false);
+
+  const missingVisibleShipdayJobs = availableJobs.filter(
+    (job): job is typeof job & { type: 'pickup' | 'delivery' } =>
+      (job.type === 'pickup' || job.type === 'delivery') &&
+      getShipdayStatus(job.order, job.type) === 'missing'
+  );
+
+  const handleAddAllMissingToShipday = async () => {
+    if (missingVisibleShipdayJobs.length === 0) {
+      toast.info('No confirmed missing jobs to add');
+      return;
+    }
+
+    const jobsToAdd = [...missingVisibleShipdayJobs];
+    const doPush = async () => {
+      setIsLoadingShipday(true);
+      toast.info(`Adding ${jobsToAdd.length} missing jobs to Shipday...`);
+      let success = 0;
+      let failed = 0;
+
+      for (const job of jobsToAdd) {
+        try {
+          await createShipdayOrder(job.orderId, job.type);
+          success++;
+        } catch (err) {
+          console.error('Failed to add missing job to Shipday', job, err);
+          failed++;
+        }
+      }
+
+      if (failed === 0) toast.success(`${success} missing jobs added to Shipday`);
+      else toast.warning(`${success} added, ${failed} failed`);
+      onReVerifyShipday?.();
+      setIsLoadingShipday(false);
+    };
+
+    if (jobsToAdd.length > 20) {
+      notify.confirm({
+        title: `Add ${jobsToAdd.length} missing jobs to Shipday?`,
+        confirmLabel: 'Add all',
+        onConfirm: doPush,
+      });
+      return;
+    }
+
+    await doPush();
+  };
 
   const handleLoadFilteredIntoShipday = async () => {
     const jobs = availableJobs.filter(j => j.type === 'pickup' || j.type === 'delivery') as Array<{ orderId: string; type: 'pickup' | 'delivery'; order: OrderData }>;
@@ -3218,40 +3277,40 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     }
   };
 
-  const renderShipdayIcon = (status: 'verified' | 'missing' | 'none' | 'stale', orderId?: string, jobType?: 'pickup' | 'delivery') => {
+  const renderShipdayIcon = (status: 'verified' | 'missing' | 'none' | 'pending' | 'stale', orderId?: string, jobType?: 'pickup' | 'delivery') => {
     const syncKey = orderId && jobType ? `${orderId}-${jobType}` : '';
     if (syncKey && syncingShipdayIds.has(syncKey)) {
-      return <Loader2 className="h-3 w-3 animate-spin text-muted-foreground" />;
+      return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
     }
-    if (isVerifyingShipday) return <RefreshCw className="h-3 w-3 animate-spin text-muted-foreground" />;
-    if (status === 'verified') return <CheckCircle className="h-3 w-3 text-green-600" />;
+    if (status === 'verified') return <CheckCircle className="h-4 w-4 text-status-done" aria-label="On Shipday" />;
+    if (status === 'pending') return <RefreshCw className={cn("h-4 w-4 text-muted-foreground", isVerifyingShipday && "animate-spin")} aria-label="Checking Shipday" />;
     if (status === 'stale') {
       return orderId && jobType ? (
         <button
           onClick={(e) => handleReplaceShipdayJob(e, orderId, jobType)}
-          className="hover:scale-125 transition-transform"
+          className="inline-flex h-6 w-6 items-center justify-center transition-transform hover:scale-110"
           title="This job is at the wrong address — click to rebuild it at the ferry hand-off point"
         >
-          <AlertCircle className="h-3 w-3 text-amber-600" />
+          <AlertCircle className="h-4 w-4 text-status-waiting" />
         </button>
       ) : (
-        <AlertCircle className="h-3 w-3 text-amber-600" />
+        <AlertCircle className="h-4 w-4 text-status-waiting" />
       );
     }
     if (status === 'missing' || status === 'none') {
       return orderId && jobType ? (
         <button
           onClick={(e) => handleAddToShipday(e, orderId, jobType)}
-          className="hover:scale-125 transition-transform"
+          className="inline-flex h-6 w-6 items-center justify-center transition-transform hover:scale-110"
           title="Click to add to Shipday"
         >
-          {status === 'missing' ? <XCircle className="h-3 w-3 text-red-600" /> : <Minus className="h-3 w-3 text-muted-foreground" />}
+          <XCircle className="h-4 w-4 text-status-failed" aria-label={status === 'missing' ? 'Missing from Shipday' : 'Not synced to Shipday'} />
         </button>
       ) : (
-        status === 'missing' ? <XCircle className="h-3 w-3 text-red-600" /> : <Minus className="h-3 w-3 text-muted-foreground" />
+        <XCircle className="h-4 w-4 text-status-failed" aria-label={status === 'missing' ? 'Missing from Shipday' : 'Not synced to Shipday'} />
       );
     }
-    return <Minus className="h-3 w-3 text-muted-foreground" />;
+    return <RefreshCw className="h-4 w-4 text-muted-foreground" aria-label="Checking Shipday" />;
   };
 
   // Calculate Shipday counts for route jobs
@@ -3268,7 +3327,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       />
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center justify-between">
+          <CardTitle className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <span className="flex items-center gap-2">
               <Route className="h-5 w-5" />
               Route Builder
@@ -3303,6 +3362,15 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
               })()}
             </div>
           </CardTitle>
+          <Button
+            variant="default"
+            onClick={handleAddAllMissingToShipday}
+            disabled={isLoadingShipday || isVerifyingShipday || missingVisibleShipdayJobs.length === 0}
+            className="mt-3 flex w-full items-center gap-2 sm:w-auto"
+          >
+            {isLoadingShipday ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            Add all missing ({missingVisibleShipdayJobs.length})
+          </Button>
         </CardHeader>
         <CardContent>
           <div className="flex gap-4 mb-4">
@@ -3509,7 +3577,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                             Ferry hand-off
                           </Badge>
                         )}
-                        <span title={shipdayStatus === 'verified' ? 'On Shipday' : shipdayStatus === 'stale' ? 'Wrong address on Shipday - click to rebuild' : shipdayStatus === 'missing' ? 'Missing from Shipday - click to add' : 'Not synced - click to add'}>
+                        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center" title={shipdayStatus === 'verified' ? 'On Shipday' : shipdayStatus === 'pending' ? 'Checking Shipday' : shipdayStatus === 'stale' ? 'Wrong address on Shipday - click to rebuild' : shipdayStatus === 'missing' ? 'Missing from Shipday - click to add' : 'Not synced - click to add'}>
                           {renderShipdayIcon(shipdayStatus, job.orderId, job.type)}
                         </span>
                       </div>
