@@ -34,6 +34,12 @@ const CustomerServiceInbox: React.FC = () => {
   const [sort, setSort] = useState<'recent'|'due'|'priority'>('due');
   const [search, setSearch] = useState('');
   const [syncing, setSyncing] = useState(false);
+  const [suppressAutoSelect, setSuppressAutoSelect] = useState(false);
+
+  const clearSelection = () => {
+    setSuppressAutoSelect(true);
+    navigate('/inbox', { replace: true });
+  };
 
   const { data: queues = [] } = useCsQueues();
   const { data: staff = [] } = useCsStaff();
@@ -89,10 +95,10 @@ const CustomerServiceInbox: React.FC = () => {
 
   // Auto-select first conversation on mount/desktop
   useEffect(() => {
-    if (!conversationId && conversations.length) {
+    if (!suppressAutoSelect && !conversationId && conversations.length) {
       navigate(`/inbox/${conversations[0].id}`, { replace: true });
     }
-  }, [conversationId, conversations, navigate]);
+  }, [conversationId, conversations, navigate, suppressAutoSelect]);
 
   // Mark as read on open
   useEffect(() => {
