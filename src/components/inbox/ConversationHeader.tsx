@@ -1,11 +1,11 @@
 import React, { useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { updateConversation, closeTicket } from "@/services/customerServiceInboxService";
+import { updateConversation, closeTicket, sendTicketConfirmation } from "@/services/customerServiceInboxService";
 import type { CsConversation, CsConversationStatus, CsPriority } from "@/types/customerService";
 import { CS_PRIORITIES } from "@/types/customerService";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Mail, MessageCircle, Clock, CheckCircle2, Loader2 } from "lucide-react";
+import { Mail, MessageCircle, Clock, CheckCircle2, Loader2, Send, AlertTriangle } from "lucide-react";
 import { useCsQueues, useCsStaff } from "@/hooks/useCsQueues";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,10 @@ const ConversationHeader: React.FC<Props> = ({ conversation }) => {
   const { data: staff = [] } = useCsStaff();
   const due = describeDue(conversation.next_response_due_at);
   const [closing, setClosing] = useState(false);
+  const [confirming, setConfirming] = useState(false);
   const isClosed = conversation.status === 'closed';
+  const isEmail = conversation.channel === 'email';
+  const confirmationSent = !!conversation.ack_sent_at;
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['cs-conversations'] });
