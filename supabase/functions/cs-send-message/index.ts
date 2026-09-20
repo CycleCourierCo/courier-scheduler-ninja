@@ -59,6 +59,10 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: 'conversation not found' }), { status: 404, headers: corsHeaders });
     }
 
+    if (conv.status === 'closed') {
+      return new Response(JSON.stringify({ error: 'ticket_closed' }), { status: 409, headers: corsHeaders });
+    }
+
     let externalId: string | null = null;
     let status: 'sent' | 'failed' = 'sent';
     let errorMsg: string | null = null;
