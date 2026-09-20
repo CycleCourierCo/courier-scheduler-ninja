@@ -1,9 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConversation, useConversations, useMessages } from "@/hooks/useConversations";
-import { markConversationRead } from "@/services/customerServiceInboxService";
+import { markConversationRead, syncInboundEmails } from "@/services/customerServiceInboxService";
 import ConversationList from "@/components/inbox/ConversationList";
 import ConversationHeader from "@/components/inbox/ConversationHeader";
 import MessageThread from "@/components/inbox/MessageThread";
@@ -12,7 +13,8 @@ import ContextPanel from "@/components/inbox/ContextPanel";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Inbox, Mail, MessageCircle } from "lucide-react";
+import { toast } from "sonner";
+import { Inbox, Mail, MessageCircle, RefreshCw } from "lucide-react";
 
 const CustomerServiceInbox: React.FC = () => {
   const navigate = useNavigate();
