@@ -13,6 +13,8 @@ import {
   addQueueMember, createQueue, removeQueueMember, setDefaultQueue,
   setQueueMemberActive, updateQueue, upsertQueueSla,
 } from "@/services/customerServiceQueueService";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import CannedResponseManager from "@/components/inbox/CannedResponseManager";
 import { CS_PRIORITIES, type CsPriority } from "@/types/customerService";
 import { formatTargetMinutes } from "@/lib/csTickets";
 import { toast } from "sonner";
@@ -227,6 +229,8 @@ const CustomerServiceQueues: React.FC = () => {
             </Card>
           );
         })}
+          </TabsContent>
+        </Tabs>
       </div>
     </Layout>
   );
