@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCsQueues, useCsStaff } from "@/hooks/useCsQueues";
 import { CS_PRIORITIES, type CsPriority } from "@/types/customerService";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Inbox, Mail, MessageCircle, Maximize2, Minimize2, PanelRight, RefreshCw, Settings, SlidersHorizontal } from "lucide-react";
+import { ChevronDown, ChevronUp, Inbox, Mail, MessageCircle, PanelRight, RefreshCw, Settings, SlidersHorizontal } from "lucide-react";
 
 const CustomerServiceInbox: React.FC = () => {
   const navigate = useNavigate();
@@ -35,8 +35,6 @@ const CustomerServiceInbox: React.FC = () => {
   const [search, setSearch] = useState('');
   const [syncing, setSyncing] = useState(false);
   const [suppressAutoSelect, setSuppressAutoSelect] = useState(false);
-  // Layout controls so the conversation can take almost the whole screen.
-  const [focusMode, setFocusMode] = useState(false);
   const [showContext, setShowContext] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
 
@@ -128,19 +126,9 @@ const CustomerServiceInbox: React.FC = () => {
           )}
           <div className="ml-auto flex items-center gap-2">
             <Button
-              variant="outline"
-              size="sm"
-              className="h-8"
-              onClick={() => setFocusMode(f => !f)}
-              title={focusMode ? 'Show ticket list' : 'Give the chat the whole screen'}
-            >
-              {focusMode ? <Minimize2 className="h-3.5 w-3.5 mr-1" /> : <Maximize2 className="h-3.5 w-3.5 mr-1" />}
-              {focusMode ? 'Exit full screen' : 'Full screen chat'}
-            </Button>
-            <Button
               variant={showContext ? 'secondary' : 'outline'}
               size="sm"
-              className="h-8 hidden lg:inline-flex"
+              className="h-8 hidden md:inline-flex"
               onClick={() => setShowContext(s => !s)}
               title="Show or hide the contact and order panel"
             >
@@ -164,9 +152,8 @@ const CustomerServiceInbox: React.FC = () => {
           </div>
         </div>
 
-        {/* Queue tabs with live counts — hidden while the chat is full screen */}
-        {!focusMode && (
-          <div className="flex gap-1 flex-wrap mb-2">
+        {/* Queue tabs with live counts */}
+        <div className="flex gap-1 flex-wrap mb-2">
             <Button
               variant={queueId === 'all' ? 'default' : 'outline'}
               size="sm"
@@ -193,21 +180,17 @@ const CustomerServiceInbox: React.FC = () => {
                 </Button>
               );
             })}
-          </div>
-        )}
+        </div>
 
         <div
-          className={`grid grid-cols-1 gap-2 h-[calc(100dvh-130px)] min-h-[520px] ${
-            focusMode
-              ? 'md:grid-cols-1'
-              : showContext
-                ? 'md:grid-cols-[260px_1fr] lg:grid-cols-[260px_minmax(0,1fr)_280px]'
-                : 'md:grid-cols-[260px_minmax(0,1fr)]'
+          className={`grid grid-cols-1 gap-2 h-[calc(100dvh-148px)] min-h-[720px] ${
+            showContext
+              ? 'md:grid-cols-[240px_minmax(0,1fr)_260px] xl:grid-cols-[280px_minmax(0,1fr)_320px]'
+              : 'md:grid-cols-[280px_minmax(0,1fr)]'
           }`}
         >
           {/* LEFT — list + filters */}
-          {!focusMode && (
-            <div className="border rounded-md flex flex-col bg-card overflow-hidden min-h-0">
+          <div className="border rounded-md flex flex-col bg-card overflow-hidden min-h-0">
               <div className="p-2 border-b space-y-2">
                 <div className="flex gap-1">
                   <Input
@@ -289,8 +272,7 @@ const CustomerServiceInbox: React.FC = () => {
                   staffNames={staffNames}
                 />
               </div>
-            </div>
-          )}
+          </div>
 
           {/* MIDDLE — thread */}
           <div className="border rounded-md flex flex-col bg-card overflow-hidden min-h-0">
@@ -310,8 +292,8 @@ const CustomerServiceInbox: React.FC = () => {
           </div>
 
           {/* RIGHT — context */}
-          {!focusMode && showContext && (
-            <div className="border rounded-md bg-card overflow-y-auto hidden lg:block min-h-0">
+          {showContext && (
+            <div className="border rounded-md bg-card overflow-y-auto hidden md:block min-h-0">
               {conversation && <ContextPanel conversation={conversation} />}
             </div>
           )}
