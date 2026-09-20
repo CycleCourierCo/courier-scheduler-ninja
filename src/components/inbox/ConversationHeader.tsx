@@ -121,12 +121,21 @@ const ConversationHeader: React.FC<Props> = ({ conversation }) => {
           </SelectContent>
         </Select>
 
-        <Select value={conversation.status} onValueChange={(v) => patch({ status: v }, `Status: ${v}`)}>
+        <Select value={conversation.status} onValueChange={handleStatusChange}>
           <SelectTrigger className="w-28 h-8 text-xs"><SelectValue /></SelectTrigger>
           <SelectContent>
             {STATUSES.map(s => <SelectItem key={s} value={s} className="capitalize">{s}</SelectItem>)}
           </SelectContent>
         </Select>
+
+        {!isClosed && (
+          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={handleClose} disabled={closing}>
+            {closing
+              ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+              : <CheckCircle2 className="h-3.5 w-3.5 mr-1" />}
+            Close ticket
+          </Button>
+        )}
       </div>
     </div>
   );
