@@ -43,6 +43,7 @@ async function sendAndLog(
     subject: string;
     html: string;
     headers?: Record<string, string>;
+    systemEvent?: string;
   },
 ): Promise<boolean> {
   const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
@@ -52,6 +53,8 @@ async function sendAndLog(
   }
 
   const text = htmlToPlainText(opts.html);
+  // Pre-allocate the thread message id so delivery events can be matched back to it.
+  const messageId = crypto.randomUUID();
   let externalId: string | null = null;
   let status: "sent" | "failed" = "sent";
   let errorMsg: string | null = null;
@@ -66,6 +69,10 @@ async function sendAndLog(
       html: opts.html,
       text,
       headers: { "Auto-Submitted": "auto-replied", ...(opts.headers || {}) },
+      tags: [
+        { name: "cs_conversation_id", value: opts.conversationId },
+        { name: "cs_message_id", value: messageId },
+      ],
     } as any);
     if (error) throw error;
     externalId = (data as any)?.id || null;
@@ -76,14 +83,18 @@ async function sendAndLog(
   }
 
   await supabase.from("cs_messages").insert({
+    id: messageId,
     conversation_id: opts.conversationId,
     direction: "out",
     body_text: text,
     body_html: opts.html,
     external_id: externalId,
+    provider_message_id: externalId,
+    delivery_status: status === "sent" ? "sent" : "failed",
     status,
     error: errorMsg,
     is_automatic: true,
+    system_event: opts.systemEvent ?? null,
   });
 
   return status === "sent";
@@ -205,6 +216,7 @@ export async function sendTicketClosedEmail(supabase: any, conversationId: strin
     to,
     subject: ref ? `Re: ${subjectLine} [${ref}] - ticket closed` : `Re: ${subjectLine} - ticket closed`,
     html,
+    systemEvent: "ticket_closed",
   });
 
   if (!ok) {
