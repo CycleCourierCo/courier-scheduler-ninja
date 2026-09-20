@@ -105,6 +105,15 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Customer-service thread messages: reflect the delivery state on the message itself.
+    await applyCsDeliveryEvent(supabase, {
+      csMessageId: tagMap.cs_message_id ?? null,
+      providerMessageId: data.email_id ?? null,
+      eventType,
+      createdAt: evt?.created_at ?? new Date().toISOString(),
+    });
+
+
     return new Response(JSON.stringify({ ok: true }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
