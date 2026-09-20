@@ -5574,6 +5574,7 @@ export type Database = {
         Returns: boolean
       }
       invoke_backfill_shipday_jobs: { Args: never; Returns: undefined }
+      invoke_cs_resend_fetch: { Args: never; Returns: undefined }
       invoke_ferry_partner_notification: {
         Args: { p_order_id: string }
         Returns: undefined
