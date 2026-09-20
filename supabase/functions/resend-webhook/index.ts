@@ -2,6 +2,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { Webhook } from "https://esm.sh/svix@1.24.0";
 import { logInboundWebhook } from "../_shared/integrationLog.ts";
+import { applyCsDeliveryEvent } from "../_shared/cs-delivery.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
