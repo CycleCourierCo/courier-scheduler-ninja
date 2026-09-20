@@ -1,9 +1,10 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import type { CsMessage } from "@/types/customerService";
 import { format } from "date-fns";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, CheckCircle2, ChevronDown } from "lucide-react";
 import DOMPurify from "dompurify";
+import MessageDeliveryTicks from "./MessageDeliveryTicks";
 
 interface Props {
   messages: CsMessage[];
@@ -25,6 +26,44 @@ const sanitizeMessageHtml = (html: string) =>
     ALLOW_DATA_ATTR: false,
   });
 
+const SYSTEM_LABELS: Record<string, string> = {
+  ticket_closed: 'This ticket has been closed — the customer was emailed',
+  ticket_reopened: 'This ticket was reopened',
+};
+
+/** Closure and similar system emails collapse to a single line in the thread. */
+const SystemLine: React.FC<{ message: CsMessage }> = ({ message }) => {
+  const [open, setOpen] = useState(false);
+  const label = SYSTEM_LABELS[message.system_event || ''] || 'System update';
+
+  return (
+    <div className="self-center w-full max-w-full">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="mx-auto flex items-center gap-1.5 rounded-full border bg-muted/50 px-3 py-1 text-[11px] text-muted-foreground hover:bg-muted"
+      >
+        <CheckCircle2 className="h-3 w-3" />
+        <span>{label}</span>
+        <span className="opacity-70">· {format(new Date(message.created_at), 'PP p')}</span>
+        <ChevronDown className={cn("h-3 w-3 transition-transform", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div className="mt-2 rounded-lg border bg-muted/30 p-3 text-xs">
+          {message.body_html ? (
+            <div
+              className="prose prose-sm max-w-none"
+              dangerouslySetInnerHTML={{ __html: sanitizeMessageHtml(message.body_html) }}
+            />
+          ) : (
+            <div className="whitespace-pre-wrap">{message.body_text || '(empty)'}</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 const MessageThread: React.FC<Props> = ({ messages }) => {
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -38,6 +77,8 @@ const MessageThread: React.FC<Props> = ({ messages }) => {
   return (
     <div className="flex flex-col gap-3 p-4">
       {messages.map((m) => {
+        if (m.system_event) return <SystemLine key={m.id} message={m} />;
+
         const isInbound = m.direction === 'in';
         const isNote = m.direction === 'note';
         return (
@@ -74,11 +115,16 @@ const MessageThread: React.FC<Props> = ({ messages }) => {
             )}
             <div className="mt-1 flex items-center justify-between gap-2 text-[10px] opacity-70">
               <span>{format(new Date(m.created_at), 'PP p')}</span>
-              {m.status === 'failed' && (
-                <span className="flex items-center gap-1 text-red-200">
-                  <AlertCircle className="h-3 w-3" /> failed{m.error ? `: ${m.error}` : ''}
-                </span>
-              )}
+              <span className="flex items-center gap-1">
+                {m.status === 'failed' && (
+                  <span className="flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" /> failed{m.error ? `: ${m.error}` : ''}
+                  </span>
+                )}
+                {!isInbound && !isNote && m.status !== 'failed' && (
+                  <MessageDeliveryTicks status={m.delivery_status} events={m.delivery_events} />
+                )}
+              </span>
             </div>
           </div>
         );

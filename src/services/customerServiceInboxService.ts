@@ -123,6 +123,15 @@ export const closeTicket = async (conversationId: string, notify = true) => {
   return data;
 };
 
+/** Sends (or re-sends) the "we've received your message" confirmation email. */
+export const sendTicketConfirmation = async (conversationId: string, force = false) => {
+  const { data, error } = await supabase.functions.invoke('cs-send-ack', {
+    body: { conversation_id: conversationId, force },
+  });
+  if (error) throw error;
+  return data;
+};
+
 export const addNote = async (conversationId: string, body: string, authorId: string) => {
   const { error } = await msg().insert({
     conversation_id: conversationId,
