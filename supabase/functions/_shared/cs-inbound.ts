@@ -3,6 +3,7 @@
 import { resolveOrderLink } from "./cs-order-linker.ts";
 import { sanitizeInboundHtml } from "./sanitizeHtml.ts";
 import { sendTicketReceivedEmail } from "./cs-auto-email.ts";
+import { stripQuotedHtml, stripQuotedText } from "./cs-quoted-reply.ts";
 
 export interface InboundEmail {
   from: string;            // "Jane Doe <jane@x.com>"
