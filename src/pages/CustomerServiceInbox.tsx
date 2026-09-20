@@ -164,105 +164,133 @@ const CustomerServiceInbox: React.FC = () => {
           </div>
         </div>
 
-        {/* Queue tabs with live counts */}
-        <div className="flex gap-1 flex-wrap mb-3">
-          <Button
-            variant={queueId === 'all' ? 'default' : 'outline'}
-            size="sm"
-            className="h-7 px-2 text-xs"
-            onClick={() => setQueueId('all')}
-          >
-            All queues
-          </Button>
-          {queues.filter(q => q.is_active).map(q => {
-            const c = queueCounts[q.id];
-            return (
-              <Button
-                key={q.id}
-                variant={queueId === q.id ? 'default' : 'outline'}
-                size="sm"
-                className="h-7 px-2 text-xs gap-1"
-                onClick={() => setQueueId(q.id)}
-              >
-                {q.name}
-                {c?.open ? <span className="opacity-80">{c.open}</span> : null}
-                {c?.overdue ? (
-                  <span className="text-destructive font-medium">!{c.overdue}</span>
-                ) : null}
-              </Button>
-            );
-          })}
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-[320px_1fr_300px] gap-3 h-[calc(100dvh-240px)] min-h-[420px]">
-          {/* LEFT — list + filters */}
-          <div className="border rounded-md flex flex-col bg-card overflow-hidden min-h-0">
-            <div className="p-2 border-b space-y-2">
-              <Input
-                placeholder="Search…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-8 text-sm"
-              />
-              <div className="flex gap-1">
-                <Tabs value={scope} onValueChange={(v) => setScope(v as any)} className="flex-1">
-                  <TabsList className="h-7 w-full grid grid-cols-3">
-                    <TabsTrigger value="all" className="text-[11px] h-6">All</TabsTrigger>
-                    <TabsTrigger value="mine" className="text-[11px] h-6">Mine</TabsTrigger>
-                    <TabsTrigger value="unassigned" className="text-[11px] h-6">Unass.</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-              <div className="flex gap-1">
-                <Button variant={channel === 'all' ? 'default' : 'outline'} size="sm" className="h-7 px-2 text-xs flex-1" onClick={() => setChannel('all')}>All</Button>
-                <Button variant={channel === 'email' ? 'default' : 'outline'} size="sm" className="h-7 px-2 text-xs flex-1" onClick={() => setChannel('email')}>
-                  <Mail className="h-3 w-3 mr-1" />Email
+        {/* Queue tabs with live counts — hidden while the chat is full screen */}
+        {!focusMode && (
+          <div className="flex gap-1 flex-wrap mb-2">
+            <Button
+              variant={queueId === 'all' ? 'default' : 'outline'}
+              size="sm"
+              className="h-7 px-2 text-xs"
+              onClick={() => setQueueId('all')}
+            >
+              All queues
+            </Button>
+            {queues.filter(q => q.is_active).map(q => {
+              const c = queueCounts[q.id];
+              return (
+                <Button
+                  key={q.id}
+                  variant={queueId === q.id ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-7 px-2 text-xs gap-1"
+                  onClick={() => setQueueId(q.id)}
+                >
+                  {q.name}
+                  {c?.open ? <span className="opacity-80">{c.open}</span> : null}
+                  {c?.overdue ? (
+                    <span className="text-destructive font-medium">!{c.overdue}</span>
+                  ) : null}
                 </Button>
-                <Button variant={channel === 'whatsapp' ? 'default' : 'outline'} size="sm" className="h-7 px-2 text-xs flex-1" onClick={() => setChannel('whatsapp')}>
-                  <MessageCircle className="h-3 w-3 mr-1" />WA
-                </Button>
-              </div>
-              <div className="flex gap-1 flex-wrap">
-                {(['open','pending','snoozed','closed','all'] as const).map(s => (
-                  <Button
-                    key={s}
-                    variant={status === s ? 'secondary' : 'ghost'}
-                    size="sm"
-                    className="h-6 px-2 text-[11px] capitalize"
-                    onClick={() => setStatus(s)}
-                  >{s}</Button>
-                ))}
-              </div>
-              <div className="flex gap-1">
-                <Select value={priority} onValueChange={(v) => setPriority(v as CsPriority | 'all')}>
-                  <SelectTrigger className="h-7 text-xs flex-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Any priority</SelectItem>
-                    {CS_PRIORITIES.map(p => (
-                      <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select value={sort} onValueChange={(v) => setSort(v as typeof sort)}>
-                  <SelectTrigger className="h-7 text-xs flex-1"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="due">Reply time</SelectItem>
-                    <SelectItem value="priority">Priority</SelectItem>
-                    <SelectItem value="recent">Most recent</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              <ConversationList
-                conversations={conversations}
-                selectedId={conversationId || null}
-                onSelect={(id) => { setSuppressAutoSelect(false); navigate(`/inbox/${id}`); }}
-                isLoading={isLoading}
-                staffNames={staffNames}
-              />
-            </div>
+              );
+            })}
           </div>
+        )}
+
+        <div
+          className={`grid grid-cols-1 gap-2 h-[calc(100dvh-130px)] min-h-[520px] ${
+            focusMode
+              ? 'md:grid-cols-1'
+              : showContext
+                ? 'md:grid-cols-[260px_1fr] lg:grid-cols-[260px_minmax(0,1fr)_280px]'
+                : 'md:grid-cols-[260px_minmax(0,1fr)]'
+          }`}
+        >
+          {/* LEFT — list + filters */}
+          {!focusMode && (
+            <div className="border rounded-md flex flex-col bg-card overflow-hidden min-h-0">
+              <div className="p-2 border-b space-y-2">
+                <div className="flex gap-1">
+                  <Input
+                    placeholder="Search…"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="h-8 text-sm"
+                  />
+                  <Button
+                    variant={showFilters ? 'secondary' : 'outline'}
+                    size="sm"
+                    className="h-8 px-2"
+                    onClick={() => setShowFilters(f => !f)}
+                    title="Show or hide filters"
+                  >
+                    <SlidersHorizontal className="h-3.5 w-3.5" />
+                    {showFilters ? <ChevronUp className="h-3 w-3 ml-0.5" /> : <ChevronDown className="h-3 w-3 ml-0.5" />}
+                  </Button>
+                </div>
+                {showFilters && (
+                  <>
+                    <div className="flex gap-1">
+                      <Tabs value={scope} onValueChange={(v) => setScope(v as any)} className="flex-1">
+                        <TabsList className="h-7 w-full grid grid-cols-3">
+                          <TabsTrigger value="all" className="text-[11px] h-6">All</TabsTrigger>
+                          <TabsTrigger value="mine" className="text-[11px] h-6">Mine</TabsTrigger>
+                          <TabsTrigger value="unassigned" className="text-[11px] h-6">Unass.</TabsTrigger>
+                        </TabsList>
+                      </Tabs>
+                    </div>
+                    <div className="flex gap-1">
+                      <Button variant={channel === 'all' ? 'default' : 'outline'} size="sm" className="h-7 px-2 text-xs flex-1" onClick={() => setChannel('all')}>All</Button>
+                      <Button variant={channel === 'email' ? 'default' : 'outline'} size="sm" className="h-7 px-2 text-xs flex-1" onClick={() => setChannel('email')}>
+                        <Mail className="h-3 w-3 mr-1" />Email
+                      </Button>
+                      <Button variant={channel === 'whatsapp' ? 'default' : 'outline'} size="sm" className="h-7 px-2 text-xs flex-1" onClick={() => setChannel('whatsapp')}>
+                        <MessageCircle className="h-3 w-3 mr-1" />WA
+                      </Button>
+                    </div>
+                    <div className="flex gap-1 flex-wrap">
+                      {(['open','pending','snoozed','closed','all'] as const).map(s => (
+                        <Button
+                          key={s}
+                          variant={status === s ? 'secondary' : 'ghost'}
+                          size="sm"
+                          className="h-6 px-2 text-[11px] capitalize"
+                          onClick={() => setStatus(s)}
+                        >{s}</Button>
+                      ))}
+                    </div>
+                    <div className="flex gap-1">
+                      <Select value={priority} onValueChange={(v) => setPriority(v as CsPriority | 'all')}>
+                        <SelectTrigger className="h-7 text-xs flex-1"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Any priority</SelectItem>
+                          {CS_PRIORITIES.map(p => (
+                            <SelectItem key={p} value={p} className="capitalize">{p}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Select value={sort} onValueChange={(v) => setSort(v as typeof sort)}>
+                        <SelectTrigger className="h-7 text-xs flex-1"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="due">Reply time</SelectItem>
+                          <SelectItem value="priority">Priority</SelectItem>
+                          <SelectItem value="recent">Most recent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto">
+                <ConversationList
+                  conversations={conversations}
+                  selectedId={conversationId || null}
+                  onSelect={(id) => { setSuppressAutoSelect(false); navigate(`/inbox/${id}`); }}
+                  isLoading={isLoading}
+                  staffNames={staffNames}
+                />
+              </div>
+            </div>
+          )}
 
           {/* MIDDLE — thread */}
           <div className="border rounded-md flex flex-col bg-card overflow-hidden min-h-0">
@@ -282,9 +310,11 @@ const CustomerServiceInbox: React.FC = () => {
           </div>
 
           {/* RIGHT — context */}
-          <div className="border rounded-md bg-card overflow-y-auto hidden md:block min-h-0">
-            {conversation && <ContextPanel conversation={conversation} />}
-          </div>
+          {!focusMode && showContext && (
+            <div className="border rounded-md bg-card overflow-y-auto hidden lg:block min-h-0">
+              {conversation && <ContextPanel conversation={conversation} />}
+            </div>
+          )}
         </div>
       </div>
     </Layout>
