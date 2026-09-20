@@ -5,19 +5,19 @@ import type { CsConversation, CsConversationStatus, CsPriority } from "@/types/c
 import { CS_PRIORITIES } from "@/types/customerService";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Mail, MessageCircle, Clock, CheckCircle2, Loader2, Send, AlertTriangle } from "lucide-react";
+import { Mail, MessageCircle, Clock, CheckCircle2, Loader2, Send, AlertTriangle, X } from "lucide-react";
 import { useCsQueues, useCsStaff } from "@/hooks/useCsQueues";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { describeDue, dueBadgeClass } from "@/lib/csTickets";
 
-interface Props { conversation: CsConversation }
+interface Props { conversation: CsConversation; onDismiss?: () => void }
 
 const STATUSES: CsConversationStatus[] = ['open','pending','snoozed','closed'];
 const UNASSIGNED = '__unassigned__';
 
-const ConversationHeader: React.FC<Props> = ({ conversation }) => {
+const ConversationHeader: React.FC<Props> = ({ conversation, onDismiss }) => {
   const qc = useQueryClient();
   const Icon = conversation.channel === 'email' ? Mail : MessageCircle;
   const { data: queues = [] } = useCsQueues();
@@ -51,6 +51,7 @@ const ConversationHeader: React.FC<Props> = ({ conversation }) => {
       await closeTicket(conversation.id);
       toast.success('Ticket closed and the customer has been emailed');
       refresh();
+      onDismiss?.();
     } catch (e: any) {
       toast.error(e?.message || 'Could not close the ticket');
     } finally {
@@ -99,6 +100,18 @@ const ConversationHeader: React.FC<Props> = ({ conversation }) => {
           <Badge className={cn("h-5 px-2 text-[11px] gap-1 border-transparent shrink-0", dueBadgeClass(due))}>
             <Clock className="h-3 w-3" />{due.label}
           </Badge>
+        )}
+        {onDismiss && (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-7 w-7 shrink-0"
+            onClick={onDismiss}
+            aria-label="Clear ticket from view"
+            title="Clear this ticket from view"
+          >
+            <X className="h-4 w-4" />
+          </Button>
         )}
       </div>
 

@@ -34,6 +34,12 @@ const CustomerServiceInbox: React.FC = () => {
   const [sort, setSort] = useState<'recent'|'due'|'priority'>('due');
   const [search, setSearch] = useState('');
   const [syncing, setSyncing] = useState(false);
+  const [suppressAutoSelect, setSuppressAutoSelect] = useState(false);
+
+  const clearSelection = () => {
+    setSuppressAutoSelect(true);
+    navigate('/inbox', { replace: true });
+  };
 
   const { data: queues = [] } = useCsQueues();
   const { data: staff = [] } = useCsStaff();
@@ -89,10 +95,10 @@ const CustomerServiceInbox: React.FC = () => {
 
   // Auto-select first conversation on mount/desktop
   useEffect(() => {
-    if (!conversationId && conversations.length) {
+    if (!suppressAutoSelect && !conversationId && conversations.length) {
       navigate(`/inbox/${conversations[0].id}`, { replace: true });
     }
-  }, [conversationId, conversations, navigate]);
+  }, [conversationId, conversations, navigate, suppressAutoSelect]);
 
   // Mark as read on open
   useEffect(() => {
@@ -224,7 +230,7 @@ const CustomerServiceInbox: React.FC = () => {
               <ConversationList
                 conversations={conversations}
                 selectedId={conversationId || null}
-                onSelect={(id) => navigate(`/inbox/${id}`)}
+                onSelect={(id) => { setSuppressAutoSelect(false); navigate(`/inbox/${id}`); }}
                 isLoading={isLoading}
                 staffNames={staffNames}
               />
@@ -235,7 +241,7 @@ const CustomerServiceInbox: React.FC = () => {
           <div className="border rounded-md flex flex-col bg-card overflow-hidden min-h-[400px]">
             {conversation ? (
               <>
-                <ConversationHeader conversation={conversation} />
+                <ConversationHeader conversation={conversation} onDismiss={clearSelection} />
                 <div className="flex-1 overflow-y-auto">
                   <MessageThread messages={messages} />
                 </div>
