@@ -106,9 +106,11 @@ serve(async (req) => {
     return createAuthErrorResponse(auth.error ?? 'Unauthorized', auth.status ?? 401);
   }
 
-  const apiKey = Deno.env.get('RESEND_API_KEY');
+  // The main sending key is usually restricted to sending; reading received
+  // emails needs a key with full access.
+  const apiKey = Deno.env.get('RESEND_RECEIVING_API_KEY') ?? Deno.env.get('RESEND_API_KEY');
   if (!apiKey) {
-    console.error('cs-resend-fetch: RESEND_API_KEY not configured');
+    console.error('cs-resend-fetch: no Resend API key configured');
     return json({ error: 'email service not configured' }, 500);
   }
 
