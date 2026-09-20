@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useParams, Link } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useConversation, useConversations, useMessages } from "@/hooks/useConversations";
-import { markConversationRead, syncInboundEmails } from "@/services/customerServiceInboxService";
+import { markConversationRead, syncInboundEmails, fetchQueueCounts } from "@/services/customerServiceInboxService";
 import ConversationList from "@/components/inbox/ConversationList";
 import ConversationHeader from "@/components/inbox/ConversationHeader";
 import MessageThread from "@/components/inbox/MessageThread";
@@ -12,9 +12,13 @@ import MessageComposer from "@/components/inbox/MessageComposer";
 import ContextPanel from "@/components/inbox/ContextPanel";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCsQueues, useCsStaff } from "@/hooks/useCsQueues";
+import { CS_PRIORITIES, type CsPriority } from "@/types/customerService";
 import { toast } from "sonner";
-import { Inbox, Mail, MessageCircle, RefreshCw } from "lucide-react";
+import { Inbox, Mail, MessageCircle, RefreshCw, Settings } from "lucide-react";
 
 const CustomerServiceInbox: React.FC = () => {
   const navigate = useNavigate();
@@ -25,14 +29,31 @@ const CustomerServiceInbox: React.FC = () => {
   const [status, setStatus] = useState<'open'|'pending'|'snoozed'|'closed'|'all'>('open');
   const [channel, setChannel] = useState<'all'|'email'|'whatsapp'>('all');
   const [scope, setScope] = useState<'all'|'mine'|'unassigned'>('all');
+  const [queueId, setQueueId] = useState<string>('all');
+  const [priority, setPriority] = useState<CsPriority | 'all'>('all');
+  const [sort, setSort] = useState<'recent'|'due'|'priority'>('due');
   const [search, setSearch] = useState('');
   const [syncing, setSyncing] = useState(false);
+
+  const { data: queues = [] } = useCsQueues();
+  const { data: staff = [] } = useCsStaff();
+  const { data: queueCounts = {} } = useQuery({
+    queryKey: ['cs-queue-counts'],
+    queryFn: fetchQueueCounts,
+    staleTime: 15_000,
+  });
+
+  const staffNames = useMemo(
+    () => Object.fromEntries(staff.map(s => [s.id, s.name || s.email || 'Staff'])),
+    [staff],
+  );
 
   const handleSync = async () => {
     setSyncing(true);
     try {
       const result = await syncInboundEmails();
       queryClient.invalidateQueries({ queryKey: ['cs-conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['cs-queue-counts'] });
       const imported = result?.imported ?? 0;
       toast.success(imported > 0
         ? `${imported} new email${imported === 1 ? '' : 's'} added to the inbox`
@@ -52,11 +73,19 @@ const CustomerServiceInbox: React.FC = () => {
     unassigned: scope === 'unassigned',
     search,
     userId: user?.id,
-  }), [status, channel, scope, search, user?.id]);
+    queueId,
+    priority,
+    sort,
+  }), [status, channel, scope, search, user?.id, queueId, priority, sort]);
 
   const { data: conversations = [], isLoading } = useConversations(params);
   const { data: conversation } = useConversation(conversationId);
   const { data: messages = [] } = useMessages(conversationId);
+
+  const totalOverdue = useMemo(
+    () => Object.values(queueCounts).reduce((sum, c) => sum + c.overdue, 0),
+    [queueCounts],
+  );
 
   // Auto-select first conversation on mount/desktop
   useEffect(() => {
