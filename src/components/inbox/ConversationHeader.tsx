@@ -5,19 +5,19 @@ import type { CsConversation, CsConversationStatus, CsPriority } from "@/types/c
 import { CS_PRIORITIES } from "@/types/customerService";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Mail, MessageCircle, Clock, CheckCircle2, Loader2, Send, AlertTriangle } from "lucide-react";
+import { Mail, MessageCircle, Clock, CheckCircle2, Loader2, Send, AlertTriangle, X } from "lucide-react";
 import { useCsQueues, useCsStaff } from "@/hooks/useCsQueues";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { describeDue, dueBadgeClass } from "@/lib/csTickets";
 
-interface Props { conversation: CsConversation }
+interface Props { conversation: CsConversation; onDismiss?: () => void }
 
 const STATUSES: CsConversationStatus[] = ['open','pending','snoozed','closed'];
 const UNASSIGNED = '__unassigned__';
 
-const ConversationHeader: React.FC<Props> = ({ conversation }) => {
+const ConversationHeader: React.FC<Props> = ({ conversation, onDismiss }) => {
   const qc = useQueryClient();
   const Icon = conversation.channel === 'email' ? Mail : MessageCircle;
   const { data: queues = [] } = useCsQueues();
@@ -51,6 +51,7 @@ const ConversationHeader: React.FC<Props> = ({ conversation }) => {
       await closeTicket(conversation.id);
       toast.success('Ticket closed and the customer has been emailed');
       refresh();
+      onDismiss?.();
     } catch (e: any) {
       toast.error(e?.message || 'Could not close the ticket');
     } finally {
