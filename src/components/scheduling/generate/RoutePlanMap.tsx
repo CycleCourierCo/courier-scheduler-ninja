@@ -67,11 +67,7 @@ const RoutePlanMap: React.FC<Props> = ({ routes, areas = [] }) => {
           />
         ))}
 
-        {lines.map((line, i) =>
-          line.length > 1 ? (
-            <Polyline key={`line-${i}`} positions={line} pathOptions={{ color: ROUTE_COLOURS[i % ROUTE_COLOURS.length], weight: 3, opacity: 0.85 }} />
-          ) : null,
-        )}
+        <RouteLines lines={lines} colours={ROUTE_COLOURS} />
 
         {routes.map((route, i) =>
           route.stops.map((stop) => (
