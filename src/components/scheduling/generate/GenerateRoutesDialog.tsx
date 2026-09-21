@@ -413,26 +413,40 @@ const GenerateRoutesDialog: React.FC = () => {
     return [...runLegs, ...lapsedLegs.filter((l) => !seen.has(`${l.order_id}:${l.leg_type}`))];
   }, [result, lapsedLegs]);
 
-  /** The "an extra van would fit N more jobs" figures, fetched after the plan. */
-  const loadShortfall = (base: Omit<GenerateRoutesInput, "mode">) => {
-    fetchPlanShortfall({ ...base, mode: "joint" })
-      .then((byDate) => {
-        if (!byDate || Object.keys(byDate).length === 0) {
-          setPlans((prev) => (prev.joint ? { ...prev, joint: { ...prev.joint, shortfall_pending: false } } : prev));
-          return;
-        }
-        setPlans((prev) => prev.joint ? {
-          ...prev,
-          joint: {
-            ...prev.joint,
-            shortfall_pending: false,
-            days: prev.joint.days.map((d) => ({ ...d, shortfall: byDate[d.date] ?? d.shortfall })),
-          },
-        } : prev);
-      })
-      .catch(() => {
-        setPlans((prev) => (prev.joint ? { ...prev, joint: { ...prev.joint, shortfall_pending: false } } : prev));
-      });
+  const planInput = (gridOverride?: Record<string, string[]>) => ({
+    selected_dates: dates,
+    shift_start: shiftStart,
+    van_availability: Object.fromEntries(
+      dates.map((d) => [d, (gridOverride ?? grid)[d] ?? vans.map((v) => v.id)]),
+    ),
+    firm_days: firmDays,
+    inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
+    include_expired: includeExpired,
+    max_long_days: maxLongDays,
+    min_jobs_target: minJobsTarget,
+    min_jobs_floor: minJobsFloor,
+  });
+
+  const runPlan = async (gridOverride?: Record<string, string[]>) => {
+    setLoading(true);
+    setLockedDays([]);
+    try {
+      const plan = await generateRoutes(planInput(gridOverride));
+      setResult(plan);
+      setActiveDate(
+        plan.days.find((d) => (d.variants?.[0]?.routes?.length ?? 0) > 0)?.date ?? plan.days[0]?.date ?? null,
+      );
+      const planned = plan.days.reduce((n, d) => n + (d.variants?.[0]?.routes?.length ?? 0), 0);
+      toast.success(
+        planned > 0
+          ? `Planned ${planned} route${planned === 1 ? "" : "s"} across ${dates.length} day${dates.length === 1 ? "" : "s"}`
+          : "No routes could be built for those days",
+      );
+    } catch (e) {
+      toast.error((e as Error).message || "Route generation failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGenerate = async () => {
@@ -444,72 +458,25 @@ const GenerateRoutesDialog: React.FC = () => {
       toast.error("No vans are ticked on any of those days");
       return;
     }
-    setLoading(true);
-    setPlans({ joint: null, greedy: null });
-    setPlanErrors({ joint: null, greedy: null });
-    setCommittedMode(null);
-    setLockedDays([]);
-    const base = {
-      selected_dates: dates,
-      shift_start: shiftStart,
-      van_availability: Object.fromEntries(dates.map((d) => [d, grid[d] ?? vans.map((v) => v.id)])),
-      firm_days: firmDays,
-      inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
-      include_expired: includeExpired,
-      max_long_days: maxLongDays,
-      min_jobs_target: minJobsTarget,
-      min_jobs_floor: minJobsFloor,
-    };
-    try {
-      // Both ways of planning are built so they can be compared side by side.
-      const [joint, greedy] = await Promise.all([
-        generateRoutes({ ...base, mode: "joint" }),
-        generateRoutes({ ...base, mode: "greedy" }).catch((e: Error) => {
-          setPlanErrors((prev) => ({ ...prev, greedy: e.message || "Day-by-day planning failed" }));
-          return null;
-        }),
-      ]);
-      setPlans({ joint, greedy });
-      setMode("joint");
-      setActiveDate(joint.days.find((d) => (d.variants?.[0]?.routes?.length ?? 0) > 0)?.date ?? joint.days[0]?.date ?? null);
-      const planned = joint.days.reduce((n, d) => n + (d.variants?.[0]?.routes?.length ?? 0), 0);
-      toast.success(planned > 0 ? `Planned ${planned} route${planned === 1 ? "" : "s"} across ${dates.length} days` : "No routes could be built for those days");
-      loadShortfall(base);
-    } catch (e) {
-      toast.error((e as Error).message || "Route generation failed");
-    } finally {
-      setLoading(false);
-    }
+    setResult(null);
+    await runPlan();
   };
 
-  const handleRetryMode = async (m: PlanMode) => {
-    if (dates.length < MIN_DAYS) return;
-    setRetrying(m);
-    setPlanErrors((prev) => ({ ...prev, [m]: null }));
-    try {
-      const plan = await generateRoutes({
-        selected_dates: dates,
-        shift_start: shiftStart,
-        van_availability: Object.fromEntries(dates.map((d) => [d, grid[d] ?? vans.map((v) => v.id)])),
-        firm_days: firmDays,
-        inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
-        include_expired: includeExpired,
-        max_long_days: maxLongDays,
-        min_jobs_target: minJobsTarget,
-        min_jobs_floor: minJobsFloor,
-        mode: m,
-      });
-      setPlans((prev) => ({ ...prev, [m]: plan }));
-      setMode(m);
-      setLockedDays([]);
-      toast.success(m === "greedy" ? "Day-by-day plan built" : "Balanced plan built");
-    } catch (e) {
-      const msg = (e as Error).message || "Route generation failed";
-      setPlanErrors((prev) => ({ ...prev, [m]: msg }));
-      toast.error(msg);
-    } finally {
-      setRetrying(null);
+  /** Try the same days again with one van more, or one fewer, on a single day. */
+  const handleAdjustVans = async (date: string, delta: 1 | -1) => {
+    const current = grid[date] ?? vans.map((v) => v.id);
+    let next: string[];
+    if (delta === -1) {
+      if (current.length <= 1) { toast.error("That day is already down to one van"); return; }
+      next = current.slice(0, current.length - 1);
+    } else {
+      const spare = vans.find((v) => !current.includes(v.id));
+      if (!spare) { toast.error("Every van is already on that day"); return; }
+      next = [...current, spare.id];
     }
+    const nextGrid = { ...grid, [date]: next };
+    setGrid(nextGrid);
+    await runPlan(nextGrid);
   };
 
   const handleRefreshExpiry = async () => {
