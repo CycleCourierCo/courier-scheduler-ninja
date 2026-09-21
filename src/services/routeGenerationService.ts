@@ -102,7 +102,10 @@ export interface GenerateRoutesInput {
 
 export interface PlanComparison {
   stops: number;
+  jobs: number;
   atRisk: number;
+  /** Jobs left out of every route across the whole stretch of days. */
+  leftOver: number;
   vanDays: number;
   hours: number;
   miles: number;
@@ -110,9 +113,11 @@ export interface PlanComparison {
 
 /** Headline figures for one plan, so two ways of planning can be compared. */
 export const summarisePlan = (plan: RoutePlanResult | null): PlanComparison => {
-  const out: PlanComparison = { stops: 0, atRisk: 0, vanDays: 0, hours: 0, miles: 0 };
+  const out: PlanComparison = { stops: 0, jobs: 0, atRisk: 0, leftOver: 0, vanDays: 0, hours: 0, miles: 0 };
   if (!plan) return out;
   out.atRisk = plan.at_risk?.length ?? 0;
+  out.leftOver = plan.unplanned_count ?? out.atRisk;
+  const orders = new Set<string>();
   for (const day of plan.days ?? []) {
     const routes = day.variants?.[0]?.routes ?? [];
     out.vanDays += routes.length;
@@ -120,10 +125,16 @@ export const summarisePlan = (plan: RoutePlanResult | null): PlanComparison => {
       out.stops += route.stops?.length ?? 0;
       out.hours += (Number(route.duration_s) || 0) / 3600;
       out.miles += Number(route.miles) || 0;
+      route.stops?.forEach((s) => orders.add(s.order_id));
     }
   }
+  out.jobs = orders.size;
   return out;
 };
+
+/** Every route in a plan, flattened, for whole-plan totals and costings. */
+export const allPlanRoutes = (plan: RoutePlanResult | null): PlanRoute[] =>
+  (plan?.days ?? []).flatMap((d) => d.variants?.[0]?.routes ?? []);
 
 export const generateRoutes = async (input: GenerateRoutesInput): Promise<RoutePlanResult> => {
   const { data, error } = await supabase.functions.invoke("route-optimize", { body: input });
