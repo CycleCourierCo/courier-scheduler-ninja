@@ -586,18 +586,50 @@ const GenerateRoutesDialog: React.FC = () => {
               <table className="min-w-full text-sm">
                 <thead>
                   <tr>
-                    <th className="p-2 text-left font-medium">Van</th>
-                    {dates.map((d) => (
-                      <th key={d} className="p-2 text-center font-medium">{format(new Date(`${d}T12:00:00`), "EEE d")}</th>
-                    ))}
+                     <th className="p-2 text-left font-medium">Van</th>
+                    {dates.map((d) => {
+                      const dayVans = grid[d] ?? vans.map((v) => v.id);
+                      const allOn = vans.every((v) => dayVans.includes(v.id));
+                      return (
+                        <th key={d} className="p-2 text-center font-medium">
+                          <div className="flex flex-col items-center gap-1">
+                            <span>{format(new Date(`${d}T12:00:00`), "EEE d")}</span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-xs font-normal text-muted-foreground"
+                              onClick={() => setDayVans(d, !allOn)}
+                            >
+                              {allOn ? "None" : "All"}
+                            </Button>
+                          </div>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
-                  {vans.map((van) => (
+                  {vans.map((van) => {
+                    const onEveryDay = dates.every((d) => (grid[d] ?? vans.map((v) => v.id)).includes(van.id));
+                    return (
                     <tr key={van.id} className="border-t">
                       <td className="p-2">
-                        {van.name}
-                        {van.capacity ? <span className="text-muted-foreground"> ({van.capacity})</span> : null}
+                        <div className="flex items-center gap-2">
+                          <span>
+                            {van.name}
+                            {van.capacity ? <span className="text-muted-foreground"> ({van.capacity})</span> : null}
+                          </span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-xs font-normal text-muted-foreground"
+                            onClick={() => setVanAllDays(van.id, !onEveryDay)}
+                          >
+                            {onEveryDay ? "No days" : "All days"}
+                          </Button>
+                        </div>
                       </td>
                       {dates.map((d) => (
                         <td key={d} className="p-2 text-center">
