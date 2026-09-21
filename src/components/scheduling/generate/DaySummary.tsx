@@ -30,9 +30,13 @@ interface Props {
   leftOverLapsed?: number;
   /** Planned stops whose customer dates had lapsed before this run. */
   lapsedPlanned?: number;
+  /** Jobs whose last available date falls on this day (or the whole plan). */
+  expiringCount?: number;
+  /** Of those, jobs not placed on any route. */
+  expiringUnplanned?: number;
 }
 
-const DaySummary: React.FC<Props> = ({ date, routes, title, costTitle, leftOver, leftOverLapsed, lapsedPlanned }) => {
+const DaySummary: React.FC<Props> = ({ date, routes, title, costTitle, leftOver, leftOverLapsed, lapsedPlanned, expiringCount, expiringUnplanned }) => {
   const { userProfile } = useAuth();
   const isAdmin = hasRole(userProfile, "admin");
 
@@ -133,6 +137,13 @@ const DaySummary: React.FC<Props> = ({ date, routes, title, costTitle, leftOver,
           )}
           {typeof leftOverLapsed === "number" && leftOverLapsed > 0 && (
             <Stat label="Lapsed dates left over" value={String(leftOverLapsed)} sub="still didn't fit" />
+          )}
+          {typeof expiringCount === "number" && expiringCount > 0 && (
+            <Stat
+              label="Expiring on this day"
+              value={String(expiringCount)}
+              sub={expiringUnplanned ? `${expiringUnplanned} not yet placed` : "all placed"}
+            />
           )}
         </CardContent>
       </Card>
