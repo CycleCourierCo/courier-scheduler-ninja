@@ -1,9 +1,27 @@
-import React, { useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Polyline, Popup, GeoJSON } from "react-leaflet";
+import React, { useEffect, useMemo } from "react";
+import { MapContainer, TileLayer, Marker, Popup, GeoJSON, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { DEPOT_LOCATION } from "@/constants/depot";
 import { PlanRoute, decodePolyline } from "@/services/routeGenerationService";
+
+/** Draws the route lines straight onto the Leaflet map. */
+const RouteLines: React.FC<{ lines: [number, number][][]; colours: string[] }> = ({ lines, colours }) => {
+  const map = useMap();
+  useEffect(() => {
+    const layers = lines
+      .map((line, i) =>
+        line.length > 1
+          ? L.polyline(line, { color: colours[i % colours.length], weight: 3, opacity: 0.85 }).addTo(map)
+          : null,
+      )
+      .filter(Boolean) as L.Polyline[];
+    return () => {
+      layers.forEach((layer) => map.removeLayer(layer));
+    };
+  }, [map, lines, colours]);
+  return null;
+};
 
 const ROUTE_COLOURS = ["#1d4ed8", "#0f766e", "#b45309", "#7c3aed", "#be123c", "#0369a1"];
 
