@@ -22,6 +22,26 @@ So the answer to "what happens with expired jobs": they are excluded from both
 planners and surfaced in the Needs-new-dates panel for re-contact — nothing
 disappears silently.
 
+## About booking expired jobs at higher priority
+
+Booking an expired job "at higher priority" isn't possible as-is: priority only
+orders jobs **inside** the optimiser, and expired legs are excluded before the
+optimiser runs — because the customer's dates have passed, so any van slot we
+plan them into would be a date the customer hasn't agreed to. The existing flow
+is the safe equivalent: request fresh dates, and once the customer replies the
+leg gets a +20 priority boost (capped at 99) so it's placed early in the next
+run. If you'd rather book them anyway on a chosen date, that needs a deliberate
+"plan despite lapsed dates" override — say the word and it can be added.
+
+## Job age and priority (current state)
+
+Priority is `60 ÷ (number of remaining dates) + 40 ÷ (days until the nearest
+date)`, plus boosts for guaranteed dates and re-dated legs. There is **no
+explicit age term**: an order sitting for weeks but with plenty of future dates
+available ranks lower than a new order with only tomorrow free. Adding a small
+age-based term (older orders get a modest boost) is included below as an
+optional improvement.
+
 ## Small gaps worth closing
 
 1. **Left-over count conflates reasons.** The per-plan "jobs left over" number
@@ -32,6 +52,10 @@ disappears silently.
    isn't pressed, expired legs aren't shown. Load the current
    `order_leg_availability` expired rows when the dialog opens so the list is
    visible before running.
+3. **Age-based priority (optional).** Add a capped age term to `buildPriority`
+   in `route-optimize` (e.g. +1 per full week since the order was booked,
+   capped at +10) so long-waiting jobs climb the ranking without overriding
+   guaranteed dates or date scarcity.
 
 ## Technical notes
 
