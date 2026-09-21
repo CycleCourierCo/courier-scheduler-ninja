@@ -77,6 +77,8 @@ export type PlanMode = "joint" | "greedy";
 export interface RoutePlanResult {
   plan_id: string | null;
   mode?: PlanMode;
+  /** Jobs across the whole stretch of days that could not be fitted anywhere. */
+  unplanned_count?: number;
   generated_at?: string;
   firm_days?: number;
   days: PlanDay[];
