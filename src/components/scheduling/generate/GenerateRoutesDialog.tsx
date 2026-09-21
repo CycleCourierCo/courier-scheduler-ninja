@@ -714,49 +714,11 @@ const GenerateRoutesDialog: React.FC = () => {
               </div>
             )}
             <RunDetails debug={result.debug} />
-            <div className="flex flex-wrap items-center gap-2">
-              {(["joint", "greedy"] as PlanMode[]).map((m) => {
-                const summary = summarisePlan(plans[m]);
-                return (
-                  <Button
-                    key={m}
-                    type="button"
-                    size="sm"
-                    variant={mode === m ? "default" : "outline"}
-                    className="h-auto flex-col items-start gap-0.5 py-2 text-left"
-                    disabled={!plans[m]}
-                    onClick={() => { setMode(m); setLockedDays([]); }}
-                  >
-                    <span>{m === "joint" ? "Balanced across the days" : "Day by day"}</span>
-                    <span className="text-xs font-normal opacity-80">
-                      {plans[m]
-                        ? `${summary.stops} stops · ${summary.vanDays} van-days · ${Math.round(summary.hours)}h · ${Math.round(summary.miles)} mi · ${summary.leftOver} left over`
-                        : retrying === m
-                        ? "building…"
-                        : "not available"}
-                    </span>
-                    {committedMode && committedMode !== m && plans[m] && (
-                      <span className="text-xs font-normal text-amber-600">out of date — jobs reserved on the other plan</span>
-                    )}
-                  </Button>
-                );
-              })}
-              {(["joint", "greedy"] as PlanMode[]).map((m) =>
-                planErrors[m] ? (
-                  <div key={`${m}-err`} className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{m === "greedy" ? "Day by day" : "Balanced"} could not be built: {planErrors[m]}</span>
-                    <Button type="button" size="sm" variant="outline" disabled={retrying === m} onClick={() => handleRetryMode(m)}>
-                      {retrying === m ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Try again"}
-                    </Button>
-                  </div>
-                ) : null,
-              )}
-            </div>
 
             <DaySummary
-              date={`plan:${mode}:${result.plan_id ?? ""}`}
+              date={`plan:${result.plan_id ?? ""}`}
               routes={allPlanRoutes(result)}
-              title={mode === "greedy" ? "Whole plan — day by day" : "Whole plan — balanced"}
+              title="Whole plan"
               costTitle="Costings for the whole plan"
               vansAvailable={result.days.reduce((n, d) => n + (d.vans_available ?? 0), 0)}
               leftOver={summarisePlan(result).leftOver}
