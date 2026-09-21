@@ -515,7 +515,7 @@ const GenerateRoutesDialog: React.FC = () => {
       const jobs = route.stops
         .map((s) => `${s.order_id}:${s.leg_type === "collection" ? "pickup" : "delivery"}`)
         .join(",");
-      window.open(`/job-scheduling?jobs=${jobs}&date=${activeDay.date}`, "_blank");
+      window.open(`/scheduling?jobs=${jobs}&date=${activeDay.date}`, "_blank");
       toast.success("Route locked — Get Timeslots opened in a new tab");
     } catch (e) {
       toast.error((e as Error).message || "Could not use that route");
