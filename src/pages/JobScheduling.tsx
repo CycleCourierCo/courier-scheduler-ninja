@@ -253,11 +253,14 @@ const JobScheduling = () => {
     <Layout>
       <div className="office-density container py-6">
         <DashboardHeader>
-          <div>
-            <h1>Job scheduling</h1>
-            <p className="text-muted-foreground">
-              Review viable work, route urgency and operational capacity.
-            </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1>Job scheduling</h1>
+              <p className="text-muted-foreground">
+                Review viable work, route urgency and operational capacity.
+              </p>
+            </div>
+            <GenerateRoutesDialog />
           </div>
         </DashboardHeader>
 
