@@ -24,6 +24,10 @@ const VIRTUAL_VANS_PER_DAY = 2;
 // Optional extra solves are skipped once this much of the run is gone, so a big
 // plan is always saved and returned instead of the run being killed mid-way.
 const TIME_BUDGET_MS = 90_000;
+// Money, in pence, so the solver weighs "open another van" against "drive a bit
+// further" on the same scale we judge profit on. A van that rolls costs a
+// driver for the whole shift; time on the road costs the same hourly rate.
+const DRIVER_PENCE_PER_HOUR = 1100;
 
 /* ------------------------------ time helpers ------------------------------ */
 
