@@ -69,12 +69,14 @@ optional improvement.
 
 ## Technical notes
 
-- `route-optimize` already returns `needs_new_dates` (sorted by severity) on both
-  joint and greedy responses; `NeedsDatesPanel` renders it in
-  `GenerateRoutesDialog.tsx` (~line 657).
-- For gap 1: the optimiser knows which legs were excluded for expiry vs
-  unrouted — expose separate `expired_count` / `unrouted_count` per day/plan and
-  show both in `DaySummary` and the comparison strip.
-- For gap 2: add a lightweight fetch of `order_leg_availability` (status
-  `expired`/`awaiting_new_dates`) joined to orders on dialog open, rendered by
-  the same `NeedsDatesPanel`.
+- `route-optimize`: add optional `include_expired` to the body; in
+  `considerLeg`, when set, treat expired legs as eligible, compute their
+  priority with +20, and keep pushing them to `needsNewDates` for display.
+  Works in both joint and greedy paths. No database change.
+- `routeGenerationService.ts`: add `include_expired?: boolean` to
+  `GenerateRoutesInput`.
+- `GenerateRoutesDialog.tsx`: per-mode toggle state; the button's count comes
+  from the last run's `needs_new_dates` (loaded on open, per gap 2).
+- `DaySummary.tsx`: show "n with lapsed dates" per day when the override ran.
+- `route-optimize` already returns `needs_new_dates` on both modes;
+  `NeedsDatesPanel` renders it in `GenerateRoutesDialog.tsx`.
