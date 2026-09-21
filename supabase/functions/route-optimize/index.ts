@@ -1010,8 +1010,10 @@ serve(async (req) => {
         leg_type: l.legType,
         priority: l.priority,
         remaining_dates: l.allDates.filter((d) => d >= today).length,
+        last_date: l.lapsed ? (l.allDates[l.allDates.length - 1] ?? null) : l.lastDate,
         guaranteed_date: l.guaranteedDate,
         reason: l.lapsed ? 'dates had expired — planned via the expired-jobs override'
+          : l.expiringInPlan ? 'its last available date was full and there was no room later in the plan'
           : displaced.some((d) => d?.key === l.key) ? 'pushed out when deliveries were added'
           : l.guaranteedDate ? 'guaranteed date could not be met'
           : l.needsUnlock ? 'waiting on its collection being planned'
@@ -1031,6 +1033,8 @@ serve(async (req) => {
       mode,
       unplanned_count: legs.filter((l) => !assigned.has(l.key) && !l.lapsed).length,
       unplanned_lapsed_count: legs.filter((l) => !assigned.has(l.key) && l.lapsed).length,
+      expiring_in_plan_count: legs.filter((l) => l.expiringInPlan).length,
+      expiring_unplanned_count: legs.filter((l) => l.expiringInPlan && !assigned.has(l.key)).length,
       generated_at: new Date().toISOString(),
       firm_days: firmDays,
       days,
