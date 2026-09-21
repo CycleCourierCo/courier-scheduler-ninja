@@ -118,7 +118,11 @@ const DaySummary: React.FC<Props> = ({ date, routes, title, costTitle, vansAvail
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-4">
           <Stat label="Total stops" value={String(totals.stops)} sub={`${totals.orders} job${totals.orders === 1 ? "" : "s"}`} />
-          <Stat label="Vans used" value={String(totals.vans)} />
+          <Stat
+            label="Vans used"
+            value={typeof vansAvailable === "number" ? `${Math.min(totals.vans, vansAvailable)} of ${vansAvailable}` : String(totals.vans)}
+            sub={totals.routeCount > totals.vans ? `${totals.routeCount} routes` : undefined}
+          />
           <Stat
             label="Avg stops per van"
             value={totals.vans ? (totals.stops / totals.vans).toFixed(1) : "—"}
@@ -135,7 +139,7 @@ const DaySummary: React.FC<Props> = ({ date, routes, title, costTitle, vansAvail
           />
           <Stat label="Spaces used" value={`${totals.load}/${totals.capacity}`} />
           <Stat label="Guaranteed stops" value={String(totals.guaranteed)} />
-          <Stat label="Thin routes" value={`${totals.thin} of ${totals.vans}`} />
+          <Stat label="Thin routes" value={`${totals.thin} of ${totals.routeCount}`} />
           {typeof leftOver === "number" && (
             <Stat label="Jobs left over" value={String(leftOver)} sub={leftOver > 0 ? "not fitted into any route" : "everything fitted"} />
           )}
