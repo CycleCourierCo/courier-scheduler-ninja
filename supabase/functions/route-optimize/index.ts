@@ -830,7 +830,12 @@ serve(async (req) => {
       return {
         amount: [Math.max(1, Math.round(pair.c.spaces * 10))],
         priority: Math.max(pair.c.priority, pair.d.priority),
-        ...(pair.c.difficult || pair.d.difficult ? { skills: [1] } : {}),
+        // Only tie the pair to an area when both ends sit in the same one.
+        skills: [
+          ...(pair.c.difficult || pair.d.difficult ? [1] : []),
+          ...(regionKey(pair.c.lat, pair.c.lon) === regionKey(pair.d.lat, pair.d.lon)
+            ? [regionSkill(regionKey(pair.c.lat, pair.c.lon))] : []),
+        ],
         pickup, delivery,
       };
     };
