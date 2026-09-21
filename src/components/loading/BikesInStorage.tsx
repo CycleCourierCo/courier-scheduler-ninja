@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { Order } from "@/types/order";
-import { Package, MapPin, Truck, Edit, Clock, Printer, Image, Wrench, ChevronDown } from "lucide-react";
+import { Package, MapPin, Truck, Edit, Clock, Printer, Image, Wrench, ChevronDown, X } from "lucide-react";
+import { notify } from "@/lib/notify";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
@@ -24,10 +25,11 @@ interface BikesInStorageProps {
   onRemoveFromStorage: (allocationId: string) => void;
   onRemoveAllBikesFromOrder: (orderId: string) => void;
   onChangeLocation: (allocationId: string, newBay: string, newPosition: number) => void;
+  onClearBayPosition: (allocationId: string) => void;
   isAdmin?: boolean;
 }
 
-export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAllBikesFromOrder, onChangeLocation, isAdmin = false }: BikesInStorageProps) => {
+export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAllBikesFromOrder, onChangeLocation, onClearBayPosition, isAdmin = false }: BikesInStorageProps) => {
   const [editingAllocation, setEditingAllocation] = useState<StorageAllocation | null>(null);
   const [editingOrderAllocations, setEditingOrderAllocations] = useState<StorageAllocation[]>([]);
   const [imageDialogOrder, setImageDialogOrder] = useState<Order | null>(null);
