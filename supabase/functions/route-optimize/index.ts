@@ -496,7 +496,7 @@ serve(async (req) => {
               time_window: [shiftOpen, shiftOpen + capHours * HOURS],
               max_travel_time: Math.max(2 * HOURS, (capHours - 2) * HOURS),
               speed_factor: 0.95,
-              costs: { fixed: kind === 2 ? 7200 : 3600 },
+              ...(opts.noFixed ? {} : { costs: { fixed: kind === 2 ? 7200 : 3600 } }),
               ...(kind === 2 ? { skills: [1] } : {}),
             });
             meta[id] = { vehicleId: id, date, vanId: van.id, vanName: van.name, capacity: van.capacity, expedition: kind === 2, virtual };
