@@ -835,7 +835,7 @@ serve(async (req) => {
         if (clashes.length === 0) break;
         const skip = new Set<string>(clashes.map(([k]) => `${k}:1`)); // drop the normal twin
         try {
-          const retry = await runSolve(pool, pinned, PRIMARY_CAP_H, { skip });
+          const retry = await runSolve(pool, pinned, PRIMARY_CAP_H, { skip, pairs: true });
           if (!retry) break;
           current = readSolution(retry.solution, retry.meta, legsById);
           passA = retry;
@@ -848,10 +848,13 @@ serve(async (req) => {
       for (const p of current.placed) {
         if (p.leg.legType === 'collection') collectionDay[p.leg.orderId] = p.date;
       }
+      const placedAlready = new Set(current.placed.map((p) => p.leg.key));
 
       unlockable = legs.filter((leg) => {
         if (leg.legType !== 'delivery' || !leg.needsUnlock) return false;
-        const collectedOn = collectionDay[leg.orderId];
+        if (placedAlready.has(leg.key)) return false;   // already riding with its collection
+        // A collection already booked in outside this plan still frees the bike.
+        const collectedOn = collectionDay[leg.orderId] ?? leg.scheduledCollection;
         if (!collectedOn) return false;
         if (leg.needsInspection && inspectionLeadDays === null) return false;
         const lead = leg.needsInspection ? Math.max(1, inspectionLeadDays ?? 1) : 1;
@@ -865,10 +868,15 @@ serve(async (req) => {
 
       if (unlockable.length > 0 && budgetLeft() > 25_000) {
         pinned = {};
-        for (const p of current.placed) if (p.leg.legType === 'collection') pinned[p.leg.key] = p.date;
-        pool = [...readyLegs, ...unlockable];
+        // Linked same-day pairs are left free so they stay linked in pass B.
+        for (const p of current.placed) {
+          if (p.leg.legType !== 'collection') continue;
+          if (pairByOrder[p.leg.orderId]) continue;
+          pinned[p.leg.key] = p.date;
+        }
+        pool = [...pool, ...unlockable.filter((l) => !pool.includes(l))];
         try {
-          const passB = await runSolve(pool, pinned, PRIMARY_CAP_H);
+          const passB = await runSolve(pool, pinned, PRIMARY_CAP_H, { pairs: true });
           if (passB) {
             const after = readSolution(passB.solution, passB.meta, legsById);
             const placedKeys = new Set(after.placed.map((p) => p.leg.key));
