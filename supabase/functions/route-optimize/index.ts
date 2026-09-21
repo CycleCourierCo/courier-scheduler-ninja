@@ -574,8 +574,115 @@ serve(async (req) => {
       return window;
     };
 
-    const buildJob = (leg: Leg, date: string, longAreaIdx: number | null) => {
-      const capH = leg.areaIdx !== null && leg.areaIdx === longAreaIdx ? LONG_CAP_H : NORMAL_CAP_H;
+    /* --------------------------- area clustering -------------------------- */
+
+    type Cluster = {
+      id: number; skill: number; name: string; areaIdx: number | null;
+      legs: Leg[]; lat: number; lon: number; must: number; spaces: number;
+    };
+
+    const compassName = (lat: number, lon: number) => {
+      const dy = lat - DEPOT.lat;
+      const dx = (lon - DEPOT.lon) * Math.cos((DEPOT.lat * Math.PI) / 180);
+      const deg = (Math.atan2(dx, dy) * 180) / Math.PI;
+      const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+      const dir = dirs[Math.round(((deg + 360) % 360) / 45) % 8];
+      const mi = Math.round(milesBetween(DEPOT.lat, DEPOT.lon, lat, lon));
+      return `${dir} ${mi} mi`;
+    };
+
+    const centroidOf = (legs: Leg[]) => ({
+      lat: legs.reduce((n, l) => n + l.lat, 0) / legs.length,
+      lon: legs.reduce((n, l) => n + l.lon, 0) / legs.length,
+    });
+
+    /** Perpendicular miles from a point to the depot→centre line, only while on the way. */
+    const corridorMiles = (leg: Leg, centre: { lat: number; lon: number }) => {
+      const sx = (centre.lon - DEPOT.lon) * Math.cos((DEPOT.lat * Math.PI) / 180);
+      const sy = centre.lat - DEPOT.lat;
+      const px = (leg.lon - DEPOT.lon) * Math.cos((DEPOT.lat * Math.PI) / 180);
+      const py = leg.lat - DEPOT.lat;
+      const len2 = sx * sx + sy * sy;
+      if (len2 <= 0) return Infinity;
+      const t = (px * sx + py * sy) / len2;
+      if (t <= 0.05 || t >= 1) return Infinity;            // behind the depot, or past the area
+      const projLat = DEPOT.lat + t * sy;
+      const projLon = DEPOT.lon + t * (centre.lon - DEPOT.lon);
+      return milesBetween(leg.lat, leg.lon, projLat, projLon);
+    };
+
+    const buildClusters = (pool: Leg[], date: string): Cluster[] => {
+      const out: Cluster[] = [];
+      const finish = (legs: Leg[], areaIdx: number | null, name: string) => {
+        const c = centroidOf(legs);
+        out.push({
+          id: out.length, skill: 10 + out.length,
+          name, areaIdx, legs, lat: c.lat, lon: c.lon,
+          must: legs.filter((l) => mustGo(l, date)).length,
+          spaces: legs.reduce((n, l) => n + l.spaces, 0),
+        });
+      };
+
+      // drawn difficult areas are areas in their own right
+      const byArea: Record<number, Leg[]> = {};
+      const rest: Leg[] = [];
+      for (const leg of pool) {
+        if (leg.areaIdx === null) rest.push(leg);
+        else (byArea[leg.areaIdx] ??= []).push(leg);
+      }
+      for (const [idx, legs] of Object.entries(byArea)) {
+        finish(legs, Number(idx), difficultAreas[Number(idx)]?.name ?? `Area ${idx}`);
+      }
+
+      // everything else: seed from the furthest job out and absorb its neighbours
+      let left = [...rest];
+      const groups: Leg[][] = [];
+      while (left.length > 0) {
+        const seed = left.reduce((far, l) =>
+          milesBetween(DEPOT.lat, DEPOT.lon, l.lat, l.lon) > milesBetween(DEPOT.lat, DEPOT.lon, far.lat, far.lon) ? l : far,
+        left[0]);
+        const group = left.filter((l) => milesBetween(seed.lat, seed.lon, l.lat, l.lon) <= CLUSTER_RADIUS_MI);
+        groups.push(group);
+        const taken = new Set(group.map((l) => l.key));
+        left = left.filter((l) => !taken.has(l.key));
+      }
+      // fold thin groups into their nearest neighbour when the shape stays sane
+      for (let i = groups.length - 1; i >= 0; i--) {
+        if (groups[i].length >= MIN_CLUSTER_JOBS || groups.length <= 1) continue;
+        const mine = centroidOf(groups[i]);
+        let bestIdx = -1; let bestMi = Infinity;
+        groups.forEach((g, j) => {
+          if (j === i) return;
+          const c = centroidOf(g);
+          const d = milesBetween(mine.lat, mine.lon, c.lat, c.lon);
+          if (d < bestMi) { bestMi = d; bestIdx = j; }
+        });
+        if (bestIdx >= 0 && bestMi <= CLUSTER_RADIUS_MI * 1.5) {
+          groups[bestIdx] = groups[bestIdx].concat(groups[i]);
+          groups.splice(i, 1);
+        }
+      }
+      for (const g of groups) {
+        const c = centroidOf(g);
+        finish(g, null, compassName(c.lat, c.lon));
+      }
+      return out;
+    };
+
+    /** Which areas may a leg be served from: its own, plus any area it sits on the way to. */
+    const skillsFor = (leg: Leg, clusters: Cluster[], own: Cluster) => {
+      const skills = new Set<number>([own.skill]);
+      for (const c of clusters) {
+        if (c.id === own.id) continue;
+        if (corridorMiles(leg, { lat: c.lat, lon: c.lon }) <= CORRIDOR_MI) skills.add(c.skill);
+      }
+      return [...skills];
+    };
+
+    const buildJob = (
+      leg: Leg, date: string, own: Cluster, clusters: Cluster[], longClusterId: number | null,
+    ) => {
+      const capH = own.id === longClusterId ? LONG_CAP_H : NORMAL_CAP_H;
       const window = windowFor(leg, date, capH);
       if (!window) return null;
       const load = [Math.max(1, Math.round(leg.spaces * 10))];
@@ -586,14 +693,14 @@ serve(async (req) => {
         priority: mustGo(leg, date) ? 100 : 50,
         time_windows: [window],
         ...(leg.legType === 'delivery' ? { delivery: load } : { pickup: load }),
-        ...(leg.areaIdx !== null && leg.areaIdx === longAreaIdx ? { skills: [DIFFICULT_SKILL] } : {}),
+        skills: skillsFor(leg, clusters, own),
       };
     };
 
     const buildVehicle = (
       van: { id: string; name: string; capacity: number },
       date: string, idx: number,
-      kind: { long: boolean; spare?: boolean; areaName?: string | null },
+      kind: { long: boolean; spare?: boolean; areaName?: string | null; skill: number },
     ) => {
       const shiftOpen = londonEpoch(date, shiftStart);
       const capH = kind.long ? LONG_CAP_H : NORMAL_CAP_H;
@@ -605,8 +712,8 @@ serve(async (req) => {
         time_window: [shiftOpen, shiftOpen + capH * HOURS],
         speed_factor: 0.95,
         costs: { per_hour: DRIVER_PENCE_PER_HOUR, per_km: PENCE_PER_KM },
+        skills: [kind.skill],
       };
-      if (kind.long) vehicle.skills = [DIFFICULT_SKILL];
       const meta: VanDay = {
         vehicleId: id, date, vanId: van.id, vanName: van.name, capacity: van.capacity,
         long: kind.long, spare: !!kind.spare, areaName: kind.areaName ?? null,
