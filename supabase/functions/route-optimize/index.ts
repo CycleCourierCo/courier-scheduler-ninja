@@ -33,6 +33,80 @@ const DRIVER_PENCE_PER_HOUR = 1100;
 // solver happily runs every van long because a longer window fits more work.
 const EXPEDITION_PREMIUM = 1.5;
 const DEFAULT_MAX_LONG_DAYS = 2;
+// Miles cost money too. Without this a 200-mile detour on a van already out
+// looks free, which is how Skegness ended up on the same run as Newcastle.
+const PENCE_PER_KM = 28;            // ~£0.45 per mile
+// A van's shift charge is deliberately small (a couple of hours' pay) so the
+// solver is not desperate to cram everything onto as few vans as possible.
+const SHIFT_HOURS_CHARGED = 2;
+// How far apart a day's stops may sit, worst pair to worst pair.
+const MAX_SPREAD_MI = 120;
+const MAX_SPREAD_LONG_MI = 220;
+
+/* ----------------------------- geography ---------------------------------- */
+
+const CENTRAL_REGION = 'CENTRAL';
+const SECTORS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+const REGION_LABELS: Record<string, string> = {
+  CENTRAL: 'Around the depot', N: 'North', NE: 'North East', E: 'East', SE: 'South East',
+  S: 'South', SW: 'South West', W: 'West', NW: 'North West',
+};
+const REGION_SKILL_BASE = 20;
+const NEAR_RADIUS_MI = 45;
+
+const milesBetween = (aLat: number, aLon: number, bLat: number, bLon: number) => {
+  const R = 3958.8;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLon = ((bLon - aLon) * Math.PI) / 180;
+  const la1 = (aLat * Math.PI) / 180;
+  const la2 = (bLat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+};
+
+/** Near the depot, or one compass sector out from it. */
+const regionKey = (lat: number, lon: number): string => {
+  if (milesBetween(DEPOT.lat, DEPOT.lon, lat, lon) <= NEAR_RADIUS_MI) return CENTRAL_REGION;
+  const y = Math.sin(((lon - DEPOT.lon) * Math.PI) / 180) * Math.cos((lat * Math.PI) / 180);
+  const x = Math.sin((lat * Math.PI) / 180) * Math.cos((DEPOT.lat * Math.PI) / 180)
+    - Math.cos((lat * Math.PI) / 180) * Math.sin((DEPOT.lat * Math.PI) / 180) * Math.cos(((lon - DEPOT.lon) * Math.PI) / 180);
+  const bearing = (Math.atan2(y, x) * 180) / Math.PI;
+  const idx = Math.round(((bearing + 360) % 360) / 45) % 8;
+  return SECTORS[idx];
+};
+
+const regionSkill = (key: string) =>
+  REGION_SKILL_BASE + (key === CENTRAL_REGION ? 0 : SECTORS.indexOf(key) + 1);
+
+/** Share the day's vans out across the areas that actually have work. */
+const assignRegions = (n: number, counts: Record<string, number>): string[] => {
+  const far = Object.entries(counts).filter(([k]) => k !== CENTRAL_REGION);
+  const out: string[] = [];
+  const used: Record<string, number> = {};
+  for (let i = 0; i < n; i++) {
+    let best = CENTRAL_REGION;
+    let bestScore = (counts[CENTRAL_REGION] ?? 0) / ((used[CENTRAL_REGION] ?? 0) + 1);
+    for (const [k, c] of far) {
+      const score = c / ((used[k] ?? 0) + 1);
+      if (score > bestScore) { best = k; bestScore = score; }
+    }
+    used[best] = (used[best] ?? 0) + 1;
+    out.push(best);
+  }
+  return out;
+};
+
+/** Widest gap between any two stops on a route, in miles. */
+const spreadMiles = (pts: { lat: number; lon: number }[]) => {
+  let worst = 0;
+  for (let i = 0; i < pts.length; i++) {
+    for (let j = i + 1; j < pts.length; j++) {
+      const d = milesBetween(pts[i].lat, pts[i].lon, pts[j].lat, pts[j].lon);
+      if (d > worst) worst = d;
+    }
+  }
+  return Math.round(worst);
+};
 
 /* ------------------------------ time helpers ------------------------------ */
 
@@ -510,6 +584,18 @@ serve(async (req) => {
         resp = await call({ ...payload, options: { g: true } });
         detail = resp.ok ? '' : (await resp.text()).slice(0, 300);
       }
+      // Some builds don't know a per-distance cost: drop just that key and keep
+      // the rest of the money model, which still favours shorter driving.
+      if (resp.status === 400 && /per_km|per_distance|distance/i.test(detail)) {
+        const noKm = (payload.vehicles as any[]).map((v) => {
+          if (!v.costs) return v;
+          const { per_km: _k, ...costs } = v.costs;
+          return { ...v, costs };
+        });
+        payload = { ...payload, vehicles: noKm };
+        resp = await call(payload);
+        detail = resp.ok ? '' : (await resp.text()).slice(0, 300);
+      }
       if (resp.status === 400 && /speed_factor|costs|fixed|max_travel_time/i.test(detail)) {
         const plainVehicles = (payload.vehicles as any[]).map((v) => {
           const { speed_factor: _s, costs: _c, max_travel_time: _m, ...rest } = v;
@@ -532,8 +618,8 @@ serve(async (req) => {
     const buildVehicles = (opts: {
       dates: string[];
       capH: number;
-      /** Difficult-area legs workable on each date, used to budget long days. */
-      difficultCounts: Record<string, number>;
+      /** Legs workable on each date, by area, used to share vans out sensibly. */
+      regionCounts: Record<string, { all: Record<string, number>; difficult: Record<string, number> }>;
       skipVanDays?: Set<string>;   // "date:vanId:kind"
       withVirtual?: boolean;
       /** Greedy mode: no fixed vehicle cost, so every available van is offered. */
@@ -544,26 +630,42 @@ serve(async (req) => {
       opts.dates.forEach((date, dayIdx) => {
         const shiftOpen = londonEpoch(date, shiftStart);
         const dayVans = vansForDate[date] ?? [];
+        const dayCounts = opts.regionCounts[date] ?? { all: {}, difficult: {} };
+        // Each van gets one area for the day (plus work near the depot), so a
+        // single route can't stretch from Skegness to Newcastle.
+        const regions = assignRegions(dayVans.length, dayCounts.all);
         // Only offer as many long days as the difficult-area work needs, never
         // more than the cap. Every van getting a 15h twin is why whole plans
         // used to come back as expeditions.
         let longAllowance = 0;
-        const diffCount = opts.difficultCounts[date] ?? 0;
+        const diffCount = Object.values(dayCounts.difficult).reduce((a, b) => a + b, 0);
         if (diffCount > 0 && maxLongDays > 0 && dayVans.length > 0) {
           const avgCap = dayVans.reduce((s, v) => s + (v.capacity || DEFAULT_CAPACITY), 0) / dayVans.length;
           const needed = Math.max(1, Math.ceil(diffCount / Math.max(1, avgCap)));
           longAllowance = Math.min(maxLongDays, dayVans.length, needed);
         }
+        // Long days go to the areas that actually have hard-to-reach work.
+        const longIdx = new Set(
+          dayVans.map((_, i) => i)
+            .filter((i) => (dayCounts.difficult[regions[i]] ?? 0) > 0)
+            .sort((a, b) => (dayCounts.difficult[regions[b]] ?? 0) - (dayCounts.difficult[regions[a]] ?? 0))
+            .slice(0, longAllowance),
+        );
         dayVans.forEach((van, vanIdx) => {
           const capUnits = Math.max(1, Math.round(van.capacity * 10));
+          const region = regions[vanIdx] ?? CENTRAL_REGION;
+          const regionSkills = region === CENTRAL_REGION
+            ? [regionSkill(CENTRAL_REGION)]
+            : [regionSkill(region), regionSkill(CENTRAL_REGION)];
           const push = (kind: 1 | 2, capHours: number, virtual = false) => {
             const id = dayIdx * 10000 + vanIdx * 100 + kind;
             if (opts.skipVanDays?.has(`${date}:${van.id}:${kind}`)) return;
             // A long day is dearer per shift and per hour, so it is only used
             // when it rescues work a normal shift cannot reach.
             const longDay = kind === 2;
-            const perHour = Math.round(DRIVER_PENCE_PER_HOUR * (longDay ? EXPEDITION_PREMIUM : 1));
-            const fixed = Math.round(capHours * DRIVER_PENCE_PER_HOUR * (longDay ? EXPEDITION_PREMIUM : 1));
+            const premium = longDay ? EXPEDITION_PREMIUM : 1;
+            const perHour = Math.round(DRIVER_PENCE_PER_HOUR * premium);
+            const fixed = Math.round(SHIFT_HOURS_CHARGED * DRIVER_PENCE_PER_HOUR * premium);
             vehicles.push({
               id, profile: 'car',
               start: [DEPOT.lon, DEPOT.lat], end: [DEPOT.lon, DEPOT.lat],
@@ -571,21 +673,17 @@ serve(async (req) => {
               time_window: [shiftOpen, shiftOpen + capHours * HOURS],
               max_travel_time: Math.max(2 * HOURS, (capHours - 2) * HOURS),
               speed_factor: 0.95,
-              // Real money: a van that rolls costs a driver for the whole
-              // shift, and every hour on it costs the same rate again. That
-              // makes filling a van up genuinely cheaper than opening another.
+              // Real money: driving time and miles both cost, so a long detour
+              // is never free and filling a nearby van stays the cheap option.
               ...(opts.noFixed && !longDay
-                ? { costs: { per_hour: perHour } }
-                : { costs: { fixed, per_hour: perHour } }),
-              ...(longDay ? { skills: [1] } : {}),
+                ? { costs: { per_hour: perHour, per_km: PENCE_PER_KM } }
+                : { costs: { fixed, per_hour: perHour, per_km: PENCE_PER_KM } }),
+              skills: longDay ? [1, ...regionSkills] : regionSkills,
             });
             meta[id] = { vehicleId: id, date, vanId: van.id, vanName: van.name, capacity: van.capacity, expedition: kind === 2, virtual };
           };
           push(1, opts.capH);
-          if (longAllowance > 0) {
-            push(2, EXPEDITION_CAP_H);
-            longAllowance--;
-          }
+          if (longIdx.has(vanIdx)) push(2, EXPEDITION_CAP_H);
         });
 
         if (opts.withVirtual) {
@@ -598,9 +696,11 @@ serve(async (req) => {
               time_window: [shiftOpen, shiftOpen + 13 * HOURS],
               max_travel_time: 11 * HOURS,
               speed_factor: 0.95,
-              // Deliberately dear: an extra van is only "worth it" when it
-              // rescues a real amount of work.
-              costs: { fixed: 40000, per_hour: DRIVER_PENCE_PER_HOUR },
+              // A hypothetical extra van can go anywhere, so it carries every
+              // area skill; it is deliberately dear so it is only "worth it"
+              // when it rescues a real amount of work.
+              skills: [CENTRAL_REGION, ...SECTORS].map(regionSkill),
+              costs: { fixed: 40000, per_hour: DRIVER_PENCE_PER_HOUR, per_km: PENCE_PER_KM },
             });
             meta[id] = { vehicleId: id, date, vanId: `virtual-${i}`, vanName: `Extra van ${i + 1}`, capacity: DEFAULT_CAPACITY, expedition: false, virtual: true };
           }
@@ -638,7 +738,10 @@ serve(async (req) => {
         priority: leg.priority,
         time_windows: windows,
         ...(leg.legType === 'delivery' ? { delivery: load } : { pickup: load }),
-        ...(leg.difficult ? { skills: [1] } : {}),
+        // Area skill keeps a stop on a van working that part of the country.
+        skills: leg.difficult
+          ? [1, regionSkill(regionKey(leg.lat, leg.lon))]
+          : [regionSkill(regionKey(leg.lat, leg.lon))],
       };
     };
 
@@ -674,14 +777,18 @@ serve(async (req) => {
     const legsById: Record<number, Leg> = {};
     for (const leg of legs) legsById[leg.jobId] = leg;
 
-    /** How many difficult-area legs could be worked on each date. */
-    const difficultCountsFor = (pool: Leg[]) => {
-      const counts: Record<string, number> = {};
+    /** Work available on each date, split by area and by difficult-area work. */
+    const regionCountsFor = (pool: Leg[]) => {
+      const out: Record<string, { all: Record<string, number>; difficult: Record<string, number> }> = {};
       for (const leg of pool) {
-        if (!leg.difficult) continue;
-        for (const d of leg.windowDates) counts[d] = (counts[d] ?? 0) + 1;
+        const key = regionKey(leg.lat, leg.lon);
+        for (const d of leg.windowDates) {
+          const slot = (out[d] ??= { all: {}, difficult: {} });
+          slot.all[key] = (slot.all[key] ?? 0) + 1;
+          if (leg.difficult) slot.difficult[key] = (slot.difficult[key] ?? 0) + 1;
+        }
       }
-      return counts;
+      return out;
     };
 
     /* ------------- same-day collect-then-deliver pairs -------------------- */
@@ -720,10 +827,16 @@ serve(async (req) => {
       const pickup = step(pair.c);
       const delivery = step(pair.d);
       if (!pickup || !delivery) return null;
+      // Only tie the pair to an area when both ends sit in the same one.
+      const cRegion = regionKey(pair.c.lat, pair.c.lon);
+      const skills = [
+        ...(pair.c.difficult || pair.d.difficult ? [1] : []),
+        ...(cRegion === regionKey(pair.d.lat, pair.d.lon) ? [regionSkill(cRegion)] : []),
+      ];
       return {
         amount: [Math.max(1, Math.round(pair.c.spaces * 10))],
         priority: Math.max(pair.c.priority, pair.d.priority),
-        ...(pair.c.difficult || pair.d.difficult ? { skills: [1] } : {}),
+        ...(skills.length > 0 ? { skills } : {}),
         pickup, delivery,
       };
     };
@@ -766,7 +879,7 @@ serve(async (req) => {
         .filter((j): j is any => !!j);
       if (jobs.length === 0 && shipments.length === 0) return null;
       const { vehicles, meta } = buildVehicles({
-        dates, capH, difficultCounts: difficultCountsFor(pool), withVirtual: opts?.withVirtual, skipVanDays: opts?.skip,
+        dates, capH, regionCounts: regionCountsFor(pool), withVirtual: opts?.withVirtual, skipVanDays: opts?.skip,
         noFixed: opts?.noFixed,
       });
       if (vehicles.length === 0) return null;
@@ -972,36 +1085,54 @@ serve(async (req) => {
         const graceDates = [...new Set(gracePool.flatMap((g) => g.dates))].sort();
         // Same long-day budget as the main solve, so the grace pass cannot
         // quietly turn every van into a 15h expedition.
-        const graceDifficult: Record<string, number> = {};
-        for (const g of gracePool) {
-          if (!g.leg.difficult) continue;
-          for (const d of g.dates) graceDifficult[d] = (graceDifficult[d] ?? 0) + 1;
+        const graceRegions = regionCountsFor(gracePool.map((g) => ({ ...g.leg, windowDates: g.dates })) as Leg[]);
+        // A van already out in one part of the country stays there.
+        const regionByVanDay: Record<string, string> = {};
+        for (const { meta: m, stops } of current.routeInfo) {
+          const tally: Record<string, number> = {};
+          for (const s of stops) {
+            const k = regionKey(s.leg.lat, s.leg.lon);
+            if (k !== CENTRAL_REGION) tally[k] = (tally[k] ?? 0) + 1;
+          }
+          const top = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+          regionByVanDay[`${m.date}:${m.vanId}:${m.expedition ? 2 : 1}`] = top ? top[0] : CENTRAL_REGION;
         }
         const vehicles: any[] = [];
         const meta: Record<number, VanDay> = {};
         graceDates.forEach((date, dayIdx) => {
           const shiftOpen = londonEpoch(date, shiftStart);
           const dayVans = vansForDate[date] ?? [];
+          const dayCounts = graceRegions[date] ?? { all: {}, difficult: {} };
+          const fallbackRegions = assignRegions(dayVans.length, dayCounts.all);
           let longAllowance = 0;
-          const diffCount = graceDifficult[date] ?? 0;
+          const diffCount = Object.values(dayCounts.difficult).reduce((a, b) => a + b, 0);
           if (diffCount > 0 && maxLongDays > 0 && dayVans.length > 0) {
             const avgCap = dayVans.reduce((s, v) => s + (v.capacity || DEFAULT_CAPACITY), 0) / dayVans.length;
             longAllowance = Math.min(maxLongDays, dayVans.length, Math.max(1, Math.ceil(diffCount / Math.max(1, avgCap))));
           }
           dayVans.forEach((van, vanIdx) => {
             const push = (kind: 1 | 2, capHours: number) => {
-              const used = usedByVanDay[`${date}:${van.id}:${kind}`];
+              const key = `${date}:${van.id}:${kind}`;
+              const used = usedByVanDay[key];
               const remUnits = Math.round(van.capacity * 10) - Math.round((used?.spaces ?? 0) * 10);
               const remH = capHours - (used?.hours ?? 0);
               if (remUnits <= 0 || remH < 0.5) return;
               const id = dayIdx * 10000 + vanIdx * 100 + kind;
+              const region = regionByVanDay[key] ?? fallbackRegions[vanIdx] ?? CENTRAL_REGION;
+              const regionSkills = region === CENTRAL_REGION
+                ? [regionSkill(CENTRAL_REGION)]
+                : [regionSkill(region), regionSkill(CENTRAL_REGION)];
               vehicles.push({
                 id, profile: 'car',
                 start: [DEPOT.lon, DEPOT.lat], end: [DEPOT.lon, DEPOT.lat],
                 capacity: [remUnits],
                 time_window: [shiftOpen, shiftOpen + remH * HOURS],
                 max_travel_time: Math.max(HOURS, remH * HOURS - HOURS),
-                ...(kind === 2 ? { skills: [1] } : {}),
+                costs: {
+                  per_hour: Math.round(DRIVER_PENCE_PER_HOUR * (kind === 2 ? EXPEDITION_PREMIUM : 1)),
+                  per_km: PENCE_PER_KM,
+                },
+                skills: kind === 2 ? [1, ...regionSkills] : regionSkills,
               });
               meta[id] = { vehicleId: id, date, vanId: van.id, vanName: van.name, capacity: van.capacity, expedition: kind === 2, virtual: false };
             };
@@ -1107,10 +1238,32 @@ serve(async (req) => {
     const prepared = current.routeInfo.map(({ meta, route, stops }) => {
       const dayIdx = selectedDates.indexOf(meta.date);
       const isProvisional = dayIdx >= firmDays;
-      const ordered = [...stops].sort((a, b) => a.arrival - b.arrival);
+      let ordered = [...stops].sort((a, b) => a.arrival - b.arrival);
       const steps = Array.isArray(route.steps) ? route.steps : [];
       const maxLoadUnits = Math.max(0, ...steps.map((s: any) => Number(s?.load?.[0]) || 0));
       const duration = (Number(route.duration) || 0) + (Number(route.service) || 0) + (Number(route.waiting_time) || 0);
+      // Even inside one area, a route that spans the country isn't workable.
+      // Drop the stops furthest from the middle of the route until it is; they
+      // fall back into the leftover / at-risk list.
+      const limit = meta.expedition ? MAX_SPREAD_LONG_MI : MAX_SPREAD_MI;
+      while (ordered.length > 1 && spreadMiles(ordered.map((s) => s.leg)) > limit) {
+        const cLat = ordered.reduce((n, s) => n + s.leg.lat, 0) / ordered.length;
+        const cLon = ordered.reduce((n, s) => n + s.leg.lon, 0) / ordered.length;
+        let worstIdx = 0;
+        let worst = -1;
+        ordered.forEach((s, i) => {
+          const d = milesBetween(cLat, cLon, s.leg.lat, s.leg.lon);
+          if (d > worst) { worst = d; worstIdx = i; }
+        });
+        ordered = ordered.filter((_, i) => i !== worstIdx);
+      }
+      const regionTally: Record<string, number> = {};
+      for (const s of ordered) {
+        const k = regionKey(s.leg.lat, s.leg.lon);
+        regionTally[k] = (regionTally[k] ?? 0) + 1;
+      }
+      const topRegion = Object.entries(regionTally)
+        .sort((a, b) => b[1] - a[1] || (a[0] === CENTRAL_REGION ? 1 : -1))[0]?.[0] ?? CENTRAL_REGION;
       return {
         meta, ordered, isProvisional, duration,
         // Only a route that actually runs past a normal shift is an expedition.
@@ -1118,6 +1271,8 @@ serve(async (req) => {
         miles: Math.round(((Number(route.distance) || 0) / 1609.344) * 10) / 10,
         maxLoad: Math.round((maxLoadUnits / 10) * 100) / 100,
         geometry: typeof route.geometry === 'string' ? route.geometry : null,
+        region: REGION_LABELS[topRegion] ?? topRegion,
+        spreadMi: spreadMiles(ordered.map((s) => s.leg)),
       };
     });
 
@@ -1167,6 +1322,8 @@ serve(async (req) => {
           max_load: p.maxLoad,
           van_capacity: p.meta.capacity,
           geometry: p.geometry,
+          region: p.region,
+          spread_mi: p.spreadMi,
           guaranteed_count: p.ordered.filter((s) => !!s.leg.guaranteedDate).length,
           stops: p.ordered.map((s, i) => ({
             seq: i + 1, leg_type: s.leg.legType, order_id: s.leg.orderId,

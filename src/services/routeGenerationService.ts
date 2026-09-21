@@ -27,6 +27,10 @@ export interface PlanRoute {
   van_capacity: number;
   geometry: string | null;
   guaranteed_count: number;
+  /** Part of the country this route covers, e.g. "North East". */
+  region?: string;
+  /** Widest gap between any two stops on the route, in miles. */
+  spread_mi?: number;
   stops: PlanStop[];
 }
 
