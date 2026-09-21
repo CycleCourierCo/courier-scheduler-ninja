@@ -821,19 +821,21 @@ serve(async (req) => {
 
       const servedKeys = (rs: SolvedRoute[]) => new Set(rs.flatMap((r) => r.stops.map((s) => s.leg.key)));
 
-      // 3.4 fill: send idle vans to the areas that still have work
+      // 3.4 fill: put idle vans to work while jobs are still unplanned
       if (!quickOnly && budgetLeft() > 15_000) {
         const served = servedKeys(solved);
         const idle = dayVans.filter((v) => !assignments.some((a) => a.van.id === v.id));
-        const hungry = clusters
-          .map((c) => ({ c, left: c.legs.filter((l) => !served.has(l.key)).length }))
-          .filter((x) => x.left > 0)
-          .sort((a, b) => b.left - a.left);
-        if (idle.length > 0 && hungry.length > 0) {
-          const extra: Assignment[] = [];
-          idle.forEach((van, i) => extra.push({ van, cluster: hungry[i % hungry.length].c }));
+        const leftLondon = londonLegs.filter((l) => !served.has(l.key)).length;
+        const left = pool.filter((l) => !served.has(l.key)).length;
+        if (idle.length > 0 && left > 0) {
+          let londonVans = assignments.filter((a) => a.london).length;
+          const extra: Assignment[] = idle.map((van) => {
+            const takeLondon = leftLondon > 0 && londonVans < LONDON_MAX_VANS;
+            if (takeLondon) londonVans++;
+            return { van, london: takeLondon, long: false };
+          });
           try {
-            const filled = await solveDay(date, clusters, [...assignments, ...extra], longClusterId);
+            const filled = await solveDay(date, pool, [...assignments, ...extra]);
             if (filled && servedKeys(filled).size > served.size) {
               solved = filled;
               assignments = [...assignments, ...extra];
@@ -865,7 +867,7 @@ serve(async (req) => {
           if (trial.length === 0) break;
           let retry: SolvedRoute[] | null = null;
           try {
-            retry = await solveDay(date, clusters, trial, longClusterId);
+            retry = await solveDay(date, pool, trial);
           } catch (e) {
             dayDebug.removals.push({ van: weakest.r.meta.vanName, outcome: `solve failed: ${(e as Error).message}` });
             protectedVans.add(weakest.r.meta.vanId);
@@ -889,31 +891,26 @@ serve(async (req) => {
         dayDebug.protected = [...protectedVans];
       }
 
-      // 3.6 spare-van check: could one more real van clear the area with the most work left?
+      // 3.6 spare-van check: could one more real van clear the work that's left?
       const dayPlacedKeys = new Set(solved!.flatMap((r) => r.stops.map((s) => s.leg.key)));
       const leftovers = pool.filter((l) => !dayPlacedKeys.has(l.key));
       const unusedVan = (vansForDate[date] ?? []).find((v) => !assignments.some((a) => a.van.id === v.id));
       if (unusedVan && leftovers.length > 0 && budgetLeft() > 15_000 && !quickOnly) {
-        const target = clusters
-          .map((c) => ({ c, left: c.legs.filter((l) => !dayPlacedKeys.has(l.key)).length }))
-          .sort((a, b) => b.left - a.left)[0];
-        if (target && target.left > 0) {
-          try {
-            const spareCluster: Cluster = { ...target.c, legs: target.c.legs.filter((l) => !dayPlacedKeys.has(l.key)) };
-            const spareSolved = await solveDay(
-              date, [spareCluster], [{ van: unusedVan, cluster: spareCluster, spare: true }], null,
-            );
-            const spareRoute = (spareSolved ?? [])[0];
-            if (spareRoute) {
-              const m = money(spareRoute);
-              const must = spareRoute.stops.filter((s) => mustGo(s.leg, date)).length;
-              if (spareRoute.stops.length >= targetJobs || must > 0) {
-                spareHint[date] = { jobs: spareRoute.stops.length, revenue: m.revenue, margin: m.margin, must_go: must };
-              }
+        try {
+          const spareSolved = await solveDay(
+            date, leftovers,
+            [{ van: unusedVan, london: leftovers.some((l) => isLondonLeg(l)), long: false, spare: true }],
+          );
+          const spareRoute = (spareSolved ?? [])[0];
+          if (spareRoute) {
+            const m = money(spareRoute);
+            const must = spareRoute.stops.filter((s) => mustGo(s.leg, date)).length;
+            if (spareRoute.stops.length >= targetJobs || must > 0) {
+              spareHint[date] = { jobs: spareRoute.stops.length, revenue: m.revenue, margin: m.margin, must_go: must };
             }
-          } catch {
-            // a spare-van hint is nice to have, never worth failing the run for
           }
+        } catch {
+          // a spare-van hint is nice to have, never worth failing the run for
         }
       }
 
