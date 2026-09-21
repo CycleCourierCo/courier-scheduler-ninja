@@ -67,32 +67,28 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
   };
 
 
-  const confirmClearBay = (allocation: StorageAllocation, e: React.MouseEvent) => {
+  const confirmClearBays = (orderAllocations: StorageAllocation[], customerName: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    const bayList = orderAllocations
+      .slice()
+      .sort((a, b) => (a.bay !== b.bay ? a.bay.localeCompare(b.bay) : a.position - b.position))
+      .map((a) => `Bay ${a.bay}${a.position}`)
+      .join(", ");
     notify.confirm({
-      title: `Remove from Bay ${allocation.bay}${allocation.position}?`,
-      description: `${allocation.customerName} — ${allocation.bikeBrand} ${allocation.bikeModel} will stay on the order but lose this storage position, so it will need re-allocating before loading.`,
+      title: orderAllocations.length > 1
+        ? `Remove from ${bayList}?`
+        : `Remove from Bay ${orderAllocations[0].bay}${orderAllocations[0].position}?`,
+      description: `${customerName} — ${orderAllocations[0].bikeBrand} ${orderAllocations[0].bikeModel} will stay on the order but lose ${orderAllocations.length > 1 ? "these storage positions" : "this storage position"}, so it will need re-allocating before loading.`,
       confirmLabel: "Remove",
       destructive: true,
-      onConfirm: () => onClearBayPosition(allocation.id),
+      onConfirm: () => orderAllocations.forEach((a) => onClearBayPosition(a.id)),
     });
   };
 
   const BayBadge = ({ allocation }: { allocation: StorageAllocation }) => (
-    <span className="inline-flex items-center">
-      <Badge variant="secondary" className="font-mono text-xs rounded-r-none border-r-0">
-        {allocation.bay}{allocation.position}
-      </Badge>
-      <button
-        type="button"
-        aria-label={`Remove from bay ${allocation.bay}${allocation.position}`}
-        title="Remove from bay"
-        onClick={(e) => confirmClearBay(allocation, e)}
-        className="inline-flex items-center justify-center h-5 w-5 rounded-r-md border border-l-0 bg-secondary text-muted-foreground hover:bg-destructive hover:text-destructive-foreground transition-colors"
-      >
-        <X className="h-3 w-3" />
-      </button>
-    </span>
+    <Badge variant="secondary" className="font-mono text-xs">
+      {allocation.bay}{allocation.position}
+    </Badge>
   );
 
   if (bikesInStorage.length === 0) {
