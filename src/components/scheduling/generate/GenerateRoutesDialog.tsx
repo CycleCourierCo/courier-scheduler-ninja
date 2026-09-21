@@ -405,6 +405,7 @@ const GenerateRoutesDialog: React.FC = () => {
       setActiveDate(joint.days.find((d) => (d.variants?.[0]?.routes?.length ?? 0) > 0)?.date ?? joint.days[0]?.date ?? null);
       const planned = joint.days.reduce((n, d) => n + (d.variants?.[0]?.routes?.length ?? 0), 0);
       toast.success(planned > 0 ? `Planned ${planned} route${planned === 1 ? "" : "s"} across ${dates.length} days` : "No routes could be built for those days");
+      loadShortfall(base);
     } catch (e) {
       toast.error((e as Error).message || "Route generation failed");
     } finally {
