@@ -22,16 +22,26 @@ So the answer to "what happens with expired jobs": they are excluded from both
 planners and surfaced in the Needs-new-dates panel for re-contact — nothing
 disappears silently.
 
-## About booking expired jobs at higher priority
+## Include expired jobs — override button (new)
 
-Booking an expired job "at higher priority" isn't possible as-is: priority only
-orders jobs **inside** the optimiser, and expired legs are excluded before the
-optimiser runs — because the customer's dates have passed, so any van slot we
-plan them into would be a date the customer hasn't agreed to. The existing flow
-is the safe equivalent: request fresh dates, and once the customer replies the
-leg gets a +20 priority boost (capped at 99) so it's placed early in the next
-run. If you'd rather book them anyway on a chosen date, that needs a deliberate
-"plan despite lapsed dates" override — say the word and it can be added.
+A per-run override so lapsed jobs can be planned anyway when the dispatcher
+chooses to:
+
+- **Button** in the Generate Routes dialog beside **Check dates**:
+  **"Include expired jobs (n)"** with the count of expired/awaiting legs. It
+  applies to that generation run only and is offered separately for Balanced
+  and Daily tabs (each tab's setup controls already hold its own settings).
+- When on, `route-optimize` receives `include_expired: true` and stops
+  excluding expired legs. Each included leg gets a **+20 priority boost**
+  (capped at 99) so it is planned ahead of ordinary work, and its lapsed dates
+  are used as normal time windows — meaning it can land on any chosen day.
+- Included jobs stay flagged: the Needs-new-dates panel keeps listing them, and
+  the day summary counts them under a "lapsed dates" line so it's obvious the
+  customer hasn't confirmed those dates.
+- The nightly `expire-availability` check is untouched — the override never
+  changes a leg's stored status, so if the run isn't used the job returns to the
+  normal expired flow. If the job can't fit even with the override, it stays in
+  the left-over count with reason "dates expired".
 
 ## Job age and priority (current state)
 
