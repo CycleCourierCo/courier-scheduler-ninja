@@ -713,6 +713,17 @@ const GenerateRoutesDialog: React.FC = () => {
 
         {result && (
           <div className="space-y-4">
+            {result.distance_costing === false && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">
+                Mileage was not taken into account on this plan — routes may wander. Try again.
+              </div>
+            )}
+            {(result.skipped?.length ?? 0) > 0 && (
+              <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-sm text-amber-700 dark:text-amber-400">
+                Plan incomplete — skipped: {result.skipped!.join("; ")}. Generate again to finish.
+              </div>
+            )}
+            <RunDetails debug={result.debug} />
             <div className="flex flex-wrap items-center gap-2">
               {(["joint", "greedy"] as PlanMode[]).map((m) => {
                 const summary = summarisePlan(plans[m]);
