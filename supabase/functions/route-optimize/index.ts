@@ -715,8 +715,15 @@ serve(async (req) => {
         ? sameDayPairs.filter((p) => poolKeys.has(p.c.key) && poolKeys.has(p.d.key) && !pinned[p.c.key] && !pinned[p.d.key]
             && p.dates.some((d) => dates.includes(d)))
         : [];
-      const pairedKeys = new Set(usablePairs.flatMap((p) => [p.c.key, p.d.key]));
-      const shipments = usablePairs.map((p) => buildShipment(p, dates)).filter((s): s is any => !!s);
+      const pairedKeys = new Set<string>();
+      const shipments: any[] = [];
+      for (const p of usablePairs) {
+        const shipment = buildShipment(p, dates);
+        if (!shipment) continue;   // no workable window: leave both as plain stops
+        shipments.push(shipment);
+        pairedKeys.add(p.c.key);
+        pairedKeys.add(p.d.key);
+      }
       const jobs = pool
         .filter((leg) => !pairedKeys.has(leg.key))
         .map((leg) => buildJob(leg, pinned[leg.key] ? [pinned[leg.key]] : leg.windowDates.filter((d) => dates.includes(d))))
