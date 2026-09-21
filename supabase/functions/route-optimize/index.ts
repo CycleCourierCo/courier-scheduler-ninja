@@ -995,7 +995,7 @@ serve(async (req) => {
       try {
         // Day-by-day plans are deliberately unbalanced, so the "extra van"
         // what-if only applies to the balanced plan.
-        const wi = mode === 'greedy' ? null : await runSolve(pool, pinned, PRIMARY_CAP_H, { withVirtual: true });
+        const wi = mode === 'greedy' ? null : await runSolve(pool, pinned, PRIMARY_CAP_H, { withVirtual: true, pairs: true });
         if (wi) {
           const read = readSolution(wi.solution, wi.meta, legsById);
           const placedByDate: Record<string, number> = {};
