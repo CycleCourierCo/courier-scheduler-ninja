@@ -637,38 +637,8 @@ serve(async (req) => {
         finish(legs, Number(idx), difficultAreas[Number(idx)]?.name ?? `Area ${idx}`);
       }
 
-      // everything else: seed from the furthest job out and absorb its neighbours
-      let left = [...rest];
-      const groups: Leg[][] = [];
-      while (left.length > 0) {
-        const seed = left.reduce((far, l) =>
-          milesBetween(DEPOT.lat, DEPOT.lon, l.lat, l.lon) > milesBetween(DEPOT.lat, DEPOT.lon, far.lat, far.lon) ? l : far,
-        left[0]);
-        const group = left.filter((l) => milesBetween(seed.lat, seed.lon, l.lat, l.lon) <= CLUSTER_RADIUS_MI);
-        groups.push(group);
-        const taken = new Set(group.map((l) => l.key));
-        left = left.filter((l) => !taken.has(l.key));
-      }
-      // fold thin groups into their nearest neighbour when the shape stays sane
-      for (let i = groups.length - 1; i >= 0; i--) {
-        if (groups[i].length >= MIN_CLUSTER_JOBS || groups.length <= 1) continue;
-        const mine = centroidOf(groups[i]);
-        let bestIdx = -1; let bestMi = Infinity;
-        groups.forEach((g, j) => {
-          if (j === i) return;
-          const c = centroidOf(g);
-          const d = milesBetween(mine.lat, mine.lon, c.lat, c.lon);
-          if (d < bestMi) { bestMi = d; bestIdx = j; }
-        });
-        if (bestIdx >= 0 && bestMi <= CLUSTER_RADIUS_MI * 1.5) {
-          groups[bestIdx] = groups[bestIdx].concat(groups[i]);
-          groups.splice(i, 1);
-        }
-      }
-      for (const g of groups) {
-        const c = centroidOf(g);
-        finish(g, null, compassName(c.lat, c.lon));
-      }
+      // everything outside a drawn area stays one open pool — no geographic fencing
+      if (rest.length > 0) finish(rest, null, 'General');
       return out;
     };
 
