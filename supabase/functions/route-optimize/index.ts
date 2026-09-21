@@ -24,6 +24,10 @@ const VIRTUAL_VANS_PER_DAY = 2;
 // Optional extra solves are skipped once this much of the run is gone, so a big
 // plan is always saved and returned instead of the run being killed mid-way.
 const TIME_BUDGET_MS = 90_000;
+// Money, in pence, so the solver weighs "open another van" against "drive a bit
+// further" on the same scale we judge profit on. A van that rolls costs a
+// driver for the whole shift; time on the road costs the same hourly rate.
+const DRIVER_PENCE_PER_HOUR = 1100;
 
 /* ------------------------------ time helpers ------------------------------ */
 
@@ -148,6 +152,8 @@ interface Leg {
    needsUnlock: boolean;      // delivery whose bike isn't collected yet
    needsInspection: boolean;
    collectedAt: string | null;
+   /** Collection already booked in for this day (kept out of planning itself). */
+   scheduledCollection: string | null;
 }
 
 interface VanDay { vehicleId: number; date: string; vanId: string; vanName: string; capacity: number; expedition: boolean; virtual: boolean }
@@ -255,7 +261,9 @@ serve(async (req) => {
     const inDifficultArea = (lat: number, lon: number) => areaRings.some((r) => pointInRing(lon, lat, r));
 
     const allVans = ((vehiclesRes.data as any[]) || [])
-      .filter((v) => v.status !== 'sold' && v.status !== 'off_road')
+      // Only vans in use or off road can be planned: ones in repair, awaiting
+      // sale, sold or written off must never appear.
+      .filter((v) => v.status === 'in_use' || v.status === 'off_road')
       .map((v) => ({
         id: v.id as string,
         name: (v.registration || v.make || 'Van') as string,
@@ -338,6 +346,10 @@ serve(async (req) => {
       // pickup day once collected. Never guess from the customer's first
       // offered date — that produced misleading "days in the depot" figures.
       const collectedDate = order.order_collected
+        ? dateKey(order.scheduled_pickup_date)
+        : null;
+      // Collection booked in but not done yet: the bike joins us that day.
+      const bookedCollection = !order.order_collected && order.scheduled_pickup_date
         ? dateKey(order.scheduled_pickup_date)
         : null;
 
@@ -439,6 +451,7 @@ serve(async (req) => {
           needsUnlock: extra.needsUnlock,
           needsInspection: !!order.needs_inspection && !inspectionDone,
           collectedAt: collectedDate,
+          scheduledCollection: bookedCollection,
         });
       };
 
@@ -453,12 +466,15 @@ serve(async (req) => {
       // Delivery leg
       const guaranteed = order.guaranteed_delivery && order.guaranteed_delivery_date
         ? dateKey(order.guaranteed_delivery_date) : null;
+      // A collection already booked in isn't re-planned, but its delivery can
+      // still be planned: the bike will be with us from that day on.
+      const collectedBeforePlan = !!bookedCollection && bookedCollection < selectedDates[0];
       considerLeg(
         'delivery', deliveryDates,
         Number(order.receiver?.address?.lat), Number(order.receiver?.address?.lon),
         guaranteed,
         {
-          needsUnlock: !order.order_collected,
+          needsUnlock: !order.order_collected && !collectedBeforePlan,
           eligible: !order.order_delivered && !order.scheduled_delivery_date && !order.is_box_my_bike,
         },
       );
@@ -530,7 +546,12 @@ serve(async (req) => {
               time_window: [shiftOpen, shiftOpen + capHours * HOURS],
               max_travel_time: Math.max(2 * HOURS, (capHours - 2) * HOURS),
               speed_factor: 0.95,
-              ...(opts.noFixed ? {} : { costs: { fixed: kind === 2 ? 7200 : 3600 } }),
+              // Real money: a van that rolls costs a driver for the whole
+              // shift, and every hour on it costs the same rate again. That
+              // makes filling a van up genuinely cheaper than opening another.
+              ...(opts.noFixed
+                ? { costs: { per_hour: DRIVER_PENCE_PER_HOUR } }
+                : { costs: { fixed: Math.round(capHours * DRIVER_PENCE_PER_HOUR), per_hour: DRIVER_PENCE_PER_HOUR } }),
               ...(kind === 2 ? { skills: [1] } : {}),
             });
             meta[id] = { vehicleId: id, date, vanId: van.id, vanName: van.name, capacity: van.capacity, expedition: kind === 2, virtual };
@@ -549,7 +570,9 @@ serve(async (req) => {
               time_window: [shiftOpen, shiftOpen + 13 * HOURS],
               max_travel_time: 11 * HOURS,
               speed_factor: 0.95,
-              costs: { fixed: 50000 },
+              // Deliberately dear: an extra van is only "worth it" when it
+              // rescues a real amount of work.
+              costs: { fixed: 40000, per_hour: DRIVER_PENCE_PER_HOUR },
             });
             meta[id] = { vehicleId: id, date, vanId: `virtual-${i}`, vanName: `Extra van ${i + 1}`, capacity: DEFAULT_CAPACITY, expedition: false, virtual: true };
           }
@@ -606,8 +629,10 @@ serve(async (req) => {
         const steps = Array.isArray(route.steps) ? route.steps : [];
         const stops: Placed[] = [];
         for (const s of steps) {
-          if (s.type !== 'job') continue;
-          const leg = legsById[Number(s.job)];
+          // 'pickup'/'delivery' steps come from same-day collect-then-deliver
+          // pairs, where the bike is loaded and dropped on one run.
+          if (s.type !== 'job' && s.type !== 'pickup' && s.type !== 'delivery') continue;
+          const leg = legsById[Number(s.type === 'job' ? s.job : s.id)];
           if (!leg) continue;
           const entry = { leg, date: m.date, vehicleId: m.vehicleId, arrival: Number(s.arrival) || londonEpoch(m.date, shiftStart) };
           stops.push(entry);
@@ -627,6 +652,50 @@ serve(async (req) => {
       return set;
     };
 
+    /* ------------- same-day collect-then-deliver pairs -------------------- */
+
+    // Where a bike can be collected and dropped on the same day, offer the two
+    // stops as one linked pair so a van can empty out and pick more up again
+    // instead of running at half capacity.
+    const sameDayPairs: { c: Leg; d: Leg; dates: string[] }[] = (() => {
+      const byOrder: Record<string, { c?: Leg; d?: Leg }> = {};
+      for (const leg of legs) {
+        const slot = (byOrder[leg.orderId] ??= {});
+        if (leg.legType === 'collection') slot.c = leg; else slot.d = leg;
+      }
+      const out: { c: Leg; d: Leg; dates: string[] }[] = [];
+      for (const { c, d } of Object.values(byOrder)) {
+        if (!c || !d) continue;
+        if (!d.needsUnlock || d.needsInspection || d.guaranteedDate) continue;
+        const shared = c.windowDates.filter((x) => d.windowDates.includes(x));
+        if (shared.length > 0) out.push({ c, d, dates: shared });
+      }
+      return out;
+    })();
+    const pairByOrder: Record<string, { c: Leg; d: Leg; dates: string[] }> = {};
+    for (const p of sameDayPairs) pairByOrder[p.c.orderId] = p;
+
+    const buildShipment = (pair: { c: Leg; d: Leg; dates: string[] }, dates: string[]) => {
+      const usable = pair.dates.filter((d) => dates.includes(d));
+      const step = (leg: Leg) => {
+        const windows = usable
+          .map((d) => windowFor(leg, d))
+          .filter((w): w is [number, number] => !!w)
+          .sort((a, b) => a[0] - b[0]);
+        if (windows.length === 0) return null;
+        return { id: leg.jobId, location: [leg.lon, leg.lat], service: SERVICE_S, time_windows: windows };
+      };
+      const pickup = step(pair.c);
+      const delivery = step(pair.d);
+      if (!pickup || !delivery) return null;
+      return {
+        amount: [Math.max(1, Math.round(pair.c.spaces * 10))],
+        priority: Math.max(pair.c.priority, pair.d.priority),
+        ...(pair.c.difficult || pair.d.difficult ? { skills: [1] } : {}),
+        pickup, delivery,
+      };
+    };
+
     /* ------------------------------ pass A -------------------------------- */
 
     // Ready legs: all collections, plus deliveries whose bike is already in the depot.
@@ -643,21 +712,47 @@ serve(async (req) => {
       });
     }
 
-    const runSolve = async (pool: Leg[], pinned: Record<string, string>, capH: number, opts?: { withVirtual?: boolean; dates?: string[]; skip?: Set<string>; noFixed?: boolean }) => {
+    const runSolve = async (pool: Leg[], pinned: Record<string, string>, capH: number, opts?: { withVirtual?: boolean; dates?: string[]; skip?: Set<string>; noFixed?: boolean; pairs?: boolean }) => {
       const dates = opts?.dates ?? selectedDates;
+      const poolKeys = new Set(pool.map((l) => l.key));
+      const usablePairs = opts?.pairs
+        ? sameDayPairs.filter((p) => poolKeys.has(p.c.key) && poolKeys.has(p.d.key) && !pinned[p.c.key] && !pinned[p.d.key]
+            && p.dates.some((d) => dates.includes(d)))
+        : [];
+      const pairedKeys = new Set<string>();
+      const shipments: any[] = [];
+      for (const p of usablePairs) {
+        const shipment = buildShipment(p, dates);
+        if (!shipment) continue;   // no workable window: leave both as plain stops
+        shipments.push(shipment);
+        pairedKeys.add(p.c.key);
+        pairedKeys.add(p.d.key);
+      }
       const jobs = pool
+        .filter((leg) => !pairedKeys.has(leg.key))
         .map((leg) => buildJob(leg, pinned[leg.key] ? [pinned[leg.key]] : leg.windowDates.filter((d) => dates.includes(d))))
         .filter((j): j is any => !!j);
-      if (jobs.length === 0) return null;
+      if (jobs.length === 0 && shipments.length === 0) return null;
       const { vehicles, meta } = buildVehicles({
         dates, capH, difficultDates: difficultDatesFor(pool), withVirtual: opts?.withVirtual, skipVanDays: opts?.skip,
         noFixed: opts?.noFixed,
       });
       if (vehicles.length === 0) return null;
       const started = Date.now();
-      const solution = await postSolve({ vehicles, jobs, options: { g: true, x: 5 } });
+      const payload: any = { vehicles, jobs, options: { g: true, x: 5 } };
+      if (shipments.length > 0) payload.shipments = shipments;
+      let solution: any;
+      try {
+        solution = await postSolve(payload);
+      } catch (e) {
+        // If linked pairs are rejected, fall back to plain stops so a plan is
+        // still produced.
+        if (shipments.length === 0) throw e;
+        console.error('paired solve rejected, retrying without pairs', (e as Error).message);
+        return runSolve(pool, pinned, capH, { ...opts, pairs: false });
+      }
       console.log('verso solve', {
-        days: dates.length, jobs: jobs.length, vehicles: vehicles.length,
+        days: dates.length, jobs: jobs.length, shipments: shipments.length, vehicles: vehicles.length,
         routes: (solution?.routes || []).length,
         unassigned: (solution?.unassigned || []).length,
         cost: Number(solution?.summary?.cost) || null,
@@ -685,14 +780,18 @@ serve(async (req) => {
           if (leg.legType === 'collection') return true;
           if (!leg.needsUnlock && !leg.needsInspection) return true;
           const collected = collectedOn[leg.orderId];
-          if (!collected) return false;
+          if (!collected) {
+            // Collect and drop on the same run, as a linked pair.
+            const pair = pairByOrder[leg.orderId];
+            return !!pair && pair.dates.includes(date) && !placedKeys.has(pair.c.key);
+          }
           if (leg.needsInspection && inspectionLeadDays === null) return false;
           const lead = leg.needsInspection ? Math.max(1, inspectionLeadDays ?? 1) : 1;
           return dayIdx - selectedDates.indexOf(collected) >= lead;
         });
         if (candidates.length === 0) continue;
         try {
-          const day = await runSolve(candidates, {}, PRIMARY_CAP_H, { dates: [date], noFixed: true });
+          const day = await runSolve(candidates, {}, PRIMARY_CAP_H, { dates: [date], noFixed: true, pairs: true });
           if (!day) continue;
           const read = readSolution(day.solution, day.meta, legsById);
           for (const p of read.placed) {
@@ -714,7 +813,10 @@ serve(async (req) => {
     } else {
       let passA;
       try {
-        passA = await runSolve(readyLegs, {}, PRIMARY_CAP_H);
+        // Deliveries that can ride along on the same day as their collection
+        // join pass A as linked pairs; the rest wait for pass B.
+        pool = [...readyLegs, ...sameDayPairs.map((p) => p.d).filter((d) => !readyLegs.includes(d))];
+        passA = await runSolve(pool, {}, PRIMARY_CAP_H, { pairs: true });
       } catch (e) {
         console.error('pass A failed', (e as Error).message);
         return json({ error: (e as Error).message }, 502);
@@ -737,7 +839,7 @@ serve(async (req) => {
         if (clashes.length === 0) break;
         const skip = new Set<string>(clashes.map(([k]) => `${k}:1`)); // drop the normal twin
         try {
-          const retry = await runSolve(pool, pinned, PRIMARY_CAP_H, { skip });
+          const retry = await runSolve(pool, pinned, PRIMARY_CAP_H, { skip, pairs: true });
           if (!retry) break;
           current = readSolution(retry.solution, retry.meta, legsById);
           passA = retry;
@@ -750,10 +852,13 @@ serve(async (req) => {
       for (const p of current.placed) {
         if (p.leg.legType === 'collection') collectionDay[p.leg.orderId] = p.date;
       }
+      const placedAlready = new Set(current.placed.map((p) => p.leg.key));
 
       unlockable = legs.filter((leg) => {
         if (leg.legType !== 'delivery' || !leg.needsUnlock) return false;
-        const collectedOn = collectionDay[leg.orderId];
+        if (placedAlready.has(leg.key)) return false;   // already riding with its collection
+        // A collection already booked in outside this plan still frees the bike.
+        const collectedOn = collectionDay[leg.orderId] ?? leg.scheduledCollection;
         if (!collectedOn) return false;
         if (leg.needsInspection && inspectionLeadDays === null) return false;
         const lead = leg.needsInspection ? Math.max(1, inspectionLeadDays ?? 1) : 1;
@@ -767,10 +872,15 @@ serve(async (req) => {
 
       if (unlockable.length > 0 && budgetLeft() > 25_000) {
         pinned = {};
-        for (const p of current.placed) if (p.leg.legType === 'collection') pinned[p.leg.key] = p.date;
-        pool = [...readyLegs, ...unlockable];
+        // Linked same-day pairs are left free so they stay linked in pass B.
+        for (const p of current.placed) {
+          if (p.leg.legType !== 'collection') continue;
+          if (pairByOrder[p.leg.orderId]) continue;
+          pinned[p.leg.key] = p.date;
+        }
+        pool = [...pool, ...unlockable.filter((l) => !pool.includes(l))];
         try {
-          const passB = await runSolve(pool, pinned, PRIMARY_CAP_H);
+          const passB = await runSolve(pool, pinned, PRIMARY_CAP_H, { pairs: true });
           if (passB) {
             const after = readSolution(passB.solution, passB.meta, legsById);
             const placedKeys = new Set(after.placed.map((p) => p.leg.key));
@@ -887,7 +997,7 @@ serve(async (req) => {
       try {
         // Day-by-day plans are deliberately unbalanced, so the "extra van"
         // what-if only applies to the balanced plan.
-        const wi = mode === 'greedy' ? null : await runSolve(pool, pinned, PRIMARY_CAP_H, { withVirtual: true });
+        const wi = mode === 'greedy' ? null : await runSolve(pool, pinned, PRIMARY_CAP_H, { withVirtual: true, pairs: true });
         if (wi) {
           const read = readSolution(wi.solution, wi.meta, legsById);
           const placedByDate: Record<string, number> = {};

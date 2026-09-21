@@ -24,6 +24,8 @@ interface Props {
   /** Heading override, e.g. for whole-plan totals. */
   title?: string;
   costTitle?: string;
+  /** Vans ticked for this day (or van-days across the whole plan). */
+  vansAvailable?: number;
   /** Jobs left out of every route for this day or plan. */
   leftOver?: number;
   /** Left-over jobs whose customer dates had all lapsed (override runs only). */
@@ -36,12 +38,16 @@ interface Props {
   expiringUnplanned?: number;
 }
 
-const DaySummary: React.FC<Props> = ({ date, routes, title, costTitle, leftOver, leftOverLapsed, lapsedPlanned, expiringCount, expiringUnplanned }) => {
+const DaySummary: React.FC<Props> = ({ date, routes, title, costTitle, vansAvailable, leftOver, leftOverLapsed, lapsedPlanned, expiringCount, expiringUnplanned }) => {
   const { userProfile } = useAuth();
   const isAdmin = hasRole(userProfile, "admin");
 
   const totals = useMemo(() => {
-    const vans = routes.length;
+    // Count vans, not routes: one van can hold both a normal and a long-day
+    // route, so counting routes made "vans used" look higher than the fleet.
+    const vanIds = new Set<string>();
+    routes.forEach((r) => vanIds.add(`${r.van_id}`));
+    const vans = vanIds.size;
     const stops = routes.reduce((n, r) => n + r.stop_count, 0);
     const seconds = routes.reduce((n, r) => n + r.duration_s, 0);
     const miles = routes.reduce((n, r) => n + r.miles, 0);
@@ -53,6 +59,7 @@ const DaySummary: React.FC<Props> = ({ date, routes, title, costTitle, leftOver,
     routes.forEach((r) => r.stops.forEach((s) => orders.add(s.order_id)));
     return {
       vans, stops, seconds, miles, load, capacity, guaranteed, thin,
+      routeCount: routes.length,
       orders: orders.size,
       hours: seconds / 3600,
     };
@@ -111,7 +118,11 @@ const DaySummary: React.FC<Props> = ({ date, routes, title, costTitle, leftOver,
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-4">
           <Stat label="Total stops" value={String(totals.stops)} sub={`${totals.orders} job${totals.orders === 1 ? "" : "s"}`} />
-          <Stat label="Vans used" value={String(totals.vans)} />
+          <Stat
+            label="Vans used"
+            value={typeof vansAvailable === "number" ? `${Math.min(totals.vans, vansAvailable)} of ${vansAvailable}` : String(totals.vans)}
+            sub={totals.routeCount > totals.vans ? `${totals.routeCount} routes` : undefined}
+          />
           <Stat
             label="Avg stops per van"
             value={totals.vans ? (totals.stops / totals.vans).toFixed(1) : "—"}
@@ -128,7 +139,7 @@ const DaySummary: React.FC<Props> = ({ date, routes, title, costTitle, leftOver,
           />
           <Stat label="Spaces used" value={`${totals.load}/${totals.capacity}`} />
           <Stat label="Guaranteed stops" value={String(totals.guaranteed)} />
-          <Stat label="Thin routes" value={`${totals.thin} of ${totals.vans}`} />
+          <Stat label="Thin routes" value={`${totals.thin} of ${totals.routeCount}`} />
           {typeof leftOver === "number" && (
             <Stat label="Jobs left over" value={String(leftOver)} sub={leftOver > 0 ? "not fitted into any route" : "everything fitted"} />
           )}

@@ -25,7 +25,7 @@ import { COST_PER_MILE, DRIVER_HOURLY_RATE, formatGBP } from "@/lib/routeCosts";
 import { getRevenueForRouteStops } from "@/services/profitabilityService";
 
 const THIN_ROUTE_STOPS = 13;
-const MIN_DAYS = 3;
+const MIN_DAYS = 2;
 const MAX_DAYS = 10;
 
 const dayLabel = (date: string) => format(new Date(`${date}T12:00:00`), "EEE d MMM");
@@ -717,6 +717,7 @@ const GenerateRoutesDialog: React.FC = () => {
               routes={allPlanRoutes(result)}
               title={mode === "greedy" ? "Whole plan — day by day" : "Whole plan — balanced"}
               costTitle="Costings for the whole plan"
+              vansAvailable={result.days.reduce((n, d) => n + (d.vans_available ?? 0), 0)}
               leftOver={summarisePlan(result).leftOver}
               leftOverLapsed={result.unplanned_lapsed_count}
               expiringCount={result.expiring_in_plan_count}
@@ -773,6 +774,7 @@ const GenerateRoutesDialog: React.FC = () => {
                 <DaySummary
                   date={activeDay.date}
                   routes={activeRoutes}
+                  vansAvailable={activeDay.vans_available}
                   leftOver={activeDay.unplanned_count}
                   leftOverLapsed={activeDay.unplanned_lapsed_count}
                   lapsedPlanned={activeDay.lapsed_count}
