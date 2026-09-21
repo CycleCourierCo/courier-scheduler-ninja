@@ -580,7 +580,7 @@ serve(async (req) => {
         id: leg.jobId,
         location: [leg.lon, leg.lat],
         service: SERVICE_S,
-        priority: mustGo(leg, date) ? 100 : 0,
+        priority: mustGo(leg, date) ? 100 : 50,
         time_windows: [window],
         ...(leg.legType === 'delivery' ? { delivery: load } : { pickup: load }),
         ...(leg.areaIdx !== null && leg.areaIdx === longAreaIdx ? { skills: [DIFFICULT_SKILL] } : {}),
@@ -675,7 +675,19 @@ serve(async (req) => {
       const jobs = pool.map((leg) => buildJob(leg, date, longAreaIdx)).filter((j): j is any => !!j);
       if (jobs.length === 0) return null;
 
-      const solution = await postSolve({ vehicles, jobs, options: { g: true } });
+      let solution: any;
+      if (exploreOk) {
+        try {
+          solution = await postSolve({ vehicles, jobs, options: { g: true, x: 5 } });
+        } catch (e) {
+          if (/distance costing/i.test((e as Error).message)) throw e;
+          exploreOk = false;
+          debug.exploration = false;
+          solution = await postSolve({ vehicles, jobs, options: { g: true } });
+        }
+      } else {
+        solution = await postSolve({ vehicles, jobs, options: { g: true } });
+      }
       console.log('verso solve', {
         date, jobs: jobs.length, vehicles: vehicles.length,
         routes: (solution?.routes || []).length, unassigned: (solution?.unassigned || []).length,
