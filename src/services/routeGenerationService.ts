@@ -10,6 +10,8 @@ export interface PlanStop {
   is_difficult_area: boolean;
   label: string;
   guaranteed: boolean;
+  /** Planned on a later plan day because its own dates were full. */
+  planned_after_expiry?: boolean;
 }
 
 export interface PlanRoute {
@@ -49,6 +51,10 @@ export interface PlanDay {
   unplanned_lapsed_count?: number;
   /** Planned stops whose customer dates had lapsed before this run. */
   lapsed_count?: number;
+  /** Jobs whose last available date is this day (at risk of lapsing). */
+  expiring_count?: number;
+  /** Of those, jobs not placed on any route. */
+  expiring_unplanned_count?: number;
   infeasible_guaranteed: { order_id: string; label: string; leg_type: string; date: string }[];
 }
 
@@ -58,6 +64,8 @@ export interface AtRiskLeg {
   leg_type: string;
   priority: number;
   remaining_dates: number;
+  /** Last available customer date, when known. */
+  last_date?: string | null;
   guaranteed_date: string | null;
   reason: string;
 }
@@ -85,6 +93,10 @@ export interface RoutePlanResult {
   unplanned_count?: number;
   /** Left-over jobs whose dates had all lapsed (override runs only). */
   unplanned_lapsed_count?: number;
+  /** Jobs whose last remaining date falls inside this plan window. */
+  expiring_in_plan_count?: number;
+  /** Of those, jobs not placed on any route. */
+  expiring_unplanned_count?: number;
   generated_at?: string;
   firm_days?: number;
   days: PlanDay[];
