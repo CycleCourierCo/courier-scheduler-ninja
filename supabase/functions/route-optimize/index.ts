@@ -584,6 +584,18 @@ serve(async (req) => {
         resp = await call({ ...payload, options: { g: true } });
         detail = resp.ok ? '' : (await resp.text()).slice(0, 300);
       }
+      // Some builds don't know a per-distance cost: drop just that key and keep
+      // the rest of the money model, which still favours shorter driving.
+      if (resp.status === 400 && /per_km|per_distance|distance/i.test(detail)) {
+        const noKm = (payload.vehicles as any[]).map((v) => {
+          if (!v.costs) return v;
+          const { per_km: _k, ...costs } = v.costs;
+          return { ...v, costs };
+        });
+        payload = { ...payload, vehicles: noKm };
+        resp = await call(payload);
+        detail = resp.ok ? '' : (await resp.text()).slice(0, 300);
+      }
       if (resp.status === 400 && /speed_factor|costs|fixed|max_travel_time/i.test(detail)) {
         const plainVehicles = (payload.vehicles as any[]).map((v) => {
           const { speed_factor: _s, costs: _c, max_travel_time: _m, ...rest } = v;
