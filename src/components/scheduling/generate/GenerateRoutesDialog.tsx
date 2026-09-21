@@ -414,6 +414,7 @@ const GenerateRoutesDialog: React.FC = () => {
       firm_days: firmDays,
       inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
       include_expired: includeExpired,
+      max_long_days: maxLongDays,
     };
     try {
       // Both ways of planning are built so they can be compared side by side.
@@ -449,6 +450,7 @@ const GenerateRoutesDialog: React.FC = () => {
         firm_days: firmDays,
         inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
         include_expired: includeExpired,
+        max_long_days: maxLongDays,
         mode: m,
       });
       setPlans((prev) => ({ ...prev, [m]: plan }));
