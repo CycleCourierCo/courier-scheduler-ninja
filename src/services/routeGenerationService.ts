@@ -27,10 +27,12 @@ export interface PlanRoute {
   van_capacity: number;
   geometry: string | null;
   guaranteed_count: number;
-  /** Part of the country this route covers, e.g. "NE". */
-  region?: string;
+  /** Difficult area this route covers, when it is the long day. */
+  region?: string | null;
   /** Widest gap between any two stops on the route, in miles. */
   spread_mi?: number;
+  /** Wider than 150 miles across — worth a dispatcher's eye. */
+  spread_warning?: boolean;
   /** Fewer jobs than the target for a full day. */
   thin?: boolean;
   /** Fewer jobs than the floor — a dispatcher should look at this one. */
@@ -39,6 +41,13 @@ export interface PlanRoute {
   thin_reason?: string | null;
   /** Urgent jobs that justify a thin route. */
   urgent_labels?: string[];
+  /** Jobs on this route that had to go today. */
+  must_go_count?: number;
+  /** Half the charged price of each job on the route, excluding VAT. */
+  revenue?: number;
+  /** Driver hours plus mileage. */
+  cost?: number;
+  margin?: number;
   stops: PlanStop[];
 }
 
@@ -56,6 +65,8 @@ export interface PlanDay {
   spare_vans: number;
   is_provisional: boolean;
   shortfall: PlanDayShortfall | null;
+  /** What one extra van would have added on this day. */
+  spare_van_hint?: { jobs: number; revenue: number; margin: number; must_go: number } | null;
   variants: { variant: string; routes: PlanRoute[]; tradeoff_note: string | null }[];
   /** Jobs that could have run on this day but were left out of every route. */
   unplanned_count?: number;
@@ -103,14 +114,12 @@ export interface NeedsNewDatesLeg {
   linked_leg_note: string | null;
 }
 
-/** 'joint' balances the whole stretch of days; 'greedy' fills each day in turn. */
-export type PlanMode = "joint" | "greedy";
-
 export interface RoutePlanResult {
   plan_id: string | null;
-  mode?: PlanMode;
   /** Jobs across the whole stretch of days that could not be fitted anywhere. */
   unplanned_count?: number;
+  /** Of those, jobs that can safely wait for a later day. */
+  carried_count?: number;
   /** Left-over jobs whose dates had all lapsed (override runs only). */
   unplanned_lapsed_count?: number;
   /** Jobs whose last remaining date falls inside this plan window. */
@@ -119,8 +128,6 @@ export interface RoutePlanResult {
   expiring_unplanned_count?: number;
   generated_at?: string;
   firm_days?: number;
-  /** The "an extra van would plan N more jobs" figures are still loading. */
-  shortfall_pending?: boolean;
   /** False when the optimiser could not cost miles — routes may sprawl. */
   distance_costing?: boolean;
   /** Steps that could not be finished (time ran out, or a step failed). */
@@ -145,15 +152,14 @@ export interface GenerateRoutesInput {
   inspection_lead_days?: number | null;
   /** Plan legs whose customer dates have all lapsed anyway (per-run override). */
   include_expired?: boolean;
-  /** How many 15h long "expedition" days may be used on any one day (0–4). */
+  /** Whether a 15h long day may be used for a difficult area (0 or 1). */
   max_long_days?: number;
   /** Jobs a full route should carry (fleet is trimmed down to reach it). */
   min_jobs_target?: number;
   /** Fewest jobs a route may carry before it is flagged for a dispatcher. */
   min_jobs_floor?: number;
-  /** How close a collection and its delivery must be to share a van (miles). */
-  pair_max_distance_miles?: number;
-  mode?: PlanMode;
+  /** Take a van off the road if its route earns less than this (£). */
+  min_route_margin?: number;
 }
 
 export interface PlanComparison {
@@ -208,16 +214,6 @@ export const generateRoutes = async (input: GenerateRoutesInput): Promise<RouteP
   return data as RoutePlanResult;
 };
 
-/** Second, lighter call: the per-day "an extra van would fit N more jobs" figures. */
-export const fetchPlanShortfall = async (
-  input: GenerateRoutesInput,
-): Promise<Record<string, PlanDayShortfall | null>> => {
-  const { data, error } = await supabase.functions.invoke("route-optimize", {
-    body: { ...input, shortfall_only: true },
-  });
-  if (error || (data as any)?.error) return {};
-  return ((data as any)?.shortfall_by_date ?? {}) as Record<string, PlanDayShortfall | null>;
-};
 
 /** Check a fixed stop order actually fits the day. */
 export const validateRoute = async (input: {

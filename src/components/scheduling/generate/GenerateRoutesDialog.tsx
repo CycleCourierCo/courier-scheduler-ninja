@@ -12,9 +12,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
-  AtRiskLeg, GenerateRoutesInput, NeedsNewDatesLeg, PlanDay, PlanMode, PlanRoute, RoutePlanResult, summarisePlan, allPlanRoutes,
+  AtRiskLeg, NeedsNewDatesLeg, PlanDay, PlanRoute, RoutePlanResult, summarisePlan, allPlanRoutes,
   clearNewDatesRequest, fetchDifficultAreas, fetchLapsedLegs, fetchPlanningVans, fetchWorkingDays, formatDuration,
-  generateRoutes, fetchPlanShortfall, isWorkingDay, lockPlanDay, nextWorkingDays, refreshAvailabilityExpiry,
+  generateRoutes, isWorkingDay, lockPlanDay, nextWorkingDays, refreshAvailabilityExpiry,
   requestNewDates, selectPlanRoute, setVanUnavailable, unlockPlanDay,
 } from "@/services/routeGenerationService";
 import DaySummary from "./DaySummary";
@@ -38,6 +38,8 @@ const RouteCostLine: React.FC<{ route: PlanRoute }> = ({ route }) => {
 
   useEffect(() => {
     if (!isAdmin || route.stops.length === 0) { setRevenue(null); return; }
+    // The optimiser already works the value out; only fall back if it didn't.
+    if (typeof route.revenue === "number") { setRevenue(route.revenue); return; }
     let cancelled = false;
     (async () => {
       try {
@@ -84,7 +86,9 @@ const RouteCard: React.FC<{ route: PlanRoute; date: string; onUse: (route: PlanR
         <div className="flex flex-wrap items-center gap-1">
           {route.region && <Badge variant="outline">{route.region}</Badge>}
           {typeof route.spread_mi === "number" && (
-            <Badge variant="secondary">{route.spread_mi} mi across</Badge>
+            <Badge variant={route.spread_warning ? "destructive" : "secondary"}>
+              {route.spread_mi} mi across{route.spread_warning ? " — worth a look" : ""}
+            </Badge>
           )}
           {route.is_expedition && <Badge variant="outline">Long day 15h</Badge>}
           {route.is_provisional && <Badge variant="secondary">Provisional</Badge>}
@@ -320,21 +324,15 @@ const GenerateRoutesDialog: React.FC = () => {
   const [areas, setAreas] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [busyRoute, setBusyRoute] = useState(false);
-  const [plans, setPlans] = useState<{ joint: RoutePlanResult | null; greedy: RoutePlanResult | null }>({ joint: null, greedy: null });
-  const [mode, setMode] = useState<PlanMode>("joint");
-  const [planErrors, setPlanErrors] = useState<{ joint: string | null; greedy: string | null }>({ joint: null, greedy: null });
-  const [retrying, setRetrying] = useState<PlanMode | null>(null);
-  /** The plan that jobs were reserved against — the other one is then out of date. */
-  const [committedMode, setCommittedMode] = useState<PlanMode | null>(null);
+  const [result, setResult] = useState<RoutePlanResult | null>(null);
   const [includeExpired, setIncludeExpired] = useState(false);
-  /** How many 15h long days may be used on any one day. 0 = none. */
+  /** Whether a 15h long day may be used for one difficult area. */
   const [maxLongDays, setMaxLongDays] = useState(1);
   /** Jobs a proper day's route should carry — vans come off the road to reach it. */
   const [minJobsTarget, setMinJobsTarget] = useState(13);
   /** Fewest jobs a route may carry before it is flagged for a dispatcher. */
   const [minJobsFloor, setMinJobsFloor] = useState(9);
   const [lapsedLegs, setLapsedLegs] = useState<NeedsNewDatesLeg[]>([]);
-  const result = plans[mode];
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [lockedDays, setLockedDays] = useState<string[]>([]);
 
@@ -419,26 +417,40 @@ const GenerateRoutesDialog: React.FC = () => {
     return [...runLegs, ...lapsedLegs.filter((l) => !seen.has(`${l.order_id}:${l.leg_type}`))];
   }, [result, lapsedLegs]);
 
-  /** The "an extra van would fit N more jobs" figures, fetched after the plan. */
-  const loadShortfall = (base: Omit<GenerateRoutesInput, "mode">) => {
-    fetchPlanShortfall({ ...base, mode: "joint" })
-      .then((byDate) => {
-        if (!byDate || Object.keys(byDate).length === 0) {
-          setPlans((prev) => (prev.joint ? { ...prev, joint: { ...prev.joint, shortfall_pending: false } } : prev));
-          return;
-        }
-        setPlans((prev) => prev.joint ? {
-          ...prev,
-          joint: {
-            ...prev.joint,
-            shortfall_pending: false,
-            days: prev.joint.days.map((d) => ({ ...d, shortfall: byDate[d.date] ?? d.shortfall })),
-          },
-        } : prev);
-      })
-      .catch(() => {
-        setPlans((prev) => (prev.joint ? { ...prev, joint: { ...prev.joint, shortfall_pending: false } } : prev));
-      });
+  const planInput = (gridOverride?: Record<string, string[]>) => ({
+    selected_dates: dates,
+    shift_start: shiftStart,
+    van_availability: Object.fromEntries(
+      dates.map((d) => [d, (gridOverride ?? grid)[d] ?? vans.map((v) => v.id)]),
+    ),
+    firm_days: firmDays,
+    inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
+    include_expired: includeExpired,
+    max_long_days: maxLongDays,
+    min_jobs_target: minJobsTarget,
+    min_jobs_floor: minJobsFloor,
+  });
+
+  const runPlan = async (gridOverride?: Record<string, string[]>) => {
+    setLoading(true);
+    setLockedDays([]);
+    try {
+      const plan = await generateRoutes(planInput(gridOverride));
+      setResult(plan);
+      setActiveDate(
+        plan.days.find((d) => (d.variants?.[0]?.routes?.length ?? 0) > 0)?.date ?? plan.days[0]?.date ?? null,
+      );
+      const planned = plan.days.reduce((n, d) => n + (d.variants?.[0]?.routes?.length ?? 0), 0);
+      toast.success(
+        planned > 0
+          ? `Planned ${planned} route${planned === 1 ? "" : "s"} across ${dates.length} day${dates.length === 1 ? "" : "s"}`
+          : "No routes could be built for those days",
+      );
+    } catch (e) {
+      toast.error((e as Error).message || "Route generation failed");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGenerate = async () => {
@@ -450,72 +462,25 @@ const GenerateRoutesDialog: React.FC = () => {
       toast.error("No vans are ticked on any of those days");
       return;
     }
-    setLoading(true);
-    setPlans({ joint: null, greedy: null });
-    setPlanErrors({ joint: null, greedy: null });
-    setCommittedMode(null);
-    setLockedDays([]);
-    const base = {
-      selected_dates: dates,
-      shift_start: shiftStart,
-      van_availability: Object.fromEntries(dates.map((d) => [d, grid[d] ?? vans.map((v) => v.id)])),
-      firm_days: firmDays,
-      inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
-      include_expired: includeExpired,
-      max_long_days: maxLongDays,
-      min_jobs_target: minJobsTarget,
-      min_jobs_floor: minJobsFloor,
-    };
-    try {
-      // Both ways of planning are built so they can be compared side by side.
-      const [joint, greedy] = await Promise.all([
-        generateRoutes({ ...base, mode: "joint" }),
-        generateRoutes({ ...base, mode: "greedy" }).catch((e: Error) => {
-          setPlanErrors((prev) => ({ ...prev, greedy: e.message || "Day-by-day planning failed" }));
-          return null;
-        }),
-      ]);
-      setPlans({ joint, greedy });
-      setMode("joint");
-      setActiveDate(joint.days.find((d) => (d.variants?.[0]?.routes?.length ?? 0) > 0)?.date ?? joint.days[0]?.date ?? null);
-      const planned = joint.days.reduce((n, d) => n + (d.variants?.[0]?.routes?.length ?? 0), 0);
-      toast.success(planned > 0 ? `Planned ${planned} route${planned === 1 ? "" : "s"} across ${dates.length} days` : "No routes could be built for those days");
-      loadShortfall(base);
-    } catch (e) {
-      toast.error((e as Error).message || "Route generation failed");
-    } finally {
-      setLoading(false);
-    }
+    setResult(null);
+    await runPlan();
   };
 
-  const handleRetryMode = async (m: PlanMode) => {
-    if (dates.length < MIN_DAYS) return;
-    setRetrying(m);
-    setPlanErrors((prev) => ({ ...prev, [m]: null }));
-    try {
-      const plan = await generateRoutes({
-        selected_dates: dates,
-        shift_start: shiftStart,
-        van_availability: Object.fromEntries(dates.map((d) => [d, grid[d] ?? vans.map((v) => v.id)])),
-        firm_days: firmDays,
-        inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
-        include_expired: includeExpired,
-        max_long_days: maxLongDays,
-        min_jobs_target: minJobsTarget,
-        min_jobs_floor: minJobsFloor,
-        mode: m,
-      });
-      setPlans((prev) => ({ ...prev, [m]: plan }));
-      setMode(m);
-      setLockedDays([]);
-      toast.success(m === "greedy" ? "Day-by-day plan built" : "Balanced plan built");
-    } catch (e) {
-      const msg = (e as Error).message || "Route generation failed";
-      setPlanErrors((prev) => ({ ...prev, [m]: msg }));
-      toast.error(msg);
-    } finally {
-      setRetrying(null);
+  /** Try the same days again with one van more, or one fewer, on a single day. */
+  const handleAdjustVans = async (date: string, delta: 1 | -1) => {
+    const current = grid[date] ?? vans.map((v) => v.id);
+    let next: string[];
+    if (delta === -1) {
+      if (current.length <= 1) { toast.error("That day is already down to one van"); return; }
+      next = current.slice(0, current.length - 1);
+    } else {
+      const spare = vans.find((v) => !current.includes(v.id));
+      if (!spare) { toast.error("Every van is already on that day"); return; }
+      next = [...current, spare.id];
     }
+    const nextGrid = { ...grid, [date]: next };
+    setGrid(nextGrid);
+    await runPlan(nextGrid);
   };
 
   const handleRefreshExpiry = async () => {
@@ -534,7 +499,6 @@ const GenerateRoutesDialog: React.FC = () => {
       if (lock) await lockPlanDay(result.plan_id, date);
       else await unlockPlanDay(result.plan_id, date);
       setLockedDays((prev) => (lock ? [...prev, date] : prev.filter((d) => d !== date)));
-      if (lock) setCommittedMode(mode);
       toast.success(lock ? `${dayLabel(date)} locked — its jobs are reserved` : `${dayLabel(date)} released`);
     } catch (e) {
       toast.error((e as Error).message || "Could not change that day");
@@ -548,7 +512,6 @@ const GenerateRoutesDialog: React.FC = () => {
     setBusyRoute(true);
     try {
       await selectPlanRoute(result.plan_id, route.route_id);
-      setCommittedMode(mode);
       const jobs = route.stops
         .map((s) => `${s.order_id}:${s.leg_type === "collection" ? "pickup" : "delivery"}`)
         .join(",");
@@ -755,49 +718,11 @@ const GenerateRoutesDialog: React.FC = () => {
               </div>
             )}
             <RunDetails debug={result.debug} />
-            <div className="flex flex-wrap items-center gap-2">
-              {(["joint", "greedy"] as PlanMode[]).map((m) => {
-                const summary = summarisePlan(plans[m]);
-                return (
-                  <Button
-                    key={m}
-                    type="button"
-                    size="sm"
-                    variant={mode === m ? "default" : "outline"}
-                    className="h-auto flex-col items-start gap-0.5 py-2 text-left"
-                    disabled={!plans[m]}
-                    onClick={() => { setMode(m); setLockedDays([]); }}
-                  >
-                    <span>{m === "joint" ? "Balanced across the days" : "Day by day"}</span>
-                    <span className="text-xs font-normal opacity-80">
-                      {plans[m]
-                        ? `${summary.stops} stops · ${summary.vanDays} van-days · ${Math.round(summary.hours)}h · ${Math.round(summary.miles)} mi · ${summary.leftOver} left over`
-                        : retrying === m
-                        ? "building…"
-                        : "not available"}
-                    </span>
-                    {committedMode && committedMode !== m && plans[m] && (
-                      <span className="text-xs font-normal text-amber-600">out of date — jobs reserved on the other plan</span>
-                    )}
-                  </Button>
-                );
-              })}
-              {(["joint", "greedy"] as PlanMode[]).map((m) =>
-                planErrors[m] ? (
-                  <div key={`${m}-err`} className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{m === "greedy" ? "Day by day" : "Balanced"} could not be built: {planErrors[m]}</span>
-                    <Button type="button" size="sm" variant="outline" disabled={retrying === m} onClick={() => handleRetryMode(m)}>
-                      {retrying === m ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Try again"}
-                    </Button>
-                  </div>
-                ) : null,
-              )}
-            </div>
 
             <DaySummary
-              date={`plan:${mode}:${result.plan_id ?? ""}`}
+              date={`plan:${result.plan_id ?? ""}`}
               routes={allPlanRoutes(result)}
-              title={mode === "greedy" ? "Whole plan — day by day" : "Whole plan — balanced"}
+              title="Whole plan"
               costTitle="Costings for the whole plan"
               vansAvailable={result.days.reduce((n, d) => n + (d.vans_available ?? 0), 0)}
               leftOver={summarisePlan(result).leftOver}
@@ -832,25 +757,35 @@ const GenerateRoutesDialog: React.FC = () => {
               <>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm text-muted-foreground">
-                    Needs {activeDay.vans_needed} of {activeDay.vans_available} vans
+                    Uses {activeDay.vans_needed} of {activeDay.vans_available} vans
                     {activeDay.van_names.length > 0 ? ` — ${activeDay.van_names.join(", ")}` : ""}
                     {activeDay.is_provisional ? " · provisional" : ""}
-                    {activeDay.shortfall
-                      ? ` · ${activeDay.shortfall.extra_vans} more van${activeDay.shortfall.extra_vans === 1 ? "" : "s"} would fit ${activeDay.shortfall.extra_jobs} more jobs`
+                    {activeDay.spare_van_hint
+                      ? ` · one more van would fit ${activeDay.spare_van_hint.jobs} more job${activeDay.spare_van_hint.jobs === 1 ? "" : "s"}${activeDay.spare_van_hint.must_go > 0 ? ` (${activeDay.spare_van_hint.must_go} must go today)` : ""}`
                       : ""}
                   </p>
-                  {activeDay.vans_needed > 0 && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-2"
-                      disabled={busyRoute}
-                      onClick={() => handleLockDay(activeDay.date, !lockedDays.includes(activeDay.date))}
-                    >
-                      {lockedDays.includes(activeDay.date) ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-                      {lockedDays.includes(activeDay.date) ? "Release day" : "Lock day"}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button size="sm" variant="outline" disabled={loading}
+                      onClick={() => handleAdjustVans(activeDay.date, -1)}>
+                      Try one fewer van
                     </Button>
-                  )}
+                    <Button size="sm" variant="outline" disabled={loading}
+                      onClick={() => handleAdjustVans(activeDay.date, 1)}>
+                      Try one more van
+                    </Button>
+                    {activeDay.vans_needed > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-2"
+                        disabled={busyRoute}
+                        onClick={() => handleLockDay(activeDay.date, !lockedDays.includes(activeDay.date))}
+                      >
+                        {lockedDays.includes(activeDay.date) ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                        {lockedDays.includes(activeDay.date) ? "Release day" : "Lock day"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 <DaySummary
