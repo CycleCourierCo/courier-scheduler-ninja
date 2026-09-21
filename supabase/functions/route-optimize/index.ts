@@ -527,6 +527,9 @@ serve(async (req) => {
 
     /* ------------------------------ solving ------------------------------- */
 
+    /** Deeper search is used unless the optimiser rejects the option. */
+    let exploreOk = true;
+
     const postSolve = async (payload: any) => {
       const call = (bodyIn: any) => fetch(solveUrl, {
         method: 'POST',
