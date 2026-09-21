@@ -33,6 +33,80 @@ const DRIVER_PENCE_PER_HOUR = 1100;
 // solver happily runs every van long because a longer window fits more work.
 const EXPEDITION_PREMIUM = 1.5;
 const DEFAULT_MAX_LONG_DAYS = 2;
+// Miles cost money too. Without this a 200-mile detour on a van already out
+// looks free, which is how Skegness ended up on the same run as Newcastle.
+const PENCE_PER_KM = 28;            // ~£0.45 per mile
+// A van's shift charge is deliberately small (a couple of hours' pay) so the
+// solver is not desperate to cram everything onto as few vans as possible.
+const SHIFT_HOURS_CHARGED = 2;
+// How far apart a day's stops may sit, worst pair to worst pair.
+const MAX_SPREAD_MI = 120;
+const MAX_SPREAD_LONG_MI = 220;
+
+/* ----------------------------- geography ---------------------------------- */
+
+const CENTRAL_REGION = 'CENTRAL';
+const SECTORS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+const REGION_LABELS: Record<string, string> = {
+  CENTRAL: 'Around the depot', N: 'North', NE: 'North East', E: 'East', SE: 'South East',
+  S: 'South', SW: 'South West', W: 'West', NW: 'North West',
+};
+const REGION_SKILL_BASE = 20;
+const NEAR_RADIUS_MI = 45;
+
+const milesBetween = (aLat: number, aLon: number, bLat: number, bLon: number) => {
+  const R = 3958.8;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLon = ((bLon - aLon) * Math.PI) / 180;
+  const la1 = (aLat * Math.PI) / 180;
+  const la2 = (bLat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(la1) * Math.cos(la2) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+};
+
+/** Near the depot, or one compass sector out from it. */
+const regionKey = (lat: number, lon: number): string => {
+  if (milesBetween(DEPOT.lat, DEPOT.lon, lat, lon) <= NEAR_RADIUS_MI) return CENTRAL_REGION;
+  const y = Math.sin(((lon - DEPOT.lon) * Math.PI) / 180) * Math.cos((lat * Math.PI) / 180);
+  const x = Math.sin((lat * Math.PI) / 180) * Math.cos((DEPOT.lat * Math.PI) / 180)
+    - Math.cos((lat * Math.PI) / 180) * Math.sin((DEPOT.lat * Math.PI) / 180) * Math.cos(((lon - DEPOT.lon) * Math.PI) / 180);
+  const bearing = (Math.atan2(y, x) * 180) / Math.PI;
+  const idx = Math.round(((bearing + 360) % 360) / 45) % 8;
+  return SECTORS[idx];
+};
+
+const regionSkill = (key: string) =>
+  REGION_SKILL_BASE + (key === CENTRAL_REGION ? 0 : SECTORS.indexOf(key) + 1);
+
+/** Share the day's vans out across the areas that actually have work. */
+const assignRegions = (n: number, counts: Record<string, number>): string[] => {
+  const far = Object.entries(counts).filter(([k]) => k !== CENTRAL_REGION);
+  const out: string[] = [];
+  const used: Record<string, number> = {};
+  for (let i = 0; i < n; i++) {
+    let best = CENTRAL_REGION;
+    let bestScore = (counts[CENTRAL_REGION] ?? 0) / ((used[CENTRAL_REGION] ?? 0) + 1);
+    for (const [k, c] of far) {
+      const score = c / ((used[k] ?? 0) + 1);
+      if (score > bestScore) { best = k; bestScore = score; }
+    }
+    used[best] = (used[best] ?? 0) + 1;
+    out.push(best);
+  }
+  return out;
+};
+
+/** Widest gap between any two stops on a route, in miles. */
+const spreadMiles = (pts: { lat: number; lon: number }[]) => {
+  let worst = 0;
+  for (let i = 0; i < pts.length; i++) {
+    for (let j = i + 1; j < pts.length; j++) {
+      const d = milesBetween(pts[i].lat, pts[i].lon, pts[j].lat, pts[j].lon);
+      if (d > worst) worst = d;
+    }
+  }
+  return Math.round(worst);
+};
 
 /* ------------------------------ time helpers ------------------------------ */
 
