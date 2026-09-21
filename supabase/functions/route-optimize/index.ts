@@ -37,9 +37,7 @@ const DEFAULT_FLOOR_JOBS = 9;
 const MAX_REMOVALS_PER_DAY = 6;
 const LONG_DAY_MIN_JOBS = 5;
 const SPREAD_WARN_MI = 150;
-const CLUSTER_RADIUS_MI = 30;   // how wide one area may be
-const CORRIDOR_MI = 12;         // how far off the way an on-route job may sit
-const MIN_CLUSTER_JOBS = 3;     // thinner areas fold into their neighbour
+const LONDON_MAX_VANS = 2;      // London work is fenced to at most this many vans
 const DIFFICULT_SKILL = 1;
 
 const milesBetween = (aLat: number, aLon: number, bLat: number, bLon: number) => {
@@ -577,85 +575,13 @@ serve(async (req) => {
       return window;
     };
 
-    /* --------------------------- area clustering -------------------------- */
+    /* ------------------------- London containment ------------------------- */
 
-    type Cluster = {
-      id: number; skill: number; name: string; areaIdx: number | null;
-      legs: Leg[]; lat: number; lon: number; must: number; spaces: number;
-    };
+    const londonAreaIdx = difficultAreas.findIndex((a) => /london/i.test(a.name));
+    const hasLondonArea = londonAreaIdx >= 0;
+    const isLondonLeg = (leg: Leg) => hasLondonArea && leg.areaIdx === londonAreaIdx;
 
-    const compassName = (lat: number, lon: number) => {
-      const dy = lat - DEPOT.lat;
-      const dx = (lon - DEPOT.lon) * Math.cos((DEPOT.lat * Math.PI) / 180);
-      const deg = (Math.atan2(dx, dy) * 180) / Math.PI;
-      const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-      const dir = dirs[Math.round(((deg + 360) % 360) / 45) % 8];
-      const mi = Math.round(milesBetween(DEPOT.lat, DEPOT.lon, lat, lon));
-      return `${dir} ${mi} mi`;
-    };
-
-    const centroidOf = (legs: Leg[]) => ({
-      lat: legs.reduce((n, l) => n + l.lat, 0) / legs.length,
-      lon: legs.reduce((n, l) => n + l.lon, 0) / legs.length,
-    });
-
-    /** Perpendicular miles from a point to the depot→centre line, only while on the way. */
-    const corridorMiles = (leg: Leg, centre: { lat: number; lon: number }) => {
-      const sx = (centre.lon - DEPOT.lon) * Math.cos((DEPOT.lat * Math.PI) / 180);
-      const sy = centre.lat - DEPOT.lat;
-      const px = (leg.lon - DEPOT.lon) * Math.cos((DEPOT.lat * Math.PI) / 180);
-      const py = leg.lat - DEPOT.lat;
-      const len2 = sx * sx + sy * sy;
-      if (len2 <= 0) return Infinity;
-      const t = (px * sx + py * sy) / len2;
-      if (t <= 0.05 || t >= 1) return Infinity;            // behind the depot, or past the area
-      const projLat = DEPOT.lat + t * sy;
-      const projLon = DEPOT.lon + t * (centre.lon - DEPOT.lon);
-      return milesBetween(leg.lat, leg.lon, projLat, projLon);
-    };
-
-    const buildClusters = (pool: Leg[], date: string): Cluster[] => {
-      const out: Cluster[] = [];
-      const finish = (legs: Leg[], areaIdx: number | null, name: string) => {
-        const c = centroidOf(legs);
-        out.push({
-          id: out.length, skill: 10 + out.length,
-          name, areaIdx, legs, lat: c.lat, lon: c.lon,
-          must: legs.filter((l) => mustGo(l, date)).length,
-          spaces: legs.reduce((n, l) => n + l.spaces, 0),
-        });
-      };
-
-      // drawn difficult areas are areas in their own right
-      const byArea: Record<number, Leg[]> = {};
-      const rest: Leg[] = [];
-      for (const leg of pool) {
-        if (leg.areaIdx === null) rest.push(leg);
-        else (byArea[leg.areaIdx] ??= []).push(leg);
-      }
-      for (const [idx, legs] of Object.entries(byArea)) {
-        finish(legs, Number(idx), difficultAreas[Number(idx)]?.name ?? `Area ${idx}`);
-      }
-
-      // everything outside a drawn area stays one open pool — no geographic fencing
-      if (rest.length > 0) finish(rest, null, 'General');
-      return out;
-    };
-
-    /** Which areas may a leg be served from: its own, plus any area it sits on the way to. */
-    const skillsFor = (leg: Leg, clusters: Cluster[], own: Cluster) => {
-      const skills = new Set<number>([own.skill]);
-      for (const c of clusters) {
-        if (c.id === own.id) continue;
-        if (corridorMiles(leg, { lat: c.lat, lon: c.lon }) <= CORRIDOR_MI) skills.add(c.skill);
-      }
-      return [...skills];
-    };
-
-    const buildJob = (
-      leg: Leg, date: string, own: Cluster, clusters: Cluster[], longClusterId: number | null,
-    ) => {
-      const capH = own.id === longClusterId ? LONG_CAP_H : NORMAL_CAP_H;
+    const buildJob = (leg: Leg, date: string, capH: number) => {
       const window = windowFor(leg, date, capH);
       if (!window) return null;
       const load = [Math.max(1, Math.round(leg.spaces * 10))];
@@ -666,7 +592,7 @@ serve(async (req) => {
         priority: mustGo(leg, date) ? 100 : 50,
         time_windows: [window],
         ...(leg.legType === 'delivery' ? { delivery: load } : { pickup: load }),
-        skills: skillsFor(leg, clusters, own),
+        ...(isLondonLeg(leg) ? { skills: [DIFFICULT_SKILL] } : {}),
       };
     };
 
