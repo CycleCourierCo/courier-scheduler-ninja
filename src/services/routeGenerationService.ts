@@ -114,8 +114,8 @@ export const summarisePlan = (plan: RoutePlanResult | null): PlanComparison => {
     out.vanDays += routes.length;
     for (const route of routes) {
       out.stops += route.stops?.length ?? 0;
-      out.hours += (Number((route as any).duration_s) || 0) / 3600;
-      out.miles += Number((route as any).miles) || 0;
+      out.hours += (Number(route.duration_s) || 0) / 3600;
+      out.miles += Number(route.miles) || 0;
     }
   }
   return out;
