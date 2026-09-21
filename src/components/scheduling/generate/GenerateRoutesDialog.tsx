@@ -297,7 +297,11 @@ const GenerateRoutesDialog: React.FC = () => {
   const [committedMode, setCommittedMode] = useState<PlanMode | null>(null);
   const [includeExpired, setIncludeExpired] = useState(false);
   /** How many 15h long days may be used on any one day. 0 = none. */
-  const [maxLongDays, setMaxLongDays] = useState(2);
+  const [maxLongDays, setMaxLongDays] = useState(1);
+  /** Jobs a proper day's route should carry — vans come off the road to reach it. */
+  const [minJobsTarget, setMinJobsTarget] = useState(13);
+  /** Fewest jobs a route may carry before it is flagged for a dispatcher. */
+  const [minJobsFloor, setMinJobsFloor] = useState(9);
   const [lapsedLegs, setLapsedLegs] = useState<NeedsNewDatesLeg[]>([]);
   const result = plans[mode];
   const [activeDate, setActiveDate] = useState<string | null>(null);
@@ -428,6 +432,8 @@ const GenerateRoutesDialog: React.FC = () => {
       inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
       include_expired: includeExpired,
       max_long_days: maxLongDays,
+      min_jobs_target: minJobsTarget,
+      min_jobs_floor: minJobsFloor,
     };
     try {
       // Both ways of planning are built so they can be compared side by side.
@@ -464,6 +470,8 @@ const GenerateRoutesDialog: React.FC = () => {
         inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
         include_expired: includeExpired,
         max_long_days: maxLongDays,
+        min_jobs_target: minJobsTarget,
+        min_jobs_floor: minJobsFloor,
         mode: m,
       });
       setPlans((prev) => ({ ...prev, [m]: plan }));
@@ -573,7 +581,7 @@ const GenerateRoutesDialog: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-7">
           <div className="space-y-1">
             <Label htmlFor="gr-shift">Start time</Label>
             <Input id="gr-shift" type="time" value={shiftStart} onChange={(e) => setShiftStart(e.target.value)} />
@@ -592,6 +600,16 @@ const GenerateRoutesDialog: React.FC = () => {
             <Label htmlFor="gr-long">Max long days per day</Label>
             <Input id="gr-long" type="number" min={0} max={4} value={maxLongDays}
               onChange={(e) => setMaxLongDays(Math.max(0, Math.min(4, Number(e.target.value) || 0)))} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="gr-target">Jobs per route (target)</Label>
+            <Input id="gr-target" type="number" min={1} max={30} value={minJobsTarget}
+              onChange={(e) => setMinJobsTarget(Math.max(1, Math.min(30, Number(e.target.value) || 1)))} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="gr-floor">Fewest jobs allowed</Label>
+            <Input id="gr-floor" type="number" min={1} max={minJobsTarget} value={minJobsFloor}
+              onChange={(e) => setMinJobsFloor(Math.max(1, Math.min(minJobsTarget, Number(e.target.value) || 1)))} />
           </div>
           <div className="flex items-end">
             <Button onClick={handleGenerate} disabled={loading} className="w-full gap-2">
