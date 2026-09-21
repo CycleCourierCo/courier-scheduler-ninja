@@ -1238,10 +1238,32 @@ serve(async (req) => {
     const prepared = current.routeInfo.map(({ meta, route, stops }) => {
       const dayIdx = selectedDates.indexOf(meta.date);
       const isProvisional = dayIdx >= firmDays;
-      const ordered = [...stops].sort((a, b) => a.arrival - b.arrival);
+      let ordered = [...stops].sort((a, b) => a.arrival - b.arrival);
       const steps = Array.isArray(route.steps) ? route.steps : [];
       const maxLoadUnits = Math.max(0, ...steps.map((s: any) => Number(s?.load?.[0]) || 0));
       const duration = (Number(route.duration) || 0) + (Number(route.service) || 0) + (Number(route.waiting_time) || 0);
+      // Even inside one area, a route that spans the country isn't workable.
+      // Drop the stops furthest from the middle of the route until it is; they
+      // fall back into the leftover / at-risk list.
+      const limit = meta.expedition ? MAX_SPREAD_LONG_MI : MAX_SPREAD_MI;
+      while (ordered.length > 1 && spreadMiles(ordered.map((s) => s.leg)) > limit) {
+        const cLat = ordered.reduce((n, s) => n + s.leg.lat, 0) / ordered.length;
+        const cLon = ordered.reduce((n, s) => n + s.leg.lon, 0) / ordered.length;
+        let worstIdx = 0;
+        let worst = -1;
+        ordered.forEach((s, i) => {
+          const d = milesBetween(cLat, cLon, s.leg.lat, s.leg.lon);
+          if (d > worst) { worst = d; worstIdx = i; }
+        });
+        ordered = ordered.filter((_, i) => i !== worstIdx);
+      }
+      const regionTally: Record<string, number> = {};
+      for (const s of ordered) {
+        const k = regionKey(s.leg.lat, s.leg.lon);
+        regionTally[k] = (regionTally[k] ?? 0) + 1;
+      }
+      const topRegion = Object.entries(regionTally)
+        .sort((a, b) => b[1] - a[1] || (a[0] === CENTRAL_REGION ? 1 : -1))[0]?.[0] ?? CENTRAL_REGION;
       return {
         meta, ordered, isProvisional, duration,
         // Only a route that actually runs past a normal shift is an expedition.
@@ -1249,6 +1271,8 @@ serve(async (req) => {
         miles: Math.round(((Number(route.distance) || 0) / 1609.344) * 10) / 10,
         maxLoad: Math.round((maxLoadUnits / 10) * 100) / 100,
         geometry: typeof route.geometry === 'string' ? route.geometry : null,
+        region: REGION_LABELS[topRegion] ?? topRegion,
+        spreadMi: spreadMiles(ordered.map((s) => s.leg)),
       };
     });
 
