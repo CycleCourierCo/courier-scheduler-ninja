@@ -107,6 +107,7 @@ const RouteCard: React.FC<{ route: PlanRoute; date: string; onUse: (route: PlanR
                   <span className="font-medium">{stop.label}</span>
                   <Badge variant="outline" className="text-xs">{stop.leg_type}</Badge>
                   {stop.guaranteed && <Badge className="text-xs">Guaranteed</Badge>}
+                  {stop.planned_after_expiry && <Badge variant="secondary" className="text-xs">After dates</Badge>}
                 </span>
                 <span className="text-muted-foreground">
                   {new Date(stop.eta).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -154,7 +155,9 @@ const AtRiskPanel: React.FC<{ atRisk: AtRiskLeg[]; infeasible: PlanDay["infeasib
                   <span className="block text-xs text-muted-foreground">{leg.reason}</span>
                 </span>
                 <span className="whitespace-nowrap text-xs text-muted-foreground">
-                  {leg.remaining_dates} date{leg.remaining_dates === 1 ? "" : "s"} left
+                  {leg.last_date
+                    ? `expires ${format(new Date(`${leg.last_date}T12:00:00`), "d MMM")}`
+                    : `${leg.remaining_dates} date${leg.remaining_dates === 1 ? "" : "s"} left`}
                 </span>
               </li>
             ))}
@@ -611,6 +614,8 @@ const GenerateRoutesDialog: React.FC = () => {
               costTitle="Costings for the whole plan"
               leftOver={summarisePlan(result).leftOver}
               leftOverLapsed={result.unplanned_lapsed_count}
+              expiringCount={result.expiring_in_plan_count}
+              expiringUnplanned={result.expiring_unplanned_count}
             />
             {result.weekly && (
               <p className="text-sm text-muted-foreground">
@@ -666,6 +671,8 @@ const GenerateRoutesDialog: React.FC = () => {
                   leftOver={activeDay.unplanned_count}
                   leftOverLapsed={activeDay.unplanned_lapsed_count}
                   lapsedPlanned={activeDay.lapsed_count}
+                  expiringCount={activeDay.expiring_count}
+                  expiringUnplanned={activeDay.expiring_unplanned_count}
                 />
 
                 <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
