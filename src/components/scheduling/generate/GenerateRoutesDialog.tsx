@@ -82,6 +82,10 @@ const RouteCard: React.FC<{ route: PlanRoute; date: string; onUse: (route: PlanR
           <Truck className="h-4 w-4" /> {route.van_name}
         </CardTitle>
         <div className="flex flex-wrap items-center gap-1">
+          {route.region && <Badge variant="outline">{route.region}</Badge>}
+          {typeof route.spread_mi === "number" && (
+            <Badge variant="secondary">{route.spread_mi} mi across</Badge>
+          )}
           {route.is_expedition && <Badge variant="outline">Expedition 15h</Badge>}
           {route.is_provisional && <Badge variant="secondary">Provisional</Badge>}
           {route.stop_count < THIN_ROUTE_STOPS && <Badge variant="secondary">Thin route</Badge>}
