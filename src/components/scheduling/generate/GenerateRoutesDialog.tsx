@@ -246,7 +246,9 @@ const GenerateRoutesDialog: React.FC = () => {
   const [areas, setAreas] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [busyRoute, setBusyRoute] = useState(false);
-  const [result, setResult] = useState<RoutePlanResult | null>(null);
+  const [plans, setPlans] = useState<{ joint: RoutePlanResult | null; greedy: RoutePlanResult | null }>({ joint: null, greedy: null });
+  const [mode, setMode] = useState<PlanMode>("joint");
+  const result = plans[mode];
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [lockedDays, setLockedDays] = useState<string[]>([]);
 
