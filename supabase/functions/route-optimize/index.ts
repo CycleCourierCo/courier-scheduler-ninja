@@ -1322,6 +1322,8 @@ serve(async (req) => {
           max_load: p.maxLoad,
           van_capacity: p.meta.capacity,
           geometry: p.geometry,
+          region: p.region,
+          spread_mi: p.spreadMi,
           guaranteed_count: p.ordered.filter((s) => !!s.leg.guaranteedDate).length,
           stops: p.ordered.map((s, i) => ({
             seq: i + 1, leg_type: s.leg.legType, order_id: s.leg.orderId,
