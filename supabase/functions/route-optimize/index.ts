@@ -149,6 +149,20 @@ serve(async (req) => {
     const VERSO_API_KEY = Deno.env.get('VERSO_API_KEY');
     if (!VERSO_API_URL || !VERSO_API_KEY) return json({ error: 'Verso credentials not configured' }, 500);
 
+    /* Resolve the solve endpoint from whatever shape the setting was saved in. */
+    const solveUrl = (() => {
+      const raw = VERSO_API_URL.trim().replace(/\/(?=\?|$)/, '');
+      let url: URL;
+      try { url = new URL(raw); } catch { return raw; }
+      if (!/\/solve$/i.test(url.pathname)) {
+        url.pathname = `${url.pathname.replace(/\/$/, '')}/solve`;
+      }
+      if (url.searchParams.has('api_key') && !url.searchParams.get('api_key')) {
+        url.searchParams.set('api_key', VERSO_API_KEY);
+      }
+      return url.toString();
+    })();
+
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) return json({ error: 'unauthorized' }, 401);
 
@@ -403,7 +417,7 @@ serve(async (req) => {
 
       const payload = { vehicles, jobs, options: { g: true } };
       const started = Date.now();
-      const resp = await fetch(`${VERSO_API_URL.replace(/\/$/, '')}/`, {
+      const resp = await fetch(solveUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${VERSO_API_KEY}`, 'X-Api-Key': VERSO_API_KEY },
         body: JSON.stringify(payload),
@@ -413,7 +427,7 @@ serve(async (req) => {
         const detail = (await resp.text()).slice(0, 300);
         await admin.from('route_plans').delete().eq('id', planId);
         console.error('verso call failed', { status: resp.status, date });
-        return json({ error: 'Route optimiser failed', status: resp.status, detail }, 502);
+        return json({ error: `Route optimiser failed (${resp.status}): ${detail}`, status: resp.status, detail }, 502);
       }
       const solution = await resp.json();
       console.log('verso solve', { date, jobs: jobs.length, vehicles: vehicles.length, ms: Date.now() - started, unassigned: (solution?.unassigned || []).length });
