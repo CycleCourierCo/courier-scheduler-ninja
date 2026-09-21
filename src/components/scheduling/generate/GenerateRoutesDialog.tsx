@@ -610,6 +610,7 @@ const GenerateRoutesDialog: React.FC = () => {
               title={mode === "greedy" ? "Whole plan — day by day" : "Whole plan — balanced"}
               costTitle="Costings for the whole plan"
               leftOver={summarisePlan(result).leftOver}
+              leftOverLapsed={result.unplanned_lapsed_count}
             />
             {result.weekly && (
               <p className="text-sm text-muted-foreground">
@@ -659,7 +660,13 @@ const GenerateRoutesDialog: React.FC = () => {
                   )}
                 </div>
 
-                <DaySummary date={activeDay.date} routes={activeRoutes} leftOver={activeDay.unplanned_count} />
+                <DaySummary
+                  date={activeDay.date}
+                  routes={activeRoutes}
+                  leftOver={activeDay.unplanned_count}
+                  leftOverLapsed={activeDay.unplanned_lapsed_count}
+                  lapsedPlanned={activeDay.lapsed_count}
+                />
 
                 <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
 
@@ -682,7 +689,7 @@ const GenerateRoutesDialog: React.FC = () => {
                       <RoutePlanMapLazy routes={activeRoutes} areas={areas} />
                     </React.Suspense>
                     <AtRiskPanel atRisk={result.at_risk} infeasible={activeDay.infeasible_guaranteed} />
-                    <NeedsDatesPanel legs={result.needs_new_dates ?? []} onChanged={handleRefreshExpiry} />
+                    <NeedsDatesPanel legs={needsDates} onChanged={handleRefreshExpiry} />
                   </div>
                 </div>
               </>
