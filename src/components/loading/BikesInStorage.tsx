@@ -67,6 +67,34 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
   };
 
 
+  const confirmClearBay = (allocation: StorageAllocation, e: React.MouseEvent) => {
+    e.stopPropagation();
+    notify.confirm({
+      title: `Remove from Bay ${allocation.bay}${allocation.position}?`,
+      description: `${allocation.customerName} — ${allocation.bikeBrand} ${allocation.bikeModel} will stay on the order but lose this storage position, so it will need re-allocating before loading.`,
+      confirmLabel: "Remove",
+      destructive: true,
+      onConfirm: () => onClearBayPosition(allocation.id),
+    });
+  };
+
+  const BayBadge = ({ allocation }: { allocation: StorageAllocation }) => (
+    <span className="inline-flex items-center">
+      <Badge variant="secondary" className="font-mono text-xs rounded-r-none border-r-0">
+        {allocation.bay}{allocation.position}
+      </Badge>
+      <button
+        type="button"
+        aria-label={`Remove from bay ${allocation.bay}${allocation.position}`}
+        title="Remove from bay"
+        onClick={(e) => confirmClearBay(allocation, e)}
+        className="inline-flex items-center justify-center h-5 w-5 rounded-r-md border border-l-0 bg-secondary text-muted-foreground hover:bg-destructive hover:text-destructive-foreground transition-colors"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </span>
+  );
+
   if (bikesInStorage.length === 0) {
     return (
       <div className="text-center py-8 text-muted-foreground">
