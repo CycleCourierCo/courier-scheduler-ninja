@@ -45,7 +45,7 @@ const RoutePlanMap: React.FC<Props> = ({ routes, areas = [] }) => {
           <GeoJSON
             key={area.id}
             data={area.geojson}
-            style={{ color: "#b45309", weight: 1, fillOpacity: 0.07 }}
+            style={() => ({ color: "#b45309", weight: 1, fillOpacity: 0.07 })}
           />
         ))}
 
