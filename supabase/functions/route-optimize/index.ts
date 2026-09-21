@@ -21,6 +21,9 @@ const DEFAULT_CAPACITY = 10;
 const STAFF_ROLES = ['admin', 'sales', 'route_planner'];
 const MAX_DAYS = 10;
 const VIRTUAL_VANS_PER_DAY = 2;
+// Optional extra solves are skipped once this much of the run is gone, so a big
+// plan is always saved and returned instead of the run being killed mid-way.
+const TIME_BUDGET_MS = 90_000;
 
 /* ------------------------------ time helpers ------------------------------ */
 
