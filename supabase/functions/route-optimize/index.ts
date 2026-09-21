@@ -738,7 +738,10 @@ serve(async (req) => {
         priority: leg.priority,
         time_windows: windows,
         ...(leg.legType === 'delivery' ? { delivery: load } : { pickup: load }),
-        ...(leg.difficult ? { skills: [1] } : {}),
+        // Area skill keeps a stop on a van working that part of the country.
+        skills: leg.difficult
+          ? [1, regionSkill(regionKey(leg.lat, leg.lon))]
+          : [regionSkill(regionKey(leg.lat, leg.lon))],
       };
     };
 
