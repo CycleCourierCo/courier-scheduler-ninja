@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart3, Loader2, PoundSterling } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
-import { hasRole } from "@/utils/roleUtils";
+import { hasRole } from "@/lib/roles";
 import { COST_PER_MILE, DRIVER_HOURLY_RATE, formatGBP } from "@/lib/routeCosts";
 import { getRevenueForRouteStops } from "@/services/profitabilityService";
 import { PlanRoute, formatDuration } from "@/services/routeGenerationService";
