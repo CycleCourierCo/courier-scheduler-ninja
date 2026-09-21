@@ -649,7 +649,9 @@ serve(async (req) => {
         time_window: [shiftOpen, shiftOpen + capH * HOURS],
         speed_factor: 0.95,
         costs: { per_hour: DRIVER_PENCE_PER_HOUR, per_km: PENCE_PER_KM },
-        ...(kind.london ? { skills: [DIFFICULT_SKILL] } : {}),
+        // London vans carry only the London skill, so they can serve London work
+        // and unskilled corridor work — never ordinary jobs elsewhere.
+        skills: kind.london ? [DIFFICULT_SKILL] : [GENERAL_SKILL],
       };
       const meta: VanDay = {
         vehicleId: id, date, vanId: van.id, vanName: van.name, capacity: van.capacity,
