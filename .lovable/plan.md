@@ -1,18 +1,46 @@
-# Let the day-by-day planner run for a single day
+# What happens to expired jobs in route planning
 
-Two things are getting in the way on Generate routes:
+## Current behaviour (verified in code)
 
-1. Picking one day is refused with "Pick at least 3 days to plan" — the screen currently insists on three days before it will do anything.
-2. The Balanced / Day-by-day switch only appears after a plan has been built, so there is no visible "daily planner" before you press Generate.
+Expired jobs are **not lost** — they are handled deliberately:
 
-## What changes
+1. **Nightly check** (`expire-availability` edge function, 00:15 UK time) flags any
+   leg whose customer dates have all passed as `expired` in
+   `order_leg_availability`, and revives legs that get fresh dates.
+2. **Every generation run re-checks expiry first** — both Balanced and Daily
+   (greedy) modes exclude expired legs from the optimiser, so they can never be
+   planned onto a van with dates the customer can no longer do.
+3. **They are shown, not hidden**: the Generate Routes dialog has a
+   **"Needs new dates"** panel listing each expired/awaiting-dates leg, ordered
+   by severity (missed guaranteed date, bike held in depot, lapsed collection),
+   each with **Request new dates** and **Cancel order** actions. This panel is
+   shared across both planning tabs.
+4. When a customer supplies fresh dates, the leg flips back to `active` and is
+   included in the next generation run automatically.
 
-- One day is enough to generate. Choosing a single day runs the day-by-day plan for that day; the balanced-across-days plan needs at least two days, so with one day picked only the day-by-day result is produced (no error toast, no failed second attempt).
-- Move the Balanced / Day-by-day choice above the Generate button so it is visible from the start. Whichever one is selected is shown first after generating; both are still built when more than one day is picked, so they can be compared.
-- When only one day is picked, the Balanced option is shown as unavailable with a short hint ("needs 2 or more days") instead of an error.
-- Wording on the day-by-day option stays "Day by day" so it matches what is already there, with a one-line description: fills each day as full as it can, in order.
+So the answer to "what happens with expired jobs": they are excluded from both
+planners and surfaced in the Needs-new-dates panel for re-contact — nothing
+disappears silently.
+
+## Small gaps worth closing
+
+1. **Left-over count conflates reasons.** The per-plan "jobs left over" number
+   includes expired legs mixed with jobs that simply didn't fit. Split the
+   display into "didn't fit" vs "dates expired" so the comparison between
+   Balanced and Daily modes isn't distorted.
+2. **No panel entry until a run happens.** If the dialog is opened but Generate
+   isn't pressed, expired legs aren't shown. Load the current
+   `order_leg_availability` expired rows when the dialog opens so the list is
+   visible before running.
 
 ## Technical notes
 
-- `src/components/scheduling/generate/GenerateRoutesDialog.tsx`: lower `MIN_DAYS` to 1; in `handleGenerate` skip the joint request when `dates.length < 2` and default `mode` to `greedy` in that case; relax the same guard in `handleRetryMode`; lift the mode selector block out of the `result &&` section so it renders with the setup controls, disabling `joint` when fewer than two days are picked.
-- No change to `route-optimize`, the plan tables, locking, or the Get Timeslots handoff.
+- `route-optimize` already returns `needs_new_dates` (sorted by severity) on both
+  joint and greedy responses; `NeedsDatesPanel` renders it in
+  `GenerateRoutesDialog.tsx` (~line 657).
+- For gap 1: the optimiser knows which legs were excluded for expiry vs
+  unrouted — expose separate `expired_count` / `unrouted_count` per day/plan and
+  show both in `DaySummary` and the comparison strip.
+- For gap 2: add a lightweight fetch of `order_leg_availability` (status
+  `expired`/`awaiting_new_dates`) joined to orders on dialog open, rendered by
+  the same `NeedsDatesPanel`.
