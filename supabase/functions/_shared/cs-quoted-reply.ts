@@ -35,6 +35,20 @@ export function stripQuotedText(text?: string | null): string | null {
   return out.length ? out : text;
 }
 
+/** Repeats the tag strip until the string stops changing, so markup removed
+ *  by one pass cannot expose another tag construct (bounded to 10 passes). */
+function stripTagsUntilStable(input: string): string {
+  let prev = input;
+  let next = prev.replace(/<[^>]*>/g, "");
+  let passes = 1;
+  while (next !== prev && passes < 10) {
+    prev = next;
+    next = prev.replace(/<[^>]*>/g, "");
+    passes++;
+  }
+  return next;
+}
+
 /** Removes quoted history blocks from the HTML body. */
 export function stripQuotedHtml(html?: string | null): string | null {
   if (!html) return html ?? null;
@@ -57,6 +71,6 @@ export function stripQuotedHtml(html?: string | null): string | null {
   const attribution = /<div[^>]*>\s*On\s[\s\S]{0,300}?wrote:\s*<\/div>[\s\S]*$/i;
   out = out.replace(attribution, "");
 
-  const textual = out.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+  const textual = stripTagsUntilStable(out).replace(/&nbsp;/g, " ").trim();
   return textual.length ? out : html;
 }
