@@ -86,11 +86,26 @@ verify_jwt = false
 [functions.cs-inbound-email]
 verify_jwt = false
 
+# Resend calls this with a Svix signature, not a Supabase JWT.
+[functions.cs-resend-inbound]
+verify_jwt = false
+
+# Cron calls this with X-Cron-Secret; staff calls carry an admin JWT checked in code.
+[functions.cs-resend-fetch]
+verify_jwt = false
+
 [functions.cs-inbound-whatsapp]
 verify_jwt = false
 
 [functions.cs-send-message]
 verify_jwt = true
+
+[functions.cs-close-ticket]
+verify_jwt = true
+
+[functions.cs-send-ack]
+verify_jwt = true
+
 
 [functions.resend-webhook]
 verify_jwt = false

@@ -921,6 +921,45 @@ export type Database = {
         }
         Relationships: []
       }
+      cs_canned_responses: {
+        Row: {
+          body: string
+          category: string
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          keywords: string[]
+          sort_order: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          keywords?: string[]
+          sort_order?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          keywords?: string[]
+          sort_order?: number
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cs_channel_endpoints: {
         Row: {
           address: string
@@ -988,53 +1027,83 @@ export type Database = {
       }
       cs_conversations: {
         Row: {
+          ack_sent_at: string | null
+          assigned_manually: boolean
           assignee_id: string | null
           auto_link_locked: boolean
           channel: string
+          closed_at: string | null
+          closure_email_sent_at: string | null
           contact_id: string
           created_at: string
+          first_response_due_at: string | null
+          has_delivery_problem: boolean
           id: string
           last_message_at: string
           last_message_preview: string | null
           linked_order_id: string | null
+          next_response_due_at: string | null
+          priority: Database["public"]["Enums"]["cs_priority"]
+          queue_id: string | null
           snooze_until: string | null
           status: string
           subject: string | null
           suggested_order_ids: string[]
+          ticket_ref: string | null
           unread_count: number
           updated_at: string
         }
         Insert: {
+          ack_sent_at?: string | null
+          assigned_manually?: boolean
           assignee_id?: string | null
           auto_link_locked?: boolean
           channel: string
+          closed_at?: string | null
+          closure_email_sent_at?: string | null
           contact_id: string
           created_at?: string
+          first_response_due_at?: string | null
+          has_delivery_problem?: boolean
           id?: string
           last_message_at?: string
           last_message_preview?: string | null
           linked_order_id?: string | null
+          next_response_due_at?: string | null
+          priority?: Database["public"]["Enums"]["cs_priority"]
+          queue_id?: string | null
           snooze_until?: string | null
           status?: string
           subject?: string | null
           suggested_order_ids?: string[]
+          ticket_ref?: string | null
           unread_count?: number
           updated_at?: string
         }
         Update: {
+          ack_sent_at?: string | null
+          assigned_manually?: boolean
           assignee_id?: string | null
           auto_link_locked?: boolean
           channel?: string
+          closed_at?: string | null
+          closure_email_sent_at?: string | null
           contact_id?: string
           created_at?: string
+          first_response_due_at?: string | null
+          has_delivery_problem?: boolean
           id?: string
           last_message_at?: string
           last_message_preview?: string | null
           linked_order_id?: string | null
+          next_response_due_at?: string | null
+          priority?: Database["public"]["Enums"]["cs_priority"]
+          queue_id?: string | null
           snooze_until?: string | null
           status?: string
           subject?: string | null
           suggested_order_ids?: string[]
+          ticket_ref?: string | null
           unread_count?: number
           updated_at?: string
         }
@@ -1060,6 +1129,13 @@ export type Database = {
             referencedRelation: "orders"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "cs_conversations_queue_id_fkey"
+            columns: ["queue_id"]
+            isOneToOne: false
+            referencedRelation: "cs_queues"
+            referencedColumns: ["id"]
+          },
         ]
       }
       cs_messages: {
@@ -1070,13 +1146,18 @@ export type Database = {
           body_text: string | null
           conversation_id: string
           created_at: string
+          delivery_events: Json
+          delivery_status: string | null
           direction: string
           email_message_id: string | null
           error: string | null
           external_id: string | null
           id: string
           in_reply_to: string | null
+          is_automatic: boolean
+          provider_message_id: string | null
           status: string
+          system_event: string | null
         }
         Insert: {
           attachments?: Json
@@ -1085,13 +1166,18 @@ export type Database = {
           body_text?: string | null
           conversation_id: string
           created_at?: string
+          delivery_events?: Json
+          delivery_status?: string | null
           direction: string
           email_message_id?: string | null
           error?: string | null
           external_id?: string | null
           id?: string
           in_reply_to?: string | null
+          is_automatic?: boolean
+          provider_message_id?: string | null
           status?: string
+          system_event?: string | null
         }
         Update: {
           attachments?: Json
@@ -1100,13 +1186,18 @@ export type Database = {
           body_text?: string | null
           conversation_id?: string
           created_at?: string
+          delivery_events?: Json
+          delivery_status?: string | null
           direction?: string
           email_message_id?: string | null
           error?: string | null
           external_id?: string | null
           id?: string
           in_reply_to?: string | null
+          is_automatic?: boolean
+          provider_message_id?: string | null
           status?: string
+          system_event?: string | null
         }
         Relationships: [
           {
@@ -1124,6 +1215,133 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      cs_queue_members: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          queue_id: string
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          queue_id: string
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          queue_id?: string
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_queue_members_queue_id_fkey"
+            columns: ["queue_id"]
+            isOneToOne: false
+            referencedRelation: "cs_queues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cs_queue_slas: {
+        Row: {
+          created_at: string
+          id: string
+          priority: Database["public"]["Enums"]["cs_priority"]
+          queue_id: string
+          target_minutes: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          priority: Database["public"]["Enums"]["cs_priority"]
+          queue_id: string
+          target_minutes?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          priority?: Database["public"]["Enums"]["cs_priority"]
+          queue_id?: string
+          target_minutes?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_queue_slas_queue_id_fkey"
+            columns: ["queue_id"]
+            isOneToOne: false
+            referencedRelation: "cs_queues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cs_queues: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          is_default: boolean
+          name: string
+          rr_cursor: number
+          slug: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name: string
+          rr_cursor?: number
+          slug: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          name?: string
+          rr_cursor?: number
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cs_ticket_ref_counters: {
+        Row: {
+          last_value: number
+          scope: string
+        }
+        Insert: {
+          last_value?: number
+          scope: string
+        }
+        Update: {
+          last_value?: number
+          scope?: string
+        }
+        Relationships: []
       }
       customer_shopify_order_log: {
         Row: {
@@ -5456,6 +5674,11 @@ export type Database = {
         Args: { p_name: string; p_secret: string }
         Returns: string
       }
+      cs_pick_queue_assignee: { Args: { p_queue_id: string }; Returns: string }
+      cs_update_order_bikes: {
+        Args: { p_bikes: Json; p_order_id: string }
+        Returns: boolean
+      }
       get_business_accounts_for_admin: {
         Args: never
         Returns: {
@@ -5574,6 +5797,7 @@ export type Database = {
         Returns: boolean
       }
       invoke_backfill_shipday_jobs: { Args: never; Returns: undefined }
+      invoke_cs_resend_fetch: { Args: never; Returns: undefined }
       invoke_ferry_partner_notification: {
         Args: { p_order_id: string }
         Returns: undefined
@@ -5611,6 +5835,7 @@ export type Database = {
           name: string
         }[]
       }
+      next_cs_ticket_ref: { Args: never; Returns: string }
       next_custom_repair_id: { Args: never; Returns: string }
       resolve_oauth_token_grant: {
         Args: { access_token: string }
@@ -5759,6 +5984,7 @@ export type Database = {
         | "settlement_proposed"
         | "negotiation"
         | "settlement_agreed"
+      cs_priority: "low" | "normal" | "high" | "urgent"
       equipment_assignment_kind: "site" | "vehicle" | "person"
       equipment_condition: "new" | "good" | "fair" | "poor" | "unusable"
       equipment_maintenance_result: "pass" | "advisory" | "fail"
@@ -6021,6 +6247,7 @@ export const Constants = {
         "negotiation",
         "settlement_agreed",
       ],
+      cs_priority: ["low", "normal", "high", "urgent"],
       equipment_assignment_kind: ["site", "vehicle", "person"],
       equipment_condition: ["new", "good", "fair", "poor", "unusable"],
       equipment_maintenance_result: ["pass", "advisory", "fail"],
