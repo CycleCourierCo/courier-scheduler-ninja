@@ -2,6 +2,8 @@
 
 Right now, whenever any job on a day sits in a difficult area, the planner offers a 15-hour long-day version of **every** van for that day. Those long vans are cheap per hour and can also take ordinary jobs, so the optimiser fills them first and nearly every route comes back badged "Expedition 15h".
 
+**Would one long day a day clear the work?** Of the 547 outstanding collection/delivery stops, only 40 sit inside a difficult area: 25 Cornwall & Devon, 6 Margate/East Kent, 4 Carlisle & Lakes, 4 Pembrokeshire, 1 Northumberland. Those are five corners of the country that cannot share a van, and on most of the next two weeks three to five of those areas are open on the same date. So one long day per day would leave far-flung work stranded — two is the realistic default, with the option to set it to 1, 3 or 4 by eye.
+
 ## What changes
 
 1. **Cap how many long days exist per day.** Instead of a long-day twin for every van, the planner offers only as many long-day vans as the difficult-area work actually needs (difficult stops divided by van capacity), with a hard ceiling — default 2 per day.
