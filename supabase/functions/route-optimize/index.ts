@@ -1085,36 +1085,54 @@ serve(async (req) => {
         const graceDates = [...new Set(gracePool.flatMap((g) => g.dates))].sort();
         // Same long-day budget as the main solve, so the grace pass cannot
         // quietly turn every van into a 15h expedition.
-        const graceDifficult: Record<string, number> = {};
-        for (const g of gracePool) {
-          if (!g.leg.difficult) continue;
-          for (const d of g.dates) graceDifficult[d] = (graceDifficult[d] ?? 0) + 1;
+        const graceRegions = regionCountsFor(gracePool.map((g) => ({ ...g.leg, windowDates: g.dates })) as Leg[]);
+        // A van already out in one part of the country stays there.
+        const regionByVanDay: Record<string, string> = {};
+        for (const { meta: m, stops } of current.routeInfo) {
+          const tally: Record<string, number> = {};
+          for (const s of stops) {
+            const k = regionKey(s.leg.lat, s.leg.lon);
+            if (k !== CENTRAL_REGION) tally[k] = (tally[k] ?? 0) + 1;
+          }
+          const top = Object.entries(tally).sort((a, b) => b[1] - a[1])[0];
+          regionByVanDay[`${m.date}:${m.vanId}:${m.expedition ? 2 : 1}`] = top ? top[0] : CENTRAL_REGION;
         }
         const vehicles: any[] = [];
         const meta: Record<number, VanDay> = {};
         graceDates.forEach((date, dayIdx) => {
           const shiftOpen = londonEpoch(date, shiftStart);
           const dayVans = vansForDate[date] ?? [];
+          const dayCounts = graceRegions[date] ?? { all: {}, difficult: {} };
+          const fallbackRegions = assignRegions(dayVans.length, dayCounts.all);
           let longAllowance = 0;
-          const diffCount = graceDifficult[date] ?? 0;
+          const diffCount = Object.values(dayCounts.difficult).reduce((a, b) => a + b, 0);
           if (diffCount > 0 && maxLongDays > 0 && dayVans.length > 0) {
             const avgCap = dayVans.reduce((s, v) => s + (v.capacity || DEFAULT_CAPACITY), 0) / dayVans.length;
             longAllowance = Math.min(maxLongDays, dayVans.length, Math.max(1, Math.ceil(diffCount / Math.max(1, avgCap))));
           }
           dayVans.forEach((van, vanIdx) => {
             const push = (kind: 1 | 2, capHours: number) => {
-              const used = usedByVanDay[`${date}:${van.id}:${kind}`];
+              const key = `${date}:${van.id}:${kind}`;
+              const used = usedByVanDay[key];
               const remUnits = Math.round(van.capacity * 10) - Math.round((used?.spaces ?? 0) * 10);
               const remH = capHours - (used?.hours ?? 0);
               if (remUnits <= 0 || remH < 0.5) return;
               const id = dayIdx * 10000 + vanIdx * 100 + kind;
+              const region = regionByVanDay[key] ?? fallbackRegions[vanIdx] ?? CENTRAL_REGION;
+              const regionSkills = region === CENTRAL_REGION
+                ? [regionSkill(CENTRAL_REGION)]
+                : [regionSkill(region), regionSkill(CENTRAL_REGION)];
               vehicles.push({
                 id, profile: 'car',
                 start: [DEPOT.lon, DEPOT.lat], end: [DEPOT.lon, DEPOT.lat],
                 capacity: [remUnits],
                 time_window: [shiftOpen, shiftOpen + remH * HOURS],
                 max_travel_time: Math.max(HOURS, remH * HOURS - HOURS),
-                ...(kind === 2 ? { skills: [1] } : {}),
+                costs: {
+                  per_hour: Math.round(DRIVER_PENCE_PER_HOUR * (kind === 2 ? EXPEDITION_PREMIUM : 1)),
+                  per_km: PENCE_PER_KM,
+                },
+                skills: kind === 2 ? [1, ...regionSkills] : regionSkills,
               });
               meta[id] = { vehicleId: id, date, vanId: van.id, vanName: van.name, capacity: van.capacity, expedition: kind === 2, virtual: false };
             };
