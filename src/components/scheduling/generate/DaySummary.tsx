@@ -26,9 +26,13 @@ interface Props {
   costTitle?: string;
   /** Jobs left out of every route for this day or plan. */
   leftOver?: number;
+  /** Left-over jobs whose customer dates had all lapsed (override runs only). */
+  leftOverLapsed?: number;
+  /** Planned stops whose customer dates had lapsed before this run. */
+  lapsedPlanned?: number;
 }
 
-const DaySummary: React.FC<Props> = ({ date, routes, title, costTitle, leftOver }) => {
+const DaySummary: React.FC<Props> = ({ date, routes, title, costTitle, leftOver, leftOverLapsed, lapsedPlanned }) => {
   const { userProfile } = useAuth();
   const isAdmin = hasRole(userProfile, "admin");
 
@@ -123,6 +127,12 @@ const DaySummary: React.FC<Props> = ({ date, routes, title, costTitle, leftOver 
           <Stat label="Thin routes" value={`${totals.thin} of ${totals.vans}`} />
           {typeof leftOver === "number" && (
             <Stat label="Jobs left over" value={String(leftOver)} sub={leftOver > 0 ? "not fitted into any route" : "everything fitted"} />
+          )}
+          {typeof lapsedPlanned === "number" && lapsedPlanned > 0 && (
+            <Stat label="Lapsed-date stops" value={String(lapsedPlanned)} sub="customer dates had passed" />
+          )}
+          {typeof leftOverLapsed === "number" && leftOverLapsed > 0 && (
+            <Stat label="Lapsed dates left over" value={String(leftOverLapsed)} sub="still didn't fit" />
           )}
         </CardContent>
       </Card>

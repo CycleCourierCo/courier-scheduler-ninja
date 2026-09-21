@@ -132,13 +132,15 @@ interface Leg {
   allDates: string[];        // every customer date (any day)
   windowDates: string[];     // customer dates inside the chosen days
   guaranteedDate: string | null;
-  priority: number;
-  difficult: boolean;
-  businessHours: Record<string, any> | null;
-  label: string;
-  needsUnlock: boolean;      // delivery whose bike isn't collected yet
-  needsInspection: boolean;
-  collectedAt: string | null;
+   priority: number;
+   /** Customer dates had all lapsed — only in the pool via the include-expired override. */
+   lapsed: boolean;
+   difficult: boolean;
+   businessHours: Record<string, any> | null;
+   label: string;
+   needsUnlock: boolean;      // delivery whose bike isn't collected yet
+   needsInspection: boolean;
+   collectedAt: string | null;
 }
 
 interface VanDay { vehicleId: number; date: string; vanId: string; vanName: string; capacity: number; expedition: boolean; virtual: boolean }
@@ -193,6 +195,9 @@ serve(async (req) => {
     // 'joint' balances the whole horizon in one solve; 'greedy' fills each day
     // as full as it can, in order.
     const mode: 'joint' | 'greedy' = body?.mode === 'greedy' ? 'greedy' : 'joint';
+    // Per-run override: plan legs whose customer dates have all lapsed anyway,
+    // boosted so they are placed ahead of ordinary work.
+    const includeExpired = body?.include_expired === true;
 
     const today = todayLondon();
     const selectedDates: string[] = [...new Set(
@@ -261,7 +266,7 @@ serve(async (req) => {
 
     const { data: orderRows, error: ordersErr } = await admin
       .from('orders')
-      .select('id,tracking_number,user_id,status,sender,receiver,bikes,bike_type,bike_quantity,pickup_date,delivery_date,scheduled_pickup_date,scheduled_delivery_date,order_collected,order_delivered,needs_inspection,is_box_my_bike,ni_direction,guaranteed_delivery,guaranteed_delivery_date,bicycle_inspections(status)')
+      .select('id,tracking_number,user_id,created_at,status,sender,receiver,bikes,bike_type,bike_quantity,pickup_date,delivery_date,scheduled_pickup_date,scheduled_delivery_date,order_collected,order_delivered,needs_inspection,is_box_my_bike,ni_direction,guaranteed_delivery,guaranteed_delivery_date,bicycle_inspections(status)')
       .not('status', 'in', '(cancelled,delivered)');
     if (ordersErr) throw ordersErr;
 
@@ -322,6 +327,11 @@ serve(async (req) => {
           ?? (Array.isArray(order.pickup_date) ? dateKey(order.pickup_date[0]) : null))
         : null;
 
+      // Older bookings carry a small capped priority bump so long-waiting
+      // multi-date jobs are not endlessly outrun by fresher ones.
+      const createdAt = dateKey(order.created_at);
+      const ageBoost = createdAt ? Math.min(10, Math.floor(daysSince(createdAt) / 7)) : 0;
+
       const buildPriority = (available: string[], guaranteed: string | null, boost: number) => {
         if (guaranteed) return 100;
         const future = available.filter((d) => d >= today);
@@ -346,7 +356,8 @@ serve(async (req) => {
         const expired = dates.length > 0 && future.length === 0;
 
         // Expiry bookkeeping — a leg with no future dates is never silently dropped.
-        if (expired || dates.length === 0) {
+        const lapsed = (expired || dates.length === 0 || status !== 'active') && dates.length > 0;
+        if (expired || dates.length === 0 || status !== 'active') {
           const severity = guaranteed && guaranteed < today ? 1
             : legType === 'delivery' && order.order_collected ? 2 : 3;
           needsNewDates.push({
@@ -356,7 +367,9 @@ serve(async (req) => {
             severity,
             reason: severity === 1 ? 'Guaranteed date missed'
               : severity === 2 ? 'Bike in depot, delivery dates expired'
-              : dates.length === 0 ? 'No dates provided' : 'Dates expired',
+              : dates.length === 0 ? 'No dates provided'
+              : status === 'awaiting_new_dates' ? 'Waiting on new dates from the customer'
+              : 'Dates expired',
             days_in_depot: legType === 'delivery' && collectedDate
               ? daysSince(collectedDate) : null,
             last_date: dates.length ? dates[dates.length - 1] : null,
@@ -365,27 +378,21 @@ serve(async (req) => {
             linked_leg_note: legType === 'collection' && deliveryDates.some((d) => d >= today)
               ? 'Delivery dates will likely lapse too — ask for both' : null,
           });
-          if (dates.length > 0 && status === 'active') {
+          if (dates.length > 0 && expired && status === 'active') {
             expiryUpserts.push({
               order_id: order.id, leg_type: legType,
               availability_status: 'expired', availability_expired_at: new Date().toISOString(),
             });
           }
-          return;
+          // The include-expired override lets lapsed legs into this run anyway;
+          // legs with no dates at all still cannot be planned.
+          if (!includeExpired || dates.length === 0) return;
         }
 
-        // Expired / awaiting-new-dates legs are never sent to the solver.
-        if (status !== 'active') {
-          needsNewDates.push({
-            order_id: order.id, label, leg_type: legType, severity: 3,
-            reason: 'Waiting on new dates from the customer',
-            days_in_depot: null, last_date: dates[dates.length - 1] ?? null,
-            guaranteed_date: guaranteed, status, linked_leg_note: null,
-          });
-          return;
-        }
-
-        const windowDates = future.filter((d) => selectedSet.has(d));
+        const windowDates = lapsed
+          // Lapsed legs can land on any chosen day — their stored dates are all past.
+          ? selectedDates.slice()
+          : future.filter((d) => selectedSet.has(d));
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
         if (guaranteed) {
           if (!selectedSet.has(guaranteed)) return;
@@ -396,7 +403,8 @@ serve(async (req) => {
           allDates: dates,
           windowDates: guaranteed ? [guaranteed] : windowDates,
           guaranteedDate: guaranteed,
-          priority: buildPriority(dates, guaranteed, boost),
+          priority: buildPriority(dates, guaranteed, boost + (lapsed ? 20 : 0) + ageBoost),
+          lapsed,
           difficult: inDifficultArea(lat, lon),
           businessHours, label,
           needsUnlock: extra.needsUnlock,
@@ -876,7 +884,9 @@ serve(async (req) => {
         } : null,
         variants: [{ variant: 'primary', routes: dayRoutes, tradeoff_note: null }],
         // Jobs that could have run on this day but were left out of every route.
-        unplanned_count: legs.filter((l) => !assigned.has(l.key) && l.windowDates.includes(date)).length,
+        unplanned_count: legs.filter((l) => !assigned.has(l.key) && !l.lapsed && l.windowDates.includes(date)).length,
+        unplanned_lapsed_count: legs.filter((l) => !assigned.has(l.key) && l.lapsed && l.windowDates.includes(date)).length,
+        lapsed_count: current.routeInfo.flatMap((r) => r.stops).filter((s) => s.date === date && s.leg.lapsed).length,
         infeasible_guaranteed: legs
           .filter((l) => l.guaranteedDate === date && !assigned.has(l.key))
           .map((l) => ({ order_id: l.orderId, label: l.label, leg_type: l.legType, date })),
@@ -893,7 +903,8 @@ serve(async (req) => {
         priority: l.priority,
         remaining_dates: l.allDates.filter((d) => d >= today).length,
         guaranteed_date: l.guaranteedDate,
-        reason: displaced.some((d) => d?.key === l.key) ? 'pushed out when deliveries were added'
+        reason: l.lapsed ? 'dates had expired — planned via the expired-jobs override'
+          : displaced.some((d) => d?.key === l.key) ? 'pushed out when deliveries were added'
           : l.guaranteedDate ? 'guaranteed date could not be met'
           : l.needsUnlock ? 'waiting on its collection being planned'
           : 'no feasible slot on the days you picked',
@@ -910,7 +921,8 @@ serve(async (req) => {
     return json({
       plan_id: planId,
       mode,
-      unplanned_count: legs.filter((l) => !assigned.has(l.key)).length,
+      unplanned_count: legs.filter((l) => !assigned.has(l.key) && !l.lapsed).length,
+      unplanned_lapsed_count: legs.filter((l) => !assigned.has(l.key) && l.lapsed).length,
       generated_at: new Date().toISOString(),
       firm_days: firmDays,
       days,

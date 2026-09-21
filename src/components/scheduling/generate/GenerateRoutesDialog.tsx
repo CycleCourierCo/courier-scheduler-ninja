@@ -13,7 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   AtRiskLeg, NeedsNewDatesLeg, PlanDay, PlanMode, PlanRoute, RoutePlanResult, summarisePlan, allPlanRoutes,
-  clearNewDatesRequest, fetchDifficultAreas, fetchPlanningVans, fetchWorkingDays, formatDuration,
+  clearNewDatesRequest, fetchDifficultAreas, fetchLapsedLegs, fetchPlanningVans, fetchWorkingDays, formatDuration,
   generateRoutes, isWorkingDay, lockPlanDay, nextWorkingDays, refreshAvailabilityExpiry,
   requestNewDates, selectPlanRoute, setVanUnavailable, unlockPlanDay,
 } from "@/services/routeGenerationService";
@@ -252,6 +252,8 @@ const GenerateRoutesDialog: React.FC = () => {
   const [retrying, setRetrying] = useState<PlanMode | null>(null);
   /** The plan that jobs were reserved against — the other one is then out of date. */
   const [committedMode, setCommittedMode] = useState<PlanMode | null>(null);
+  const [includeExpired, setIncludeExpired] = useState(false);
+  const [lapsedLegs, setLapsedLegs] = useState<NeedsNewDatesLeg[]>([]);
   const result = plans[mode];
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [lockedDays, setLockedDays] = useState<string[]>([]);
@@ -269,6 +271,7 @@ const GenerateRoutesDialog: React.FC = () => {
       setDates(defaults);
       setGrid(Object.fromEntries(defaults.map((d) => [d, vanRows.map((v) => v.id)])));
       fetchDifficultAreas().then(setAreas).catch(() => setAreas([]));
+      fetchLapsedLegs().then(setLapsedLegs).catch(() => setLapsedLegs([]));
     })();
   }, [open]);
 
@@ -307,6 +310,13 @@ const GenerateRoutesDialog: React.FC = () => {
 
   const activeRoutes = activeDay?.variants?.[0]?.routes ?? [];
 
+  /** Run results take priority; DB rows fill the panel before the first run. */
+  const needsDates = useMemo(() => {
+    const runLegs = result?.needs_new_dates ?? [];
+    const seen = new Set(runLegs.map((l) => `${l.order_id}:${l.leg_type}`));
+    return [...runLegs, ...lapsedLegs.filter((l) => !seen.has(`${l.order_id}:${l.leg_type}`))];
+  }, [result, lapsedLegs]);
+
   const handleGenerate = async () => {
     if (dates.length < MIN_DAYS) {
       toast.error(`Pick at least ${MIN_DAYS} days to plan`);
@@ -327,6 +337,7 @@ const GenerateRoutesDialog: React.FC = () => {
       van_availability: Object.fromEntries(dates.map((d) => [d, grid[d] ?? vans.map((v) => v.id)])),
       firm_days: firmDays,
       inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
+      include_expired: includeExpired,
     };
     try {
       // Both ways of planning are built so they can be compared side by side.
@@ -360,6 +371,7 @@ const GenerateRoutesDialog: React.FC = () => {
         van_availability: Object.fromEntries(dates.map((d) => [d, grid[d] ?? vans.map((v) => v.id)])),
         firm_days: firmDays,
         inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
+        include_expired: includeExpired,
         mode: m,
       });
       setPlans((prev) => ({ ...prev, [m]: plan }));
@@ -495,9 +507,25 @@ const GenerateRoutesDialog: React.FC = () => {
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <Label>Van availability</Label>
-            <Button type="button" size="sm" variant="ghost" className="gap-2" onClick={handleRefreshExpiry}>
-              <RefreshCw className="h-3.5 w-3.5" /> Re-check customer dates
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {needsDates.length > 0 && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={includeExpired ? "default" : "outline"}
+                  className="gap-2"
+                  onClick={() => setIncludeExpired((v) => !v)}
+                >
+                  <CalendarClock className="h-3.5 w-3.5" />
+                  {includeExpired
+                    ? `Including ${needsDates.length} expired job${needsDates.length === 1 ? "" : "s"}`
+                    : `Include expired jobs (${needsDates.length})`}
+                </Button>
+              )}
+              <Button type="button" size="sm" variant="ghost" className="gap-2" onClick={handleRefreshExpiry}>
+                <RefreshCw className="h-3.5 w-3.5" /> Re-check customer dates
+              </Button>
+            </div>
           </div>
           {vans.length === 0 ? (
             <p className="text-sm text-muted-foreground">No vans found.</p>
@@ -582,6 +610,7 @@ const GenerateRoutesDialog: React.FC = () => {
               title={mode === "greedy" ? "Whole plan — day by day" : "Whole plan — balanced"}
               costTitle="Costings for the whole plan"
               leftOver={summarisePlan(result).leftOver}
+              leftOverLapsed={result.unplanned_lapsed_count}
             />
             {result.weekly && (
               <p className="text-sm text-muted-foreground">
@@ -631,7 +660,13 @@ const GenerateRoutesDialog: React.FC = () => {
                   )}
                 </div>
 
-                <DaySummary date={activeDay.date} routes={activeRoutes} leftOver={activeDay.unplanned_count} />
+                <DaySummary
+                  date={activeDay.date}
+                  routes={activeRoutes}
+                  leftOver={activeDay.unplanned_count}
+                  leftOverLapsed={activeDay.unplanned_lapsed_count}
+                  lapsedPlanned={activeDay.lapsed_count}
+                />
 
                 <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
 
@@ -654,7 +689,7 @@ const GenerateRoutesDialog: React.FC = () => {
                       <RoutePlanMapLazy routes={activeRoutes} areas={areas} />
                     </React.Suspense>
                     <AtRiskPanel atRisk={result.at_risk} infeasible={activeDay.infeasible_guaranteed} />
-                    <NeedsDatesPanel legs={result.needs_new_dates ?? []} onChanged={handleRefreshExpiry} />
+                    <NeedsDatesPanel legs={needsDates} onChanged={handleRefreshExpiry} />
                   </div>
                 </div>
               </>
