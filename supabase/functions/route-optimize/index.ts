@@ -832,9 +832,8 @@ serve(async (req) => {
       // 3.6 spare-van check
       const dayPlacedKeys = new Set(solved!.flatMap((r) => r.stops.map((s) => s.leg.key)));
       const leftovers = pool.filter((l) => !dayPlacedKeys.has(l.key));
-      const unusedVan = (vansForDate[date] ?? []).find((v) => !vanList.some((x) => x.id === v.id))
-        ?? { id: 'spare', name: 'Extra van', capacity: defaultCapacity };
-      if (leftovers.length > 0 && budgetLeft() > 15_000 && !quickOnly) {
+      const unusedVan = (vansForDate[date] ?? []).find((v) => !vanList.some((x) => x.id === v.id));
+      if (unusedVan && leftovers.length > 0 && budgetLeft() > 15_000 && !quickOnly) {
         try {
           const spareSolved = await solveDay(date, leftovers, [], null, null, unusedVan);
           const spareRoute = (spareSolved ?? [])[0];
