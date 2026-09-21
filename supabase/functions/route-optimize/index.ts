@@ -804,6 +804,7 @@ serve(async (req) => {
       const londonLegs = pool.filter((l) => isLondonLeg(l));
       const londonSpaces = londonLegs.reduce((n, l) => n + l.spaces, 0);
       dayDebug.london_jobs = londonLegs.length;
+      dayDebug.corridor_jobs = pool.filter((l) => isCorridorLeg(l)).length;
       dayDebug.long_area = null;
 
       /** London vans first (they alone may take London work), the rest roam freely. */
