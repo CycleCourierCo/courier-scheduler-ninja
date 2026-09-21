@@ -527,6 +527,9 @@ serve(async (req) => {
 
     /* ------------------------------ solving ------------------------------- */
 
+    /** Deeper search is used unless the optimiser rejects the option. */
+    let exploreOk = true;
+
     const postSolve = async (payload: any) => {
       const call = (bodyIn: any) => fetch(solveUrl, {
         method: 'POST',
@@ -580,7 +583,7 @@ serve(async (req) => {
         id: leg.jobId,
         location: [leg.lon, leg.lat],
         service: SERVICE_S,
-        priority: mustGo(leg, date) ? 100 : 0,
+        priority: mustGo(leg, date) ? 100 : 50,
         time_windows: [window],
         ...(leg.legType === 'delivery' ? { delivery: load } : { pickup: load }),
         ...(leg.areaIdx !== null && leg.areaIdx === longAreaIdx ? { skills: [DIFFICULT_SKILL] } : {}),
@@ -675,7 +678,19 @@ serve(async (req) => {
       const jobs = pool.map((leg) => buildJob(leg, date, longAreaIdx)).filter((j): j is any => !!j);
       if (jobs.length === 0) return null;
 
-      const solution = await postSolve({ vehicles, jobs, options: { g: true } });
+      let solution: any;
+      if (exploreOk) {
+        try {
+          solution = await postSolve({ vehicles, jobs, options: { g: true, x: 5 } });
+        } catch (e) {
+          if (/distance costing/i.test((e as Error).message)) throw e;
+          exploreOk = false;
+          debug.exploration = false;
+          solution = await postSolve({ vehicles, jobs, options: { g: true } });
+        }
+      } else {
+        solution = await postSolve({ vehicles, jobs, options: { g: true } });
+      }
       console.log('verso solve', {
         date, jobs: jobs.length, vehicles: vehicles.length,
         routes: (solution?.routes || []).length, unassigned: (solution?.unassigned || []).length,
@@ -749,9 +764,8 @@ serve(async (req) => {
       let longAreaIdx = maxLongVans > 0 && chosen ? chosen.idx : null;
       dayDebug.long_area = longAreaIdx !== null ? difficultAreas[longAreaIdx]?.name ?? null : null;
 
-      // Difficult jobs from every other area wait for another day.
-      excludedLongArea[date] = pool.filter((l) => l.areaIdx !== null && l.areaIdx !== longAreaIdx);
-      pool = pool.filter((l) => l.areaIdx === null || l.areaIdx === longAreaIdx);
+      // Every job stays in the day's pool; only the chosen area gets the long day.
+      excludedLongArea[date] = [];
       if (pool.length === 0) continue;
 
       let vanList = [...dayVans];
@@ -773,17 +787,37 @@ serve(async (req) => {
         longAreaIdx = null;
         longVanId = null;
         dayDebug.long_area_dropped = true;
-        excludedLongArea[date] = pool.filter((l) => l.areaIdx !== null);
-        pool = pool.filter((l) => l.areaIdx === null);
         try {
-          solved = (pool.length > 0 ? await solveDay(date, pool, vanList, null, null) : []) ?? [];
+          solved = (await solveDay(date, pool, vanList, null, null)) ?? solved;
         } catch (e) {
           skipped.push(`plan for ${date} (${(e as Error).message})`);
-          continue;
         }
       }
 
-      // 3.5 van-reduction loop
+      const servedKeys = (rs: SolvedRoute[]) => new Set(rs.flatMap((r) => r.stops.map((s) => s.leg.key)));
+
+      // 3.5 fill first: if work is left over, put every available van back on the road
+      if (!quickOnly && budgetLeft() > 15_000) {
+        const unplaced = pool.filter((l) => !servedKeys(solved!).has(l.key));
+        const idle = dayVans.filter((v) => !vanList.some((x) => x.id === v.id));
+        if (unplaced.length > 0 && idle.length > 0) {
+          try {
+            const fullVans = [...dayVans];
+            const fullLong = longAreaIdx !== null ? (longVanId ?? fullVans[0]?.id ?? null) : null;
+            const filled = await solveDay(date, pool, fullVans, longAreaIdx, fullLong);
+            if (filled && servedKeys(filled).size > servedKeys(solved!).size) {
+              solved = filled;
+              vanList = fullVans;
+              longVanId = fullLong;
+              dayDebug.filled_with_all_vans = true;
+            }
+          } catch {
+            // filling is an improvement pass, never a reason to fail the day
+          }
+        }
+      }
+
+      // 3.6 van-reduction loop — only when no job at all is lost
       if (quickOnly) {
         skipped.push(`fine-tuning ${date} (ran out of time)`);
       } else {
@@ -810,14 +844,14 @@ serve(async (req) => {
             protectedVans.add(weakest.r.meta.vanId);
             continue;
           }
-          const after = new Set((retry ?? []).flatMap((r) => r.stops.map((s) => s.leg.key)));
-          const lost = pool.filter((l) => mustGo(l, date) && !after.has(l.key)
-            && solved!.some((r) => r.stops.some((s) => s.leg.key === l.key)));
+          const before = servedKeys(solved!);
+          const after = retry ? servedKeys(retry) : new Set<string>();
+          const lost = [...before].filter((k) => !after.has(k));
           if (!retry || lost.length > 0) {
             protectedVans.add(weakest.r.meta.vanId);
             dayDebug.removals.push({
               van: weakest.r.meta.vanName, jobs: weakest.r.stops.length,
-              outcome: 'kept — needed for must-go jobs', must_go: lost.map((l) => l.label).slice(0, 8),
+              outcome: 'kept — work would be left undone', lost_jobs: lost.length,
             });
             continue;
           }
