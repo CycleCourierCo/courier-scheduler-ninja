@@ -674,10 +674,14 @@ serve(async (req) => {
     const legsById: Record<number, Leg> = {};
     for (const leg of legs) legsById[leg.jobId] = leg;
 
-    const difficultDatesFor = (pool: Leg[]) => {
-      const set = new Set<string>();
-      for (const leg of pool) if (leg.difficult) for (const d of leg.windowDates) set.add(d);
-      return set;
+    /** How many difficult-area legs could be worked on each date. */
+    const difficultCountsFor = (pool: Leg[]) => {
+      const counts: Record<string, number> = {};
+      for (const leg of pool) {
+        if (!leg.difficult) continue;
+        for (const d of leg.windowDates) counts[d] = (counts[d] ?? 0) + 1;
+      }
+      return counts;
     };
 
     /* ------------- same-day collect-then-deliver pairs -------------------- */
