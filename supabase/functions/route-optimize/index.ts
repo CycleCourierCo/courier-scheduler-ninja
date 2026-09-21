@@ -758,34 +758,34 @@ serve(async (req) => {
       };
     };
 
-    /** One solve for one day with a given set of vans. */
+    type Van = { id: string; name: string; capacity: number };
+    type Assignment = { van: Van; cluster: Cluster; spare?: boolean };
+
+    /** One solve for one day: every van works one area only. */
     const solveDay = async (
       date: string,
-      pool: Leg[],
-      vanList: { id: string; name: string; capacity: number }[],
-      longAreaIdx: number | null,
-      longVanId: string | null,
-      spare?: { id: string; name: string; capacity: number },
+      clusters: Cluster[],
+      assignments: Assignment[],
+      longClusterId: number | null,
     ): Promise<SolvedRoute[] | null> => {
       const vehicles: any[] = [];
       const meta: Record<number, VanDay> = {};
-      vanList.forEach((van, idx) => {
-        const isLong = longVanId === van.id;
-        const built = buildVehicle(van, date, idx, {
-          long: isLong,
-          areaName: isLong && longAreaIdx !== null ? difficultAreas[longAreaIdx]?.name ?? null : null,
+      assignments.forEach((a, idx) => {
+        const built = buildVehicle(a.van, date, idx, {
+          long: a.cluster.id === longClusterId,
+          spare: a.spare,
+          areaName: a.cluster.name,
+          skill: a.cluster.skill,
         });
         vehicles.push(built.vehicle);
         meta[built.meta.vehicleId] = built.meta;
       });
-      if (spare) {
-        const built = buildVehicle(spare, date, 900, { long: false, spare: true });
-        vehicles.push(built.vehicle);
-        meta[built.meta.vehicleId] = built.meta;
-      }
       if (vehicles.length === 0) return null;
 
-      const jobs = pool.map((leg) => buildJob(leg, date, longAreaIdx)).filter((j): j is any => !!j);
+      const usedClusters = clusters.filter((c) => assignments.some((a) => a.cluster.id === c.id));
+      const jobs = usedClusters
+        .flatMap((c) => c.legs.map((leg) => buildJob(leg, date, c, usedClusters, longClusterId)))
+        .filter((j): j is any => !!j);
       if (jobs.length === 0) return null;
 
       let solution: any;
