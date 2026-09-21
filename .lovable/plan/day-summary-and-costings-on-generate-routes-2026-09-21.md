@@ -32,16 +32,16 @@ driver pay, profit) so it's clear which van is carrying the weak day.
 ## Technical detail
 
 - New `src/components/scheduling/generate/DaySummary.tsx` renders both the
-  summary strip and, when `hasRole(userProfile, 'admin')`, the costings block.
+summary strip and, when `hasRole(userProfile, 'admin')`, the costings block.
 - Summary figures come straight from the plan data already returned by
-  `route-optimize` (`stop_count`, `duration_s`, `miles`, `max_load`,
-  `van_capacity`, `guaranteed_count`) — no new backend work.
+`route-optimize` (`stop_count`, `duration_s`, `miles`, `max_load`,
+`van_capacity`, `guaranteed_count`) — no new backend work.
 - Costings reuse `getRevenueForRouteStops` from `profitabilityService`, mapping
-  plan stops to `{ orderId, type: leg_type === 'collection' ? 'pickup' : 'delivery' }`,
-  with the same `COST_PER_MILE = 0.45` and `DRIVER_HOURLY_RATE = 11` constants
-  (moved into a small shared module so RouteBuilder and this panel stay in step).
+plan stops to `{ orderId, type: leg_type === 'collection' ? 'pickup' : 'delivery' }`,
+with the same `COST_PER_MILE = 0.45` and `DRIVER_HOURLY_RATE = 11` constants
+(moved into a small shared module so RouteBuilder and this panel stay in step).
 - Revenue is fetched per day in a cancellable effect keyed on the active day and
-  its routes, with a loading state; failure shows "Costs unavailable" rather than
-  blocking the plan.
+its routes, with a loading state; failure shows "Costs unavailable" rather than
+blocking the plan.
 - `GenerateRoutesDialog.tsx` renders `DaySummary` between the van/lock row and the
-  route cards. No changes to generation, locking, or Get Timeslots handoff.
+route cards. No changes to generation, locking, or Get Timeslots handoff.
