@@ -83,9 +83,10 @@ serve(async (req) => {
       order = orderRow;
     }
 
-    // Who is being asked to approve: the booking account, the receiver/buyer,
-    // or the walk-in customer on a workshop-only inspection.
-    const allowedRecipients = ["customer", "receiver", "walkin"];
+    // Who is being asked to approve: the booking account, the sender contact on
+    // the order, the receiver/buyer, or the walk-in customer on a
+    // workshop-only inspection.
+    const allowedRecipients = ["customer", "sender", "receiver", "walkin"];
     let recipient = allowedRecipients.includes(requestedRecipient)
       ? requestedRecipient
       : (allowedRecipients.includes(String(inspection.approval_recipient))
