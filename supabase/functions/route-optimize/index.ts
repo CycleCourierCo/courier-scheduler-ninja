@@ -325,11 +325,11 @@ serve(async (req) => {
       const pickupDates = clean(order.pickup_date);
       const deliveryDates = clean(order.delivery_date);
 
-      // No stored "collection completed" timestamp exists: derive it from the
-      // scheduled pickup day (or the first agreed pickup date) once collected.
+      // No stored "collection completed" timestamp exists: use the scheduled
+      // pickup day once collected. Never guess from the customer's first
+      // offered date — that produced misleading "days in the depot" figures.
       const collectedDate = order.order_collected
-        ? (dateKey(order.scheduled_pickup_date)
-          ?? (Array.isArray(order.pickup_date) ? dateKey(order.pickup_date[0]) : null))
+        ? dateKey(order.scheduled_pickup_date)
         : null;
 
       // Older bookings carry a small capped priority bump so long-waiting
@@ -368,18 +368,25 @@ serve(async (req) => {
         // Expiry bookkeeping — a leg with no future dates is never silently dropped.
         const lapsed = (expired || dates.length === 0 || status !== 'active') && dates.length > 0;
         if (expired || dates.length === 0 || status !== 'active') {
-          const severity = guaranteed && guaranteed < today ? 1
-            : legType === 'delivery' && order.order_collected ? 2 : 3;
+          const neverDated = dates.length === 0;
+          const guaranteedMissed = !!(guaranteed && guaranteed < today);
+          const dateState: 'never_provided' | 'expired' | 'guaranteed_missed' =
+            guaranteedMissed ? 'guaranteed_missed' : neverDated ? 'never_provided' : 'expired';
+          const inDepot = legType === 'delivery' && !!order.order_collected;
+          const severity = guaranteedMissed ? 1 : inDepot ? 2 : 3;
+          const legWord = legType === 'delivery' ? 'delivery' : 'collection';
           needsNewDates.push({
             order_id: order.id,
             label,
             leg_type: legType,
             severity,
-            reason: severity === 1 ? 'Guaranteed date missed'
-              : severity === 2 ? 'Bike in depot, delivery dates expired'
-              : dates.length === 0 ? 'No dates provided'
+            date_state: dateState,
+            reason: guaranteedMissed ? 'Guaranteed date missed'
+              : neverDated
+                ? `${inDepot ? 'Bike in depot, no' : 'No'} ${legWord} dates given yet`
               : status === 'awaiting_new_dates' ? 'Waiting on new dates from the customer'
-              : 'Dates expired',
+              : inDepot ? 'Bike in depot, delivery dates expired'
+              : `${legWord === 'delivery' ? 'Delivery' : 'Collection'} dates expired`,
             days_in_depot: legType === 'delivery' && collectedDate
               ? daysSince(collectedDate) : null,
             last_date: dates.length ? dates[dates.length - 1] : null,

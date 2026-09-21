@@ -70,11 +70,15 @@ export interface AtRiskLeg {
   reason: string;
 }
 
+/** Why a leg cannot be planned: dates never given, lapsed, or a missed guarantee. */
+export type DateState = "never_provided" | "expired" | "guaranteed_missed";
+
 export interface NeedsNewDatesLeg {
   order_id: string;
   label: string;
   leg_type: string;
   severity: number;
+  date_state?: DateState;
   reason: string;
   days_in_depot: number | null;
   last_date: string | null;
@@ -230,6 +234,7 @@ export const fetchLapsedLegs = async (): Promise<NeedsNewDatesLeg[]> => {
       label: (r.orders?.tracking_number || r.order_id.slice(0, 8)) as string,
       leg_type: r.leg_type as string,
       severity: 3,
+      date_state: "expired" as const,
       reason: r.availability_status === "awaiting_new_dates"
         ? "Waiting on new dates from the customer"
         : "Dates expired",

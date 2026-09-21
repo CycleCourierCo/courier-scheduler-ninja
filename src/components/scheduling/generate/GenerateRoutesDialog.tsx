@@ -185,48 +185,75 @@ const NeedsDatesPanel: React.FC<{ legs: NeedsNewDatesLeg[]; onChanged: () => voi
     }
   };
 
+  const stateOf = (leg: NeedsNewDatesLeg) =>
+    leg.date_state ?? (leg.severity === 1 ? "guaranteed_missed" : "expired");
+
+  const groups = [
+    { key: "guaranteed_missed", title: "Guaranteed date missed" },
+    { key: "expired", title: "Dates expired" },
+    { key: "never_provided", title: "Waiting on first dates from the customer" },
+  ].map((g) => ({ ...g, items: legs.filter((l) => stateOf(l) === g.key) }))
+    .filter((g) => g.items.length > 0);
+
+  const expiredCount = legs.filter((l) => stateOf(l) !== "never_provided").length;
+
+  const renderLeg = (leg: NeedsNewDatesLeg) => {
+    const key = `${leg.order_id}-${leg.leg_type}`;
+    const neverDated = stateOf(leg) === "never_provided";
+    return (
+      <li key={key} className={`rounded-md border p-2 ${leg.severity === 1 ? "border-destructive/50 bg-destructive/10" : ""}`}>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="font-medium">{leg.label}</span>
+          <Badge variant="outline" className="text-xs">{leg.leg_type}</Badge>
+          {leg.status === "awaiting_new_dates" && <Badge variant="secondary" className="text-xs">Asked</Badge>}
+        </div>
+        <p className="text-xs text-muted-foreground">{leg.reason}</p>
+        {leg.days_in_depot !== null && leg.days_in_depot !== undefined && (
+          <p className="text-xs text-muted-foreground">{leg.days_in_depot} days in the depot</p>
+        )}
+        {leg.linked_leg_note && <p className="text-xs text-muted-foreground">{leg.linked_leg_note}</p>}
+        <div className="mt-2 flex gap-2">
+          {leg.status === "awaiting_new_dates" ? (
+            <Button size="sm" variant="outline" disabled={busy === key} onClick={() => act(leg, false)}>
+              Dates sorted
+            </Button>
+          ) : (
+            <Button size="sm" variant="outline" disabled={busy === key} onClick={() => act(leg, true)}>
+              {neverDated ? "Ask for dates" : "Ask for new dates"}
+            </Button>
+          )}
+        </div>
+      </li>
+    );
+  };
+
   return (
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base">
-          <CalendarClock className="h-4 w-4" /> Needs new dates ({legs.length})
+          <CalendarClock className="h-4 w-4" /> Needs dates ({legs.length})
+          {legs.length > 0 && (
+            <span className="text-xs font-normal text-muted-foreground">
+              {expiredCount} expired
+            </span>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent>
         {legs.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No jobs have run out of dates.</p>
+          <p className="text-sm text-muted-foreground">Every job has a usable date.</p>
         ) : (
           <ScrollArea className="h-56">
-            <ul className="space-y-2 pr-3 text-sm">
-              {legs.map((leg) => {
-                const key = `${leg.order_id}-${leg.leg_type}`;
-                return (
-                  <li key={key} className={`rounded-md border p-2 ${leg.severity === 1 ? "border-destructive/50 bg-destructive/10" : ""}`}>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-medium">{leg.label}</span>
-                      <Badge variant="outline" className="text-xs">{leg.leg_type}</Badge>
-                      {leg.status === "awaiting_new_dates" && <Badge variant="secondary" className="text-xs">Asked</Badge>}
-                    </div>
-                    <p className="text-xs text-muted-foreground">{leg.reason}</p>
-                    {leg.days_in_depot !== null && (
-                      <p className="text-xs text-muted-foreground">{leg.days_in_depot} days in the depot</p>
-                    )}
-                    {leg.linked_leg_note && <p className="text-xs text-muted-foreground">{leg.linked_leg_note}</p>}
-                    <div className="mt-2 flex gap-2">
-                      {leg.status === "awaiting_new_dates" ? (
-                        <Button size="sm" variant="outline" disabled={busy === key} onClick={() => act(leg, false)}>
-                          Dates sorted
-                        </Button>
-                      ) : (
-                        <Button size="sm" variant="outline" disabled={busy === key} onClick={() => act(leg, true)}>
-                          Ask for new dates
-                        </Button>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="space-y-3 pr-3 text-sm">
+              {groups.map((g) => (
+                <div key={g.key} className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {g.title} ({g.items.length})
+                  </p>
+                  <ul className="space-y-2">{g.items.map(renderLeg)}</ul>
+                </div>
+              ))}
+            </div>
           </ScrollArea>
         )}
       </CardContent>
