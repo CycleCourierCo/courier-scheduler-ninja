@@ -261,7 +261,9 @@ serve(async (req) => {
     const inDifficultArea = (lat: number, lon: number) => areaRings.some((r) => pointInRing(lon, lat, r));
 
     const allVans = ((vehiclesRes.data as any[]) || [])
-      .filter((v) => v.status !== 'sold' && v.status !== 'off_road')
+      // Only vans in use or off road can be planned: ones in repair, awaiting
+      // sale, sold or written off must never appear.
+      .filter((v) => v.status === 'in_use' || v.status === 'off_road')
       .map((v) => ({
         id: v.id as string,
         name: (v.registration || v.make || 'Van') as string,
