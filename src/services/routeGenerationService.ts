@@ -45,6 +45,10 @@ export interface PlanDay {
   variants: { variant: string; routes: PlanRoute[]; tradeoff_note: string | null }[];
   /** Jobs that could have run on this day but were left out of every route. */
   unplanned_count?: number;
+  /** Left-over jobs whose stored dates had all lapsed (only when the override is on). */
+  unplanned_lapsed_count?: number;
+  /** Planned stops whose customer dates had lapsed before this run. */
+  lapsed_count?: number;
   infeasible_guaranteed: { order_id: string; label: string; leg_type: string; date: string }[];
 }
 
@@ -79,6 +83,8 @@ export interface RoutePlanResult {
   mode?: PlanMode;
   /** Jobs across the whole stretch of days that could not be fitted anywhere. */
   unplanned_count?: number;
+  /** Left-over jobs whose dates had all lapsed (override runs only). */
+  unplanned_lapsed_count?: number;
   generated_at?: string;
   firm_days?: number;
   days: PlanDay[];
@@ -97,6 +103,8 @@ export interface GenerateRoutesInput {
   firm_days?: number;
   /** Null means inspection deliveries are never auto-unlocked. */
   inspection_lead_days?: number | null;
+  /** Plan legs whose customer dates have all lapsed anyway (per-run override). */
+  include_expired?: boolean;
   mode?: PlanMode;
 }
 
@@ -195,6 +203,30 @@ export const fetchWorkingDays = async (): Promise<string[]> => {
   if (error || !data) return ["sun", "mon", "tue", "wed", "thu"];
   const days = (data as any).working_days;
   return Array.isArray(days) && days.length > 0 ? days : ["sun", "mon", "tue", "wed", "thu"];
+};
+
+/** Legs currently marked expired or waiting on new dates — shown before any run. */
+export const fetchLapsedLegs = async (): Promise<NeedsNewDatesLeg[]> => {
+  const { data, error } = await supabase
+    .from("order_leg_availability")
+    .select("order_id,leg_type,availability_status,orders!inner(tracking_number)");
+  if (error) throw error;
+  return ((data as any[]) || [])
+    .filter((r) => r.availability_status === "expired" || r.availability_status === "awaiting_new_dates")
+    .map((r) => ({
+      order_id: r.order_id as string,
+      label: (r.orders?.tracking_number || r.order_id.slice(0, 8)) as string,
+      leg_type: r.leg_type as string,
+      severity: 3,
+      reason: r.availability_status === "awaiting_new_dates"
+        ? "Waiting on new dates from the customer"
+        : "Dates expired",
+      days_in_depot: null,
+      last_date: null,
+      guaranteed_date: null,
+      status: r.availability_status as "expired" | "awaiting_new_dates",
+      linked_leg_note: null,
+    }));
 };
 
 /** Difficult-area outlines for faint map shading. */
