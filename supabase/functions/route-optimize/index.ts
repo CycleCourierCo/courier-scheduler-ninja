@@ -809,7 +809,10 @@ serve(async (req) => {
     } else {
       let passA;
       try {
-        passA = await runSolve(readyLegs, {}, PRIMARY_CAP_H);
+        // Deliveries that can ride along on the same day as their collection
+        // join pass A as linked pairs; the rest wait for pass B.
+        pool = [...readyLegs, ...sameDayPairs.map((p) => p.d).filter((d) => !readyLegs.includes(d))];
+        passA = await runSolve(pool, {}, PRIMARY_CAP_H, { pairs: true });
       } catch (e) {
         console.error('pass A failed', (e as Error).message);
         return json({ error: (e as Error).message }, 502);
