@@ -445,6 +445,7 @@ serve(async (req) => {
           needsUnlock: extra.needsUnlock,
           needsInspection: !!order.needs_inspection && !inspectionDone,
           collectedAt: collectedDate,
+          scheduledCollection: bookedCollection,
         });
       };
 
@@ -459,12 +460,15 @@ serve(async (req) => {
       // Delivery leg
       const guaranteed = order.guaranteed_delivery && order.guaranteed_delivery_date
         ? dateKey(order.guaranteed_delivery_date) : null;
+      // A collection already booked in isn't re-planned, but its delivery can
+      // still be planned: the bike will be with us from that day on.
+      const collectedBeforePlan = !!bookedCollection && bookedCollection < selectedDates[0];
       considerLeg(
         'delivery', deliveryDates,
         Number(order.receiver?.address?.lat), Number(order.receiver?.address?.lon),
         guaranteed,
         {
-          needsUnlock: !order.order_collected,
+          needsUnlock: !order.order_collected && !collectedBeforePlan,
           eligible: !order.order_delivered && !order.scheduled_delivery_date && !order.is_box_my_bike,
         },
       );
