@@ -17,12 +17,62 @@ import {
   generateRoutes, isWorkingDay, lockPlanDay, nextWorkingDays, refreshAvailabilityExpiry,
   requestNewDates, selectPlanRoute, setVanUnavailable, unlockPlanDay,
 } from "@/services/routeGenerationService";
+import DaySummary from "./DaySummary";
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { hasRole } from "@/lib/roles";
+import { COST_PER_MILE, DRIVER_HOURLY_RATE, formatGBP } from "@/lib/routeCosts";
+import { getRevenueForRouteStops } from "@/services/profitabilityService";
 
 const THIN_ROUTE_STOPS = 13;
 const MIN_DAYS = 3;
 const MAX_DAYS = 10;
 
 const dayLabel = (date: string) => format(new Date(`${date}T12:00:00`), "EEE d MMM");
+
+/** Admin-only one-line cost readout for a single van's route. */
+const RouteCostLine: React.FC<{ route: PlanRoute }> = ({ route }) => {
+  const { userProfile } = useAuth();
+  const isAdmin = hasRole(userProfile, "admin");
+  const [revenue, setRevenue] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!isAdmin || route.stops.length === 0) { setRevenue(null); return; }
+    let cancelled = false;
+    (async () => {
+      try {
+        const result = await getRevenueForRouteStops(
+          route.stops.map((s) => ({
+            orderId: s.order_id,
+            type: s.leg_type === "collection" ? "pickup" : "delivery",
+          })),
+        );
+        if (!cancelled) setRevenue(result.revenue);
+      } catch {
+        if (!cancelled) setRevenue(null);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [isAdmin, route]);
+
+  if (!isAdmin) return null;
+  const mileageCost = route.miles * COST_PER_MILE;
+  const driverPay = (route.duration_s / 3600) * DRIVER_HOURLY_RATE;
+  const profit = revenue === null ? null : revenue - mileageCost - driverPay;
+
+  return (
+    <p className="text-xs text-muted-foreground">
+      Mileage {formatGBP(mileageCost)} · Driver {formatGBP(driverPay)} ·{" "}
+      {profit === null ? (
+        "Profit —"
+      ) : (
+        <span className={cn("font-medium", profit >= 0 ? "text-green-600" : "text-red-600")}>
+          Profit {formatGBP(profit)}
+        </span>
+      )}
+    </p>
+  );
+};
 
 const RouteCard: React.FC<{ route: PlanRoute; date: string; onUse: (route: PlanRoute) => void; busy: boolean }> = ({ route, date, onUse, busy }) => (
   <Card>
@@ -41,6 +91,7 @@ const RouteCard: React.FC<{ route: PlanRoute; date: string; onUse: (route: PlanR
       <p className="text-sm text-muted-foreground">
         {route.stop_count} stops · {formatDuration(route.duration_s)} · {route.miles} mi · {route.max_load}/{route.van_capacity} spaces
       </p>
+      <RouteCostLine route={route} />
     </CardHeader>
     <CardContent className="space-y-3">
       <Collapsible>
@@ -489,7 +540,10 @@ const GenerateRoutesDialog: React.FC = () => {
                   )}
                 </div>
 
+                <DaySummary date={activeDay.date} routes={activeRoutes} />
+
                 <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
+
                   <div className="space-y-3">
                     {activeRoutes.length === 0 ? (
                       <Card>
