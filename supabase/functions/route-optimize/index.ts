@@ -736,22 +736,23 @@ serve(async (req) => {
         }
       });
 
-      // Urgent work is never stranded because its area was quiet: widen a van.
+      // Urgent work is never stranded because its area was quiet: widen the last
+      // real van of that day so guaranteed and expiring jobs can still be taken.
       for (const date of opts.dates) {
+        const dayVehicles = vehicles.filter((v) => meta[v.id]?.date === date && !meta[v.id]?.virtual);
+        const target = dayVehicles[dayVehicles.length - 1];
+        if (!target) continue;
+        const widen = new Set<number>(target.skills as number[]);
         const sets = skillSets[date] ?? [];
-        if (sets.length === 0) continue;
         for (const leg of opts.pool) {
           if (!datesOf(leg).includes(date) || !isUrgent(leg)) continue;
           const need = legSkills(leg);
           if (sets.some((s) => need.every((k) => s.has(k)))) continue;
-          const widen = sets[sets.length - 1];
           for (const k of need) widen.add(k);
-          const vehicle = vehicles.find((v) => meta[v.id]?.date === date && v.skills.length === [...widen].length - need.length
-            ? true : meta[v.id]?.date === date);
-          const target = vehicles.filter((v) => meta[v.id]?.date === date).pop();
-          if (target) target.skills = [...widen].sort((a, b) => a - b);
-          void vehicle;
         }
+        target.skills = [...widen].sort((a, b) => a - b);
+        const slot = sets[dayVehicles.length - 1];
+        if (slot) for (const k of widen) slot.add(k);
       }
 
       return { vehicles, meta, skillSets, groupsByDate, longByDate };
