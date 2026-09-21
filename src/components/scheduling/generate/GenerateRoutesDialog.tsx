@@ -86,15 +86,24 @@ const RouteCard: React.FC<{ route: PlanRoute; date: string; onUse: (route: PlanR
           {typeof route.spread_mi === "number" && (
             <Badge variant="secondary">{route.spread_mi} mi across</Badge>
           )}
-          {route.is_expedition && <Badge variant="outline">Expedition 15h</Badge>}
+          {route.is_expedition && <Badge variant="outline">Long day 15h</Badge>}
           {route.is_provisional && <Badge variant="secondary">Provisional</Badge>}
-          {route.stop_count < THIN_ROUTE_STOPS && <Badge variant="secondary">Thin route</Badge>}
+          {(route.thin ?? route.stop_count < THIN_ROUTE_STOPS) && (
+            <Badge variant={route.below_floor ? "destructive" : "secondary"}>
+              {route.thin_reason ?? "Thin route"}
+            </Badge>
+          )}
           {route.guaranteed_count > 0 && <Badge>Guaranteed ×{route.guaranteed_count}</Badge>}
         </div>
       </div>
       <p className="text-sm text-muted-foreground">
         {route.stop_count} stops · {formatDuration(route.duration_s)} · {route.miles} mi · {route.max_load}/{route.van_capacity} spaces
       </p>
+      {(route.thin ?? false) && (route.urgent_labels?.length ?? 0) > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Kept for urgent jobs: {route.urgent_labels!.join(", ")}
+        </p>
+      )}
       <RouteCostLine route={route} />
     </CardHeader>
     <CardContent className="space-y-3">
