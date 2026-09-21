@@ -1113,6 +1113,8 @@ serve(async (req) => {
       const duration = (Number(route.duration) || 0) + (Number(route.service) || 0) + (Number(route.waiting_time) || 0);
       return {
         meta, ordered, isProvisional, duration,
+        // Only a route that actually runs past a normal shift is an expedition.
+        longDay: meta.expedition && duration > PRIMARY_CAP_H * HOURS,
         miles: Math.round(((Number(route.distance) || 0) / 1609.344) * 10) / 10,
         maxLoad: Math.round((maxLoadUnits / 10) * 100) / 100,
         geometry: typeof route.geometry === 'string' ? route.geometry : null,
