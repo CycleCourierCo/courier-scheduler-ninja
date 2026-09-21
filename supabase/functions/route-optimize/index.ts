@@ -766,7 +766,7 @@ serve(async (req) => {
         .filter((j): j is any => !!j);
       if (jobs.length === 0 && shipments.length === 0) return null;
       const { vehicles, meta } = buildVehicles({
-        dates, capH, difficultDates: difficultDatesFor(pool), withVirtual: opts?.withVirtual, skipVanDays: opts?.skip,
+        dates, capH, difficultCounts: difficultCountsFor(pool), withVirtual: opts?.withVirtual, skipVanDays: opts?.skip,
         noFixed: opts?.noFixed,
       });
       if (vehicles.length === 0) return null;
@@ -970,12 +970,25 @@ serve(async (req) => {
           u.hours += ((Number(route.duration) || 0) + (Number(route.service) || 0) + (Number(route.waiting_time) || 0)) / 3600;
         }
         const graceDates = [...new Set(gracePool.flatMap((g) => g.dates))].sort();
-        const difficultGrace = new Set(gracePool.flatMap((g) => (g.leg.difficult ? g.dates : [])));
+        // Same long-day budget as the main solve, so the grace pass cannot
+        // quietly turn every van into a 15h expedition.
+        const graceDifficult: Record<string, number> = {};
+        for (const g of gracePool) {
+          if (!g.leg.difficult) continue;
+          for (const d of g.dates) graceDifficult[d] = (graceDifficult[d] ?? 0) + 1;
+        }
         const vehicles: any[] = [];
         const meta: Record<number, VanDay> = {};
         graceDates.forEach((date, dayIdx) => {
           const shiftOpen = londonEpoch(date, shiftStart);
-          (vansForDate[date] ?? []).forEach((van, vanIdx) => {
+          const dayVans = vansForDate[date] ?? [];
+          let longAllowance = 0;
+          const diffCount = graceDifficult[date] ?? 0;
+          if (diffCount > 0 && maxLongDays > 0 && dayVans.length > 0) {
+            const avgCap = dayVans.reduce((s, v) => s + (v.capacity || DEFAULT_CAPACITY), 0) / dayVans.length;
+            longAllowance = Math.min(maxLongDays, dayVans.length, Math.max(1, Math.ceil(diffCount / Math.max(1, avgCap))));
+          }
+          dayVans.forEach((van, vanIdx) => {
             const push = (kind: 1 | 2, capHours: number) => {
               const used = usedByVanDay[`${date}:${van.id}:${kind}`];
               const remUnits = Math.round(van.capacity * 10) - Math.round((used?.spaces ?? 0) * 10);
@@ -993,7 +1006,10 @@ serve(async (req) => {
               meta[id] = { vehicleId: id, date, vanId: van.id, vanName: van.name, capacity: van.capacity, expedition: kind === 2, virtual: false };
             };
             push(1, PRIMARY_CAP_H);
-            if (difficultGrace.has(date)) push(2, EXPEDITION_CAP_H);
+            if (longAllowance > 0) {
+              push(2, EXPEDITION_CAP_H);
+              longAllowance--;
+            }
           });
         });
         if (vehicles.length > 0) {
