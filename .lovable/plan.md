@@ -24,9 +24,13 @@ Checked the last runs: 218 jobs offered, every one placed, 0 left unassigned, sp
 by the 10-bike van capacity; the planner simply has that many eligible jobs and is happy to
 open another van because opening one is priced cheaply. Three changes:
 
-- **Consolidate onto fewer vans.** Raise the cost of opening a van so the planner fills a
-  van up towards its 12-hour day before starting another. Fewer, fuller routes for the same
-  work.
+- **Price a van at what it actually costs us.** Today opening a van is priced at about one
+  hour of driving, so the planner treats a whole extra van as cheaper than a slightly longer
+  detour — which is backwards for profit. A van that goes out costs a driver for the day plus
+  the running miles, so opening one is priced at a full shift of driver pay, and detour time
+  and miles are priced at our real per-hour and per-mile rates. The planner then only opens
+  another van when the work genuinely will not fit, giving fewer, fuller routes and better
+  margin per stop.
 - **Deliver then collect on the same run.** Bikes collected on a day cannot currently be
   delivered until the next chosen day, so a van can never unload and refill along a route.
   Where a collection and its delivery both fall on the same chosen day and no inspection is
