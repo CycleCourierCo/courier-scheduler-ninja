@@ -476,6 +476,8 @@ serve(async (req) => {
       difficultDates: Set<string>;
       skipVanDays?: Set<string>;   // "date:vanId:kind"
       withVirtual?: boolean;
+      /** Greedy mode: no fixed vehicle cost, so every available van is offered. */
+      noFixed?: boolean;
     }) => {
       const vehicles: any[] = [];
       const meta: Record<number, VanDay> = {};
