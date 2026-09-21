@@ -500,6 +500,29 @@ const GenerateRoutesDialog: React.FC = () => {
 
         {result && (
           <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              {(["joint", "greedy"] as PlanMode[]).map((m) => {
+                const summary = summarisePlan(plans[m]);
+                return (
+                  <Button
+                    key={m}
+                    type="button"
+                    size="sm"
+                    variant={mode === m ? "default" : "outline"}
+                    className="h-auto flex-col items-start gap-0.5 py-2 text-left"
+                    disabled={!plans[m]}
+                    onClick={() => { setMode(m); setLockedDays([]); }}
+                  >
+                    <span>{m === "joint" ? "Balanced across the days" : "Day by day"}</span>
+                    <span className="text-xs font-normal opacity-80">
+                      {plans[m]
+                        ? `${summary.stops} stops · ${summary.vanDays} van-days · ${Math.round(summary.hours)}h · ${Math.round(summary.miles)} mi · ${summary.atRisk} at risk`
+                        : "not available"}
+                    </span>
+                  </Button>
+                );
+              })}
+            </div>
             {result.weekly && (
               <p className="text-sm text-muted-foreground">
                 {result.weekly.van_days_needed} of {result.weekly.van_days_available} van-days used
