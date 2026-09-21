@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { Order } from "@/types/order";
-import { Package, MapPin, Truck, Edit, Clock, Printer, Image, Wrench, ChevronDown } from "lucide-react";
+import { Package, MapPin, Truck, Edit, Clock, Printer, Image, Wrench, ChevronDown, X } from "lucide-react";
+import { notify } from "@/lib/notify";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
@@ -24,10 +25,11 @@ interface BikesInStorageProps {
   onRemoveFromStorage: (allocationId: string) => void;
   onRemoveAllBikesFromOrder: (orderId: string) => void;
   onChangeLocation: (allocationId: string, newBay: string, newPosition: number) => void;
+  onClearBayPosition: (allocationId: string) => void;
   isAdmin?: boolean;
 }
 
-export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAllBikesFromOrder, onChangeLocation, isAdmin = false }: BikesInStorageProps) => {
+export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAllBikesFromOrder, onChangeLocation, onClearBayPosition, isAdmin = false }: BikesInStorageProps) => {
   const [editingAllocation, setEditingAllocation] = useState<StorageAllocation | null>(null);
   const [editingOrderAllocations, setEditingOrderAllocations] = useState<StorageAllocation[]>([]);
   const [imageDialogOrder, setImageDialogOrder] = useState<Order | null>(null);
@@ -64,6 +66,30 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
     setEditingAllocation(allocation);
   };
 
+
+  const confirmClearBays = (orderAllocations: StorageAllocation[], customerName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const bayList = orderAllocations
+      .slice()
+      .sort((a, b) => (a.bay !== b.bay ? a.bay.localeCompare(b.bay) : a.position - b.position))
+      .map((a) => `Bay ${a.bay}${a.position}`)
+      .join(", ");
+    notify.confirm({
+      title: orderAllocations.length > 1
+        ? `Remove from ${bayList}?`
+        : `Remove from Bay ${orderAllocations[0].bay}${orderAllocations[0].position}?`,
+      description: `${customerName} — ${orderAllocations[0].bikeBrand} ${orderAllocations[0].bikeModel} will stay on the order but lose ${orderAllocations.length > 1 ? "these storage positions" : "this storage position"}, so it will need re-allocating before loading.`,
+      confirmLabel: "Remove",
+      destructive: true,
+      onConfirm: () => orderAllocations.forEach((a) => onClearBayPosition(a.id)),
+    });
+  };
+
+  const BayBadge = ({ allocation }: { allocation: StorageAllocation }) => (
+    <Badge variant="secondary" className="font-mono text-xs">
+      {allocation.bay}{allocation.position}
+    </Badge>
+  );
 
   if (bikesInStorage.length === 0) {
     return (
@@ -112,15 +138,11 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                   {isMultiBike ? (
                     <div className="flex flex-wrap gap-1">
                       {allocations.map((allocation) => (
-                        <Badge key={allocation.id} variant="secondary" className="font-mono text-xs">
-                          {allocation.bay}{allocation.position}
-                        </Badge>
+                        <BayBadge key={allocation.id} allocation={allocation} />
                       ))}
                     </div>
                   ) : (
-                    <Badge variant="secondary" className="font-mono text-xs">
-                      {allocations[0].bay}{allocations[0].position}
-                    </Badge>
+                    <BayBadge allocation={allocations[0]} />
                   )}
                   <div className="flex flex-col gap-0.5 min-w-0">
                     <h4 className="font-medium text-sm truncate">{allocations[0].customerName}</h4>
@@ -190,6 +212,15 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                     );
                   })()}
                 </div>
+                <button
+                  type="button"
+                  aria-label={`Remove from ${isMultiBike ? `bays ${allocations.map((a) => `${a.bay}${a.position}`).join(", ")}` : `bay ${allocations[0].bay}${allocations[0].position}`}`}
+                  title="Remove from bay"
+                  onClick={(e) => confirmClearBays(allocations, allocations[0].customerName, e)}
+                  className="inline-flex items-center justify-center h-6 w-6 shrink-0 self-end sm:self-auto rounded-md text-muted-foreground hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </CollapsibleTrigger>
 
               <CollapsibleContent>
