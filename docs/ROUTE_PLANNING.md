@@ -207,25 +207,30 @@ finished one.
 **Balanced:**
 
 1. **Main solve** — all days, all vans, all ready work, in one go. Collections
-   and deliveries that can happen on the same day are sent as a linked pair, so
-   a van can empty out and load again.
-2. **One repair re-solve** — only if a van somehow ended up with both a normal
-   and a long route on the same day.
-3. **Deliveries pass** — collections placed in step 1 are pinned to their day,
+   and deliveries that can happen on the same day and are within 30 miles of
+   each other are sent as a linked pair, so a van can empty out and load again.
+2. **Deliveries pass** — collections placed in step 1 are pinned to their day,
    and the deliveries they unlock are added and solved again. If pinning a
    collection then pushes it out, this pass is discarded.
-4. **Grace pass** — jobs about to expire that still didn't fit get one more try
+3. **Fleet reduction** — the thinnest route's van is taken off the road and the
+   day solved again, repeatedly, until routes carry a proper day's work or a
+   removal would cost urgent work.
+4. **Spread trimming** — days with a route stretched too wide drop their most
+   outlying stop and solve again, up to three times.
+5. **Grace pass** — jobs about to expire that still didn't fit get one more try
    on a later day inside the plan, using whatever room is left on each van.
    These stops are marked "planned after expiry".
-5. **Save and return.**
+6. **Save and return**, along with the run details.
 
 **Daily:** each day in turn is filled as full as it will go before the next day
-is looked at, with no per-van shift charge so every van is offered. Work placed
-on an earlier day is gone by the time the next day is planned.
+is looked at. Fleet reduction still applies, so a half-empty van is taken off
+the road rather than sent out. Work placed on an earlier day is gone by the time
+the next day is planned.
 
-**Time budget:** the run has 90 seconds. Optional steps (repair re-solve,
-deliveries pass, grace pass) are skipped once the budget is nearly gone, so a
-plan is always saved rather than the run being killed.
+**Time budget:** the run has 90 seconds. Optional steps (deliveries pass, fleet
+reduction, spread trimming, grace pass) are skipped once the budget is nearly
+gone, so a plan is always saved rather than the run being killed — and whatever
+was skipped is shown on screen.
 
 **"Short by n vans"** is worked out by a completely separate second call after
 the plan is on screen, so it can never break Generate.
@@ -269,29 +274,22 @@ The planner's times are an estimate for judging whether a day fits.
 
 These are the places most likely to explain a plan that looks wrong:
 
-1. **Area allocation can starve a region.** Vans are shared out by how much work
-   each area has *before* solving. If an area gets fewer vans than its work
-   needs, the surplus can't spill onto a van assigned elsewhere — it lands in
-   the leftover list instead. This is the most likely cause of a sudden jump in
-   unplanned jobs.
-2. **Spread trimming silently shortens routes.** Stops cut for being too far out
-   are removed after the solve, so a route's hours and miles still describe the
-   longer version it was solved as. Counts are right; time and mileage are
-   slightly pessimistic.
-3. **Collect-and-deliver pairs can cross areas.** A pair whose two ends sit in
-   different areas is given no area restriction at all, so it can still stretch
-   a route — spread trimming is the only thing holding it back.
-4. **Long days are all-or-nothing per area.** A difficult-area job can only go on
-   a long-day van. With "Max long days" at 0, those jobs cannot be planned at
-   all and go straight to the leftover list.
-5. **Job windows are generous.** A job's own time window is drawn against a
-   15-hour day even on a 12-hour van, so the van's shift is the only thing
-   keeping late stops out.
-6. **Daily mode can't look ahead.** Filling Monday fully may leave nothing
+1. **A quiet area gets no route.** If an area group can't be justified on any day
+   of the plan, its work waits for the next plan. It is listed as at risk with
+   that reason, and guaranteed or expiring work is forced on anyway, but an area
+   with three jobs will keep being left behind until it builds up.
+2. **Long days are all-or-nothing per area.** A difficult-area job can only go on
+   a long-day van covering that area. With "Max long days" at 0, or more
+   difficult areas live than long days allowed, those jobs go to the leftover
+   list.
+3. **Distant collect-and-deliver pairs cost a day.** Over 30 miles apart, the
+   delivery waits for a later day of the plan and may not fit at all.
+4. **Daily mode can't look ahead.** Filling Monday fully may leave nothing
    sensible for Tuesday in that direction.
-7. **Nothing outside your chosen days is considered.** A job whose only dates
+5. **Nothing outside your chosen days is considered.** A job whose only dates
    fall after the horizon is neither planned nor flagged — it simply isn't in
    the run.
-8. **Distance pricing depends on Verso.** If the endpoint rejects a per-mile
-   cost, the run quietly retries without it, and that solve reverts to
-   time-only costing — which is what produced the sprawling routes before.
+6. **Long runs hit the time budget.** Ten days and a big fleet can use up the 90
+   seconds before reduction and trimming finish. The plan is still saved, the
+   banner tells you what was skipped, and generating again picks up from a
+   smaller problem.
