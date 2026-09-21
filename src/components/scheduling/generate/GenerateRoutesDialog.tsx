@@ -369,6 +369,28 @@ const GenerateRoutesDialog: React.FC = () => {
     return [...runLegs, ...lapsedLegs.filter((l) => !seen.has(`${l.order_id}:${l.leg_type}`))];
   }, [result, lapsedLegs]);
 
+  /** The "an extra van would fit N more jobs" figures, fetched after the plan. */
+  const loadShortfall = (base: Omit<GenerateRoutesInput, "mode">) => {
+    fetchPlanShortfall({ ...base, mode: "joint" })
+      .then((byDate) => {
+        if (!byDate || Object.keys(byDate).length === 0) {
+          setPlans((prev) => (prev.joint ? { ...prev, joint: { ...prev.joint, shortfall_pending: false } } : prev));
+          return;
+        }
+        setPlans((prev) => prev.joint ? {
+          ...prev,
+          joint: {
+            ...prev.joint,
+            shortfall_pending: false,
+            days: prev.joint.days.map((d) => ({ ...d, shortfall: byDate[d.date] ?? d.shortfall })),
+          },
+        } : prev);
+      })
+      .catch(() => {
+        setPlans((prev) => (prev.joint ? { ...prev, joint: { ...prev.joint, shortfall_pending: false } } : prev));
+      });
+  };
+
   const handleGenerate = async () => {
     if (dates.length < MIN_DAYS) {
       toast.error(`Pick at least ${MIN_DAYS} days to plan`);
