@@ -3360,6 +3360,53 @@ export type Database = {
           },
         ]
       }
+      order_leg_availability: {
+        Row: {
+          availability_expired_at: string | null
+          availability_status: Database["public"]["Enums"]["leg_availability_status"]
+          created_at: string
+          id: string
+          leg_type: string
+          order_id: string
+          priority_boost: number
+          redate_reminders: number
+          redate_requested_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          availability_expired_at?: string | null
+          availability_status?: Database["public"]["Enums"]["leg_availability_status"]
+          created_at?: string
+          id?: string
+          leg_type: string
+          order_id: string
+          priority_boost?: number
+          redate_reminders?: number
+          redate_requested_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          availability_expired_at?: string | null
+          availability_status?: Database["public"]["Enums"]["leg_availability_status"]
+          created_at?: string
+          id?: string
+          leg_type?: string
+          order_id?: string
+          priority_boost?: number
+          redate_reminders?: number
+          redate_requested_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_leg_availability_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_update_log: {
         Row: {
           created_at: string
@@ -4293,11 +4340,15 @@ export type Database = {
       }
       route_plan_routes: {
         Row: {
+          affects_later_legs: Json | null
           created_at: string
+          day_status: string
           geometry: string | null
           id: string
           is_expedition: boolean
+          is_provisional: boolean
           max_load: number | null
+          pass: string
           plan_id: string
           route_date: string
           selected: boolean
@@ -4311,11 +4362,15 @@ export type Database = {
           variant: string
         }
         Insert: {
+          affects_later_legs?: Json | null
           created_at?: string
+          day_status?: string
           geometry?: string | null
           id?: string
           is_expedition?: boolean
+          is_provisional?: boolean
           max_load?: number | null
+          pass?: string
           plan_id: string
           route_date: string
           selected?: boolean
@@ -4329,11 +4384,15 @@ export type Database = {
           variant?: string
         }
         Update: {
+          affects_later_legs?: Json | null
           created_at?: string
+          day_status?: string
           geometry?: string | null
           id?: string
           is_expedition?: boolean
+          is_provisional?: boolean
           max_load?: number | null
+          pass?: string
           plan_id?: string
           route_date?: string
           selected?: boolean
@@ -4411,10 +4470,16 @@ export type Database = {
           assume_next_day_inspection: boolean
           created_at: string
           created_by: string | null
+          firm_days: number
+          generated_at: string
           horizon_end: string
           horizon_start: string
           id: string
+          inspection_lead_days: number | null
+          is_stale: boolean
+          selected_dates: string[]
           shift_start: string
+          shortfall: Json
           status: string
           updated_at: string
         }
@@ -4422,10 +4487,16 @@ export type Database = {
           assume_next_day_inspection?: boolean
           created_at?: string
           created_by?: string | null
+          firm_days?: number
+          generated_at?: string
           horizon_end: string
           horizon_start: string
           id?: string
+          inspection_lead_days?: number | null
+          is_stale?: boolean
+          selected_dates?: string[]
           shift_start?: string
+          shortfall?: Json
           status?: string
           updated_at?: string
         }
@@ -4433,10 +4504,16 @@ export type Database = {
           assume_next_day_inspection?: boolean
           created_at?: string
           created_by?: string | null
+          firm_days?: number
+          generated_at?: string
           horizon_end?: string
           horizon_start?: string
           id?: string
+          inspection_lead_days?: number | null
+          is_stale?: boolean
+          selected_dates?: string[]
           shift_start?: string
+          shortfall?: Json
           status?: string
           updated_at?: string
         }
@@ -5176,6 +5253,41 @@ export type Database = {
         }
         Relationships: []
       }
+      van_unavailability: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          reason: string | null
+          unavailable_on: string
+          van_id: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          reason?: string | null
+          unavailable_on: string
+          van_id: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          reason?: string | null
+          unavailable_on?: string
+          van_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "van_unavailability_van_id_fkey"
+            columns: ["van_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_insurance_policies: {
         Row: {
           created_at: string
@@ -5780,36 +5892,45 @@ export type Database = {
       workshop_settings: {
         Row: {
           daily_capacity_minutes: number
+          default_horizon_days: number
           default_repair_minutes: number
           hourly_rate_gbp: number
           id: number
           inspection_standard_minutes: number
           min_charge_gbp: number
+          redate_mode: string
           updated_at: string
           updated_by: string | null
           van_spaces_capacity: number
+          working_days: string[]
         }
         Insert: {
           daily_capacity_minutes?: number
+          default_horizon_days?: number
           default_repair_minutes?: number
           hourly_rate_gbp?: number
           id?: number
           inspection_standard_minutes?: number
           min_charge_gbp?: number
+          redate_mode?: string
           updated_at?: string
           updated_by?: string | null
           van_spaces_capacity?: number
+          working_days?: string[]
         }
         Update: {
           daily_capacity_minutes?: number
+          default_horizon_days?: number
           default_repair_minutes?: number
           hourly_rate_gbp?: number
           id?: number
           inspection_standard_minutes?: number
           min_charge_gbp?: number
+          redate_mode?: string
           updated_at?: string
           updated_by?: string | null
           van_spaces_capacity?: number
+          working_days?: string[]
         }
         Relationships: []
       }
@@ -7151,6 +7272,7 @@ export type Database = {
         | "delivered_to_ferry"
         | "crossed_to_ni"
         | "delivered_ni"
+      leg_availability_status: "active" | "expired" | "awaiting_new_dates"
       order_status:
         | "created"
         | "sender_availability_pending"
@@ -7424,6 +7546,7 @@ export const Constants = {
         "crossed_to_ni",
         "delivered_ni",
       ],
+      leg_availability_status: ["active", "expired", "awaiting_new_dates"],
       order_status: [
         "created",
         "sender_availability_pending",
