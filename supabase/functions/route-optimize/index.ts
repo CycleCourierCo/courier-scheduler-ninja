@@ -650,6 +650,48 @@ serve(async (req) => {
       return set;
     };
 
+    /* ------------- same-day collect-then-deliver pairs -------------------- */
+
+    // Where a bike can be collected and dropped on the same day, offer the two
+    // stops as one linked pair so a van can empty out and pick more up again
+    // instead of running at half capacity.
+    const sameDayPairs: { c: Leg; d: Leg; dates: string[] }[] = (() => {
+      const byOrder: Record<string, { c?: Leg; d?: Leg }> = {};
+      for (const leg of legs) {
+        const slot = (byOrder[leg.orderId] ??= {});
+        if (leg.legType === 'collection') slot.c = leg; else slot.d = leg;
+      }
+      const out: { c: Leg; d: Leg; dates: string[] }[] = [];
+      for (const { c, d } of Object.values(byOrder)) {
+        if (!c || !d) continue;
+        if (!d.needsUnlock || d.needsInspection || d.guaranteedDate) continue;
+        const shared = c.windowDates.filter((x) => d.windowDates.includes(x));
+        if (shared.length > 0) out.push({ c, d, dates: shared });
+      }
+      return out;
+    })();
+
+    const buildShipment = (pair: { c: Leg; d: Leg; dates: string[] }, dates: string[]) => {
+      const usable = pair.dates.filter((d) => dates.includes(d));
+      const step = (leg: Leg) => {
+        const windows = usable
+          .map((d) => windowFor(leg, d))
+          .filter((w): w is [number, number] => !!w)
+          .sort((a, b) => a[0] - b[0]);
+        if (windows.length === 0) return null;
+        return { id: leg.jobId, location: [leg.lon, leg.lat], service: SERVICE_S, time_windows: windows };
+      };
+      const pickup = step(pair.c);
+      const delivery = step(pair.d);
+      if (!pickup || !delivery) return null;
+      return {
+        amount: [Math.max(1, Math.round(pair.c.spaces * 10))],
+        priority: Math.max(pair.c.priority, pair.d.priority),
+        ...(pair.c.difficult || pair.d.difficult ? { skills: [1] } : {}),
+        pickup, delivery,
+      };
+    };
+
     /* ------------------------------ pass A -------------------------------- */
 
     // Ready legs: all collections, plus deliveries whose bike is already in the depot.
