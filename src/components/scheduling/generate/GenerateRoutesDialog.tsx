@@ -495,7 +495,6 @@ const GenerateRoutesDialog: React.FC = () => {
       if (lock) await lockPlanDay(result.plan_id, date);
       else await unlockPlanDay(result.plan_id, date);
       setLockedDays((prev) => (lock ? [...prev, date] : prev.filter((d) => d !== date)));
-      if (lock) setCommittedMode(mode);
       toast.success(lock ? `${dayLabel(date)} locked — its jobs are reserved` : `${dayLabel(date)} released`);
     } catch (e) {
       toast.error((e as Error).message || "Could not change that day");
