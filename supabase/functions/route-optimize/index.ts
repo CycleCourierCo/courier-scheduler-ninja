@@ -258,7 +258,7 @@ serve(async (req) => {
 
     const { data: orderRows, error: ordersErr } = await admin
       .from('orders')
-      .select('id,tracking_number,user_id,status,sender,receiver,bikes,bike_type,bike_quantity,pickup_date,delivery_date,scheduled_pickup_date,scheduled_delivery_date,order_collected,order_delivered,collection_completed_at,needs_inspection,is_box_my_bike,ni_direction,guaranteed_delivery,guaranteed_delivery_date,bicycle_inspections(status)')
+      .select('id,tracking_number,user_id,status,sender,receiver,bikes,bike_type,bike_quantity,pickup_date,delivery_date,scheduled_pickup_date,scheduled_delivery_date,order_collected,order_delivered,needs_inspection,is_box_my_bike,ni_direction,guaranteed_delivery,guaranteed_delivery_date,bicycle_inspections(status)')
       .not('status', 'in', '(cancelled,delivered)');
     if (ordersErr) throw ordersErr;
 
@@ -312,6 +312,13 @@ serve(async (req) => {
       const pickupDates = clean(order.pickup_date);
       const deliveryDates = clean(order.delivery_date);
 
+      // No stored "collection completed" timestamp exists: derive it from the
+      // scheduled pickup day (or the first agreed pickup date) once collected.
+      const collectedDate = order.order_collected
+        ? (dateKey(order.scheduled_pickup_date)
+          ?? (Array.isArray(order.pickup_date) ? dateKey(order.pickup_date[0]) : null))
+        : null;
+
       const buildPriority = (available: string[], guaranteed: string | null, boost: number) => {
         if (guaranteed) return 100;
         const future = available.filter((d) => d >= today);
@@ -347,8 +354,8 @@ serve(async (req) => {
             reason: severity === 1 ? 'Guaranteed date missed'
               : severity === 2 ? 'Bike in depot, delivery dates expired'
               : dates.length === 0 ? 'No dates provided' : 'Dates expired',
-            days_in_depot: legType === 'delivery' && order.collection_completed_at
-              ? daysSince(dateKey(order.collection_completed_at) ?? today) : null,
+            days_in_depot: legType === 'delivery' && collectedDate
+              ? daysSince(collectedDate) : null,
             last_date: dates.length ? dates[dates.length - 1] : null,
             guaranteed_date: guaranteed,
             status: status === 'awaiting_new_dates' ? 'awaiting_new_dates' : 'expired',
@@ -391,7 +398,7 @@ serve(async (req) => {
           businessHours, label,
           needsUnlock: extra.needsUnlock,
           needsInspection: !!order.needs_inspection && !inspectionDone,
-          collectedAt: dateKey(order.collection_completed_at),
+          collectedAt: collectedDate,
         });
       };
 
