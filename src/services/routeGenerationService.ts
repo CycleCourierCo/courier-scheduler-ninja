@@ -27,10 +27,12 @@ export interface PlanRoute {
   van_capacity: number;
   geometry: string | null;
   guaranteed_count: number;
-  /** Part of the country this route covers, e.g. "NE". */
-  region?: string;
+  /** Difficult area this route covers, when it is the long day. */
+  region?: string | null;
   /** Widest gap between any two stops on the route, in miles. */
   spread_mi?: number;
+  /** Wider than 150 miles across — worth a dispatcher's eye. */
+  spread_warning?: boolean;
   /** Fewer jobs than the target for a full day. */
   thin?: boolean;
   /** Fewer jobs than the floor — a dispatcher should look at this one. */
@@ -39,6 +41,13 @@ export interface PlanRoute {
   thin_reason?: string | null;
   /** Urgent jobs that justify a thin route. */
   urgent_labels?: string[];
+  /** Jobs on this route that had to go today. */
+  must_go_count?: number;
+  /** Half the charged price of each job on the route, excluding VAT. */
+  revenue?: number;
+  /** Driver hours plus mileage. */
+  cost?: number;
+  margin?: number;
   stops: PlanStop[];
 }
 
