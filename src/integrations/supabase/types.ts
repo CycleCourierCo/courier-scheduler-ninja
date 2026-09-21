@@ -6055,6 +6055,15 @@ export type Database = {
         Args: { p_bikes: Json; p_order_id: string }
         Returns: boolean
       }
+      difficult_areas_geojson: {
+        Args: never
+        Returns: {
+          geojson: Json
+          id: string
+          max_route_hours: number
+          name: string
+        }[]
+      }
       disablelongtransactions: { Args: never; Returns: string }
       dropgeometrycolumn:
         | {
