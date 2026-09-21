@@ -190,6 +190,9 @@ serve(async (req) => {
     const firmDays = Number.isFinite(Number(body?.firm_days)) ? Math.max(0, Math.min(10, Number(body.firm_days))) : 2;
     const inspectionLeadDays = Number.isFinite(Number(body?.inspection_lead_days))
       ? Math.max(0, Math.min(14, Number(body.inspection_lead_days))) : null;
+    // 'joint' balances the whole horizon in one solve; 'greedy' fills each day
+    // as full as it can, in order.
+    const mode: 'joint' | 'greedy' = body?.mode === 'greedy' ? 'greedy' : 'joint';
 
     const today = todayLondon();
     const selectedDates: string[] = [...new Set(
@@ -473,6 +476,8 @@ serve(async (req) => {
       difficultDates: Set<string>;
       skipVanDays?: Set<string>;   // "date:vanId:kind"
       withVirtual?: boolean;
+      /** Greedy mode: no fixed vehicle cost, so every available van is offered. */
+      noFixed?: boolean;
     }) => {
       const vehicles: any[] = [];
       const meta: Record<number, VanDay> = {};
@@ -491,7 +496,7 @@ serve(async (req) => {
               time_window: [shiftOpen, shiftOpen + capHours * HOURS],
               max_travel_time: Math.max(2 * HOURS, (capHours - 2) * HOURS),
               speed_factor: 0.95,
-              costs: { fixed: kind === 2 ? 7200 : 3600 },
+              ...(opts.noFixed ? {} : { costs: { fixed: kind === 2 ? 7200 : 3600 } }),
               ...(kind === 2 ? { skills: [1] } : {}),
             });
             meta[id] = { vehicleId: id, date, vanId: van.id, vanName: van.name, capacity: van.capacity, expedition: kind === 2, virtual };
@@ -604,7 +609,7 @@ serve(async (req) => {
       });
     }
 
-    const runSolve = async (pool: Leg[], pinned: Record<string, string>, capH: number, opts?: { withVirtual?: boolean; dates?: string[]; skip?: Set<string> }) => {
+    const runSolve = async (pool: Leg[], pinned: Record<string, string>, capH: number, opts?: { withVirtual?: boolean; dates?: string[]; skip?: Set<string>; noFixed?: boolean }) => {
       const dates = opts?.dates ?? selectedDates;
       const jobs = pool
         .map((leg) => buildJob(leg, pinned[leg.key] ? [pinned[leg.key]] : leg.windowDates.filter((d) => dates.includes(d))))
@@ -612,6 +617,7 @@ serve(async (req) => {
       if (jobs.length === 0) return null;
       const { vehicles, meta } = buildVehicles({
         dates, capH, difficultDates: difficultDatesFor(pool), withVirtual: opts?.withVirtual, skipVanDays: opts?.skip,
+        noFixed: opts?.noFixed,
       });
       if (vehicles.length === 0) return null;
       const started = Date.now();
@@ -626,75 +632,117 @@ serve(async (req) => {
       return { solution, meta, jobCount: jobs.length };
     };
 
-    let passA;
-    try {
-      passA = await runSolve(readyLegs, {}, PRIMARY_CAP_H);
-    } catch (e) {
-      console.error('pass A failed', (e as Error).message);
-      return json({ error: (e as Error).message }, 502);
-    }
-    if (!passA) return json({ error: 'Nothing could be sent to the optimiser for those days' }, 400);
-
-    let current = readSolution(passA.solution, passA.meta, legsById);
+    let current: { placed: Placed[]; routeInfo: { meta: VanDay; route: any; stops: Placed[] }[] } = { placed: [], routeInfo: [] };
     let pool = readyLegs;
     let pinned: Record<string, string> = {};
-
-    /* ------------------------- repair loop (one route per van-day) -------- */
-
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const byVanDay: Record<string, Set<boolean>> = {};
-      for (const { meta } of current.routeInfo) {
-        const k = `${meta.date}:${meta.vanId}`;
-        (byVanDay[k] ??= new Set()).add(meta.expedition);
-      }
-      const clashes = Object.entries(byVanDay).filter(([, kinds]) => kinds.size > 1);
-      if (clashes.length === 0) break;
-      const skip = new Set<string>(clashes.map(([k]) => `${k}:1`)); // drop the normal twin
-      try {
-        const retry = await runSolve(pool, pinned, PRIMARY_CAP_H, { skip });
-        if (!retry) break;
-        current = readSolution(retry.solution, retry.meta, legsById);
-        passA = retry;
-      } catch { break; }
-    }
-
-    /* ------------------------------ pass B -------------------------------- */
-
-    const collectionDay: Record<string, string> = {};
-    for (const p of current.placed) {
-      if (p.leg.legType === 'collection') collectionDay[p.leg.orderId] = p.date;
-    }
-
-    const unlockable = legs.filter((leg) => {
-      if (leg.legType !== 'delivery' || !leg.needsUnlock) return false;
-      const collectedOn = collectionDay[leg.orderId];
-      if (!collectedOn) return false;
-      if (leg.needsInspection && inspectionLeadDays === null) return false;
-      const lead = leg.needsInspection ? Math.max(1, inspectionLeadDays ?? 1) : 1;
-      const earliest = selectedDates.filter((d) => d > collectedOn);
-      const allowed = earliest.slice(Math.max(0, lead - 1)); // lead-th selected day onwards
-      const dates = leg.windowDates.filter((d) => allowed.includes(d));
-      if (dates.length === 0) return false;
-      leg.windowDates = dates;
-      return true;
-    });
-
     let displaced: Leg[] = [];
-    if (unlockable.length > 0) {
-      pinned = {};
-      for (const p of current.placed) if (p.leg.legType === 'collection') pinned[p.leg.key] = p.date;
-      pool = [...readyLegs, ...unlockable];
-      try {
-        const passB = await runSolve(pool, pinned, PRIMARY_CAP_H);
-        if (passB) {
-          const after = readSolution(passB.solution, passB.meta, legsById);
-          const placedKeys = new Set(after.placed.map((p) => p.leg.key));
-          // A pinned collection crowded out in pass B invalidates its delivery.
-          displaced = Object.keys(pinned).filter((k) => !placedKeys.has(k)).map((k) => legsById[legs.find((l) => l.key === k)!.jobId]);
-          if (displaced.length === 0) { current = after; passA = passB; }
+
+    if (mode === 'greedy') {
+      /* --------------------- day-by-day (greedy) planning ------------------- */
+      // Each day is filled as full as it will go before the next day is looked at.
+      const placedKeys = new Set<string>();
+      const collectedOn: Record<string, string> = {};
+      for (let dayIdx = 0; dayIdx < selectedDates.length; dayIdx++) {
+        const date = selectedDates[dayIdx];
+        const candidates = legs.filter((leg) => {
+          if (placedKeys.has(leg.key) || !leg.windowDates.includes(date)) return false;
+          if (leg.legType === 'collection') return true;
+          if (!leg.needsUnlock && !leg.needsInspection) return true;
+          const collected = collectedOn[leg.orderId];
+          if (!collected) return false;
+          if (leg.needsInspection && inspectionLeadDays === null) return false;
+          const lead = leg.needsInspection ? Math.max(1, inspectionLeadDays ?? 1) : 1;
+          return dayIdx - selectedDates.indexOf(collected) >= lead;
+        });
+        if (candidates.length === 0) continue;
+        try {
+          const day = await runSolve(candidates, {}, PRIMARY_CAP_H, { dates: [date], noFixed: true });
+          if (!day) continue;
+          const read = readSolution(day.solution, day.meta, legsById);
+          for (const p of read.placed) {
+            placedKeys.add(p.leg.key);
+            if (p.leg.legType === 'collection') collectedOn[p.leg.orderId] = p.date;
+          }
+          current = {
+            placed: [...current.placed, ...read.placed],
+            routeInfo: [...current.routeInfo, ...read.routeInfo],
+          };
+        } catch (e) {
+          console.error('greedy day failed', date, (e as Error).message);
         }
+      }
+      pool = legs;
+      if (current.routeInfo.length === 0) {
+        return json({ error: 'Nothing could be planned day by day for those days' }, 400);
+      }
+    } else {
+      let passA;
+      try {
+        passA = await runSolve(readyLegs, {}, PRIMARY_CAP_H);
       } catch (e) {
-        console.error('pass B failed', (e as Error).message);
+        console.error('pass A failed', (e as Error).message);
+        return json({ error: (e as Error).message }, 502);
+      }
+      if (!passA) return json({ error: 'Nothing could be sent to the optimiser for those days' }, 400);
+
+      current = readSolution(passA.solution, passA.meta, legsById);
+
+      /* ------------------------ repair loop (one route per van-day) -------- */
+
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const byVanDay: Record<string, Set<boolean>> = {};
+        for (const { meta } of current.routeInfo) {
+          const k = `${meta.date}:${meta.vanId}`;
+          (byVanDay[k] ??= new Set()).add(meta.expedition);
+        }
+        const clashes = Object.entries(byVanDay).filter(([, kinds]) => kinds.size > 1);
+        if (clashes.length === 0) break;
+        const skip = new Set<string>(clashes.map(([k]) => `${k}:1`)); // drop the normal twin
+        try {
+          const retry = await runSolve(pool, pinned, PRIMARY_CAP_H, { skip });
+          if (!retry) break;
+          current = readSolution(retry.solution, retry.meta, legsById);
+          passA = retry;
+        } catch { break; }
+      }
+
+      /* ------------------------------ pass B -------------------------------- */
+
+      const collectionDay: Record<string, string> = {};
+      for (const p of current.placed) {
+        if (p.leg.legType === 'collection') collectionDay[p.leg.orderId] = p.date;
+      }
+
+      const unlockable = legs.filter((leg) => {
+        if (leg.legType !== 'delivery' || !leg.needsUnlock) return false;
+        const collectedOn = collectionDay[leg.orderId];
+        if (!collectedOn) return false;
+        if (leg.needsInspection && inspectionLeadDays === null) return false;
+        const lead = leg.needsInspection ? Math.max(1, inspectionLeadDays ?? 1) : 1;
+        const earliest = selectedDates.filter((d) => d > collectedOn);
+        const allowed = earliest.slice(Math.max(0, lead - 1)); // lead-th selected day onwards
+        const dates = leg.windowDates.filter((d) => allowed.includes(d));
+        if (dates.length === 0) return false;
+        leg.windowDates = dates;
+        return true;
+      });
+
+      if (unlockable.length > 0) {
+        pinned = {};
+        for (const p of current.placed) if (p.leg.legType === 'collection') pinned[p.leg.key] = p.date;
+        pool = [...readyLegs, ...unlockable];
+        try {
+          const passB = await runSolve(pool, pinned, PRIMARY_CAP_H);
+          if (passB) {
+            const after = readSolution(passB.solution, passB.meta, legsById);
+            const placedKeys = new Set(after.placed.map((p) => p.leg.key));
+            // A pinned collection crowded out in pass B invalidates its delivery.
+            displaced = Object.keys(pinned).filter((k) => !placedKeys.has(k)).map((k) => legsById[legs.find((l) => l.key === k)!.jobId]);
+            if (displaced.length === 0) { current = after; passA = passB; }
+          }
+        } catch (e) {
+          console.error('pass B failed', (e as Error).message);
+        }
       }
     }
 
@@ -702,7 +750,9 @@ serve(async (req) => {
 
     let whatIf: { placedByDate: Record<string, number>; virtualByDate: Record<string, number>; urgentByDate: Record<string, number> } | null = null;
     try {
-      const wi = await runSolve(pool, pinned, PRIMARY_CAP_H, { withVirtual: true });
+      // Day-by-day plans are deliberately unbalanced, so the "extra van" what-if
+      // only applies to the balanced plan.
+      const wi = mode === 'greedy' ? null : await runSolve(pool, pinned, PRIMARY_CAP_H, { withVirtual: true });
       if (wi) {
         const read = readSolution(wi.solution, wi.meta, legsById);
         const placedByDate: Record<string, number> = {};
@@ -723,8 +773,9 @@ serve(async (req) => {
 
     /* ------------------------------ persist ------------------------------- */
 
-    // One active plan at a time.
-    await admin.from('route_plans').update({ status: 'superseded' }).eq('status', 'active');
+    // One active plan per way of planning, so balanced and day-by-day can sit
+    // side by side.
+    await admin.from('route_plans').update({ status: 'superseded' }).eq('status', 'active').eq('mode', mode);
 
     const { data: planRow, error: planErr } = await admin.from('route_plans').insert({
       horizon_start: selectedDates[0],
@@ -735,6 +786,7 @@ serve(async (req) => {
       inspection_lead_days: inspectionLeadDays,
       created_by: userData.user.id,
       status: 'active',
+      mode,
       generated_at: new Date().toISOString(),
     }).select('id').single();
     if (planErr) throw planErr;
@@ -837,7 +889,7 @@ serve(async (req) => {
         priority: l.priority,
         remaining_dates: l.allDates.filter((d) => d >= today).length,
         guaranteed_date: l.guaranteedDate,
-        reason: displaced.some((d) => d?.key === l.key) ? 'displaced in pass B'
+        reason: displaced.some((d) => d?.key === l.key) ? 'pushed out when deliveries were added'
           : l.guaranteedDate ? 'guaranteed date could not be met'
           : l.needsUnlock ? 'waiting on its collection being planned'
           : 'no feasible slot on the days you picked',
@@ -853,6 +905,7 @@ serve(async (req) => {
 
     return json({
       plan_id: planId,
+      mode,
       generated_at: new Date().toISOString(),
       firm_days: firmDays,
       days,

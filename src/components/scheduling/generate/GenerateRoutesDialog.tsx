@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
-  AtRiskLeg, NeedsNewDatesLeg, PlanDay, PlanRoute, RoutePlanResult,
+  AtRiskLeg, NeedsNewDatesLeg, PlanDay, PlanMode, PlanRoute, RoutePlanResult, summarisePlan,
   clearNewDatesRequest, fetchDifficultAreas, fetchPlanningVans, fetchWorkingDays, formatDuration,
   generateRoutes, isWorkingDay, lockPlanDay, nextWorkingDays, refreshAvailabilityExpiry,
   requestNewDates, selectPlanRoute, setVanUnavailable, unlockPlanDay,
@@ -246,7 +246,9 @@ const GenerateRoutesDialog: React.FC = () => {
   const [areas, setAreas] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [busyRoute, setBusyRoute] = useState(false);
-  const [result, setResult] = useState<RoutePlanResult | null>(null);
+  const [plans, setPlans] = useState<{ joint: RoutePlanResult | null; greedy: RoutePlanResult | null }>({ joint: null, greedy: null });
+  const [mode, setMode] = useState<PlanMode>("joint");
+  const result = plans[mode];
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [lockedDays, setLockedDays] = useState<string[]>([]);
 
@@ -311,19 +313,25 @@ const GenerateRoutesDialog: React.FC = () => {
       return;
     }
     setLoading(true);
-    setResult(null);
+    setPlans({ joint: null, greedy: null });
     setLockedDays([]);
+    const base = {
+      selected_dates: dates,
+      shift_start: shiftStart,
+      van_availability: Object.fromEntries(dates.map((d) => [d, grid[d] ?? vans.map((v) => v.id)])),
+      firm_days: firmDays,
+      inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
+    };
     try {
-      const plan = await generateRoutes({
-        selected_dates: dates,
-        shift_start: shiftStart,
-        van_availability: Object.fromEntries(dates.map((d) => [d, grid[d] ?? vans.map((v) => v.id)])),
-        firm_days: firmDays,
-        inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
-      });
-      setResult(plan);
-      setActiveDate(plan.days.find((d) => (d.variants?.[0]?.routes?.length ?? 0) > 0)?.date ?? plan.days[0]?.date ?? null);
-      const planned = plan.days.reduce((n, d) => n + (d.variants?.[0]?.routes?.length ?? 0), 0);
+      // Both ways of planning are built so they can be compared side by side.
+      const [joint, greedy] = await Promise.all([
+        generateRoutes({ ...base, mode: "joint" }),
+        generateRoutes({ ...base, mode: "greedy" }).catch(() => null),
+      ]);
+      setPlans({ joint, greedy });
+      setMode("joint");
+      setActiveDate(joint.days.find((d) => (d.variants?.[0]?.routes?.length ?? 0) > 0)?.date ?? joint.days[0]?.date ?? null);
+      const planned = joint.days.reduce((n, d) => n + (d.variants?.[0]?.routes?.length ?? 0), 0);
       toast.success(planned > 0 ? `Planned ${planned} route${planned === 1 ? "" : "s"} across ${dates.length} days` : "No routes could be built for those days");
     } catch (e) {
       toast.error((e as Error).message || "Route generation failed");
@@ -492,6 +500,29 @@ const GenerateRoutesDialog: React.FC = () => {
 
         {result && (
           <div className="space-y-4">
+            <div className="flex flex-wrap items-center gap-2">
+              {(["joint", "greedy"] as PlanMode[]).map((m) => {
+                const summary = summarisePlan(plans[m]);
+                return (
+                  <Button
+                    key={m}
+                    type="button"
+                    size="sm"
+                    variant={mode === m ? "default" : "outline"}
+                    className="h-auto flex-col items-start gap-0.5 py-2 text-left"
+                    disabled={!plans[m]}
+                    onClick={() => { setMode(m); setLockedDays([]); }}
+                  >
+                    <span>{m === "joint" ? "Balanced across the days" : "Day by day"}</span>
+                    <span className="text-xs font-normal opacity-80">
+                      {plans[m]
+                        ? `${summary.stops} stops · ${summary.vanDays} van-days · ${Math.round(summary.hours)}h · ${Math.round(summary.miles)} mi · ${summary.atRisk} at risk`
+                        : "not available"}
+                    </span>
+                  </Button>
+                );
+              })}
+            </div>
             {result.weekly && (
               <p className="text-sm text-muted-foreground">
                 {result.weekly.van_days_needed} of {result.weekly.van_days_available} van-days used
