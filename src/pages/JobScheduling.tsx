@@ -11,6 +11,7 @@ import ViableJobsHeatMap from "@/components/scheduling/ViableJobsHeatMap";
 import DriverHoursMileagePanel from "@/components/scheduling/DriverHoursMileagePanel";
 
 import RouteBuilder from "@/components/scheduling/RouteBuilder";
+import GenerateRoutesDialog from "@/components/scheduling/generate/GenerateRoutesDialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -252,11 +253,14 @@ const JobScheduling = () => {
     <Layout>
       <div className="office-density container py-6">
         <DashboardHeader>
-          <div>
-            <h1>Job scheduling</h1>
-            <p className="text-muted-foreground">
-              Review viable work, route urgency and operational capacity.
-            </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1>Job scheduling</h1>
+              <p className="text-muted-foreground">
+                Review viable work, route urgency and operational capacity.
+              </p>
+            </div>
+            <GenerateRoutesDialog />
           </div>
         </DashboardHeader>
 
