@@ -5349,6 +5349,7 @@ export type Database = {
       }
       vehicles: {
         Row: {
+          bike_spaces: number | null
           clean_air_zones: boolean
           co2_emissions: number | null
           colour: string | null
@@ -5389,6 +5390,7 @@ export type Database = {
           year_of_manufacture: number | null
         }
         Insert: {
+          bike_spaces?: number | null
           clean_air_zones?: boolean
           co2_emissions?: number | null
           colour?: string | null
@@ -5429,6 +5431,7 @@ export type Database = {
           year_of_manufacture?: number | null
         }
         Update: {
+          bike_spaces?: number | null
           clean_air_zones?: boolean
           co2_emissions?: number | null
           colour?: string | null
