@@ -889,7 +889,7 @@ serve(async (req) => {
         priority: l.priority,
         remaining_dates: l.allDates.filter((d) => d >= today).length,
         guaranteed_date: l.guaranteedDate,
-        reason: displaced.some((d) => d?.key === l.key) ? 'displaced in pass B'
+        reason: displaced.some((d) => d?.key === l.key) ? 'pushed out when deliveries were added'
           : l.guaranteedDate ? 'guaranteed date could not be met'
           : l.needsUnlock ? 'waiting on its collection being planned'
           : 'no feasible slot on the days you picked',
