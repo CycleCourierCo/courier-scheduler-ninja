@@ -152,6 +152,8 @@ interface Leg {
    needsUnlock: boolean;      // delivery whose bike isn't collected yet
    needsInspection: boolean;
    collectedAt: string | null;
+   /** Collection already booked in for this day (kept out of planning itself). */
+   scheduledCollection: string | null;
 }
 
 interface VanDay { vehicleId: number; date: string; vanId: string; vanName: string; capacity: number; expedition: boolean; virtual: boolean }
