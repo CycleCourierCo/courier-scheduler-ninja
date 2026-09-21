@@ -568,7 +568,9 @@ serve(async (req) => {
               time_window: [shiftOpen, shiftOpen + 13 * HOURS],
               max_travel_time: 11 * HOURS,
               speed_factor: 0.95,
-              costs: { fixed: 50000 },
+              // Deliberately dear: an extra van is only "worth it" when it
+              // rescues a real amount of work.
+              costs: { fixed: 40000, per_hour: DRIVER_PENCE_PER_HOUR },
             });
             meta[id] = { vehicleId: id, date, vanId: `virtual-${i}`, vanName: `Extra van ${i + 1}`, capacity: DEFAULT_CAPACITY, expedition: false, virtual: true };
           }
