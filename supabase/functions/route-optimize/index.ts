@@ -879,7 +879,7 @@ serve(async (req) => {
         .filter((j): j is any => !!j);
       if (jobs.length === 0 && shipments.length === 0) return null;
       const { vehicles, meta } = buildVehicles({
-        dates, capH, difficultCounts: difficultCountsFor(pool), withVirtual: opts?.withVirtual, skipVanDays: opts?.skip,
+        dates, capH, regionCounts: regionCountsFor(pool), withVirtual: opts?.withVirtual, skipVanDays: opts?.skip,
         noFixed: opts?.noFixed,
       });
       if (vehicles.length === 0) return null;
