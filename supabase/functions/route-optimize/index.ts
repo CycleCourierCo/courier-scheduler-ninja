@@ -135,6 +135,10 @@ interface Leg {
    priority: number;
    /** Customer dates had all lapsed — only in the pool via the include-expired override. */
    lapsed: boolean;
+   /** Last remaining customer date falls inside this plan window — at risk of lapsing. */
+   expiringInPlan: boolean;
+   /** Last future customer date (null when lapsed). */
+   lastDate: string | null;
    difficult: boolean;
    businessHours: Record<string, any> | null;
    label: string;
@@ -295,6 +299,7 @@ serve(async (req) => {
     for (const r of (availRows as any[]) || []) availState[`${r.order_id}:${r.leg_type}`] = r;
 
     const selectedSet = new Set(selectedDates);
+    const lastSelectedDate = selectedDates[selectedDates.length - 1] ?? '';
     const isWorkingDate = (d: string) => workingDays.includes(shortWeekday(d));
 
     const legs: Leg[] = [];
@@ -354,6 +359,11 @@ serve(async (req) => {
         const boost = Number(state?.priority_boost) || 0;
         const future = dates.filter((d) => d >= today);
         const expired = dates.length > 0 && future.length === 0;
+        // A job whose last remaining date falls inside the plan window is at
+        // risk of lapsing during it — prioritise it, and let a grace pass
+        // spill it onto a later day in the window if its own dates are full.
+        const lastDate = future.length ? future[future.length - 1] : null;
+        const expiringInPlan = !!(lastDate && lastDate <= lastSelectedDate);
 
         // Expiry bookkeeping — a leg with no future dates is never silently dropped.
         const lapsed = (expired || dates.length === 0 || status !== 'active') && dates.length > 0;
@@ -403,8 +413,11 @@ serve(async (req) => {
           allDates: dates,
           windowDates: guaranteed ? [guaranteed] : windowDates,
           guaranteedDate: guaranteed,
-          priority: buildPriority(dates, guaranteed, boost + (lapsed ? 20 : 0) + ageBoost),
+          priority: buildPriority(dates, guaranteed,
+            boost + (lapsed ? 20 : 0) + (expiringInPlan ? 15 : 0) + ageBoost),
           lapsed,
+          expiringInPlan: !lapsed && expiringInPlan,
+          lastDate: lapsed ? null : lastDate,
           difficult: inDifficultArea(lat, lon),
           businessHours, label,
           needsUnlock: extra.needsUnlock,
