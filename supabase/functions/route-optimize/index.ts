@@ -41,7 +41,6 @@ const LONDON_MAX_VANS = 2;      // London work is fenced to at most this many va
 const CORRIDOR_MI = 12;         // how far off the depot->London line an "on the way" job may sit
 const DIFFICULT_SKILL = 1;      // London-only work
 const GENERAL_SKILL = 2;        // ordinary work (London vans do not carry this)
-const LONDON_ONLY_SKILL = 3;    // reserved for future use / corridor marking
 
 const milesBetween = (aLat: number, aLon: number, bLat: number, bLon: number) => {
   const R = 3958.8;
