@@ -310,6 +310,13 @@ const GenerateRoutesDialog: React.FC = () => {
 
   const activeRoutes = activeDay?.variants?.[0]?.routes ?? [];
 
+  /** Run results take priority; DB rows fill the panel before the first run. */
+  const needsDates = useMemo(() => {
+    const runLegs = result?.needs_new_dates ?? [];
+    const seen = new Set(runLegs.map((l) => `${l.order_id}:${l.leg_type}`));
+    return [...runLegs, ...lapsedLegs.filter((l) => !seen.has(`${l.order_id}:${l.leg_type}`))];
+  }, [result, lapsedLegs]);
+
   const handleGenerate = async () => {
     if (dates.length < MIN_DAYS) {
       toast.error(`Pick at least ${MIN_DAYS} days to plan`);
@@ -330,6 +337,7 @@ const GenerateRoutesDialog: React.FC = () => {
       van_availability: Object.fromEntries(dates.map((d) => [d, grid[d] ?? vans.map((v) => v.id)])),
       firm_days: firmDays,
       inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
+      include_expired: includeExpired,
     };
     try {
       // Both ways of planning are built so they can be compared side by side.
@@ -363,6 +371,7 @@ const GenerateRoutesDialog: React.FC = () => {
         van_availability: Object.fromEntries(dates.map((d) => [d, grid[d] ?? vans.map((v) => v.id)])),
         firm_days: firmDays,
         inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
+        include_expired: includeExpired,
         mode: m,
       });
       setPlans((prev) => ({ ...prev, [m]: plan }));
