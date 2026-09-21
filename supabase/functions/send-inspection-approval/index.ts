@@ -139,6 +139,10 @@ serve(async (req) => {
       to = (profile?.accounts_email || profile?.email || "").trim();
       greetName = profile?.name || "there";
       if (!to) return json({ error: "The booking account has no email address" }, 400);
+    } else if (recipient === "sender") {
+      to = String((order?.sender as any)?.email || "").trim();
+      greetName = String((order?.sender as any)?.name || "there");
+      if (!to) return json({ error: "This job has no sender email address" }, 400);
     } else if (recipient === "receiver") {
       to = String((order?.receiver as any)?.email || "").trim();
       greetName = String((order?.receiver as any)?.name || "there");
