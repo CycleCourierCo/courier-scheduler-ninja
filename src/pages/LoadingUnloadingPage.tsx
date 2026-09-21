@@ -356,6 +356,41 @@ const LoadingUnloadingPage = () => {
     }
   };
 
+  // Clears a bike's bay position without marking it as loaded onto a van.
+  // The order keeps its current delivery state and re-appears for re-allocation.
+  const handleClearBayPosition = async (allocationId: string) => {
+    const allocationToClear = storageAllocations.find(a => a.id === allocationId);
+    if (!allocationToClear) return;
+
+    const order = orders.find(o => o.id === allocationToClear.orderId);
+    if (!order) return;
+
+    try {
+      const existingAllocations = order.storage_locations || [];
+      const updatedAllocations = existingAllocations.filter((a: any) => a.id !== allocationId);
+
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          storage_locations: updatedAllocations.length > 0 ? updatedAllocations : null,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', allocationToClear.orderId);
+
+      if (error) {
+        console.error('Error clearing bay position:', error);
+        toast.error('Failed to clear the bay position');
+        return;
+      }
+
+      await fetchData();
+      toast.success(`Removed from Bay ${allocationToClear.bay}${allocationToClear.position}`);
+    } catch (error) {
+      console.error('Error clearing bay position:', error);
+      toast.error('Failed to clear the bay position');
+    }
+  };
+
   const handleRemoveAllBikesFromOrder = async (orderId: string) => {
     // Find all allocations for this order
     const orderAllocations = storageAllocations.filter(a => a.orderId === orderId);
@@ -1300,6 +1335,7 @@ const LoadingUnloadingPage = () => {
               <BikesInStorage 
                 bikesInStorage={bikesInStorage}
                 onRemoveFromStorage={handleRemoveFromStorage}
+                onClearBayPosition={handleClearBayPosition}
                 onRemoveAllBikesFromOrder={handleRemoveAllBikesFromOrder}
                 onChangeLocation={handleChangeLocation}
                 isAdmin={isAdmin}

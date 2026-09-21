@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { Order } from "@/types/order";
-import { Package, MapPin, Truck, Edit, Clock, Printer, Image, Wrench, ChevronDown } from "lucide-react";
+import { Package, MapPin, Truck, Edit, Clock, Printer, Image, Wrench, ChevronDown, X } from "lucide-react";
+import { notify } from "@/lib/notify";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
@@ -24,10 +25,11 @@ interface BikesInStorageProps {
   onRemoveFromStorage: (allocationId: string) => void;
   onRemoveAllBikesFromOrder: (orderId: string) => void;
   onChangeLocation: (allocationId: string, newBay: string, newPosition: number) => void;
+  onClearBayPosition: (allocationId: string) => void;
   isAdmin?: boolean;
 }
 
-export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAllBikesFromOrder, onChangeLocation, isAdmin = false }: BikesInStorageProps) => {
+export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAllBikesFromOrder, onChangeLocation, onClearBayPosition, isAdmin = false }: BikesInStorageProps) => {
   const [editingAllocation, setEditingAllocation] = useState<StorageAllocation | null>(null);
   const [editingOrderAllocations, setEditingOrderAllocations] = useState<StorageAllocation[]>([]);
   const [imageDialogOrder, setImageDialogOrder] = useState<Order | null>(null);
@@ -64,6 +66,34 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
     setEditingAllocation(allocation);
   };
 
+
+  const confirmClearBay = (allocation: StorageAllocation, e: React.MouseEvent) => {
+    e.stopPropagation();
+    notify.confirm({
+      title: `Remove from Bay ${allocation.bay}${allocation.position}?`,
+      description: `${allocation.customerName} — ${allocation.bikeBrand} ${allocation.bikeModel} will stay on the order but lose this storage position, so it will need re-allocating before loading.`,
+      confirmLabel: "Remove",
+      destructive: true,
+      onConfirm: () => onClearBayPosition(allocation.id),
+    });
+  };
+
+  const BayBadge = ({ allocation }: { allocation: StorageAllocation }) => (
+    <span className="inline-flex items-center">
+      <Badge variant="secondary" className="font-mono text-xs rounded-r-none border-r-0">
+        {allocation.bay}{allocation.position}
+      </Badge>
+      <button
+        type="button"
+        aria-label={`Remove from bay ${allocation.bay}${allocation.position}`}
+        title="Remove from bay"
+        onClick={(e) => confirmClearBay(allocation, e)}
+        className="inline-flex items-center justify-center h-5 w-5 rounded-r-md border border-l-0 bg-secondary text-muted-foreground hover:bg-destructive hover:text-destructive-foreground transition-colors"
+      >
+        <X className="h-3 w-3" />
+      </button>
+    </span>
+  );
 
   if (bikesInStorage.length === 0) {
     return (
@@ -112,15 +142,11 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                   {isMultiBike ? (
                     <div className="flex flex-wrap gap-1">
                       {allocations.map((allocation) => (
-                        <Badge key={allocation.id} variant="secondary" className="font-mono text-xs">
-                          {allocation.bay}{allocation.position}
-                        </Badge>
+                        <BayBadge key={allocation.id} allocation={allocation} />
                       ))}
                     </div>
                   ) : (
-                    <Badge variant="secondary" className="font-mono text-xs">
-                      {allocations[0].bay}{allocations[0].position}
-                    </Badge>
+                    <BayBadge allocation={allocations[0]} />
                   )}
                   <div className="flex flex-col gap-0.5 min-w-0">
                     <h4 className="font-medium text-sm truncate">{allocations[0].customerName}</h4>
