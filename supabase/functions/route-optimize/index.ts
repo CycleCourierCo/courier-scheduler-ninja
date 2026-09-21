@@ -312,6 +312,13 @@ serve(async (req) => {
       const pickupDates = clean(order.pickup_date);
       const deliveryDates = clean(order.delivery_date);
 
+      // No stored "collection completed" timestamp exists: derive it from the
+      // scheduled pickup day (or the first agreed pickup date) once collected.
+      const collectedDate = order.order_collected
+        ? (dateKey(order.scheduled_pickup_date)
+          ?? (Array.isArray(order.pickup_date) ? dateKey(order.pickup_date[0]) : null))
+        : null;
+
       const buildPriority = (available: string[], guaranteed: string | null, boost: number) => {
         if (guaranteed) return 100;
         const future = available.filter((d) => d >= today);
