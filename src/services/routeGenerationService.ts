@@ -65,6 +65,8 @@ export interface PlanDay {
   spare_vans: number;
   is_provisional: boolean;
   shortfall: PlanDayShortfall | null;
+  /** What one extra van would have added on this day. */
+  spare_van_hint?: { jobs: number; revenue: number; margin: number; must_go: number } | null;
   variants: { variant: string; routes: PlanRoute[]; tradeoff_note: string | null }[];
   /** Jobs that could have run on this day but were left out of every route. */
   unplanned_count?: number;
