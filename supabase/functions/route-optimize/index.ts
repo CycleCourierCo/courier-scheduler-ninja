@@ -609,7 +609,7 @@ serve(async (req) => {
       });
     }
 
-    const runSolve = async (pool: Leg[], pinned: Record<string, string>, capH: number, opts?: { withVirtual?: boolean; dates?: string[]; skip?: Set<string> }) => {
+    const runSolve = async (pool: Leg[], pinned: Record<string, string>, capH: number, opts?: { withVirtual?: boolean; dates?: string[]; skip?: Set<string>; noFixed?: boolean }) => {
       const dates = opts?.dates ?? selectedDates;
       const jobs = pool
         .map((leg) => buildJob(leg, pinned[leg.key] ? [pinned[leg.key]] : leg.windowDates.filter((d) => dates.includes(d))))
@@ -617,6 +617,7 @@ serve(async (req) => {
       if (jobs.length === 0) return null;
       const { vehicles, meta } = buildVehicles({
         dates, capH, difficultDates: difficultDatesFor(pool), withVirtual: opts?.withVirtual, skipVanDays: opts?.skip,
+        noFixed: opts?.noFixed,
       });
       if (vehicles.length === 0) return null;
       const started = Date.now();
