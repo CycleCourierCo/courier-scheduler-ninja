@@ -708,21 +708,40 @@ serve(async (req) => {
       });
     }
 
-    const runSolve = async (pool: Leg[], pinned: Record<string, string>, capH: number, opts?: { withVirtual?: boolean; dates?: string[]; skip?: Set<string>; noFixed?: boolean }) => {
+    const runSolve = async (pool: Leg[], pinned: Record<string, string>, capH: number, opts?: { withVirtual?: boolean; dates?: string[]; skip?: Set<string>; noFixed?: boolean; pairs?: boolean }) => {
       const dates = opts?.dates ?? selectedDates;
+      const poolKeys = new Set(pool.map((l) => l.key));
+      const usablePairs = opts?.pairs
+        ? sameDayPairs.filter((p) => poolKeys.has(p.c.key) && poolKeys.has(p.d.key) && !pinned[p.c.key] && !pinned[p.d.key]
+            && p.dates.some((d) => dates.includes(d)))
+        : [];
+      const pairedKeys = new Set(usablePairs.flatMap((p) => [p.c.key, p.d.key]));
+      const shipments = usablePairs.map((p) => buildShipment(p, dates)).filter((s): s is any => !!s);
       const jobs = pool
+        .filter((leg) => !pairedKeys.has(leg.key))
         .map((leg) => buildJob(leg, pinned[leg.key] ? [pinned[leg.key]] : leg.windowDates.filter((d) => dates.includes(d))))
         .filter((j): j is any => !!j);
-      if (jobs.length === 0) return null;
+      if (jobs.length === 0 && shipments.length === 0) return null;
       const { vehicles, meta } = buildVehicles({
         dates, capH, difficultDates: difficultDatesFor(pool), withVirtual: opts?.withVirtual, skipVanDays: opts?.skip,
         noFixed: opts?.noFixed,
       });
       if (vehicles.length === 0) return null;
       const started = Date.now();
-      const solution = await postSolve({ vehicles, jobs, options: { g: true, x: 5 } });
+      const payload: any = { vehicles, jobs, options: { g: true, x: 5 } };
+      if (shipments.length > 0) payload.shipments = shipments;
+      let solution: any;
+      try {
+        solution = await postSolve(payload);
+      } catch (e) {
+        // If linked pairs are rejected, fall back to plain stops so a plan is
+        // still produced.
+        if (shipments.length === 0) throw e;
+        console.error('paired solve rejected, retrying without pairs', (e as Error).message);
+        return runSolve(pool, pinned, capH, { ...opts, pairs: false });
+      }
       console.log('verso solve', {
-        days: dates.length, jobs: jobs.length, vehicles: vehicles.length,
+        days: dates.length, jobs: jobs.length, shipments: shipments.length, vehicles: vehicles.length,
         routes: (solution?.routes || []).length,
         unassigned: (solution?.unassigned || []).length,
         cost: Number(solution?.summary?.cost) || null,
