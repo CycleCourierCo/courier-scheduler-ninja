@@ -356,7 +356,8 @@ serve(async (req) => {
         const expired = dates.length > 0 && future.length === 0;
 
         // Expiry bookkeeping — a leg with no future dates is never silently dropped.
-        if (expired || dates.length === 0) {
+        const lapsed = (expired || dates.length === 0 || status !== 'active') && dates.length > 0;
+        if (expired || dates.length === 0 || status !== 'active') {
           const severity = guaranteed && guaranteed < today ? 1
             : legType === 'delivery' && order.order_collected ? 2 : 3;
           needsNewDates.push({
@@ -366,7 +367,9 @@ serve(async (req) => {
             severity,
             reason: severity === 1 ? 'Guaranteed date missed'
               : severity === 2 ? 'Bike in depot, delivery dates expired'
-              : dates.length === 0 ? 'No dates provided' : 'Dates expired',
+              : dates.length === 0 ? 'No dates provided'
+              : status === 'awaiting_new_dates' ? 'Waiting on new dates from the customer'
+              : 'Dates expired',
             days_in_depot: legType === 'delivery' && collectedDate
               ? daysSince(collectedDate) : null,
             last_date: dates.length ? dates[dates.length - 1] : null,
@@ -375,27 +378,21 @@ serve(async (req) => {
             linked_leg_note: legType === 'collection' && deliveryDates.some((d) => d >= today)
               ? 'Delivery dates will likely lapse too — ask for both' : null,
           });
-          if (dates.length > 0 && status === 'active') {
+          if (dates.length > 0 && expired && status === 'active') {
             expiryUpserts.push({
               order_id: order.id, leg_type: legType,
               availability_status: 'expired', availability_expired_at: new Date().toISOString(),
             });
           }
-          return;
+          // The include-expired override lets lapsed legs into this run anyway;
+          // legs with no dates at all still cannot be planned.
+          if (!includeExpired || dates.length === 0) return;
         }
 
-        // Expired / awaiting-new-dates legs are never sent to the solver.
-        if (status !== 'active') {
-          needsNewDates.push({
-            order_id: order.id, label, leg_type: legType, severity: 3,
-            reason: 'Waiting on new dates from the customer',
-            days_in_depot: null, last_date: dates[dates.length - 1] ?? null,
-            guaranteed_date: guaranteed, status, linked_leg_note: null,
-          });
-          return;
-        }
-
-        const windowDates = future.filter((d) => selectedSet.has(d));
+        const windowDates = lapsed
+          // Lapsed legs can land on any chosen day — their stored dates are all past.
+          ? selectedDates.slice()
+          : future.filter((d) => selectedSet.has(d));
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
         if (guaranteed) {
           if (!selectedSet.has(guaranteed)) return;
@@ -406,7 +403,8 @@ serve(async (req) => {
           allDates: dates,
           windowDates: guaranteed ? [guaranteed] : windowDates,
           guaranteedDate: guaranteed,
-          priority: buildPriority(dates, guaranteed, boost),
+          priority: buildPriority(dates, guaranteed, boost + (lapsed ? 20 : 0) + ageBoost),
+          lapsed,
           difficult: inDifficultArea(lat, lon),
           businessHours, label,
           needsUnlock: extra.needsUnlock,
