@@ -1335,6 +1335,7 @@ const LoadingUnloadingPage = () => {
               <BikesInStorage 
                 bikesInStorage={bikesInStorage}
                 onRemoveFromStorage={handleRemoveFromStorage}
+                onClearBayPosition={handleClearBayPosition}
                 onRemoveAllBikesFromOrder={handleRemoveAllBikesFromOrder}
                 onChangeLocation={handleChangeLocation}
                 isAdmin={isAdmin}
