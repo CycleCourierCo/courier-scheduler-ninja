@@ -283,6 +283,8 @@ const GenerateRoutesDialog: React.FC = () => {
   /** The plan that jobs were reserved against — the other one is then out of date. */
   const [committedMode, setCommittedMode] = useState<PlanMode | null>(null);
   const [includeExpired, setIncludeExpired] = useState(false);
+  /** How many 15h long days may be used on any one day. 0 = none. */
+  const [maxLongDays, setMaxLongDays] = useState(2);
   const [lapsedLegs, setLapsedLegs] = useState<NeedsNewDatesLeg[]>([]);
   const result = plans[mode];
   const [activeDate, setActiveDate] = useState<string | null>(null);
