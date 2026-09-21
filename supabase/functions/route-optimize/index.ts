@@ -208,6 +208,9 @@ serve(async (req) => {
     // Per-run override: plan legs whose customer dates have all lapsed anyway,
     // boosted so they are placed ahead of ordinary work.
     const includeExpired = body?.include_expired === true;
+    // Second, lighter call: work out the "an extra van would plan N more jobs"
+    // figures only, and save nothing. Keeps them off the main Generate press.
+    const shortfallOnly = body?.shortfall_only === true;
 
     const today = todayLondon();
     const selectedDates: string[] = [...new Set(
