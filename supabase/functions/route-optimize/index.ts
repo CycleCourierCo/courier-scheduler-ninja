@@ -905,6 +905,7 @@ serve(async (req) => {
 
     return json({
       plan_id: planId,
+      mode,
       generated_at: new Date().toISOString(),
       firm_days: firmDays,
       days,
