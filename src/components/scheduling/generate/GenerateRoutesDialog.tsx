@@ -328,6 +328,28 @@ const GenerateRoutesDialog: React.FC = () => {
     }
   };
 
+  /** Tick or untick every van on one day. */
+  const setDayVans = async (date: string, on: boolean) => {
+    const all = vans.map((v) => v.id);
+    setGrid((g) => ({ ...g, [date]: on ? all : [] }));
+    await Promise.all(all.map((id) => setVanUnavailable(id, date, !on).catch(() => null)));
+  };
+
+  /** Tick or untick one van across every day being planned. */
+  const setVanAllDays = async (vanId: string, on: boolean) => {
+    setGrid((g) => {
+      const copy = { ...g };
+      for (const d of dates) {
+        const current = copy[d] ?? vans.map((v) => v.id);
+        copy[d] = on
+          ? [...new Set([...current, vanId])]
+          : current.filter((id) => id !== vanId);
+      }
+      return copy;
+    });
+    await Promise.all(dates.map((d) => setVanUnavailable(vanId, d, !on).catch(() => null)));
+  };
+
   const candidateDates = useMemo(() => {
     const base = nextWorkingDays(workingDays, 10);
     return [...new Set([...base, ...dates])].sort();
@@ -564,18 +586,50 @@ const GenerateRoutesDialog: React.FC = () => {
               <table className="min-w-full text-sm">
                 <thead>
                   <tr>
-                    <th className="p-2 text-left font-medium">Van</th>
-                    {dates.map((d) => (
-                      <th key={d} className="p-2 text-center font-medium">{format(new Date(`${d}T12:00:00`), "EEE d")}</th>
-                    ))}
+                     <th className="p-2 text-left font-medium">Van</th>
+                    {dates.map((d) => {
+                      const dayVans = grid[d] ?? vans.map((v) => v.id);
+                      const allOn = vans.every((v) => dayVans.includes(v.id));
+                      return (
+                        <th key={d} className="p-2 text-center font-medium">
+                          <div className="flex flex-col items-center gap-1">
+                            <span>{format(new Date(`${d}T12:00:00`), "EEE d")}</span>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 px-2 text-xs font-normal text-muted-foreground"
+                              onClick={() => setDayVans(d, !allOn)}
+                            >
+                              {allOn ? "None" : "All"}
+                            </Button>
+                          </div>
+                        </th>
+                      );
+                    })}
                   </tr>
                 </thead>
                 <tbody>
-                  {vans.map((van) => (
+                  {vans.map((van) => {
+                    const onEveryDay = dates.every((d) => (grid[d] ?? vans.map((v) => v.id)).includes(van.id));
+                    return (
                     <tr key={van.id} className="border-t">
                       <td className="p-2">
-                        {van.name}
-                        {van.capacity ? <span className="text-muted-foreground"> ({van.capacity})</span> : null}
+                        <div className="flex items-center gap-2">
+                          <span>
+                            {van.name}
+                            {van.capacity ? <span className="text-muted-foreground"> ({van.capacity})</span> : null}
+                          </span>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 text-xs font-normal text-muted-foreground"
+                            onClick={() => setVanAllDays(van.id, !onEveryDay)}
+                          >
+                            {onEveryDay ? "No days" : "All days"}
+                          </Button>
+                        </div>
                       </td>
                       {dates.map((d) => (
                         <td key={d} className="p-2 text-center">
@@ -586,7 +640,8 @@ const GenerateRoutesDialog: React.FC = () => {
                         </td>
                       ))}
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
