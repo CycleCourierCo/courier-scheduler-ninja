@@ -884,7 +884,9 @@ serve(async (req) => {
         } : null,
         variants: [{ variant: 'primary', routes: dayRoutes, tradeoff_note: null }],
         // Jobs that could have run on this day but were left out of every route.
-        unplanned_count: legs.filter((l) => !assigned.has(l.key) && l.windowDates.includes(date)).length,
+        unplanned_count: legs.filter((l) => !assigned.has(l.key) && !l.lapsed && l.windowDates.includes(date)).length,
+        unplanned_lapsed_count: legs.filter((l) => !assigned.has(l.key) && l.lapsed && l.windowDates.includes(date)).length,
+        lapsed_count: current.routeInfo.flatMap((r) => r.stops).filter((s) => s.date === date && s.leg.lapsed).length,
         infeasible_guaranteed: legs
           .filter((l) => l.guaranteedDate === date && !assigned.has(l.key))
           .map((l) => ({ order_id: l.orderId, label: l.label, leg_type: l.legType, date })),
@@ -901,7 +903,8 @@ serve(async (req) => {
         priority: l.priority,
         remaining_dates: l.allDates.filter((d) => d >= today).length,
         guaranteed_date: l.guaranteedDate,
-        reason: displaced.some((d) => d?.key === l.key) ? 'pushed out when deliveries were added'
+        reason: l.lapsed ? 'dates had expired — planned via the expired-jobs override'
+          : displaced.some((d) => d?.key === l.key) ? 'pushed out when deliveries were added'
           : l.guaranteedDate ? 'guaranteed date could not be met'
           : l.needsUnlock ? 'waiting on its collection being planned'
           : 'no feasible slot on the days you picked',
@@ -918,7 +921,8 @@ serve(async (req) => {
     return json({
       plan_id: planId,
       mode,
-      unplanned_count: legs.filter((l) => !assigned.has(l.key)).length,
+      unplanned_count: legs.filter((l) => !assigned.has(l.key) && !l.lapsed).length,
+      unplanned_lapsed_count: legs.filter((l) => !assigned.has(l.key) && l.lapsed).length,
       generated_at: new Date().toISOString(),
       firm_days: firmDays,
       days,
