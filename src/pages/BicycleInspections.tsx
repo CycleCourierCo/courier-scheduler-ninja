@@ -2997,16 +2997,21 @@ const BicycleInspections = () => {
                       onValueChange={(v) =>
                         setApprovalRecipients((prev) => ({
                           ...prev,
-                          [inspection.id]: v as "customer" | "receiver" | "walkin",
+                          [inspection.id]: v as "customer" | "sender" | "receiver" | "walkin",
                         }))
                       }
                     >
-                      <SelectTrigger className="h-9 w-[190px]">
+                      <SelectTrigger className="h-9 w-[230px]">
                         <SelectValue placeholder="Who approves?" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="customer">Ask the seller (account)</SelectItem>
-                        <SelectItem value="receiver">Ask the buyer (receiver)</SelectItem>
+                        <SelectItem value="customer">Ask the account that booked it</SelectItem>
+                        <SelectItem value="sender" disabled={!(order.sender as any)?.email}>
+                          Ask the sender
+                        </SelectItem>
+                        <SelectItem value="receiver" disabled={!(order.receiver as any)?.email}>
+                          Ask the buyer (receiver)
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   )}
@@ -3050,9 +3055,11 @@ const BicycleInspections = () => {
                   {new Date((inspection as any).approval_email_sent_at).toLocaleDateString("en-GB")}
                   {(inspection as any).approval_recipient === "receiver"
                     ? " to the buyer"
-                    : (inspection as any).approval_recipient === "walkin"
-                      ? " to the customer"
-                      : " to the seller"}
+                    : (inspection as any).approval_recipient === "sender"
+                      ? " to the sender"
+                      : (inspection as any).approval_recipient === "walkin"
+                        ? " to the customer"
+                        : " to the account that booked it"}
                 </span>
               )}
             </div>
