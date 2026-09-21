@@ -876,29 +876,49 @@ serve(async (req) => {
       console.error('grace pass failed', (e as Error).message);
     }
 
-    /* ---------------------------- what-if solve --------------------------- */
+    /* ------------------- extra-van what-if (separate call) ---------------- */
 
-    let whatIf: { placedByDate: Record<string, number>; virtualByDate: Record<string, number>; urgentByDate: Record<string, number> } | null = null;
-    try {
-      // Day-by-day plans are deliberately unbalanced, so the "extra van" what-if
-      // only applies to the balanced plan.
-      const wi = mode === 'greedy' ? null : await runSolve(pool, pinned, PRIMARY_CAP_H, { withVirtual: true });
-      if (wi) {
-        const read = readSolution(wi.solution, wi.meta, legsById);
-        const placedByDate: Record<string, number> = {};
-        const virtualByDate: Record<string, number> = {};
-        const urgentByDate: Record<string, number> = {};
-        for (const { meta, stops } of read.routeInfo) {
-          placedByDate[meta.date] = (placedByDate[meta.date] ?? 0) + stops.length;
-          if (meta.virtual) {
-            virtualByDate[meta.date] = (virtualByDate[meta.date] ?? 0) + 1;
-            urgentByDate[meta.date] = (urgentByDate[meta.date] ?? 0) + stops.filter((s) => s.leg.priority >= 70).length;
+    // Only ever run on its own second call, so a heavy what-if can never break
+    // the main Generate press. Nothing is saved on this path.
+    const whatIf: { placedByDate: Record<string, number>; virtualByDate: Record<string, number>; urgentByDate: Record<string, number> } | null = null;
+
+    if (shortfallOnly) {
+      let wiResult = whatIf as any;
+      try {
+        // Day-by-day plans are deliberately unbalanced, so the "extra van"
+        // what-if only applies to the balanced plan.
+        const wi = mode === 'greedy' ? null : await runSolve(pool, pinned, PRIMARY_CAP_H, { withVirtual: true });
+        if (wi) {
+          const read = readSolution(wi.solution, wi.meta, legsById);
+          const placedByDate: Record<string, number> = {};
+          const virtualByDate: Record<string, number> = {};
+          const urgentByDate: Record<string, number> = {};
+          for (const { meta, stops } of read.routeInfo) {
+            placedByDate[meta.date] = (placedByDate[meta.date] ?? 0) + stops.length;
+            if (meta.virtual) {
+              virtualByDate[meta.date] = (virtualByDate[meta.date] ?? 0) + 1;
+              urgentByDate[meta.date] = (urgentByDate[meta.date] ?? 0) + stops.filter((s) => s.leg.priority >= 70).length;
+            }
           }
+          wiResult = { placedByDate, virtualByDate, urgentByDate };
         }
-        whatIf = { placedByDate, virtualByDate, urgentByDate };
+      } catch (e) {
+        console.error('what-if solve failed', (e as Error).message);
       }
-    } catch (e) {
-      console.error('what-if solve failed', (e as Error).message);
+      const realByDate: Record<string, number> = {};
+      for (const { meta, stops } of current.routeInfo) {
+        realByDate[meta.date] = (realByDate[meta.date] ?? 0) + stops.length;
+      }
+      const shortfallByDate: Record<string, { extra_vans: number; extra_jobs: number; urgent: number } | null> = {};
+      for (const date of selectedDates) {
+        const extraVans = wiResult?.virtualByDate?.[date] ?? 0;
+        shortfallByDate[date] = extraVans > 0 ? {
+          extra_vans: extraVans,
+          extra_jobs: Math.max(0, (wiResult?.placedByDate?.[date] ?? 0) - (realByDate[date] ?? 0)),
+          urgent: wiResult?.urgentByDate?.[date] ?? 0,
+        } : null;
+      }
+      return json({ mode, shortfall_by_date: shortfallByDate });
     }
 
     /* ------------------------------ persist ------------------------------- */
@@ -925,63 +945,82 @@ serve(async (req) => {
     const assigned = new Set<string>();
     const routesByDate: Record<string, any[]> = {};
 
-    for (const { meta, route, stops } of current.routeInfo) {
+    // All routes in one write, then all their stops in one write.
+    const prepared = current.routeInfo.map(({ meta, route, stops }) => {
       const dayIdx = selectedDates.indexOf(meta.date);
       const isProvisional = dayIdx >= firmDays;
       const ordered = [...stops].sort((a, b) => a.arrival - b.arrival);
       const steps = Array.isArray(route.steps) ? route.steps : [];
       const maxLoadUnits = Math.max(0, ...steps.map((s: any) => Number(s?.load?.[0]) || 0));
       const duration = (Number(route.duration) || 0) + (Number(route.service) || 0) + (Number(route.waiting_time) || 0);
-
-      const { data: routeRow, error: routeErr } = await admin.from('route_plan_routes').insert({
-        plan_id: planId,
-        route_date: meta.date,
-        variant: 'primary',
-        pass: unlockable.length > 0 ? 'B' : 'A',
-        day_status: 'draft',
-        is_provisional: isProvisional,
-        van_id: meta.vanId,
-        van_name: meta.vanName,
-        is_expedition: meta.expedition,
-        total_miles: Math.round(((Number(route.distance) || 0) / 1609.344) * 10) / 10,
-        total_duration_s: duration,
-        stop_count: ordered.length,
-        max_load: Math.round((maxLoadUnits / 10) * 100) / 100,
-        van_capacity: meta.capacity,
+      return {
+        meta, ordered, isProvisional, duration,
+        miles: Math.round(((Number(route.distance) || 0) / 1609.344) * 10) / 10,
+        maxLoad: Math.round((maxLoadUnits / 10) * 100) / 100,
         geometry: typeof route.geometry === 'string' ? route.geometry : null,
-      }).select('id').single();
+      };
+    });
+
+    if (prepared.length > 0) {
+      const { data: routeRows, error: routeErr } = await admin.from('route_plan_routes').insert(
+        prepared.map((p) => ({
+          plan_id: planId,
+          route_date: p.meta.date,
+          variant: 'primary',
+          pass: unlockable.length > 0 ? 'B' : 'A',
+          day_status: 'draft',
+          is_provisional: p.isProvisional,
+          van_id: p.meta.vanId,
+          van_name: p.meta.vanName,
+          is_expedition: p.meta.expedition,
+          total_miles: p.miles,
+          total_duration_s: p.duration,
+          stop_count: p.ordered.length,
+          max_load: p.maxLoad,
+          van_capacity: p.meta.capacity,
+          geometry: p.geometry,
+        })),
+      ).select('id');
       if (routeErr) throw routeErr;
 
-      const stopRows = ordered.map((s, i) => ({
-        route_id: routeRow.id, seq: i + 1, leg_type: s.leg.legType, order_id: s.leg.orderId,
-        eta: isoFromEpoch(s.arrival), service_s: SERVICE_S, lat: s.leg.lat, lon: s.leg.lon,
-        is_difficult_area: s.leg.difficult,
-      }));
-      const { error: stopsErr } = await admin.from('route_plan_stops').insert(stopRows);
-      if (stopsErr) throw stopsErr;
+      const stopRows: any[] = [];
+      prepared.forEach((p, idx) => {
+        const routeId = (routeRows as any[])[idx]?.id;
+        p.ordered.forEach((s, i) => {
+          stopRows.push({
+            route_id: routeId, seq: i + 1, leg_type: s.leg.legType, order_id: s.leg.orderId,
+            eta: isoFromEpoch(s.arrival), service_s: SERVICE_S, lat: s.leg.lat, lon: s.leg.lon,
+            is_difficult_area: s.leg.difficult,
+          });
+          assigned.add(s.leg.key);
+        });
 
-      for (const s of ordered) assigned.add(s.leg.key);
-
-      (routesByDate[meta.date] ??= []).push({
-        route_id: routeRow.id,
-        van_id: meta.vanId,
-        van_name: meta.vanName,
-        is_expedition: meta.expedition,
-        is_provisional: isProvisional,
-        stop_count: ordered.length,
-        duration_s: duration,
-        miles: Math.round(((Number(route.distance) || 0) / 1609.344) * 10) / 10,
-        max_load: Math.round((maxLoadUnits / 10) * 100) / 100,
-        van_capacity: meta.capacity,
-        geometry: typeof route.geometry === 'string' ? route.geometry : null,
-        guaranteed_count: ordered.filter((s) => !!s.leg.guaranteedDate).length,
-        stops: ordered.map((s, i) => ({
-          seq: i + 1, leg_type: s.leg.legType, order_id: s.leg.orderId,
-          eta: isoFromEpoch(s.arrival), lat: s.leg.lat, lon: s.leg.lon,
-          is_difficult_area: s.leg.difficult, label: s.leg.label, guaranteed: !!s.leg.guaranteedDate,
-          planned_after_expiry: gracePlaced.has(s.leg.key),
-        })),
+        (routesByDate[p.meta.date] ??= []).push({
+          route_id: routeId,
+          van_id: p.meta.vanId,
+          van_name: p.meta.vanName,
+          is_expedition: p.meta.expedition,
+          is_provisional: p.isProvisional,
+          stop_count: p.ordered.length,
+          duration_s: p.duration,
+          miles: p.miles,
+          max_load: p.maxLoad,
+          van_capacity: p.meta.capacity,
+          geometry: p.geometry,
+          guaranteed_count: p.ordered.filter((s) => !!s.leg.guaranteedDate).length,
+          stops: p.ordered.map((s, i) => ({
+            seq: i + 1, leg_type: s.leg.legType, order_id: s.leg.orderId,
+            eta: isoFromEpoch(s.arrival), lat: s.leg.lat, lon: s.leg.lon,
+            is_difficult_area: s.leg.difficult, label: s.leg.label, guaranteed: !!s.leg.guaranteedDate,
+            planned_after_expiry: gracePlaced.has(s.leg.key),
+          })),
+        });
       });
+
+      if (stopRows.length > 0) {
+        const { error: stopsErr } = await admin.from('route_plan_stops').insert(stopRows);
+        if (stopsErr) throw stopsErr;
+      }
     }
 
     /* ------------------------------ response ------------------------------ */
