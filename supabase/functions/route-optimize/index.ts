@@ -627,8 +627,10 @@ serve(async (req) => {
         const steps = Array.isArray(route.steps) ? route.steps : [];
         const stops: Placed[] = [];
         for (const s of steps) {
-          if (s.type !== 'job') continue;
-          const leg = legsById[Number(s.job)];
+          // 'pickup'/'delivery' steps come from same-day collect-then-deliver
+          // pairs, where the bike is loaded and dropped on one run.
+          if (s.type !== 'job' && s.type !== 'pickup' && s.type !== 'delivery') continue;
+          const leg = legsById[Number(s.type === 'job' ? s.job : s.id)];
           if (!leg) continue;
           const entry = { leg, date: m.date, vehicleId: m.vehicleId, arrival: Number(s.arrival) || londonEpoch(m.date, shiftStart) };
           stops.push(entry);
