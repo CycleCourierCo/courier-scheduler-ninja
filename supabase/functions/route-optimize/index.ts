@@ -132,13 +132,15 @@ interface Leg {
   allDates: string[];        // every customer date (any day)
   windowDates: string[];     // customer dates inside the chosen days
   guaranteedDate: string | null;
-  priority: number;
-  difficult: boolean;
-  businessHours: Record<string, any> | null;
-  label: string;
-  needsUnlock: boolean;      // delivery whose bike isn't collected yet
-  needsInspection: boolean;
-  collectedAt: string | null;
+   priority: number;
+   /** Customer dates had all lapsed — only in the pool via the include-expired override. */
+   lapsed: boolean;
+   difficult: boolean;
+   businessHours: Record<string, any> | null;
+   label: string;
+   needsUnlock: boolean;      // delivery whose bike isn't collected yet
+   needsInspection: boolean;
+   collectedAt: string | null;
 }
 
 interface VanDay { vehicleId: number; date: string; vanId: string; vanName: string; capacity: number; expedition: boolean; virtual: boolean }
@@ -193,6 +195,9 @@ serve(async (req) => {
     // 'joint' balances the whole horizon in one solve; 'greedy' fills each day
     // as full as it can, in order.
     const mode: 'joint' | 'greedy' = body?.mode === 'greedy' ? 'greedy' : 'joint';
+    // Per-run override: plan legs whose customer dates have all lapsed anyway,
+    // boosted so they are placed ahead of ordinary work.
+    const includeExpired = body?.include_expired === true;
 
     const today = todayLondon();
     const selectedDates: string[] = [...new Set(
