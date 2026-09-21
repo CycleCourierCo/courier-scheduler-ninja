@@ -17,6 +17,7 @@ import {
   generateRoutes, isWorkingDay, lockPlanDay, nextWorkingDays, refreshAvailabilityExpiry,
   requestNewDates, selectPlanRoute, setVanUnavailable, unlockPlanDay,
 } from "@/services/routeGenerationService";
+import DaySummary from "./DaySummary";
 
 const THIN_ROUTE_STOPS = 13;
 const MIN_DAYS = 3;
