@@ -715,7 +715,7 @@ serve(async (req) => {
         if (p.leg.legType === 'collection') collectionDay[p.leg.orderId] = p.date;
       }
 
-      const unlockable = legs.filter((leg) => {
+      unlockable = legs.filter((leg) => {
         if (leg.legType !== 'delivery' || !leg.needsUnlock) return false;
         const collectedOn = collectionDay[leg.orderId];
         if (!collectedOn) return false;
