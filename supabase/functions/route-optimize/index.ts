@@ -670,6 +670,8 @@ serve(async (req) => {
       }
       return out;
     })();
+    const pairByOrder: Record<string, { c: Leg; d: Leg; dates: string[] }> = {};
+    for (const p of sameDayPairs) pairByOrder[p.c.orderId] = p;
 
     const buildShipment = (pair: { c: Leg; d: Leg; dates: string[] }, dates: string[]) => {
       const usable = pair.dates.filter((d) => dates.includes(d));
