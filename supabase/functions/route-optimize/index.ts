@@ -37,6 +37,9 @@ const DEFAULT_FLOOR_JOBS = 9;
 const MAX_REMOVALS_PER_DAY = 6;
 const LONG_DAY_MIN_JOBS = 5;
 const SPREAD_WARN_MI = 150;
+const CLUSTER_RADIUS_MI = 30;   // how wide one area may be
+const CORRIDOR_MI = 12;         // how far off the way an on-route job may sit
+const MIN_CLUSTER_JOBS = 3;     // thinner areas fold into their neighbour
 const DIFFICULT_SKILL = 1;
 
 const milesBetween = (aLat: number, aLon: number, bLat: number, bLon: number) => {
