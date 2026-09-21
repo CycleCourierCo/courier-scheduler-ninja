@@ -507,9 +507,25 @@ const GenerateRoutesDialog: React.FC = () => {
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <Label>Van availability</Label>
-            <Button type="button" size="sm" variant="ghost" className="gap-2" onClick={handleRefreshExpiry}>
-              <RefreshCw className="h-3.5 w-3.5" /> Re-check customer dates
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {needsDates.length > 0 && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={includeExpired ? "default" : "outline"}
+                  className="gap-2"
+                  onClick={() => setIncludeExpired((v) => !v)}
+                >
+                  <CalendarClock className="h-3.5 w-3.5" />
+                  {includeExpired
+                    ? `Including ${needsDates.length} expired job${needsDates.length === 1 ? "" : "s"}`
+                    : `Include expired jobs (${needsDates.length})`}
+                </Button>
+              )}
+              <Button type="button" size="sm" variant="ghost" className="gap-2" onClick={handleRefreshExpiry}>
+                <RefreshCw className="h-3.5 w-3.5" /> Re-check customer dates
+              </Button>
+            </div>
           </div>
           {vans.length === 0 ? (
             <p className="text-sm text-muted-foreground">No vans found.</p>
