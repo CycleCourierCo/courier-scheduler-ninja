@@ -599,7 +599,7 @@ serve(async (req) => {
     const buildVehicle = (
       van: { id: string; name: string; capacity: number },
       date: string, idx: number,
-      kind: { long: boolean; spare?: boolean; areaName?: string | null; skill: number },
+      kind: { long: boolean; spare?: boolean; areaName?: string | null; london?: boolean },
     ) => {
       const shiftOpen = londonEpoch(date, shiftStart);
       const capH = kind.long ? LONG_CAP_H : NORMAL_CAP_H;
@@ -611,7 +611,7 @@ serve(async (req) => {
         time_window: [shiftOpen, shiftOpen + capH * HOURS],
         speed_factor: 0.95,
         costs: { per_hour: DRIVER_PENCE_PER_HOUR, per_km: PENCE_PER_KM },
-        skills: [kind.skill],
+        ...(kind.london ? { skills: [DIFFICULT_SKILL] } : {}),
       };
       const meta: VanDay = {
         vehicleId: id, date, vanId: van.id, vanName: van.name, capacity: van.capacity,
@@ -655,32 +655,34 @@ serve(async (req) => {
     };
 
     type Van = { id: string; name: string; capacity: number };
-    type Assignment = { van: Van; cluster: Cluster; spare?: boolean };
+    type Assignment = { van: Van; london: boolean; long: boolean; spare?: boolean };
 
-    /** One solve for one day: every van works one area only. */
+    /** One solve for one day: one open pool of work, London fenced to its own van(s). */
     const solveDay = async (
       date: string,
-      clusters: Cluster[],
+      pool: Leg[],
       assignments: Assignment[],
-      longClusterId: number | null,
     ): Promise<SolvedRoute[] | null> => {
       const vehicles: any[] = [];
       const meta: Record<number, VanDay> = {};
       assignments.forEach((a, idx) => {
         const built = buildVehicle(a.van, date, idx, {
-          long: a.cluster.id === longClusterId,
+          long: a.long,
           spare: a.spare,
-          areaName: a.cluster.name,
-          skill: a.cluster.skill,
+          areaName: a.london ? (difficultAreas[londonAreaIdx]?.name ?? 'London') : null,
+          london: a.london,
         });
         vehicles.push(built.vehicle);
         meta[built.meta.vehicleId] = built.meta;
       });
       if (vehicles.length === 0) return null;
 
-      const usedClusters = clusters.filter((c) => assignments.some((a) => a.cluster.id === c.id));
-      const jobs = usedClusters
-        .flatMap((c) => c.legs.map((leg) => buildJob(leg, date, c, usedClusters, longClusterId)))
+      const londonVans = assignments.filter((a) => a.london).length;
+      const anyLong = assignments.some((a) => a.long);
+      const capH = anyLong ? LONG_CAP_H : NORMAL_CAP_H;
+      const jobs = pool
+        .filter((leg) => (isLondonLeg(leg) ? londonVans > 0 : true))
+        .map((leg) => buildJob(leg, date, capH))
         .filter((j): j is any => !!j);
       if (jobs.length === 0) return null;
 
