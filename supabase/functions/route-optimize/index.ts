@@ -354,8 +354,8 @@ serve(async (req) => {
             reason: severity === 1 ? 'Guaranteed date missed'
               : severity === 2 ? 'Bike in depot, delivery dates expired'
               : dates.length === 0 ? 'No dates provided' : 'Dates expired',
-            days_in_depot: legType === 'delivery' && order.collection_completed_at
-              ? daysSince(dateKey(order.collection_completed_at) ?? today) : null,
+            days_in_depot: legType === 'delivery' && collectedDate
+              ? daysSince(collectedDate) : null,
             last_date: dates.length ? dates[dates.length - 1] : null,
             guaranteed_date: guaranteed,
             status: status === 'awaiting_new_dates' ? 'awaiting_new_dates' : 'expired',
@@ -398,7 +398,7 @@ serve(async (req) => {
           businessHours, label,
           needsUnlock: extra.needsUnlock,
           needsInspection: !!order.needs_inspection && !inspectionDone,
-          collectedAt: dateKey(order.collection_completed_at),
+          collectedAt: collectedDate,
         });
       };
 
