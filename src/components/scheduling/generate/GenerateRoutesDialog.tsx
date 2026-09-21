@@ -138,6 +138,37 @@ const RouteCard: React.FC<{ route: PlanRoute; date: string; onUse: (route: PlanR
   </Card>
 );
 
+/** Admin-only readout of how the plan was worked out, for before/after checks. */
+const RunDetails: React.FC<{ debug?: Record<string, any> }> = ({ debug }) => {
+  const { userProfile } = useAuth();
+  if (!debug || !hasRole(userProfile, "admin")) return null;
+  const perRoute: number[] = Array.isArray(debug.jobs_per_route) ? debug.jobs_per_route : [];
+  return (
+    <Collapsible>
+      <CollapsibleTrigger asChild>
+        <Button variant="ghost" size="sm" className="px-0 text-muted-foreground">Run details</Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="space-y-2 rounded-md border p-3 text-xs">
+          <p>
+            Median jobs per route {debug.median_jobs_per_route ?? 0}
+            {perRoute.length > 0 ? ` (${perRoute.join(", ")})` : ""} · {debug.solve_calls ?? 0} solver calls ·{" "}
+            {Math.round((debug.solve_ms ?? 0) / 1000)}s solving
+          </p>
+          <p>
+            Vans taken off the road: {(debug.van_days_removed ?? []).length} · kept for urgent work:{" "}
+            {(debug.van_days_protected ?? []).length} · stops dropped for sprawl: {debug.hard_trimmed_stops ?? 0} ·
+            jobs in quiet areas: {debug.quiet_area_jobs ?? 0}
+          </p>
+          <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-all text-[11px] text-muted-foreground">
+            {JSON.stringify(debug, null, 2)}
+          </pre>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
+
 const AtRiskPanel: React.FC<{ atRisk: AtRiskLeg[]; infeasible: PlanDay["infeasible_guaranteed"] }> = ({ atRisk, infeasible }) => (
   <Card>
     <CardHeader className="pb-2">
