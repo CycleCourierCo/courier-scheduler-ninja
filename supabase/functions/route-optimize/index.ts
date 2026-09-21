@@ -1091,6 +1091,8 @@ serve(async (req) => {
       expiring_unplanned_count: legs.filter((l) => l.expiringInPlan && !assigned.has(l.key)).length,
       generated_at: new Date().toISOString(),
       firm_days: firmDays,
+      // The "an extra van would plan N more jobs" figures load on a second call.
+      shortfall_pending: mode !== 'greedy',
       days,
       at_risk: atRisk,
       needs_new_dates: needsNewDates.sort((a, b) => a.severity - b.severity),
