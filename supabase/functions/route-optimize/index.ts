@@ -149,6 +149,20 @@ serve(async (req) => {
     const VERSO_API_KEY = Deno.env.get('VERSO_API_KEY');
     if (!VERSO_API_URL || !VERSO_API_KEY) return json({ error: 'Verso credentials not configured' }, 500);
 
+    /* Resolve the solve endpoint from whatever shape the setting was saved in. */
+    const solveUrl = (() => {
+      const raw = VERSO_API_URL.trim().replace(/\/(?=\?|$)/, '');
+      let url: URL;
+      try { url = new URL(raw); } catch { return raw; }
+      if (!/\/solve$/i.test(url.pathname)) {
+        url.pathname = `${url.pathname.replace(/\/$/, '')}/solve`;
+      }
+      if (url.searchParams.has('api_key') && !url.searchParams.get('api_key')) {
+        url.searchParams.set('api_key', VERSO_API_KEY);
+      }
+      return url.toString();
+    })();
+
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) return json({ error: 'unauthorized' }, 401);
 
