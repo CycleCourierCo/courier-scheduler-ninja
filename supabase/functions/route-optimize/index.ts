@@ -361,6 +361,11 @@ serve(async (req) => {
 
       const vehicles: any[] = [];
       const vehicleMeta: Record<number, { vanId: string; vanName: string; capacity: number; expedition: boolean }> = {};
+      // Workload balancing: cap pure driving time so one van can't absorb a
+      // disproportionate share of the day while others sit idle. Leave ~2h of
+      // the shift for service time and depot handling.
+      const primaryTravelCap = Math.max(2 * HOURS, (PRIMARY_CAP_H - 2) * HOURS);
+      const expeditionTravelCap = Math.max(2 * HOURS, (EXPEDITION_CAP_H - 2) * HOURS);
       let vid = 1;
       for (const van of vans) {
         const capUnits = Math.max(1, Math.round(van.capacity * 10));
@@ -369,6 +374,7 @@ serve(async (req) => {
           start: [DEPOT.lon, DEPOT.lat], end: [DEPOT.lon, DEPOT.lat],
           capacity: [capUnits],
           time_window: [shiftOpen, shiftOpen + PRIMARY_CAP_H * HOURS],
+          max_travel_time: primaryTravelCap,
           speed_factor: 0.95,
           costs: { fixed: 3600 },
         });
@@ -381,6 +387,7 @@ serve(async (req) => {
             start: [DEPOT.lon, DEPOT.lat], end: [DEPOT.lon, DEPOT.lat],
             capacity: [capUnits],
             time_window: [shiftOpen, shiftOpen + EXPEDITION_CAP_H * HOURS],
+            max_travel_time: expeditionTravelCap,
             skills: [1],
             speed_factor: 0.95,
             costs: { fixed: 7200 },
