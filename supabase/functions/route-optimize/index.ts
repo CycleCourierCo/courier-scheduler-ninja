@@ -28,6 +28,11 @@ const TIME_BUDGET_MS = 90_000;
 // further" on the same scale we judge profit on. A van that rolls costs a
 // driver for the whole shift; time on the road costs the same hourly rate.
 const DRIVER_PENCE_PER_HOUR = 1100;
+// A 15h "expedition" day is a real cost to the business, not a free upgrade, so
+// it carries a premium shift cost and a dearer hourly rate. Without this the
+// solver happily runs every van long because a longer window fits more work.
+const EXPEDITION_PREMIUM = 1.5;
+const DEFAULT_MAX_LONG_DAYS = 2;
 
 /* ------------------------------ time helpers ------------------------------ */
 
@@ -214,6 +219,10 @@ serve(async (req) => {
     // Per-run override: plan legs whose customer dates have all lapsed anyway,
     // boosted so they are placed ahead of ordinary work.
     const includeExpired = body?.include_expired === true;
+    // How many 15h long days may exist on any one day. 0 means none at all.
+    const maxLongDays = Number.isFinite(Number(body?.max_long_days))
+      ? Math.max(0, Math.min(4, Math.round(Number(body.max_long_days))))
+      : DEFAULT_MAX_LONG_DAYS;
     // Second, lighter call: work out the "an extra van would plan N more jobs"
     // figures only, and save nothing. Keeps them off the main Generate press.
     const shortfallOnly = body?.shortfall_only === true;
