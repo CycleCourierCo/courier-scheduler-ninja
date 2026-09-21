@@ -13,7 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   AtRiskLeg, NeedsNewDatesLeg, PlanDay, PlanMode, PlanRoute, RoutePlanResult, summarisePlan, allPlanRoutes,
-  clearNewDatesRequest, fetchDifficultAreas, fetchPlanningVans, fetchWorkingDays, formatDuration,
+  clearNewDatesRequest, fetchDifficultAreas, fetchLapsedLegs, fetchPlanningVans, fetchWorkingDays, formatDuration,
   generateRoutes, isWorkingDay, lockPlanDay, nextWorkingDays, refreshAvailabilityExpiry,
   requestNewDates, selectPlanRoute, setVanUnavailable, unlockPlanDay,
 } from "@/services/routeGenerationService";
@@ -252,6 +252,8 @@ const GenerateRoutesDialog: React.FC = () => {
   const [retrying, setRetrying] = useState<PlanMode | null>(null);
   /** The plan that jobs were reserved against — the other one is then out of date. */
   const [committedMode, setCommittedMode] = useState<PlanMode | null>(null);
+  const [includeExpired, setIncludeExpired] = useState(false);
+  const [lapsedLegs, setLapsedLegs] = useState<NeedsNewDatesLeg[]>([]);
   const result = plans[mode];
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [lockedDays, setLockedDays] = useState<string[]>([]);
@@ -269,6 +271,7 @@ const GenerateRoutesDialog: React.FC = () => {
       setDates(defaults);
       setGrid(Object.fromEntries(defaults.map((d) => [d, vanRows.map((v) => v.id)])));
       fetchDifficultAreas().then(setAreas).catch(() => setAreas([]));
+      fetchLapsedLegs().then(setLapsedLegs).catch(() => setLapsedLegs([]));
     })();
   }, [open]);
 
