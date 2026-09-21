@@ -155,6 +155,9 @@ interface VanDay { vehicleId: number; date: string; vanId: string; vanName: stri
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
+  const runStarted = Date.now();
+  const budgetLeft = () => TIME_BUDGET_MS - (Date.now() - runStarted);
+
   try {
     const VERSO_API_URL = Deno.env.get('VERSO_API_URL');
     const VERSO_API_KEY = Deno.env.get('VERSO_API_KEY');
