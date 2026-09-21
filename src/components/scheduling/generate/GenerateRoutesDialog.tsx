@@ -18,6 +18,11 @@ import {
   requestNewDates, selectPlanRoute, setVanUnavailable, unlockPlanDay,
 } from "@/services/routeGenerationService";
 import DaySummary from "./DaySummary";
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { hasRole } from "@/lib/roles";
+import { COST_PER_MILE, DRIVER_HOURLY_RATE, formatGBP } from "@/lib/routeCosts";
+import { getRevenueForRouteStops } from "@/services/profitabilityService";
 
 const THIN_ROUTE_STOPS = 13;
 const MIN_DAYS = 3;
