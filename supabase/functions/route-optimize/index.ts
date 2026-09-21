@@ -346,6 +346,10 @@ serve(async (req) => {
       const collectedDate = order.order_collected
         ? dateKey(order.scheduled_pickup_date)
         : null;
+      // Collection booked in but not done yet: the bike joins us that day.
+      const bookedCollection = !order.order_collected && order.scheduled_pickup_date
+        ? dateKey(order.scheduled_pickup_date)
+        : null;
 
       // Older bookings carry a small capped priority bump so long-waiting
       // multi-date jobs are not endlessly outrun by fresher ones.
