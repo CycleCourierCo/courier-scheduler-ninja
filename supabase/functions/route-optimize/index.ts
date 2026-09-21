@@ -723,9 +723,11 @@ serve(async (req) => {
 
       current = readSolution(passA.solution, passA.meta, legsById);
 
-      /* ------------------------ repair loop (one route per van-day) -------- */
+      /* ------------------------ repair (one route per van-day) ------------- */
 
-      for (let attempt = 0; attempt < 3; attempt++) {
+      // One re-solve only: more than that rarely changes the answer and can
+      // push the run past its time budget.
+      for (let attempt = 0; attempt < 1 && budgetLeft() > 25_000; attempt++) {
         const byVanDay: Record<string, Set<boolean>> = {};
         for (const { meta } of current.routeInfo) {
           const k = `${meta.date}:${meta.vanId}`;
