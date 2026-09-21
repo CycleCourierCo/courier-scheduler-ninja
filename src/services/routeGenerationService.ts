@@ -162,14 +162,31 @@ export const summarisePlan = (plan: RoutePlanResult | null): PlanComparison => {
 export const allPlanRoutes = (plan: RoutePlanResult | null): PlanRoute[] =>
   (plan?.days ?? []).flatMap((d) => d.variants?.[0]?.routes ?? []);
 
+/** Turn platform-level failures into something a dispatcher can act on. */
+const planningError = (raw: string | undefined) => {
+  const msg = raw || "Route generation failed";
+  if (/non-2xx|CPU|timed out|timeout|Failed to send|FunctionsFetchError|load failed/i.test(msg)) {
+    return "That many days and vans was too much to plan in one go — try fewer days or fewer vans.";
+  }
+  return msg;
+};
+
 export const generateRoutes = async (input: GenerateRoutesInput): Promise<RoutePlanResult> => {
   const { data, error } = await supabase.functions.invoke("route-optimize", { body: input });
-  if (error) {
-    const detail = (data as any)?.error || error.message;
-    throw new Error(detail || "Route generation failed");
-  }
-  if ((data as any)?.error) throw new Error((data as any).error);
+  if (error) throw new Error(planningError((data as any)?.error || error.message));
+  if ((data as any)?.error) throw new Error(planningError((data as any).error));
   return data as RoutePlanResult;
+};
+
+/** Second, lighter call: the per-day "an extra van would fit N more jobs" figures. */
+export const fetchPlanShortfall = async (
+  input: GenerateRoutesInput,
+): Promise<Record<string, PlanDayShortfall | null>> => {
+  const { data, error } = await supabase.functions.invoke("route-optimize", {
+    body: { ...input, shortfall_only: true },
+  });
+  if (error || (data as any)?.error) return {};
+  return ((data as any)?.shortfall_by_date ?? {}) as Record<string, PlanDayShortfall | null>;
 };
 
 /** Check a fixed stop order actually fits the day. */
