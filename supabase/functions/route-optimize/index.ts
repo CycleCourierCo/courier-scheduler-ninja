@@ -760,45 +760,57 @@ serve(async (req) => {
       excludedLongArea[date] = [];
       if (pool.length === 0) continue;
 
-      // 3.2 group the day's work into areas
-      const clusters = buildClusters(pool, date);
-      dayDebug.areas = clusters.map((c) => ({ name: c.name, jobs: c.legs.length, must_go: c.must }));
+      // 3.2 London is the only fenced area — everything else is one open pool
+      const londonLegs = pool.filter((l) => isLondonLeg(l));
+      const londonSpaces = londonLegs.reduce((n, l) => n + l.spaces, 0);
+      dayDebug.london_jobs = londonLegs.length;
+      dayDebug.long_area = null;
 
-      // 3.3 one long day, for the busiest difficult area
-      const longCandidate = clusters
-        .filter((c) => c.areaIdx !== null && (c.legs.length >= LONG_DAY_MIN_JOBS || c.must > 0))
-        .sort((a, b) => b.must - a.must || b.legs.length - a.legs.length)[0];
-      const longClusterId = maxLongVans > 0 && longCandidate ? longCandidate.id : null;
-      dayDebug.long_area = longClusterId !== null ? longCandidate!.name : null;
-
-      /** Share the day's vans between areas by how much work each one holds. */
+      /** London vans first (they alone may take London work), the rest roam freely. */
       const allocate = (vans: Van[]): Assignment[] => {
-        const order = [...clusters].sort((a, b) => b.must - a.must || b.legs.length - a.legs.length);
+        const free = [...vans];
         const assigned: Assignment[] = [];
-        let free = [...vans];
-        for (const c of order) {
-          if (free.length === 0) break;
-          assigned.push({ van: free.shift()!, cluster: c });
+        if (londonLegs.length > 0 && free.length > 0) {
+          const cap = free[0]?.capacity ?? DEFAULT_CAPACITY;
+          let wanted = Math.min(
+            LONDON_MAX_VANS,
+            free.length,
+            Math.max(1, Math.ceil(Math.max(londonLegs.length / targetJobs, londonSpaces / Math.max(1, cap)))),
+          );
+          // always leave a van for the rest of the country when there is other work
+          if (pool.length > londonLegs.length && wanted >= free.length) wanted = Math.max(1, free.length - 1);
+          for (let i = 0; i < wanted; i++) assigned.push({ van: free.shift()!, london: true, long: false });
         }
-        // extra vans go where the most work is still uncovered
-        while (free.length > 0) {
-          const load = (c: Cluster) => {
-            const n = assigned.filter((a) => a.cluster.id === c.id).length || 1;
-            return Math.max(c.legs.length / n, c.spaces / (n * targetJobs));
-          };
-          const busiest = [...order].sort((a, b) => load(b) - load(a))[0];
-          if (!busiest || load(busiest) <= 1) break;
-          assigned.push({ van: free.shift()!, cluster: busiest });
+        for (const van of free) assigned.push({ van, london: false, long: false });
+
+        // one long day, for the busiest drawn area
+        if (maxLongVans > 0 && assigned.length > 0) {
+          const byArea: Record<number, { jobs: number; must: number }> = {};
+          for (const l of pool) {
+            if (l.areaIdx === null) continue;
+            const b = (byArea[l.areaIdx] ??= { jobs: 0, must: 0 });
+            b.jobs++;
+            if (mustGo(l, date)) b.must++;
+          }
+          const best = Object.entries(byArea)
+            .filter(([, b]) => b.jobs >= LONG_DAY_MIN_JOBS || b.must > 0)
+            .sort((a, b) => b[1].must - a[1].must || b[1].jobs - a[1].jobs)[0];
+          if (best) {
+            const wantLondon = hasLondonArea && Number(best[0]) === londonAreaIdx;
+            const target = assigned.find((a) => a.london === wantLondon) ?? assigned[0];
+            target.long = true;
+            dayDebug.long_area = difficultAreas[Number(best[0])]?.name ?? null;
+          }
         }
         return assigned;
       };
 
       let assignments = allocate([...dayVans]);
-      dayDebug.assignments = assignments.map((a) => ({ van: a.van.name, area: a.cluster.name }));
+      dayDebug.assignments = assignments.map((a) => ({ van: a.van.name, london: a.london, long: a.long }));
 
       let solved: SolvedRoute[] | null = null;
       try {
-        solved = await solveDay(date, clusters, assignments, longClusterId);
+        solved = await solveDay(date, pool, assignments);
       } catch (e) {
         const msg = (e as Error).message;
         if (/distance costing/i.test(msg)) return json({ error: msg, debug, skipped }, 502);
