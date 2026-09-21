@@ -38,7 +38,9 @@ const MAX_REMOVALS_PER_DAY = 6;
 const LONG_DAY_MIN_JOBS = 5;
 const SPREAD_WARN_MI = 150;
 const LONDON_MAX_VANS = 2;      // London work is fenced to at most this many vans
-const DIFFICULT_SKILL = 1;
+const CORRIDOR_MI = 12;         // how far off the depot->London line an "on the way" job may sit
+const DIFFICULT_SKILL = 1;      // London-only work
+const GENERAL_SKILL = 2;        // ordinary work (London vans do not carry this)
 
 const milesBetween = (aLat: number, aLon: number, bLat: number, bLon: number) => {
   const R = 3958.8;
@@ -581,10 +583,46 @@ serve(async (req) => {
     const hasLondonArea = londonAreaIdx >= 0;
     const isLondonLeg = (leg: Leg) => hasLondonArea && leg.areaIdx === londonAreaIdx;
 
+    /** Middle of the drawn London area, used as the far end of the corridor. */
+    const londonCentroid = (() => {
+      if (!hasLondonArea) return null;
+      let lat = 0, lon = 0, n = 0;
+      for (const ring of difficultAreas[londonAreaIdx].rings) {
+        for (const pt of ring) {
+          if (!Array.isArray(pt) || pt.length < 2) continue;
+          lon += Number(pt[0]); lat += Number(pt[1]); n++;
+        }
+      }
+      return n > 0 ? { lat: lat / n, lon: lon / n } : null;
+    })();
+
+    /**
+     * True when a non-London job genuinely sits on the way to London: within
+     * CORRIDOR_MI of the depot->London line, and between the depot and London
+     * rather than beyond it.
+     */
+    const isCorridorLeg = (leg: Leg) => {
+      if (!londonCentroid || isLondonLeg(leg)) return false;
+      const ax = DEPOT.lon, ay = DEPOT.lat;
+      const bx = londonCentroid.lon, by = londonCentroid.lat;
+      const vx = bx - ax, vy = by - ay;
+      const len2 = vx * vx + vy * vy;
+      if (len2 === 0) return false;
+      const t = ((leg.lon - ax) * vx + (leg.lat - ay) * vy) / len2;
+      if (t < 0.05 || t > 1) return false;
+      const px = ax + t * vx, py = ay + t * vy;
+      return milesBetween(leg.lat, leg.lon, py, px) <= CORRIDOR_MI;
+    };
+
     const buildJob = (leg: Leg, date: string, capH: number) => {
       const window = windowFor(leg, date, capH);
       if (!window) return null;
       const load = [Math.max(1, Math.round(leg.spaces * 10))];
+      // London legs: London vans only. Corridor legs: any van. Everything else:
+      // ordinary vans only, so the London van cannot wander off its corridor.
+      const skills = isLondonLeg(leg)
+        ? [DIFFICULT_SKILL]
+        : isCorridorLeg(leg) ? null : [GENERAL_SKILL];
       return {
         id: leg.jobId,
         location: [leg.lon, leg.lat],
@@ -592,7 +630,7 @@ serve(async (req) => {
         priority: mustGo(leg, date) ? 100 : 50,
         time_windows: [window],
         ...(leg.legType === 'delivery' ? { delivery: load } : { pickup: load }),
-        ...(isLondonLeg(leg) ? { skills: [DIFFICULT_SKILL] } : {}),
+        ...(skills ? { skills } : {}),
       };
     };
 
@@ -611,7 +649,9 @@ serve(async (req) => {
         time_window: [shiftOpen, shiftOpen + capH * HOURS],
         speed_factor: 0.95,
         costs: { per_hour: DRIVER_PENCE_PER_HOUR, per_km: PENCE_PER_KM },
-        ...(kind.london ? { skills: [DIFFICULT_SKILL] } : {}),
+        // London vans carry only the London skill, so they can serve London work
+        // and unskilled corridor work — never ordinary jobs elsewhere.
+        skills: kind.london ? [DIFFICULT_SKILL] : [GENERAL_SKILL],
       };
       const meta: VanDay = {
         vehicleId: id, date, vanId: van.id, vanName: van.name, capacity: van.capacity,
@@ -764,6 +804,7 @@ serve(async (req) => {
       const londonLegs = pool.filter((l) => isLondonLeg(l));
       const londonSpaces = londonLegs.reduce((n, l) => n + l.spaces, 0);
       dayDebug.london_jobs = londonLegs.length;
+      dayDebug.corridor_jobs = pool.filter((l) => isCorridorLeg(l)).length;
       dayDebug.long_area = null;
 
       /** London vans first (they alone may take London work), the rest roam freely. */
