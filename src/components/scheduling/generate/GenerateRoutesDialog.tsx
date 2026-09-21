@@ -181,7 +181,6 @@ const NeedsDatesPanel: React.FC<{ legs: NeedsNewDatesLeg[]; onChanged: () => voi
 };
 
 const RoutePlanMapLazy = React.lazy(() => import("./RoutePlanMap"));
-const DaySummary = React.lazy(() => import("./DaySummary"));
 
 const GenerateRoutesDialog: React.FC = () => {
   const [open, setOpen] = useState(false);
