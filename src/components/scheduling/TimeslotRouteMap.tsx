@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import * as Sentry from "@sentry/react";
 import L from "leaflet";
 import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -132,7 +133,7 @@ const TimeslotRouteMap: React.FC<TimeslotRouteMapProps> = ({ stops, mobile = fal
 
         if (active) setRouteLines(lines);
       } catch (error) {
-        console.error("Timeslot route map path unavailable:", error);
+        Sentry.captureException(error, { tags: { feature: "timeslot-route-map" } });
         if (active) {
           setRouteLines([]);
           setPathUnavailable(true);

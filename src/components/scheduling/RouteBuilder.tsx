@@ -1219,6 +1219,13 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   }, [orders]);
   const [showTimeslotDialog, setShowTimeslotDialog] = useState(false);
   const [routeStats, setRouteStats] = useState<{ endTime: string; distanceMiles: number; durationMinutes: number } | null>(null);
+  const timeslotMapStops = React.useMemo(
+    () => selectedJobs.map((job) => ({
+      ...job,
+      trackingNumber: job.orderData?.tracking_number,
+    })),
+    [selectedJobs],
+  );
   const { userProfile } = useAuth();
   const isAdmin = hasRole(userProfile, 'admin');
   const [profitability, setProfitability] = useState<{
@@ -3819,10 +3826,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
                 <TimeslotRouteMap
                   mobile
-                  stops={selectedJobs.map((job) => ({
-                    ...job,
-                    trackingNumber: job.orderData?.tracking_number,
-                  }))}
+                  stops={timeslotMapStops}
                 />
 
                 {/* Route */}
@@ -4023,10 +4027,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
               </div>
 
               <TimeslotRouteMap
-                stops={selectedJobs.map((job) => ({
-                  ...job,
-                  trackingNumber: job.orderData?.tracking_number,
-                }))}
+                stops={timeslotMapStops}
               />
 
               <div className="space-y-3">
