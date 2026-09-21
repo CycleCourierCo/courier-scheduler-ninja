@@ -292,9 +292,9 @@ serve(async (req) => {
     const shortfallOnly = body?.shortfall_only === true;
 
     const today = todayLondon();
-    const selectedDates: string[] = [...new Set(
+    const selectedDates: string[] = [...new Set<string>(
       (Array.isArray(body?.selected_dates) ? body.selected_dates : [])
-        .filter((d: unknown) => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)),
+        .filter((d: unknown): d is string => typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)),
     )].sort().slice(0, MAX_DAYS);
     if (selectedDates.length === 0) return json({ error: 'Pick at least one day to plan' }, 400);
 

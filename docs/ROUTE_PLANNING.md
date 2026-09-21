@@ -24,7 +24,9 @@ server.
 | Vans per day | all in-use/off-road vans | — | Tick grid: which vans exist on which day. |
 | Firm days | 2 | 0 to number of days | Days beyond this are labelled "provisional". |
 | Inspection lead days | blank (never) | 0 to 14 | Days a bike needing inspection must sit before delivery. Blank means inspection jobs are never delivered inside the plan. |
-| Max long days per day | 2 | 0 to 4 | How many 15-hour "expedition" vans may exist on one day. |
+| Max long days per day | 1 | 0 to 4 | How many 15-hour long-day vans may exist on one day. |
+| Jobs per route (target) | 13 | 1 to 30 | Vans are taken off the road until every route carries at least this much work. |
+| Fewest jobs allowed | 9 | 1 to target | Below this a route is flagged red for a dispatcher to decide on. |
 | Include expired jobs | off | — | Lets jobs whose customer dates have all passed be planned anyway. |
 | Balanced / Daily tab | Balanced | — | Balanced solves all days together; Daily fills each day in turn. |
 
@@ -86,22 +88,22 @@ Each job gets a number from 1 to 99, except guaranteed dates which are 100.
 
 ```text
 priority = 60 / (number of future dates offered)
-         + 40 / (days until the nearest of those dates)
+         + 40 / (days until the LAST of those dates)
          + boosts
 ```
 
 Boosts:
 
-- **+20** if it is being planned through the expired override.
-- **+15** if its last date falls inside this plan.
-- **+1 per full week since the order was booked, capped at +10.**
-- plus any manual boost stored on the leg.
+- **+10** if it is being planned through the expired override.
+- **+10** if its last date falls inside this plan.
+- **+1 per full week since the order was booked, capped at +5.**
+- plus any manual boost stored on the leg, capped at +20.
 
-So a job offering one date tomorrow beats a job offering six dates next month,
-and old jobs slowly climb.
+The last date is used, not the nearest, so a job available every day for a month
+does not pretend to be urgent.
 
-Priority does not force placement — it tells the optimiser what to sacrifice
-last when the day is full.
+Priority only decides what gets dropped when there isn't room. Fleet size and
+geography are handled by their own rules below, not by priority.
 
 ---
 
@@ -114,31 +116,40 @@ last when the day is full.
   space than a road bike.
 - Vans you untick, and vans marked unavailable on a date, are dropped for that
   date.
-- **Normal shift: 12 hours.** Driving time within a shift is capped at the shift
-  length minus 2 hours, and all travel times are padded by 5% so the plan
-  survives re-timing.
-- **Long day ("expedition"): 15 hours.** Only offered where hard-to-reach work
-  exists, only as many as needed (difficult stops ÷ average capacity), and never
-  more than your "Max long days" setting. Set it to 0 and none exist.
+- **Normal shift: 13 hours**, depot to depot. All travel times are padded by 5%
+  so the plan survives re-timing. There is no separate driving cap.
+- **Long day: 15 hours.** Worked out per difficult area, not from all difficult
+  work lumped together, because one van cannot do Cornwall and Carlisle. Areas
+  are ranked by the work waiting in them, and a long day is created only for the
+  top areas that hold at least 5 jobs, or work that would otherwise be lost —
+  never more than your "Max long days" setting.
+- **Fleet size is decided outside the optimiser.** The optimiser will always
+  send another van out if it places one more job, so after solving the thinnest
+  route's van is taken off the road and the day is solved again. This repeats
+  (up to 8 times) until every route carries the target amount of work. A removal
+  is undone if it would push out a guaranteed job, or a job with no date left
+  after this plan — that van-day is then kept and its route labelled
+  **"Thin — needed for urgent jobs"**, listing the jobs that justify it.
 - Every stop takes **15 minutes**.
 - **Extra vans** (2 per day) are imaginary vans used only to answer "you were
-  short by n vans". They are never saved into a plan.
+  short by n vans", and only count when they would carry a proper day's work or
+  rescue urgent work. They are never saved into a plan.
 
 ---
 
 ## 6. The money model
 
-The optimiser is given real money so that "open another van" and "drive
-further" are judged on the same scale:
+The optimiser is given real money, in whole pence, so that "open another van"
+and "drive further" are judged on the same scale:
 
-- Driver time: **£11 per hour**.
-- Distance: **£0.45 per mile**.
-- Putting a van on the road: a flat charge of **2 hours' pay** (about £22) —
-  deliberately small, so it doesn't cram everything onto too few vans.
-- A long day costs **1.5×** on both the shift charge and the hourly rate, so it
-  is only used when it rescues work a normal shift can't reach.
-- An imaginary extra van carries a £400 charge, so it only shows up when it
-  saves a serious amount of work.
+- Driver time: **£11 per hour** (1100p).
+- Distance: **£0.45 per mile** (28p per km).
+- Putting a van on the road: a flat charge of **2 hours' pay** (2200p).
+- A long day costs **1.5×** on both the shift charge and the hourly rate.
+
+Distance costing is never dropped quietly. If the optimiser rejects it the run
+fails with a clear message, and the plan shows a red banner rather than handing
+back sprawling time-only routes.
 
 The same £11/hour and £0.45/mile are used for the costings shown on the day
 summary and in Get Timeslots, so the figures agree.
@@ -147,19 +158,47 @@ summary and in Get Timeslots, so the figures agree.
 
 ## 7. Geography rules
 
-- The country is divided into the area **around the depot** (within 45 miles)
-  and **eight compass areas** out from it (North, North East, East, and so on).
-- Each van is given **one area for the day**, plus the depot area. Areas with
-  more work get more vans. A stop may only go on a van working its area, so one
-  route can't stretch from Skegness to Newcastle.
-- Long days are handed to the areas that actually contain hard-to-reach work.
-- After solving, any route whose two furthest stops are more than **120 miles
-  apart** (**220** on a long day) has its most outlying stops removed, one at a
-  time, until it fits. Removed stops go back into the leftover / at-risk list.
-- Each route card then shows its area and how far apart its stops are.
+- The country is divided into the area **around the depot** (within 45 miles),
+  where any van may work, and **16 compass areas** of 22.5° out from it.
+- Vans are **not** pre-allocated to single areas. Instead each day is split into
+  **area groups of three neighbouring areas**, chosen where the work actually
+  is: the busiest area and its two neighbours, then the next busiest of what's
+  left, and so on. A group is only created if it holds at least the "fewest jobs
+  allowed" figure, or there is a van spare for it.
+- One van covers each group. Vans left over after that **roam** (any area); the
+  fleet-reduction rule above takes them off the road if they end up thin.
+- Work in an area that got no group that day is not sent for that day. If a job
+  gets no group on any day in the plan it appears in the at-risk list as "Area
+  too quiet this week — no viable route" — unless it is guaranteed or expiring,
+  in which case a van is widened to take it.
+- A collection and its delivery are only tied to the same van when they are
+  within **30 miles** of each other. Otherwise the collection goes out on its
+  own and the delivery is planned on a later day of the plan.
+- If a route's two furthest stops end up more than **120 miles apart** (**220**
+  on a long day), its most outlying stop is removed and the plan is **solved
+  again** (up to 3 times), so the gap gets filled with nearby work and the job
+  can still go on another day.
+- Each route card shows its area and how far apart its stops are.
 - Separately, five **difficult areas** are held as map shapes (Cornwall & Devon,
   Margate/East Kent, Carlisle & Lakes, Northumberland, Pembrokeshire). Stops
-  inside them are flagged and may only go on a long-day van.
+  inside them are flagged, each area has its own long-day van, and a long day
+  covers one difficult area only.
+- Ordinary jobs get a **13-hour** window; jobs in a difficult area get 15 hours,
+  because only long-day vans can reach them.
+
+---
+
+## 7a. Run details and skipped steps
+
+Every run records how it was worked out — vans offered and used per day, jobs
+per route, van-days removed or kept, area groups, long days, solver calls and
+time, stops dropped for sprawl. Admins can open **Run details** in the popup to
+compare one run with another; it is also saved with the plan.
+
+If time runs out, steps are dropped from the end of this list first: main solve,
+deliveries pass, van reduction, spread trimming, grace pass. Anything skipped
+shows as a yellow banner on the plan, so a partial plan is never presented as a
+finished one.
 
 ---
 
@@ -168,25 +207,30 @@ summary and in Get Timeslots, so the figures agree.
 **Balanced:**
 
 1. **Main solve** — all days, all vans, all ready work, in one go. Collections
-   and deliveries that can happen on the same day are sent as a linked pair, so
-   a van can empty out and load again.
-2. **One repair re-solve** — only if a van somehow ended up with both a normal
-   and a long route on the same day.
-3. **Deliveries pass** — collections placed in step 1 are pinned to their day,
+   and deliveries that can happen on the same day and are within 30 miles of
+   each other are sent as a linked pair, so a van can empty out and load again.
+2. **Deliveries pass** — collections placed in step 1 are pinned to their day,
    and the deliveries they unlock are added and solved again. If pinning a
    collection then pushes it out, this pass is discarded.
-4. **Grace pass** — jobs about to expire that still didn't fit get one more try
+3. **Fleet reduction** — the thinnest route's van is taken off the road and the
+   day solved again, repeatedly, until routes carry a proper day's work or a
+   removal would cost urgent work.
+4. **Spread trimming** — days with a route stretched too wide drop their most
+   outlying stop and solve again, up to three times.
+5. **Grace pass** — jobs about to expire that still didn't fit get one more try
    on a later day inside the plan, using whatever room is left on each van.
    These stops are marked "planned after expiry".
-5. **Save and return.**
+6. **Save and return**, along with the run details.
 
 **Daily:** each day in turn is filled as full as it will go before the next day
-is looked at, with no per-van shift charge so every van is offered. Work placed
-on an earlier day is gone by the time the next day is planned.
+is looked at. Fleet reduction still applies, so a half-empty van is taken off
+the road rather than sent out. Work placed on an earlier day is gone by the time
+the next day is planned.
 
-**Time budget:** the run has 90 seconds. Optional steps (repair re-solve,
-deliveries pass, grace pass) are skipped once the budget is nearly gone, so a
-plan is always saved rather than the run being killed.
+**Time budget:** the run has 90 seconds. Optional steps (deliveries pass, fleet
+reduction, spread trimming, grace pass) are skipped once the budget is nearly
+gone, so a plan is always saved rather than the run being killed — and whatever
+was skipped is shown on screen.
 
 **"Short by n vans"** is worked out by a completely separate second call after
 the plan is on screen, so it can never break Generate.
@@ -230,29 +274,22 @@ The planner's times are an estimate for judging whether a day fits.
 
 These are the places most likely to explain a plan that looks wrong:
 
-1. **Area allocation can starve a region.** Vans are shared out by how much work
-   each area has *before* solving. If an area gets fewer vans than its work
-   needs, the surplus can't spill onto a van assigned elsewhere — it lands in
-   the leftover list instead. This is the most likely cause of a sudden jump in
-   unplanned jobs.
-2. **Spread trimming silently shortens routes.** Stops cut for being too far out
-   are removed after the solve, so a route's hours and miles still describe the
-   longer version it was solved as. Counts are right; time and mileage are
-   slightly pessimistic.
-3. **Collect-and-deliver pairs can cross areas.** A pair whose two ends sit in
-   different areas is given no area restriction at all, so it can still stretch
-   a route — spread trimming is the only thing holding it back.
-4. **Long days are all-or-nothing per area.** A difficult-area job can only go on
-   a long-day van. With "Max long days" at 0, those jobs cannot be planned at
-   all and go straight to the leftover list.
-5. **Job windows are generous.** A job's own time window is drawn against a
-   15-hour day even on a 12-hour van, so the van's shift is the only thing
-   keeping late stops out.
-6. **Daily mode can't look ahead.** Filling Monday fully may leave nothing
+1. **A quiet area gets no route.** If an area group can't be justified on any day
+   of the plan, its work waits for the next plan. It is listed as at risk with
+   that reason, and guaranteed or expiring work is forced on anyway, but an area
+   with three jobs will keep being left behind until it builds up.
+2. **Long days are all-or-nothing per area.** A difficult-area job can only go on
+   a long-day van covering that area. With "Max long days" at 0, or more
+   difficult areas live than long days allowed, those jobs go to the leftover
+   list.
+3. **Distant collect-and-deliver pairs cost a day.** Over 30 miles apart, the
+   delivery waits for a later day of the plan and may not fit at all.
+4. **Daily mode can't look ahead.** Filling Monday fully may leave nothing
    sensible for Tuesday in that direction.
-7. **Nothing outside your chosen days is considered.** A job whose only dates
+5. **Nothing outside your chosen days is considered.** A job whose only dates
    fall after the horizon is neither planned nor flagged — it simply isn't in
    the run.
-8. **Distance pricing depends on Verso.** If the endpoint rejects a per-mile
-   cost, the run quietly retries without it, and that solve reverts to
-   time-only costing — which is what produced the sprawling routes before.
+6. **Long runs hit the time budget.** Ten days and a big fleet can use up the 90
+   seconds before reduction and trimming finish. The plan is still saved, the
+   banner tells you what was skipped, and generating again picks up from a
+   smaller problem.

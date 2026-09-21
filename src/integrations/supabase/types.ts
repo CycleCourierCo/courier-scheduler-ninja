@@ -4470,6 +4470,7 @@ export type Database = {
           assume_next_day_inspection: boolean
           created_at: string
           created_by: string | null
+          debug: Json | null
           firm_days: number
           generated_at: string
           horizon_end: string
@@ -4488,6 +4489,7 @@ export type Database = {
           assume_next_day_inspection?: boolean
           created_at?: string
           created_by?: string | null
+          debug?: Json | null
           firm_days?: number
           generated_at?: string
           horizon_end: string
@@ -4506,6 +4508,7 @@ export type Database = {
           assume_next_day_inspection?: boolean
           created_at?: string
           created_by?: string | null
+          debug?: Json | null
           firm_days?: number
           generated_at?: string
           horizon_end?: string

@@ -86,15 +86,24 @@ const RouteCard: React.FC<{ route: PlanRoute; date: string; onUse: (route: PlanR
           {typeof route.spread_mi === "number" && (
             <Badge variant="secondary">{route.spread_mi} mi across</Badge>
           )}
-          {route.is_expedition && <Badge variant="outline">Expedition 15h</Badge>}
+          {route.is_expedition && <Badge variant="outline">Long day 15h</Badge>}
           {route.is_provisional && <Badge variant="secondary">Provisional</Badge>}
-          {route.stop_count < THIN_ROUTE_STOPS && <Badge variant="secondary">Thin route</Badge>}
+          {(route.thin ?? route.stop_count < THIN_ROUTE_STOPS) && (
+            <Badge variant={route.below_floor ? "destructive" : "secondary"}>
+              {route.thin_reason ?? "Thin route"}
+            </Badge>
+          )}
           {route.guaranteed_count > 0 && <Badge>Guaranteed ×{route.guaranteed_count}</Badge>}
         </div>
       </div>
       <p className="text-sm text-muted-foreground">
         {route.stop_count} stops · {formatDuration(route.duration_s)} · {route.miles} mi · {route.max_load}/{route.van_capacity} spaces
       </p>
+      {(route.thin ?? false) && (route.urgent_labels?.length ?? 0) > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Kept for urgent jobs: {route.urgent_labels!.join(", ")}
+        </p>
+      )}
       <RouteCostLine route={route} />
     </CardHeader>
     <CardContent className="space-y-3">
@@ -128,6 +137,37 @@ const RouteCard: React.FC<{ route: PlanRoute; date: string; onUse: (route: PlanR
     </CardContent>
   </Card>
 );
+
+/** Admin-only readout of how the plan was worked out, for before/after checks. */
+const RunDetails: React.FC<{ debug?: Record<string, any> }> = ({ debug }) => {
+  const { userProfile } = useAuth();
+  if (!debug || !hasRole(userProfile, "admin")) return null;
+  const perRoute: number[] = Array.isArray(debug.jobs_per_route) ? debug.jobs_per_route : [];
+  return (
+    <Collapsible>
+      <CollapsibleTrigger asChild>
+        <Button variant="ghost" size="sm" className="px-0 text-muted-foreground">Run details</Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="space-y-2 rounded-md border p-3 text-xs">
+          <p>
+            Median jobs per route {debug.median_jobs_per_route ?? 0}
+            {perRoute.length > 0 ? ` (${perRoute.join(", ")})` : ""} · {debug.solve_calls ?? 0} solver calls ·{" "}
+            {Math.round((debug.solve_ms ?? 0) / 1000)}s solving
+          </p>
+          <p>
+            Vans taken off the road: {(debug.van_days_removed ?? []).length} · kept for urgent work:{" "}
+            {(debug.van_days_protected ?? []).length} · stops dropped for sprawl: {debug.hard_trimmed_stops ?? 0} ·
+            jobs in quiet areas: {debug.quiet_area_jobs ?? 0}
+          </p>
+          <pre className="max-h-64 overflow-auto whitespace-pre-wrap break-all text-[11px] text-muted-foreground">
+            {JSON.stringify(debug, null, 2)}
+          </pre>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
 
 const AtRiskPanel: React.FC<{ atRisk: AtRiskLeg[]; infeasible: PlanDay["infeasible_guaranteed"] }> = ({ atRisk, infeasible }) => (
   <Card>
@@ -288,7 +328,11 @@ const GenerateRoutesDialog: React.FC = () => {
   const [committedMode, setCommittedMode] = useState<PlanMode | null>(null);
   const [includeExpired, setIncludeExpired] = useState(false);
   /** How many 15h long days may be used on any one day. 0 = none. */
-  const [maxLongDays, setMaxLongDays] = useState(2);
+  const [maxLongDays, setMaxLongDays] = useState(1);
+  /** Jobs a proper day's route should carry — vans come off the road to reach it. */
+  const [minJobsTarget, setMinJobsTarget] = useState(13);
+  /** Fewest jobs a route may carry before it is flagged for a dispatcher. */
+  const [minJobsFloor, setMinJobsFloor] = useState(9);
   const [lapsedLegs, setLapsedLegs] = useState<NeedsNewDatesLeg[]>([]);
   const result = plans[mode];
   const [activeDate, setActiveDate] = useState<string | null>(null);
@@ -419,6 +463,8 @@ const GenerateRoutesDialog: React.FC = () => {
       inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
       include_expired: includeExpired,
       max_long_days: maxLongDays,
+      min_jobs_target: minJobsTarget,
+      min_jobs_floor: minJobsFloor,
     };
     try {
       // Both ways of planning are built so they can be compared side by side.
@@ -455,6 +501,8 @@ const GenerateRoutesDialog: React.FC = () => {
         inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
         include_expired: includeExpired,
         max_long_days: maxLongDays,
+        min_jobs_target: minJobsTarget,
+        min_jobs_floor: minJobsFloor,
         mode: m,
       });
       setPlans((prev) => ({ ...prev, [m]: plan }));
@@ -564,7 +612,7 @@ const GenerateRoutesDialog: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-5">
+        <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-7">
           <div className="space-y-1">
             <Label htmlFor="gr-shift">Start time</Label>
             <Input id="gr-shift" type="time" value={shiftStart} onChange={(e) => setShiftStart(e.target.value)} />
@@ -583,6 +631,16 @@ const GenerateRoutesDialog: React.FC = () => {
             <Label htmlFor="gr-long">Max long days per day</Label>
             <Input id="gr-long" type="number" min={0} max={4} value={maxLongDays}
               onChange={(e) => setMaxLongDays(Math.max(0, Math.min(4, Number(e.target.value) || 0)))} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="gr-target">Jobs per route (target)</Label>
+            <Input id="gr-target" type="number" min={1} max={30} value={minJobsTarget}
+              onChange={(e) => setMinJobsTarget(Math.max(1, Math.min(30, Number(e.target.value) || 1)))} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="gr-floor">Fewest jobs allowed</Label>
+            <Input id="gr-floor" type="number" min={1} max={minJobsTarget} value={minJobsFloor}
+              onChange={(e) => setMinJobsFloor(Math.max(1, Math.min(minJobsTarget, Number(e.target.value) || 1)))} />
           </div>
           <div className="flex items-end">
             <Button onClick={handleGenerate} disabled={loading} className="w-full gap-2">
@@ -686,6 +744,17 @@ const GenerateRoutesDialog: React.FC = () => {
 
         {result && (
           <div className="space-y-4">
+            {result.distance_costing === false && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">
+                Mileage was not taken into account on this plan — routes may wander. Try again.
+              </div>
+            )}
+            {(result.skipped?.length ?? 0) > 0 && (
+              <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-sm text-amber-700 dark:text-amber-400">
+                Plan incomplete — skipped: {result.skipped!.join("; ")}. Generate again to finish.
+              </div>
+            )}
+            <RunDetails debug={result.debug} />
             <div className="flex flex-wrap items-center gap-2">
               {(["joint", "greedy"] as PlanMode[]).map((m) => {
                 const summary = summarisePlan(plans[m]);
