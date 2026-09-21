@@ -86,7 +86,9 @@ const RouteCard: React.FC<{ route: PlanRoute; date: string; onUse: (route: PlanR
         <div className="flex flex-wrap items-center gap-1">
           {route.region && <Badge variant="outline">{route.region}</Badge>}
           {typeof route.spread_mi === "number" && (
-            <Badge variant="secondary">{route.spread_mi} mi across</Badge>
+            <Badge variant={route.spread_warning ? "destructive" : "secondary"}>
+              {route.spread_mi} mi across{route.spread_warning ? " — worth a look" : ""}
+            </Badge>
           )}
           {route.is_expedition && <Badge variant="outline">Long day 15h</Badge>}
           {route.is_provisional && <Badge variant="secondary">Provisional</Badge>}
