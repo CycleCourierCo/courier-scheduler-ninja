@@ -103,6 +103,8 @@ export interface RoutePlanResult {
   expiring_unplanned_count?: number;
   generated_at?: string;
   firm_days?: number;
+  /** The "an extra van would plan N more jobs" figures are still loading. */
+  shortfall_pending?: boolean;
   days: PlanDay[];
   at_risk: AtRiskLeg[];
   needs_new_dates: NeedsNewDatesLeg[];
