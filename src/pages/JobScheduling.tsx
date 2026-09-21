@@ -11,6 +11,7 @@ import ViableJobsHeatMap from "@/components/scheduling/ViableJobsHeatMap";
 import DriverHoursMileagePanel from "@/components/scheduling/DriverHoursMileagePanel";
 
 import RouteBuilder from "@/components/scheduling/RouteBuilder";
+import GenerateRoutesDialog from "@/components/scheduling/generate/GenerateRoutesDialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
