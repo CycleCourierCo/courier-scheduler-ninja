@@ -859,31 +859,48 @@ serve(async (req) => {
       });
       dayDebug.pool = pool.length;
 
-      // 3.2 one long-day van, for one difficult area
-      const areaStats: Record<number, { jobs: number; must: number }> = {};
-      for (const leg of pool) {
-        if (leg.areaIdx === null) continue;
-        const s = (areaStats[leg.areaIdx] ??= { jobs: 0, must: 0 });
-        s.jobs += 1;
-        if (mustGo(leg, date)) s.must += 1;
-      }
-      const chosen = Object.entries(areaStats)
-        .map(([idx, s]) => ({ idx: Number(idx), ...s }))
-        .filter((a) => a.jobs >= LONG_DAY_MIN_JOBS || a.must > 0)
-        .sort((a, b) => b.must - a.must || b.jobs - a.jobs)[0];
-      let longAreaIdx = maxLongVans > 0 && chosen ? chosen.idx : null;
-      dayDebug.long_area = longAreaIdx !== null ? difficultAreas[longAreaIdx]?.name ?? null : null;
-
-      // Every job stays in the day's pool; only the chosen area gets the long day.
       excludedLongArea[date] = [];
       if (pool.length === 0) continue;
 
-      let vanList = [...dayVans];
-      let longVanId = longAreaIdx !== null ? vanList[0]?.id ?? null : null;
+      // 3.2 group the day's work into areas
+      const clusters = buildClusters(pool, date);
+      dayDebug.areas = clusters.map((c) => ({ name: c.name, jobs: c.legs.length, must_go: c.must }));
+
+      // 3.3 one long day, for the busiest difficult area
+      const longCandidate = clusters
+        .filter((c) => c.areaIdx !== null && (c.legs.length >= LONG_DAY_MIN_JOBS || c.must > 0))
+        .sort((a, b) => b.must - a.must || b.legs.length - a.legs.length)[0];
+      const longClusterId = maxLongVans > 0 && longCandidate ? longCandidate.id : null;
+      dayDebug.long_area = longClusterId !== null ? longCandidate!.name : null;
+
+      /** Share the day's vans between areas by how much work each one holds. */
+      const allocate = (vans: Van[]): Assignment[] => {
+        const order = [...clusters].sort((a, b) => b.must - a.must || b.legs.length - a.legs.length);
+        const assigned: Assignment[] = [];
+        let free = [...vans];
+        for (const c of order) {
+          if (free.length === 0) break;
+          assigned.push({ van: free.shift()!, cluster: c });
+        }
+        // extra vans go where the most work is still uncovered
+        while (free.length > 0) {
+          const load = (c: Cluster) => {
+            const n = assigned.filter((a) => a.cluster.id === c.id).length || 1;
+            return Math.max(c.legs.length / n, c.spaces / (n * targetJobs));
+          };
+          const busiest = [...order].sort((a, b) => load(b) - load(a))[0];
+          if (!busiest || load(busiest) <= 1) break;
+          assigned.push({ van: free.shift()!, cluster: busiest });
+        }
+        return assigned;
+      };
+
+      let assignments = allocate([...dayVans]);
+      dayDebug.assignments = assignments.map((a) => ({ van: a.van.name, area: a.cluster.name }));
 
       let solved: SolvedRoute[] | null = null;
       try {
-        solved = await solveDay(date, pool, vanList, longAreaIdx, longVanId);
+        solved = await solveDay(date, clusters, assignments, longClusterId);
       } catch (e) {
         const msg = (e as Error).message;
         if (/distance costing/i.test(msg)) return json({ error: msg, debug, skipped }, 502);
@@ -892,33 +909,24 @@ serve(async (req) => {
       }
       if (!solved) continue;
 
-      // 3.4 a long day that carries no difficult work is just a normal van
-      if (longVanId && !solved.some((r) => r.meta.long && r.stops.some((s) => s.leg.areaIdx !== null))) {
-        longAreaIdx = null;
-        longVanId = null;
-        dayDebug.long_area_dropped = true;
-        try {
-          solved = (await solveDay(date, pool, vanList, null, null)) ?? solved;
-        } catch (e) {
-          skipped.push(`plan for ${date} (${(e as Error).message})`);
-        }
-      }
-
       const servedKeys = (rs: SolvedRoute[]) => new Set(rs.flatMap((r) => r.stops.map((s) => s.leg.key)));
 
-      // 3.5 fill first: if work is left over, put every available van back on the road
+      // 3.4 fill: send idle vans to the areas that still have work
       if (!quickOnly && budgetLeft() > 15_000) {
-        const unplaced = pool.filter((l) => !servedKeys(solved!).has(l.key));
-        const idle = dayVans.filter((v) => !vanList.some((x) => x.id === v.id));
-        if (unplaced.length > 0 && idle.length > 0) {
+        const served = servedKeys(solved);
+        const idle = dayVans.filter((v) => !assignments.some((a) => a.van.id === v.id));
+        const hungry = clusters
+          .map((c) => ({ c, left: c.legs.filter((l) => !served.has(l.key)).length }))
+          .filter((x) => x.left > 0)
+          .sort((a, b) => b.left - a.left);
+        if (idle.length > 0 && hungry.length > 0) {
+          const extra: Assignment[] = [];
+          idle.forEach((van, i) => extra.push({ van, cluster: hungry[i % hungry.length].c }));
           try {
-            const fullVans = [...dayVans];
-            const fullLong = longAreaIdx !== null ? (longVanId ?? fullVans[0]?.id ?? null) : null;
-            const filled = await solveDay(date, pool, fullVans, longAreaIdx, fullLong);
-            if (filled && servedKeys(filled).size > servedKeys(solved!).size) {
+            const filled = await solveDay(date, clusters, [...assignments, ...extra], longClusterId);
+            if (filled && servedKeys(filled).size > served.size) {
               solved = filled;
-              vanList = fullVans;
-              longVanId = fullLong;
+              assignments = [...assignments, ...extra];
               dayDebug.filled_with_all_vans = true;
             }
           } catch {
@@ -927,7 +935,7 @@ serve(async (req) => {
         }
       }
 
-      // 3.6 van-reduction loop — only when no job at all is lost
+      // 3.5 van-reduction loop — only when no job at all is lost
       if (quickOnly) {
         skipped.push(`fine-tuning ${date} (ran out of time)`);
       } else {
@@ -943,12 +951,11 @@ serve(async (req) => {
                 .sort((a, b) => a.margin - b.margin)[0]
               : undefined);
           if (!weakest) break;
-          const trialVans = vanList.filter((v) => v.id !== weakest.r.meta.vanId);
-          if (trialVans.length === 0) break;
-          const trialLong = longVanId === weakest.r.meta.vanId ? trialVans[0]?.id ?? null : longVanId;
+          const trial = assignments.filter((a) => a.van.id !== weakest.r.meta.vanId);
+          if (trial.length === 0) break;
           let retry: SolvedRoute[] | null = null;
           try {
-            retry = await solveDay(date, pool, trialVans, longAreaIdx, trialLong);
+            retry = await solveDay(date, clusters, trial, longClusterId);
           } catch (e) {
             dayDebug.removals.push({ van: weakest.r.meta.vanName, outcome: `solve failed: ${(e as Error).message}` });
             protectedVans.add(weakest.r.meta.vanId);
@@ -966,30 +973,37 @@ serve(async (req) => {
             continue;
           }
           dayDebug.removals.push({ van: weakest.r.meta.vanName, jobs: weakest.r.stops.length, outcome: 'van taken off the road' });
-          vanList = trialVans;
-          longVanId = trialLong;
+          assignments = trial;
           solved = retry;
         }
         dayDebug.protected = [...protectedVans];
       }
 
-      // 3.6 spare-van check
+      // 3.6 spare-van check: could one more real van clear the area with the most work left?
       const dayPlacedKeys = new Set(solved!.flatMap((r) => r.stops.map((s) => s.leg.key)));
       const leftovers = pool.filter((l) => !dayPlacedKeys.has(l.key));
-      const unusedVan = (vansForDate[date] ?? []).find((v) => !vanList.some((x) => x.id === v.id));
+      const unusedVan = (vansForDate[date] ?? []).find((v) => !assignments.some((a) => a.van.id === v.id));
       if (unusedVan && leftovers.length > 0 && budgetLeft() > 15_000 && !quickOnly) {
-        try {
-          const spareSolved = await solveDay(date, leftovers, [], null, null, unusedVan);
-          const spareRoute = (spareSolved ?? [])[0];
-          if (spareRoute) {
-            const m = money(spareRoute);
-            const must = spareRoute.stops.filter((s) => mustGo(s.leg, date)).length;
-            if (spareRoute.stops.length >= targetJobs || must > 0) {
-              spareHint[date] = { jobs: spareRoute.stops.length, revenue: m.revenue, margin: m.margin, must_go: must };
+        const target = clusters
+          .map((c) => ({ c, left: c.legs.filter((l) => !dayPlacedKeys.has(l.key)).length }))
+          .sort((a, b) => b.left - a.left)[0];
+        if (target && target.left > 0) {
+          try {
+            const spareCluster: Cluster = { ...target.c, legs: target.c.legs.filter((l) => !dayPlacedKeys.has(l.key)) };
+            const spareSolved = await solveDay(
+              date, [spareCluster], [{ van: unusedVan, cluster: spareCluster, spare: true }], null,
+            );
+            const spareRoute = (spareSolved ?? [])[0];
+            if (spareRoute) {
+              const m = money(spareRoute);
+              const must = spareRoute.stops.filter((s) => mustGo(s.leg, date)).length;
+              if (spareRoute.stops.length >= targetJobs || must > 0) {
+                spareHint[date] = { jobs: spareRoute.stops.length, revenue: m.revenue, margin: m.margin, must_go: must };
+              }
             }
+          } catch {
+            // a spare-van hint is nice to have, never worth failing the run for
           }
-        } catch {
-          // a spare-van hint is nice to have, never worth failing the run for
         }
       }
 
