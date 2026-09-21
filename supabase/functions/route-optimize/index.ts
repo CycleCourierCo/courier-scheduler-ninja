@@ -632,75 +632,117 @@ serve(async (req) => {
       return { solution, meta, jobCount: jobs.length };
     };
 
-    let passA;
-    try {
-      passA = await runSolve(readyLegs, {}, PRIMARY_CAP_H);
-    } catch (e) {
-      console.error('pass A failed', (e as Error).message);
-      return json({ error: (e as Error).message }, 502);
-    }
-    if (!passA) return json({ error: 'Nothing could be sent to the optimiser for those days' }, 400);
-
-    let current = readSolution(passA.solution, passA.meta, legsById);
+    let current: { placed: Placed[]; routeInfo: { meta: VanDay; route: any; stops: Placed[] }[] } = { placed: [], routeInfo: [] };
     let pool = readyLegs;
     let pinned: Record<string, string> = {};
-
-    /* ------------------------- repair loop (one route per van-day) -------- */
-
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const byVanDay: Record<string, Set<boolean>> = {};
-      for (const { meta } of current.routeInfo) {
-        const k = `${meta.date}:${meta.vanId}`;
-        (byVanDay[k] ??= new Set()).add(meta.expedition);
-      }
-      const clashes = Object.entries(byVanDay).filter(([, kinds]) => kinds.size > 1);
-      if (clashes.length === 0) break;
-      const skip = new Set<string>(clashes.map(([k]) => `${k}:1`)); // drop the normal twin
-      try {
-        const retry = await runSolve(pool, pinned, PRIMARY_CAP_H, { skip });
-        if (!retry) break;
-        current = readSolution(retry.solution, retry.meta, legsById);
-        passA = retry;
-      } catch { break; }
-    }
-
-    /* ------------------------------ pass B -------------------------------- */
-
-    const collectionDay: Record<string, string> = {};
-    for (const p of current.placed) {
-      if (p.leg.legType === 'collection') collectionDay[p.leg.orderId] = p.date;
-    }
-
-    const unlockable = legs.filter((leg) => {
-      if (leg.legType !== 'delivery' || !leg.needsUnlock) return false;
-      const collectedOn = collectionDay[leg.orderId];
-      if (!collectedOn) return false;
-      if (leg.needsInspection && inspectionLeadDays === null) return false;
-      const lead = leg.needsInspection ? Math.max(1, inspectionLeadDays ?? 1) : 1;
-      const earliest = selectedDates.filter((d) => d > collectedOn);
-      const allowed = earliest.slice(Math.max(0, lead - 1)); // lead-th selected day onwards
-      const dates = leg.windowDates.filter((d) => allowed.includes(d));
-      if (dates.length === 0) return false;
-      leg.windowDates = dates;
-      return true;
-    });
-
     let displaced: Leg[] = [];
-    if (unlockable.length > 0) {
-      pinned = {};
-      for (const p of current.placed) if (p.leg.legType === 'collection') pinned[p.leg.key] = p.date;
-      pool = [...readyLegs, ...unlockable];
-      try {
-        const passB = await runSolve(pool, pinned, PRIMARY_CAP_H);
-        if (passB) {
-          const after = readSolution(passB.solution, passB.meta, legsById);
-          const placedKeys = new Set(after.placed.map((p) => p.leg.key));
-          // A pinned collection crowded out in pass B invalidates its delivery.
-          displaced = Object.keys(pinned).filter((k) => !placedKeys.has(k)).map((k) => legsById[legs.find((l) => l.key === k)!.jobId]);
-          if (displaced.length === 0) { current = after; passA = passB; }
+
+    if (mode === 'greedy') {
+      /* --------------------- day-by-day (greedy) planning ------------------- */
+      // Each day is filled as full as it will go before the next day is looked at.
+      const placedKeys = new Set<string>();
+      const collectedOn: Record<string, string> = {};
+      for (let dayIdx = 0; dayIdx < selectedDates.length; dayIdx++) {
+        const date = selectedDates[dayIdx];
+        const candidates = legs.filter((leg) => {
+          if (placedKeys.has(leg.key) || !leg.windowDates.includes(date)) return false;
+          if (leg.legType === 'collection') return true;
+          if (!leg.needsUnlock && !leg.needsInspection) return true;
+          const collected = collectedOn[leg.orderId];
+          if (!collected) return false;
+          if (leg.needsInspection && inspectionLeadDays === null) return false;
+          const lead = leg.needsInspection ? Math.max(1, inspectionLeadDays ?? 1) : 1;
+          return dayIdx - selectedDates.indexOf(collected) >= lead;
+        });
+        if (candidates.length === 0) continue;
+        try {
+          const day = await runSolve(candidates, {}, PRIMARY_CAP_H, { dates: [date], noFixed: true });
+          if (!day) continue;
+          const read = readSolution(day.solution, day.meta, legsById);
+          for (const p of read.placed) {
+            placedKeys.add(p.leg.key);
+            if (p.leg.legType === 'collection') collectedOn[p.leg.orderId] = p.date;
+          }
+          current = {
+            placed: [...current.placed, ...read.placed],
+            routeInfo: [...current.routeInfo, ...read.routeInfo],
+          };
+        } catch (e) {
+          console.error('greedy day failed', date, (e as Error).message);
         }
+      }
+      pool = legs;
+      if (current.routeInfo.length === 0) {
+        return json({ error: 'Nothing could be planned day by day for those days' }, 400);
+      }
+    } else {
+      let passA;
+      try {
+        passA = await runSolve(readyLegs, {}, PRIMARY_CAP_H);
       } catch (e) {
-        console.error('pass B failed', (e as Error).message);
+        console.error('pass A failed', (e as Error).message);
+        return json({ error: (e as Error).message }, 502);
+      }
+      if (!passA) return json({ error: 'Nothing could be sent to the optimiser for those days' }, 400);
+
+      current = readSolution(passA.solution, passA.meta, legsById);
+
+      /* ------------------------ repair loop (one route per van-day) -------- */
+
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const byVanDay: Record<string, Set<boolean>> = {};
+        for (const { meta } of current.routeInfo) {
+          const k = `${meta.date}:${meta.vanId}`;
+          (byVanDay[k] ??= new Set()).add(meta.expedition);
+        }
+        const clashes = Object.entries(byVanDay).filter(([, kinds]) => kinds.size > 1);
+        if (clashes.length === 0) break;
+        const skip = new Set<string>(clashes.map(([k]) => `${k}:1`)); // drop the normal twin
+        try {
+          const retry = await runSolve(pool, pinned, PRIMARY_CAP_H, { skip });
+          if (!retry) break;
+          current = readSolution(retry.solution, retry.meta, legsById);
+          passA = retry;
+        } catch { break; }
+      }
+
+      /* ------------------------------ pass B -------------------------------- */
+
+      const collectionDay: Record<string, string> = {};
+      for (const p of current.placed) {
+        if (p.leg.legType === 'collection') collectionDay[p.leg.orderId] = p.date;
+      }
+
+      const unlockable = legs.filter((leg) => {
+        if (leg.legType !== 'delivery' || !leg.needsUnlock) return false;
+        const collectedOn = collectionDay[leg.orderId];
+        if (!collectedOn) return false;
+        if (leg.needsInspection && inspectionLeadDays === null) return false;
+        const lead = leg.needsInspection ? Math.max(1, inspectionLeadDays ?? 1) : 1;
+        const earliest = selectedDates.filter((d) => d > collectedOn);
+        const allowed = earliest.slice(Math.max(0, lead - 1)); // lead-th selected day onwards
+        const dates = leg.windowDates.filter((d) => allowed.includes(d));
+        if (dates.length === 0) return false;
+        leg.windowDates = dates;
+        return true;
+      });
+
+      if (unlockable.length > 0) {
+        pinned = {};
+        for (const p of current.placed) if (p.leg.legType === 'collection') pinned[p.leg.key] = p.date;
+        pool = [...readyLegs, ...unlockable];
+        try {
+          const passB = await runSolve(pool, pinned, PRIMARY_CAP_H);
+          if (passB) {
+            const after = readSolution(passB.solution, passB.meta, legsById);
+            const placedKeys = new Set(after.placed.map((p) => p.leg.key));
+            // A pinned collection crowded out in pass B invalidates its delivery.
+            displaced = Object.keys(pinned).filter((k) => !placedKeys.has(k)).map((k) => legsById[legs.find((l) => l.key === k)!.jobId]);
+            if (displaced.length === 0) { current = after; passA = passB; }
+          }
+        } catch (e) {
+          console.error('pass B failed', (e as Error).message);
+        }
       }
     }
 
