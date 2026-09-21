@@ -422,13 +422,22 @@ serve(async (req) => {
         };
       });
 
-      const payload = { vehicles, jobs, options: { g: true } };
-      const started = Date.now();
-      const resp = await fetch(solveUrl, {
+      const payload = { vehicles, jobs, options: { g: true, x: 5 } }; // x: max exploration depth
+      const postSolve = (body: any) => fetch(solveUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${VERSO_API_KEY}`, 'X-Api-Key': VERSO_API_KEY },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(body),
       });
+
+      const started = Date.now();
+      let resp = await postSolve(payload);
+      if (resp.status === 400) {
+        // Older VROOM builds reject unknown options keys — retry without exploration level.
+        const probe = (await resp.clone().text()).slice(0, 200);
+        if (/x|option/i.test(probe)) {
+          resp = await postSolve({ vehicles, jobs, options: { g: true } });
+        }
+      }
 
       if (!resp.ok) {
         const detail = (await resp.text()).slice(0, 300);
@@ -437,7 +446,16 @@ serve(async (req) => {
         return json({ error: `Route optimiser failed (${resp.status}): ${detail}`, status: resp.status, detail }, 502);
       }
       const solution = await resp.json();
-      console.log('verso solve', { date, jobs: jobs.length, vehicles: vehicles.length, ms: Date.now() - started, unassigned: (solution?.unassigned || []).length });
+      const summary = solution?.summary ?? {};
+      console.log('verso solve', {
+        date,
+        pool: pool.length,
+        vehicles_offered: vehicles.length,
+        routes_returned: (solution?.routes || []).length,
+        total_cost: Number(summary.cost) || null,
+        unassigned: (solution?.unassigned || []).length,
+        ms: Date.now() - started,
+      });
 
       const routes = Array.isArray(solution?.routes) ? solution.routes : [];
       const usedVans = new Set<string>();
