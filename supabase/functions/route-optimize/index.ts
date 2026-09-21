@@ -135,6 +135,10 @@ interface Leg {
    priority: number;
    /** Customer dates had all lapsed — only in the pool via the include-expired override. */
    lapsed: boolean;
+   /** Last remaining customer date falls inside this plan window — at risk of lapsing. */
+   expiringInPlan: boolean;
+   /** Last future customer date (null when lapsed). */
+   lastDate: string | null;
    difficult: boolean;
    businessHours: Record<string, any> | null;
    label: string;
@@ -295,6 +299,7 @@ serve(async (req) => {
     for (const r of (availRows as any[]) || []) availState[`${r.order_id}:${r.leg_type}`] = r;
 
     const selectedSet = new Set(selectedDates);
+    const lastSelectedDate = selectedDates[selectedDates.length - 1] ?? '';
     const isWorkingDate = (d: string) => workingDays.includes(shortWeekday(d));
 
     const legs: Leg[] = [];
@@ -354,6 +359,11 @@ serve(async (req) => {
         const boost = Number(state?.priority_boost) || 0;
         const future = dates.filter((d) => d >= today);
         const expired = dates.length > 0 && future.length === 0;
+        // A job whose last remaining date falls inside the plan window is at
+        // risk of lapsing during it — prioritise it, and let a grace pass
+        // spill it onto a later day in the window if its own dates are full.
+        const lastDate = future.length ? future[future.length - 1] : null;
+        const expiringInPlan = !!(lastDate && lastDate <= lastSelectedDate);
 
         // Expiry bookkeeping — a leg with no future dates is never silently dropped.
         const lapsed = (expired || dates.length === 0 || status !== 'active') && dates.length > 0;
@@ -403,8 +413,11 @@ serve(async (req) => {
           allDates: dates,
           windowDates: guaranteed ? [guaranteed] : windowDates,
           guaranteedDate: guaranteed,
-          priority: buildPriority(dates, guaranteed, boost + (lapsed ? 20 : 0) + ageBoost),
+          priority: buildPriority(dates, guaranteed,
+            boost + (lapsed ? 20 : 0) + (expiringInPlan ? 15 : 0) + ageBoost),
           lapsed,
+          expiringInPlan: !lapsed && expiringInPlan,
+          lastDate: lapsed ? null : lastDate,
           difficult: inDifficultArea(lat, lon),
           businessHours, label,
           needsUnlock: extra.needsUnlock,
@@ -756,6 +769,98 @@ serve(async (req) => {
       }
     }
 
+    /* ------------------------------ grace pass ----------------------------- */
+
+    // Expiring jobs were prioritised up front; if any still didn't fit on
+    // their own dates, give them one more chance to land on a later day
+    // inside the same window instead of lapsing overnight.
+    const gracePlaced = new Set<string>();
+    try {
+      const assignedNow = new Set(current.placed.map((p) => p.leg.key));
+      const collectedOnGrace: Record<string, string> = {};
+      for (const p of current.placed) {
+        if (p.leg.legType === 'collection') collectedOnGrace[p.leg.orderId] = p.date;
+      }
+      const gracePool: { leg: Leg; dates: string[] }[] = [];
+      for (const leg of legs) {
+        if (leg.lapsed || !leg.expiringInPlan || assignedNow.has(leg.key)) continue;
+        if (leg.guaranteedDate) continue; // guaranteed jobs never slide off their date
+        const maxReal = leg.windowDates[leg.windowDates.length - 1] ?? leg.lastDate;
+        if (!maxReal) continue;
+        let extended = [...leg.windowDates, ...selectedDates.filter((d) => d > maxReal)];
+        // A delivery cannot happen before its bike is collected (plus lead).
+        if (leg.legType === 'delivery' && (leg.needsUnlock || leg.needsInspection)) {
+          const collectedDay = collectedOnGrace[leg.orderId];
+          if (!collectedDay) continue;
+          if (leg.needsInspection && inspectionLeadDays === null) continue;
+          const lead = leg.needsInspection ? Math.max(1, inspectionLeadDays ?? 1) : (leg.needsUnlock ? 1 : 0);
+          const earliest = selectedDates.filter((d) => d > collectedDay);
+          const allowed = earliest.slice(Math.max(0, lead - 1));
+          extended = extended.filter((d) => allowed.includes(d));
+          if (extended.length === 0) continue;
+        }
+        if (extended.length === leg.windowDates.length) continue; // nothing new to spill onto
+        gracePool.push({ leg, dates: extended });
+      }
+      if (gracePool.length > 0) {
+        // Leftover capacity: shrink each already-used van-day by what it is
+        // already carrying; unused van-days are offered in full.
+        const usedByVanDay: Record<string, { spaces: number; hours: number }> = {};
+        for (const { meta: m, route, stops } of current.routeInfo) {
+          const k = `${m.date}:${m.vanId}:${m.expedition ? 2 : 1}`;
+          const u = usedByVanDay[k] ??= { spaces: 0, hours: 0 };
+          for (const s of stops) u.spaces += s.leg.spaces;
+          u.hours += ((Number(route.duration) || 0) + (Number(route.service) || 0) + (Number(route.waiting_time) || 0)) / 3600;
+        }
+        const graceDates = [...new Set(gracePool.flatMap((g) => g.dates))].sort();
+        const difficultGrace = new Set(gracePool.flatMap((g) => (g.leg.difficult ? g.dates : [])));
+        const vehicles: any[] = [];
+        const meta: Record<number, VanDay> = {};
+        graceDates.forEach((date, dayIdx) => {
+          const shiftOpen = londonEpoch(date, shiftStart);
+          (vansForDate[date] ?? []).forEach((van, vanIdx) => {
+            const push = (kind: 1 | 2, capHours: number) => {
+              const used = usedByVanDay[`${date}:${van.id}:${kind}`];
+              const remUnits = Math.round(van.capacity * 10) - Math.round((used?.spaces ?? 0) * 10);
+              const remH = capHours - (used?.hours ?? 0);
+              if (remUnits <= 0 || remH < 0.5) return;
+              const id = dayIdx * 10000 + vanIdx * 100 + kind;
+              vehicles.push({
+                id, profile: 'car',
+                start: [DEPOT.lon, DEPOT.lat], end: [DEPOT.lon, DEPOT.lat],
+                capacity: [remUnits],
+                time_window: [shiftOpen, shiftOpen + remH * HOURS],
+                max_travel_time: Math.max(HOURS, remH * HOURS - HOURS),
+                ...(kind === 2 ? { skills: [1] } : {}),
+              });
+              meta[id] = { vehicleId: id, date, vanId: van.id, vanName: van.name, capacity: van.capacity, expedition: kind === 2, virtual: false };
+            };
+            push(1, PRIMARY_CAP_H);
+            if (difficultGrace.has(date)) push(2, EXPEDITION_CAP_H);
+          });
+        });
+        if (vehicles.length > 0) {
+          const jobs = gracePool
+            .map((g) => buildJob(g.leg, g.dates))
+            .filter((j): j is any => !!j);
+          if (jobs.length > 0) {
+            const solution = await postSolve({ vehicles, jobs, options: { g: true, x: 5 } });
+            const read = readSolution(solution, meta, legsById);
+            if (read.placed.length > 0) {
+              for (const p of read.placed) gracePlaced.add(p.leg.key);
+              current = {
+                placed: [...current.placed, ...read.placed],
+                routeInfo: [...current.routeInfo, ...read.routeInfo],
+              };
+              console.log('grace pass placed', read.placed.length, 'of', gracePool.length);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('grace pass failed', (e as Error).message);
+    }
+
     /* ---------------------------- what-if solve --------------------------- */
 
     let whatIf: { placedByDate: Record<string, number>; virtualByDate: Record<string, number>; urgentByDate: Record<string, number> } | null = null;
@@ -859,6 +964,7 @@ serve(async (req) => {
           seq: i + 1, leg_type: s.leg.legType, order_id: s.leg.orderId,
           eta: isoFromEpoch(s.arrival), lat: s.leg.lat, lon: s.leg.lon,
           is_difficult_area: s.leg.difficult, label: s.leg.label, guaranteed: !!s.leg.guaranteedDate,
+          planned_after_expiry: gracePlaced.has(s.leg.key),
         })),
       });
     }
@@ -887,6 +993,8 @@ serve(async (req) => {
         unplanned_count: legs.filter((l) => !assigned.has(l.key) && !l.lapsed && l.windowDates.includes(date)).length,
         unplanned_lapsed_count: legs.filter((l) => !assigned.has(l.key) && l.lapsed && l.windowDates.includes(date)).length,
         lapsed_count: current.routeInfo.flatMap((r) => r.stops).filter((s) => s.date === date && s.leg.lapsed).length,
+        expiring_count: legs.filter((l) => !l.lapsed && l.lastDate === date).length,
+        expiring_unplanned_count: legs.filter((l) => !l.lapsed && l.lastDate === date && !assigned.has(l.key)).length,
         infeasible_guaranteed: legs
           .filter((l) => l.guaranteedDate === date && !assigned.has(l.key))
           .map((l) => ({ order_id: l.orderId, label: l.label, leg_type: l.legType, date })),
@@ -902,8 +1010,10 @@ serve(async (req) => {
         leg_type: l.legType,
         priority: l.priority,
         remaining_dates: l.allDates.filter((d) => d >= today).length,
+        last_date: l.lapsed ? (l.allDates[l.allDates.length - 1] ?? null) : l.lastDate,
         guaranteed_date: l.guaranteedDate,
         reason: l.lapsed ? 'dates had expired — planned via the expired-jobs override'
+          : l.expiringInPlan ? 'its last available date was full and there was no room later in the plan'
           : displaced.some((d) => d?.key === l.key) ? 'pushed out when deliveries were added'
           : l.guaranteedDate ? 'guaranteed date could not be met'
           : l.needsUnlock ? 'waiting on its collection being planned'
@@ -923,6 +1033,8 @@ serve(async (req) => {
       mode,
       unplanned_count: legs.filter((l) => !assigned.has(l.key) && !l.lapsed).length,
       unplanned_lapsed_count: legs.filter((l) => !assigned.has(l.key) && l.lapsed).length,
+      expiring_in_plan_count: legs.filter((l) => l.expiringInPlan).length,
+      expiring_unplanned_count: legs.filter((l) => l.expiringInPlan && !assigned.has(l.key)).length,
       generated_at: new Date().toISOString(),
       firm_days: firmDays,
       days,
