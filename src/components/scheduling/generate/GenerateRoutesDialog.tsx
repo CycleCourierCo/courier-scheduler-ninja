@@ -25,7 +25,7 @@ import { COST_PER_MILE, DRIVER_HOURLY_RATE, formatGBP } from "@/lib/routeCosts";
 import { getRevenueForRouteStops } from "@/services/profitabilityService";
 
 const THIN_ROUTE_STOPS = 13;
-const MIN_DAYS = 2;
+const MIN_DAYS = 1;
 const MAX_DAYS = 10;
 
 const dayLabel = (date: string) => format(new Date(`${date}T12:00:00`), "EEE d MMM");
@@ -423,7 +423,7 @@ const GenerateRoutesDialog: React.FC = () => {
     van_availability: Object.fromEntries(
       dates.map((d) => [d, (gridOverride ?? grid)[d] ?? vans.map((v) => v.id)]),
     ),
-    firm_days: firmDays,
+    firm_days: Math.min(firmDays, dates.length),
     inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
     include_expired: includeExpired,
     max_long_days: maxLongDays,
@@ -455,7 +455,7 @@ const GenerateRoutesDialog: React.FC = () => {
 
   const handleGenerate = async () => {
     if (dates.length < MIN_DAYS) {
-      toast.error(`Pick at least ${MIN_DAYS} days to plan`);
+      toast.error("Pick at least one day to plan");
       return;
     }
     if (dates.every((d) => (grid[d] ?? []).length === 0)) {
