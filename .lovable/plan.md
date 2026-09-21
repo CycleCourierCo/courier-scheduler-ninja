@@ -24,9 +24,13 @@ Checked the last runs: 218 jobs offered, every one placed, 0 left unassigned, sp
 by the 10-bike van capacity; the planner simply has that many eligible jobs and is happy to
 open another van because opening one is priced cheaply. Three changes:
 
-- **Consolidate onto fewer vans.** Raise the cost of opening a van so the planner fills a
-  van up towards its 12-hour day before starting another. Fewer, fuller routes for the same
-  work.
+- **Price a van at what it actually costs us.** Today opening a van is priced at about one
+  hour of driving, so the planner treats a whole extra van as cheaper than a slightly longer
+  detour — which is backwards for profit. A van that goes out costs a driver for the day plus
+  the running miles, so opening one is priced at a full shift of driver pay, and detour time
+  and miles are priced at our real per-hour and per-mile rates. The planner then only opens
+  another van when the work genuinely will not fit, giving fewer, fuller routes and better
+  margin per stop.
 - **Deliver then collect on the same run.** Bikes collected on a day cannot currently be
   delivered until the next chosen day, so a van can never unload and refill along a route.
   Where a collection and its delivery both fall on the same chosen day and no inspection is
@@ -48,8 +52,11 @@ double-booked. The change is only the one above: their deliveries become plannab
   from `PlanDay.vans_available` (and summed for whole-plan totals).
 - `GenerateRoutesDialog.tsx`: `MIN_DAYS` 3 → 2.
 - `route-optimize/index.ts`:
-  - `costs.fixed` raised from 3600 to roughly 4 hours' worth (expedition twin scaled with
-    it) so the solver prefers filling a van; leave greedy mode's `noFixed` behaviour alone.
+  - Cost model in money terms rather than nominal seconds: `costs.fixed` set from a full
+    shift at `DRIVER_HOURLY_RATE` (long-day twin scaled to its 15h shift), and `costs.per_hour`
+    set from the same rate so detour time and an extra van are compared on the same scale;
+    fall back to the current plain payload if Verso rejects `per_hour`. Greedy mode keeps
+    `noFixed` so a single day still uses whatever vans it needs.
   - Same-day pairs: for legs whose collection and delivery share a chosen day and
     `needsInspection` is false, send a VROOM `shipments` entry (pickup then delivery, same
     vehicle) instead of two independent jobs; fall back to the current two-job form if the
