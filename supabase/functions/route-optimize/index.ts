@@ -777,14 +777,18 @@ serve(async (req) => {
     const legsById: Record<number, Leg> = {};
     for (const leg of legs) legsById[leg.jobId] = leg;
 
-    /** How many difficult-area legs could be worked on each date. */
-    const difficultCountsFor = (pool: Leg[]) => {
-      const counts: Record<string, number> = {};
+    /** Work available on each date, split by area and by difficult-area work. */
+    const regionCountsFor = (pool: Leg[]) => {
+      const out: Record<string, { all: Record<string, number>; difficult: Record<string, number> }> = {};
       for (const leg of pool) {
-        if (!leg.difficult) continue;
-        for (const d of leg.windowDates) counts[d] = (counts[d] ?? 0) + 1;
+        const key = regionKey(leg.lat, leg.lon);
+        for (const d of leg.windowDates) {
+          const slot = (out[d] ??= { all: {}, difficult: {} });
+          slot.all[key] = (slot.all[key] ?? 0) + 1;
+          if (leg.difficult) slot.difficult[key] = (slot.difficult[key] ?? 0) + 1;
+        }
       }
-      return counts;
+      return out;
     };
 
     /* ------------- same-day collect-then-deliver pairs -------------------- */
