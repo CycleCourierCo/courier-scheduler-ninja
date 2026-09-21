@@ -123,6 +123,8 @@ export interface GenerateRoutesInput {
   inspection_lead_days?: number | null;
   /** Plan legs whose customer dates have all lapsed anyway (per-run override). */
   include_expired?: boolean;
+  /** How many 15h long "expedition" days may be used on any one day (0–4). */
+  max_long_days?: number;
   mode?: PlanMode;
 }
 

@@ -283,6 +283,8 @@ const GenerateRoutesDialog: React.FC = () => {
   /** The plan that jobs were reserved against — the other one is then out of date. */
   const [committedMode, setCommittedMode] = useState<PlanMode | null>(null);
   const [includeExpired, setIncludeExpired] = useState(false);
+  /** How many 15h long days may be used on any one day. 0 = none. */
+  const [maxLongDays, setMaxLongDays] = useState(2);
   const [lapsedLegs, setLapsedLegs] = useState<NeedsNewDatesLeg[]>([]);
   const result = plans[mode];
   const [activeDate, setActiveDate] = useState<string | null>(null);
@@ -412,6 +414,7 @@ const GenerateRoutesDialog: React.FC = () => {
       firm_days: firmDays,
       inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
       include_expired: includeExpired,
+      max_long_days: maxLongDays,
     };
     try {
       // Both ways of planning are built so they can be compared side by side.
@@ -447,6 +450,7 @@ const GenerateRoutesDialog: React.FC = () => {
         firm_days: firmDays,
         inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
         include_expired: includeExpired,
+        max_long_days: maxLongDays,
         mode: m,
       });
       setPlans((prev) => ({ ...prev, [m]: plan }));
@@ -556,7 +560,7 @@ const GenerateRoutesDialog: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-5">
           <div className="space-y-1">
             <Label htmlFor="gr-shift">Start time</Label>
             <Input id="gr-shift" type="time" value={shiftStart} onChange={(e) => setShiftStart(e.target.value)} />
@@ -570,6 +574,11 @@ const GenerateRoutesDialog: React.FC = () => {
             <Label htmlFor="gr-lead">Inspection lead days</Label>
             <Input id="gr-lead" type="number" min={0} max={14} placeholder="never" value={inspectionLead}
               onChange={(e) => setInspectionLead(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="gr-long">Max long days per day</Label>
+            <Input id="gr-long" type="number" min={0} max={4} value={maxLongDays}
+              onChange={(e) => setMaxLongDays(Math.max(0, Math.min(4, Number(e.target.value) || 0)))} />
           </div>
           <div className="flex items-end">
             <Button onClick={handleGenerate} disabled={loading} className="w-full gap-2">

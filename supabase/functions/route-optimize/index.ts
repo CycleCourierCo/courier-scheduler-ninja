@@ -28,6 +28,11 @@ const TIME_BUDGET_MS = 90_000;
 // further" on the same scale we judge profit on. A van that rolls costs a
 // driver for the whole shift; time on the road costs the same hourly rate.
 const DRIVER_PENCE_PER_HOUR = 1100;
+// A 15h "expedition" day is a real cost to the business, not a free upgrade, so
+// it carries a premium shift cost and a dearer hourly rate. Without this the
+// solver happily runs every van long because a longer window fits more work.
+const EXPEDITION_PREMIUM = 1.5;
+const DEFAULT_MAX_LONG_DAYS = 2;
 
 /* ------------------------------ time helpers ------------------------------ */
 
@@ -214,6 +219,10 @@ serve(async (req) => {
     // Per-run override: plan legs whose customer dates have all lapsed anyway,
     // boosted so they are placed ahead of ordinary work.
     const includeExpired = body?.include_expired === true;
+    // How many 15h long days may exist on any one day. 0 means none at all.
+    const maxLongDays = Number.isFinite(Number(body?.max_long_days))
+      ? Math.max(0, Math.min(4, Math.round(Number(body.max_long_days))))
+      : DEFAULT_MAX_LONG_DAYS;
     // Second, lighter call: work out the "an extra van would plan N more jobs"
     // figures only, and save nothing. Keeps them off the main Generate press.
     const shortfallOnly = body?.shortfall_only === true;
@@ -523,7 +532,8 @@ serve(async (req) => {
     const buildVehicles = (opts: {
       dates: string[];
       capH: number;
-      difficultDates: Set<string>;
+      /** Difficult-area legs workable on each date, used to budget long days. */
+      difficultCounts: Record<string, number>;
       skipVanDays?: Set<string>;   // "date:vanId:kind"
       withVirtual?: boolean;
       /** Greedy mode: no fixed vehicle cost, so every available van is offered. */
@@ -534,11 +544,26 @@ serve(async (req) => {
       opts.dates.forEach((date, dayIdx) => {
         const shiftOpen = londonEpoch(date, shiftStart);
         const dayVans = vansForDate[date] ?? [];
+        // Only offer as many long days as the difficult-area work needs, never
+        // more than the cap. Every van getting a 15h twin is why whole plans
+        // used to come back as expeditions.
+        let longAllowance = 0;
+        const diffCount = opts.difficultCounts[date] ?? 0;
+        if (diffCount > 0 && maxLongDays > 0 && dayVans.length > 0) {
+          const avgCap = dayVans.reduce((s, v) => s + (v.capacity || DEFAULT_CAPACITY), 0) / dayVans.length;
+          const needed = Math.max(1, Math.ceil(diffCount / Math.max(1, avgCap)));
+          longAllowance = Math.min(maxLongDays, dayVans.length, needed);
+        }
         dayVans.forEach((van, vanIdx) => {
           const capUnits = Math.max(1, Math.round(van.capacity * 10));
           const push = (kind: 1 | 2, capHours: number, virtual = false) => {
             const id = dayIdx * 10000 + vanIdx * 100 + kind;
             if (opts.skipVanDays?.has(`${date}:${van.id}:${kind}`)) return;
+            // A long day is dearer per shift and per hour, so it is only used
+            // when it rescues work a normal shift cannot reach.
+            const longDay = kind === 2;
+            const perHour = Math.round(DRIVER_PENCE_PER_HOUR * (longDay ? EXPEDITION_PREMIUM : 1));
+            const fixed = Math.round(capHours * DRIVER_PENCE_PER_HOUR * (longDay ? EXPEDITION_PREMIUM : 1));
             vehicles.push({
               id, profile: 'car',
               start: [DEPOT.lon, DEPOT.lat], end: [DEPOT.lon, DEPOT.lat],
@@ -549,15 +574,18 @@ serve(async (req) => {
               // Real money: a van that rolls costs a driver for the whole
               // shift, and every hour on it costs the same rate again. That
               // makes filling a van up genuinely cheaper than opening another.
-              ...(opts.noFixed
-                ? { costs: { per_hour: DRIVER_PENCE_PER_HOUR } }
-                : { costs: { fixed: Math.round(capHours * DRIVER_PENCE_PER_HOUR), per_hour: DRIVER_PENCE_PER_HOUR } }),
-              ...(kind === 2 ? { skills: [1] } : {}),
+              ...(opts.noFixed && !longDay
+                ? { costs: { per_hour: perHour } }
+                : { costs: { fixed, per_hour: perHour } }),
+              ...(longDay ? { skills: [1] } : {}),
             });
             meta[id] = { vehicleId: id, date, vanId: van.id, vanName: van.name, capacity: van.capacity, expedition: kind === 2, virtual };
           };
           push(1, opts.capH);
-          if (opts.difficultDates.has(date)) push(2, EXPEDITION_CAP_H);
+          if (longAllowance > 0) {
+            push(2, EXPEDITION_CAP_H);
+            longAllowance--;
+          }
         });
 
         if (opts.withVirtual) {
@@ -646,10 +674,14 @@ serve(async (req) => {
     const legsById: Record<number, Leg> = {};
     for (const leg of legs) legsById[leg.jobId] = leg;
 
-    const difficultDatesFor = (pool: Leg[]) => {
-      const set = new Set<string>();
-      for (const leg of pool) if (leg.difficult) for (const d of leg.windowDates) set.add(d);
-      return set;
+    /** How many difficult-area legs could be worked on each date. */
+    const difficultCountsFor = (pool: Leg[]) => {
+      const counts: Record<string, number> = {};
+      for (const leg of pool) {
+        if (!leg.difficult) continue;
+        for (const d of leg.windowDates) counts[d] = (counts[d] ?? 0) + 1;
+      }
+      return counts;
     };
 
     /* ------------- same-day collect-then-deliver pairs -------------------- */
@@ -734,7 +766,7 @@ serve(async (req) => {
         .filter((j): j is any => !!j);
       if (jobs.length === 0 && shipments.length === 0) return null;
       const { vehicles, meta } = buildVehicles({
-        dates, capH, difficultDates: difficultDatesFor(pool), withVirtual: opts?.withVirtual, skipVanDays: opts?.skip,
+        dates, capH, difficultCounts: difficultCountsFor(pool), withVirtual: opts?.withVirtual, skipVanDays: opts?.skip,
         noFixed: opts?.noFixed,
       });
       if (vehicles.length === 0) return null;
@@ -938,12 +970,25 @@ serve(async (req) => {
           u.hours += ((Number(route.duration) || 0) + (Number(route.service) || 0) + (Number(route.waiting_time) || 0)) / 3600;
         }
         const graceDates = [...new Set(gracePool.flatMap((g) => g.dates))].sort();
-        const difficultGrace = new Set(gracePool.flatMap((g) => (g.leg.difficult ? g.dates : [])));
+        // Same long-day budget as the main solve, so the grace pass cannot
+        // quietly turn every van into a 15h expedition.
+        const graceDifficult: Record<string, number> = {};
+        for (const g of gracePool) {
+          if (!g.leg.difficult) continue;
+          for (const d of g.dates) graceDifficult[d] = (graceDifficult[d] ?? 0) + 1;
+        }
         const vehicles: any[] = [];
         const meta: Record<number, VanDay> = {};
         graceDates.forEach((date, dayIdx) => {
           const shiftOpen = londonEpoch(date, shiftStart);
-          (vansForDate[date] ?? []).forEach((van, vanIdx) => {
+          const dayVans = vansForDate[date] ?? [];
+          let longAllowance = 0;
+          const diffCount = graceDifficult[date] ?? 0;
+          if (diffCount > 0 && maxLongDays > 0 && dayVans.length > 0) {
+            const avgCap = dayVans.reduce((s, v) => s + (v.capacity || DEFAULT_CAPACITY), 0) / dayVans.length;
+            longAllowance = Math.min(maxLongDays, dayVans.length, Math.max(1, Math.ceil(diffCount / Math.max(1, avgCap))));
+          }
+          dayVans.forEach((van, vanIdx) => {
             const push = (kind: 1 | 2, capHours: number) => {
               const used = usedByVanDay[`${date}:${van.id}:${kind}`];
               const remUnits = Math.round(van.capacity * 10) - Math.round((used?.spaces ?? 0) * 10);
@@ -961,7 +1006,10 @@ serve(async (req) => {
               meta[id] = { vehicleId: id, date, vanId: van.id, vanName: van.name, capacity: van.capacity, expedition: kind === 2, virtual: false };
             };
             push(1, PRIMARY_CAP_H);
-            if (difficultGrace.has(date)) push(2, EXPEDITION_CAP_H);
+            if (longAllowance > 0) {
+              push(2, EXPEDITION_CAP_H);
+              longAllowance--;
+            }
           });
         });
         if (vehicles.length > 0) {
@@ -1065,6 +1113,8 @@ serve(async (req) => {
       const duration = (Number(route.duration) || 0) + (Number(route.service) || 0) + (Number(route.waiting_time) || 0);
       return {
         meta, ordered, isProvisional, duration,
+        // Only a route that actually runs past a normal shift is an expedition.
+        longDay: meta.expedition && duration > PRIMARY_CAP_H * HOURS,
         miles: Math.round(((Number(route.distance) || 0) / 1609.344) * 10) / 10,
         maxLoad: Math.round((maxLoadUnits / 10) * 100) / 100,
         geometry: typeof route.geometry === 'string' ? route.geometry : null,
@@ -1082,7 +1132,7 @@ serve(async (req) => {
           is_provisional: p.isProvisional,
           van_id: p.meta.vanId,
           van_name: p.meta.vanName,
-          is_expedition: p.meta.expedition,
+          is_expedition: p.longDay,
           total_miles: p.miles,
           total_duration_s: p.duration,
           stop_count: p.ordered.length,
@@ -1109,7 +1159,7 @@ serve(async (req) => {
           route_id: routeId,
           van_id: p.meta.vanId,
           van_name: p.meta.vanName,
-          is_expedition: p.meta.expedition,
+          is_expedition: p.longDay,
           is_provisional: p.isProvisional,
           stop_count: p.ordered.length,
           duration_s: p.duration,
