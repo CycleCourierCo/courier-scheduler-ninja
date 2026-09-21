@@ -827,15 +827,16 @@ serve(async (req) => {
       const pickup = step(pair.c);
       const delivery = step(pair.d);
       if (!pickup || !delivery) return null;
+      // Only tie the pair to an area when both ends sit in the same one.
+      const cRegion = regionKey(pair.c.lat, pair.c.lon);
+      const skills = [
+        ...(pair.c.difficult || pair.d.difficult ? [1] : []),
+        ...(cRegion === regionKey(pair.d.lat, pair.d.lon) ? [regionSkill(cRegion)] : []),
+      ];
       return {
         amount: [Math.max(1, Math.round(pair.c.spaces * 10))],
         priority: Math.max(pair.c.priority, pair.d.priority),
-        // Only tie the pair to an area when both ends sit in the same one.
-        skills: [
-          ...(pair.c.difficult || pair.d.difficult ? [1] : []),
-          ...(regionKey(pair.c.lat, pair.c.lon) === regionKey(pair.d.lat, pair.d.lon)
-            ? [regionSkill(regionKey(pair.c.lat, pair.c.lon))] : []),
-        ],
+        ...(skills.length > 0 ? { skills } : {}),
         pickup, delivery,
       };
     };
