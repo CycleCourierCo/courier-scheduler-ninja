@@ -69,8 +69,12 @@ export interface NeedsNewDatesLeg {
   linked_leg_note: string | null;
 }
 
+/** 'joint' balances the whole stretch of days; 'greedy' fills each day in turn. */
+export type PlanMode = "joint" | "greedy";
+
 export interface RoutePlanResult {
   plan_id: string | null;
+  mode?: PlanMode;
   generated_at?: string;
   firm_days?: number;
   days: PlanDay[];
@@ -89,7 +93,33 @@ export interface GenerateRoutesInput {
   firm_days?: number;
   /** Null means inspection deliveries are never auto-unlocked. */
   inspection_lead_days?: number | null;
+  mode?: PlanMode;
 }
+
+export interface PlanComparison {
+  stops: number;
+  atRisk: number;
+  vanDays: number;
+  hours: number;
+  miles: number;
+}
+
+/** Headline figures for one plan, so two ways of planning can be compared. */
+export const summarisePlan = (plan: RoutePlanResult | null): PlanComparison => {
+  const out: PlanComparison = { stops: 0, atRisk: 0, vanDays: 0, hours: 0, miles: 0 };
+  if (!plan) return out;
+  out.atRisk = plan.at_risk?.length ?? 0;
+  for (const day of plan.days ?? []) {
+    const routes = day.variants?.[0]?.routes ?? [];
+    out.vanDays += routes.length;
+    for (const route of routes) {
+      out.stops += route.stops?.length ?? 0;
+      out.hours += (Number((route as any).duration_s) || 0) / 3600;
+      out.miles += Number((route as any).miles) || 0;
+    }
+  }
+  return out;
+};
 
 export const generateRoutes = async (input: GenerateRoutesInput): Promise<RoutePlanResult> => {
   const { data, error } = await supabase.functions.invoke("route-optimize", { body: input });
