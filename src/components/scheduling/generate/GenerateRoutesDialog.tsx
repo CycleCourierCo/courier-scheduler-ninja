@@ -38,6 +38,8 @@ const RouteCostLine: React.FC<{ route: PlanRoute }> = ({ route }) => {
 
   useEffect(() => {
     if (!isAdmin || route.stops.length === 0) { setRevenue(null); return; }
+    // The optimiser already works the value out; only fall back if it didn't.
+    if (typeof route.revenue === "number") { setRevenue(route.revenue); return; }
     let cancelled = false;
     (async () => {
       try {
