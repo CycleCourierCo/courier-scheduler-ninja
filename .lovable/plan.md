@@ -52,8 +52,11 @@ double-booked. The change is only the one above: their deliveries become plannab
   from `PlanDay.vans_available` (and summed for whole-plan totals).
 - `GenerateRoutesDialog.tsx`: `MIN_DAYS` 3 → 2.
 - `route-optimize/index.ts`:
-  - `costs.fixed` raised from 3600 to roughly 4 hours' worth (expedition twin scaled with
-    it) so the solver prefers filling a van; leave greedy mode's `noFixed` behaviour alone.
+  - Cost model in money terms rather than nominal seconds: `costs.fixed` set from a full
+    shift at `DRIVER_HOURLY_RATE` (long-day twin scaled to its 15h shift), and `costs.per_hour`
+    set from the same rate so detour time and an extra van are compared on the same scale;
+    fall back to the current plain payload if Verso rejects `per_hour`. Greedy mode keeps
+    `noFixed` so a single day still uses whatever vans it needs.
   - Same-day pairs: for legs whose collection and delivery share a chosen day and
     `needsInspection` is false, send a VROOM `shipments` entry (pickup then delivery, same
     vehicle) instead of two independent jobs; fall back to the current two-job form if the
