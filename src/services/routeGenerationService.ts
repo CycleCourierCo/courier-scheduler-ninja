@@ -121,6 +121,12 @@ export interface RoutePlanResult {
   firm_days?: number;
   /** The "an extra van would plan N more jobs" figures are still loading. */
   shortfall_pending?: boolean;
+  /** False when the optimiser could not cost miles — routes may sprawl. */
+  distance_costing?: boolean;
+  /** Steps that could not be finished (time ran out, or a step failed). */
+  skipped?: string[];
+  /** Run details for admins: vans offered/used, jobs per route, areas, timings. */
+  debug?: Record<string, any>;
   days: PlanDay[];
   at_risk: AtRiskLeg[];
   needs_new_dates: NeedsNewDatesLeg[];
@@ -141,6 +147,12 @@ export interface GenerateRoutesInput {
   include_expired?: boolean;
   /** How many 15h long "expedition" days may be used on any one day (0–4). */
   max_long_days?: number;
+  /** Jobs a full route should carry (fleet is trimmed down to reach it). */
+  min_jobs_target?: number;
+  /** Fewest jobs a route may carry before it is flagged for a dispatcher. */
+  min_jobs_floor?: number;
+  /** How close a collection and its delivery must be to share a van (miles). */
+  pair_max_distance_miles?: number;
   mode?: PlanMode;
 }
 
