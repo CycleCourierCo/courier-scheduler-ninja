@@ -750,7 +750,9 @@ serve(async (req) => {
 
     let whatIf: { placedByDate: Record<string, number>; virtualByDate: Record<string, number>; urgentByDate: Record<string, number> } | null = null;
     try {
-      const wi = await runSolve(pool, pinned, PRIMARY_CAP_H, { withVirtual: true });
+      // Day-by-day plans are deliberately unbalanced, so the "extra van" what-if
+      // only applies to the balanced plan.
+      const wi = mode === 'greedy' ? null : await runSolve(pool, pinned, PRIMARY_CAP_H, { withVirtual: true });
       if (wi) {
         const read = readSolution(wi.solution, wi.meta, legsById);
         const placedByDate: Record<string, number> = {};
