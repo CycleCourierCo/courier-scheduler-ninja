@@ -212,6 +212,15 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                     );
                   })()}
                 </div>
+                <button
+                  type="button"
+                  aria-label={`Remove from ${isMultiBike ? `bays ${allocations.map((a) => `${a.bay}${a.position}`).join(", ")}` : `bay ${allocations[0].bay}${allocations[0].position}`}`}
+                  title="Remove from bay"
+                  onClick={(e) => confirmClearBays(allocations, allocations[0].customerName, e)}
+                  className="inline-flex items-center justify-center h-6 w-6 shrink-0 rounded-md text-muted-foreground hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </CollapsibleTrigger>
 
               <CollapsibleContent>
