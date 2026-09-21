@@ -313,19 +313,25 @@ const GenerateRoutesDialog: React.FC = () => {
       return;
     }
     setLoading(true);
-    setResult(null);
+    setPlans({ joint: null, greedy: null });
     setLockedDays([]);
+    const base = {
+      selected_dates: dates,
+      shift_start: shiftStart,
+      van_availability: Object.fromEntries(dates.map((d) => [d, grid[d] ?? vans.map((v) => v.id)])),
+      firm_days: firmDays,
+      inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
+    };
     try {
-      const plan = await generateRoutes({
-        selected_dates: dates,
-        shift_start: shiftStart,
-        van_availability: Object.fromEntries(dates.map((d) => [d, grid[d] ?? vans.map((v) => v.id)])),
-        firm_days: firmDays,
-        inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
-      });
-      setResult(plan);
-      setActiveDate(plan.days.find((d) => (d.variants?.[0]?.routes?.length ?? 0) > 0)?.date ?? plan.days[0]?.date ?? null);
-      const planned = plan.days.reduce((n, d) => n + (d.variants?.[0]?.routes?.length ?? 0), 0);
+      // Both ways of planning are built so they can be compared side by side.
+      const [joint, greedy] = await Promise.all([
+        generateRoutes({ ...base, mode: "joint" }),
+        generateRoutes({ ...base, mode: "greedy" }).catch(() => null),
+      ]);
+      setPlans({ joint, greedy });
+      setMode("joint");
+      setActiveDate(joint.days.find((d) => (d.variants?.[0]?.routes?.length ?? 0) > 0)?.date ?? joint.days[0]?.date ?? null);
+      const planned = joint.days.reduce((n, d) => n + (d.variants?.[0]?.routes?.length ?? 0), 0);
       toast.success(planned > 0 ? `Planned ${planned} route${planned === 1 ? "" : "s"} across ${dates.length} days` : "No routes could be built for those days");
     } catch (e) {
       toast.error((e as Error).message || "Route generation failed");
