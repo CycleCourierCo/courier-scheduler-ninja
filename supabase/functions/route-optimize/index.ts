@@ -38,7 +38,10 @@ const MAX_REMOVALS_PER_DAY = 6;
 const LONG_DAY_MIN_JOBS = 5;
 const SPREAD_WARN_MI = 150;
 const LONDON_MAX_VANS = 2;      // London work is fenced to at most this many vans
-const DIFFICULT_SKILL = 1;
+const CORRIDOR_MI = 12;         // how far off the depot->London line an "on the way" job may sit
+const DIFFICULT_SKILL = 1;      // London-only work
+const GENERAL_SKILL = 2;        // ordinary work (London vans do not carry this)
+const LONDON_ONLY_SKILL = 3;    // reserved for future use / corridor marking
 
 const milesBetween = (aLat: number, aLon: number, bLat: number, bLon: number) => {
   const R = 3958.8;
