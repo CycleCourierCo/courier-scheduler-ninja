@@ -776,14 +776,18 @@ serve(async (req) => {
           if (leg.legType === 'collection') return true;
           if (!leg.needsUnlock && !leg.needsInspection) return true;
           const collected = collectedOn[leg.orderId];
-          if (!collected) return false;
+          if (!collected) {
+            // Collect and drop on the same run, as a linked pair.
+            const pair = pairByOrder[leg.orderId];
+            return !!pair && pair.dates.includes(date) && !placedKeys.has(pair.c.key);
+          }
           if (leg.needsInspection && inspectionLeadDays === null) return false;
           const lead = leg.needsInspection ? Math.max(1, inspectionLeadDays ?? 1) : 1;
           return dayIdx - selectedDates.indexOf(collected) >= lead;
         });
         if (candidates.length === 0) continue;
         try {
-          const day = await runSolve(candidates, {}, PRIMARY_CAP_H, { dates: [date], noFixed: true });
+          const day = await runSolve(candidates, {}, PRIMARY_CAP_H, { dates: [date], noFixed: true, pairs: true });
           if (!day) continue;
           const read = readSolution(day.solution, day.meta, legsById);
           for (const p of read.placed) {
