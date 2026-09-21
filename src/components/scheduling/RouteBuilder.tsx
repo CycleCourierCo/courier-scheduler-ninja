@@ -48,11 +48,8 @@ import {
 import { uuid } from "@/lib/uuid";
 import GuaranteedDatePanel from "./GuaranteedDatePanel";
 
-// Profitability constants
-const COST_PER_MILE = 0.45;
-const DRIVER_HOURLY_RATE = 11;
-const formatGBP = (n: number) =>
-  n.toLocaleString('en-GB', { style: 'currency', currency: 'GBP' });
+// Profitability constants are shared with Generate Routes so rates stay in step.
+import { COST_PER_MILE, DRIVER_HOURLY_RATE, formatGBP } from "@/lib/routeCosts";
 
 // Location grouping radius for consolidating messages (in meters)
 const LOCATION_GROUPING_RADIUS_METERS = 750;
