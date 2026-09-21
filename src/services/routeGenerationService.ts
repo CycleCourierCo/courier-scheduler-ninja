@@ -27,10 +27,18 @@ export interface PlanRoute {
   van_capacity: number;
   geometry: string | null;
   guaranteed_count: number;
-  /** Part of the country this route covers, e.g. "North East". */
+  /** Part of the country this route covers, e.g. "NE". */
   region?: string;
   /** Widest gap between any two stops on the route, in miles. */
   spread_mi?: number;
+  /** Fewer jobs than the target for a full day. */
+  thin?: boolean;
+  /** Fewer jobs than the floor — a dispatcher should look at this one. */
+  below_floor?: boolean;
+  /** Why a thin route was kept. */
+  thin_reason?: string | null;
+  /** Urgent jobs that justify a thin route. */
+  urgent_labels?: string[];
   stops: PlanStop[];
 }
 
@@ -59,6 +67,10 @@ export interface PlanDay {
   expiring_count?: number;
   /** Of those, jobs not placed on any route. */
   expiring_unplanned_count?: number;
+  /** Long (15h) routes on this day. */
+  long_days?: number;
+  /** Areas this day was split into, and which van covers each. */
+  areas?: { sectors: string[]; van: string }[];
   infeasible_guaranteed: { order_id: string; label: string; leg_type: string; date: string }[];
 }
 
