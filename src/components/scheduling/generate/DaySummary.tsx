@@ -24,6 +24,8 @@ interface Props {
   /** Heading override, e.g. for whole-plan totals. */
   title?: string;
   costTitle?: string;
+  /** Vans ticked for this day (or van-days across the whole plan). */
+  vansAvailable?: number;
   /** Jobs left out of every route for this day or plan. */
   leftOver?: number;
   /** Left-over jobs whose customer dates had all lapsed (override runs only). */
@@ -36,12 +38,16 @@ interface Props {
   expiringUnplanned?: number;
 }
 
-const DaySummary: React.FC<Props> = ({ date, routes, title, costTitle, leftOver, leftOverLapsed, lapsedPlanned, expiringCount, expiringUnplanned }) => {
+const DaySummary: React.FC<Props> = ({ date, routes, title, costTitle, vansAvailable, leftOver, leftOverLapsed, lapsedPlanned, expiringCount, expiringUnplanned }) => {
   const { userProfile } = useAuth();
   const isAdmin = hasRole(userProfile, "admin");
 
   const totals = useMemo(() => {
-    const vans = routes.length;
+    // Count vans, not routes: one van can hold both a normal and a long-day
+    // route, so counting routes made "vans used" look higher than the fleet.
+    const vanIds = new Set<string>();
+    routes.forEach((r) => vanIds.add(`${r.van_id}`));
+    const vans = vanIds.size;
     const stops = routes.reduce((n, r) => n + r.stop_count, 0);
     const seconds = routes.reduce((n, r) => n + r.duration_s, 0);
     const miles = routes.reduce((n, r) => n + r.miles, 0);
@@ -53,6 +59,7 @@ const DaySummary: React.FC<Props> = ({ date, routes, title, costTitle, leftOver,
     routes.forEach((r) => r.stops.forEach((s) => orders.add(s.order_id)));
     return {
       vans, stops, seconds, miles, load, capacity, guaranteed, thin,
+      routeCount: routes.length,
       orders: orders.size,
       hours: seconds / 3600,
     };
