@@ -114,14 +114,12 @@ export interface NeedsNewDatesLeg {
   linked_leg_note: string | null;
 }
 
-/** 'joint' balances the whole stretch of days; 'greedy' fills each day in turn. */
-export type PlanMode = "joint" | "greedy";
-
 export interface RoutePlanResult {
   plan_id: string | null;
-  mode?: PlanMode;
   /** Jobs across the whole stretch of days that could not be fitted anywhere. */
   unplanned_count?: number;
+  /** Of those, jobs that can safely wait for a later day. */
+  carried_count?: number;
   /** Left-over jobs whose dates had all lapsed (override runs only). */
   unplanned_lapsed_count?: number;
   /** Jobs whose last remaining date falls inside this plan window. */
@@ -130,8 +128,6 @@ export interface RoutePlanResult {
   expiring_unplanned_count?: number;
   generated_at?: string;
   firm_days?: number;
-  /** The "an extra van would plan N more jobs" figures are still loading. */
-  shortfall_pending?: boolean;
   /** False when the optimiser could not cost miles — routes may sprawl. */
   distance_costing?: boolean;
   /** Steps that could not be finished (time ran out, or a step failed). */
@@ -156,15 +152,14 @@ export interface GenerateRoutesInput {
   inspection_lead_days?: number | null;
   /** Plan legs whose customer dates have all lapsed anyway (per-run override). */
   include_expired?: boolean;
-  /** How many 15h long "expedition" days may be used on any one day (0–4). */
+  /** Whether a 15h long day may be used for a difficult area (0 or 1). */
   max_long_days?: number;
   /** Jobs a full route should carry (fleet is trimmed down to reach it). */
   min_jobs_target?: number;
   /** Fewest jobs a route may carry before it is flagged for a dispatcher. */
   min_jobs_floor?: number;
-  /** How close a collection and its delivery must be to share a van (miles). */
-  pair_max_distance_miles?: number;
-  mode?: PlanMode;
+  /** Take a van off the road if its route earns less than this (£). */
+  min_route_margin?: number;
 }
 
 export interface PlanComparison {
