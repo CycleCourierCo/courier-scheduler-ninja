@@ -1,22 +1,24 @@
-# Move the bay "X" button to the left of the bay badge
+# Add a card-level X on the right side of each storage card
 
 ## What changes
 
-On the Loading page's "Bikes in storage" cards, the remove (X) button currently sits on the **right** of the bay number/letter badge. Move it to the **left** of the badge so it reads: `X | BAY12`.
+On the Loading page's "Bikes in storage" cards, each bay badge already has an X on its right — that stays exactly as it is. Add a **second X button at the far right end of the card header row** (opposite side of the card, after the status/driver badges, vertically centred on desktop; end of the stacked row on mobile).
 
-File: `src/components/loading/BikesInStorage.tsx` — `BayBadge` component (lines 81–96).
+File: `src/components/loading/BikesInStorage.tsx`
 
-- Swap the order inside the wrapper: button first, badge second.
-- Adjust the connected-edge styling so the two still appear as one unit:
-  - Button: `rounded-l-md`, `border-r-0` (keeps left rounding, drops right border).
-  - Badge: `rounded-l-none`, `border-l-0` (keeps right rounding, drops left border).
+- Add the X button inside the card header, at the end of the existing flex row (`justify-between` already splits left/right on desktop).
+- Style it as a small, quiet icon button (`h-6 w-6`, muted, hover to destructive), with `aria-label` / `title` "Remove from bay".
+- Clicking it opens the same destructive confirmation as the badge X:
+  - Single-bike order: names the bay, customer, and bike (same as today).
+  - Multi-bike order: clears **all** bay positions for that order in one action; the confirmation names every bay being cleared.
+- Same behaviour on confirm: removes the allocation(s) from `orders.storage_locations`; last allocation clears the field. Bike stays on the order and is re-allocatable.
 
 ## What does not change
 
-- Confirmation dialog, wording, and behaviour (removing only the bay position).
-- Anything else on the Loading page.
+- The existing X beside each bay badge and its per-bike confirmation.
+- Collapsible card behaviour, edit/load/label buttons, or any other loading-page logic.
 
 ## Verification
 
 - Typecheck with `bunx tsgo --noEmit -p tsconfig.json`.
-- Playwright screenshot of the Loading page storage cards to confirm the X sits left of the bay badge.
+- Playwright screenshot of the storage cards (single-bike and multi-bike) to confirm the X appears at the far right of each card.
