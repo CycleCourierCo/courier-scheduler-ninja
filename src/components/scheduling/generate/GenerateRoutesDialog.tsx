@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
-  AtRiskLeg, NeedsNewDatesLeg, PlanDay, PlanMode, PlanRoute, RoutePlanResult, summarisePlan, allPlanRoutes,
+  AtRiskLeg, GenerateRoutesInput, NeedsNewDatesLeg, PlanDay, PlanMode, PlanRoute, RoutePlanResult, summarisePlan, allPlanRoutes,
   clearNewDatesRequest, fetchDifficultAreas, fetchLapsedLegs, fetchPlanningVans, fetchWorkingDays, formatDuration,
   generateRoutes, fetchPlanShortfall, isWorkingDay, lockPlanDay, nextWorkingDays, refreshAvailabilityExpiry,
   requestNewDates, selectPlanRoute, setVanUnavailable, unlockPlanDay,
