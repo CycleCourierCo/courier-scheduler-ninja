@@ -12,9 +12,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
-  AtRiskLeg, NeedsNewDatesLeg, PlanDay, PlanMode, PlanRoute, RoutePlanResult, summarisePlan, allPlanRoutes,
+  AtRiskLeg, GenerateRoutesInput, NeedsNewDatesLeg, PlanDay, PlanMode, PlanRoute, RoutePlanResult, summarisePlan, allPlanRoutes,
   clearNewDatesRequest, fetchDifficultAreas, fetchLapsedLegs, fetchPlanningVans, fetchWorkingDays, formatDuration,
-  generateRoutes, isWorkingDay, lockPlanDay, nextWorkingDays, refreshAvailabilityExpiry,
+  generateRoutes, fetchPlanShortfall, isWorkingDay, lockPlanDay, nextWorkingDays, refreshAvailabilityExpiry,
   requestNewDates, selectPlanRoute, setVanUnavailable, unlockPlanDay,
 } from "@/services/routeGenerationService";
 import DaySummary from "./DaySummary";
@@ -369,6 +369,28 @@ const GenerateRoutesDialog: React.FC = () => {
     return [...runLegs, ...lapsedLegs.filter((l) => !seen.has(`${l.order_id}:${l.leg_type}`))];
   }, [result, lapsedLegs]);
 
+  /** The "an extra van would fit N more jobs" figures, fetched after the plan. */
+  const loadShortfall = (base: Omit<GenerateRoutesInput, "mode">) => {
+    fetchPlanShortfall({ ...base, mode: "joint" })
+      .then((byDate) => {
+        if (!byDate || Object.keys(byDate).length === 0) {
+          setPlans((prev) => (prev.joint ? { ...prev, joint: { ...prev.joint, shortfall_pending: false } } : prev));
+          return;
+        }
+        setPlans((prev) => prev.joint ? {
+          ...prev,
+          joint: {
+            ...prev.joint,
+            shortfall_pending: false,
+            days: prev.joint.days.map((d) => ({ ...d, shortfall: byDate[d.date] ?? d.shortfall })),
+          },
+        } : prev);
+      })
+      .catch(() => {
+        setPlans((prev) => (prev.joint ? { ...prev, joint: { ...prev.joint, shortfall_pending: false } } : prev));
+      });
+  };
+
   const handleGenerate = async () => {
     if (dates.length < MIN_DAYS) {
       toast.error(`Pick at least ${MIN_DAYS} days to plan`);
@@ -405,6 +427,7 @@ const GenerateRoutesDialog: React.FC = () => {
       setActiveDate(joint.days.find((d) => (d.variants?.[0]?.routes?.length ?? 0) > 0)?.date ?? joint.days[0]?.date ?? null);
       const planned = joint.days.reduce((n, d) => n + (d.variants?.[0]?.routes?.length ?? 0), 0);
       toast.success(planned > 0 ? `Planned ${planned} route${planned === 1 ? "" : "s"} across ${dates.length} days` : "No routes could be built for those days");
+      loadShortfall(base);
     } catch (e) {
       toast.error((e as Error).message || "Route generation failed");
     } finally {

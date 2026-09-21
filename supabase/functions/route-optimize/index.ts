@@ -21,6 +21,9 @@ const DEFAULT_CAPACITY = 10;
 const STAFF_ROLES = ['admin', 'sales', 'route_planner'];
 const MAX_DAYS = 10;
 const VIRTUAL_VANS_PER_DAY = 2;
+// Optional extra solves are skipped once this much of the run is gone, so a big
+// plan is always saved and returned instead of the run being killed mid-way.
+const TIME_BUDGET_MS = 90_000;
 
 /* ------------------------------ time helpers ------------------------------ */
 
@@ -152,6 +155,9 @@ interface VanDay { vehicleId: number; date: string; vanId: string; vanName: stri
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
+  const runStarted = Date.now();
+  const budgetLeft = () => TIME_BUDGET_MS - (Date.now() - runStarted);
+
   try {
     const VERSO_API_URL = Deno.env.get('VERSO_API_URL');
     const VERSO_API_KEY = Deno.env.get('VERSO_API_KEY');
@@ -202,6 +208,9 @@ serve(async (req) => {
     // Per-run override: plan legs whose customer dates have all lapsed anyway,
     // boosted so they are placed ahead of ordinary work.
     const includeExpired = body?.include_expired === true;
+    // Second, lighter call: work out the "an extra van would plan N more jobs"
+    // figures only, and save nothing. Keeps them off the main Generate press.
+    const shortfallOnly = body?.shortfall_only === true;
 
     const today = todayLondon();
     const selectedDates: string[] = [...new Set(
@@ -467,29 +476,26 @@ serve(async (req) => {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${VERSO_API_KEY}`, 'X-Api-Key': VERSO_API_KEY },
         body: JSON.stringify(body),
       });
+      // Read each failing reply once — cloning a large body costs real CPU.
       let resp = await call(payload);
-      if (resp.status === 400) {
-        const probe = (await resp.clone().text()).slice(0, 200);
-        // Older builds reject unknown option keys, speed_factor or costs.fixed —
-        // retry with progressively plainer payloads (spec §6 fallbacks).
-        if (/option|x\b/i.test(probe)) {
-          resp = await call({ ...payload, options: { g: true } });
-        }
-        if (resp.status === 400) {
-          const probe2 = (await resp.clone().text()).slice(0, 200);
-          if (/speed_factor|costs|fixed|max_travel_time/i.test(probe2)) {
-            const plainVehicles = (payload.vehicles as any[]).map((v) => {
-              const { speed_factor: _s, costs: _c, max_travel_time: _m, ...rest } = v;
-              // Shorten the window instead of the 5% pessimism buffer.
-              const [open, close] = rest.time_window;
-              return { ...rest, time_window: [open, open + Math.round((close - open) * 0.95)] };
-            });
-            resp = await call({ ...payload, vehicles: plainVehicles, options: { g: true } });
-          }
-        }
+      let detail = resp.ok ? '' : (await resp.text()).slice(0, 300);
+      // Older builds reject unknown option keys, speed_factor or costs.fixed —
+      // retry with progressively plainer payloads (spec §6 fallbacks).
+      if (resp.status === 400 && /option|x\b/i.test(detail)) {
+        resp = await call({ ...payload, options: { g: true } });
+        detail = resp.ok ? '' : (await resp.text()).slice(0, 300);
+      }
+      if (resp.status === 400 && /speed_factor|costs|fixed|max_travel_time/i.test(detail)) {
+        const plainVehicles = (payload.vehicles as any[]).map((v) => {
+          const { speed_factor: _s, costs: _c, max_travel_time: _m, ...rest } = v;
+          // Shorten the window instead of the 5% pessimism buffer.
+          const [open, close] = rest.time_window;
+          return { ...rest, time_window: [open, open + Math.round((close - open) * 0.95)] };
+        });
+        resp = await call({ ...payload, vehicles: plainVehicles, options: { g: true } });
+        detail = resp.ok ? '' : (await resp.text()).slice(0, 300);
       }
       if (!resp.ok) {
-        const detail = (await resp.text()).slice(0, 300);
         const err = new Error(`Route optimiser failed (${resp.status}): ${detail}`);
         (err as any).status = resp.status;
         throw err;
@@ -717,9 +723,11 @@ serve(async (req) => {
 
       current = readSolution(passA.solution, passA.meta, legsById);
 
-      /* ------------------------ repair loop (one route per van-day) -------- */
+      /* ------------------------ repair (one route per van-day) ------------- */
 
-      for (let attempt = 0; attempt < 3; attempt++) {
+      // One re-solve only: more than that rarely changes the answer and can
+      // push the run past its time budget.
+      for (let attempt = 0; attempt < 1 && budgetLeft() > 25_000; attempt++) {
         const byVanDay: Record<string, Set<boolean>> = {};
         for (const { meta } of current.routeInfo) {
           const k = `${meta.date}:${meta.vanId}`;
@@ -757,7 +765,7 @@ serve(async (req) => {
         return true;
       });
 
-      if (unlockable.length > 0) {
+      if (unlockable.length > 0 && budgetLeft() > 25_000) {
         pinned = {};
         for (const p of current.placed) if (p.leg.legType === 'collection') pinned[p.leg.key] = p.date;
         pool = [...readyLegs, ...unlockable];
@@ -868,29 +876,49 @@ serve(async (req) => {
       console.error('grace pass failed', (e as Error).message);
     }
 
-    /* ---------------------------- what-if solve --------------------------- */
+    /* ------------------- extra-van what-if (separate call) ---------------- */
 
-    let whatIf: { placedByDate: Record<string, number>; virtualByDate: Record<string, number>; urgentByDate: Record<string, number> } | null = null;
-    try {
-      // Day-by-day plans are deliberately unbalanced, so the "extra van" what-if
-      // only applies to the balanced plan.
-      const wi = mode === 'greedy' ? null : await runSolve(pool, pinned, PRIMARY_CAP_H, { withVirtual: true });
-      if (wi) {
-        const read = readSolution(wi.solution, wi.meta, legsById);
-        const placedByDate: Record<string, number> = {};
-        const virtualByDate: Record<string, number> = {};
-        const urgentByDate: Record<string, number> = {};
-        for (const { meta, stops } of read.routeInfo) {
-          placedByDate[meta.date] = (placedByDate[meta.date] ?? 0) + stops.length;
-          if (meta.virtual) {
-            virtualByDate[meta.date] = (virtualByDate[meta.date] ?? 0) + 1;
-            urgentByDate[meta.date] = (urgentByDate[meta.date] ?? 0) + stops.filter((s) => s.leg.priority >= 70).length;
+    // Only ever run on its own second call, so a heavy what-if can never break
+    // the main Generate press. Nothing is saved on this path.
+    const whatIf: { placedByDate: Record<string, number>; virtualByDate: Record<string, number>; urgentByDate: Record<string, number> } | null = null;
+
+    if (shortfallOnly) {
+      let wiResult = whatIf as any;
+      try {
+        // Day-by-day plans are deliberately unbalanced, so the "extra van"
+        // what-if only applies to the balanced plan.
+        const wi = mode === 'greedy' ? null : await runSolve(pool, pinned, PRIMARY_CAP_H, { withVirtual: true });
+        if (wi) {
+          const read = readSolution(wi.solution, wi.meta, legsById);
+          const placedByDate: Record<string, number> = {};
+          const virtualByDate: Record<string, number> = {};
+          const urgentByDate: Record<string, number> = {};
+          for (const { meta, stops } of read.routeInfo) {
+            placedByDate[meta.date] = (placedByDate[meta.date] ?? 0) + stops.length;
+            if (meta.virtual) {
+              virtualByDate[meta.date] = (virtualByDate[meta.date] ?? 0) + 1;
+              urgentByDate[meta.date] = (urgentByDate[meta.date] ?? 0) + stops.filter((s) => s.leg.priority >= 70).length;
+            }
           }
+          wiResult = { placedByDate, virtualByDate, urgentByDate };
         }
-        whatIf = { placedByDate, virtualByDate, urgentByDate };
+      } catch (e) {
+        console.error('what-if solve failed', (e as Error).message);
       }
-    } catch (e) {
-      console.error('what-if solve failed', (e as Error).message);
+      const realByDate: Record<string, number> = {};
+      for (const { meta, stops } of current.routeInfo) {
+        realByDate[meta.date] = (realByDate[meta.date] ?? 0) + stops.length;
+      }
+      const shortfallByDate: Record<string, { extra_vans: number; extra_jobs: number; urgent: number } | null> = {};
+      for (const date of selectedDates) {
+        const extraVans = wiResult?.virtualByDate?.[date] ?? 0;
+        shortfallByDate[date] = extraVans > 0 ? {
+          extra_vans: extraVans,
+          extra_jobs: Math.max(0, (wiResult?.placedByDate?.[date] ?? 0) - (realByDate[date] ?? 0)),
+          urgent: wiResult?.urgentByDate?.[date] ?? 0,
+        } : null;
+      }
+      return json({ mode, shortfall_by_date: shortfallByDate });
     }
 
     /* ------------------------------ persist ------------------------------- */
@@ -917,63 +945,82 @@ serve(async (req) => {
     const assigned = new Set<string>();
     const routesByDate: Record<string, any[]> = {};
 
-    for (const { meta, route, stops } of current.routeInfo) {
+    // All routes in one write, then all their stops in one write.
+    const prepared = current.routeInfo.map(({ meta, route, stops }) => {
       const dayIdx = selectedDates.indexOf(meta.date);
       const isProvisional = dayIdx >= firmDays;
       const ordered = [...stops].sort((a, b) => a.arrival - b.arrival);
       const steps = Array.isArray(route.steps) ? route.steps : [];
       const maxLoadUnits = Math.max(0, ...steps.map((s: any) => Number(s?.load?.[0]) || 0));
       const duration = (Number(route.duration) || 0) + (Number(route.service) || 0) + (Number(route.waiting_time) || 0);
-
-      const { data: routeRow, error: routeErr } = await admin.from('route_plan_routes').insert({
-        plan_id: planId,
-        route_date: meta.date,
-        variant: 'primary',
-        pass: unlockable.length > 0 ? 'B' : 'A',
-        day_status: 'draft',
-        is_provisional: isProvisional,
-        van_id: meta.vanId,
-        van_name: meta.vanName,
-        is_expedition: meta.expedition,
-        total_miles: Math.round(((Number(route.distance) || 0) / 1609.344) * 10) / 10,
-        total_duration_s: duration,
-        stop_count: ordered.length,
-        max_load: Math.round((maxLoadUnits / 10) * 100) / 100,
-        van_capacity: meta.capacity,
+      return {
+        meta, ordered, isProvisional, duration,
+        miles: Math.round(((Number(route.distance) || 0) / 1609.344) * 10) / 10,
+        maxLoad: Math.round((maxLoadUnits / 10) * 100) / 100,
         geometry: typeof route.geometry === 'string' ? route.geometry : null,
-      }).select('id').single();
+      };
+    });
+
+    if (prepared.length > 0) {
+      const { data: routeRows, error: routeErr } = await admin.from('route_plan_routes').insert(
+        prepared.map((p) => ({
+          plan_id: planId,
+          route_date: p.meta.date,
+          variant: 'primary',
+          pass: unlockable.length > 0 ? 'B' : 'A',
+          day_status: 'draft',
+          is_provisional: p.isProvisional,
+          van_id: p.meta.vanId,
+          van_name: p.meta.vanName,
+          is_expedition: p.meta.expedition,
+          total_miles: p.miles,
+          total_duration_s: p.duration,
+          stop_count: p.ordered.length,
+          max_load: p.maxLoad,
+          van_capacity: p.meta.capacity,
+          geometry: p.geometry,
+        })),
+      ).select('id');
       if (routeErr) throw routeErr;
 
-      const stopRows = ordered.map((s, i) => ({
-        route_id: routeRow.id, seq: i + 1, leg_type: s.leg.legType, order_id: s.leg.orderId,
-        eta: isoFromEpoch(s.arrival), service_s: SERVICE_S, lat: s.leg.lat, lon: s.leg.lon,
-        is_difficult_area: s.leg.difficult,
-      }));
-      const { error: stopsErr } = await admin.from('route_plan_stops').insert(stopRows);
-      if (stopsErr) throw stopsErr;
+      const stopRows: any[] = [];
+      prepared.forEach((p, idx) => {
+        const routeId = (routeRows as any[])[idx]?.id;
+        p.ordered.forEach((s, i) => {
+          stopRows.push({
+            route_id: routeId, seq: i + 1, leg_type: s.leg.legType, order_id: s.leg.orderId,
+            eta: isoFromEpoch(s.arrival), service_s: SERVICE_S, lat: s.leg.lat, lon: s.leg.lon,
+            is_difficult_area: s.leg.difficult,
+          });
+          assigned.add(s.leg.key);
+        });
 
-      for (const s of ordered) assigned.add(s.leg.key);
-
-      (routesByDate[meta.date] ??= []).push({
-        route_id: routeRow.id,
-        van_id: meta.vanId,
-        van_name: meta.vanName,
-        is_expedition: meta.expedition,
-        is_provisional: isProvisional,
-        stop_count: ordered.length,
-        duration_s: duration,
-        miles: Math.round(((Number(route.distance) || 0) / 1609.344) * 10) / 10,
-        max_load: Math.round((maxLoadUnits / 10) * 100) / 100,
-        van_capacity: meta.capacity,
-        geometry: typeof route.geometry === 'string' ? route.geometry : null,
-        guaranteed_count: ordered.filter((s) => !!s.leg.guaranteedDate).length,
-        stops: ordered.map((s, i) => ({
-          seq: i + 1, leg_type: s.leg.legType, order_id: s.leg.orderId,
-          eta: isoFromEpoch(s.arrival), lat: s.leg.lat, lon: s.leg.lon,
-          is_difficult_area: s.leg.difficult, label: s.leg.label, guaranteed: !!s.leg.guaranteedDate,
-          planned_after_expiry: gracePlaced.has(s.leg.key),
-        })),
+        (routesByDate[p.meta.date] ??= []).push({
+          route_id: routeId,
+          van_id: p.meta.vanId,
+          van_name: p.meta.vanName,
+          is_expedition: p.meta.expedition,
+          is_provisional: p.isProvisional,
+          stop_count: p.ordered.length,
+          duration_s: p.duration,
+          miles: p.miles,
+          max_load: p.maxLoad,
+          van_capacity: p.meta.capacity,
+          geometry: p.geometry,
+          guaranteed_count: p.ordered.filter((s) => !!s.leg.guaranteedDate).length,
+          stops: p.ordered.map((s, i) => ({
+            seq: i + 1, leg_type: s.leg.legType, order_id: s.leg.orderId,
+            eta: isoFromEpoch(s.arrival), lat: s.leg.lat, lon: s.leg.lon,
+            is_difficult_area: s.leg.difficult, label: s.leg.label, guaranteed: !!s.leg.guaranteedDate,
+            planned_after_expiry: gracePlaced.has(s.leg.key),
+          })),
+        });
       });
+
+      if (stopRows.length > 0) {
+        const { error: stopsErr } = await admin.from('route_plan_stops').insert(stopRows);
+        if (stopsErr) throw stopsErr;
+      }
     }
 
     /* ------------------------------ response ------------------------------ */
@@ -1044,6 +1091,8 @@ serve(async (req) => {
       expiring_unplanned_count: legs.filter((l) => l.expiringInPlan && !assigned.has(l.key)).length,
       generated_at: new Date().toISOString(),
       firm_days: firmDays,
+      // The "an extra van would plan N more jobs" figures load on a second call.
+      shortfall_pending: mode !== 'greedy',
       days,
       at_risk: atRisk,
       needs_new_dates: needsNewDates.sort((a, b) => a.severity - b.severity),
