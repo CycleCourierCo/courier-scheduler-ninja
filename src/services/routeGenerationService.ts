@@ -43,6 +43,8 @@ export interface PlanDay {
   is_provisional: boolean;
   shortfall: PlanDayShortfall | null;
   variants: { variant: string; routes: PlanRoute[]; tradeoff_note: string | null }[];
+  /** Jobs that could have run on this day but were left out of every route. */
+  unplanned_count?: number;
   infeasible_guaranteed: { order_id: string; label: string; leg_type: string; date: string }[];
 }
 
