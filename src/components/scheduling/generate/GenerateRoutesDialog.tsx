@@ -181,6 +181,7 @@ const NeedsDatesPanel: React.FC<{ legs: NeedsNewDatesLeg[]; onChanged: () => voi
 };
 
 const RoutePlanMapLazy = React.lazy(() => import("./RoutePlanMap"));
+const DaySummary = React.lazy(() => import("./DaySummary"));
 
 const GenerateRoutesDialog: React.FC = () => {
   const [open, setOpen] = useState(false);
@@ -489,7 +490,10 @@ const GenerateRoutesDialog: React.FC = () => {
                   )}
                 </div>
 
+                <DaySummary date={activeDay.date} routes={activeRoutes} />
+
                 <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
+
                   <div className="space-y-3">
                     {activeRoutes.length === 0 ? (
                       <Card>
