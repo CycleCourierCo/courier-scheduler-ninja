@@ -875,6 +875,8 @@ serve(async (req) => {
           urgent: whatIf?.urgentByDate?.[date] ?? 0,
         } : null,
         variants: [{ variant: 'primary', routes: dayRoutes, tradeoff_note: null }],
+        // Jobs that could have run on this day but were left out of every route.
+        unplanned_count: legs.filter((l) => !assigned.has(l.key) && l.windowDates.includes(date)).length,
         infeasible_guaranteed: legs
           .filter((l) => l.guaranteedDate === date && !assigned.has(l.key))
           .map((l) => ({ order_id: l.orderId, label: l.label, leg_type: l.legType, date })),
