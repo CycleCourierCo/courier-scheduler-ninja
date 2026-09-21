@@ -361,6 +361,11 @@ serve(async (req) => {
 
       const vehicles: any[] = [];
       const vehicleMeta: Record<number, { vanId: string; vanName: string; capacity: number; expedition: boolean }> = {};
+      // Workload balancing: cap pure driving time so one van can't absorb a
+      // disproportionate share of the day while others sit idle. Leave ~2h of
+      // the shift for service time and depot handling.
+      const primaryTravelCap = Math.max(2 * HOURS, (PRIMARY_CAP_H - 2) * HOURS);
+      const expeditionTravelCap = Math.max(2 * HOURS, (EXPEDITION_CAP_H - 2) * HOURS);
       let vid = 1;
       for (const van of vans) {
         const capUnits = Math.max(1, Math.round(van.capacity * 10));
@@ -369,6 +374,7 @@ serve(async (req) => {
           start: [DEPOT.lon, DEPOT.lat], end: [DEPOT.lon, DEPOT.lat],
           capacity: [capUnits],
           time_window: [shiftOpen, shiftOpen + PRIMARY_CAP_H * HOURS],
+          max_travel_time: primaryTravelCap,
           speed_factor: 0.95,
           costs: { fixed: 3600 },
         });
@@ -381,6 +387,7 @@ serve(async (req) => {
             start: [DEPOT.lon, DEPOT.lat], end: [DEPOT.lon, DEPOT.lat],
             capacity: [capUnits],
             time_window: [shiftOpen, shiftOpen + EXPEDITION_CAP_H * HOURS],
+            max_travel_time: expeditionTravelCap,
             skills: [1],
             speed_factor: 0.95,
             costs: { fixed: 7200 },
@@ -415,13 +422,22 @@ serve(async (req) => {
         };
       });
 
-      const payload = { vehicles, jobs, options: { g: true } };
-      const started = Date.now();
-      const resp = await fetch(solveUrl, {
+      const payload = { vehicles, jobs, options: { g: true, x: 5 } }; // x: max exploration depth
+      const postSolve = (body: any) => fetch(solveUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${VERSO_API_KEY}`, 'X-Api-Key': VERSO_API_KEY },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(body),
       });
+
+      const started = Date.now();
+      let resp = await postSolve(payload);
+      if (resp.status === 400) {
+        // Older VROOM builds reject unknown options keys — retry without exploration level.
+        const probe = (await resp.clone().text()).slice(0, 200);
+        if (/x|option/i.test(probe)) {
+          resp = await postSolve({ vehicles, jobs, options: { g: true } });
+        }
+      }
 
       if (!resp.ok) {
         const detail = (await resp.text()).slice(0, 300);
@@ -430,7 +446,16 @@ serve(async (req) => {
         return json({ error: `Route optimiser failed (${resp.status}): ${detail}`, status: resp.status, detail }, 502);
       }
       const solution = await resp.json();
-      console.log('verso solve', { date, jobs: jobs.length, vehicles: vehicles.length, ms: Date.now() - started, unassigned: (solution?.unassigned || []).length });
+      const summary = solution?.summary ?? {};
+      console.log('verso solve', {
+        date,
+        pool: pool.length,
+        vehicles_offered: vehicles.length,
+        routes_returned: (solution?.routes || []).length,
+        total_cost: Number(summary.cost) || null,
+        unassigned: (solution?.unassigned || []).length,
+        ms: Date.now() - started,
+      });
 
       const routes = Array.isArray(solution?.routes) ? solution.routes : [];
       const usedVans = new Set<string>();
