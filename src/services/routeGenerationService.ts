@@ -214,16 +214,6 @@ export const generateRoutes = async (input: GenerateRoutesInput): Promise<RouteP
   return data as RoutePlanResult;
 };
 
-/** Second, lighter call: the per-day "an extra van would fit N more jobs" figures. */
-export const fetchPlanShortfall = async (
-  input: GenerateRoutesInput,
-): Promise<Record<string, PlanDayShortfall | null>> => {
-  const { data, error } = await supabase.functions.invoke("route-optimize", {
-    body: { ...input, shortfall_only: true },
-  });
-  if (error || (data as any)?.error) return {};
-  return ((data as any)?.shortfall_by_date ?? {}) as Record<string, PlanDayShortfall | null>;
-};
 
 /** Check a fixed stop order actually fits the day. */
 export const validateRoute = async (input: {
