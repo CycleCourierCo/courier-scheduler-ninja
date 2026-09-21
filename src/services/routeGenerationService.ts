@@ -200,8 +200,10 @@ export const fetchPlanningVans = async () => {
     .select("id,registration,make,bike_spaces,status")
     .order("registration");
   if (error) throw error;
+  // Only vans that are actually part of the working fleet: in use or off road.
+  // Anything in repair, awaiting sale, sold or written off is never plannable.
   return (data || [])
-    .filter((v: any) => v.status !== "sold" && v.status !== "off_road")
+    .filter((v: any) => v.status === "in_use" || v.status === "off_road")
     .map((v: any) => ({
       id: v.id as string,
       name: (v.registration || v.make || "Van") as string,

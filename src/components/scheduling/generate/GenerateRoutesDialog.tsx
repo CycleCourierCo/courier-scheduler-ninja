@@ -328,6 +328,28 @@ const GenerateRoutesDialog: React.FC = () => {
     }
   };
 
+  /** Tick or untick every van on one day. */
+  const setDayVans = async (date: string, on: boolean) => {
+    const all = vans.map((v) => v.id);
+    setGrid((g) => ({ ...g, [date]: on ? all : [] }));
+    await Promise.all(all.map((id) => setVanUnavailable(id, date, !on).catch(() => null)));
+  };
+
+  /** Tick or untick one van across every day being planned. */
+  const setVanAllDays = async (vanId: string, on: boolean) => {
+    setGrid((g) => {
+      const copy = { ...g };
+      for (const d of dates) {
+        const current = copy[d] ?? vans.map((v) => v.id);
+        copy[d] = on
+          ? [...new Set([...current, vanId])]
+          : current.filter((id) => id !== vanId);
+      }
+      return copy;
+    });
+    await Promise.all(dates.map((d) => setVanUnavailable(vanId, d, !on).catch(() => null)));
+  };
+
   const candidateDates = useMemo(() => {
     const base = nextWorkingDays(workingDays, 10);
     return [...new Set([...base, ...dates])].sort();
