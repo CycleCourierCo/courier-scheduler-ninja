@@ -765,7 +765,7 @@ serve(async (req) => {
         return true;
       });
 
-      if (unlockable.length > 0) {
+      if (unlockable.length > 0 && budgetLeft() > 25_000) {
         pinned = {};
         for (const p of current.placed) if (p.leg.legType === 'collection') pinned[p.leg.key] = p.date;
         pool = [...readyLegs, ...unlockable];
