@@ -21,9 +21,14 @@ const Stat: React.FC<{ label: string; value: string; sub?: string }> = ({ label,
 interface Props {
   date: string;
   routes: PlanRoute[];
+  /** Heading override, e.g. for whole-plan totals. */
+  title?: string;
+  costTitle?: string;
+  /** Jobs left out of every route for this day or plan. */
+  leftOver?: number;
 }
 
-const DaySummary: React.FC<Props> = ({ date, routes }) => {
+const DaySummary: React.FC<Props> = ({ date, routes, title, costTitle, leftOver }) => {
   const { userProfile } = useAuth();
   const isAdmin = hasRole(userProfile, "admin");
 
@@ -93,7 +98,7 @@ const DaySummary: React.FC<Props> = ({ date, routes }) => {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base">
-            <BarChart3 className="h-4 w-4" /> Day summary
+            <BarChart3 className="h-4 w-4" /> {title ?? "Day summary"}
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-4">
@@ -116,6 +121,9 @@ const DaySummary: React.FC<Props> = ({ date, routes }) => {
           <Stat label="Spaces used" value={`${totals.load}/${totals.capacity}`} />
           <Stat label="Guaranteed stops" value={String(totals.guaranteed)} />
           <Stat label="Thin routes" value={`${totals.thin} of ${totals.vans}`} />
+          {typeof leftOver === "number" && (
+            <Stat label="Jobs left over" value={String(leftOver)} sub={leftOver > 0 ? "not fitted into any route" : "everything fitted"} />
+          )}
         </CardContent>
       </Card>
 
@@ -123,7 +131,7 @@ const DaySummary: React.FC<Props> = ({ date, routes }) => {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <PoundSterling className="h-4 w-4" /> Costings for this day
+              <PoundSterling className="h-4 w-4" /> {costTitle ?? "Costings for this day"}
               {loadingCosts && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
             </CardTitle>
           </CardHeader>

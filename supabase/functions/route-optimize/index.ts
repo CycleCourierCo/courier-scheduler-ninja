@@ -636,6 +636,8 @@ serve(async (req) => {
     let pool = readyLegs;
     let pinned: Record<string, string> = {};
     let displaced: Leg[] = [];
+    // Shared with the saving step below, so it must live outside both branches.
+    let unlockable: Leg[] = [];
 
     if (mode === 'greedy') {
       /* --------------------- day-by-day (greedy) planning ------------------- */
@@ -713,7 +715,7 @@ serve(async (req) => {
         if (p.leg.legType === 'collection') collectionDay[p.leg.orderId] = p.date;
       }
 
-      const unlockable = legs.filter((leg) => {
+      unlockable = legs.filter((leg) => {
         if (leg.legType !== 'delivery' || !leg.needsUnlock) return false;
         const collectedOn = collectionDay[leg.orderId];
         if (!collectedOn) return false;
@@ -873,6 +875,8 @@ serve(async (req) => {
           urgent: whatIf?.urgentByDate?.[date] ?? 0,
         } : null,
         variants: [{ variant: 'primary', routes: dayRoutes, tradeoff_note: null }],
+        // Jobs that could have run on this day but were left out of every route.
+        unplanned_count: legs.filter((l) => !assigned.has(l.key) && l.windowDates.includes(date)).length,
         infeasible_guaranteed: legs
           .filter((l) => l.guaranteedDate === date && !assigned.has(l.key))
           .map((l) => ({ order_id: l.orderId, label: l.label, leg_type: l.legType, date })),
@@ -906,6 +910,7 @@ serve(async (req) => {
     return json({
       plan_id: planId,
       mode,
+      unplanned_count: legs.filter((l) => !assigned.has(l.key)).length,
       generated_at: new Date().toISOString(),
       firm_days: firmDays,
       days,

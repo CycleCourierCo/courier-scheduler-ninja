@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
-  AtRiskLeg, NeedsNewDatesLeg, PlanDay, PlanMode, PlanRoute, RoutePlanResult, summarisePlan,
+  AtRiskLeg, NeedsNewDatesLeg, PlanDay, PlanMode, PlanRoute, RoutePlanResult, summarisePlan, allPlanRoutes,
   clearNewDatesRequest, fetchDifficultAreas, fetchPlanningVans, fetchWorkingDays, formatDuration,
   generateRoutes, isWorkingDay, lockPlanDay, nextWorkingDays, refreshAvailabilityExpiry,
   requestNewDates, selectPlanRoute, setVanUnavailable, unlockPlanDay,
@@ -248,6 +248,10 @@ const GenerateRoutesDialog: React.FC = () => {
   const [busyRoute, setBusyRoute] = useState(false);
   const [plans, setPlans] = useState<{ joint: RoutePlanResult | null; greedy: RoutePlanResult | null }>({ joint: null, greedy: null });
   const [mode, setMode] = useState<PlanMode>("joint");
+  const [planErrors, setPlanErrors] = useState<{ joint: string | null; greedy: string | null }>({ joint: null, greedy: null });
+  const [retrying, setRetrying] = useState<PlanMode | null>(null);
+  /** The plan that jobs were reserved against — the other one is then out of date. */
+  const [committedMode, setCommittedMode] = useState<PlanMode | null>(null);
   const result = plans[mode];
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [lockedDays, setLockedDays] = useState<string[]>([]);
@@ -314,6 +318,8 @@ const GenerateRoutesDialog: React.FC = () => {
     }
     setLoading(true);
     setPlans({ joint: null, greedy: null });
+    setPlanErrors({ joint: null, greedy: null });
+    setCommittedMode(null);
     setLockedDays([]);
     const base = {
       selected_dates: dates,
@@ -326,7 +332,10 @@ const GenerateRoutesDialog: React.FC = () => {
       // Both ways of planning are built so they can be compared side by side.
       const [joint, greedy] = await Promise.all([
         generateRoutes({ ...base, mode: "joint" }),
-        generateRoutes({ ...base, mode: "greedy" }).catch(() => null),
+        generateRoutes({ ...base, mode: "greedy" }).catch((e: Error) => {
+          setPlanErrors((prev) => ({ ...prev, greedy: e.message || "Day-by-day planning failed" }));
+          return null;
+        }),
       ]);
       setPlans({ joint, greedy });
       setMode("joint");
@@ -337,6 +346,32 @@ const GenerateRoutesDialog: React.FC = () => {
       toast.error((e as Error).message || "Route generation failed");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRetryMode = async (m: PlanMode) => {
+    if (dates.length < MIN_DAYS) return;
+    setRetrying(m);
+    setPlanErrors((prev) => ({ ...prev, [m]: null }));
+    try {
+      const plan = await generateRoutes({
+        selected_dates: dates,
+        shift_start: shiftStart,
+        van_availability: Object.fromEntries(dates.map((d) => [d, grid[d] ?? vans.map((v) => v.id)])),
+        firm_days: firmDays,
+        inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
+        mode: m,
+      });
+      setPlans((prev) => ({ ...prev, [m]: plan }));
+      setMode(m);
+      setLockedDays([]);
+      toast.success(m === "greedy" ? "Day-by-day plan built" : "Balanced plan built");
+    } catch (e) {
+      const msg = (e as Error).message || "Route generation failed";
+      setPlanErrors((prev) => ({ ...prev, [m]: msg }));
+      toast.error(msg);
+    } finally {
+      setRetrying(null);
     }
   };
 
@@ -356,6 +391,7 @@ const GenerateRoutesDialog: React.FC = () => {
       if (lock) await lockPlanDay(result.plan_id, date);
       else await unlockPlanDay(result.plan_id, date);
       setLockedDays((prev) => (lock ? [...prev, date] : prev.filter((d) => d !== date)));
+      if (lock) setCommittedMode(mode);
       toast.success(lock ? `${dayLabel(date)} locked — its jobs are reserved` : `${dayLabel(date)} released`);
     } catch (e) {
       toast.error((e as Error).message || "Could not change that day");
@@ -369,6 +405,7 @@ const GenerateRoutesDialog: React.FC = () => {
     setBusyRoute(true);
     try {
       await selectPlanRoute(result.plan_id, route.route_id);
+      setCommittedMode(mode);
       const jobs = route.stops
         .map((s) => `${s.order_id}:${s.leg_type === "collection" ? "pickup" : "delivery"}`)
         .join(",");
@@ -516,13 +553,36 @@ const GenerateRoutesDialog: React.FC = () => {
                     <span>{m === "joint" ? "Balanced across the days" : "Day by day"}</span>
                     <span className="text-xs font-normal opacity-80">
                       {plans[m]
-                        ? `${summary.stops} stops · ${summary.vanDays} van-days · ${Math.round(summary.hours)}h · ${Math.round(summary.miles)} mi · ${summary.atRisk} at risk`
+                        ? `${summary.stops} stops · ${summary.vanDays} van-days · ${Math.round(summary.hours)}h · ${Math.round(summary.miles)} mi · ${summary.leftOver} left over`
+                        : retrying === m
+                        ? "building…"
                         : "not available"}
                     </span>
+                    {committedMode && committedMode !== m && plans[m] && (
+                      <span className="text-xs font-normal text-amber-600">out of date — jobs reserved on the other plan</span>
+                    )}
                   </Button>
                 );
               })}
+              {(["joint", "greedy"] as PlanMode[]).map((m) =>
+                planErrors[m] ? (
+                  <div key={`${m}-err`} className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{m === "greedy" ? "Day by day" : "Balanced"} could not be built: {planErrors[m]}</span>
+                    <Button type="button" size="sm" variant="outline" disabled={retrying === m} onClick={() => handleRetryMode(m)}>
+                      {retrying === m ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Try again"}
+                    </Button>
+                  </div>
+                ) : null,
+              )}
             </div>
+
+            <DaySummary
+              date={`plan:${mode}:${result.plan_id ?? ""}`}
+              routes={allPlanRoutes(result)}
+              title={mode === "greedy" ? "Whole plan — day by day" : "Whole plan — balanced"}
+              costTitle="Costings for the whole plan"
+              leftOver={summarisePlan(result).leftOver}
+            />
             {result.weekly && (
               <p className="text-sm text-muted-foreground">
                 {result.weekly.van_days_needed} of {result.weekly.van_days_available} van-days used
@@ -571,7 +631,7 @@ const GenerateRoutesDialog: React.FC = () => {
                   )}
                 </div>
 
-                <DaySummary date={activeDay.date} routes={activeRoutes} />
+                <DaySummary date={activeDay.date} routes={activeRoutes} leftOver={activeDay.unplanned_count} />
 
                 <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
 
