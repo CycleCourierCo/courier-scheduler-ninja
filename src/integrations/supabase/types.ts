@@ -4477,6 +4477,7 @@ export type Database = {
           id: string
           inspection_lead_days: number | null
           is_stale: boolean
+          mode: string
           selected_dates: string[]
           shift_start: string
           shortfall: Json
@@ -4494,6 +4495,7 @@ export type Database = {
           id?: string
           inspection_lead_days?: number | null
           is_stale?: boolean
+          mode?: string
           selected_dates?: string[]
           shift_start?: string
           shortfall?: Json
@@ -4511,6 +4513,7 @@ export type Database = {
           id?: string
           inspection_lead_days?: number | null
           is_stale?: boolean
+          mode?: string
           selected_dates?: string[]
           shift_start?: string
           shortfall?: Json
