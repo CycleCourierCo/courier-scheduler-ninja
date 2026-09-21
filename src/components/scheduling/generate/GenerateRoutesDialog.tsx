@@ -508,7 +508,6 @@ const GenerateRoutesDialog: React.FC = () => {
     setBusyRoute(true);
     try {
       await selectPlanRoute(result.plan_id, route.route_id);
-      setCommittedMode(mode);
       const jobs = route.stops
         .map((s) => `${s.order_id}:${s.leg_type === "collection" ? "pickup" : "delivery"}`)
         .join(",");
