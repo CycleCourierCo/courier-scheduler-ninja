@@ -1,12 +1,11 @@
-// Generates van routes across a set of chosen days using the Verso hosted VROOM
-// API. Server-side only: Verso credentials never leave here.
+// Generates van routes one day at a time using the Verso hosted VROOM API.
+// Server-side only: Verso credentials never leave here.
 //
-// Shape of a good plan (owner's definition, see docs/ROUTE_PLANNING.md):
-//  - at most one long (expedition) day per date, and only where a difficult
-//    area genuinely needs it;
-//  - every other route inside a 13 hour shift, depot to depot;
-//  - at least 13 jobs per route, thin routes only when urgent work demands it;
-//  - one part of the country per route.
+// The idea, kept deliberately simple (see docs/ROUTE_PLANNING.md):
+//  - our code decides which day is planned, which jobs may go, and how many vans;
+//  - VROOM decides which van takes which job and in what order;
+//  - only two priorities exist: must-go (100) and everything else (0);
+//  - one day at a time, in date order, carrying planned collections forward.
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 
@@ -22,40 +21,23 @@ const json = (body: unknown, status = 200) =>
 const DEPOT = { lat: 52.4690197, lon: -1.8757663 };
 const SERVICE_S = 900;
 const HOURS = 3600;
-const PRIMARY_CAP_H = 13;      // normal shift, depot to depot
-const EXPEDITION_CAP_H = 15;   // difficult-area long day
+const NORMAL_CAP_H = 13;   // depot to depot, including the return leg
+const LONG_CAP_H = 15;     // difficult-area long day
 const DEFAULT_CAPACITY = 10;
 const STAFF_ROLES = ['admin', 'sales', 'route_planner'];
 const MAX_DAYS = 10;
-const VIRTUAL_VANS_PER_DAY = 2;
 const TIME_BUDGET_MS = 90_000;
-// Money, in whole pence, as VROOM demands integers.
-const DRIVER_PENCE_PER_HOUR = 1100;          // £11/hour
-const PENCE_PER_KM = 28;                     // £0.45/mile ÷ 1.609
-const SHIFT_HOURS_CHARGED = 2;               // van shift charge = 2 hours' pay
-const EXPEDITION_PREMIUM = 1.5;
-const DEFAULT_MAX_LONG_DAYS = 1;
-const DEFAULT_MIN_JOBS_TARGET = 13;
-const DEFAULT_MIN_JOBS_FLOOR = 9;
-const DEFAULT_PAIR_MAX_MI = 30;
-const MAX_REDUCTION_STEPS = 8;
-const MAX_TRIM_STEPS = 3;
-// How far apart a day's stops may sit, worst pair to worst pair.
-const MAX_SPREAD_MI = 120;
-const MAX_SPREAD_LONG_MI = 220;
-// Minimum difficult-area jobs before a long day is offered for that area.
+const DRIVER_PENCE_PER_HOUR = 1100;   // £11/hour
+const PENCE_PER_KM = 28;              // £0.45/mile
+const DRIVER_RATE = 11;
+const COST_PER_MILE = 0.45;
+const DEFAULT_MAX_LONG_VANS = 1;
+const DEFAULT_TARGET_JOBS = 13;
+const DEFAULT_FLOOR_JOBS = 9;
+const MAX_REMOVALS_PER_DAY = 6;
 const LONG_DAY_MIN_JOBS = 5;
-
-/* ----------------------------- geography ---------------------------------- */
-
-// 16 compass areas of 22.5° around the depot, plus a depot zone any van may work.
-const SECTOR_NAMES = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-const SECTOR_COUNT = SECTOR_NAMES.length;
-const CENTRAL_SKILL = 20;
-const sectorSkill = (idx: number) => 21 + idx;
-const DIFFICULT_SKILL_BASE = 101;
-const difficultSkill = (areaIdx: number) => DIFFICULT_SKILL_BASE + areaIdx;
-const NEAR_RADIUS_MI = 45;
+const SPREAD_WARN_MI = 150;
+const DIFFICULT_SKILL = 1;
 
 const milesBetween = (aLat: number, aLon: number, bLat: number, bLon: number) => {
   const R = 3958.8;
@@ -67,20 +49,7 @@ const milesBetween = (aLat: number, aLon: number, bLat: number, bLon: number) =>
   return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 };
 
-/** null = inside the depot zone; otherwise the 22.5° area index (0 = due north). */
-const sectorOf = (lat: number, lon: number): number | null => {
-  if (milesBetween(DEPOT.lat, DEPOT.lon, lat, lon) <= NEAR_RADIUS_MI) return null;
-  const y = Math.sin(((lon - DEPOT.lon) * Math.PI) / 180) * Math.cos((lat * Math.PI) / 180);
-  const x = Math.sin((lat * Math.PI) / 180) * Math.cos((DEPOT.lat * Math.PI) / 180)
-    - Math.cos((lat * Math.PI) / 180) * Math.sin((DEPOT.lat * Math.PI) / 180) * Math.cos(((lon - DEPOT.lon) * Math.PI) / 180);
-  const bearing = (Math.atan2(y, x) * 180) / Math.PI;
-  return Math.round(((bearing + 360) % 360) / 22.5) % SECTOR_COUNT;
-};
-
-const sectorLabel = (idx: number | null) => (idx === null ? 'Around the depot' : SECTOR_NAMES[idx]);
-const neighbours = (idx: number) => [(idx + SECTOR_COUNT - 1) % SECTOR_COUNT, idx, (idx + 1) % SECTOR_COUNT];
-
-/** Widest gap between any two stops on a route, in miles. */
+/** Widest gap between any two stops on a route, in miles — a warning only. */
 const spreadMiles = (pts: { lat: number; lon: number }[]) => {
   let worst = 0;
   for (let i = 0; i < pts.length; i++) {
@@ -119,7 +88,6 @@ const londonEpoch = (dateStr: string, time: string): number => {
 };
 
 const isoFromEpoch = (s: number) => new Date(s * 1000).toISOString();
-
 const todayLondon = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date());
 
 const dateKey = (value: unknown): string | null => {
@@ -129,11 +97,6 @@ const dateKey = (value: unknown): string | null => {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(d);
 };
 
-const daysUntil = (dateStr: string): number => {
-  const diff = (Date.parse(`${dateStr}T12:00:00Z`) - Date.parse(`${todayLondon()}T12:00:00Z`)) / 86_400_000;
-  return Math.max(1, Math.round(diff));
-};
-
 const daysSince = (dateStr: string): number => {
   const diff = (Date.parse(`${todayLondon()}T12:00:00Z`) - Date.parse(`${dateStr}T12:00:00Z`)) / 86_400_000;
   return Math.max(0, Math.round(diff));
@@ -141,7 +104,7 @@ const daysSince = (dateStr: string): number => {
 
 const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
 const SHORT_KEYS = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
-const weekdayIdx = (dateStr: string) => (new Date(`${dateStr}T12:00:00Z`).getUTCDay() + 6) % 7; // 0=Mon
+const weekdayIdx = (dateStr: string) => (new Date(`${dateStr}T12:00:00Z`).getUTCDay() + 6) % 7;
 const weekdayKey = (dateStr: string) => DAY_KEYS[weekdayIdx(dateStr)];
 const shortWeekday = (dateStr: string) => SHORT_KEYS[weekdayIdx(dateStr)];
 
@@ -159,7 +122,7 @@ const pointInRing = (lon: number, lat: number, ring: Ring): boolean => {
   return inside;
 };
 
-/* ------------------------------ bike spaces ------------------------------- */
+/* --------------------------- spaces and money ----------------------------- */
 
 const norm = (s: string) => s.trim().toLowerCase();
 
@@ -189,6 +152,49 @@ const orderSpaces = (order: any, map: Record<string, number>): number => {
   return Math.round(spacesForType(order?.bike_type ?? null, map) * qty * 100) / 100;
 };
 
+// Charged price per bike type, excluding VAT, mirroring src/constants/bikePricing.ts.
+const BIKE_PRICES: Record<string, number> = {
+  'boxed kids bikes': 35, 'wheelset/frameset': 35, 'wheels/frame boxed or unboxed': 35,
+  'kids bikes': 40, 'bmx bikes': 40, 'bike rack': 40, 'turbo trainer': 40, 'folding bikes': 40,
+  'travel bike box': 50, 'travel bike boxes': 50,
+  'non-electric bikes': 60, 'non-electric - mountain bike': 60, 'non-electric - road bike': 60,
+  'non-electric - hybrid': 60, 'non-electric - hybrid bike': 60, 'non-electric - gravel bike': 60,
+  'electric bike - under 25kg': 70, 'electric bikes under 25kg': 70,
+  'stationary bike': 70, 'stationary bikes': 70,
+  'electric bike - over 25kg': 99, 'electric bikes over 25kg': 99, 'electric bike - over 50kg': 99,
+  'tandem': 110, 'tandem bikes': 110,
+  'longtail cargo bike': 130, 'longtail cargo bikes': 130, 'recumbent': 130,
+  'small trike': 150, 'trike': 150, 'large trike': 180,
+  'cargo bike': 225, 'double seat/platform/cargo trikes': 225,
+};
+
+const priceForType = (bikeType: string | null | undefined): number => {
+  if (!bikeType) return 60;
+  const lower = norm(bikeType);
+  if (BIKE_PRICES[lower] !== undefined) return BIKE_PRICES[lower];
+  if (lower.startsWith('non-electric')) return 60;
+  if (lower.startsWith('electric')) return 70;
+  return 60;
+};
+
+/** What one leg of an order is worth: half the charged price, excluding VAT. */
+const legValue = (order: any, specialRate: number | null): number => {
+  if (specialRate !== null) {
+    const qty = Number(order?.bike_quantity) > 0 ? Number(order.bike_quantity) : 1;
+    return (specialRate / 2) * qty;
+  }
+  const bikes = Array.isArray(order?.bikes) ? order.bikes : null;
+  if (bikes && bikes.length > 0) {
+    return bikes.reduce((sum: number, bike: any) => {
+      const type = bike?.bike_type ?? bike?.type ?? bike?.bikeType ?? order?.bike_type;
+      const qty = Number(bike?.quantity ?? 1) || 1;
+      return sum + (priceForType(type) / 2) * qty;
+    }, 0);
+  }
+  const qty = Number(order?.bike_quantity) > 0 ? Number(order.bike_quantity) : 1;
+  return (priceForType(order?.bike_type) / 2) * qty;
+};
+
 /* --------------------------------- types ---------------------------------- */
 
 interface Leg {
@@ -199,57 +205,51 @@ interface Leg {
   lat: number;
   lon: number;
   spaces: number;
-  allDates: string[];        // every customer date (any day)
-  windowDates: string[];     // customer dates inside the chosen days
+  value: number;
+  allDates: string[];
+  futureDates: string[];
   guaranteedDate: string | null;
-  priority: number;
   lapsed: boolean;
-  expiringInPlan: boolean;
   lastDate: string | null;
-  difficult: boolean;
-  /** Which difficult area (index into the stored list), when difficult. */
   areaIdx: number | null;
-  sector: number | null;
   businessHours: Record<string, any> | null;
   label: string;
-  needsUnlock: boolean;
   needsInspection: boolean;
-  collectedAt: string | null;
-  scheduledCollection: string | null;
+  inDepot: boolean;
+  bookedCollection: string | null;
 }
-
-type VanRole = 'group' | 'roam' | 'long';
 
 interface VanDay {
   vehicleId: number; date: string; vanId: string; vanName: string; capacity: number;
-  expedition: boolean; virtual: boolean; role: VanRole; sectors: number[]; areaIdx: number | null;
+  long: boolean; spare: boolean; areaName: string | null;
 }
+
+interface Stop { leg: Leg; arrival: number }
+interface SolvedRoute { meta: VanDay; route: any; stops: Stop[] }
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   const runStarted = Date.now();
   const budgetLeft = () => TIME_BUDGET_MS - (Date.now() - runStarted);
-  // Nothing is ever quietly skipped: whatever we could not finish is reported.
   const skipped: string[] = [];
-  const debug: Record<string, any> = { solve_calls: 0, solve_ms: 0, notes: [] };
+  const debug: Record<string, any> = { solve_calls: 0, solve_ms: 0, days: {} };
 
   try {
     const VERSO_API_URL = Deno.env.get('VERSO_API_URL');
     const VERSO_API_KEY = Deno.env.get('VERSO_API_KEY');
     if (!VERSO_API_URL || !VERSO_API_KEY) return json({ error: 'Verso credentials not configured' }, 500);
 
-    const versoUrl = (endpoint: 'solve' | 'plan') => {
+    const solveUrl = (() => {
       const raw = VERSO_API_URL.trim().replace(/\/(?=\?|$)/, '');
       let url: URL;
       try { url = new URL(raw); } catch { return raw; }
-      url.pathname = `${url.pathname.replace(/\/(solve|plan)$/i, '').replace(/\/$/, '')}/${endpoint}`;
+      url.pathname = `${url.pathname.replace(/\/(solve|plan)$/i, '').replace(/\/$/, '')}/solve`;
       if (url.searchParams.has('api_key') && !url.searchParams.get('api_key')) {
         url.searchParams.set('api_key', VERSO_API_KEY);
       }
       return url.toString();
-    };
-    const solveUrl = versoUrl('solve');
+    })();
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader?.startsWith('Bearer ')) return json({ error: 'unauthorized' }, 401);
@@ -278,18 +278,15 @@ serve(async (req) => {
     const firmDays = Number.isFinite(Number(body?.firm_days)) ? Math.max(0, Math.min(10, Number(body.firm_days))) : 2;
     const inspectionLeadDays = Number.isFinite(Number(body?.inspection_lead_days))
       ? Math.max(0, Math.min(14, Number(body.inspection_lead_days))) : null;
-    const mode: 'joint' | 'greedy' = body?.mode === 'greedy' ? 'greedy' : 'joint';
     const includeExpired = body?.include_expired === true;
-    const maxLongDays = Number.isFinite(Number(body?.max_long_days))
-      ? Math.max(0, Math.min(4, Math.round(Number(body.max_long_days))))
-      : DEFAULT_MAX_LONG_DAYS;
-    const minJobsTarget = Number.isFinite(Number(body?.min_jobs_target))
-      ? Math.max(1, Math.min(30, Math.round(Number(body.min_jobs_target)))) : DEFAULT_MIN_JOBS_TARGET;
-    const minJobsFloor = Number.isFinite(Number(body?.min_jobs_floor))
-      ? Math.max(1, Math.min(minJobsTarget, Math.round(Number(body.min_jobs_floor)))) : Math.min(DEFAULT_MIN_JOBS_FLOOR, minJobsTarget);
-    const pairMaxMiles = Number.isFinite(Number(body?.pair_max_distance_miles))
-      ? Math.max(0, Math.min(200, Number(body.pair_max_distance_miles))) : DEFAULT_PAIR_MAX_MI;
-    const shortfallOnly = body?.shortfall_only === true;
+    const maxLongVans = Number.isFinite(Number(body?.max_long_days))
+      ? Math.max(0, Math.min(1, Math.round(Number(body.max_long_days)))) : DEFAULT_MAX_LONG_VANS;
+    const targetJobs = Number.isFinite(Number(body?.min_jobs_target))
+      ? Math.max(1, Math.min(30, Math.round(Number(body.min_jobs_target)))) : DEFAULT_TARGET_JOBS;
+    const floorJobs = Number.isFinite(Number(body?.min_jobs_floor))
+      ? Math.max(1, Math.min(targetJobs, Math.round(Number(body.min_jobs_floor)))) : Math.min(DEFAULT_FLOOR_JOBS, targetJobs);
+    const minMargin = Number.isFinite(Number(body?.min_route_margin))
+      ? Math.max(0, Number(body.min_route_margin)) : 0;
 
     const today = todayLondon();
     const selectedDates: string[] = [...new Set<string>(
@@ -312,7 +309,7 @@ serve(async (req) => {
 
     const [spacesRes, settingsRes, areasRes, vehiclesRes, unavailRes] = await Promise.all([
       admin.from('bike_type_spaces').select('bike_type,spaces'),
-      admin.from('workshop_settings').select('van_spaces_capacity,working_days,redate_mode').eq('id', 1).maybeSingle(),
+      admin.from('workshop_settings').select('van_spaces_capacity,working_days').eq('id', 1).maybeSingle(),
       admin.rpc('difficult_areas_geojson'),
       admin.from('vehicles').select('id,registration,make,bike_spaces,status'),
       admin.from('van_unavailability').select('van_id,unavailable_on').in('unavailable_on', selectedDates),
@@ -325,8 +322,6 @@ serve(async (req) => {
     const workingDays: string[] = Array.isArray((settingsRes.data as any)?.working_days)
       ? (settingsRes.data as any).working_days : ['sun', 'mon', 'tue', 'wed', 'thu'];
 
-    // Each difficult area keeps its own identity, so a long day covers ONE of
-    // them: no van is asked to do Cornwall and Carlisle on the same run.
     const difficultAreas: { name: string; rings: Ring[] }[] = [];
     for (const area of (areasRes.data as any[]) || []) {
       const coords = area?.geojson?.coordinates;
@@ -350,7 +345,8 @@ serve(async (req) => {
       }));
     if (allVans.length === 0) return json({ error: 'No vans available for planning' }, 400);
 
-    const blocked = new Set(((unavailRes.data as any[]) || []).map((r) => `${r.van_id}:${dateKey(r.unavailable_on) ?? r.unavailable_on}`));
+    const blocked = new Set(((unavailRes.data as any[]) || [])
+      .map((r) => `${r.van_id}:${dateKey(r.unavailable_on) ?? r.unavailable_on}`));
 
     const vansForDate: Record<string, typeof allVans> = {};
     for (const date of selectedDates) {
@@ -369,30 +365,38 @@ serve(async (req) => {
       .not('status', 'in', '(cancelled,delivered)');
     if (ordersErr) throw ordersErr;
 
-    const businessIds = [...new Set(((orderRows as any[]) || []).map((o) => o.user_id).filter(Boolean))];
+    const userIds = [...new Set(((orderRows as any[]) || []).map((o) => o.user_id).filter(Boolean))];
     const hoursByUser: Record<string, any> = {};
-    if (businessIds.length > 0) {
+    const rateByUser: Record<string, number | null> = {};
+    if (userIds.length > 0) {
       const { data: profileRows } = await admin
-        .from('profiles').select('id,is_business,opening_hours').in('id', businessIds);
+        .from('profiles').select('id,is_business,opening_hours,special_rate_price').in('id', userIds);
       for (const p of (profileRows as any[]) || []) {
         if (p.is_business && p.opening_hours) hoursByUser[p.id] = p.opening_hours;
+        rateByUser[p.id] = Number(p.special_rate_price) > 0 ? Number(p.special_rate_price) : null;
       }
     }
 
     const { data: lockedRows } = await admin
       .from('route_plan_stops')
-      .select('order_id,leg_type,route_plan_routes!inner(day_status,selected)')
+      .select('order_id,leg_type,route_plan_routes!inner(day_status,route_date)')
       .in('route_plan_routes.day_status', ['locked', 'confirmed']);
     const locked = new Set(((lockedRows as any[]) || []).map((r) => `${r.order_id}:${r.leg_type}`));
+    // A bike collected on a locked day is in the depot from the next day onwards.
+    const lockedCollectionDate: Record<string, string> = {};
+    for (const r of ((lockedRows as any[]) || [])) {
+      if (r.leg_type !== 'collection') continue;
+      const d = dateKey(r.route_plan_routes?.route_date);
+      if (d) lockedCollectionDate[r.order_id] = d;
+    }
 
     const { data: availRows } = await admin
       .from('order_leg_availability')
-      .select('order_id,leg_type,availability_status,priority_boost,redate_requested_at');
+      .select('order_id,leg_type,availability_status');
     const availState: Record<string, any> = {};
     for (const r of (availRows as any[]) || []) availState[`${r.order_id}:${r.leg_type}`] = r;
 
-    const selectedSet = new Set(selectedDates);
-    const lastSelectedDate = selectedDates[selectedDates.length - 1] ?? '';
+    const lastSelectedDate = selectedDates[selectedDates.length - 1];
     const isWorkingDate = (d: string) => workingDays.includes(shortWeekday(d));
 
     const legs: Leg[] = [];
@@ -401,11 +405,12 @@ serve(async (req) => {
     let nextJobId = 1;
 
     for (const order of ((orderRows as any[]) || [])) {
-      if (order.ni_direction) continue; // NI / ferry work stays manual
+      if (order.ni_direction) continue;                  // NI / ferry work stays manual
       const status = String(order.status || '');
       if (status === 'cancelled' || status === 'on_hold' || status === 'pending_approval') continue;
 
       const spaces = orderSpaces(order, spaceMap);
+      const value = legValue(order, rateByUser[order.user_id] ?? null);
       const inspectionStatus = (order.bicycle_inspections as any[] | null)?.[0]?.status ?? null;
       const inspectionDone = inspectionStatus === 'inspected' || inspectionStatus === 'repaired';
       const label = `${order.tracking_number || order.id.slice(0, 8)}`;
@@ -416,72 +421,48 @@ serve(async (req) => {
 
       const pickupDates = clean(order.pickup_date);
       const deliveryDates = clean(order.delivery_date);
-
       const collectedDate = order.order_collected ? dateKey(order.scheduled_pickup_date) : null;
       const bookedCollection = !order.order_collected && order.scheduled_pickup_date
-        ? dateKey(order.scheduled_pickup_date) : null;
-
-      // Age counts for a little, capped, so long-waiting work isn't forgotten.
-      const createdAt = dateKey(order.created_at);
-      const ageBoost = createdAt ? Math.min(5, Math.floor(daysSince(createdAt) / 7)) : 0;
-
-      // Priority decides only WHICH jobs are dropped when there isn't room.
-      // Scarcity of dates and how soon the LAST date falls, never the first —
-      // a job available every day for a month is not urgent.
-      const buildPriority = (available: string[], guaranteed: string | null, boost: number) => {
-        if (guaranteed) return 100;
-        const future = available.filter((d) => d >= today);
-        const R = Math.max(1, future.length);
-        const dLast = future.length ? Math.max(1, daysUntil(future[future.length - 1])) : 1;
-        return Math.max(1, Math.min(99, Math.round(60 / R + 40 / dLast) + boost));
-      };
+        ? dateKey(order.scheduled_pickup_date)
+        : (!order.order_collected ? lockedCollectionDate[order.id] ?? null : null);
 
       const considerLeg = (
         legType: 'collection' | 'delivery',
         dates: string[],
         lat: number, lon: number,
         guaranteed: string | null,
-        extra: { needsUnlock: boolean; eligible: boolean },
+        eligible: boolean,
       ) => {
         const key = `${order.id}:${legType}`;
-        if (locked.has(key) || !extra.eligible) return;
+        if (locked.has(key) || !eligible) return;
         const state = availState[key];
-        const status = state?.availability_status ?? 'active';
-        const boost = Math.min(20, Number(state?.priority_boost) || 0);
+        const legStatus = state?.availability_status ?? 'active';
         const future = dates.filter((d) => d >= today);
         const expired = dates.length > 0 && future.length === 0;
-        const lastDate = future.length ? future[future.length - 1] : null;
-        const expiringInPlan = !!(lastDate && lastDate <= lastSelectedDate);
+        const lapsed = (expired || dates.length === 0 || legStatus !== 'active') && dates.length > 0;
 
-        const lapsed = (expired || dates.length === 0 || status !== 'active') && dates.length > 0;
-        if (expired || dates.length === 0 || status !== 'active') {
+        if (expired || dates.length === 0 || legStatus !== 'active') {
           const neverDated = dates.length === 0;
           const guaranteedMissed = !!(guaranteed && guaranteed < today);
-          const dateState: 'never_provided' | 'expired' | 'guaranteed_missed' =
-            guaranteedMissed ? 'guaranteed_missed' : neverDated ? 'never_provided' : 'expired';
           const inDepot = legType === 'delivery' && !!order.order_collected;
-          const severity = guaranteedMissed ? 1 : inDepot ? 2 : 3;
           const legWord = legType === 'delivery' ? 'delivery' : 'collection';
           needsNewDates.push({
-            order_id: order.id,
-            label,
-            leg_type: legType,
-            severity,
-            date_state: dateState,
+            order_id: order.id, label, leg_type: legType,
+            severity: guaranteedMissed ? 1 : inDepot ? 2 : 3,
+            date_state: guaranteedMissed ? 'guaranteed_missed' : neverDated ? 'never_provided' : 'expired',
             reason: guaranteedMissed ? 'Guaranteed date missed'
-              : neverDated
-                ? `${inDepot ? 'Bike in depot, no' : 'No'} ${legWord} dates given yet`
-              : status === 'awaiting_new_dates' ? 'Waiting on new dates from the customer'
+              : neverDated ? `${inDepot ? 'Bike in depot, no' : 'No'} ${legWord} dates given yet`
+              : legStatus === 'awaiting_new_dates' ? 'Waiting on new dates from the customer'
               : inDepot ? 'Bike in depot, delivery dates expired'
               : `${legWord === 'delivery' ? 'Delivery' : 'Collection'} dates expired`,
             days_in_depot: legType === 'delivery' && collectedDate ? daysSince(collectedDate) : null,
             last_date: dates.length ? dates[dates.length - 1] : null,
             guaranteed_date: guaranteed,
-            status: status === 'awaiting_new_dates' ? 'awaiting_new_dates' : 'expired',
+            status: legStatus === 'awaiting_new_dates' ? 'awaiting_new_dates' : 'expired',
             linked_leg_note: legType === 'collection' && deliveryDates.some((d) => d >= today)
               ? 'Delivery dates will likely lapse too — ask for both' : null,
           });
-          if (dates.length > 0 && expired && status === 'active') {
+          if (dates.length > 0 && expired && legStatus === 'active') {
             expiryUpserts.push({
               order_id: order.id, leg_type: legType,
               availability_status: 'expired', availability_expired_at: new Date().toISOString(),
@@ -490,31 +471,22 @@ serve(async (req) => {
           if (!includeExpired || dates.length === 0) return;
         }
 
-        const windowDates = lapsed ? selectedDates.slice() : future.filter((d) => selectedSet.has(d));
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
-        if (guaranteed) {
-          if (!selectedSet.has(guaranteed)) return;
-        } else if (windowDates.length === 0) return;
+        if (guaranteed && !selectedDates.includes(guaranteed)) return;
+        if (!lapsed && !guaranteed && !future.some((d) => selectedDates.includes(d))) return;
 
-        const areaIdx = difficultAreaIdx(lat, lon);
         legs.push({
-          key, jobId: nextJobId++, orderId: order.id, legType, lat, lon, spaces,
+          key, jobId: nextJobId++, orderId: order.id, legType, lat, lon, spaces, value,
           allDates: dates,
-          windowDates: guaranteed ? [guaranteed] : windowDates,
+          futureDates: guaranteed ? [guaranteed] : future,
           guaranteedDate: guaranteed,
-          priority: buildPriority(dates, guaranteed,
-            boost + (lapsed ? 10 : 0) + (expiringInPlan ? 10 : 0) + ageBoost),
           lapsed,
-          expiringInPlan: !lapsed && expiringInPlan,
-          lastDate: lapsed ? null : lastDate,
-          difficult: areaIdx !== null,
-          areaIdx,
-          sector: sectorOf(lat, lon),
+          lastDate: future.length ? future[future.length - 1] : null,
+          areaIdx: difficultAreaIdx(lat, lon),
           businessHours, label,
-          needsUnlock: extra.needsUnlock,
           needsInspection: !!order.needs_inspection && !inspectionDone,
-          collectedAt: collectedDate,
-          scheduledCollection: bookedCollection,
+          inDepot: legType === 'delivery' ? !!order.order_collected : false,
+          bookedCollection,
         });
       };
 
@@ -522,20 +494,16 @@ serve(async (req) => {
         'collection', pickupDates,
         Number(order.sender?.address?.lat), Number(order.sender?.address?.lon),
         null,
-        { needsUnlock: false, eligible: !order.order_collected && !order.scheduled_pickup_date },
+        !order.order_collected && !order.scheduled_pickup_date,
       );
 
       const guaranteed = order.guaranteed_delivery && order.guaranteed_delivery_date
         ? dateKey(order.guaranteed_delivery_date) : null;
-      const collectedBeforePlan = !!bookedCollection && bookedCollection < selectedDates[0];
       considerLeg(
         'delivery', deliveryDates,
         Number(order.receiver?.address?.lat), Number(order.receiver?.address?.lon),
         guaranteed,
-        {
-          needsUnlock: !order.order_collected && !collectedBeforePlan,
-          eligible: !order.order_delivered && !order.scheduled_delivery_date && !order.is_box_my_bike,
-        },
+        !order.order_delivered && !order.scheduled_delivery_date && !order.is_box_my_bike,
       );
     }
 
@@ -546,15 +514,19 @@ serve(async (req) => {
     const legsById: Record<number, Leg> = {};
     for (const leg of legs) legsById[leg.jobId] = leg;
 
-    /** A leg that must not be pushed out: guaranteed, or gone after this plan. */
-    const isUrgent = (leg: Leg) =>
-      !!leg.guaranteedDate || leg.lapsed || leg.expiringInPlan
-      || !leg.lastDate || leg.lastDate <= lastSelectedDate;
+    /** Only two levels exist: must-go today, or ordinary work. */
+    const mustGo = (leg: Leg, date: string) =>
+      leg.guaranteedDate === date
+      || leg.lastDate === date
+      || (leg.lapsed && includeExpired);
 
-    /* ---------------------------- solve helpers --------------------------- */
+    /** A job that must not be lost inside this plan at all. */
+    const urgentInPlan = (leg: Leg) =>
+      !!leg.guaranteedDate || (leg.lapsed && includeExpired)
+      || (!!leg.lastDate && leg.lastDate <= lastSelectedDate);
 
-    // Distance costing is the thing that stops routes sprawling, so it is never
-    // dropped silently: if Verso rejects it the run fails with a clear message.
+    /* ------------------------------ solving ------------------------------- */
+
     const postSolve = async (payload: any) => {
       const call = (bodyIn: any) => fetch(solveUrl, {
         method: 'POST',
@@ -564,14 +536,10 @@ serve(async (req) => {
       const started = Date.now();
       let resp = await call(payload);
       let detail = resp.ok ? '' : (await resp.text()).slice(0, 300);
-      // Older builds reject the exploration option key only — that is safe to drop.
-      if (resp.status === 400 && /option|x\b/i.test(detail) && !/per_km|cost/i.test(detail)) {
-        resp = await call({ ...payload, options: { g: true } });
-        detail = resp.ok ? '' : (await resp.text()).slice(0, 300);
-      }
       debug.solve_calls += 1;
       debug.solve_ms += Date.now() - started;
       if (!resp.ok) {
+        // Distance costing is what keeps routes tight: never dropped quietly.
         if (/per_km|per_distance|cost/i.test(detail)) {
           debug.distance_costing = false;
           debug.distance_costing_error = detail;
@@ -587,188 +555,9 @@ serve(async (req) => {
       return await resp.json();
     };
 
-    /* ------------------------- day fleets (geography) --------------------- */
-
-    interface Fleet {
-      vehicles: any[];
-      meta: Record<number, VanDay>;
-      /** Skill sets offered on each date, used to decide what can be sent. */
-      skillSets: Record<string, Set<number>[]>;
-      groupsByDate: Record<string, { sectors: string[]; van: string }[]>;
-      longByDate: Record<string, string[]>;
-    }
-
-    /** Vans offered on one date, shared out over the areas that hold real work. */
-    const buildFleet = (opts: {
-      pool: Leg[];
-      dates: string[];
-      skipVanDays?: Set<string>;   // "date:vanId"
-      withVirtual?: boolean;
-      /** Capacity/hours already used per "date:vanId" (grace pass top-ups). */
-      used?: Record<string, { spaces: number; hours: number }>;
-      dateOf?: (leg: Leg) => string[];
-    }): Fleet => {
-      const vehicles: any[] = [];
-      const meta: Record<number, VanDay> = {};
-      const skillSets: Record<string, Set<number>[]> = {};
-      const groupsByDate: Record<string, { sectors: string[]; van: string }[]> = {};
-      const longByDate: Record<string, string[]> = {};
-      const datesOf = opts.dateOf ?? ((leg: Leg) => leg.windowDates);
-
-      opts.dates.forEach((date, dayIdx) => {
-        const shiftOpen = londonEpoch(date, shiftStart);
-        const dayVans = (vansForDate[date] ?? []).filter((v) => !opts.skipVanDays?.has(`${date}:${v.id}`));
-        skillSets[date] = [];
-        groupsByDate[date] = [];
-        longByDate[date] = [];
-        if (dayVans.length === 0) return;
-
-        const dayLegs = opts.pool.filter((l) => datesOf(l).includes(date));
-
-        // Long days: ranked per difficult area, never all difficult work lumped
-        // together, because one van cannot cover Cornwall and Carlisle.
-        const areaStats: Record<number, { count: number; score: number; sectors: Set<number>; urgent: boolean }> = {};
-        for (const leg of dayLegs) {
-          if (leg.areaIdx === null) continue;
-          const s = (areaStats[leg.areaIdx] ??= { count: 0, score: 0, sectors: new Set(), urgent: false });
-          s.count += 1;
-          s.score += leg.priority;
-          if (leg.sector !== null) s.sectors.add(leg.sector);
-          if (isUrgent(leg)) s.urgent = true;
-        }
-        const longAreas = Object.entries(areaStats)
-          .map(([idx, s]) => ({ idx: Number(idx), ...s, rank: s.score + s.count * 10 }))
-          .filter((a) => a.count >= LONG_DAY_MIN_JOBS || a.urgent)
-          .sort((a, b) => b.rank - a.rank)
-          .slice(0, Math.min(maxLongDays, dayVans.length));
-
-        // Area groups: three neighbouring 22.5° areas, centred where the work is.
-        const counts: number[] = new Array(SECTOR_COUNT).fill(0);
-        for (const leg of dayLegs) if (leg.sector !== null && leg.areaIdx === null) counts[leg.sector] += 1;
-        const remainingVans = dayVans.length - longAreas.length;
-        const groups: number[][] = [];
-        const left = counts.slice();
-        while (groups.length < Math.max(0, remainingVans)) {
-          let best = -1;
-          let bestCount = 0;
-          for (let i = 0; i < SECTOR_COUNT; i++) {
-            const groupCount = neighbours(i).reduce((n, s) => n + left[s], 0);
-            if (groupCount > bestCount) { bestCount = groupCount; best = i; }
-          }
-          if (best < 0 || bestCount < minJobsFloor) break;
-          const sectors = neighbours(best);
-          for (const s of sectors) left[s] = 0;
-          groups.push(sectors);
-        }
-
-        let vanIdx = 0;
-        const push = (van: typeof dayVans[number], role: VanRole, sectors: number[], areaIdx: number | null) => {
-          const usedKey = `${date}:${van.id}`;
-          const usedUp = opts.used?.[usedKey];
-          const capUnits = Math.max(1, Math.round(van.capacity * 10)) - Math.round((usedUp?.spaces ?? 0) * 10);
-          const capHours = (role === 'long' ? EXPEDITION_CAP_H : PRIMARY_CAP_H) - (usedUp?.hours ?? 0);
-          if (capUnits <= 0 || capHours < 0.5) { vanIdx += 1; return; }
-          const id = dayIdx * 10000 + vanIdx * 100 + (role === 'long' ? 2 : 1);
-          const premium = role === 'long' ? EXPEDITION_PREMIUM : 1;
-          const skills = new Set<number>([CENTRAL_SKILL, ...sectors.map(sectorSkill)]);
-          if (areaIdx !== null) skills.add(difficultSkill(areaIdx));
-          vehicles.push({
-            id, profile: 'car',
-            start: [DEPOT.lon, DEPOT.lat], end: [DEPOT.lon, DEPOT.lat],
-            capacity: [capUnits],
-            time_window: [shiftOpen, shiftOpen + Math.round(capHours * HOURS)],
-            speed_factor: 0.95,
-            costs: {
-              fixed: Math.round(SHIFT_HOURS_CHARGED * DRIVER_PENCE_PER_HOUR * premium),
-              per_hour: Math.round(DRIVER_PENCE_PER_HOUR * premium),
-              per_km: PENCE_PER_KM,
-            },
-            skills: [...skills].sort((a, b) => a - b),
-          });
-          meta[id] = {
-            vehicleId: id, date, vanId: van.id, vanName: van.name, capacity: van.capacity,
-            expedition: role === 'long', virtual: false, role, sectors, areaIdx,
-          };
-          skillSets[date].push(skills);
-          if (role === 'long') longByDate[date].push(`${van.name} — ${difficultAreas[areaIdx ?? 0]?.name ?? 'difficult area'}`);
-          else if (role === 'group') groupsByDate[date].push({ sectors: sectors.map((s) => SECTOR_NAMES[s]), van: van.name });
-          vanIdx += 1;
-        };
-
-        for (const area of longAreas) {
-          const van = dayVans[vanIdx];
-          if (!van) break;
-          // A long day can fill up with ordinary work along its way out.
-          const sectors = [...new Set([...area.sectors].flatMap(neighbours))];
-          push(van, 'long', sectors, area.idx);
-        }
-        for (const sectors of groups) {
-          const van = dayVans[vanIdx];
-          if (!van) break;
-          push(van, 'group', sectors, null);
-        }
-        // Vans with no area group of their own can roam anywhere; the reduction
-        // loop takes them off the road if they end up thin.
-        while (vanIdx < dayVans.length) {
-          const van = dayVans[vanIdx];
-          push(van, 'roam', Array.from({ length: SECTOR_COUNT }, (_, i) => i), null);
-        }
-
-        if (opts.withVirtual) {
-          for (let i = 0; i < VIRTUAL_VANS_PER_DAY; i++) {
-            const id = dayIdx * 10000 + (90 + i) * 100 + 1;
-            const skills = new Set<number>([CENTRAL_SKILL, ...Array.from({ length: SECTOR_COUNT }, (_, s) => sectorSkill(s))]);
-            vehicles.push({
-              id, profile: 'car',
-              start: [DEPOT.lon, DEPOT.lat], end: [DEPOT.lon, DEPOT.lat],
-              capacity: [DEFAULT_CAPACITY * 10],
-              time_window: [shiftOpen, shiftOpen + PRIMARY_CAP_H * HOURS],
-              speed_factor: 0.95,
-              costs: { fixed: Math.round(SHIFT_HOURS_CHARGED * DRIVER_PENCE_PER_HOUR), per_hour: DRIVER_PENCE_PER_HOUR, per_km: PENCE_PER_KM },
-              skills: [...skills].sort((a, b) => a - b),
-            });
-            meta[id] = {
-              vehicleId: id, date, vanId: `virtual-${i}`, vanName: `Extra van ${i + 1}`, capacity: DEFAULT_CAPACITY,
-              expedition: false, virtual: true, role: 'roam', sectors: [], areaIdx: null,
-            };
-            skillSets[date].push(skills);
-          }
-        }
-      });
-
-      // Urgent work is never stranded because its area was quiet: widen the last
-      // real van of that day so guaranteed and expiring jobs can still be taken.
-      for (const date of opts.dates) {
-        const dayVehicles = vehicles.filter((v) => meta[v.id]?.date === date && !meta[v.id]?.virtual);
-        const target = dayVehicles[dayVehicles.length - 1];
-        if (!target) continue;
-        const widen = new Set<number>(target.skills as number[]);
-        const sets = skillSets[date] ?? [];
-        for (const leg of opts.pool) {
-          if (!datesOf(leg).includes(date) || !isUrgent(leg)) continue;
-          const need = legSkills(leg);
-          if (sets.some((s) => need.every((k) => s.has(k)))) continue;
-          for (const k of need) widen.add(k);
-        }
-        target.skills = [...widen].sort((a, b) => a - b);
-        const slot = sets[dayVehicles.length - 1];
-        if (slot) for (const k of widen) slot.add(k);
-      }
-
-      return { vehicles, meta, skillSets, groupsByDate, longByDate };
-    };
-
-    /** Skills a stop needs: its 22.5° area, and its difficult area when relevant. */
-    function legSkills(leg: Leg): number[] {
-      const out: number[] = [leg.sector === null ? CENTRAL_SKILL : sectorSkill(leg.sector)];
-      if (leg.areaIdx !== null) out.push(difficultSkill(leg.areaIdx));
-      return out;
-    }
-
-    /** A leg's window on one date: 13h normally, 15h in a difficult area. */
-    const windowFor = (leg: Leg, date: string): [number, number] | null => {
+    /** A leg's single window on one day: whole shift, or the business's hours. */
+    const windowFor = (leg: Leg, date: string, capH: number): [number, number] | null => {
       const shiftOpen = londonEpoch(date, shiftStart);
-      const capH = leg.difficult ? EXPEDITION_CAP_H : PRIMARY_CAP_H;
       let window: [number, number] = [shiftOpen, shiftOpen + capH * HOURS];
       const day = leg.businessHours?.[weekdayKey(date)];
       if (day && day.open === false) return null;
@@ -782,538 +571,306 @@ serve(async (req) => {
       return window;
     };
 
-    const buildJob = (leg: Leg, dates: string[]) => {
-      const windows = dates
-        .map((d) => windowFor(leg, d))
-        .filter((w): w is [number, number] => !!w)
-        .sort((a, b) => a[0] - b[0]);
-      if (windows.length === 0) return null;
+    const buildJob = (leg: Leg, date: string, longAreaIdx: number | null) => {
+      const capH = leg.areaIdx !== null && leg.areaIdx === longAreaIdx ? LONG_CAP_H : NORMAL_CAP_H;
+      const window = windowFor(leg, date, capH);
+      if (!window) return null;
       const load = [Math.max(1, Math.round(leg.spaces * 10))];
       return {
         id: leg.jobId,
         location: [leg.lon, leg.lat],
         service: SERVICE_S,
-        priority: leg.priority,
-        time_windows: windows,
+        priority: mustGo(leg, date) ? 100 : 0,
+        time_windows: [window],
         ...(leg.legType === 'delivery' ? { delivery: load } : { pickup: load }),
-        skills: legSkills(leg),
+        ...(leg.areaIdx !== null && leg.areaIdx === longAreaIdx ? { skills: [DIFFICULT_SKILL] } : {}),
       };
     };
 
-    const dateOfEpoch = (epoch: number): string =>
-      new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date(epoch * 1000));
+    const buildVehicle = (
+      van: { id: string; name: string; capacity: number },
+      date: string, idx: number,
+      kind: { long: boolean; spare?: boolean; areaName?: string | null },
+    ) => {
+      const shiftOpen = londonEpoch(date, shiftStart);
+      const capH = kind.long ? LONG_CAP_H : NORMAL_CAP_H;
+      const id = selectedDates.indexOf(date) * 1000 + idx + 1;
+      const vehicle: any = {
+        id, profile: 'car',
+        start: [DEPOT.lon, DEPOT.lat], end: [DEPOT.lon, DEPOT.lat],
+        capacity: [Math.max(1, Math.round(van.capacity * 10))],
+        time_window: [shiftOpen, shiftOpen + capH * HOURS],
+        speed_factor: 0.95,
+        costs: { per_hour: DRIVER_PENCE_PER_HOUR, per_km: PENCE_PER_KM },
+      };
+      if (kind.long) vehicle.skills = [DIFFICULT_SKILL];
+      const meta: VanDay = {
+        vehicleId: id, date, vanId: van.id, vanName: van.name, capacity: van.capacity,
+        long: kind.long, spare: !!kind.spare, areaName: kind.areaName ?? null,
+      };
+      return { vehicle, meta };
+    };
 
-    interface Placed { leg: Leg; date: string; vehicleId: number; arrival: number }
-
-    const readSolution = (solution: any, meta: Record<number, VanDay>) => {
-      const routes = Array.isArray(solution?.routes) ? solution.routes : [];
-      const placed: Placed[] = [];
-      const routeInfo: { meta: VanDay; route: any; stops: Placed[] }[] = [];
-      for (const route of routes) {
+    const readSolution = (solution: any, meta: Record<number, VanDay>): SolvedRoute[] => {
+      const out: SolvedRoute[] = [];
+      for (const route of (Array.isArray(solution?.routes) ? solution.routes : [])) {
         const m = meta[Number(route.vehicle)];
         if (!m) continue;
-        const steps = Array.isArray(route.steps) ? route.steps : [];
-        const stops: Placed[] = [];
-        for (const s of steps) {
-          if (s.type !== 'job' && s.type !== 'pickup' && s.type !== 'delivery') continue;
-          const leg = legsById[Number(s.type === 'job' ? s.job : s.id)];
+        const stops: Stop[] = [];
+        for (const s of (Array.isArray(route.steps) ? route.steps : [])) {
+          if (s.type !== 'job') continue;
+          const leg = legsById[Number(s.job)];
           if (!leg) continue;
-          const entry = { leg, date: m.date, vehicleId: m.vehicleId, arrival: Number(s.arrival) || londonEpoch(m.date, shiftStart) };
-          stops.push(entry);
-          placed.push(entry);
+          stops.push({ leg, arrival: Number(s.arrival) || londonEpoch(m.date, shiftStart) });
         }
-        if (stops.length > 0) routeInfo.push({ meta: m, route, stops });
-      }
-      return { placed, routeInfo };
-    };
-
-    /* ---------------- same-day collect-then-deliver pairs ------------------ */
-
-    // A linked pair forces ONE van to do both ends, so it is only ever used when
-    // the two ends are genuinely close together.
-    const sameDayPairs: { c: Leg; d: Leg; dates: string[] }[] = (() => {
-      const byOrder: Record<string, { c?: Leg; d?: Leg }> = {};
-      for (const leg of legs) {
-        const slot = (byOrder[leg.orderId] ??= {});
-        if (leg.legType === 'collection') slot.c = leg; else slot.d = leg;
-      }
-      const out: { c: Leg; d: Leg; dates: string[] }[] = [];
-      for (const { c, d } of Object.values(byOrder)) {
-        if (!c || !d) continue;
-        if (!d.needsUnlock || d.needsInspection || d.guaranteedDate) continue;
-        const apart = milesBetween(c.lat, c.lon, d.lat, d.lon);
-        if (apart > pairMaxMiles) continue;
-        const shared = c.windowDates.filter((x) => d.windowDates.includes(x));
-        if (shared.length > 0) out.push({ c, d, dates: shared });
+        if (stops.length > 0) out.push({ meta: m, route, stops });
       }
       return out;
-    })();
-    debug.pairs_considered = sameDayPairs.length;
-    const pairByOrder: Record<string, { c: Leg; d: Leg; dates: string[] }> = {};
-    for (const p of sameDayPairs) pairByOrder[p.c.orderId] = p;
+    };
 
-    const buildShipment = (pair: { c: Leg; d: Leg; dates: string[] }, dates: string[]) => {
-      const usable = pair.dates.filter((d) => dates.includes(d));
-      const step = (leg: Leg) => {
-        const windows = usable
-          .map((d) => windowFor(leg, d))
-          .filter((w): w is [number, number] => !!w)
-          .sort((a, b) => a[0] - b[0]);
-        if (windows.length === 0) return null;
-        return { id: leg.jobId, location: [leg.lon, leg.lat], service: SERVICE_S, time_windows: windows };
-      };
-      const pickup = step(pair.c);
-      const delivery = step(pair.d);
-      if (!pickup || !delivery) return null;
-      // A pair is never sent unrestricted: it carries both ends' area skills.
-      const skills = [...new Set([...legSkills(pair.c), ...legSkills(pair.d)])].sort((a, b) => a - b);
+    const routeDuration = (route: any) =>
+      (Number(route.duration) || 0) + (Number(route.service) || 0) + (Number(route.waiting_time) || 0);
+
+    const routeMiles = (route: any) => Math.round(((Number(route.distance) || 0) / 1609.344) * 10) / 10;
+
+    const money = (r: SolvedRoute) => {
+      const revenue = r.stops.reduce((n, s) => n + s.leg.value, 0);
+      const miles = routeMiles(r.route);
+      const hours = routeDuration(r.route) / 3600;
+      const cost = hours * DRIVER_RATE + miles * COST_PER_MILE;
       return {
-        amount: [Math.max(1, Math.round(pair.c.spaces * 10))],
-        priority: Math.max(pair.c.priority, pair.d.priority),
-        skills,
-        pickup, delivery,
+        revenue: Math.round(revenue * 100) / 100,
+        cost: Math.round(cost * 100) / 100,
+        margin: Math.round((revenue - cost) * 100) / 100,
       };
     };
 
-    /* ------------------------------ solving ------------------------------- */
-
-    const readyLegs = legs.filter((l) => l.legType === 'collection' || (!l.needsUnlock && !l.needsInspection));
-    if (readyLegs.length === 0) {
-      return json({
-        plan_id: null, days: selectedDates.map((date) => ({
-          date, vans_needed: 0, vans_available: (vansForDate[date] ?? []).length, van_names: [],
-          variants: [{ variant: 'primary', routes: [], tradeoff_note: null }],
-          infeasible_guaranteed: [], is_provisional: false, shortfall: null, spare_vans: (vansForDate[date] ?? []).length,
-        })),
-        at_risk: [], needs_new_dates: needsNewDates.sort((a, b) => a.severity - b.severity),
-        vans: allVans, weekly: null, debug, skipped,
-      });
-    }
-
-    // Dates a leg may not use any more (spread trimming pulls it off one day).
-    const excluded: Record<string, Set<string>> = {};
-    const datesFor = (leg: Leg, dates: string[], pinnedDate?: string) => {
-      const base = pinnedDate ? [pinnedDate] : leg.windowDates.filter((d) => dates.includes(d));
-      const off = excluded[leg.key];
-      return off ? base.filter((d) => !off.has(d)) : base;
-    };
-
-    const runSolve = async (
+    /** One solve for one day with a given set of vans. */
+    const solveDay = async (
+      date: string,
       pool: Leg[],
-      pinned: Record<string, string>,
-      opts?: { withVirtual?: boolean; dates?: string[]; skip?: Set<string>; pairs?: boolean; used?: Record<string, { spaces: number; hours: number }>; dateOf?: (leg: Leg) => string[] },
-    ) => {
-      const dates = opts?.dates ?? selectedDates;
-      const fleet = buildFleet({ pool, dates, skipVanDays: opts?.skip, withVirtual: opts?.withVirtual, used: opts?.used, dateOf: opts?.dateOf });
-      if (fleet.vehicles.length === 0) return null;
-
-      /** Can a stop be worked on this date by any van offered? */
-      const feasible = (leg: Leg, date: string) => {
-        const need = legSkills(leg);
-        return (fleet.skillSets[date] ?? []).some((s) => need.every((k) => s.has(k)));
-      };
-
-      const poolKeys = new Set(pool.map((l) => l.key));
-      const usablePairs = opts?.pairs
-        ? sameDayPairs.filter((p) => poolKeys.has(p.c.key) && poolKeys.has(p.d.key) && !pinned[p.c.key] && !pinned[p.d.key])
-        : [];
-      const pairedKeys = new Set<string>();
-      const shipments: any[] = [];
-      for (const p of usablePairs) {
-        const usable = p.dates.filter((d) => dates.includes(d) && feasible(p.c, d) && feasible(p.d, d));
-        if (usable.length === 0) continue;
-        const shipment = buildShipment({ ...p, dates: usable }, dates);
-        if (!shipment) continue;
-        shipments.push(shipment);
-        pairedKeys.add(p.c.key);
-        pairedKeys.add(p.d.key);
+      vanList: { id: string; name: string; capacity: number }[],
+      longAreaIdx: number | null,
+      longVanId: string | null,
+      spare?: { id: string; name: string; capacity: number },
+    ): Promise<SolvedRoute[] | null> => {
+      const vehicles: any[] = [];
+      const meta: Record<number, VanDay> = {};
+      vanList.forEach((van, idx) => {
+        const isLong = longVanId === van.id;
+        const built = buildVehicle(van, date, idx, {
+          long: isLong,
+          areaName: isLong && longAreaIdx !== null ? difficultAreas[longAreaIdx]?.name ?? null : null,
+        });
+        vehicles.push(built.vehicle);
+        meta[built.meta.vehicleId] = built.meta;
+      });
+      if (spare) {
+        const built = buildVehicle(spare, date, 900, { long: false, spare: true });
+        vehicles.push(built.vehicle);
+        meta[built.meta.vehicleId] = built.meta;
       }
-      const quiet: string[] = [];
-      const jobs = pool
-        .filter((leg) => !pairedKeys.has(leg.key))
-        .map((leg) => {
-          const allowed = datesFor(leg, dates, pinned[leg.key]).filter((d) => feasible(leg, d));
-          if (allowed.length === 0) quiet.push(leg.key);
-          return buildJob(leg, allowed);
-        })
-        .filter((j): j is any => !!j);
-      if (jobs.length === 0 && shipments.length === 0) return null;
+      if (vehicles.length === 0) return null;
 
-      const payload: any = { vehicles: fleet.vehicles, jobs, options: { g: true, x: 5 } };
-      if (shipments.length > 0) payload.shipments = shipments;
-      const solution = await postSolve(payload);
+      const jobs = pool.map((leg) => buildJob(leg, date, longAreaIdx)).filter((j): j is any => !!j);
+      if (jobs.length === 0) return null;
+
+      const solution = await postSolve({ vehicles, jobs, options: { g: true } });
       console.log('verso solve', {
-        days: dates.length, jobs: jobs.length, shipments: shipments.length, vehicles: fleet.vehicles.length,
+        date, jobs: jobs.length, vehicles: vehicles.length,
         routes: (solution?.routes || []).length, unassigned: (solution?.unassigned || []).length,
         cost: Number(solution?.summary?.cost) || null,
       });
-      return { solution, meta: fleet.meta, fleet, jobCount: jobs.length, quiet, summary: solution?.summary ?? null };
+      return readSolution(solution, meta);
     };
 
-    let current: { placed: Placed[]; routeInfo: { meta: VanDay; route: any; stops: Placed[] }[] } = { placed: [], routeInfo: [] };
-    let pool = readyLegs;
-    let pinned: Record<string, string> = {};
-    let displaced: Leg[] = [];
-    let unlockable: Leg[] = [];
-    let lastFleet: Fleet | null = null;
-    let quietKeys: string[] = [];
-    const protectedVanDays = new Set<string>();   // "date:vanId" — kept for urgent work
-    const removedVanDays = new Set<string>();     // "date:vanId" — taken off the road
+    /* ---------------------------- the daily loop -------------------------- */
 
-    /** Every route in the current answer, smallest first. */
-    const routesBySize = () => [...current.routeInfo].sort((a, b) => a.stops.length - b.stops.length);
+    const placedKeys = new Set<string>();
+    const collectedInRun: Record<string, string> = {};   // orderId -> date planned
+    const allRoutes: SolvedRoute[] = [];
+    const spareHint: Record<string, { jobs: number; revenue: number; margin: number; must_go: number } | null> = {};
+    const excludedLongArea: Record<string, Leg[]> = {};
 
-    /** Take thin van-days off the road until every route is a proper day's work. */
-    const reduceFleet = async (opts: { dates?: string[]; pairs?: boolean; virtualOnly?: boolean }) => {
-      const steps: any[] = [];
-      for (let i = 0; i < MAX_REDUCTION_STEPS; i++) {
-        if (budgetLeft() < 20_000) { skipped.push('van-reduction loop (ran out of time)'); break; }
-        const candidates = routesBySize().filter((r) =>
-          (opts.virtualOnly ? r.meta.virtual : !r.meta.virtual)
-          && !protectedVanDays.has(`${r.meta.date}:${r.meta.vanId}`));
-        const thinnest = candidates[0];
-        if (!thinnest || thinnest.stops.length >= minJobsTarget) break;
-        const key = `${thinnest.meta.date}:${thinnest.meta.vanId}`;
-        const before = new Set(current.placed.map((p) => p.leg.key));
-        const skip = new Set([...removedVanDays, key]);
-        let retry;
-        try {
-          retry = await runSolve(pool, pinned, { dates: opts.dates, skip, pairs: opts.pairs, withVirtual: opts.virtualOnly });
-        } catch (e) {
-          steps.push({ van_day: key, outcome: 'solve failed', error: (e as Error).message });
-          protectedVanDays.add(key);
-          continue;
-        }
-        if (!retry) { protectedVanDays.add(key); continue; }
-        const after = readSolution(retry.solution, retry.meta);
-        const placedKeys = new Set(after.placed.map((p) => p.leg.key));
-        const lostUrgent = [...before].filter((k) => !placedKeys.has(k))
-          .map((k) => legs.find((l) => l.key === k))
-          .filter((l): l is Leg => !!l && isUrgent(l));
-        if (lostUrgent.length > 0) {
-          protectedVanDays.add(key);
-          steps.push({ van_day: key, stops: thinnest.stops.length, outcome: 'kept — urgent work would be lost', urgent: lostUrgent.map((l) => l.label).slice(0, 8) });
-          continue;
-        }
-        removedVanDays.add(key);
-        current = after;
-        lastFleet = retry.fleet;
-        quietKeys = retry.quiet;
-        steps.push({ van_day: key, stops: thinnest.stops.length, outcome: 'van taken off the road' });
-      }
-      return steps;
+    /** Is this delivery's bike in the depot in time for `date`? */
+    const deliveryReady = (leg: Leg, date: string): boolean => {
+      const lead = leg.needsInspection
+        ? (inspectionLeadDays === null ? null : Math.max(1, inspectionLeadDays))
+        : 1;
+      if (lead === null) return false;                    // inspection must be marked done first
+      let collected: string | null = null;
+      if (leg.inDepot) return true;
+      if (leg.bookedCollection) collected = leg.bookedCollection;
+      const inRun = collectedInRun[leg.orderId];
+      if (inRun && (!collected || inRun < collected)) collected = inRun;
+      if (!collected) return false;
+      const gap = (Date.parse(`${date}T12:00:00Z`) - Date.parse(`${collected}T12:00:00Z`)) / 86_400_000;
+      return gap >= lead;
     };
 
-    /** Pull the most outlying stop off a sprawling route, then solve again. */
-    const trimSpread = async (opts: { dates?: string[]; pairs?: boolean }) => {
-      const steps: any[] = [];
-      for (let i = 0; i < MAX_TRIM_STEPS; i++) {
-        if (budgetLeft() < 20_000) { skipped.push('spread trimming (ran out of time)'); break; }
-        const bad = current.routeInfo
-          .map((r) => ({ r, limit: r.meta.expedition ? MAX_SPREAD_LONG_MI : MAX_SPREAD_MI, spread: spreadMiles(r.stops.map((s) => s.leg)) }))
-          .filter((x) => x.spread > x.limit)
-          .sort((a, b) => b.spread - a.spread)[0];
-        if (!bad) break;
-        const stops = bad.r.stops;
-        const cLat = stops.reduce((n, s) => n + s.leg.lat, 0) / stops.length;
-        const cLon = stops.reduce((n, s) => n + s.leg.lon, 0) / stops.length;
-        const worst = stops.reduce((acc, s) => {
-          const d = milesBetween(cLat, cLon, s.leg.lat, s.leg.lon);
-          return d > acc.d ? { d, s } : acc;
-        }, { d: -1, s: stops[0] }).s;
-        (excluded[worst.leg.key] ??= new Set()).add(bad.r.meta.date);
-        steps.push({ route_van: bad.r.meta.vanName, date: bad.r.meta.date, spread_mi: bad.spread, removed: worst.leg.label });
-        try {
-          const retry = await runSolve(pool, pinned, { dates: opts.dates, pairs: opts.pairs, skip: removedVanDays });
-          if (!retry) break;
-          current = readSolution(retry.solution, retry.meta);
-          lastFleet = retry.fleet;
-          quietKeys = retry.quiet;
-        } catch { break; }
-      }
-      return steps;
-    };
+    for (const date of selectedDates) {
+      const dayVans = vansForDate[date] ?? [];
+      const dayDebug: Record<string, any> = { vans_offered: dayVans.length, removals: [] };
+      debug.days[date] = dayDebug;
+      spareHint[date] = null;
+      if (dayVans.length === 0) continue;
 
-    if (mode === 'greedy') {
-      /* --------------------- day-by-day (greedy) planning ------------------- */
-      const placedKeys = new Set<string>();
-      const collectedOn: Record<string, string> = {};
-      for (let dayIdx = 0; dayIdx < selectedDates.length; dayIdx++) {
-        const date = selectedDates[dayIdx];
-        const candidates = legs.filter((leg) => {
-          if (placedKeys.has(leg.key) || !leg.windowDates.includes(date)) return false;
-          if (leg.legType === 'collection') return true;
-          if (!leg.needsUnlock && !leg.needsInspection) return true;
-          const collected = collectedOn[leg.orderId];
-          if (!collected) {
-            const pair = pairByOrder[leg.orderId];
-            return !!pair && pair.dates.includes(date) && !placedKeys.has(pair.c.key);
-          }
-          if (leg.needsInspection && inspectionLeadDays === null) return false;
-          const lead = leg.needsInspection ? Math.max(1, inspectionLeadDays ?? 1) : 1;
-          return dayIdx - selectedDates.indexOf(collected) >= lead;
-        });
-        if (candidates.length === 0) continue;
-        try {
-          const day = await runSolve(candidates, {}, { dates: [date], pairs: true });
-          if (!day) continue;
-          const read = readSolution(day.solution, day.meta);
-          // Same fleet discipline day by day: no 6-stop routes just because a
-          // van was free.
-          const before = current;
-          current = read;
-          pool = candidates;
-          const steps = await reduceFleet({ dates: [date], pairs: true });
-          (debug.reduction ??= []).push({ date, steps });
-          const dayResult = current;
-          current = {
-            placed: [...before.placed, ...dayResult.placed],
-            routeInfo: [...before.routeInfo, ...dayResult.routeInfo],
-          };
-          for (const p of dayResult.placed) {
-            placedKeys.add(p.leg.key);
-            if (p.leg.legType === 'collection') collectedOn[p.leg.orderId] = p.date;
-          }
-        } catch (e) {
-          console.error('greedy day failed', date, (e as Error).message);
-          skipped.push(`day-by-day plan for ${date} (${(e as Error).message})`);
-        }
+      const provisional = selectedDates.indexOf(date) >= firmDays;
+      const quickOnly = provisional && budgetLeft() < 30_000;
+      if (provisional && budgetLeft() < 12_000) {
+        skipped.push(`plan for ${date} (ran out of time)`);
+        continue;
       }
-      pool = legs;
-      if (current.routeInfo.length === 0) {
-        return json({ error: 'Nothing could be planned day by day for those days' }, 400);
-      }
-    } else {
-      /* ---------------------------- main solve ---------------------------- */
-      let passA;
-      try {
-        pool = [...readyLegs, ...sameDayPairs.map((p) => p.d).filter((d) => !readyLegs.includes(d))];
-        passA = await runSolve(pool, {}, { pairs: true });
-      } catch (e) {
-        console.error('main solve failed', (e as Error).message);
-        return json({ error: (e as Error).message, debug, skipped }, 502);
-      }
-      if (!passA) return json({ error: 'Nothing could be sent to the optimiser for those days' }, 400);
 
-      current = readSolution(passA.solution, passA.meta);
-      lastFleet = passA.fleet;
-      quietKeys = passA.quiet;
-      debug.main_summary = passA.summary;
-      debug.main_jobs_sent = passA.jobCount;
-
-      /* --------------------------- deliveries pass ------------------------ */
-
-      const collectionDay: Record<string, string> = {};
-      for (const p of current.placed) {
-        if (p.leg.legType === 'collection') collectionDay[p.leg.orderId] = p.date;
-      }
-      const placedAlready = new Set(current.placed.map((p) => p.leg.key));
-
-      unlockable = legs.filter((leg) => {
-        if (leg.legType !== 'delivery' || !leg.needsUnlock) return false;
-        if (placedAlready.has(leg.key)) return false;
-        const collectedOn = collectionDay[leg.orderId] ?? leg.scheduledCollection;
-        if (!collectedOn) return false;
-        if (leg.needsInspection && inspectionLeadDays === null) return false;
-        const lead = leg.needsInspection ? Math.max(1, inspectionLeadDays ?? 1) : 1;
-        const earliest = selectedDates.filter((d) => d > collectedOn);
-        const allowed = earliest.slice(Math.max(0, lead - 1));
-        const dates = leg.windowDates.filter((d) => allowed.includes(d));
-        if (dates.length === 0) return false;
-        leg.windowDates = dates;
+      // 3.1 the day's pool
+      let pool = legs.filter((leg) => {
+        if (placedKeys.has(leg.key)) return false;
+        const usable = leg.lapsed && includeExpired
+          ? true
+          : (leg.guaranteedDate ? leg.guaranteedDate === date : leg.futureDates.includes(date));
+        if (!usable) return false;
+        if (leg.legType === 'delivery' && !deliveryReady(leg, date)) return false;
         return true;
       });
+      dayDebug.pool = pool.length;
 
-      if (unlockable.length > 0) {
-        if (budgetLeft() < 25_000) {
-          skipped.push('deliveries pass');
-        } else {
-          pinned = {};
-          for (const p of current.placed) {
-            if (p.leg.legType !== 'collection') continue;
-            if (pairByOrder[p.leg.orderId]) continue;
-            pinned[p.leg.key] = p.date;
-          }
-          pool = [...pool, ...unlockable.filter((l) => !pool.includes(l))];
+      // 3.2 one long-day van, for one difficult area
+      const areaStats: Record<number, { jobs: number; must: number }> = {};
+      for (const leg of pool) {
+        if (leg.areaIdx === null) continue;
+        const s = (areaStats[leg.areaIdx] ??= { jobs: 0, must: 0 });
+        s.jobs += 1;
+        if (mustGo(leg, date)) s.must += 1;
+      }
+      const chosen = Object.entries(areaStats)
+        .map(([idx, s]) => ({ idx: Number(idx), ...s }))
+        .filter((a) => a.jobs >= LONG_DAY_MIN_JOBS || a.must > 0)
+        .sort((a, b) => b.must - a.must || b.jobs - a.jobs)[0];
+      let longAreaIdx = maxLongVans > 0 && chosen ? chosen.idx : null;
+      dayDebug.long_area = longAreaIdx !== null ? difficultAreas[longAreaIdx]?.name ?? null : null;
+
+      // Difficult jobs from every other area wait for another day.
+      excludedLongArea[date] = pool.filter((l) => l.areaIdx !== null && l.areaIdx !== longAreaIdx);
+      pool = pool.filter((l) => l.areaIdx === null || l.areaIdx === longAreaIdx);
+      if (pool.length === 0) continue;
+
+      let vanList = [...dayVans];
+      let longVanId = longAreaIdx !== null ? vanList[0]?.id ?? null : null;
+
+      let solved: SolvedRoute[] | null = null;
+      try {
+        solved = await solveDay(date, pool, vanList, longAreaIdx, longVanId);
+      } catch (e) {
+        const msg = (e as Error).message;
+        if (/distance costing/i.test(msg)) return json({ error: msg, debug, skipped }, 502);
+        skipped.push(`plan for ${date} (${msg})`);
+        continue;
+      }
+      if (!solved) continue;
+
+      // 3.4 a long day that carries no difficult work is just a normal van
+      if (longVanId && !solved.some((r) => r.meta.long && r.stops.some((s) => s.leg.areaIdx !== null))) {
+        longAreaIdx = null;
+        longVanId = null;
+        dayDebug.long_area_dropped = true;
+        excludedLongArea[date] = pool.filter((l) => l.areaIdx !== null);
+        pool = pool.filter((l) => l.areaIdx === null);
+        try {
+          solved = (pool.length > 0 ? await solveDay(date, pool, vanList, null, null) : []) ?? [];
+        } catch (e) {
+          skipped.push(`plan for ${date} (${(e as Error).message})`);
+          continue;
+        }
+      }
+
+      // 3.5 van-reduction loop
+      if (quickOnly) {
+        skipped.push(`fine-tuning ${date} (ran out of time)`);
+      } else {
+        const protectedVans = new Set<string>();
+        for (let step = 0; step < MAX_REMOVALS_PER_DAY; step++) {
+          if (budgetLeft() < 15_000) { skipped.push(`fine-tuning ${date} (ran out of time)`); break; }
+          const scored = solved!.map((r) => ({ r, ...money(r) }));
+          const weakest = scored
+            .filter((x) => !protectedVans.has(x.r.meta.vanId) && x.r.stops.length < targetJobs)
+            .sort((a, b) => a.r.stops.length - b.r.stops.length)[0]
+            ?? (minMargin > 0
+              ? scored.filter((x) => !protectedVans.has(x.r.meta.vanId) && x.margin < minMargin)
+                .sort((a, b) => a.margin - b.margin)[0]
+              : undefined);
+          if (!weakest) break;
+          const trialVans = vanList.filter((v) => v.id !== weakest.r.meta.vanId);
+          if (trialVans.length === 0) break;
+          const trialLong = longVanId === weakest.r.meta.vanId ? trialVans[0]?.id ?? null : longVanId;
+          let retry: SolvedRoute[] | null = null;
           try {
-            const passB = await runSolve(pool, pinned, { pairs: true, skip: removedVanDays });
-            if (passB) {
-              const after = readSolution(passB.solution, passB.meta);
-              const placedKeys = new Set(after.placed.map((p) => p.leg.key));
-              displaced = Object.keys(pinned).filter((k) => !placedKeys.has(k))
-                .map((k) => legs.find((l) => l.key === k)).filter((l): l is Leg => !!l);
-              if (displaced.length === 0) {
-                current = after;
-                lastFleet = passB.fleet;
-                quietKeys = passB.quiet;
-              }
-            }
+            retry = await solveDay(date, pool, trialVans, longAreaIdx, trialLong);
           } catch (e) {
-            console.error('deliveries pass failed', (e as Error).message);
-            skipped.push(`deliveries pass (${(e as Error).message})`);
+            dayDebug.removals.push({ van: weakest.r.meta.vanName, outcome: `solve failed: ${(e as Error).message}` });
+            protectedVans.add(weakest.r.meta.vanId);
+            continue;
           }
+          const after = new Set((retry ?? []).flatMap((r) => r.stops.map((s) => s.leg.key)));
+          const lost = pool.filter((l) => mustGo(l, date) && !after.has(l.key)
+            && solved!.some((r) => r.stops.some((s) => s.leg.key === l.key)));
+          if (!retry || lost.length > 0) {
+            protectedVans.add(weakest.r.meta.vanId);
+            dayDebug.removals.push({
+              van: weakest.r.meta.vanName, jobs: weakest.r.stops.length,
+              outcome: 'kept — needed for must-go jobs', must_go: lost.map((l) => l.label).slice(0, 8),
+            });
+            continue;
+          }
+          dayDebug.removals.push({ van: weakest.r.meta.vanName, jobs: weakest.r.stops.length, outcome: 'van taken off the road' });
+          vanList = trialVans;
+          longVanId = trialLong;
+          solved = retry;
         }
+        dayDebug.protected = [...protectedVans];
       }
 
-      /* ------------------------- van-reduction loop ----------------------- */
-
-      debug.reduction = await reduceFleet({ pairs: true });
-      debug.trimming = await trimSpread({ pairs: true });
-    }
-
-    /* ------------------------------ grace pass ----------------------------- */
-
-    const gracePlaced = new Set<string>();
-    if (budgetLeft() < 15_000) {
-      skipped.push('grace pass for expiring jobs');
-    } else {
-      try {
-        const assignedNow = new Set(current.placed.map((p) => p.leg.key));
-        const collectedOnGrace: Record<string, string> = {};
-        for (const p of current.placed) {
-          if (p.leg.legType === 'collection') collectedOnGrace[p.leg.orderId] = p.date;
-        }
-        const graceDatesFor: Record<string, string[]> = {};
-        const gracePool: Leg[] = [];
-        for (const leg of legs) {
-          if (leg.lapsed || !leg.expiringInPlan || assignedNow.has(leg.key)) continue;
-          if (leg.guaranteedDate) continue;
-          const maxReal = leg.windowDates[leg.windowDates.length - 1] ?? leg.lastDate;
-          if (!maxReal) continue;
-          let extended = [...leg.windowDates, ...selectedDates.filter((d) => d > maxReal)];
-          if (leg.legType === 'delivery' && (leg.needsUnlock || leg.needsInspection)) {
-            const collectedDay = collectedOnGrace[leg.orderId];
-            if (!collectedDay) continue;
-            if (leg.needsInspection && inspectionLeadDays === null) continue;
-            const lead = leg.needsInspection ? Math.max(1, inspectionLeadDays ?? 1) : (leg.needsUnlock ? 1 : 0);
-            const earliest = selectedDates.filter((d) => d > collectedDay);
-            const allowed = earliest.slice(Math.max(0, lead - 1));
-            extended = extended.filter((d) => allowed.includes(d));
-            if (extended.length === 0) continue;
-          }
-          if (extended.length === leg.windowDates.length) continue;
-          gracePool.push(leg);
-          graceDatesFor[leg.key] = extended;
-        }
-        if (gracePool.length > 0) {
-          // Only the room left on the vans already going out.
-          const used: Record<string, { spaces: number; hours: number }> = {};
-          for (const { meta: m, route, stops } of current.routeInfo) {
-            const u = used[`${m.date}:${m.vanId}`] ??= { spaces: 0, hours: 0 };
-            for (const s of stops) u.spaces += s.leg.spaces;
-            u.hours += ((Number(route.duration) || 0) + (Number(route.service) || 0) + (Number(route.waiting_time) || 0)) / 3600;
-          }
-          const graceDates = [...new Set(Object.values(graceDatesFor).flat())].sort();
-          const grace = await runSolve(gracePool, {}, {
-            dates: graceDates, used, skip: removedVanDays,
-            dateOf: (leg) => graceDatesFor[leg.key] ?? leg.windowDates,
-          });
-          if (grace) {
-            const read = readSolution(grace.solution, grace.meta);
-            if (read.placed.length > 0) {
-              for (const p of read.placed) gracePlaced.add(p.leg.key);
-              current = {
-                placed: [...current.placed, ...read.placed],
-                routeInfo: [...current.routeInfo, ...read.routeInfo],
-              };
+      // 3.6 spare-van check
+      const dayPlacedKeys = new Set(solved!.flatMap((r) => r.stops.map((s) => s.leg.key)));
+      const leftovers = pool.filter((l) => !dayPlacedKeys.has(l.key));
+      const unusedVan = (vansForDate[date] ?? []).find((v) => !vanList.some((x) => x.id === v.id))
+        ?? { id: 'spare', name: 'Extra van', capacity: defaultCapacity };
+      if (leftovers.length > 0 && budgetLeft() > 15_000 && !quickOnly) {
+        try {
+          const spareSolved = await solveDay(date, leftovers, [], null, null, unusedVan);
+          const spareRoute = (spareSolved ?? [])[0];
+          if (spareRoute) {
+            const m = money(spareRoute);
+            const must = spareRoute.stops.filter((s) => mustGo(s.leg, date)).length;
+            if (spareRoute.stops.length >= targetJobs || must > 0) {
+              spareHint[date] = { jobs: spareRoute.stops.length, revenue: m.revenue, margin: m.margin, must_go: must };
             }
           }
+        } catch {
+          // a spare-van hint is nice to have, never worth failing the run for
         }
-      } catch (e) {
-        console.error('grace pass failed', (e as Error).message);
-        skipped.push(`grace pass (${(e as Error).message})`);
       }
+
+      // 3.7 move on
+      for (const r of solved!) {
+        allRoutes.push(r);
+        for (const s of r.stops) {
+          placedKeys.add(s.leg.key);
+          if (s.leg.legType === 'collection') collectedInRun[s.leg.orderId] = date;
+        }
+      }
+      dayDebug.vans_used = new Set(solved!.map((r) => r.meta.vanId)).size;
+      dayDebug.jobs_per_route = solved!.map((r) => r.stops.length);
+      dayDebug.margin_per_route = solved!.map((r) => money(r).margin);
     }
 
-    /* ------------------- extra-van what-if (separate call) ---------------- */
-
-    if (shortfallOnly) {
-      const realByDate: Record<string, number> = {};
-      for (const { meta, stops } of current.routeInfo) {
-        realByDate[meta.date] = (realByDate[meta.date] ?? 0) + stops.length;
-      }
-      const shortfallByDate: Record<string, { extra_vans: number; extra_jobs: number; urgent: number } | null> = {};
-      let placedByDate: Record<string, number> = {};
-      let virtualByDate: Record<string, number> = {};
-      let urgentByDate: Record<string, number> = {};
-      try {
-        const wi = mode === 'greedy' ? null : await runSolve(pool, pinned, { withVirtual: true, pairs: true, skip: removedVanDays });
-        if (wi) {
-          const read = readSolution(wi.solution, wi.meta);
-          for (const { meta, stops } of read.routeInfo) {
-            placedByDate[meta.date] = (placedByDate[meta.date] ?? 0) + stops.length;
-            if (!meta.virtual) continue;
-            const urgent = stops.filter((s) => isUrgent(s.leg)).length;
-            // An imaginary van only counts as a real shortfall if it would carry
-            // a proper day's work, or work that would otherwise be lost.
-            if (stops.length < minJobsFloor && urgent === 0) continue;
-            virtualByDate[meta.date] = (virtualByDate[meta.date] ?? 0) + 1;
-            urgentByDate[meta.date] = (urgentByDate[meta.date] ?? 0) + urgent;
-          }
-        }
-      } catch (e) {
-        console.error('what-if solve failed', (e as Error).message);
-      }
-      for (const date of selectedDates) {
-        const extraVans = virtualByDate[date] ?? 0;
-        shortfallByDate[date] = extraVans > 0 ? {
-          extra_vans: extraVans,
-          extra_jobs: Math.max(0, (placedByDate[date] ?? 0) - (realByDate[date] ?? 0)),
-          urgent: urgentByDate[date] ?? 0,
-        } : null;
-      }
-      return json({ mode, shortfall_by_date: shortfallByDate });
+    if (allRoutes.length === 0 && skipped.length === 0 && legs.length > 0) {
+      // Nothing was plannable, but the panels still have work to show.
+      console.log('route-optimize produced no routes', { legs: legs.length });
     }
 
     /* ------------------------------ persist ------------------------------- */
 
-    await admin.from('route_plans').update({ status: 'superseded' }).eq('status', 'active').eq('mode', mode);
-
-    const assigned = new Set<string>();
-    const routesByDate: Record<string, any[]> = {};
-
-    const prepared = current.routeInfo.map(({ meta, route, stops }) => {
-      const dayIdx = selectedDates.indexOf(meta.date);
-      const isProvisional = dayIdx >= firmDays;
-      let ordered = [...stops].sort((a, b) => a.arrival - b.arrival);
-      const steps = Array.isArray(route.steps) ? route.steps : [];
-      const maxLoadUnits = Math.max(0, ...steps.map((s: any) => Number(s?.load?.[0]) || 0));
-      const duration = (Number(route.duration) || 0) + (Number(route.service) || 0) + (Number(route.waiting_time) || 0);
-      // Safety net only — trimming above should have dealt with sprawl already.
-      const limit = meta.expedition ? MAX_SPREAD_LONG_MI : MAX_SPREAD_MI;
-      let hardTrimmed = 0;
-      while (ordered.length > 1 && spreadMiles(ordered.map((s) => s.leg)) > limit) {
-        const cLat = ordered.reduce((n, s) => n + s.leg.lat, 0) / ordered.length;
-        const cLon = ordered.reduce((n, s) => n + s.leg.lon, 0) / ordered.length;
-        let worstIdx = 0;
-        let worst = -1;
-        ordered.forEach((s, i) => {
-          const d = milesBetween(cLat, cLon, s.leg.lat, s.leg.lon);
-          if (d > worst) { worst = d; worstIdx = i; }
-        });
-        ordered = ordered.filter((_, i) => i !== worstIdx);
-        hardTrimmed += 1;
-      }
-      const tally: Record<string, number> = {};
-      for (const s of ordered) {
-        const k = sectorLabel(s.leg.sector);
-        tally[k] = (tally[k] ?? 0) + 1;
-      }
-      const topRegion = Object.entries(tally).sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'Around the depot';
-      const urgentLabels = ordered.filter((s) => isUrgent(s.leg)).map((s) => s.leg.label);
-      return {
-        meta, ordered, isProvisional, duration, hardTrimmed,
-        longDay: meta.expedition && duration > PRIMARY_CAP_H * HOURS,
-        miles: Math.round(((Number(route.distance) || 0) / 1609.344) * 10) / 10,
-        maxLoad: Math.round((maxLoadUnits / 10) * 100) / 100,
-        geometry: typeof route.geometry === 'string' ? route.geometry : null,
-        region: meta.areaIdx !== null ? difficultAreas[meta.areaIdx]?.name ?? topRegion : topRegion,
-        spreadMi: spreadMiles(ordered.map((s) => s.leg)),
-        thin: ordered.length < minJobsTarget,
-        belowFloor: ordered.length < minJobsFloor,
-        urgentLabels: urgentLabels.slice(0, 10),
-      };
-    });
+    await admin.from('route_plans').update({ status: 'superseded' }).eq('status', 'active');
 
     const { data: planRow, error: planErr } = await admin.from('route_plans').insert({
       horizon_start: selectedDates[0],
@@ -1324,11 +881,40 @@ serve(async (req) => {
       inspection_lead_days: inspectionLeadDays,
       created_by: userData.user.id,
       status: 'active',
-      mode,
+      mode: 'greedy',
       generated_at: new Date().toISOString(),
     }).select('id').single();
     if (planErr) throw planErr;
     const planId = planRow.id as string;
+
+    const assigned = new Set<string>();
+    const routesByDate: Record<string, any[]> = {};
+
+    const prepared = allRoutes.map((r) => {
+      const ordered = [...r.stops].sort((a, b) => a.arrival - b.arrival);
+      const steps = Array.isArray(r.route.steps) ? r.route.steps : [];
+      const maxLoadUnits = Math.max(0, ...steps.map((s: any) => Number(s?.load?.[0]) || 0));
+      const duration = routeDuration(r.route);
+      const m = money(r);
+      const mustGoLabels = ordered.filter((s) => mustGo(s.leg, r.meta.date)).map((s) => s.leg.label);
+      const thin = ordered.length < targetJobs;
+      return {
+        meta: r.meta, ordered, duration, ...m,
+        isProvisional: selectedDates.indexOf(r.meta.date) >= firmDays,
+        longDay: r.meta.long && duration > NORMAL_CAP_H * HOURS,
+        miles: routeMiles(r.route),
+        maxLoad: Math.round((maxLoadUnits / 10) * 100) / 100,
+        geometry: typeof r.route.geometry === 'string' ? r.route.geometry : null,
+        region: r.meta.areaName,
+        spreadMi: spreadMiles(ordered.map((s) => s.leg)),
+        thin,
+        belowFloor: ordered.length < floorJobs,
+        thinReason: thin
+          ? (mustGoLabels.length > 0 ? 'Needed for must-go jobs' : 'Thin — no more work fitted nearby')
+          : null,
+        mustGoLabels: mustGoLabels.slice(0, 10),
+      };
+    });
 
     if (prepared.length > 0) {
       const { data: routeRows, error: routeErr } = await admin.from('route_plan_routes').insert(
@@ -1336,7 +922,7 @@ serve(async (req) => {
           plan_id: planId,
           route_date: p.meta.date,
           variant: 'primary',
-          pass: unlockable.length > 0 ? 'B' : 'A',
+          pass: 'A',
           day_status: 'draft',
           is_provisional: p.isProvisional,
           van_id: p.meta.vanId,
@@ -1359,7 +945,7 @@ serve(async (req) => {
           stopRows.push({
             route_id: routeId, seq: i + 1, leg_type: s.leg.legType, order_id: s.leg.orderId,
             eta: isoFromEpoch(s.arrival), service_s: SERVICE_S, lat: s.leg.lat, lon: s.leg.lon,
-            is_difficult_area: s.leg.difficult,
+            is_difficult_area: s.leg.areaIdx !== null,
           });
           assigned.add(s.leg.key);
         });
@@ -1378,18 +964,21 @@ serve(async (req) => {
           geometry: p.geometry,
           region: p.region,
           spread_mi: p.spreadMi,
+          spread_warning: p.spreadMi > SPREAD_WARN_MI,
           thin: p.thin,
           below_floor: p.belowFloor,
-          thin_reason: p.thin
-            ? (p.urgentLabels.length > 0 ? 'Thin — needed for urgent jobs' : 'Thin — no more work fitted this area')
-            : null,
-          urgent_labels: p.urgentLabels,
+          thin_reason: p.thinReason,
+          urgent_labels: p.mustGoLabels,
           guaranteed_count: p.ordered.filter((s) => !!s.leg.guaranteedDate).length,
+          must_go_count: p.mustGoLabels.length,
+          revenue: p.revenue,
+          cost: p.cost,
+          margin: p.margin,
           stops: p.ordered.map((s, i) => ({
             seq: i + 1, leg_type: s.leg.legType, order_id: s.leg.orderId,
             eta: isoFromEpoch(s.arrival), lat: s.leg.lat, lon: s.leg.lon,
-            is_difficult_area: s.leg.difficult, label: s.leg.label, guaranteed: !!s.leg.guaranteedDate,
-            planned_after_expiry: gracePlaced.has(s.leg.key),
+            is_difficult_area: s.leg.areaIdx !== null, label: s.leg.label,
+            guaranteed: !!s.leg.guaranteedDate,
           })),
         });
       });
@@ -1402,11 +991,13 @@ serve(async (req) => {
 
     /* ------------------------------ response ------------------------------ */
 
-    const quietSet = new Set(quietKeys);
+    const unplaced = legs.filter((l) => !assigned.has(l.key));
+
     const days = selectedDates.map((date, idx) => {
       const dayRoutes = routesByDate[date] ?? [];
       const usedVans = new Set(dayRoutes.map((r) => r.van_id));
       const available = (vansForDate[date] ?? []).length;
+      const hint = spareHint[date];
       return {
         date,
         vans_needed: usedVans.size,
@@ -1414,57 +1005,56 @@ serve(async (req) => {
         van_names: [...usedVans].map((id) => (vansForDate[date] ?? []).find((v) => v.id === id)?.name).filter(Boolean),
         spare_vans: Math.max(0, available - usedVans.size),
         is_provisional: idx >= firmDays,
-        shortfall: null,
+        shortfall: hint ? { extra_vans: 1, extra_jobs: hint.jobs, urgent: hint.must_go } : null,
+        spare_van_hint: hint,
         variants: [{ variant: 'primary', routes: dayRoutes, tradeoff_note: null }],
-        unplanned_count: legs.filter((l) => !assigned.has(l.key) && !l.lapsed && l.windowDates.includes(date)).length,
-        unplanned_lapsed_count: legs.filter((l) => !assigned.has(l.key) && l.lapsed && l.windowDates.includes(date)).length,
-        lapsed_count: current.routeInfo.flatMap((r) => r.stops).filter((s) => s.date === date && s.leg.lapsed).length,
-        expiring_count: legs.filter((l) => !l.lapsed && l.lastDate === date).length,
-        expiring_unplanned_count: legs.filter((l) => !l.lapsed && l.lastDate === date && !assigned.has(l.key)).length,
+        unplanned_count: unplaced.filter((l) => !l.lapsed && l.futureDates.includes(date)).length,
+        unplanned_lapsed_count: unplaced.filter((l) => l.lapsed && includeExpired).length,
+        lapsed_count: dayRoutes.reduce((n, r) => n + 0, 0),
+        expiring_count: legs.filter((l) => l.lastDate === date).length,
+        expiring_unplanned_count: unplaced.filter((l) => l.lastDate === date).length,
         long_days: dayRoutes.filter((r) => r.is_expedition).length,
-        areas: lastFleet?.groupsByDate?.[date] ?? [],
-        infeasible_guaranteed: legs
-          .filter((l) => l.guaranteedDate === date && !assigned.has(l.key))
+        areas: dayRoutes.filter((r) => r.region).map((r) => ({ sectors: [r.region as string], van: r.van_name })),
+        infeasible_guaranteed: unplaced
+          .filter((l) => l.guaranteedDate === date)
           .map((l) => ({ order_id: l.orderId, label: l.label, leg_type: l.legType, date })),
       };
     });
 
-    const atRisk = legs
-      .filter((l) => !assigned.has(l.key))
-      .sort((a, b) => b.priority - a.priority)
+    const excludedKeys = new Set(Object.values(excludedLongArea).flat().map((l) => l.key));
+    const atRisk = unplaced
+      .filter((l) => urgentInPlan(l))
+      .sort((a, b) => (a.guaranteedDate ? -1 : 0) - (b.guaranteedDate ? -1 : 0))
       .map((l) => ({
         order_id: l.orderId,
         label: l.label,
         leg_type: l.legType,
-        priority: l.priority,
-        remaining_dates: l.allDates.filter((d) => d >= today).length,
-        last_date: l.lapsed ? (l.allDates[l.allDates.length - 1] ?? null) : l.lastDate,
+        priority: l.guaranteedDate ? 100 : 50,
+        remaining_dates: l.futureDates.length,
+        last_date: l.lastDate ?? (l.allDates[l.allDates.length - 1] ?? null),
         guaranteed_date: l.guaranteedDate,
-        reason: quietSet.has(l.key) ? 'Area too quiet this week — no viable route'
-          : l.lapsed ? 'dates had expired — planned via the expired-jobs override'
-          : l.expiringInPlan ? 'its last available date was full and there was no room later in the plan'
-          : displaced.some((d) => d?.key === l.key) ? 'pushed out when deliveries were added'
-          : l.guaranteedDate ? 'guaranteed date could not be met'
-          : l.needsUnlock ? 'waiting on its collection being planned'
-          : 'no feasible slot on the days you picked',
+        reason: l.guaranteedDate ? 'Guaranteed date could not be met'
+          : excludedKeys.has(l.key) ? 'Needs a long day — another difficult area was chosen'
+          : l.lapsed ? 'Dates had expired — planned via the expired-jobs override'
+          : l.legType === 'delivery' && !l.inDepot ? 'Waiting on its collection being planned'
+          : 'Its last available date was full',
       }));
+
+    const carried = unplaced.filter((l) => !urgentInPlan(l)).length;
 
     const vanDaysAvailable = selectedDates.reduce((n, d) => n + (vansForDate[d] ?? []).length, 0);
     const vanDaysNeeded = days.reduce((n, d) => n + d.vans_needed, 0);
-
     const jobsPerRoute = prepared.map((p) => p.ordered.length).sort((a, b) => a - b);
+
     debug.jobs_per_route = jobsPerRoute;
-    debug.median_jobs_per_route = jobsPerRoute.length
-      ? jobsPerRoute[Math.floor(jobsPerRoute.length / 2)] : 0;
+    debug.median_jobs_per_route = jobsPerRoute.length ? jobsPerRoute[Math.floor(jobsPerRoute.length / 2)] : 0;
     debug.vans_offered = Object.fromEntries(selectedDates.map((d) => [d, (vansForDate[d] ?? []).length]));
     debug.vans_used = Object.fromEntries(days.map((d) => [d.date, d.vans_needed]));
-    debug.van_days_removed = [...removedVanDays];
-    debug.van_days_protected = [...protectedVanDays];
-    debug.long_days = Object.fromEntries(selectedDates.map((d) => [d, lastFleet?.longByDate?.[d] ?? []]));
-    debug.area_groups = lastFleet?.groupsByDate ?? {};
-    debug.hard_trimmed_stops = prepared.reduce((n, p) => n + p.hardTrimmed, 0);
-    debug.quiet_area_jobs = quietKeys.length;
-    debug.settings = { min_jobs_target: minJobsTarget, min_jobs_floor: minJobsFloor, max_long_days: maxLongDays, pair_max_distance_miles: pairMaxMiles, shift_hours: PRIMARY_CAP_H };
+    debug.total_margin = Math.round(prepared.reduce((n, p) => n + p.margin, 0) * 100) / 100;
+    debug.settings = {
+      target_jobs: targetJobs, floor_jobs: floorJobs, max_long_vans: maxLongVans,
+      min_route_margin: minMargin, normal_hours: NORMAL_CAP_H, long_hours: LONG_CAP_H,
+    };
     debug.skipped = skipped;
 
     await admin.from('route_plans').update({
@@ -1474,14 +1064,15 @@ serve(async (req) => {
 
     return json({
       plan_id: planId,
-      mode,
-      unplanned_count: legs.filter((l) => !assigned.has(l.key) && !l.lapsed).length,
-      unplanned_lapsed_count: legs.filter((l) => !assigned.has(l.key) && l.lapsed).length,
-      expiring_in_plan_count: legs.filter((l) => l.expiringInPlan).length,
-      expiring_unplanned_count: legs.filter((l) => l.expiringInPlan && !assigned.has(l.key)).length,
+      mode: 'greedy',
+      unplanned_count: unplaced.length,
+      carried_count: carried,
+      unplanned_lapsed_count: unplaced.filter((l) => l.lapsed).length,
+      expiring_in_plan_count: legs.filter((l) => !!l.lastDate && l.lastDate <= lastSelectedDate).length,
+      expiring_unplanned_count: unplaced.filter((l) => !!l.lastDate && l.lastDate <= lastSelectedDate).length,
       generated_at: new Date().toISOString(),
       firm_days: firmDays,
-      shortfall_pending: mode !== 'greedy',
+      shortfall_pending: false,
       distance_costing: debug.distance_costing !== false,
       skipped,
       debug,
