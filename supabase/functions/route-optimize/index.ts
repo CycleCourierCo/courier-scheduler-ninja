@@ -476,29 +476,26 @@ serve(async (req) => {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${VERSO_API_KEY}`, 'X-Api-Key': VERSO_API_KEY },
         body: JSON.stringify(body),
       });
+      // Read each failing reply once — cloning a large body costs real CPU.
       let resp = await call(payload);
-      if (resp.status === 400) {
-        const probe = (await resp.clone().text()).slice(0, 200);
-        // Older builds reject unknown option keys, speed_factor or costs.fixed —
-        // retry with progressively plainer payloads (spec §6 fallbacks).
-        if (/option|x\b/i.test(probe)) {
-          resp = await call({ ...payload, options: { g: true } });
-        }
-        if (resp.status === 400) {
-          const probe2 = (await resp.clone().text()).slice(0, 200);
-          if (/speed_factor|costs|fixed|max_travel_time/i.test(probe2)) {
-            const plainVehicles = (payload.vehicles as any[]).map((v) => {
-              const { speed_factor: _s, costs: _c, max_travel_time: _m, ...rest } = v;
-              // Shorten the window instead of the 5% pessimism buffer.
-              const [open, close] = rest.time_window;
-              return { ...rest, time_window: [open, open + Math.round((close - open) * 0.95)] };
-            });
-            resp = await call({ ...payload, vehicles: plainVehicles, options: { g: true } });
-          }
-        }
+      let detail = resp.ok ? '' : (await resp.text()).slice(0, 300);
+      // Older builds reject unknown option keys, speed_factor or costs.fixed —
+      // retry with progressively plainer payloads (spec §6 fallbacks).
+      if (resp.status === 400 && /option|x\b/i.test(detail)) {
+        resp = await call({ ...payload, options: { g: true } });
+        detail = resp.ok ? '' : (await resp.text()).slice(0, 300);
+      }
+      if (resp.status === 400 && /speed_factor|costs|fixed|max_travel_time/i.test(detail)) {
+        const plainVehicles = (payload.vehicles as any[]).map((v) => {
+          const { speed_factor: _s, costs: _c, max_travel_time: _m, ...rest } = v;
+          // Shorten the window instead of the 5% pessimism buffer.
+          const [open, close] = rest.time_window;
+          return { ...rest, time_window: [open, open + Math.round((close - open) * 0.95)] };
+        });
+        resp = await call({ ...payload, vehicles: plainVehicles, options: { g: true } });
+        detail = resp.ok ? '' : (await resp.text()).slice(0, 300);
       }
       if (!resp.ok) {
-        const detail = (await resp.text()).slice(0, 300);
         const err = new Error(`Route optimiser failed (${resp.status}): ${detail}`);
         (err as any).status = resp.status;
         throw err;
