@@ -1,0 +1,1 @@
+ALTER TABLE public.route_plans ADD COLUMN IF NOT EXISTS debug jsonb;
