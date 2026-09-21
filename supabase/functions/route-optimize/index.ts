@@ -636,6 +636,8 @@ serve(async (req) => {
     let pool = readyLegs;
     let pinned: Record<string, string> = {};
     let displaced: Leg[] = [];
+    // Shared with the saving step below, so it must live outside both branches.
+    let unlockable: Leg[] = [];
 
     if (mode === 'greedy') {
       /* --------------------- day-by-day (greedy) planning ------------------- */
