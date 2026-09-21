@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { addDays, format } from "date-fns";
+import { format } from "date-fns";
 import { toast } from "sonner";
-import { AlertTriangle, Loader2, MapPin, Truck, Wand2 } from "lucide-react";
+import { AlertTriangle, CalendarClock, Loader2, Lock, MapPin, RefreshCw, Truck, Unlock, Wand2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,11 +12,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
-  AtRiskLeg, PlanDay, PlanRoute, RoutePlanResult,
-  fetchDifficultAreas, fetchPlanningVans, formatDuration, generateRoutes, selectPlanRoute,
+  AtRiskLeg, NeedsNewDatesLeg, PlanDay, PlanRoute, RoutePlanResult,
+  clearNewDatesRequest, fetchDifficultAreas, fetchPlanningVans, fetchWorkingDays, formatDuration,
+  generateRoutes, isWorkingDay, lockPlanDay, nextWorkingDays, refreshAvailabilityExpiry,
+  requestNewDates, selectPlanRoute, setVanUnavailable, unlockPlanDay,
 } from "@/services/routeGenerationService";
 
 const THIN_ROUTE_STOPS = 13;
+const MIN_DAYS = 3;
+const MAX_DAYS = 10;
+
+const dayLabel = (date: string) => format(new Date(`${date}T12:00:00`), "EEE d MMM");
 
 const RouteCard: React.FC<{ route: PlanRoute; date: string; onUse: (route: PlanRoute) => void; busy: boolean }> = ({ route, date, onUse, busy }) => (
   <Card>
@@ -27,6 +33,7 @@ const RouteCard: React.FC<{ route: PlanRoute; date: string; onUse: (route: PlanR
         </CardTitle>
         <div className="flex flex-wrap items-center gap-1">
           {route.is_expedition && <Badge variant="outline">Expedition 15h</Badge>}
+          {route.is_provisional && <Badge variant="secondary">Provisional</Badge>}
           {route.stop_count < THIN_ROUTE_STOPS && <Badge variant="secondary">Thin route</Badge>}
           {route.guaranteed_count > 0 && <Badge>Guaranteed ×{route.guaranteed_count}</Badge>}
         </div>
@@ -61,7 +68,7 @@ const RouteCard: React.FC<{ route: PlanRoute; date: string; onUse: (route: PlanR
       <Button size="sm" onClick={() => onUse(route)} disabled={busy} className="w-full sm:w-auto">
         Use this route
       </Button>
-      <p className="text-xs text-muted-foreground">Opens Get Timeslots for {format(new Date(`${date}T12:00:00`), "EEE d MMM")} with these stops in order.</p>
+      <p className="text-xs text-muted-foreground">Opens Get Timeslots for {dayLabel(date)} with these stops in order.</p>
     </CardContent>
   </Card>
 );
@@ -86,7 +93,7 @@ const AtRiskPanel: React.FC<{ atRisk: AtRiskLeg[]; infeasible: PlanDay["infeasib
       {atRisk.length === 0 ? (
         <p className="text-sm text-muted-foreground">Everything in range was planned.</p>
       ) : (
-        <ScrollArea className="h-56">
+        <ScrollArea className="h-48">
           <ul className="space-y-1 pr-3 text-sm">
             {atRisk.map((leg) => (
               <li key={`${leg.order_id}-${leg.leg_type}`} className="flex items-start justify-between gap-2 border-b py-1 last:border-0">
@@ -107,31 +114,134 @@ const AtRiskPanel: React.FC<{ atRisk: AtRiskLeg[]; infeasible: PlanDay["infeasib
   </Card>
 );
 
+const NeedsDatesPanel: React.FC<{ legs: NeedsNewDatesLeg[]; onChanged: () => void }> = ({ legs, onChanged }) => {
+  const [busy, setBusy] = useState<string | null>(null);
+  const act = async (leg: NeedsNewDatesLeg, ask: boolean) => {
+    const key = `${leg.order_id}-${leg.leg_type}`;
+    setBusy(key);
+    try {
+      if (ask) await requestNewDates(leg.order_id, leg.leg_type);
+      else await clearNewDatesRequest(leg.order_id, leg.leg_type);
+      toast.success(ask ? "Marked as waiting on new dates" : "Put back into planning");
+      onChanged();
+    } catch (e) {
+      toast.error((e as Error).message || "Could not update that job");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <CalendarClock className="h-4 w-4" /> Needs new dates ({legs.length})
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {legs.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No jobs have run out of dates.</p>
+        ) : (
+          <ScrollArea className="h-56">
+            <ul className="space-y-2 pr-3 text-sm">
+              {legs.map((leg) => {
+                const key = `${leg.order_id}-${leg.leg_type}`;
+                return (
+                  <li key={key} className={`rounded-md border p-2 ${leg.severity === 1 ? "border-destructive/50 bg-destructive/10" : ""}`}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-medium">{leg.label}</span>
+                      <Badge variant="outline" className="text-xs">{leg.leg_type}</Badge>
+                      {leg.status === "awaiting_new_dates" && <Badge variant="secondary" className="text-xs">Asked</Badge>}
+                    </div>
+                    <p className="text-xs text-muted-foreground">{leg.reason}</p>
+                    {leg.days_in_depot !== null && (
+                      <p className="text-xs text-muted-foreground">{leg.days_in_depot} days in the depot</p>
+                    )}
+                    {leg.linked_leg_note && <p className="text-xs text-muted-foreground">{leg.linked_leg_note}</p>}
+                    <div className="mt-2 flex gap-2">
+                      {leg.status === "awaiting_new_dates" ? (
+                        <Button size="sm" variant="outline" disabled={busy === key} onClick={() => act(leg, false)}>
+                          Dates sorted
+                        </Button>
+                      ) : (
+                        <Button size="sm" variant="outline" disabled={busy === key} onClick={() => act(leg, true)}>
+                          Ask for new dates
+                        </Button>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </ScrollArea>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
 const RoutePlanMapLazy = React.lazy(() => import("./RoutePlanMap"));
 
 const GenerateRoutesDialog: React.FC = () => {
   const [open, setOpen] = useState(false);
-  const [start, setStart] = useState(format(addDays(new Date(), 1), "yyyy-MM-dd"));
-  const [end, setEnd] = useState(format(addDays(new Date(), 7), "yyyy-MM-dd"));
+  const [workingDays, setWorkingDays] = useState<string[]>(["sun", "mon", "tue", "wed", "thu"]);
+  const [dates, setDates] = useState<string[]>([]);
+  const [extraDate, setExtraDate] = useState("");
   const [shiftStart, setShiftStart] = useState("09:00");
+  const [firmDays, setFirmDays] = useState(2);
+  const [inspectionLead, setInspectionLead] = useState<string>("");
   const [vans, setVans] = useState<{ id: string; name: string; capacity: number | null }[]>([]);
-  const [selectedVans, setSelectedVans] = useState<string[]>([]);
+  const [grid, setGrid] = useState<Record<string, string[]>>({});
   const [areas, setAreas] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [busyRoute, setBusyRoute] = useState(false);
   const [result, setResult] = useState<RoutePlanResult | null>(null);
   const [activeDate, setActiveDate] = useState<string | null>(null);
+  const [lockedDays, setLockedDays] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open) return;
-    fetchPlanningVans()
-      .then((rows) => {
-        setVans(rows);
-        setSelectedVans(rows.map((r) => r.id));
-      })
-      .catch(() => toast.error("Could not load the van list"));
-    fetchDifficultAreas().then(setAreas).catch(() => setAreas([]));
+    (async () => {
+      const [vanRows, days] = await Promise.all([
+        fetchPlanningVans().catch(() => []),
+        fetchWorkingDays().catch(() => ["sun", "mon", "tue", "wed", "thu"]),
+      ]);
+      setVans(vanRows);
+      setWorkingDays(days);
+      const defaults = nextWorkingDays(days, 5);
+      setDates(defaults);
+      setGrid(Object.fromEntries(defaults.map((d) => [d, vanRows.map((v) => v.id)])));
+      fetchDifficultAreas().then(setAreas).catch(() => setAreas([]));
+    })();
   }, [open]);
+
+  const toggleDate = (date: string) => {
+    setDates((prev) => {
+      const next = prev.includes(date) ? prev.filter((d) => d !== date) : [...prev, date].sort();
+      setGrid((g) => {
+        const copy = { ...g };
+        if (!copy[date]) copy[date] = vans.map((v) => v.id);
+        return copy;
+      });
+      return next.slice(0, MAX_DAYS);
+    });
+  };
+
+  const toggleVanDay = async (date: string, vanId: string) => {
+    const current = grid[date] ?? vans.map((v) => v.id);
+    const nowAvailable = !current.includes(vanId);
+    setGrid({ ...grid, [date]: nowAvailable ? [...current, vanId] : current.filter((id) => id !== vanId) });
+    try {
+      await setVanUnavailable(vanId, date, !nowAvailable);
+    } catch {
+      // grid still applies to this run even if the note could not be saved
+    }
+  };
+
+  const candidateDates = useMemo(() => {
+    const base = nextWorkingDays(workingDays, 10);
+    return [...new Set([...base, ...dates])].sort();
+  }, [workingDays, dates]);
 
   const activeDay = useMemo<PlanDay | null>(() => {
     if (!result) return null;
@@ -141,23 +251,29 @@ const GenerateRoutesDialog: React.FC = () => {
   const activeRoutes = activeDay?.variants?.[0]?.routes ?? [];
 
   const handleGenerate = async () => {
-    if (selectedVans.length === 0) {
-      toast.error("Pick at least one van");
+    if (dates.length < MIN_DAYS) {
+      toast.error(`Pick at least ${MIN_DAYS} days to plan`);
+      return;
+    }
+    if (dates.every((d) => (grid[d] ?? []).length === 0)) {
+      toast.error("No vans are ticked on any of those days");
       return;
     }
     setLoading(true);
     setResult(null);
+    setLockedDays([]);
     try {
       const plan = await generateRoutes({
-        horizon_start: start,
-        horizon_end: end,
+        selected_dates: dates,
         shift_start: shiftStart,
-        van_ids: selectedVans,
+        van_availability: Object.fromEntries(dates.map((d) => [d, grid[d] ?? vans.map((v) => v.id)])),
+        firm_days: firmDays,
+        inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
       });
       setResult(plan);
       setActiveDate(plan.days.find((d) => (d.variants?.[0]?.routes?.length ?? 0) > 0)?.date ?? plan.days[0]?.date ?? null);
       const planned = plan.days.reduce((n, d) => n + (d.variants?.[0]?.routes?.length ?? 0), 0);
-      toast.success(planned > 0 ? `Planned ${planned} route${planned === 1 ? "" : "s"}` : "No routes could be built for that range");
+      toast.success(planned > 0 ? `Planned ${planned} route${planned === 1 ? "" : "s"} across ${dates.length} days` : "No routes could be built for those days");
     } catch (e) {
       toast.error((e as Error).message || "Route generation failed");
     } finally {
@@ -165,8 +281,32 @@ const GenerateRoutesDialog: React.FC = () => {
     }
   };
 
+  const handleRefreshExpiry = async () => {
+    try {
+      const res = await refreshAvailabilityExpiry();
+      toast.success(`Checked dates — ${res.expired} expired, ${res.revived} back in play`);
+    } catch (e) {
+      toast.error((e as Error).message || "Could not check dates");
+    }
+  };
+
+  const handleLockDay = async (date: string, lock: boolean) => {
+    if (!result?.plan_id) return;
+    setBusyRoute(true);
+    try {
+      if (lock) await lockPlanDay(result.plan_id, date);
+      else await unlockPlanDay(result.plan_id, date);
+      setLockedDays((prev) => (lock ? [...prev, date] : prev.filter((d) => d !== date)));
+      toast.success(lock ? `${dayLabel(date)} locked — its jobs are reserved` : `${dayLabel(date)} released`);
+    } catch (e) {
+      toast.error((e as Error).message || "Could not change that day");
+    } finally {
+      setBusyRoute(false);
+    }
+  };
+
   const handleUseRoute = async (route: PlanRoute) => {
-    if (!result || !activeDay) return;
+    if (!result?.plan_id || !activeDay) return;
     setBusyRoute(true);
     try {
       await selectPlanRoute(result.plan_id, route.route_id);
@@ -194,18 +334,59 @@ const GenerateRoutesDialog: React.FC = () => {
           <DialogTitle>Generate routes</DialogTitle>
         </DialogHeader>
 
+        <div className="space-y-2">
+          <Label>Days to plan ({dates.length})</Label>
+          <div className="flex flex-wrap gap-2">
+            {candidateDates.map((date) => (
+              <Button
+                key={date}
+                type="button"
+                size="sm"
+                variant={dates.includes(date) ? "default" : "outline"}
+                onClick={() => toggleDate(date)}
+              >
+                {dayLabel(date)}
+              </Button>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="gr-extra" className="text-xs">Add another day</Label>
+              <Input id="gr-extra" type="date" value={extraDate} onChange={(e) => setExtraDate(e.target.value)} className="w-[170px]" />
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                if (!extraDate) return;
+                if (!isWorkingDay(extraDate, workingDays)) {
+                  toast.error("That day isn't a working day");
+                  return;
+                }
+                toggleDate(extraDate);
+                setExtraDate("");
+              }}
+            >
+              Add day
+            </Button>
+          </div>
+        </div>
+
         <div className="grid gap-3 sm:grid-cols-4">
-          <div className="space-y-1">
-            <Label htmlFor="gr-start">From</Label>
-            <Input id="gr-start" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="gr-end">To</Label>
-            <Input id="gr-end" type="date" value={end} onChange={(e) => setEnd(e.target.value)} />
-          </div>
           <div className="space-y-1">
             <Label htmlFor="gr-shift">Start time</Label>
             <Input id="gr-shift" type="time" value={shiftStart} onChange={(e) => setShiftStart(e.target.value)} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="gr-firm">Firm days</Label>
+            <Input id="gr-firm" type="number" min={0} max={dates.length} value={firmDays}
+              onChange={(e) => setFirmDays(Math.max(0, Number(e.target.value) || 0))} />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="gr-lead">Inspection lead days</Label>
+            <Input id="gr-lead" type="number" min={0} max={14} placeholder="never" value={inspectionLead}
+              onChange={(e) => setInspectionLead(e.target.value)} />
           </div>
           <div className="flex items-end">
             <Button onClick={handleGenerate} disabled={loading} className="w-full gap-2">
@@ -216,39 +397,68 @@ const GenerateRoutesDialog: React.FC = () => {
         </div>
 
         <div className="space-y-2">
-          <Label>Vans available</Label>
-          <div className="flex flex-wrap gap-3">
-            {vans.map((van) => (
-              <label key={van.id} className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={selectedVans.includes(van.id)}
-                  onCheckedChange={(checked) =>
-                    setSelectedVans((prev) => (checked ? [...prev, van.id] : prev.filter((id) => id !== van.id)))
-                  }
-                />
-                {van.name}
-                {van.capacity ? <span className="text-muted-foreground">({van.capacity})</span> : null}
-              </label>
-            ))}
-            {vans.length === 0 && <p className="text-sm text-muted-foreground">No vans found.</p>}
+          <div className="flex items-center justify-between gap-2">
+            <Label>Van availability</Label>
+            <Button type="button" size="sm" variant="ghost" className="gap-2" onClick={handleRefreshExpiry}>
+              <RefreshCw className="h-3.5 w-3.5" /> Re-check customer dates
+            </Button>
           </div>
+          {vans.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No vans found.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr>
+                    <th className="p-2 text-left font-medium">Van</th>
+                    {dates.map((d) => (
+                      <th key={d} className="p-2 text-center font-medium">{format(new Date(`${d}T12:00:00`), "EEE d")}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {vans.map((van) => (
+                    <tr key={van.id} className="border-t">
+                      <td className="p-2">
+                        {van.name}
+                        {van.capacity ? <span className="text-muted-foreground"> ({van.capacity})</span> : null}
+                      </td>
+                      {dates.map((d) => (
+                        <td key={d} className="p-2 text-center">
+                          <Checkbox
+                            checked={(grid[d] ?? vans.map((v) => v.id)).includes(van.id)}
+                            onCheckedChange={() => toggleVanDay(d, van.id)}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
         {result && (
           <div className="space-y-4">
+            {result.weekly && (
+              <p className="text-sm text-muted-foreground">
+                {result.weekly.van_days_needed} of {result.weekly.van_days_available} van-days used
+                {result.weekly.short_days.length > 0
+                  ? ` — short on ${result.weekly.short_days.map(dayLabel).join(", ")}`
+                  : " — the fleet covers this plan"}
+              </p>
+            )}
+
             <div className="flex flex-wrap gap-2">
               {result.days.map((day) => {
                 const count = day.variants?.[0]?.routes?.length ?? 0;
                 const isActive = (activeDay?.date ?? "") === day.date;
                 return (
-                  <Button
-                    key={day.date}
-                    size="sm"
-                    variant={isActive ? "default" : "outline"}
-                    onClick={() => setActiveDate(day.date)}
-                  >
-                    {format(new Date(`${day.date}T12:00:00`), "EEE d MMM")}
+                  <Button key={day.date} size="sm" variant={isActive ? "default" : "outline"} onClick={() => setActiveDate(day.date)}>
+                    {dayLabel(day.date)}
                     <span className="ml-2 text-xs opacity-80">{count} route{count === 1 ? "" : "s"}</span>
+                    {lockedDays.includes(day.date) && <Lock className="ml-1 h-3 w-3" />}
                   </Button>
                 );
               })}
@@ -256,10 +466,28 @@ const GenerateRoutesDialog: React.FC = () => {
 
             {activeDay && (
               <>
-                <p className="text-sm text-muted-foreground">
-                  Needs {activeDay.vans_needed} of {activeDay.vans_available} vans
-                  {activeDay.van_names.length > 0 ? ` — ${activeDay.van_names.join(", ")}` : ""}
-                </p>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm text-muted-foreground">
+                    Needs {activeDay.vans_needed} of {activeDay.vans_available} vans
+                    {activeDay.van_names.length > 0 ? ` — ${activeDay.van_names.join(", ")}` : ""}
+                    {activeDay.is_provisional ? " · provisional" : ""}
+                    {activeDay.shortfall
+                      ? ` · ${activeDay.shortfall.extra_vans} more van${activeDay.shortfall.extra_vans === 1 ? "" : "s"} would fit ${activeDay.shortfall.extra_jobs} more jobs`
+                      : ""}
+                  </p>
+                  {activeDay.vans_needed > 0 && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-2"
+                      disabled={busyRoute}
+                      onClick={() => handleLockDay(activeDay.date, !lockedDays.includes(activeDay.date))}
+                    >
+                      {lockedDays.includes(activeDay.date) ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                      {lockedDays.includes(activeDay.date) ? "Release day" : "Lock day"}
+                    </Button>
+                  )}
+                </div>
 
                 <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
                   <div className="space-y-3">
@@ -281,6 +509,7 @@ const GenerateRoutesDialog: React.FC = () => {
                       <RoutePlanMapLazy routes={activeRoutes} areas={areas} />
                     </React.Suspense>
                     <AtRiskPanel atRisk={result.at_risk} infeasible={activeDay.infeasible_guaranteed} />
+                    <NeedsDatesPanel legs={result.needs_new_dates ?? []} onChanged={handleRefreshExpiry} />
                   </div>
                 </div>
               </>
