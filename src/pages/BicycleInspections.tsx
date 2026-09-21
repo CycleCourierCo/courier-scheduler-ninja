@@ -640,14 +640,14 @@ const BicycleInspections = () => {
 
   // Who each inspection's approval request goes to (staff choice per card)
   const [approvalRecipients, setApprovalRecipients] = useState<
-    Record<string, "customer" | "receiver" | "walkin">
+    Record<string, "customer" | "sender" | "receiver" | "walkin">
   >({});
 
   // Send the approval request email to whoever staff chose
   const approvalEmailMutation = useMutation({
     mutationFn: async (args: {
       inspectionId: string;
-      recipient?: "customer" | "receiver" | "walkin";
+      recipient?: "customer" | "sender" | "receiver" | "walkin";
     }) => sendInspectionApprovalEmail(args.inspectionId, true, args.recipient),
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
@@ -682,7 +682,7 @@ const BicycleInspections = () => {
   const releaseMutation = useMutation({
     mutationFn: async (args: {
       inspectionId: string;
-      recipient?: "customer" | "receiver" | "walkin";
+      recipient?: "customer" | "sender" | "receiver" | "walkin";
     }) => {
       if (!user?.id) throw new Error("User not authenticated");
       return releaseInspectionToCustomer(
@@ -2916,7 +2916,7 @@ const BicycleInspections = () => {
                     </AlertDialogHeader>
                     <div className="space-y-2">
                       <AlertDialogAction
-                        className="w-full justify-start"
+                        className="h-auto w-full flex-col items-start gap-0.5 py-2 text-left"
                         onClick={() =>
                           releaseMutation.mutate({
                             inspectionId: inspection.id,
@@ -2924,10 +2924,29 @@ const BicycleInspections = () => {
                           })
                         }
                       >
-                        Ask the seller (account)
+                        <span>Ask the account that booked it</span>
+                        <span className="text-xs font-normal opacity-80">
+                          Goes to the booking account's email
+                        </span>
                       </AlertDialogAction>
                       <AlertDialogAction
-                        className="w-full justify-start"
+                        className="h-auto w-full flex-col items-start gap-0.5 py-2 text-left"
+                        disabled={!(order.sender as any)?.email}
+                        onClick={() =>
+                          releaseMutation.mutate({
+                            inspectionId: inspection.id,
+                            recipient: "sender",
+                          })
+                        }
+                      >
+                        <span>Ask the sender</span>
+                        <span className="text-xs font-normal opacity-80">
+                          {(order.sender as any)?.email || "No email on file"}
+                        </span>
+                      </AlertDialogAction>
+                      <AlertDialogAction
+                        className="h-auto w-full flex-col items-start gap-0.5 py-2 text-left"
+                        disabled={!(order.receiver as any)?.email}
                         onClick={() =>
                           releaseMutation.mutate({
                             inspectionId: inspection.id,
@@ -2935,7 +2954,10 @@ const BicycleInspections = () => {
                           })
                         }
                       >
-                        Ask the buyer (receiver)
+                        <span>Ask the buyer (receiver)</span>
+                        <span className="text-xs font-normal opacity-80">
+                          {(order.receiver as any)?.email || "No email on file"}
+                        </span>
                       </AlertDialogAction>
                     </div>
                     <AlertDialogFooter>
@@ -2975,16 +2997,21 @@ const BicycleInspections = () => {
                       onValueChange={(v) =>
                         setApprovalRecipients((prev) => ({
                           ...prev,
-                          [inspection.id]: v as "customer" | "receiver" | "walkin",
+                          [inspection.id]: v as "customer" | "sender" | "receiver" | "walkin",
                         }))
                       }
                     >
-                      <SelectTrigger className="h-9 w-[190px]">
+                      <SelectTrigger className="h-9 w-[230px]">
                         <SelectValue placeholder="Who approves?" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="customer">Ask the seller (account)</SelectItem>
-                        <SelectItem value="receiver">Ask the buyer (receiver)</SelectItem>
+                        <SelectItem value="customer">Ask the account that booked it</SelectItem>
+                        <SelectItem value="sender" disabled={!(order.sender as any)?.email}>
+                          Ask the sender
+                        </SelectItem>
+                        <SelectItem value="receiver" disabled={!(order.receiver as any)?.email}>
+                          Ask the buyer (receiver)
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   )}
@@ -3028,9 +3055,11 @@ const BicycleInspections = () => {
                   {new Date((inspection as any).approval_email_sent_at).toLocaleDateString("en-GB")}
                   {(inspection as any).approval_recipient === "receiver"
                     ? " to the buyer"
-                    : (inspection as any).approval_recipient === "walkin"
-                      ? " to the customer"
-                      : " to the seller"}
+                    : (inspection as any).approval_recipient === "sender"
+                      ? " to the sender"
+                      : (inspection as any).approval_recipient === "walkin"
+                        ? " to the customer"
+                        : " to the account that booked it"}
                 </span>
               )}
             </div>
