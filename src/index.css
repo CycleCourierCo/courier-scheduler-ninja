@@ -172,6 +172,14 @@
   .floor-density { @apply text-[17px]; }
   .journey-line { animation: route-draw 400ms ease-out both; }
   .journey-van { animation: van-slide 350ms ease-in-out both; }
+  .timeslot-map-marker {
+    @apply flex h-7 w-7 items-center justify-center rounded-full border-2 border-primary-foreground text-xs font-bold text-primary-foreground shadow-sm;
+  }
+  .timeslot-map-marker--pickup { @apply bg-success; }
+  .timeslot-map-marker--delivery { @apply bg-destructive; }
+  .timeslot-map-depot {
+    @apply flex h-6 w-[54px] items-center justify-center rounded border-2 border-primary-foreground bg-foreground text-[11px] font-bold text-background shadow-sm;
+  }
 
   /* Legacy hooks remain flat while old screens migrate to semantic classes. */
   .glass { @apply border-b border-border bg-card; }

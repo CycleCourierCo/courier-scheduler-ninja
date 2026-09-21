@@ -47,6 +47,7 @@ import {
 } from "@/lib/altLocation";
 import { uuid } from "@/lib/uuid";
 import GuaranteedDatePanel from "./GuaranteedDatePanel";
+import TimeslotRouteMap from "./TimeslotRouteMap";
 
 // Profitability constants are shared with Generate Routes so rates stay in step.
 import { COST_PER_MILE, DRIVER_HOURLY_RATE, formatGBP } from "@/lib/routeCosts";
@@ -3816,6 +3817,13 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                   </div>
                 </div>
 
+                <TimeslotRouteMap
+                  mobile
+                  stops={selectedJobs.map((job) => ({
+                    ...job,
+                    trackingNumber: job.orderData?.tracking_number,
+                  }))}
+                />
 
                 {/* Route */}
                 <div className="space-y-2">
@@ -4013,6 +4021,13 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                   </Button>
                 </div>
               </div>
+
+              <TimeslotRouteMap
+                stops={selectedJobs.map((job) => ({
+                  ...job,
+                  trackingNumber: job.orderData?.tracking_number,
+                }))}
+              />
 
               <div className="space-y-3">
                 {capacityWarning}
