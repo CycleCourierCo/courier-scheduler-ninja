@@ -910,6 +910,7 @@ serve(async (req) => {
     return json({
       plan_id: planId,
       mode,
+      unplanned_count: legs.filter((l) => !assigned.has(l.key)).length,
       generated_at: new Date().toISOString(),
       firm_days: firmDays,
       days,
