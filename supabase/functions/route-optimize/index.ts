@@ -190,6 +190,9 @@ serve(async (req) => {
     const firmDays = Number.isFinite(Number(body?.firm_days)) ? Math.max(0, Math.min(10, Number(body.firm_days))) : 2;
     const inspectionLeadDays = Number.isFinite(Number(body?.inspection_lead_days))
       ? Math.max(0, Math.min(14, Number(body.inspection_lead_days))) : null;
+    // 'joint' balances the whole horizon in one solve; 'greedy' fills each day
+    // as full as it can, in order.
+    const mode: 'joint' | 'greedy' = body?.mode === 'greedy' ? 'greedy' : 'joint';
 
     const today = todayLondon();
     const selectedDates: string[] = [...new Set(
