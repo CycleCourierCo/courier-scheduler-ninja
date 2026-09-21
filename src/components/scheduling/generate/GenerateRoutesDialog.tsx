@@ -753,25 +753,35 @@ const GenerateRoutesDialog: React.FC = () => {
               <>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-sm text-muted-foreground">
-                    Needs {activeDay.vans_needed} of {activeDay.vans_available} vans
+                    Uses {activeDay.vans_needed} of {activeDay.vans_available} vans
                     {activeDay.van_names.length > 0 ? ` — ${activeDay.van_names.join(", ")}` : ""}
                     {activeDay.is_provisional ? " · provisional" : ""}
-                    {activeDay.shortfall
-                      ? ` · ${activeDay.shortfall.extra_vans} more van${activeDay.shortfall.extra_vans === 1 ? "" : "s"} would fit ${activeDay.shortfall.extra_jobs} more jobs`
+                    {activeDay.spare_van_hint
+                      ? ` · one more van would fit ${activeDay.spare_van_hint.jobs} more job${activeDay.spare_van_hint.jobs === 1 ? "" : "s"}${activeDay.spare_van_hint.must_go > 0 ? ` (${activeDay.spare_van_hint.must_go} must go today)` : ""}`
                       : ""}
                   </p>
-                  {activeDay.vans_needed > 0 && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="gap-2"
-                      disabled={busyRoute}
-                      onClick={() => handleLockDay(activeDay.date, !lockedDays.includes(activeDay.date))}
-                    >
-                      {lockedDays.includes(activeDay.date) ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-                      {lockedDays.includes(activeDay.date) ? "Release day" : "Lock day"}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button size="sm" variant="outline" disabled={loading}
+                      onClick={() => handleAdjustVans(activeDay.date, -1)}>
+                      Try one fewer van
                     </Button>
-                  )}
+                    <Button size="sm" variant="outline" disabled={loading}
+                      onClick={() => handleAdjustVans(activeDay.date, 1)}>
+                      Try one more van
+                    </Button>
+                    {activeDay.vans_needed > 0 && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-2"
+                        disabled={busyRoute}
+                        onClick={() => handleLockDay(activeDay.date, !lockedDays.includes(activeDay.date))}
+                      >
+                        {lockedDays.includes(activeDay.date) ? <Unlock className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                        {lockedDays.includes(activeDay.date) ? "Release day" : "Lock day"}
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 <DaySummary
