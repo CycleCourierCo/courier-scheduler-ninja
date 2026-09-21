@@ -773,8 +773,9 @@ serve(async (req) => {
 
     /* ------------------------------ persist ------------------------------- */
 
-    // One active plan at a time.
-    await admin.from('route_plans').update({ status: 'superseded' }).eq('status', 'active');
+    // One active plan per way of planning, so balanced and day-by-day can sit
+    // side by side.
+    await admin.from('route_plans').update({ status: 'superseded' }).eq('status', 'active').eq('mode', mode);
 
     const { data: planRow, error: planErr } = await admin.from('route_plans').insert({
       horizon_start: selectedDates[0],
@@ -785,6 +786,7 @@ serve(async (req) => {
       inspection_lead_days: inspectionLeadDays,
       created_by: userData.user.id,
       status: 'active',
+      mode,
       generated_at: new Date().toISOString(),
     }).select('id').single();
     if (planErr) throw planErr;
