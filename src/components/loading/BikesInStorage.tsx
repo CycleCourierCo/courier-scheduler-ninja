@@ -142,15 +142,11 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                   {isMultiBike ? (
                     <div className="flex flex-wrap gap-1">
                       {allocations.map((allocation) => (
-                        <Badge key={allocation.id} variant="secondary" className="font-mono text-xs">
-                          {allocation.bay}{allocation.position}
-                        </Badge>
+                        <BayBadge key={allocation.id} allocation={allocation} />
                       ))}
                     </div>
                   ) : (
-                    <Badge variant="secondary" className="font-mono text-xs">
-                      {allocations[0].bay}{allocations[0].position}
-                    </Badge>
+                    <BayBadge allocation={allocations[0]} />
                   )}
                   <div className="flex flex-col gap-0.5 min-w-0">
                     <h4 className="font-medium text-sm truncate">{allocations[0].customerName}</h4>
