@@ -964,6 +964,7 @@ serve(async (req) => {
           seq: i + 1, leg_type: s.leg.legType, order_id: s.leg.orderId,
           eta: isoFromEpoch(s.arrival), lat: s.leg.lat, lon: s.leg.lon,
           is_difficult_area: s.leg.difficult, label: s.leg.label, guaranteed: !!s.leg.guaranteedDate,
+          planned_after_expiry: gracePlaced.has(s.leg.key),
         })),
       });
     }
@@ -992,6 +993,8 @@ serve(async (req) => {
         unplanned_count: legs.filter((l) => !assigned.has(l.key) && !l.lapsed && l.windowDates.includes(date)).length,
         unplanned_lapsed_count: legs.filter((l) => !assigned.has(l.key) && l.lapsed && l.windowDates.includes(date)).length,
         lapsed_count: current.routeInfo.flatMap((r) => r.stops).filter((s) => s.date === date && s.leg.lapsed).length,
+        expiring_count: legs.filter((l) => !l.lapsed && l.lastDate === date).length,
+        expiring_unplanned_count: legs.filter((l) => !l.lapsed && l.lastDate === date && !assigned.has(l.key)).length,
         infeasible_guaranteed: legs
           .filter((l) => l.guaranteedDate === date && !assigned.has(l.key))
           .map((l) => ({ order_id: l.orderId, label: l.label, leg_type: l.legType, date })),
