@@ -141,20 +141,17 @@ serve(async (req) => {
     if (stampError) throw stampError;
 
     // Test accounts: record the offer but don't message anyone.
-    let isTestAccount = false;
-    if ((order as any).user_id) {
-      const { data: profile } = await admin
-        .from("profiles")
-        .select("is_test_account")
-        .eq("id", (order as any).user_id)
-        .maybeSingle();
-      isTestAccount = profile?.is_test_account === true;
-    }
-    if (isTestAccount) {
-      return json({ success: true, skipped: "test_account", offered: declined.length, link });
+    if (bookingProfile?.is_test_account === true) {
+      return json({
+        success: true,
+        skipped: "test_account",
+        offered: declined.length,
+        recipient,
+        link,
+      });
     }
 
-    const results: Record<string, unknown> = { offered: declined.length, link };
+    const results: Record<string, unknown> = { offered: declined.length, recipient, link };
 
     // --- Email ---
     if (receiverEmail) {
