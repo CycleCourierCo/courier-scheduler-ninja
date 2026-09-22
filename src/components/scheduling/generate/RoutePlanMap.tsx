@@ -5,7 +5,6 @@ import { DEPOT_LOCATION } from "@/constants/depot";
 import { PlanRoute, decodePolyline } from "@/services/routeGenerationService";
 import {
   FitRouteBounds,
-  ROUTE_LINE_COLOURS,
   RouteLines,
   routeDepotIcon,
   routeNumberIcon,
