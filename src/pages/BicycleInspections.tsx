@@ -2130,7 +2130,7 @@ const BicycleInspections = () => {
             </div>
           )}
 
-          {/* Offer declined repairs to the receiver */}
+          {/* Offer declined repairs to the account, sender or receiver */}
           {canManageInspections && offerableIssues.length > 0 && (
             <div className="min-w-0 rounded-md border border-l-4 border-l-status-inspection bg-card p-3">
               <p className="text-sm font-medium break-words">
@@ -2138,23 +2138,56 @@ const BicycleInspections = () => {
                 {offerableIssues.length} — worth £{offerableTotal.toFixed(2)}.
               </p>
               <p className="text-xs text-muted-foreground mt-1 break-words">
-                Offer this work to the receiver — anything they approve is billed to them.
+                Offer this work to someone else — anything they approve is billed to them.
                 {lastOfferedAt && ` Last offered ${new Date(lastOfferedAt).toLocaleString()}.`}
               </p>
-              <Button
-                size="sm"
-                variant="outline"
-                className="mt-2"
-                onClick={() => offerToReceiverMutation.mutate(order.id)}
-                disabled={offerToReceiverMutation.isPending}
-              >
-                {offerToReceiverMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                ) : (
-                  <Send className="h-4 w-4 mr-1" />
-                )}
-                {lastOfferedAt ? "Re-send offer to receiver" : "Offer these repairs to the receiver"}
-              </Button>
+              <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Select
+                  value={offerRecipients[order.id] || "receiver"}
+                  onValueChange={(v) =>
+                    setOfferRecipients((prev) => ({
+                      ...prev,
+                      [order.id]: v as "customer" | "sender" | "receiver",
+                    }))
+                  }
+                >
+                  <SelectTrigger className="h-9 w-full sm:w-[240px]">
+                    <SelectValue placeholder="Who should we ask?" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem
+                      value="customer"
+                      disabled={!(order as any).booking_customer_email}
+                    >
+                      Ask the account that booked it
+                    </SelectItem>
+                    <SelectItem value="sender" disabled={!(order.sender as any)?.email}>
+                      Ask the sender
+                    </SelectItem>
+                    <SelectItem value="receiver" disabled={!(order.receiver as any)?.email}>
+                      Ask the buyer (receiver)
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    offerToReceiverMutation.mutate({
+                      orderId: order.id,
+                      recipient: offerRecipients[order.id] || "receiver",
+                    })
+                  }
+                  disabled={offerToReceiverMutation.isPending}
+                >
+                  {offerToReceiverMutation.isPending ? (
+                    <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                  ) : (
+                    <Send className="h-4 w-4 mr-1" />
+                  )}
+                  {lastOfferedAt ? "Re-send this offer" : "Send this offer"}
+                </Button>
+              </div>
             </div>
           )}
 
