@@ -1,11 +1,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import * as Sentry from "@sentry/react";
-import L from "leaflet";
-import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { DEPOT_LOCATION } from "@/constants/depot";
 import { supabase } from "@/integrations/supabase/client";
 import { decodePolyline } from "@/services/routeGenerationService";
+import {
+  FitRouteBounds,
+  RouteLines,
+  routeDepotIcon,
+  routeNumberIcon,
+} from "./RouteMapPrimitives";
 
 export interface TimeslotMapStop {
   orderId: string;
@@ -24,53 +29,6 @@ interface TimeslotRouteMapProps {
 }
 
 const MAX_STOPS_PER_REQUEST = 20;
-
-const numberedIcon = (number: number, type: "pickup" | "delivery") =>
-  L.divIcon({
-    className: "",
-    html: `<div class="timeslot-map-marker timeslot-map-marker--${type}">${number}</div>`,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    popupAnchor: [0, -16],
-  });
-
-const depotIcon = L.divIcon({
-  className: "",
-  html: '<div class="timeslot-map-depot">Depot</div>',
-  iconSize: [54, 24],
-  iconAnchor: [27, 12],
-  popupAnchor: [0, -14],
-});
-
-const RouteLayers: React.FC<{
-  points: [number, number][];
-  routeLines: [number, number][][];
-}> = ({ points, routeLines }) => {
-  const map = useMap();
-
-  useEffect(() => {
-    const layers = routeLines
-      .filter((line) => line.length > 1)
-      .map((line) => L.polyline(line, {
-        color: "hsl(var(--route))",
-        weight: 4,
-        opacity: 0.9,
-      }).addTo(map));
-
-    return () => layers.forEach((layer) => map.removeLayer(layer));
-  }, [map, routeLines]);
-
-  useEffect(() => {
-    if (points.length === 0) return;
-    const timer = window.setTimeout(() => {
-      map.invalidateSize();
-      map.fitBounds(L.latLngBounds(points), { padding: [28, 28], maxZoom: 13 });
-    }, 100);
-    return () => window.clearTimeout(timer);
-  }, [map, points]);
-
-  return null;
-};
 
 const TimeslotRouteMap: React.FC<TimeslotRouteMapProps> = ({ stops, mobile = false }) => {
   const mappedStops = useMemo(
@@ -156,7 +114,7 @@ const TimeslotRouteMap: React.FC<TimeslotRouteMapProps> = ({ stops, mobile = fal
   }
 
   return (
-    <div className={`relative w-full overflow-hidden rounded-md border bg-muted ${mobile ? "h-56" : "h-[360px]"}`}>
+    <div className={`relative w-full overflow-hidden rounded-md border bg-muted ${mobile ? "h-64" : "h-[420px]"}`}>
       <MapContainer
         center={[DEPOT_LOCATION.lat, DEPOT_LOCATION.lon]}
         zoom={6}
@@ -167,8 +125,9 @@ const TimeslotRouteMap: React.FC<TimeslotRouteMapProps> = ({ stops, mobile = fal
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           attribution="&copy; OpenStreetMap contributors"
         />
-        <RouteLayers points={points} routeLines={routeLines} />
-        <Marker position={[DEPOT_LOCATION.lat, DEPOT_LOCATION.lon]} icon={depotIcon}>
+        <RouteLines lines={routeLines} />
+        <FitRouteBounds points={points} />
+        <Marker position={[DEPOT_LOCATION.lat, DEPOT_LOCATION.lon]} icon={routeDepotIcon}>
           <Popup>
             <div className="text-xs">
               <p className="font-semibold">Start and finish</p>
@@ -180,7 +139,7 @@ const TimeslotRouteMap: React.FC<TimeslotRouteMapProps> = ({ stops, mobile = fal
           <Marker
             key={`${stop.orderId}-${stop.type}-${index}`}
             position={[stop.lat, stop.lon]}
-            icon={numberedIcon(index + 1, stop.type)}
+            icon={routeNumberIcon(String(index + 1))}
           >
             <Popup>
               <div className="min-w-40 text-xs">
