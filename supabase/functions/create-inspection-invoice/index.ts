@@ -125,7 +125,7 @@ const handler = async (req: Request): Promise<Response> => {
       search?: string;
       billingEmailOverride?: string;
       quickbooksCustomerId?: string;
-      billFrom?: 'sender' | 'receiver';
+      billFrom?: 'sender' | 'receiver' | 'account';
       customerDetails?: {
         name?: string;
         email?: string;
