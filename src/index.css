@@ -173,14 +173,22 @@
   .journey-line { animation: route-draw 400ms ease-out both; }
   .journey-van { animation: van-slide 350ms ease-in-out both; }
   .route-map-marker {
-    @apply flex h-[22px] w-[22px] items-center justify-center rounded-full border-2 border-primary-foreground text-[11px] font-semibold text-primary-foreground shadow-sm;
+    box-sizing: border-box;
+    display: flex;
+    width: 22px;
+    height: 22px;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid hsl(var(--primary-foreground));
+    border-radius: 9999px;
+    background: hsl(var(--route-marker));
+    color: hsl(var(--primary-foreground));
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    opacity: 1;
+    box-shadow: 0 1px 3px hsl(var(--foreground) / 0.45);
   }
-  .route-map-marker--segment-1 { background: hsl(var(--segment-1)); }
-  .route-map-marker--segment-2 { background: hsl(var(--segment-2)); }
-  .route-map-marker--segment-3 { background: hsl(var(--segment-3)); }
-  .route-map-marker--segment-4 { background: hsl(var(--segment-4)); }
-  .route-map-marker--segment-5 { background: hsl(var(--segment-5)); }
-  .route-map-marker--segment-6 { background: hsl(var(--segment-6)); }
   .route-map-depot {
     @apply flex h-5 w-12 items-center justify-center rounded border-2 border-primary-foreground bg-foreground px-1.5 text-[11px] font-semibold text-background shadow-sm;
   }
