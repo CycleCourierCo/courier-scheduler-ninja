@@ -74,7 +74,7 @@ const reconcileForOrder = async (orderId: string) => {
 export const sendInspectionApprovalEmail = async (
   inspectionId: string,
   force = false,
-  recipient?: 'customer' | 'receiver' | 'walkin'
+  recipient?: 'customer' | 'sender' | 'receiver' | 'walkin'
 ): Promise<{ success: boolean; skipped?: string }> => {
   try {
     const { data, error } = await supabase.functions.invoke('send-inspection-approval', {
@@ -920,7 +920,7 @@ export const releaseInspectionToCustomer = async (
   releasedById: string,
   releasedByName: string,
   /** Who should be asked to approve the repairs. Defaults to the stored choice. */
-  recipient?: 'customer' | 'receiver' | 'walkin'
+  recipient?: 'customer' | 'sender' | 'receiver' | 'walkin'
 ): Promise<BicycleInspection | null> => {
   try {
     const { data: issues, error: issuesError } = await supabase
@@ -1834,7 +1834,7 @@ export const createWorkshopInspection = async (
 /** Choose who is asked to approve the repairs on an inspection. */
 export const setApprovalRecipient = async (
   inspectionId: string,
-  recipient: 'customer' | 'receiver' | 'walkin'
+  recipient: 'customer' | 'sender' | 'receiver' | 'walkin'
 ): Promise<void> => {
   const { error } = await supabase
     .from('bicycle_inspections')

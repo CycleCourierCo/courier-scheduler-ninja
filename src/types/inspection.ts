@@ -14,7 +14,7 @@ export type InspectionStatus =
 
 export type IssueStatus = 'pending' | 'approved' | 'declined' | 'resolved' | 'repaired';
 
-export type ApprovalRecipient = 'customer' | 'receiver' | 'walkin';
+export type ApprovalRecipient = 'customer' | 'sender' | 'receiver' | 'walkin';
 
 export interface BicycleInspection {
   id: string;
