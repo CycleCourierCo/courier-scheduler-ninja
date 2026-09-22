@@ -547,6 +547,7 @@ const handler = async (req: Request): Promise<Response> => {
           triedNames: nameCandidates,
           suggestions: suggestions.map(mapCustomer),
           parties: {
+            ...(accountParty ? { account: accountParty } : {}),
             ...(senderParty ? { sender: senderParty } : {}),
             ...(receiverParty ? { receiver: receiverParty } : {}),
           },
