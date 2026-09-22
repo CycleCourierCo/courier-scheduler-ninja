@@ -6409,6 +6409,15 @@ export type Database = {
         Args: { p_client_id: string; p_redirect_uri: string }
         Returns: Json
       }
+      get_planning_vans: {
+        Args: never
+        Returns: {
+          bike_spaces: number
+          id: string
+          name: string
+          status: string
+        }[]
+      }
       get_public_inspection_approval: {
         Args: { p_inspection_id: string }
         Returns: Json
