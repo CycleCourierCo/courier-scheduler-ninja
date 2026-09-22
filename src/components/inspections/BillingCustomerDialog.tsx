@@ -20,8 +20,10 @@ export interface QuickBooksCustomerOption {
   email: string | null;
 }
 
+export type BillingPartySide = "account" | "sender" | "receiver";
+
 export interface BillingPartyDetails {
-  side: "sender" | "receiver";
+  side: BillingPartySide;
   name?: string;
   company?: string;
   email?: string;
@@ -31,6 +33,8 @@ export interface BillingPartyDetails {
 }
 
 export interface BillingParties {
+  /** The account that booked the job. */
+  account?: BillingPartyDetails;
   sender?: BillingPartyDetails;
   receiver?: BillingPartyDetails;
 }
@@ -41,13 +45,13 @@ interface BillingCustomerDialogProps {
   /** Customers suggested by the edge function when auto-match failed. */
   suggestions?: QuickBooksCustomerOption[];
   triedEmails?: string[];
-  /** Sender/receiver contact details from the job, if it has one. */
+  /** Booking account / sender / receiver contact details from the job, if it has one. */
   parties?: BillingParties;
   isSubmitting?: boolean;
   onConfirm: (selection: {
     quickbooksCustomerId?: string;
     billingEmailOverride?: string;
-    billFrom?: "sender" | "receiver";
+    billFrom?: BillingPartySide;
   }) => void;
 }
 
