@@ -16,7 +16,7 @@ const segmentNumber = (routeIndex: number) => (routeIndex % ROUTE_LINE_COLOURS.l
 export const routeNumberIcon = (label: string, routeIndex = 0) =>
   L.divIcon({
     className: "",
-    html: `<div class="route-map-marker route-map-marker--segment-${segmentNumber(routeIndex)}">${label}</div>`,
+    html: `<div class="route-map-marker" style="--route-marker: var(--segment-${segmentNumber(routeIndex)})">${label}</div>`,
     iconSize: [22, 22],
     iconAnchor: [11, 11],
     popupAnchor: [0, -13],
