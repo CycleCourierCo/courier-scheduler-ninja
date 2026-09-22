@@ -238,20 +238,22 @@ export const refreshAvailabilityExpiry = async () => {
   return data as { expired: number; revived: number };
 };
 
-/** Vans that can be used for planning. */
+/**
+ * Vans that can be used for planning.
+ *
+ * Read through a planning-only server lookup so route planners (who must not see
+ * full vehicle records) still get the fleet list. It already limits itself to vans
+ * in use or off road — anything in repair, awaiting sale, sold or written off is
+ * never plannable.
+ */
 export const fetchPlanningVans = async () => {
-  const { data, error } = await supabase
-    .from("vehicles")
-    .select("id,registration,make,bike_spaces,status")
-    .order("registration");
+  const { data, error } = await supabase.rpc("get_planning_vans" as any);
   if (error) throw error;
-  // Only vans that are actually part of the working fleet: in use or off road.
-  // Anything in repair, awaiting sale, sold or written off is never plannable.
-  return (data || [])
+  return ((data as any[]) || [])
     .filter((v: any) => v.status === "in_use" || v.status === "off_road")
     .map((v: any) => ({
       id: v.id as string,
-      name: (v.registration || v.make || "Van") as string,
+      name: (v.name || "Van") as string,
       capacity: Number(v.bike_spaces) > 0 ? Number(v.bike_spaces) : null,
     }));
 };

@@ -1724,12 +1724,18 @@ export interface PublicRepairOffer {
   report_url?: string | null;
 }
 
-/** Emails/WhatsApps the receiver an offer for every declined repair on an order. */
+export type RepairOfferRecipient = 'customer' | 'sender' | 'receiver';
+
+/**
+ * Emails/WhatsApps an offer for every declined repair on an order to the chosen
+ * person: the account that booked it, the sender, or the receiver (default).
+ */
 export const offerDeclinedRepairsToReceiver = async (
-  orderId: string
-): Promise<{ offered: number; email?: string; whatsapp?: string; link?: string }> => {
+  orderId: string,
+  recipient: RepairOfferRecipient = 'receiver'
+): Promise<{ offered: number; email?: string; whatsapp?: string; link?: string; recipient?: string }> => {
   const { data, error } = await supabase.functions.invoke('send-repair-offer', {
-    body: { orderId },
+    body: { orderId, recipient },
   });
   if (error) {
     let details = error.message;
