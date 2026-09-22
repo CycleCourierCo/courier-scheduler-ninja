@@ -872,15 +872,31 @@ const BicycleInspections = () => {
     },
   });
 
-  // Offer declined repairs to the receiver (they pay directly)
+  // Offer declined repairs to the account that booked it, the sender or the
+  // receiver — whoever approves pays for that work directly.
+  const [offerRecipients, setOfferRecipients] = useState<
+    Record<string, "customer" | "sender" | "receiver">
+  >({});
   const offerToReceiverMutation = useMutation({
-    mutationFn: async (orderId: string) => offerDeclinedRepairsToReceiver(orderId),
+    mutationFn: async ({
+      orderId,
+      recipient,
+    }: {
+      orderId: string;
+      recipient: "customer" | "sender" | "receiver";
+    }) => offerDeclinedRepairsToReceiver(orderId, recipient),
     onSuccess: (result: any) => {
       queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      const who =
+        result?.recipient === "customer"
+          ? "the account that booked it"
+          : result?.recipient === "sender"
+          ? "the sender"
+          : "the receiver";
       if (result?.skipped === "test_account") {
         toast.success("Offer recorded (test account — no message sent)");
       } else {
-        toast.success(`Offer sent to the receiver for ${result?.offered ?? 0} repair(s)`);
+        toast.success(`Offer sent to ${who} for ${result?.offered ?? 0} repair(s)`);
       }
     },
     onError: (error: any) => {
