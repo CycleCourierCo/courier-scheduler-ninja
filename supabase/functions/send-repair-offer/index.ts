@@ -54,10 +54,15 @@ serve(async (req) => {
     if (!orderId || !/^[0-9a-f-]{36}$/i.test(orderId)) {
       return json({ error: "A valid orderId is required" }, 400);
     }
+    // Who the optional work is offered to: the account that booked the job, the
+    // sender contact on the job, or the receiver/buyer (the historic default).
+    const allowedRecipients = ["customer", "sender", "receiver"];
+    const requested = typeof body?.recipient === "string" ? body.recipient.trim() : "";
+    const recipient = allowedRecipients.includes(requested) ? requested : "receiver";
 
     const { data: order, error: orderError } = await admin
       .from("orders")
-      .select("id, tracking_number, bike_brand, bike_model, receiver, user_id")
+      .select("id, tracking_number, bike_brand, bike_model, sender, receiver, user_id")
       .eq("id", orderId)
       .maybeSingle();
     if (orderError) throw orderError;
@@ -81,12 +86,42 @@ serve(async (req) => {
       return json({ error: "There are no declined repairs to offer" }, 400);
     }
 
-    const receiver = (order.receiver || {}) as Record<string, string>;
-    const receiverEmail = (receiver.email || "").trim();
-    const receiverPhone = (receiver.phone || "").trim();
-    const receiverName = (receiver.name || "there").trim();
-    if (!receiverEmail && !receiverPhone) {
-      return json({ error: "The receiver has no email or phone on this order" }, 400);
+    // Resolve the chosen person's contact details.
+    const { data: bookingProfile } = (order as any).user_id
+      ? await admin
+          .from("profiles")
+          .select("name, company_name, email, phone, is_test_account")
+          .eq("id", (order as any).user_id)
+          .maybeSingle()
+      : { data: null as any };
+
+    const senderSnap = (order.sender || {}) as Record<string, string>;
+    const receiverSnap = (order.receiver || {}) as Record<string, string>;
+
+    let receiverEmail = "";
+    let receiverPhone = "";
+    let receiverName = "there";
+    if (recipient === "customer") {
+      receiverEmail = String(bookingProfile?.email || "").trim();
+      receiverPhone = String(bookingProfile?.phone || "").trim();
+      receiverName = String(bookingProfile?.company_name || bookingProfile?.name || "there").trim();
+      if (!receiverEmail && !receiverPhone) {
+        return json({ error: "The account that booked this job has no email or phone" }, 400);
+      }
+    } else if (recipient === "sender") {
+      receiverEmail = String(senderSnap.email || "").trim();
+      receiverPhone = String(senderSnap.phone || "").trim();
+      receiverName = String(senderSnap.name || "there").trim();
+      if (!receiverEmail && !receiverPhone) {
+        return json({ error: "The sender has no email or phone on this order" }, 400);
+      }
+    } else {
+      receiverEmail = String(receiverSnap.email || "").trim();
+      receiverPhone = String(receiverSnap.phone || "").trim();
+      receiverName = String(receiverSnap.name || "there").trim();
+      if (!receiverEmail && !receiverPhone) {
+        return json({ error: "The receiver has no email or phone on this order" }, 400);
+      }
     }
 
     const total = declined.reduce((s: number, i: any) => s + Number(i.estimated_cost || 0), 0);
