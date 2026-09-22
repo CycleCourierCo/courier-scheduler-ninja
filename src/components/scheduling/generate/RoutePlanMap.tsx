@@ -1,53 +1,31 @@
-import React, { useEffect, useMemo } from "react";
-import { MapContainer, TileLayer, Marker, Popup, GeoJSON, useMap } from "react-leaflet";
-import L from "leaflet";
+import React, { useMemo } from "react";
+import type { GeoJsonObject } from "geojson";
+import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { DEPOT_LOCATION } from "@/constants/depot";
 import { PlanRoute, decodePolyline } from "@/services/routeGenerationService";
-
-/** Draws the route lines straight onto the Leaflet map. */
-const RouteLines: React.FC<{ lines: [number, number][][]; colours: string[] }> = ({ lines, colours }) => {
-  const map = useMap();
-  useEffect(() => {
-    const layers = lines
-      .map((line, i) =>
-        line.length > 1
-          ? L.polyline(line, { color: colours[i % colours.length], weight: 3, opacity: 0.85 }).addTo(map)
-          : null,
-      )
-      .filter(Boolean) as L.Polyline[];
-    return () => {
-      layers.forEach((layer) => map.removeLayer(layer));
-    };
-  }, [map, lines, colours]);
-  return null;
-};
-
-const ROUTE_COLOURS = ["#1d4ed8", "#0f766e", "#b45309", "#7c3aed", "#be123c", "#0369a1"];
-
-const numberedIcon = (label: string, colour: string) =>
-  L.divIcon({
-    className: "",
-    html: `<div style="background:${colour};color:#fff;border-radius:9999px;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35)">${label}</div>`,
-    iconSize: [22, 22],
-    iconAnchor: [11, 11],
-  });
-
-const depotIcon = L.divIcon({
-  className: "",
-  html: `<div style="background:#111827;color:#fff;border-radius:4px;padding:2px 6px;font-size:11px;font-weight:600;border:2px solid #fff">Depot</div>`,
-  iconSize: [48, 20],
-  iconAnchor: [24, 10],
-});
+import {
+  FitRouteBounds,
+  RouteLines,
+  routeDepotIcon,
+  routeNumberIcon,
+} from "@/components/scheduling/RouteMapPrimitives";
 
 interface Props {
   routes: PlanRoute[];
-  areas?: { id: string; name: string; geojson: any }[];
+  areas?: { id: string; name: string; geojson: GeoJsonObject }[];
 }
 
 const RoutePlanMap: React.FC<Props> = ({ routes, areas = [] }) => {
   const lines = useMemo(
     () => routes.map((r) => (r.geometry ? decodePolyline(r.geometry) : [])),
+    [routes],
+  );
+  const points = useMemo<[number, number][]>(
+    () => [
+      [DEPOT_LOCATION.lat, DEPOT_LOCATION.lon],
+      ...routes.flatMap((route) => route.stops.map((stop) => [stop.lat, stop.lon] as [number, number])),
+    ],
     [routes],
   );
 
@@ -67,14 +45,15 @@ const RoutePlanMap: React.FC<Props> = ({ routes, areas = [] }) => {
           />
         ))}
 
-        <RouteLines lines={lines} colours={ROUTE_COLOURS} />
+        <RouteLines lines={lines} />
+        <FitRouteBounds points={points} />
 
         {routes.map((route, i) =>
           route.stops.map((stop) => (
             <Marker
               key={`${route.route_id}-${stop.seq}`}
               position={[stop.lat, stop.lon]}
-              icon={numberedIcon(String(stop.seq), ROUTE_COLOURS[i % ROUTE_COLOURS.length])}
+               icon={routeNumberIcon(String(stop.seq), i)}
             >
               <Popup>
                 <div className="text-xs">
@@ -87,7 +66,7 @@ const RoutePlanMap: React.FC<Props> = ({ routes, areas = [] }) => {
           )),
         )}
 
-        <Marker position={[DEPOT_LOCATION.lat, DEPOT_LOCATION.lon]} icon={depotIcon} />
+         <Marker position={[DEPOT_LOCATION.lat, DEPOT_LOCATION.lon]} icon={routeDepotIcon} />
       </MapContainer>
     </div>
   );
