@@ -98,16 +98,24 @@ const BillingCustomerDialog: React.FC<BillingCustomerDialogProps> = ({
 
   const selected = results.find((c) => c.id === selectedId) || null;
 
-  const partyList = [parties?.sender, parties?.receiver].filter(Boolean) as BillingPartyDetails[];
+  const partyList = [parties?.account, parties?.sender, parties?.receiver].filter(
+    Boolean
+  ) as BillingPartyDetails[];
+
+  const sideLabels: Record<BillingPartySide, { action: string; fallback: string }> = {
+    account: { action: "Bill the account that booked it", fallback: "Booking account" },
+    sender: { action: "Bill the sender", fallback: "Sender" },
+    receiver: { action: "Bill the receiver", fallback: "Receiver" },
+  };
 
   const renderParty = (party: BillingPartyDetails) => {
     const email = billingEmail.trim() || party.email || "";
-    const label = party.side === "sender" ? "Bill the sender" : "Bill the receiver";
+    const label = sideLabels[party.side].action;
     return (
       <div key={party.side} className="rounded-md border p-3 space-y-2">
         <div className="min-w-0">
           <p className="text-sm font-medium break-words">
-            {party.company || party.name || (party.side === "sender" ? "Sender" : "Receiver")}
+            {party.company || party.name || sideLabels[party.side].fallback}
           </p>
           {party.company && party.name && (
             <p className="text-xs text-muted-foreground break-words">{party.name}</p>
