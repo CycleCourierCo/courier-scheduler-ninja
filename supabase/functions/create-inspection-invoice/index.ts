@@ -261,11 +261,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Sender/receiver contact snapshot on the job — used when staff choose to
     // bill one of the two parties directly.
+    const str = (v: any) => (v === null || v === undefined ? '' : String(v).trim());
     const partyDetails = (side: 'sender' | 'receiver') => {
       const raw = (order as any)?.[side];
       if (!raw || typeof raw !== 'object') return null;
       const addr = (raw.address || {}) as Record<string, any>;
-      const str = (v: any) => (v === null || v === undefined ? '' : String(v).trim());
       const details = {
         side,
         name: str(raw.name),
@@ -283,7 +283,32 @@ const handler = async (req: Request): Promise<Response> => {
 
     const senderParty = partyDetails('sender');
     const receiverParty = partyDetails('receiver');
-    const chosenParty = billFrom === 'sender' ? senderParty : billFrom === 'receiver' ? receiverParty : null;
+    // The account that booked the job — billable in its own right.
+    const accountParty = (() => {
+      const email = str(customerProfile?.accounts_email) || str(customerProfile?.email);
+      const name = str(customerProfile?.name);
+      const company = str(customerProfile?.company_name);
+      if (!email && !name && !company) return null;
+      return {
+        side: 'account' as const,
+        name,
+        company,
+        email,
+        phone: '',
+        addressLine1: '',
+        addressLine2: '',
+        city: '',
+        postcode: '',
+      };
+    })();
+    const chosenParty =
+      billFrom === 'sender'
+        ? senderParty
+        : billFrom === 'receiver'
+        ? receiverParty
+        : billFrom === 'account'
+        ? accountParty
+        : null;
 
     // Candidate billing identities, most authoritative first. Internal
     // addresses are skipped so a staff-booked order never invoices ourselves.
