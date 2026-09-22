@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import type { GeoJsonObject } from "geojson";
 import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { DEPOT_LOCATION } from "@/constants/depot";
@@ -12,7 +13,7 @@ import {
 
 interface Props {
   routes: PlanRoute[];
-  areas?: { id: string; name: string; geojson: any }[];
+  areas?: { id: string; name: string; geojson: GeoJsonObject }[];
 }
 
 const RoutePlanMap: React.FC<Props> = ({ routes, areas = [] }) => {
