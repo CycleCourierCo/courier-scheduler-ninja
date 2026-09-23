@@ -353,11 +353,14 @@ export const getOrCreateInspection = async (
   bikeType?: string | null
 ): Promise<BicycleInspection | null> => {
   try {
-    const { data: byOrder, error: fetchError } = await supabase
+    // Tolerate legacy duplicates: take the earliest record rather than erroring.
+    const { data: byOrderRows, error: fetchError } = await supabase
       .from('bicycle_inspections')
       .select('*')
       .eq('order_id', orderId)
-      .maybeSingle();
+      .order('created_at', { ascending: true })
+      .limit(1);
+    const byOrder = byOrderRows?.[0] ?? null;
 
     if (fetchError) throw fetchError;
 
