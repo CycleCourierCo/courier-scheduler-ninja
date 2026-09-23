@@ -1011,6 +1011,13 @@ serve(async (req) => {
     const assigned = new Set<string>();
     const routesByDate: Record<string, any[]> = {};
 
+    // "Thin" is now purely informational: a route well below the run's typical
+    // size, rather than short of a target anyone typed in.
+    const sizes = allRoutes.map((r) => r.stops.length).sort((a, b) => a - b);
+    const medianSize = sizes.length ? sizes[Math.floor(sizes.length / 2)] : 0;
+    const thinCutoff = Math.max(3, Math.floor(medianSize * 0.6));
+    const floorCutoff = Math.max(2, Math.floor(medianSize * 0.4));
+
     const prepared = allRoutes.map((r) => {
       const ordered = [...r.stops].sort((a, b) => a.arrival - b.arrival);
       const steps = Array.isArray(r.route.steps) ? r.route.steps : [];
@@ -1018,10 +1025,10 @@ serve(async (req) => {
       const duration = routeDuration(r.route);
       const m = money(r);
       const mustGoLabels = ordered.filter((s) => mustGo(s.leg, r.meta.date)).map((s) => s.leg.label);
-      const thin = ordered.length < targetJobs;
+      const thin = ordered.length < thinCutoff;
       return {
         meta: r.meta, ordered, duration, ...m,
-        isProvisional: selectedDates.indexOf(r.meta.date) >= firmDays,
+        isProvisional: false,
         longDay: r.meta.long && duration > NORMAL_CAP_H * HOURS,
         miles: routeMiles(r.route),
         maxLoad: Math.round((maxLoadUnits / 10) * 100) / 100,
@@ -1029,9 +1036,9 @@ serve(async (req) => {
         region: r.meta.areaName,
         spreadMi: spreadMiles(ordered.map((s) => s.leg)),
         thin,
-        belowFloor: ordered.length < floorJobs,
+        belowFloor: ordered.length < floorCutoff,
         thinReason: thin
-          ? (mustGoLabels.length > 0 ? 'Needed for must-go jobs' : 'Thin — no more work fitted nearby')
+          ? `Only ${ordered.length} stops — nothing else fitted nearby`
           : null,
         mustGoLabels: mustGoLabels.slice(0, 10),
       };
