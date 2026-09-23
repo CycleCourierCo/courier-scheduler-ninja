@@ -773,10 +773,10 @@ serve(async (req) => {
 
     /** Is this delivery's bike in the depot in time for `date`? */
     const deliveryReady = (leg: Leg, date: string): boolean => {
-      const lead = leg.needsInspection
-        ? (inspectionLeadDays === null ? null : Math.max(1, inspectionLeadDays))
-        : 1;
-      if (lead === null) return false;                    // inspection must be marked done first
+      // A bike waiting on an inspection is never auto-unlocked: staff must mark
+      // the inspection done first.
+      if (leg.needsInspection) return false;
+      const lead = 1;
       let collected: string | null = null;
       if (leg.inDepot) return true;
       if (leg.bookedCollection) collected = leg.bookedCollection;
