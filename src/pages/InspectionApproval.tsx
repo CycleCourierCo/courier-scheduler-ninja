@@ -191,7 +191,9 @@ export default function InspectionApproval() {
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  No repairs will be carried out. We'll be in touch about collecting the bike.
+                  {allDeclined
+                    ? "All of the repairs were declined, so none will be carried out. We'll be in touch about the bike."
+                    : "No repairs will be carried out. We'll be in touch about collecting the bike."}
                 </p>
               )}
             </CardContent>
