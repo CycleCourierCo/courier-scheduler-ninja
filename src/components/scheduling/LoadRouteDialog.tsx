@@ -266,7 +266,9 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Created {format(new Date(route.created_at), "MMM d, yyyy 'at' HH:mm")}
+                            Saved by {route.created_by === user?.id ? "you" : (creatorNames[route.created_by] || "a colleague")}
+                            {" · "}
+                            {format(new Date(route.created_at), "MMM d, yyyy 'at' HH:mm")}
                           </p>
                         </div>
                         
