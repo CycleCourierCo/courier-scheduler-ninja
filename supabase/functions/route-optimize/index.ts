@@ -214,6 +214,10 @@ interface Leg {
   guaranteedDate: string | null;
   lapsed: boolean;
   lastDate: string | null;
+  /** Days since the order was booked. */
+  ageDays: number;
+  /** Days the bike has been sitting in the depot (deliveries only). */
+  depotDays: number;
   areaIdx: number | null;
   businessHours: Record<string, any> | null;
   label: string;
@@ -478,6 +482,8 @@ serve(async (req) => {
           guaranteedDate: guaranteed,
           lapsed,
           lastDate: future.length ? future[future.length - 1] : null,
+          ageDays: (() => { const d = dateKey(order.created_at); return d ? daysSince(d) : 0; })(),
+          depotDays: legType === 'delivery' && collectedDate ? daysSince(collectedDate) : 0,
           areaIdx: difficultAreaIdx(lat, lon),
           businessHours, label,
           needsInspection: !!order.needs_inspection && !inspectionDone,
