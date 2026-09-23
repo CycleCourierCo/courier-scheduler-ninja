@@ -6,6 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -324,6 +325,7 @@ const GenerateRoutesDialog: React.FC = () => {
   const [busyRoute, setBusyRoute] = useState(false);
   const [result, setResult] = useState<RoutePlanResult | null>(null);
   const [includeExpired, setIncludeExpired] = useState(false);
+  const [prioritiseAge, setPrioritiseAge] = useState(true);
   /** Whether a 15h long day may be used for one difficult area. */
   const [maxLongDays, setMaxLongDays] = useState(1);
   const [lapsedLegs, setLapsedLegs] = useState<NeedsNewDatesLeg[]>([]);
@@ -418,6 +420,7 @@ const GenerateRoutesDialog: React.FC = () => {
       dates.map((d) => [d, (gridOverride ?? grid)[d] ?? vans.map((v) => v.id)]),
     ),
     include_expired: includeExpired,
+    prioritise_age: prioritiseAge,
     max_long_days: maxLongDays,
   });
 
@@ -583,9 +586,27 @@ const GenerateRoutesDialog: React.FC = () => {
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
-          Every van is packed as full as its bike spaces and the shift hours allow. Older jobs, and
-          jobs with the fewest dates left, are fitted in first.
+          Every van is packed as full as its bike spaces and the shift hours allow.
         </p>
+
+        <div className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2">
+          <div className="space-y-0.5">
+            <Label htmlFor="prioritise-age" className="text-sm font-medium">
+              Favour older jobs
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              {prioritiseAge
+                ? "Jobs with the fewest dates left, and jobs that have waited longest, are fitted in first."
+                : "Every job counts the same — nothing is fitted in first because of its age."}
+            </p>
+          </div>
+          <Switch
+            id="prioritise-age"
+            checked={prioritiseAge}
+            onCheckedChange={setPrioritiseAge}
+            aria-label="Favour older jobs"
+          />
+        </div>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
