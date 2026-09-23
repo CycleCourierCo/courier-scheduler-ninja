@@ -1356,7 +1356,12 @@ const BicycleInspections = () => {
       );
     } catch (error) {
       console.error(error);
-      toast.error("Failed to save the bike identity check");
+      const reason = (error as any)?.message || (error as any)?.details || "";
+      toast.error(
+        reason
+          ? `Failed to save the bike identity check: ${reason}`
+          : "Failed to save the bike identity check"
+      );
       return;
     }
 
