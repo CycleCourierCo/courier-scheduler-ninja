@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { OrderData } from "@/pages/JobScheduling";
 import { getLegContact } from "@/utils/niDelivery";
+import { useAuth } from "@/contexts/AuthContext";
 
 const formatLegAddress = (a: any) =>
   [a?.street, a?.city, a?.state, a?.zipCode].filter(Boolean).join(", ");
@@ -67,7 +68,10 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
   orders,
   onLoadRoute
 }) => {
+  const { user, userProfile } = useAuth();
+  const isAdmin = ((userProfile as any)?.roles || []).includes("admin");
   const [savedRoutes, setSavedRoutes] = useState<SavedRoute[]>([]);
+  const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
