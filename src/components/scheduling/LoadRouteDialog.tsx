@@ -283,6 +283,7 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
                             Load
                           </Button>
                           
+                          {(isAdmin || route.created_by === user?.id) && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button
