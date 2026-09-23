@@ -41,6 +41,7 @@ interface ApprovalData {
 
 export default function InspectionApproval() {
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [data, setData] = useState<ApprovalData | null>(null);
