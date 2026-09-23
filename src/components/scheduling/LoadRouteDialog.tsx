@@ -99,6 +99,22 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
       }));
 
       setSavedRoutes(routes);
+
+      // Resolve who saved each route (best effort — ignore if not visible)
+      const creatorIds = Array.from(
+        new Set(routes.map(r => r.created_by).filter(Boolean))
+      ) as string[];
+      if (creatorIds.length) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, name, email')
+          .in('id', creatorIds);
+        const map: Record<string, string> = {};
+        (profiles || []).forEach((p: any) => {
+          map[p.id] = p.name || p.email || '';
+        });
+        setCreatorNames(map);
+      }
     } catch (error: any) {
       console.error("Error fetching saved routes:", error);
       toast.error(`Failed to load saved routes: ${error.message}`);
