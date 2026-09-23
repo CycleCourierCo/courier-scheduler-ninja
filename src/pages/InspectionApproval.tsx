@@ -20,12 +20,17 @@ interface ApprovalIssue {
   estimated_cost: number | null;
   status: string;
   customer_response: string | null;
+  offered_to_receiver_at?: string | null;
+  receiver_approved_at?: string | null;
+  receiver_declined_at?: string | null;
 }
 
 interface ApprovalData {
   error?: string;
   inspection_id?: string;
+  order_id?: string | null;
   status?: string;
+  awaiting_receiver_count?: number;
   customer_name?: string | null;
   bike?: string | null;
   frame_size?: string | null;
