@@ -832,7 +832,7 @@ serve(async (req) => {
           let wanted = Math.min(
             LONDON_MAX_VANS,
             free.length,
-            Math.max(1, Math.ceil(Math.max(londonLegs.length / targetJobs, londonSpaces / Math.max(1, cap)))),
+            Math.max(1, Math.ceil(Math.max(londonLegs.length / LONDON_JOBS_PER_VAN, londonSpaces / Math.max(1, cap)))),
           );
           // always leave a van for the rest of the country when there is other work
           if (pool.length > londonLegs.length && wanted >= free.length) wanted = Math.max(1, free.length - 1);
@@ -913,7 +913,7 @@ serve(async (req) => {
           if (budgetLeft() < 15_000) { skipped.push(`fine-tuning ${date} (ran out of time)`); break; }
           const scored = solved!.map((r) => ({ r, ...money(r) }));
           const weakest = scored
-            .filter((x) => !protectedVans.has(x.r.meta.vanId) && x.r.stops.length < targetJobs)
+            .filter((x) => !protectedVans.has(x.r.meta.vanId))
             .sort((a, b) => a.r.stops.length - b.r.stops.length)[0]
             ?? (minMargin > 0
               ? scored.filter((x) => !protectedVans.has(x.r.meta.vanId) && x.margin < minMargin)
@@ -962,7 +962,7 @@ serve(async (req) => {
           if (spareRoute) {
             const m = money(spareRoute);
             const must = spareRoute.stops.filter((s) => mustGo(s.leg, date)).length;
-            if (spareRoute.stops.length >= targetJobs || must > 0) {
+            if (spareRoute.stops.length > 0) {
               spareHint[date] = { jobs: spareRoute.stops.length, revenue: m.revenue, margin: m.margin, must_go: must };
             }
           }
@@ -998,8 +998,8 @@ serve(async (req) => {
       horizon_end: selectedDates[selectedDates.length - 1],
       selected_dates: selectedDates,
       shift_start: shiftStart,
-      firm_days: firmDays,
-      inspection_lead_days: inspectionLeadDays,
+      firm_days: selectedDates.length,
+      inspection_lead_days: null,
       created_by: userData.user.id,
       status: 'active',
       mode: 'greedy',
