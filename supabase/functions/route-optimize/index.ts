@@ -1132,7 +1132,7 @@ serve(async (req) => {
         vans_available: available,
         van_names: [...usedVans].map((id) => (vansForDate[date] ?? []).find((v) => v.id === id)?.name).filter(Boolean),
         spare_vans: Math.max(0, available - usedVans.size),
-        is_provisional: idx >= firmDays,
+        is_provisional: false,
         shortfall: hint ? { extra_vans: 1, extra_jobs: hint.jobs, urgent: hint.must_go } : null,
         spare_van_hint: hint,
         variants: [{ variant: 'primary', routes: dayRoutes, tradeoff_note: null }],
@@ -1180,9 +1180,16 @@ serve(async (req) => {
     debug.vans_used = Object.fromEntries(days.map((d) => [d.date, d.vans_needed]));
     debug.total_margin = Math.round(prepared.reduce((n, p) => n + p.margin, 0) * 100) / 100;
     debug.settings = {
-      target_jobs: targetJobs, floor_jobs: floorJobs, max_long_vans: maxLongVans,
+      max_long_vans: maxLongVans,
       min_route_margin: minMargin, normal_hours: NORMAL_CAP_H, long_hours: LONG_CAP_H,
+      packing: 'until van capacity or shift hours run out',
     };
+    // A sample of how jobs were ranked, so a dispatcher can see why one won out.
+    debug.priority_sample = legs.slice(0, 40).map((l) => ({
+      label: l.label, leg: l.legType, dates_left: l.futureDates.length,
+      age_days: l.ageDays, depot_days: l.depotDays,
+      priority: legPriority(l, selectedDates[0]),
+    }));
     debug.skipped = skipped;
 
     await admin.from('route_plans').update({
@@ -1199,7 +1206,7 @@ serve(async (req) => {
       expiring_in_plan_count: legs.filter((l) => !!l.lastDate && l.lastDate <= lastSelectedDate).length,
       expiring_unplanned_count: unplaced.filter((l) => !!l.lastDate && l.lastDate <= lastSelectedDate).length,
       generated_at: new Date().toISOString(),
-      firm_days: firmDays,
+      firm_days: selectedDates.length,
       shortfall_pending: false,
       distance_costing: debug.distance_costing !== false,
       skipped,
