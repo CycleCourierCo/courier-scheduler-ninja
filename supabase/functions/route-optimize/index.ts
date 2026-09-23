@@ -516,11 +516,28 @@ serve(async (req) => {
     const legsById: Record<number, Leg> = {};
     for (const leg of legs) legsById[leg.jobId] = leg;
 
-    /** Only two levels exist: must-go today, or ordinary work. */
+    /** Work that has to go out today: guaranteed, last date, or expired override. */
     const mustGo = (leg: Leg, date: string) =>
       leg.guaranteedDate === date
       || leg.lastDate === date
       || (leg.lapsed && includeExpired);
+
+    /**
+     * How hard the optimiser should try to fit a job (VROOM priority, 0-100).
+     *
+     * Must-go work sits at the top. Everything else is ranked by how few dates
+     * the customer has left (the stronger signal) and then by how long the job
+     * has been waiting — an older job beats a fresher one all else being equal.
+     */
+    const legPriority = (leg: Leg, date: string) => {
+      if (mustGo(leg, date)) return 100;
+      const left = Math.max(1, leg.futureDates.filter((d) => d >= date).length);
+      // 1 date left -> 40, 2 -> 20, 3 -> 13, 4 -> 10, tailing off after that.
+      const scarcity = Math.round(40 / left);
+      const waiting = Math.max(leg.ageDays, leg.depotDays);
+      const age = Math.min(20, Math.round(waiting / 1.5));
+      return Math.max(1, Math.min(99, 30 + scarcity + age));
+    };
 
     /** A job that must not be lost inside this plan at all. */
     const urgentInPlan = (leg: Leg) =>
