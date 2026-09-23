@@ -664,12 +664,30 @@ const BicycleInspections = () => {
   });
 
 
-  // Approval link staff can send manually (public, no login needed)
-  const buildApprovalLink = (inspectionId: string) =>
-    `${window.location.origin}/inspection-approval/${inspectionId}`;
+  // Approval link staff can send manually (public, no login needed).
+  // Once the work has been offered to the receiver, the receiver's own repair
+  // offer page is the right destination — the account page only shows repairs
+  // still awaiting the booking account's answer.
+  const buildApprovalLink = (inspectionId: string, order?: any) => {
+    const inspection = order?.inspection;
+    const issues: any[] = order?.issues || [];
+    const orderId = order?.id || inspection?.order_id;
+    const offeredToReceiver =
+      inspection?.status === "pending_receiver_approval" ||
+      issues.some(
+        (issue) =>
+          issue?.offered_to_receiver_at &&
+          !issue?.receiver_approved_at &&
+          !issue?.receiver_declined_at
+      );
+    if (orderId && offeredToReceiver) {
+      return `${window.location.origin}/repair-offer/${orderId}`;
+    }
+    return `${window.location.origin}/inspection-approval/${inspectionId}`;
+  };
   const [manualApprovalLink, setManualApprovalLink] = useState<string | null>(null);
-  const copyApprovalLink = async (inspectionId: string) => {
-    const link = buildApprovalLink(inspectionId);
+  const copyApprovalLink = async (inspectionId: string, order?: any) => {
+    const link = buildApprovalLink(inspectionId, order);
     try {
       await navigator.clipboard.writeText(link);
       toast.success("Approval link copied");
@@ -3092,7 +3110,7 @@ const BicycleInspections = () => {
                  <Button
                    size="sm"
                    variant="outline"
-                   onClick={() => copyApprovalLink(inspection.id)}
+                   onClick={() => copyApprovalLink(inspection.id, order)}
                  >
                    <Copy className="mr-1 h-4 w-4" />
                    Copy approval link
