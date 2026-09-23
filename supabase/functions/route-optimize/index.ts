@@ -794,9 +794,9 @@ serve(async (req) => {
       spareHint[date] = null;
       if (dayVans.length === 0) continue;
 
-      const provisional = selectedDates.indexOf(date) >= firmDays;
-      const quickOnly = provisional && budgetLeft() < 30_000;
-      if (provisional && budgetLeft() < 12_000) {
+      // Every selected day is planned for real; only the clock can cut work short.
+      const quickOnly = budgetLeft() < 30_000;
+      if (budgetLeft() < 12_000) {
         skipped.push(`plan for ${date} (ran out of time)`);
         continue;
       }
