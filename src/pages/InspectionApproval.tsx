@@ -68,6 +68,28 @@ export default function InspectionApproval() {
     () => issues.filter((i) => ["approved", "repaired", "resolved"].includes(i.status)),
     [issues]
   );
+  const allDeclined = useMemo(
+    () => issues.length > 0 && issues.every((i) => i.status === "declined" || i.status === "cancelled"),
+    [issues]
+  );
+
+  // The repairs may have moved on to the buyer (receiver) after the booking
+  // account declined them. That decision lives on the receiver's own page, so
+  // send whoever opened this link there instead of showing "already recorded".
+  const awaitingReceiver = useMemo(() => {
+    if (submitted) return false;
+    if (Number(data?.awaiting_receiver_count || 0) > 0) return true;
+    if (data?.status !== "pending_receiver_approval") return false;
+    return issues.some(
+      (i) => i.offered_to_receiver_at && !i.receiver_approved_at && !i.receiver_declined_at
+    );
+  }, [data, issues, submitted]);
+
+  useEffect(() => {
+    if (awaitingReceiver && data?.order_id) {
+      navigate(`/repair-offer/${data.order_id}`, { replace: true });
+    }
+  }, [awaitingReceiver, data?.order_id, navigate]);
 
   const selectedTotal = useMemo(
     () => pending.filter((i) => selected[i.id]).reduce((s, i) => s + Number(i.estimated_cost || 0), 0),
