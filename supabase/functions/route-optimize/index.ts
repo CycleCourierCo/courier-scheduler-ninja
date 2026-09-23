@@ -283,6 +283,8 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const shiftStart = /^\d{2}:\d{2}$/.test(body?.shift_start ?? '') ? body.shift_start : '09:00';
     const includeExpired = body?.include_expired === true;
+    // On (default): rank by dates left and waiting time. Off: all ordinary jobs equal.
+    const prioritiseAge = body?.prioritise_age !== false;
     const maxLongVans = Number.isFinite(Number(body?.max_long_days))
       ? Math.max(0, Math.min(1, Math.round(Number(body.max_long_days)))) : DEFAULT_MAX_LONG_VANS;
     const minMargin = Number.isFinite(Number(body?.min_route_margin))
@@ -531,6 +533,8 @@ serve(async (req) => {
      */
     const legPriority = (leg: Leg, date: string) => {
       if (mustGo(leg, date)) return 100;
+      // Previous behaviour: every ordinary job counts the same.
+      if (!prioritiseAge) return 50;
       const left = Math.max(1, leg.futureDates.filter((d) => d >= date).length);
       // 1 date left -> 40, 2 -> 20, 3 -> 13, 4 -> 10, tailing off after that.
       const scarcity = Math.round(40 / left);
@@ -1182,6 +1186,7 @@ serve(async (req) => {
     debug.settings = {
       max_long_vans: maxLongVans,
       min_route_margin: minMargin, normal_hours: NORMAL_CAP_H, long_hours: LONG_CAP_H,
+      prioritise_age: prioritiseAge,
       packing: 'until van capacity or shift hours run out',
     };
     // A sample of how jobs were ranked, so a dispatcher can see why one won out.
