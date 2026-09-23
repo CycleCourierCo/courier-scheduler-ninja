@@ -400,12 +400,24 @@ export const getOrCreateInspection = async (
       .select()
       .single();
 
-    if (createError) throw createError;
+    if (createError) {
+      // Two submissions raced: re-read the record the other one created.
+      if ((createError as any).code === '23505') {
+        const { data: raced } = await supabase
+          .from('bicycle_inspections')
+          .select('*')
+          .eq('order_id', orderId)
+          .order('created_at', { ascending: true })
+          .limit(1);
+        if (raced?.[0]) return raced[0] as BicycleInspection;
+      }
+      throw createError;
+    }
 
     return newInspection as BicycleInspection;
   } catch (error) {
     console.error('Error getting or creating inspection:', error);
-    return null;
+    throw error;
   }
 };
 
