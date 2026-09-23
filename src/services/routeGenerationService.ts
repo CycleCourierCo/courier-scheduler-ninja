@@ -149,6 +149,8 @@ export interface GenerateRoutesInput {
   van_availability?: Record<string, string[]>;
   /** Plan legs whose customer dates have all lapsed anyway (per-run override). */
   include_expired?: boolean;
+  /** Rank jobs by dates left and waiting time; off = all ordinary jobs equal. Default on. */
+  prioritise_age?: boolean;
   /** Whether a 15h long day may be used for a difficult area (0 or 1). */
   max_long_days?: number;
   /** Take a van off the road if its route earns less than this (£). */
