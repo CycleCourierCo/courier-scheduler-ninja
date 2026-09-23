@@ -313,6 +313,7 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
+                          )}
                         </div>
                       </div>
                     </div>
