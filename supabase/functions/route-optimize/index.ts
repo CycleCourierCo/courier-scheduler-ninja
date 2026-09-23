@@ -32,8 +32,8 @@ const PENCE_PER_KM = 28;              // £0.45/mile
 const DRIVER_RATE = 11;
 const COST_PER_MILE = 0.45;
 const DEFAULT_MAX_LONG_VANS = 1;
-const DEFAULT_TARGET_JOBS = 13;
-const DEFAULT_FLOOR_JOBS = 9;
+// Rough jobs-per-van figure, used only to guess how many vans London needs.
+const LONDON_JOBS_PER_VAN = 13;
 const MAX_REMOVALS_PER_DAY = 6;
 const LONG_DAY_MIN_JOBS = 5;
 const SPREAD_WARN_MI = 150;
@@ -278,16 +278,9 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const shiftStart = /^\d{2}:\d{2}$/.test(body?.shift_start ?? '') ? body.shift_start : '09:00';
-    const firmDays = Number.isFinite(Number(body?.firm_days)) ? Math.max(0, Math.min(10, Number(body.firm_days))) : 2;
-    const inspectionLeadDays = Number.isFinite(Number(body?.inspection_lead_days))
-      ? Math.max(0, Math.min(14, Number(body.inspection_lead_days))) : null;
     const includeExpired = body?.include_expired === true;
     const maxLongVans = Number.isFinite(Number(body?.max_long_days))
       ? Math.max(0, Math.min(1, Math.round(Number(body.max_long_days)))) : DEFAULT_MAX_LONG_VANS;
-    const targetJobs = Number.isFinite(Number(body?.min_jobs_target))
-      ? Math.max(1, Math.min(30, Math.round(Number(body.min_jobs_target)))) : DEFAULT_TARGET_JOBS;
-    const floorJobs = Number.isFinite(Number(body?.min_jobs_floor))
-      ? Math.max(1, Math.min(targetJobs, Math.round(Number(body.min_jobs_floor)))) : Math.min(DEFAULT_FLOOR_JOBS, targetJobs);
     const minMargin = Number.isFinite(Number(body?.min_route_margin))
       ? Math.max(0, Number(body.min_route_margin)) : 0;
 
