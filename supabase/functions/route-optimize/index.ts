@@ -643,7 +643,7 @@ serve(async (req) => {
         id: leg.jobId,
         location: [leg.lon, leg.lat],
         service: SERVICE_S,
-        priority: mustGo(leg, date) ? 100 : 50,
+        priority: legPriority(leg, date),
         time_windows: [window],
         ...(leg.legType === 'delivery' ? { delivery: load } : { pickup: load }),
         ...(skills ? { skills } : {}),
