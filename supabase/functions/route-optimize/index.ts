@@ -1152,12 +1152,12 @@ serve(async (req) => {
     const excludedKeys = new Set(Object.values(excludedLongArea).flat().map((l) => l.key));
     const atRisk = unplaced
       .filter((l) => urgentInPlan(l))
-      .sort((a, b) => (a.guaranteedDate ? -1 : 0) - (b.guaranteedDate ? -1 : 0))
+      .sort((a, b) => legPriority(b, selectedDates[0]) - legPriority(a, selectedDates[0]))
       .map((l) => ({
         order_id: l.orderId,
         label: l.label,
         leg_type: l.legType,
-        priority: l.guaranteedDate ? 100 : 50,
+        priority: legPriority(l, selectedDates[0]),
         remaining_dates: l.futureDates.length,
         last_date: l.lastDate ?? (l.allDates[l.allDates.length - 1] ?? null),
         guaranteed_date: l.guaranteedDate,
