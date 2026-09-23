@@ -326,10 +326,6 @@ const GenerateRoutesDialog: React.FC = () => {
   const [includeExpired, setIncludeExpired] = useState(false);
   /** Whether a 15h long day may be used for one difficult area. */
   const [maxLongDays, setMaxLongDays] = useState(1);
-  /** Jobs a proper day's route should carry — vans come off the road to reach it. */
-  const [minJobsTarget, setMinJobsTarget] = useState(13);
-  /** Fewest jobs a route may carry before it is flagged for a dispatcher. */
-  const [minJobsFloor, setMinJobsFloor] = useState(9);
   const [lapsedLegs, setLapsedLegs] = useState<NeedsNewDatesLeg[]>([]);
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [lockedDays, setLockedDays] = useState<string[]>([]);
