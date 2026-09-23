@@ -3110,7 +3110,7 @@ const BicycleInspections = () => {
                  <Button
                    size="sm"
                    variant="outline"
-                   onClick={() => copyApprovalLink(inspection.id)}
+                   onClick={() => copyApprovalLink(inspection.id, order)}
                  >
                    <Copy className="mr-1 h-4 w-4" />
                    Copy approval link
