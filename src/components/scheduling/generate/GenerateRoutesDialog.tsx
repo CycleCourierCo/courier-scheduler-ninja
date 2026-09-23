@@ -317,8 +317,6 @@ const GenerateRoutesDialog: React.FC = () => {
   const [dates, setDates] = useState<string[]>([]);
   const [extraDate, setExtraDate] = useState("");
   const [shiftStart, setShiftStart] = useState("09:00");
-  const [firmDays, setFirmDays] = useState(2);
-  const [inspectionLead, setInspectionLead] = useState<string>("");
   const [vans, setVans] = useState<{ id: string; name: string; capacity: number | null }[]>([]);
   const [grid, setGrid] = useState<Record<string, string[]>>({});
   const [areas, setAreas] = useState<any[]>([]);
@@ -328,10 +326,6 @@ const GenerateRoutesDialog: React.FC = () => {
   const [includeExpired, setIncludeExpired] = useState(false);
   /** Whether a 15h long day may be used for one difficult area. */
   const [maxLongDays, setMaxLongDays] = useState(1);
-  /** Jobs a proper day's route should carry — vans come off the road to reach it. */
-  const [minJobsTarget, setMinJobsTarget] = useState(13);
-  /** Fewest jobs a route may carry before it is flagged for a dispatcher. */
-  const [minJobsFloor, setMinJobsFloor] = useState(9);
   const [lapsedLegs, setLapsedLegs] = useState<NeedsNewDatesLeg[]>([]);
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [lockedDays, setLockedDays] = useState<string[]>([]);
@@ -423,12 +417,8 @@ const GenerateRoutesDialog: React.FC = () => {
     van_availability: Object.fromEntries(
       dates.map((d) => [d, (gridOverride ?? grid)[d] ?? vans.map((v) => v.id)]),
     ),
-    firm_days: Math.min(firmDays, dates.length),
-    inspection_lead_days: inspectionLead === "" ? null : Number(inspectionLead),
     include_expired: includeExpired,
     max_long_days: maxLongDays,
-    min_jobs_target: minJobsTarget,
-    min_jobs_floor: minJobsFloor,
   });
 
   const runPlan = async (gridOverride?: Record<string, string[]>) => {
@@ -575,35 +565,15 @@ const GenerateRoutesDialog: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-7">
+        <div className="grid gap-3 sm:grid-cols-3">
           <div className="space-y-1">
             <Label htmlFor="gr-shift">Start time</Label>
             <Input id="gr-shift" type="time" value={shiftStart} onChange={(e) => setShiftStart(e.target.value)} />
           </div>
           <div className="space-y-1">
-            <Label htmlFor="gr-firm">Firm days</Label>
-            <Input id="gr-firm" type="number" min={0} max={dates.length} value={firmDays}
-              onChange={(e) => setFirmDays(Math.max(0, Number(e.target.value) || 0))} />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="gr-lead">Inspection lead days</Label>
-            <Input id="gr-lead" type="number" min={0} max={14} placeholder="never" value={inspectionLead}
-              onChange={(e) => setInspectionLead(e.target.value)} />
-          </div>
-          <div className="space-y-1">
             <Label htmlFor="gr-long">Max long days per day</Label>
             <Input id="gr-long" type="number" min={0} max={4} value={maxLongDays}
               onChange={(e) => setMaxLongDays(Math.max(0, Math.min(4, Number(e.target.value) || 0)))} />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="gr-target">Jobs per route (target)</Label>
-            <Input id="gr-target" type="number" min={1} max={30} value={minJobsTarget}
-              onChange={(e) => setMinJobsTarget(Math.max(1, Math.min(30, Number(e.target.value) || 1)))} />
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="gr-floor">Fewest jobs allowed</Label>
-            <Input id="gr-floor" type="number" min={1} max={minJobsTarget} value={minJobsFloor}
-              onChange={(e) => setMinJobsFloor(Math.max(1, Math.min(minJobsTarget, Number(e.target.value) || 1)))} />
           </div>
           <div className="flex items-end">
             <Button onClick={handleGenerate} disabled={loading} className="w-full gap-2">
@@ -612,6 +582,10 @@ const GenerateRoutesDialog: React.FC = () => {
             </Button>
           </div>
         </div>
+        <p className="text-xs text-muted-foreground">
+          Every van is packed as full as its bike spaces and the shift hours allow. Older jobs, and
+          jobs with the fewest dates left, are fitted in first.
+        </p>
 
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
