@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import { getPublicAppUrl } from "@/lib/publicAppUrl";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -2210,7 +2211,30 @@ const BicycleInspections = () => {
                   )}
                   {lastOfferedAt ? "Re-send this offer" : "Send this offer"}
                 </Button>
+                {lastOfferedAt && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      const link = `${getPublicAppUrl()}/repair-offer/${order.id}`;
+                      try {
+                        await navigator.clipboard.writeText(link);
+                        toast.success("Buyer link copied");
+                      } catch {
+                        setManualApprovalLink(link);
+                      }
+                    }}
+                  >
+                    <Copy className="h-4 w-4 mr-1" />
+                    Copy buyer link
+                  </Button>
+                )}
               </div>
+              {lastOfferedAt && (
+                <p className="mt-2 text-xs text-muted-foreground break-all">
+                  Buyer link: {`${getPublicAppUrl()}/repair-offer/${order.id}`}
+                </p>
+              )}
             </div>
           )}
 
