@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { getPublicAppUrl } from "@/lib/publicAppUrl";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -59,7 +59,6 @@ import {
   markIssueRepaired,
   moveToRepaired,
   checkAllApprovedRepaired,
-  reconcileInspectionStatuses,
   setIssuePrice,
   releaseInspectionToCustomer,
   markPartsArrived,
@@ -311,22 +310,6 @@ const BicycleInspections = () => {
     enabled: !!user,
     staleTime: 60 * 1000,
   });
-
-  // Tidying up stuck inspection statuses used to block the list from showing.
-  // Do it in the background once, then refresh if anything actually changed.
-  const reconciledRef = useRef(false);
-  useEffect(() => {
-    if (!canManageInspections || reconciledRef.current) return;
-    reconciledRef.current = true;
-    (async () => {
-      try {
-        await reconcileInspectionStatuses();
-        queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
-      } catch (err) {
-        console.error("Failed to reconcile inspection statuses", err);
-      }
-    })();
-  }, [canManageInspections, queryClient]);
 
   // Admin clears a bike details mismatch flag once reviewed
   const identityReviewMutation = useMutation({
