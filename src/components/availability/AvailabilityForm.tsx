@@ -8,6 +8,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
+import { buttonVariants } from '@/components/ui/button';
 import { AltLocationFields } from './AltLocationFields';
 import type { AltLocation } from '@/lib/altLocation';
 
@@ -154,7 +156,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
                 <CalendarIcon className="mr-2 h-5 w-5 text-primary" />
                 {singleDay ? 'Select Your Collection Day' : 'Select Available Dates'}
               </h3>
-              <div className="overflow-x-auto rounded-md border bg-card p-2">
+              <div className="rounded-md border bg-card p-2">
                 <CalendarComponent
                   mode="multiple"
                   min={1}
@@ -164,7 +166,15 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
                   disabled={disableDate}
                   fromDate={minDate || today}
                   toDate={calendarEndDate}
-                  className="p-3 pointer-events-auto"
+                  className="w-full p-3 pointer-events-auto"
+                  classNames={{
+                    head_cell: 'text-muted-foreground flex-1 font-normal text-[0.8rem]',
+                    cell: 'h-11 flex-1 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20',
+                    day: cn(
+                      buttonVariants({ variant: 'ghost' }),
+                      'h-11 w-full p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground transition-colors'
+                    ),
+                  }}
                 />
               </div>
               {validationError && (
