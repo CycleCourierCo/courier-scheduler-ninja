@@ -202,7 +202,7 @@ export const reconcileInspectionStatuses = async (
     let query = supabase
       .from('bicycle_inspections')
       .select(
-        'id, status, released_to_customer_at, inspection_issues(status, parts_arrived, parts_ordered, parts_in_stock, offered_to_receiver_at, receiver_approved_at, receiver_declined_at, billing_party)'
+        'id, status, order_id, approval_recipient, released_to_customer_at, inspection_issues(status, parts_arrived, parts_ordered, parts_in_stock, offered_to_receiver_at, receiver_approved_at, receiver_declined_at, billing_party)'
       )
       .in('status', [
         'issues_found',
@@ -279,26 +279,25 @@ export const reconcileInspectionStatuses = async (
           ? 'ship_as_is'
           : 'repaired';
 
+      // Delivery jobs approved by the booking account/sender can pass declined
+      // repairs on to the buyer — that decision must come before repair work.
+      const recipient = (inspection as any).approval_recipient as string | null;
+      const hasOnwardStep =
+        !!(inspection as any).order_id && recipient !== 'receiver' && recipient !== 'walkin';
+
+      const decide = (): InspectionStatus => {
+        if (hasOnwardStep && declinedNotOffered.length > 0) return 'repairs_declined';
+        if (hasOnwardStep && declinedOffered.length > 0) return 'pending_receiver_approval';
+        if (outstandingApproved.length > 0) return postApprovalStatus();
+        if (declinedNotOffered.length > 0) return 'repairs_declined';
+        if (declinedOffered.length > 0) return 'pending_receiver_approval';
+        return terminalStatus();
+      };
+
       if (currentStatus === 'issues_found' && allResponded) {
-        if (outstandingApproved.length > 0) {
-          nextStatus = postApprovalStatus();
-        } else if (declinedNotOffered.length > 0) {
-          nextStatus = 'repairs_declined';
-        } else if (declinedOffered.length > 0) {
-          nextStatus = 'pending_receiver_approval';
-        } else {
-          nextStatus = terminalStatus();
-        }
+        nextStatus = decide();
       } else if (currentStatus === 'repairs_declined' || currentStatus === 'pending_receiver_approval') {
-        if (outstandingApproved.length > 0) {
-          nextStatus = postApprovalStatus();
-        } else if (declinedNotOffered.length > 0) {
-          nextStatus = 'repairs_declined';
-        } else if (declinedOffered.length > 0) {
-          nextStatus = 'pending_receiver_approval';
-        } else {
-          nextStatus = terminalStatus();
-        }
+        nextStatus = decide();
       } else if (currentStatus === 'awaiting_parts' && allPartsReady) {
         nextStatus = 'awaiting_repair';
       } else if (
