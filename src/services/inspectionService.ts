@@ -1083,6 +1083,7 @@ export const acceptIssue = async (issueId: string): Promise<InspectionIssue | nu
     if (error) throw error;
     pushIssueStatusToInspectaBike(issueId);
     void refreshReportForIssue(issueId);
+    await reconcileForIssue(issueId);
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error accepting issue:', error);
@@ -1111,6 +1112,7 @@ export const declineIssue = async (
     pushIssueStatusToInspectaBike(issueId);
     void refreshReportForIssue(issueId);
     void notifyRepairsDeclined((data as any)?.order_id);
+    await reconcileForIssue(issueId);
 
     return data as InspectionIssue;
   } catch (error) {
@@ -1145,6 +1147,7 @@ export const setIssueStatusAsAdmin = async (
     if (error) throw error;
     pushIssueStatusToInspectaBike(issueId);
     if (status === 'declined') void notifyDeclineForIssue(issueId);
+    await reconcileForIssue(issueId);
     return data as InspectionIssue;
 
   } catch (error) {
@@ -1283,8 +1286,8 @@ export const setIssuePartsInStock = async (
       .single();
 
     if (error) throw error;
-    // Let the shared reconciler pull the bike forward/back as appropriate.
-    await reconcileInspectionStatuses();
+    // Reconcile only this bike; unrelated inspections must not be rewritten.
+    await reconcileForIssue(issueId);
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error setting parts in stock:', error);
