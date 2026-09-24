@@ -135,7 +135,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
   const disableDate = isDateDisabled || defaultIsDateDisabled;
   
   return (
-    <form onSubmit={onSubmit} className="doorstep-page mx-auto max-w-3xl px-4 py-6">
+    <form onSubmit={onSubmit} className="doorstep-page mx-auto max-w-3xl py-6">
       <Card className="overflow-hidden">
         <CardHeader className="signboard rounded-none space-y-2">
           <CardTitle className="text-[30px] text-primary-foreground">{title}</CardTitle>
