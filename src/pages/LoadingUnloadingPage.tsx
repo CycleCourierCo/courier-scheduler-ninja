@@ -156,8 +156,8 @@ const LoadingUnloadingPage = () => {
   useEffect(() => {
     const fetchProfiles = async () => {
       const [driverResult, loaderResult] = await Promise.all([
-        supabase.from('profiles').select('id, name, phone, email').eq('role', 'driver').eq('is_active', true).order('name'),
-        supabase.from('profiles').select('id, name, phone, email').eq('role', 'loader').eq('is_active', true).order('name'),
+        supabase.from('profiles').select('id, name, phone, email').eq('role', 'driver').or('is_active.is.null,is_active.eq.true').order('name'),
+        supabase.from('profiles').select('id, name, phone, email').eq('role', 'loader').or('is_active.is.null,is_active.eq.true').order('name'),
       ]);
       
       if (!driverResult.error && driverResult.data) {

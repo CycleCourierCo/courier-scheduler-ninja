@@ -19,10 +19,11 @@ export function UnallocatedBoxFoamCard({ jobs, mechanics }: Props) {
   const { data: mechanicProfiles } = useQuery({
     queryKey: ['mechanic-profiles-for-allocation'],
     queryFn: async () => {
-      const { data } = await supabase
+      let { data } = await supabase
         .from('profiles')
-        .select('id, name, email')
+        .select('id, name, email, is_active')
         .eq('role', 'mechanic' as any);
+      data = (data || []).filter((p: any) => p.is_active !== false);
       return (data || []).map((p: any) => ({ id: p.id as string, name: (p.name || p.email || 'Mechanic') as string }));
     },
   });

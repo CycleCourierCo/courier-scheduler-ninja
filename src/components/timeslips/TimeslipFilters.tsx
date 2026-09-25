@@ -39,11 +39,12 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
   const [sortBy, setSortBy] = useState('date_desc');
   const [noMileage, setNoMileage] = useState(false);
   const [noVehicle, setNoVehicle] = useState(false);
+  const [showInactive, setShowInactive] = useState(false);
 
   // Fetch all drivers
   const { data: drivers } = useQuery({
-    queryKey: ['role-users', 'driver'],
-    queryFn: () => listUsersByRole('driver'),
+    queryKey: ['role-users', 'driver', showInactive],
+    queryFn: () => listUsersByRole('driver', { includeInactive: showInactive }),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -177,6 +178,10 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
               <Route className="h-4 w-4 text-muted-foreground" />
               No mileage
             </label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch id="show-inactive" checked={showInactive} onCheckedChange={setShowInactive} />
+            <label htmlFor="show-inactive" className="text-sm cursor-pointer">Show inactive</label>
           </div>
           <div className="flex items-center gap-2">
             <Switch

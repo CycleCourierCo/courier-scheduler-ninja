@@ -88,12 +88,13 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
   }, [isOpen]);
 
   const { data: drivers } = useQuery({
-    queryKey: ['drivers-all'],
+    queryKey: ['drivers-active'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('role', 'driver')
+        .or('is_active.is.null,is_active.eq.true')
         .order('name');
       if (error) throw error;
       return data as UserProfile[];
