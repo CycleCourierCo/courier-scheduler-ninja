@@ -6654,6 +6654,7 @@ export type Database = {
         Returns: {
           email: string
           id: string
+          is_active: boolean
           name: string
         }[]
       }
