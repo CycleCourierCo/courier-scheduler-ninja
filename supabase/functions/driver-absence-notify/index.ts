@@ -78,7 +78,7 @@ serve(async (req) => {
     }
     if (!to.length) return json({ skipped: "no recipients" });
 
-    const html = emailShell(inner);
+    const html = emailShell(inner, { subject, eyebrow: "ROTA", legalFooter: false });
     const { error } = await resend.emails.send({ from: FROM, to, reply_to: REPLY_TO, subject, html, text: htmlToPlainText(html) });
     if (error) { console.error("driver-absence-notify send failed"); return json({ error: "Failed to send email" }, 502); }
     return json({ success: true });
