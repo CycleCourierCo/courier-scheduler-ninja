@@ -18,7 +18,7 @@
 - [ ] Phase 2: Alt 1 / Alt 2 variants per day with trade-off notes and re-solve on selection
 - [ ] Phase 3: admin polygon editor, driver availability, same-route collect-then-deliver
 ## Driver rota & absence
-- [ ] Database: availability, overrides, absence requests, rota settings, triggers
-- [ ] My Holidays page, Drivers Rota page, User Management availability + approvals
-- [ ] Absence emails (admins + driver)
-- [ ] Active-users helper applied to all pickers/filters
+- [x] Database: availability, overrides, absence requests, rota settings, triggers
+- [x] My Holidays page, Drivers Rota page, User Management availability + approvals
+- [x] Absence emails (admins + driver)
+- [x] Active-users helper applied to all pickers/filters
