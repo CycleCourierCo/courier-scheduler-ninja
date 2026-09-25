@@ -1,0 +1,1 @@
+ALTER TABLE public.orders ADD COLUMN IF NOT EXISTS box_boxed_by_id uuid, ADD COLUMN IF NOT EXISTS foam_foamed_by_id uuid;

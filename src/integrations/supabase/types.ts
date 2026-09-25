@@ -3496,6 +3496,7 @@ export type Database = {
           bike_value: number | null
           bikes: Json | null
           box_boxed_at: string | null
+          box_boxed_by_id: string | null
           box_buyer: Json | null
           box_buyer_boxing_email_sent_at: string | null
           box_buyer_collected_email_sent_at: string | null
@@ -3532,6 +3533,7 @@ export type Database = {
           foam_delivered_to_ferry_at: string | null
           foam_delivery_photos: Json
           foam_foamed_at: string | null
+          foam_foamed_by_id: string | null
           foam_label_uploaded_at: string | null
           foam_label_uploaded_by: string | null
           foam_label_url: string | null
@@ -3615,6 +3617,7 @@ export type Database = {
           bike_value?: number | null
           bikes?: Json | null
           box_boxed_at?: string | null
+          box_boxed_by_id?: string | null
           box_buyer?: Json | null
           box_buyer_boxing_email_sent_at?: string | null
           box_buyer_collected_email_sent_at?: string | null
@@ -3651,6 +3654,7 @@ export type Database = {
           foam_delivered_to_ferry_at?: string | null
           foam_delivery_photos?: Json
           foam_foamed_at?: string | null
+          foam_foamed_by_id?: string | null
           foam_label_uploaded_at?: string | null
           foam_label_uploaded_by?: string | null
           foam_label_url?: string | null
@@ -3734,6 +3738,7 @@ export type Database = {
           bike_value?: number | null
           bikes?: Json | null
           box_boxed_at?: string | null
+          box_boxed_by_id?: string | null
           box_buyer?: Json | null
           box_buyer_boxing_email_sent_at?: string | null
           box_buyer_collected_email_sent_at?: string | null
@@ -3770,6 +3775,7 @@ export type Database = {
           foam_delivered_to_ferry_at?: string | null
           foam_delivery_photos?: Json
           foam_foamed_at?: string | null
+          foam_foamed_by_id?: string | null
           foam_label_uploaded_at?: string | null
           foam_label_uploaded_by?: string | null
           foam_label_url?: string | null
