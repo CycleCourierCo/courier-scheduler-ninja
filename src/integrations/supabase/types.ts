@@ -1506,6 +1506,126 @@ export type Database = {
         }
         Relationships: []
       }
+      driver_absence_requests: {
+        Row: {
+          cancel_requested: boolean
+          created_at: string
+          created_by: string | null
+          decided_at: string | null
+          decided_by: string | null
+          decision_reason: string | null
+          driver_id: string
+          end_date: string
+          id: string
+          note: string | null
+          start_date: string
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          cancel_requested?: boolean
+          created_at?: string
+          created_by?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          driver_id: string
+          end_date: string
+          id?: string
+          note?: string | null
+          start_date: string
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Update: {
+          cancel_requested?: boolean
+          created_at?: string
+          created_by?: string | null
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_reason?: string | null
+          driver_id?: string
+          end_date?: string
+          id?: string
+          note?: string | null
+          start_date?: string
+          status?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      driver_availability_overrides: {
+        Row: {
+          created_at: string
+          date: string
+          driver_id: string
+          end_time: string | null
+          id: string
+          is_available: boolean
+          note: string | null
+          start_time: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          driver_id: string
+          end_time?: string | null
+          id?: string
+          is_available?: boolean
+          note?: string | null
+          start_time?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          driver_id?: string
+          end_time?: string | null
+          id?: string
+          is_available?: boolean
+          note?: string | null
+          start_time?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      driver_weekly_availability: {
+        Row: {
+          created_at: string
+          driver_id: string
+          end_time: string | null
+          id: string
+          is_available: boolean
+          start_time: string | null
+          updated_at: string
+          weekday: number
+        }
+        Insert: {
+          created_at?: string
+          driver_id: string
+          end_time?: string | null
+          id?: string
+          is_available?: boolean
+          start_time?: string | null
+          updated_at?: string
+          weekday: number
+        }
+        Update: {
+          created_at?: string
+          driver_id?: string
+          end_time?: string | null
+          id?: string
+          is_available?: boolean
+          start_time?: string | null
+          updated_at?: string
+          weekday?: number
+        }
+        Relationships: []
+      }
       email_delivery_events: {
         Row: {
           created_at: string
@@ -3897,6 +4017,7 @@ export type Database = {
           accounts_email: string | null
           address_line_1: string | null
           address_line_2: string | null
+          annual_leave_days: number
           available_hours: number | null
           city: string | null
           company_name: string | null
@@ -3904,6 +4025,7 @@ export type Database = {
           county: string | null
           created_at: string
           default_vehicle_id: string | null
+          depot_id: string | null
           email: string | null
           hourly_rate: number | null
           id: string
@@ -3912,6 +4034,7 @@ export type Database = {
           is_test_account: boolean
           large_bike_rate_code: string | null
           latitude: number | null
+          leave_year_start: string
           licence_back_path: string | null
           licence_check_code_path: string | null
           licence_expiry: string | null
@@ -3947,6 +4070,7 @@ export type Database = {
           accounts_email?: string | null
           address_line_1?: string | null
           address_line_2?: string | null
+          annual_leave_days?: number
           available_hours?: number | null
           city?: string | null
           company_name?: string | null
@@ -3954,6 +4078,7 @@ export type Database = {
           county?: string | null
           created_at?: string
           default_vehicle_id?: string | null
+          depot_id?: string | null
           email?: string | null
           hourly_rate?: number | null
           id: string
@@ -3962,6 +4087,7 @@ export type Database = {
           is_test_account?: boolean
           large_bike_rate_code?: string | null
           latitude?: number | null
+          leave_year_start?: string
           licence_back_path?: string | null
           licence_check_code_path?: string | null
           licence_expiry?: string | null
@@ -3997,6 +4123,7 @@ export type Database = {
           accounts_email?: string | null
           address_line_1?: string | null
           address_line_2?: string | null
+          annual_leave_days?: number
           available_hours?: number | null
           city?: string | null
           company_name?: string | null
@@ -4004,6 +4131,7 @@ export type Database = {
           county?: string | null
           created_at?: string
           default_vehicle_id?: string | null
+          depot_id?: string | null
           email?: string | null
           hourly_rate?: number | null
           id?: string
@@ -4012,6 +4140,7 @@ export type Database = {
           is_test_account?: boolean
           large_bike_rate_code?: string | null
           latitude?: number | null
+          leave_year_start?: string
           licence_back_path?: string | null
           licence_check_code_path?: string | null
           licence_expiry?: string | null
@@ -4340,6 +4469,24 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["user_role"]
           route_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rota_settings: {
+        Row: {
+          id: number
+          min_drivers_per_day: number
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          min_drivers_per_day?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          min_drivers_per_day?: number
           updated_at?: string
         }
         Relationships: []
@@ -6337,6 +6484,7 @@ export type Database = {
           accounts_email: string | null
           address_line_1: string | null
           address_line_2: string | null
+          annual_leave_days: number
           available_hours: number | null
           city: string | null
           company_name: string | null
@@ -6344,6 +6492,7 @@ export type Database = {
           county: string | null
           created_at: string
           default_vehicle_id: string | null
+          depot_id: string | null
           email: string | null
           hourly_rate: number | null
           id: string
@@ -6352,6 +6501,7 @@ export type Database = {
           is_test_account: boolean
           large_bike_rate_code: string | null
           latitude: number | null
+          leave_year_start: string
           licence_back_path: string | null
           licence_check_code_path: string | null
           licence_expiry: string | null
@@ -6438,6 +6588,18 @@ export type Database = {
         Returns: Json
       }
       get_public_repair_offer: { Args: { p_order_id: string }; Returns: Json }
+      get_rota_absences: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          cancel_requested: boolean
+          driver_id: string
+          end_date: string
+          id: string
+          start_date: string
+          status: string
+          type: string
+        }[]
+      }
       get_user_role: {
         Args: { user_id: string }
         Returns: Database["public"]["Enums"]["user_role"]
@@ -7189,6 +7351,7 @@ export type Database = {
           accounts_email: string | null
           address_line_1: string | null
           address_line_2: string | null
+          annual_leave_days: number
           available_hours: number | null
           city: string | null
           company_name: string | null
@@ -7196,6 +7359,7 @@ export type Database = {
           county: string | null
           created_at: string
           default_vehicle_id: string | null
+          depot_id: string | null
           email: string | null
           hourly_rate: number | null
           id: string
@@ -7204,6 +7368,7 @@ export type Database = {
           is_test_account: boolean
           large_bike_rate_code: string | null
           latitude: number | null
+          leave_year_start: string
           licence_back_path: string | null
           licence_check_code_path: string | null
           licence_expiry: string | null
