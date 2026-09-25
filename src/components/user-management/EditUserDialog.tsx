@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { UserProfile, UserRole, DEFAULT_OPENING_HOURS } from "@/types/user";
+import { DriverAvailabilityTab } from "./DriverAvailabilityTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import OpeningHoursEditor from "./OpeningHoursEditor";
 import DriverLicenceTab from "./DriverLicenceTab";
@@ -153,6 +154,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
             {isBusiness && <TabsTrigger value="business" className="shrink-0 px-3 sm:flex-1">Business</TabsTrigger>}
             <TabsTrigger value="address" className="shrink-0 px-3 sm:flex-1">Address</TabsTrigger>
             {isDriver && <TabsTrigger value="driver" className="shrink-0 px-3 sm:flex-1">Driver</TabsTrigger>}
+            {isDriver && <TabsTrigger value="availability" className="shrink-0 px-3 sm:flex-1">Availability</TabsTrigger>}
             {isDriver && <TabsTrigger value="licence" className="shrink-0 px-3 sm:flex-1">Licence</TabsTrigger>}
             {(isMechanic || isDriver) && <TabsTrigger value="pay" className="shrink-0 px-3 sm:flex-1">Pay</TabsTrigger>}
           </TabsList>
@@ -494,6 +496,12 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
             </TabsContent>
           )}
 
+
+          {isDriver && (
+            <TabsContent value="availability" className="space-y-4 mt-4">
+              <DriverAvailabilityTab userId={user.id} />
+            </TabsContent>
+          )}
 
           {isDriver && (
             <TabsContent value="licence" className="space-y-4 mt-4">
