@@ -109,26 +109,71 @@ const WarehouseStockPage: React.FC = () => {
     setSubmitting(true);
     try {
       // Several parts can share a shelf, so only whole bikes need a unique slot.
+      // When editing, ignore the item's own current slot so it can be saved in place.
       const conflict = formData.item_kind === "component"
         ? false
-        : await checkLocationConflict(formData.bay, formData.position, undefined, activeSiteId);
+        : await checkLocationConflict(formData.bay, formData.position, editingItem?.id, activeSiteId);
       if (conflict) {
         toast.error(`Bay ${formData.bay} Position ${formData.position} is already occupied`);
         setSubmitting(false);
         return;
       }
 
-      await addWarehouseStock({ ...formData, site_id: activeSiteId }, user?.id || "");
-      toast.success("Stock added successfully");
+      if (editingItem) {
+        await updateWarehouseStock(editingItem.id, {
+          user_id: formData.user_id,
+          item_kind: formData.item_kind || "bike",
+          component_category: formData.item_kind === "component" ? formData.component_category || null : null,
+          quantity: formData.quantity && formData.quantity > 0 ? formData.quantity : 1,
+          spec: formData.spec || null,
+          frame_size: formData.frame_size?.trim() || null,
+          bike_brand: formData.bike_brand || null,
+          bike_model: formData.bike_model || null,
+          bike_type: formData.bike_type || null,
+          bike_value: formData.bike_value || null,
+          sku: formData.sku || null,
+          item_notes: formData.item_notes || null,
+          bay: formData.bay,
+          position: formData.position,
+        } as any);
+        toast.success("Stock updated");
+      } else {
+        await addWarehouseStock({ ...formData, site_id: activeSiteId }, user?.id || "");
+        toast.success("Stock added successfully");
+      }
       setDialogOpen(false);
+      setEditingItem(null);
       setFormData(emptyForm);
       fetchData();
     } catch (err) {
       Sentry.captureException(err);
-      toast.error("Couldn't add the bike to stock. Check the details and try again.");
+      toast.error(editingItem
+        ? "Couldn't save the changes. Check the details and try again."
+        : "Couldn't add the bike to stock. Check the details and try again.");
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const openEdit = (item: WarehouseStock) => {
+    setEditingItem(item);
+    setFormData({
+      user_id: item.user_id,
+      item_kind: (item.item_kind as any) || "bike",
+      component_category: item.component_category || "",
+      quantity: item.quantity || 1,
+      spec: item.spec || "",
+      frame_size: item.frame_size || "",
+      bike_brand: item.bike_brand || "",
+      bike_model: item.bike_model || "",
+      bike_type: item.bike_type || "",
+      bike_value: item.bike_value != null ? String(item.bike_value) : "",
+      sku: item.sku || "",
+      item_notes: item.item_notes || "",
+      bay: item.bay || "",
+      position: item.position || 1,
+    });
+    setDialogOpen(true);
   };
 
   const handleDelete = (id: string) => {
