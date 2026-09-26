@@ -217,7 +217,7 @@ const WarehouseStockPage: React.FC = () => {
             </p>
 
           </div>
-          <Button onClick={() => { setFormData(emptyForm); setDialogOpen(true); }}>
+          <Button onClick={() => { setEditingItem(null); setFormData(emptyForm); setDialogOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" /> Add Stock
           </Button>
         </div>
@@ -368,6 +368,14 @@ const WarehouseStockPage: React.FC = () => {
                       <Button
                         variant="ghost"
                         size="icon"
+                        title="Edit item"
+                        onClick={() => openEdit(item)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => handleDelete(item.id)}
                         className="text-destructive hover:text-destructive"
                       >
@@ -382,11 +390,17 @@ const WarehouseStockPage: React.FC = () => {
         )}
       </div>
 
-      {/* Add Stock Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {/* Add / Edit Stock Dialog */}
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) { setEditingItem(null); setFormData(emptyForm); }
+        }}
+      >
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Stock Item</DialogTitle>
+            <DialogTitle>{editingItem ? "Edit Stock Item" : "Add Stock Item"}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -587,7 +601,7 @@ const WarehouseStockPage: React.FC = () => {
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
             <Button onClick={handleSubmit} disabled={submitting}>
-              {submitting ? "Adding..." : "Add Stock"}
+              {submitting ? "Saving..." : editingItem ? "Save changes" : "Add Stock"}
             </Button>
           </DialogFooter>
         </DialogContent>
