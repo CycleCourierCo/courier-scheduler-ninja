@@ -324,6 +324,28 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
             </FormItem>
           )}
         />
+        <FormField
+          control={control}
+          name={"isWarehouseStorage" as any}
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">
+                  Store at our warehouse
+                </FormLabel>
+                <FormDescription>
+                  We collect the bike and keep it in our Birmingham warehouse. Book it out for delivery later from My Stock.
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={!!field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
       </div>
     </div>
   );
