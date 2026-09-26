@@ -6335,13 +6335,6 @@ export type Database = {
         Args: { p_bikes: Json; p_order_id: string }
         Returns: boolean
       }
-      current_profile_guard: {
-        Args: { _uid: string }
-        Returns: {
-          account_status: Database["public"]["Enums"]["account_status_type"]
-          role: Database["public"]["Enums"]["user_role"]
-        }[]
-      }
       difficult_areas_geojson: {
         Args: never
         Returns: {
@@ -6666,6 +6659,13 @@ export type Database = {
         }[]
       }
       longtransactionsenabled: { Args: never; Returns: boolean }
+      my_profile_guard: {
+        Args: never
+        Returns: {
+          account_status: Database["public"]["Enums"]["account_status_type"]
+          role: Database["public"]["Enums"]["user_role"]
+        }[]
+      }
       next_cs_ticket_ref: { Args: never; Returns: string }
       next_custom_repair_id: { Args: never; Returns: string }
       populate_geometry_columns:
