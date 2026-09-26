@@ -56,7 +56,7 @@ const BulkAssignVehicleDialog: React.FC<Props> = ({ isOpen, onClose, onSuccess }
         .from('profiles')
         .select('*')
         .eq('role', 'driver')
-        .or('is_active.is.null,is_active.eq.true')
+        .or('is_active.is.null,is_active.eq.true').or('account_status.is.null,account_status.not.in.(suspended,rejected)')
         .order('name');
       if (error) throw error;
       return data as UserProfile[];
