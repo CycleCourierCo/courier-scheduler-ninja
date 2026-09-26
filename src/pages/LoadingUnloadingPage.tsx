@@ -315,6 +315,11 @@ const LoadingUnloadingPage = () => {
         return;
       }
 
+      if ((order as any).isWarehouseStorage || (order as any).is_warehouse_storage) {
+        const { error: stockErr } = await (supabase.rpc as any)("create_stock_from_storage_order", { p_order_id: order.id });
+        if (stockErr) toast.error("Bay saved, but couldn't add the bike to Warehouse Stock");
+        else toast.success("Added to Warehouse Stock");
+      }
       // Refresh data from database to ensure UI reflects the saved state
       await fetchData();
       

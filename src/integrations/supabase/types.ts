@@ -3682,6 +3682,7 @@ export type Database = {
           is_ebay_order: boolean | null
           is_northern_ireland: boolean
           is_scotland: boolean
+          is_warehouse_storage: boolean
           loaded_onto_van: boolean | null
           loaded_onto_van_at: string | null
           needs_inspection: boolean | null
@@ -3803,6 +3804,7 @@ export type Database = {
           is_ebay_order?: boolean | null
           is_northern_ireland?: boolean
           is_scotland?: boolean
+          is_warehouse_storage?: boolean
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
           needs_inspection?: boolean | null
@@ -3924,6 +3926,7 @@ export type Database = {
           is_ebay_order?: boolean | null
           is_northern_ireland?: boolean
           is_scotland?: boolean
+          is_warehouse_storage?: boolean
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
           needs_inspection?: boolean | null
@@ -5765,6 +5768,7 @@ export type Database = {
           quantity: number
           site_id: string | null
           sku: string | null
+          source_order_id: string | null
           spec: string | null
           status: Database["public"]["Enums"]["warehouse_stock_status"]
           updated_at: string
@@ -5790,6 +5794,7 @@ export type Database = {
           quantity?: number
           site_id?: string | null
           sku?: string | null
+          source_order_id?: string | null
           spec?: string | null
           status?: Database["public"]["Enums"]["warehouse_stock_status"]
           updated_at?: string
@@ -5815,6 +5820,7 @@ export type Database = {
           quantity?: number
           site_id?: string | null
           sku?: string | null
+          source_order_id?: string | null
           spec?: string | null
           status?: Database["public"]["Enums"]["warehouse_stock_status"]
           updated_at?: string
@@ -5826,6 +5832,13 @@ export type Database = {
             columns: ["site_id"]
             isOneToOne: false
             referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "warehouse_stock_source_order_id_fkey"
+            columns: ["source_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
             referencedColumns: ["id"]
           },
         ]
@@ -6326,6 +6339,10 @@ export type Database = {
       can_view_review: { Args: { _cycle_id: string }; Returns: boolean }
       cleanup_expired_oauth: { Args: never; Returns: undefined }
       cleanup_integration_call_logs: { Args: never; Returns: undefined }
+      create_stock_from_storage_order: {
+        Args: { p_order_id: string }
+        Returns: string
+      }
       create_webhook_secret: {
         Args: { p_name: string; p_secret: string }
         Returns: string

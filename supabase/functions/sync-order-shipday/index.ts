@@ -74,7 +74,7 @@ serve(async (req) => {
 
     const { data: order, error: orderError } = await admin
       .from("orders")
-      .select("id, user_id, shipday_pickup_id, shipday_delivery_id, is_box_my_bike, order_collected, status, tracking_events")
+      .select("id, user_id, shipday_pickup_id, shipday_delivery_id, is_box_my_bike, is_warehouse_storage, order_collected, status, tracking_events")
       .eq("id", orderId)
       .maybeSingle();
 
@@ -127,7 +127,7 @@ serve(async (req) => {
 
     // Nothing to do when both required legs already exist.
     const needsPickup = !order.shipday_pickup_id && order.order_collected !== true;
-    const needsDelivery = order.is_box_my_bike === true ? false : !order.shipday_delivery_id;
+    const needsDelivery = (order.is_box_my_bike === true || order.is_warehouse_storage === true) ? false : !order.shipday_delivery_id;
     const requestedLegNeeded = jobType === "pickup" ? needsPickup : jobType === "delivery" ? needsDelivery : true;
     if (!requestedLegNeeded || (!jobType && !needsPickup && !needsDelivery)) {
       return json({ success: true, skipped: true, reason: "already_synced" });
