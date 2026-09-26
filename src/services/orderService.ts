@@ -689,7 +689,8 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         const senderAvailabilityResult = await sendSenderAvailabilityEmail(order.id);
         
         // 3. Receiver notification email as before
-        const receiverEmailResult = await sendOrderNotificationToReceiver(order.id);
+        // Warehouse storage bookings deliver to our own depot, so no receiver email.
+        const receiverEmailResult = isWarehouseStorage ? null : await sendOrderNotificationToReceiver(order.id);
         
         return { 
           userConfirmation: userEmailResult, 
