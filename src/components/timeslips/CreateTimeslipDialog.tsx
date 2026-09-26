@@ -94,7 +94,7 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
         .from('profiles')
         .select('*')
         .eq('role', 'driver')
-        .or('is_active.is.null,is_active.eq.true')
+        .or('is_active.is.null,is_active.eq.true').or('account_status.is.null,account_status.not.in.(suspended,rejected)')
         .order('name');
       if (error) throw error;
       return data as UserProfile[];
