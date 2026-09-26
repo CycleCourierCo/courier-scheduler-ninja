@@ -271,6 +271,16 @@ export const requestDeliveryFromStock = async (
 
   if (orderError) throw orderError;
 
+  // Stamp the new order id onto its bay allocation.
+  if (Array.isArray((order as any).storage_locations)) {
+    await supabase
+      .from("orders")
+      .update({
+        storage_locations: (order as any).storage_locations.map((a: any) => ({ ...a, orderId: order.id })),
+      } as any)
+      .eq("id", order.id);
+  }
+
   // 3. Update stock status to reserved and link order
   const { error: updateError } = await supabase
     .from("warehouse_stock" as any)
