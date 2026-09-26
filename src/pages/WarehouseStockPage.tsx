@@ -18,6 +18,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import {
   getWarehouseStock,
   addWarehouseStock,
+  updateWarehouseStock,
   removeWarehouseStock,
   checkLocationConflict,
   getCustomerList,
@@ -62,6 +63,7 @@ const WarehouseStockPage: React.FC = () => {
   const [customers, setCustomers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState<WarehouseStock | null>(null);
   const [formData, setFormData] = useState<WarehouseStockFormData>(emptyForm);
   const [submitting, setSubmitting] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("all");
