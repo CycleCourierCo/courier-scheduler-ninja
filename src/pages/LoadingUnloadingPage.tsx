@@ -139,6 +139,26 @@ const LoadingUnloadingPage = () => {
         }
       });
 
+      // Warehouse stock bikes sitting in a bay (not yet booked out) occupy that slot too.
+      const { data: stockRows } = await (supabase.from("warehouse_stock" as any) as any)
+        .select("id, bay, position, bike_brand, bike_model, created_at")
+        .eq("item_kind", "bike")
+        .eq("status", "stored")
+        .is("linked_order_id", null);
+      ((stockRows as any[]) || []).forEach((row: any) => {
+        if (!row.bay || row.bay === "UNALLOCATED") return;
+        allAllocations.push({
+          id: `stock-${row.id}`,
+          orderId: `stock:${row.id}`,
+          bay: String(row.bay).toUpperCase(),
+          position: Number(row.position),
+          bikeBrand: row.bike_brand || undefined,
+          bikeModel: row.bike_model || undefined,
+          customerName: "Warehouse stock",
+          allocatedAt: new Date(row.created_at),
+        });
+      });
+
       setStorageAllocations(allAllocations);
     } catch (error) {
       console.error('Error fetching data:', error);
