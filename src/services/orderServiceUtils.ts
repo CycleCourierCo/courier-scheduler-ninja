@@ -64,6 +64,7 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     bikeValue: dbOrder.bike_value || undefined,
     bikes: dbOrder.bikes || undefined,
     isBoxMyBike: dbOrder.is_box_my_bike || false,
+    isWarehouseStorage: dbOrder.is_warehouse_storage || false,
     boxMyBikeStatus: dbOrder.box_my_bike_status || null,
     boxBuyer: dbOrder.box_buyer || null,
     boxBuyerBoxingEmailSentAt: dbOrder.box_buyer_boxing_email_sent_at || null,

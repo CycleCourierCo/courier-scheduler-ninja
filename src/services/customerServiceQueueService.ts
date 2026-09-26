@@ -33,7 +33,7 @@ export const fetchQueueSlas = async (): Promise<CsQueueSla[]> => {
 export const fetchStaffOptions = async (): Promise<StaffOption[]> => {
   const { data, error } = await db().rpc('list_internal_users');
   if (error) throw error;
-  return (data || []) as StaffOption[];
+  return ((data || []) as any[]).filter((u) => u.is_active !== false) as StaffOption[];
 };
 
 export const createQueue = async (name: string, description?: string) => {

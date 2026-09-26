@@ -17,3 +17,8 @@
 - [x] Match the Get Timeslots map styling, markers, lines and sizing to Generate Routes
 - [ ] Phase 2: Alt 1 / Alt 2 variants per day with trade-off notes and re-solve on selection
 - [ ] Phase 3: admin polygon editor, driver availability, same-route collect-then-deliver
+## Driver rota & absence
+- [x] Database: availability, overrides, absence requests, rota settings, triggers
+- [x] My Holidays page, Drivers Rota page, User Management availability + approvals
+- [x] Absence emails (admins + driver)
+- [x] Active-users helper applied to all pickers/filters

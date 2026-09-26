@@ -202,7 +202,7 @@ export const reconcileInspectionStatuses = async (
     let query = supabase
       .from('bicycle_inspections')
       .select(
-        'id, status, released_to_customer_at, inspection_issues(status, parts_arrived, parts_ordered, parts_in_stock, offered_to_receiver_at, receiver_approved_at, receiver_declined_at, billing_party)'
+        'id, status, order_id, approval_recipient, released_to_customer_at, inspection_issues(status, parts_arrived, parts_ordered, parts_in_stock, offered_to_receiver_at, receiver_approved_at, receiver_declined_at, billing_party)'
       )
       .in('status', [
         'issues_found',
@@ -279,26 +279,25 @@ export const reconcileInspectionStatuses = async (
           ? 'ship_as_is'
           : 'repaired';
 
+      // Delivery jobs approved by the booking account/sender can pass declined
+      // repairs on to the buyer — that decision must come before repair work.
+      const recipient = (inspection as any).approval_recipient as string | null;
+      const hasOnwardStep =
+        !!(inspection as any).order_id && recipient !== 'receiver' && recipient !== 'walkin';
+
+      const decide = (): InspectionStatus => {
+        if (hasOnwardStep && declinedNotOffered.length > 0) return 'repairs_declined';
+        if (hasOnwardStep && declinedOffered.length > 0) return 'pending_receiver_approval';
+        if (outstandingApproved.length > 0) return postApprovalStatus();
+        if (declinedNotOffered.length > 0) return 'repairs_declined';
+        if (declinedOffered.length > 0) return 'pending_receiver_approval';
+        return terminalStatus();
+      };
+
       if (currentStatus === 'issues_found' && allResponded) {
-        if (outstandingApproved.length > 0) {
-          nextStatus = postApprovalStatus();
-        } else if (declinedNotOffered.length > 0) {
-          nextStatus = 'repairs_declined';
-        } else if (declinedOffered.length > 0) {
-          nextStatus = 'pending_receiver_approval';
-        } else {
-          nextStatus = terminalStatus();
-        }
+        nextStatus = decide();
       } else if (currentStatus === 'repairs_declined' || currentStatus === 'pending_receiver_approval') {
-        if (outstandingApproved.length > 0) {
-          nextStatus = postApprovalStatus();
-        } else if (declinedNotOffered.length > 0) {
-          nextStatus = 'repairs_declined';
-        } else if (declinedOffered.length > 0) {
-          nextStatus = 'pending_receiver_approval';
-        } else {
-          nextStatus = terminalStatus();
-        }
+        nextStatus = decide();
       } else if (currentStatus === 'awaiting_parts' && allPartsReady) {
         nextStatus = 'awaiting_repair';
       } else if (
@@ -353,11 +352,14 @@ export const getOrCreateInspection = async (
   bikeType?: string | null
 ): Promise<BicycleInspection | null> => {
   try {
-    const { data: byOrder, error: fetchError } = await supabase
+    // Tolerate legacy duplicates: take the earliest record rather than erroring.
+    const { data: byOrderRows, error: fetchError } = await supabase
       .from('bicycle_inspections')
       .select('*')
       .eq('order_id', orderId)
-      .maybeSingle();
+      .order('created_at', { ascending: true })
+      .limit(1);
+    const byOrder = byOrderRows?.[0] ?? null;
 
     if (fetchError) throw fetchError;
 
@@ -397,12 +399,24 @@ export const getOrCreateInspection = async (
       .select()
       .single();
 
-    if (createError) throw createError;
+    if (createError) {
+      // Two submissions raced: re-read the record the other one created.
+      if ((createError as any).code === '23505') {
+        const { data: raced } = await supabase
+          .from('bicycle_inspections')
+          .select('*')
+          .eq('order_id', orderId)
+          .order('created_at', { ascending: true })
+          .limit(1);
+        if (raced?.[0]) return raced[0] as BicycleInspection;
+      }
+      throw createError;
+    }
 
     return newInspection as BicycleInspection;
   } catch (error) {
     console.error('Error getting or creating inspection:', error);
-    return null;
+    throw error;
   }
 };
 
@@ -1069,6 +1083,7 @@ export const acceptIssue = async (issueId: string): Promise<InspectionIssue | nu
     if (error) throw error;
     pushIssueStatusToInspectaBike(issueId);
     void refreshReportForIssue(issueId);
+    await reconcileForIssue(issueId);
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error accepting issue:', error);
@@ -1097,6 +1112,7 @@ export const declineIssue = async (
     pushIssueStatusToInspectaBike(issueId);
     void refreshReportForIssue(issueId);
     void notifyRepairsDeclined((data as any)?.order_id);
+    await reconcileForIssue(issueId);
 
     return data as InspectionIssue;
   } catch (error) {
@@ -1131,6 +1147,7 @@ export const setIssueStatusAsAdmin = async (
     if (error) throw error;
     pushIssueStatusToInspectaBike(issueId);
     if (status === 'declined') void notifyDeclineForIssue(issueId);
+    await reconcileForIssue(issueId);
     return data as InspectionIssue;
 
   } catch (error) {
@@ -1269,8 +1286,8 @@ export const setIssuePartsInStock = async (
       .single();
 
     if (error) throw error;
-    // Let the shared reconciler pull the bike forward/back as appropriate.
-    await reconcileInspectionStatuses();
+    // Reconcile only this bike; unrelated inspections must not be rewritten.
+    await reconcileForIssue(issueId);
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error setting parts in stock:', error);

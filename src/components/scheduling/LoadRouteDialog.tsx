@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 import { OrderData } from "@/pages/JobScheduling";
 import { getLegContact } from "@/utils/niDelivery";
+import { useAuth } from "@/contexts/AuthContext";
 
 const formatLegAddress = (a: any) =>
   [a?.street, a?.city, a?.state, a?.zipCode].filter(Boolean).join(", ");
@@ -67,7 +68,10 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
   orders,
   onLoadRoute
 }) => {
+  const { user, userProfile } = useAuth();
+  const isAdmin = ((userProfile as any)?.roles || []).includes("admin");
   const [savedRoutes, setSavedRoutes] = useState<SavedRoute[]>([]);
+  const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -95,6 +99,22 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
       }));
 
       setSavedRoutes(routes);
+
+      // Resolve who saved each route (best effort — ignore if not visible)
+      const creatorIds = Array.from(
+        new Set(routes.map(r => r.created_by).filter(Boolean))
+      ) as string[];
+      if (creatorIds.length) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, name, email')
+          .in('id', creatorIds);
+        const map: Record<string, string> = {};
+        (profiles || []).forEach((p: any) => {
+          map[p.id] = p.name || p.email || '';
+        });
+        setCreatorNames(map);
+      }
     } catch (error: any) {
       console.error("Error fetching saved routes:", error);
       toast.error(`Failed to load saved routes: ${error.message}`);
@@ -246,7 +266,9 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
                             )}
                           </div>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Created {format(new Date(route.created_at), "MMM d, yyyy 'at' HH:mm")}
+                            Saved by {route.created_by === user?.id ? "you" : (creatorNames[route.created_by] || "a colleague")}
+                            {" · "}
+                            {format(new Date(route.created_at), "MMM d, yyyy 'at' HH:mm")}
                           </p>
                         </div>
                         
@@ -261,6 +283,7 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
                             Load
                           </Button>
                           
+                          {(isAdmin || route.created_by === user?.id) && (
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <Button
@@ -290,6 +313,7 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
                               </AlertDialogFooter>
                             </AlertDialogContent>
                           </AlertDialog>
+                          )}
                         </div>
                       </div>
                     </div>

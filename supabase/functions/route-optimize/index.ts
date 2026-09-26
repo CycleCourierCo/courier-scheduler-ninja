@@ -32,8 +32,8 @@ const PENCE_PER_KM = 28;              // £0.45/mile
 const DRIVER_RATE = 11;
 const COST_PER_MILE = 0.45;
 const DEFAULT_MAX_LONG_VANS = 1;
-const DEFAULT_TARGET_JOBS = 13;
-const DEFAULT_FLOOR_JOBS = 9;
+// Rough jobs-per-van figure, used only to guess how many vans London needs.
+const LONDON_JOBS_PER_VAN = 13;
 const MAX_REMOVALS_PER_DAY = 6;
 const LONG_DAY_MIN_JOBS = 5;
 const SPREAD_WARN_MI = 150;
@@ -214,6 +214,10 @@ interface Leg {
   guaranteedDate: string | null;
   lapsed: boolean;
   lastDate: string | null;
+  /** Days since the order was booked. */
+  ageDays: number;
+  /** Days the bike has been sitting in the depot (deliveries only). */
+  depotDays: number;
   areaIdx: number | null;
   businessHours: Record<string, any> | null;
   label: string;
@@ -278,16 +282,11 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const shiftStart = /^\d{2}:\d{2}$/.test(body?.shift_start ?? '') ? body.shift_start : '09:00';
-    const firmDays = Number.isFinite(Number(body?.firm_days)) ? Math.max(0, Math.min(10, Number(body.firm_days))) : 2;
-    const inspectionLeadDays = Number.isFinite(Number(body?.inspection_lead_days))
-      ? Math.max(0, Math.min(14, Number(body.inspection_lead_days))) : null;
     const includeExpired = body?.include_expired === true;
+    // On (default): rank by dates left and waiting time. Off: all ordinary jobs equal.
+    const prioritiseAge = body?.prioritise_age !== false;
     const maxLongVans = Number.isFinite(Number(body?.max_long_days))
       ? Math.max(0, Math.min(1, Math.round(Number(body.max_long_days)))) : DEFAULT_MAX_LONG_VANS;
-    const targetJobs = Number.isFinite(Number(body?.min_jobs_target))
-      ? Math.max(1, Math.min(30, Math.round(Number(body.min_jobs_target)))) : DEFAULT_TARGET_JOBS;
-    const floorJobs = Number.isFinite(Number(body?.min_jobs_floor))
-      ? Math.max(1, Math.min(targetJobs, Math.round(Number(body.min_jobs_floor)))) : Math.min(DEFAULT_FLOOR_JOBS, targetJobs);
     const minMargin = Number.isFinite(Number(body?.min_route_margin))
       ? Math.max(0, Number(body.min_route_margin)) : 0;
 
@@ -485,6 +484,8 @@ serve(async (req) => {
           guaranteedDate: guaranteed,
           lapsed,
           lastDate: future.length ? future[future.length - 1] : null,
+          ageDays: (() => { const d = dateKey(order.created_at); return d ? daysSince(d) : 0; })(),
+          depotDays: legType === 'delivery' && collectedDate ? daysSince(collectedDate) : 0,
           areaIdx: difficultAreaIdx(lat, lon),
           businessHours, label,
           needsInspection: !!order.needs_inspection && !inspectionDone,
@@ -517,11 +518,30 @@ serve(async (req) => {
     const legsById: Record<number, Leg> = {};
     for (const leg of legs) legsById[leg.jobId] = leg;
 
-    /** Only two levels exist: must-go today, or ordinary work. */
+    /** Work that has to go out today: guaranteed, last date, or expired override. */
     const mustGo = (leg: Leg, date: string) =>
       leg.guaranteedDate === date
       || leg.lastDate === date
       || (leg.lapsed && includeExpired);
+
+    /**
+     * How hard the optimiser should try to fit a job (VROOM priority, 0-100).
+     *
+     * Must-go work sits at the top. Everything else is ranked by how few dates
+     * the customer has left (the stronger signal) and then by how long the job
+     * has been waiting — an older job beats a fresher one all else being equal.
+     */
+    const legPriority = (leg: Leg, date: string) => {
+      if (mustGo(leg, date)) return 100;
+      // Previous behaviour: every ordinary job counts the same.
+      if (!prioritiseAge) return 50;
+      const left = Math.max(1, leg.futureDates.filter((d) => d >= date).length);
+      // 1 date left -> 40, 2 -> 20, 3 -> 13, 4 -> 10, tailing off after that.
+      const scarcity = Math.round(40 / left);
+      const waiting = Math.max(leg.ageDays, leg.depotDays);
+      const age = Math.min(20, Math.round(waiting / 1.5));
+      return Math.max(1, Math.min(99, 30 + scarcity + age));
+    };
 
     /** A job that must not be lost inside this plan at all. */
     const urgentInPlan = (leg: Leg) =>
@@ -627,7 +647,7 @@ serve(async (req) => {
         id: leg.jobId,
         location: [leg.lon, leg.lat],
         service: SERVICE_S,
-        priority: mustGo(leg, date) ? 100 : 50,
+        priority: legPriority(leg, date),
         time_windows: [window],
         ...(leg.legType === 'delivery' ? { delivery: load } : { pickup: load }),
         ...(skills ? { skills } : {}),
@@ -757,10 +777,10 @@ serve(async (req) => {
 
     /** Is this delivery's bike in the depot in time for `date`? */
     const deliveryReady = (leg: Leg, date: string): boolean => {
-      const lead = leg.needsInspection
-        ? (inspectionLeadDays === null ? null : Math.max(1, inspectionLeadDays))
-        : 1;
-      if (lead === null) return false;                    // inspection must be marked done first
+      // A bike waiting on an inspection is never auto-unlocked: staff must mark
+      // the inspection done first.
+      if (leg.needsInspection) return false;
+      const lead = 1;
       let collected: string | null = null;
       if (leg.inDepot) return true;
       if (leg.bookedCollection) collected = leg.bookedCollection;
@@ -778,9 +798,9 @@ serve(async (req) => {
       spareHint[date] = null;
       if (dayVans.length === 0) continue;
 
-      const provisional = selectedDates.indexOf(date) >= firmDays;
-      const quickOnly = provisional && budgetLeft() < 30_000;
-      if (provisional && budgetLeft() < 12_000) {
+      // Every selected day is planned for real; only the clock can cut work short.
+      const quickOnly = budgetLeft() < 30_000;
+      if (budgetLeft() < 12_000) {
         skipped.push(`plan for ${date} (ran out of time)`);
         continue;
       }
@@ -816,7 +836,7 @@ serve(async (req) => {
           let wanted = Math.min(
             LONDON_MAX_VANS,
             free.length,
-            Math.max(1, Math.ceil(Math.max(londonLegs.length / targetJobs, londonSpaces / Math.max(1, cap)))),
+            Math.max(1, Math.ceil(Math.max(londonLegs.length / LONDON_JOBS_PER_VAN, londonSpaces / Math.max(1, cap)))),
           );
           // always leave a van for the rest of the country when there is other work
           if (pool.length > londonLegs.length && wanted >= free.length) wanted = Math.max(1, free.length - 1);
@@ -897,7 +917,7 @@ serve(async (req) => {
           if (budgetLeft() < 15_000) { skipped.push(`fine-tuning ${date} (ran out of time)`); break; }
           const scored = solved!.map((r) => ({ r, ...money(r) }));
           const weakest = scored
-            .filter((x) => !protectedVans.has(x.r.meta.vanId) && x.r.stops.length < targetJobs)
+            .filter((x) => !protectedVans.has(x.r.meta.vanId))
             .sort((a, b) => a.r.stops.length - b.r.stops.length)[0]
             ?? (minMargin > 0
               ? scored.filter((x) => !protectedVans.has(x.r.meta.vanId) && x.margin < minMargin)
@@ -946,7 +966,7 @@ serve(async (req) => {
           if (spareRoute) {
             const m = money(spareRoute);
             const must = spareRoute.stops.filter((s) => mustGo(s.leg, date)).length;
-            if (spareRoute.stops.length >= targetJobs || must > 0) {
+            if (spareRoute.stops.length > 0) {
               spareHint[date] = { jobs: spareRoute.stops.length, revenue: m.revenue, margin: m.margin, must_go: must };
             }
           }
@@ -982,8 +1002,8 @@ serve(async (req) => {
       horizon_end: selectedDates[selectedDates.length - 1],
       selected_dates: selectedDates,
       shift_start: shiftStart,
-      firm_days: firmDays,
-      inspection_lead_days: inspectionLeadDays,
+      firm_days: selectedDates.length,
+      inspection_lead_days: null,
       created_by: userData.user.id,
       status: 'active',
       mode: 'greedy',
@@ -995,6 +1015,13 @@ serve(async (req) => {
     const assigned = new Set<string>();
     const routesByDate: Record<string, any[]> = {};
 
+    // "Thin" is now purely informational: a route well below the run's typical
+    // size, rather than short of a target anyone typed in.
+    const sizes = allRoutes.map((r) => r.stops.length).sort((a, b) => a - b);
+    const medianSize = sizes.length ? sizes[Math.floor(sizes.length / 2)] : 0;
+    const thinCutoff = Math.max(3, Math.floor(medianSize * 0.6));
+    const floorCutoff = Math.max(2, Math.floor(medianSize * 0.4));
+
     const prepared = allRoutes.map((r) => {
       const ordered = [...r.stops].sort((a, b) => a.arrival - b.arrival);
       const steps = Array.isArray(r.route.steps) ? r.route.steps : [];
@@ -1002,10 +1029,10 @@ serve(async (req) => {
       const duration = routeDuration(r.route);
       const m = money(r);
       const mustGoLabels = ordered.filter((s) => mustGo(s.leg, r.meta.date)).map((s) => s.leg.label);
-      const thin = ordered.length < targetJobs;
+      const thin = ordered.length < thinCutoff;
       return {
         meta: r.meta, ordered, duration, ...m,
-        isProvisional: selectedDates.indexOf(r.meta.date) >= firmDays,
+        isProvisional: false,
         longDay: r.meta.long && duration > NORMAL_CAP_H * HOURS,
         miles: routeMiles(r.route),
         maxLoad: Math.round((maxLoadUnits / 10) * 100) / 100,
@@ -1013,9 +1040,9 @@ serve(async (req) => {
         region: r.meta.areaName,
         spreadMi: spreadMiles(ordered.map((s) => s.leg)),
         thin,
-        belowFloor: ordered.length < floorJobs,
+        belowFloor: ordered.length < floorCutoff,
         thinReason: thin
-          ? (mustGoLabels.length > 0 ? 'Needed for must-go jobs' : 'Thin — no more work fitted nearby')
+          ? `Only ${ordered.length} stops — nothing else fitted nearby`
           : null,
         mustGoLabels: mustGoLabels.slice(0, 10),
       };
@@ -1109,7 +1136,7 @@ serve(async (req) => {
         vans_available: available,
         van_names: [...usedVans].map((id) => (vansForDate[date] ?? []).find((v) => v.id === id)?.name).filter(Boolean),
         spare_vans: Math.max(0, available - usedVans.size),
-        is_provisional: idx >= firmDays,
+        is_provisional: false,
         shortfall: hint ? { extra_vans: 1, extra_jobs: hint.jobs, urgent: hint.must_go } : null,
         spare_van_hint: hint,
         variants: [{ variant: 'primary', routes: dayRoutes, tradeoff_note: null }],
@@ -1129,12 +1156,12 @@ serve(async (req) => {
     const excludedKeys = new Set(Object.values(excludedLongArea).flat().map((l) => l.key));
     const atRisk = unplaced
       .filter((l) => urgentInPlan(l))
-      .sort((a, b) => (a.guaranteedDate ? -1 : 0) - (b.guaranteedDate ? -1 : 0))
+      .sort((a, b) => legPriority(b, selectedDates[0]) - legPriority(a, selectedDates[0]))
       .map((l) => ({
         order_id: l.orderId,
         label: l.label,
         leg_type: l.legType,
-        priority: l.guaranteedDate ? 100 : 50,
+        priority: legPriority(l, selectedDates[0]),
         remaining_dates: l.futureDates.length,
         last_date: l.lastDate ?? (l.allDates[l.allDates.length - 1] ?? null),
         guaranteed_date: l.guaranteedDate,
@@ -1157,9 +1184,17 @@ serve(async (req) => {
     debug.vans_used = Object.fromEntries(days.map((d) => [d.date, d.vans_needed]));
     debug.total_margin = Math.round(prepared.reduce((n, p) => n + p.margin, 0) * 100) / 100;
     debug.settings = {
-      target_jobs: targetJobs, floor_jobs: floorJobs, max_long_vans: maxLongVans,
+      max_long_vans: maxLongVans,
       min_route_margin: minMargin, normal_hours: NORMAL_CAP_H, long_hours: LONG_CAP_H,
+      prioritise_age: prioritiseAge,
+      packing: 'until van capacity or shift hours run out',
     };
+    // A sample of how jobs were ranked, so a dispatcher can see why one won out.
+    debug.priority_sample = legs.slice(0, 40).map((l) => ({
+      label: l.label, leg: l.legType, dates_left: l.futureDates.length,
+      age_days: l.ageDays, depot_days: l.depotDays,
+      priority: legPriority(l, selectedDates[0]),
+    }));
     debug.skipped = skipped;
 
     await admin.from('route_plans').update({
@@ -1176,7 +1211,7 @@ serve(async (req) => {
       expiring_in_plan_count: legs.filter((l) => !!l.lastDate && l.lastDate <= lastSelectedDate).length,
       expiring_unplanned_count: unplaced.filter((l) => !!l.lastDate && l.lastDate <= lastSelectedDate).length,
       generated_at: new Date().toISOString(),
-      firm_days: firmDays,
+      firm_days: selectedDates.length,
       shortfall_pending: false,
       distance_costing: debug.distance_costing !== false,
       skipped,

@@ -141,7 +141,7 @@ export default function SenderAvailability() {
 
   if (paramError) {
     return (
-      <DoorstepShell title="Collection availability" reference={params.id}>
+      <DoorstepShell title="Collection availability">
         <ErrorState 
           error={paramError} 
           onHome={() => navigate("/")} 
@@ -152,7 +152,7 @@ export default function SenderAvailability() {
 
   if (!initialCheckCompleted || isLoading) {
     return (
-      <DoorstepShell title="Collection availability" reference={params.id}>
+      <DoorstepShell title="Collection availability">
         <LoadingState message="Loading order details..." />
       </DoorstepShell>
     );
@@ -160,7 +160,7 @@ export default function SenderAvailability() {
 
   if (error) {
     return (
-      <DoorstepShell title="Collection availability" reference={params.id}>
+      <DoorstepShell title="Collection availability">
         <ErrorState 
           error={error} 
           onHome={() => navigate("/")} 
@@ -171,7 +171,7 @@ export default function SenderAvailability() {
 
   if (isConfirmed) {
     return (
-      <DoorstepShell title="Collection availability" reference={params.id}>
+      <DoorstepShell title="Collection availability">
         <ConfirmedDatesView
           title="Pickup Availability"
           dates={confirmedDates}
@@ -183,7 +183,7 @@ export default function SenderAvailability() {
 
   if (isBusinessSender && !singleDay && mode === 'unset') {
     return (
-      <DoorstepShell title="Collection availability" reference={params.id}>
+      <DoorstepShell title="Collection availability">
         <div>
           <Card>
             <CardHeader className="space-y-1 border-b bg-muted">
@@ -236,7 +236,7 @@ export default function SenderAvailability() {
   }
 
   return (
-    <DoorstepShell title="Collection availability" reference={params.id}>
+    <DoorstepShell title="Collection availability">
       {isBusinessSender && !singleDay && (
         <div className="max-w-4xl mx-auto px-4 pt-4">
           <Button variant="ghost" size="sm" onClick={handleBackToOptions}>

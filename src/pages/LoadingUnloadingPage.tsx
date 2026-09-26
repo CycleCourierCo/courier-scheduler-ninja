@@ -139,6 +139,26 @@ const LoadingUnloadingPage = () => {
         }
       });
 
+      // Warehouse stock bikes sitting in a bay (not yet booked out) occupy that slot too.
+      const { data: stockRows } = await (supabase.from("warehouse_stock" as any) as any)
+        .select("id, bay, position, bike_brand, bike_model, created_at")
+        .eq("item_kind", "bike")
+        .eq("status", "stored")
+        .is("linked_order_id", null);
+      ((stockRows as any[]) || []).forEach((row: any) => {
+        if (!row.bay || row.bay === "UNALLOCATED") return;
+        allAllocations.push({
+          id: `stock-${row.id}`,
+          orderId: `stock:${row.id}`,
+          bay: String(row.bay).toUpperCase(),
+          position: Number(row.position),
+          bikeBrand: row.bike_brand || undefined,
+          bikeModel: row.bike_model || undefined,
+          customerName: "Warehouse stock",
+          allocatedAt: new Date(row.created_at),
+        });
+      });
+
       setStorageAllocations(allAllocations);
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -156,8 +176,8 @@ const LoadingUnloadingPage = () => {
   useEffect(() => {
     const fetchProfiles = async () => {
       const [driverResult, loaderResult] = await Promise.all([
-        supabase.from('profiles').select('id, name, phone, email').eq('role', 'driver').eq('is_active', true).order('name'),
-        supabase.from('profiles').select('id, name, phone, email').eq('role', 'loader').eq('is_active', true).order('name'),
+        supabase.from('profiles').select('id, name, phone, email').eq('role', 'driver').or('is_active.is.null,is_active.eq.true').or('account_status.is.null,account_status.not.in.(suspended,rejected)').order('name'),
+        supabase.from('profiles').select('id, name, phone, email').eq('role', 'loader').or('is_active.is.null,is_active.eq.true').or('account_status.is.null,account_status.not.in.(suspended,rejected)').order('name'),
       ]);
       
       if (!driverResult.error && driverResult.data) {
@@ -295,6 +315,11 @@ const LoadingUnloadingPage = () => {
         return;
       }
 
+      if ((order as any).isWarehouseStorage || (order as any).is_warehouse_storage) {
+        const { error: stockErr } = await (supabase.rpc as any)("create_stock_from_storage_order", { p_order_id: order.id });
+        if (stockErr) toast.error("Bay saved, but couldn't add the bike to Warehouse Stock");
+        else toast.success("Added to Warehouse Stock");
+      }
       // Refresh data from database to ensure UI reflects the saved state
       await fetchData();
       

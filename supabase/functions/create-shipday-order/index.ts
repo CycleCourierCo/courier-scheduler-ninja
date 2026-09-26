@@ -358,7 +358,7 @@ serve(async (req) => {
 
     // Box My Bike: never create the delivery leg on Shipday.
     // The 3rd-party courier handles delivery from our depot.
-    if (order.is_box_my_bike === true) {
+    if (order.is_box_my_bike === true || order.is_warehouse_storage === true) {
       if (jobType === 'delivery') {
         console.log("Skipping Shipday delivery for Box My Bike order");
         return new Response(

@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import React, { useState, useMemo, useEffect } from "react";
+import { getPublicAppUrl } from "@/lib/publicAppUrl";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
@@ -58,7 +59,6 @@ import {
   markIssueRepaired,
   moveToRepaired,
   checkAllApprovedRepaired,
-  reconcileInspectionStatuses,
   setIssuePrice,
   releaseInspectionToCustomer,
   markPartsArrived,
@@ -310,22 +310,6 @@ const BicycleInspections = () => {
     enabled: !!user,
     staleTime: 60 * 1000,
   });
-
-  // Tidying up stuck inspection statuses used to block the list from showing.
-  // Do it in the background once, then refresh if anything actually changed.
-  const reconciledRef = useRef(false);
-  useEffect(() => {
-    if (!canManageInspections || reconciledRef.current) return;
-    reconciledRef.current = true;
-    (async () => {
-      try {
-        await reconcileInspectionStatuses();
-        queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
-      } catch (err) {
-        console.error("Failed to reconcile inspection statuses", err);
-      }
-    })();
-  }, [canManageInspections, queryClient]);
 
   // Admin clears a bike details mismatch flag once reviewed
   const identityReviewMutation = useMutation({
@@ -664,12 +648,30 @@ const BicycleInspections = () => {
   });
 
 
-  // Approval link staff can send manually (public, no login needed)
-  const buildApprovalLink = (inspectionId: string) =>
-    `${window.location.origin}/inspection-approval/${inspectionId}`;
+  // Approval link staff can send manually (public, no login needed).
+  // Once the work has been offered to the receiver, the receiver's own repair
+  // offer page is the right destination — the account page only shows repairs
+  // still awaiting the booking account's answer.
+  const buildApprovalLink = (inspectionId: string, order?: any) => {
+    const inspection = order?.inspection;
+    const issues: any[] = order?.issues || [];
+    const orderId = order?.id || inspection?.order_id;
+    const offeredToReceiver =
+      inspection?.status === "pending_receiver_approval" ||
+      issues.some(
+        (issue) =>
+          issue?.offered_to_receiver_at &&
+          !issue?.receiver_approved_at &&
+          !issue?.receiver_declined_at
+      );
+    if (orderId && offeredToReceiver) {
+      return `${window.location.origin}/repair-offer/${orderId}`;
+    }
+    return `${window.location.origin}/inspection-approval/${inspectionId}`;
+  };
   const [manualApprovalLink, setManualApprovalLink] = useState<string | null>(null);
-  const copyApprovalLink = async (inspectionId: string) => {
-    const link = buildApprovalLink(inspectionId);
+  const copyApprovalLink = async (inspectionId: string, order?: any) => {
+    const link = buildApprovalLink(inspectionId, order);
     try {
       await navigator.clipboard.writeText(link);
       toast.success("Approval link copied");
@@ -1338,7 +1340,12 @@ const BicycleInspections = () => {
       );
     } catch (error) {
       console.error(error);
-      toast.error("Failed to save the bike identity check");
+      const reason = (error as any)?.message || (error as any)?.details || "";
+      toast.error(
+        reason
+          ? `Failed to save the bike identity check: ${reason}`
+          : "Failed to save the bike identity check"
+      );
       return;
     }
 
@@ -2187,7 +2194,30 @@ const BicycleInspections = () => {
                   )}
                   {lastOfferedAt ? "Re-send this offer" : "Send this offer"}
                 </Button>
+                {lastOfferedAt && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => {
+                      const link = `${getPublicAppUrl()}/repair-offer/${order.id}`;
+                      try {
+                        await navigator.clipboard.writeText(link);
+                        toast.success("Buyer link copied");
+                      } catch {
+                        setManualApprovalLink(link);
+                      }
+                    }}
+                  >
+                    <Copy className="h-4 w-4 mr-1" />
+                    Copy buyer link
+                  </Button>
+                )}
               </div>
+              {lastOfferedAt && (
+                <p className="mt-2 text-xs text-muted-foreground break-all">
+                  Buyer link: {`${getPublicAppUrl()}/repair-offer/${order.id}`}
+                </p>
+              )}
             </div>
           )}
 
@@ -3092,7 +3122,7 @@ const BicycleInspections = () => {
                  <Button
                    size="sm"
                    variant="outline"
-                   onClick={() => copyApprovalLink(inspection.id)}
+                   onClick={() => copyApprovalLink(inspection.id, order)}
                  >
                    <Copy className="mr-1 h-4 w-4" />
                    Copy approval link

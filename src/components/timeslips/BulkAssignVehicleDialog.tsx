@@ -50,12 +50,13 @@ const BulkAssignVehicleDialog: React.FC<Props> = ({ isOpen, onClose, onSuccess }
   const [submitting, setSubmitting] = useState(false);
 
   const { data: drivers } = useQuery({
-    queryKey: ['drivers-all'],
+    queryKey: ['drivers-active'],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('role', 'driver')
+        .or('is_active.is.null,is_active.eq.true').or('account_status.is.null,account_status.not.in.(suspended,rejected)')
         .order('name');
       if (error) throw error;
       return data as UserProfile[];
