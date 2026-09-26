@@ -246,7 +246,23 @@ export const requestDeliveryFromStock = async (
       bike_type: stockItem.bike_type,
       bike_value: stockItem.bike_value,
       bike_quantity: 1,
-      status: "created",
+      // Bike is already at our depot: treat as collected so only a delivery
+      // job is created (the insert trigger syncs Shipday server-side).
+      status: "collected",
+      order_collected: true,
+      storage_locations: stockItem.bay && stockItem.bay !== "UNALLOCATED"
+        ? [{
+            id: crypto.randomUUID(),
+            orderId: "",
+            bay: String(stockItem.bay).toUpperCase(),
+            position: Number(stockItem.position),
+            bikeBrand: stockItem.bike_brand || undefined,
+            bikeModel: stockItem.bike_model || undefined,
+            customerName: receiverDetails.name,
+            allocatedAt: timestamp,
+            bikeIndex: 0,
+          }]
+        : null,
       created_at: timestamp,
       updated_at: timestamp,
     })
