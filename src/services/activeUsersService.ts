@@ -1,6 +1,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import type { UserRole } from "@/types/user";
 
+/** Inactive if switched off OR suspended/rejected. */
+export const isActiveAccount = (p: { is_active?: boolean | null; account_status?: string | null }) =>
+  p.is_active !== false && !["suspended", "rejected"].includes(String(p.account_status || ""));
+
 export interface ActiveUser {
   id: string;
   name: string | null;
@@ -38,11 +42,11 @@ export async function getActiveUsers(
   for (let i = 0; i < ids.length; i += 200) {
     const { data, error } = await (supabase as any)
       .from("profiles")
-      .select("id, name, email, is_active, depot_id, annual_leave_days, leave_year_start")
+      .select("id, name, email, is_active, account_status, depot_id, annual_leave_days, leave_year_start")
       .in("id", ids.slice(i, i + 200));
     if (error) throw error;
     for (const p of data || []) {
-      const active = p.is_active !== false;
+      const active = isActiveAccount(p);
       if (!active && !opts.includeInactive) continue;
       out.push({
         id: p.id, name: p.name, email: p.email, is_active: active,

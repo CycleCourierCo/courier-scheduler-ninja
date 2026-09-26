@@ -1,3 +1,4 @@
+import { isActiveAccount } from '@/services/activeUsersService';
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -21,9 +22,9 @@ export function UnallocatedBoxFoamCard({ jobs, mechanics }: Props) {
     queryFn: async () => {
       let { data } = await supabase
         .from('profiles')
-        .select('id, name, email, is_active')
+        .select('id, name, email, is_active, account_status')
         .eq('role', 'mechanic' as any);
-      data = (data || []).filter((p: any) => p.is_active !== false);
+      data = (data || []).filter((p: any) => isActiveAccount(p));
       return (data || []).map((p: any) => ({ id: p.id as string, name: (p.name || p.email || 'Mechanic') as string }));
     },
   });

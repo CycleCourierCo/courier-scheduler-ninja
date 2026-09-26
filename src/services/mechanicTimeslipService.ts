@@ -1,3 +1,4 @@
+import { isActiveAccount } from '@/services/activeUsersService';
 import { supabase } from '@/integrations/supabase/client';
 import { toPublicFileUrl } from "@/lib/publicFileUrl";
 
@@ -42,14 +43,14 @@ export interface RoleUser {
 export async function listUsersByRole(role: 'driver' | 'mechanic', opts: { includeInactive?: boolean } = {}): Promise<RoleUser[]> {
   const [rolesRes, legacyRes] = await Promise.all([
     supabase.from('user_roles').select('user_id').eq('role', role),
-    supabase.from('profiles').select('id, name, email, is_active').eq('role', role),
+    supabase.from('profiles').select('id, name, email, is_active, account_status').eq('role', role),
   ]);
   if (rolesRes.error) throw rolesRes.error;
   if (legacyRes.error) throw legacyRes.error;
 
   const byId = new Map<string, RoleUser>();
   const legacyIds = new Set((legacyRes.data || []).map((p: any) => p.id as string));
-  (legacyRes.data || []).forEach((p: any) => { if (opts.includeInactive || p.is_active !== false) byId.set(p.id, { id: p.id, name: p.name, email: p.email }); });
+  (legacyRes.data || []).forEach((p: any) => { if (opts.includeInactive || isActiveAccount(p)) byId.set(p.id, { id: p.id, name: p.name, email: p.email }); });
 
   const missingIds = (rolesRes.data || [])
     .map((r: any) => r.user_id as string)
@@ -58,10 +59,10 @@ export async function listUsersByRole(role: 'driver' | 'mechanic', opts: { inclu
   if (missingIds.length) {
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, name, email, is_active')
+      .select('id, name, email, is_active, account_status')
       .in('id', Array.from(new Set(missingIds)));
     if (error) throw error;
-    (data || []).forEach((p: any) => { if (opts.includeInactive || p.is_active !== false) byId.set(p.id, { id: p.id, name: p.name, email: p.email }); });
+    (data || []).forEach((p: any) => { if (opts.includeInactive || isActiveAccount(p)) byId.set(p.id, { id: p.id, name: p.name, email: p.email }); });
   }
 
   return Array.from(byId.values()).sort((a, b) =>
