@@ -6335,6 +6335,13 @@ export type Database = {
         Args: { p_bikes: Json; p_order_id: string }
         Returns: boolean
       }
+      current_profile_guard: {
+        Args: { _uid: string }
+        Returns: {
+          account_status: Database["public"]["Enums"]["account_status_type"]
+          role: Database["public"]["Enums"]["user_role"]
+        }[]
+      }
       difficult_areas_geojson: {
         Args: never
         Returns: {
