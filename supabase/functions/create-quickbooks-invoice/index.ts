@@ -540,6 +540,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Read the per-job big-bike flag server-side so it can't be spoofed by the caller
     const largeRateOrderIds = new Set<string>();
+    const acceptedInspectionServiceOrderIds = new Set<string>();
     const orderIdsForFlags = invoiceData.orders.map((o: any) => o.id).filter(Boolean);
     if (orderIdsForFlags.length > 0) {
       const { data: flagRows, error: flagError } = await supabase
@@ -559,6 +560,19 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
       console.log(`Jobs flagged for big-bike rate: ${largeRateOrderIds.size}`);
+
+      const { data: inspectionRows, error: inspectionError } = await supabase
+        .from('bicycle_inspections')
+        .select('order_id, inspection_type, service_decision')
+        .in('order_id', orderIdsForFlags);
+      if (inspectionError) {
+        throw new Error(`Could not read inspection choices for these jobs: ${inspectionError.message}`);
+      }
+      for (const inspection of inspectionRows || []) {
+        if (inspection.order_id && (inspection.inspection_type !== 'inspection_only' || inspection.service_decision === 'accepted')) {
+          acceptedInspectionServiceOrderIds.add(inspection.order_id);
+        }
+      }
     }
 
 
@@ -670,17 +684,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         
         // Check if order needs inspection and add service line item
-        let serviceBillable = order.needs_inspection && order.inspection_type !== 'inspection_only';
-        if (order.needs_inspection && order.inspection_type === 'inspection_only') {
-          const { data: inspection } = await supabase
-            .from('bicycle_inspections')
-            .select('service_decision')
-            .eq('order_id', order.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          serviceBillable = inspection?.service_decision === 'accepted';
-        }
+        const serviceBillable = order.needs_inspection && acceptedInspectionServiceOrderIds.has(order.id);
         if (serviceBillable) {
           const inspectionProduct = await findProductByExactName(
             tokenData.access_token,
