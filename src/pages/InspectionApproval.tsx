@@ -123,11 +123,9 @@ export default function InspectionApproval() {
       if (!result?.success) throw new Error(result?.error || "submit failed");
       setApprovedNow(chosen);
       setSubmitted(true);
-      toast.success(
-        chosen.length > 0
-          ? "Thanks — we'll get those repairs booked in"
-          : "Thanks — we won't carry out any repairs"
-      );
+      toast.success(chosen.length > 0
+        ? "Thanks — we'll get those repairs booked in"
+        : serviceChoice === 'accepted' ? "Thanks — we'll arrange the service" : "Thanks — your choice has been recorded");
     } catch (err) {
       console.error("Error submitting inspection approval:", err);
       toast.error("Something went wrong. Please try again.");
@@ -275,7 +273,7 @@ export default function InspectionApproval() {
               <div className="flex flex-col gap-2">
                 <Button
                   onClick={() => handleSubmit(false)}
-                  disabled={submitting || selectedTotal === 0}
+                   disabled={submitting || (selectedTotal === 0 && !needsServiceChoice)}
                   variant="doorstep"
                 >
                   {submitting ? "Sending..." : "Approve selected repairs"}

@@ -540,18 +540,20 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Read the per-job big-bike flag server-side so it can't be spoofed by the caller
     const largeRateOrderIds = new Set<string>();
+    const inspectionOrderIds = new Set<string>();
     const acceptedInspectionServiceOrderIds = new Set<string>();
     const orderIdsForFlags = invoiceData.orders.map((o: any) => o.id).filter(Boolean);
     if (orderIdsForFlags.length > 0) {
       const { data: flagRows, error: flagError } = await supabase
         .from('orders')
-        .select('id, use_large_bike_rate')
+        .select('id, use_large_bike_rate, needs_inspection')
         .in('id', orderIdsForFlags);
       if (flagError) {
         throw new Error(`Could not read big-bike rate flags for these jobs: ${flagError.message}`);
       }
       for (const row of flagRows || []) {
         if (row.use_large_bike_rate) largeRateOrderIds.add(row.id);
+        if (row.needs_inspection) inspectionOrderIds.add(row.id);
       }
       if (largeRateOrderIds.size > 0 && !largeBikeRateProduct) {
         throw new Error(
@@ -684,7 +686,7 @@ const handler = async (req: Request): Promise<Response> => {
 
         
         // Check if order needs inspection and add service line item
-        const serviceBillable = order.needs_inspection && acceptedInspectionServiceOrderIds.has(order.id);
+        const serviceBillable = inspectionOrderIds.has(order.id) && acceptedInspectionServiceOrderIds.has(order.id);
         if (serviceBillable) {
           const inspectionProduct = await findProductByExactName(
             tokenData.access_token,
