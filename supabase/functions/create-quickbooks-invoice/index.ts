@@ -546,14 +546,17 @@ const handler = async (req: Request): Promise<Response> => {
     if (orderIdsForFlags.length > 0) {
       const { data: flagRows, error: flagError } = await supabase
         .from('orders')
-        .select('id, use_large_bike_rate, needs_inspection')
+        .select('id, use_large_bike_rate, needs_inspection, inspection_type')
         .in('id', orderIdsForFlags);
       if (flagError) {
         throw new Error(`Could not read big-bike rate flags for these jobs: ${flagError.message}`);
       }
       for (const row of flagRows || []) {
         if (row.use_large_bike_rate) largeRateOrderIds.add(row.id);
-        if (row.needs_inspection) inspectionOrderIds.add(row.id);
+        if (row.needs_inspection) {
+          inspectionOrderIds.add(row.id);
+          if (row.inspection_type !== 'inspection_only') acceptedInspectionServiceOrderIds.add(row.id);
+        }
       }
       if (largeRateOrderIds.size > 0 && !largeBikeRateProduct) {
         throw new Error(
@@ -571,7 +574,7 @@ const handler = async (req: Request): Promise<Response> => {
         throw new Error(`Could not read inspection choices for these jobs: ${inspectionError.message}`);
       }
       for (const inspection of inspectionRows || []) {
-        if (inspection.order_id && (inspection.inspection_type !== 'inspection_only' || inspection.service_decision === 'accepted')) {
+        if (inspection.order_id && inspection.service_decision === 'accepted') {
           acceptedInspectionServiceOrderIds.add(inspection.order_id);
         }
       }

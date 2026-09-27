@@ -149,6 +149,11 @@ serve(async (req) => {
     let servicePrice: number | null = null;
     if (serviceChoicePending) {
       servicePrice = await fetchServicePrice(admin, user.id);
+      if (servicePrice == null) {
+        const { data: connected } = await admin.from("quickbooks_tokens")
+          .select("user_id").neq("user_id", user.id).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+        if (connected?.user_id) servicePrice = await fetchServicePrice(admin, connected.user_id);
+      }
       if (servicePrice == null) return json({ error: "Bike Inspection & Service price is unavailable in QuickBooks" }, 400);
       const { error: priceError } = await admin
         .from("bicycle_inspections")
