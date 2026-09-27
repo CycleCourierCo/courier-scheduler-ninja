@@ -188,6 +188,7 @@ export type Database = {
           report_generated_at: string | null
           report_url: string | null
           service_decision: string
+          service_price_gbp: number | null
           status: string
           updated_at: string
         }
@@ -249,6 +250,7 @@ export type Database = {
           report_generated_at?: string | null
           report_url?: string | null
           service_decision?: string
+          service_price_gbp?: number | null
           status?: string
           updated_at?: string
         }
@@ -310,6 +312,7 @@ export type Database = {
           report_generated_at?: string | null
           report_url?: string | null
           service_decision?: string
+          service_price_gbp?: number | null
           status?: string
           updated_at?: string
         }
@@ -7358,6 +7361,14 @@ export type Database = {
       st_wrapx: {
         Args: { geom: unknown; move: number; wrap: number }
         Returns: unknown
+      }
+      submit_inspection_approval_internal: {
+        Args: {
+          p_approved_issue_ids: string[]
+          p_inspection_id: string
+          p_service_decision: string
+        }
+        Returns: Json
       }
       submit_ni_partner_details: {
         Args: {
