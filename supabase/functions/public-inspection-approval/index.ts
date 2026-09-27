@@ -19,7 +19,7 @@ serve(async (req) => {
     const inspectionId = typeof body?.inspectionId === "string" ? body.inspectionId.trim() : "";
     if (!UUID.test(inspectionId)) return json({ error: "A valid inspection is required" }, 400);
 
-    return await startSpan({ op: "inspection.approval", name: req.method === "POST" ? "Submit inspection approval" : "Get inspection approval" }, async () => {
+    return await startSpan("inspection.approval", req.method === "POST" ? "Submit inspection approval" : "Get inspection approval", async () => {
       if (req.method === "POST") {
         const approvedIssueIds = Array.isArray(body?.approvedIssueIds)
           ? body.approvedIssueIds.filter((value: unknown) => typeof value === "string" && UUID.test(value))
@@ -41,7 +41,7 @@ serve(async (req) => {
       return json(data ?? { found: false });
     });
   } catch (error) {
-    captureException(error, { function: "public-inspection-approval" });
+    captureException(error instanceof Error ? error : new Error("Unknown approval error"), { function: "public-inspection-approval" });
     return json({ error: "The approval request could not be processed" }, 500);
   }
 });
