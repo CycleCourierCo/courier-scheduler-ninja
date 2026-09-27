@@ -1,5 +1,8 @@
 project_id = "axigtrmaxhetyfzjjdve"
 
+[functions.public-inspection-approval]
+verify_jwt = false
+
 [functions.ni-partner-label-upload]
 verify_jwt = false
 

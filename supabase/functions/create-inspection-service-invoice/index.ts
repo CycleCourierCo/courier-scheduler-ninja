@@ -116,12 +116,24 @@ const handler = async (req: Request): Promise<Response> => {
 
     const { data: order, error: orderError } = await supabase
       .from('orders')
-      .select('id, tracking_number, customer_order_number, bike_brand, bike_model, sender, receiver, user_id, created_at, needs_inspection')
+      .select('id, tracking_number, customer_order_number, bike_brand, bike_model, sender, receiver, user_id, created_at, needs_inspection, inspection_type')
       .eq('id', orderId)
       .single();
 
     if (orderError || !order) throw new Error('Order not found');
     if (!order.needs_inspection) throw new Error('Order does not have inspection enabled');
+    if (order.inspection_type === 'inspection_only') {
+      const { data: inspection } = await supabase
+        .from('bicycle_inspections')
+        .select('service_decision')
+        .eq('order_id', orderId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (inspection?.service_decision !== 'accepted') {
+        throw new Error('The customer has not accepted the service');
+      }
+    }
 
     const { data: customerProfile, error: custError } = await supabase
       .from('profiles')
