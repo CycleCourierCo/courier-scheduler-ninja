@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { isNorthernIrelandAddress, NI_SURCHARGE_NET } from "../_shared/northernIreland.ts";
 import { prepareInvoiceDelivery } from "../_shared/quickbooksInvoiceDelivery.ts";
 import { trackedFetch } from "../_shared/integrationLog.ts";
+import { eligibleStoragePeriods, londonDate, STORAGE_NET_GBP, STORAGE_PRODUCT_NAME } from '../_shared/warehouseStorageBilling.ts';
 
 
 const corsHeaders = {
@@ -400,6 +401,12 @@ const handler = async (req: Request): Promise<Response> => {
     if (!tokenData) {
       throw new Error('QuickBooks not connected or refresh failed. Please reconnect to QuickBooks.');
     }
+    if (!invoiceData.customerId || !invoiceData.startDate || !invoiceData.endDate || !Array.isArray(invoiceData.orders) ||
+        !Number.isFinite(Date.parse(invoiceData.startDate)) || !Number.isFinite(Date.parse(invoiceData.endDate)) ||
+        Date.parse(invoiceData.startDate) > Date.parse(invoiceData.endDate)) {
+      throw new Error('Valid customer, date range and orders are required');
+    }
+    const storagePeriods = await eligibleStoragePeriods(supabase, invoiceData.customerId, londonDate(invoiceData.endDate));
 
     // Query for sales terms
     const termsUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Term WHERE Active=true`;
@@ -480,6 +487,13 @@ const handler = async (req: Request): Promise<Response> => {
       }
     } else {
       console.warn('Failed to fetch tax codes:', await taxCodeResponse.text());
+    }
+
+    let storageProduct: ProductInfo | null = null;
+    if (storagePeriods.length > 0) {
+      if (!vatTaxCodeId) throw new Error('A standard 20% VAT tax code is required to invoice warehouse storage');
+      storageProduct = await findProductByExactName(tokenData.access_token, tokenData.company_id, STORAGE_PRODUCT_NAME);
+      if (!storageProduct) throw new Error(`Create the active QuickBooks service product "${STORAGE_PRODUCT_NAME}" with standard 20% VAT before invoicing storage`);
     }
 
     // Check for special rate code on customer profile
@@ -809,6 +823,21 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
     }
+    if (storageProduct) {
+      for (const period of storagePeriods) {
+        const bike = [period.stock.bike_brand, period.stock.bike_model].filter(Boolean).join(' ') || 'Bike';
+        lineItems.push({
+          Amount: STORAGE_NET_GBP,
+          DetailType: 'SalesItemLineDetail',
+          SalesItemLineDetail: {
+            ItemRef: { value: storageProduct.id, name: storageProduct.name },
+            Qty: 1, UnitPrice: STORAGE_NET_GBP, ServiceDate: period.start,
+            TaxCodeRef: { value: vatTaxCodeId },
+          },
+          Description: `${bike} - Warehouse storage ${period.start} to ${period.end} (deposited ${londonDate(period.stock.deposited_at)})`,
+        });
+      }
+    }
     
     // Check if we have any line items
     if (lineItems.length === 0) {
@@ -821,6 +850,24 @@ const handler = async (req: Request): Promise<Response> => {
     // Log any missing products as a warning
     if (missingProducts.length > 0) {
       console.warn(`Missing QuickBooks products for bike types: ${missingProducts.join(', ')}`);
+    }
+
+    // Claim each bike-month before contacting QuickBooks. An uncertain outcome must
+    // be reviewed, never automatically retried into a duplicate invoice.
+    const claimed: typeof storagePeriods = [];
+    for (const period of storagePeriods) {
+      const { data: row, error } = await supabase.from('warehouse_storage_charges').insert({
+        stock_id: period.stock.id, customer_id: invoiceData.customerId,
+        period_number: period.number, period_start: period.start, period_end: period.end,
+        status: 'processing', amount_gbp: 40,
+      }).select('id').single();
+      if (error || !row) {
+        // No QuickBooks request has happened yet. Release claims from this attempt.
+        for (const previous of claimed) await supabase.from('warehouse_storage_charges').delete()
+          .eq('stock_id', previous.stock.id).eq('period_number', previous.number).eq('status', 'processing');
+        throw new Error('Storage charge already being invoiced or awaiting review. Check invoice history before retrying.');
+      }
+      claimed.push(period);
     }
 
     const invoice = {
@@ -911,6 +958,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     if (!customerId) {
+      for (const period of claimed) await supabase.from('warehouse_storage_charges').delete()
+        .eq('stock_id', period.stock.id).eq('period_number', period.number).eq('status', 'processing');
       console.log('No QuickBooks customer match for:', invoiceData.customerEmail, '/', invoiceData.customerName);
       throw new Error(`Customer not found in QuickBooks for ${invoiceData.customerName} (${invoiceData.customerEmail}). Please create the customer first.`);
     }
@@ -955,6 +1004,8 @@ const handler = async (req: Request): Promise<Response> => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('QuickBooks API error:', errorText);
+      for (const period of claimed) await supabase.from('warehouse_storage_charges').update({ status: 'review', failure_reason: 'QuickBooks rejected invoice creation; verify before retrying.' })
+        .eq('stock_id', period.stock.id).eq('period_number', period.number);
       throw new Error(`Failed to create invoice in QuickBooks: ${errorText}`);
     }
 
@@ -964,6 +1015,13 @@ const handler = async (req: Request): Promise<Response> => {
     const qbInvoice = quickbooksResponse.QueryResponse?.Invoice?.[0] || quickbooksResponse.Invoice;
     const invoiceId = qbInvoice?.Id;
     const invoiceNumber = qbInvoice?.DocNumber;
+    if (claimed.length > 0 && !invoiceId) throw new Error('QuickBooks response lacks invoice ID; storage charges require manual review before retrying');
+    for (const period of claimed) {
+      const { error: chargeError } = await supabase.from('warehouse_storage_charges').update({
+        status: 'invoiced', quickbooks_invoice_id: invoiceId, quickbooks_invoice_number: invoiceNumber, failure_reason: null,
+      }).eq('stock_id', period.stock.id).eq('period_number', period.number).eq('status', 'processing');
+      if (chargeError) console.error('Storage invoice ledger update failed', chargeError.message);
+    }
     
     const invoiceUrl = `https://qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
 
@@ -1033,7 +1091,7 @@ const handler = async (req: Request): Promise<Response> => {
       const bikesInOrder = order.bikes?.length || order.bike_quantity || 1;
       return count + bikesInOrder;
     }, 0);
-    const skippedBikes = totalBikesInOrders - lineItems.length;
+    const skippedBikes = Math.max(0, totalBikesInOrders - (lineItems.length - storagePeriods.length));
 
     // Send email report after successful invoice creation
     try {
@@ -1096,6 +1154,7 @@ const handler = async (req: Request): Promise<Response> => {
       stats: {
         orderCount: invoiceData.orders.length,
         bikeCount: lineItems.length,
+        storageCount: storagePeriods.length,
         skippedBikes: skippedBikes,
         totalAmount: invoice.totalAmount,
         invoiceNumber: invoiceNumber,
