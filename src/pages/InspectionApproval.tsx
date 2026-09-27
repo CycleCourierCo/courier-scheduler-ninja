@@ -165,7 +165,7 @@ export default function InspectionApproval() {
   return (
     <DoorstepShell title="Repairs for your bike" reference={data.reference ?? undefined}>
         <p className="doorstep-data break-words">{bike}{data.frame_size ? ` · ${data.frame_size}` : ""}</p>
-        <p className="text-muted-foreground">Our mechanic found the following. Approve what you'd like us to do.</p>
+        <p className="text-muted-foreground">{pending.length > 0 ? "Our mechanic found the following. Approve what you'd like us to do." : "Your inspection report is ready."}</p>
 
         {reportUrl && (
           <Button
@@ -199,7 +199,7 @@ export default function InspectionApproval() {
                     We'll send you an invoice for the work and be in touch when the bike is ready.
                   </p>
                 </div>
-              ) : (
+              ) : (!serviceChoice || serviceChoice === 'declined') && data.service_decision !== 'accepted' && (
                 <p className="text-sm text-muted-foreground">
                   {allDeclined
                     ? "All of the repairs were declined, so none will be carried out. We'll be in touch about the bike."

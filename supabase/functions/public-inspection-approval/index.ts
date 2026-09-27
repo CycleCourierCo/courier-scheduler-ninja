@@ -12,6 +12,8 @@ const json = (body: unknown, status = 200) => new Response(JSON.stringify(body),
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  if (req.method !== "GET" && req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  if (Number(req.headers.get("content-length") || 0) > 8192) return json({ error: "Request too large" }, 413);
   const admin = createClient(Deno.env.get("SUPABASE_URL") ?? "", Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "");
 
   try {
@@ -21,9 +23,12 @@ serve(async (req) => {
 
     return await startSpan("inspection.approval", req.method === "POST" ? "Submit inspection approval" : "Get inspection approval", async () => {
       if (req.method === "POST") {
-        const approvedIssueIds = Array.isArray(body?.approvedIssueIds)
-          ? body.approvedIssueIds.filter((value: unknown) => typeof value === "string" && UUID.test(value))
-          : [];
+        if (!Array.isArray(body?.approvedIssueIds) || body.approvedIssueIds.length > 100 ||
+          !body.approvedIssueIds.every((value: unknown) => typeof value === "string" && UUID.test(value)) ||
+          new Set(body.approvedIssueIds).size !== body.approvedIssueIds.length) {
+          return json({ error: "Invalid repair choices" }, 400);
+        }
+        const approvedIssueIds = body.approvedIssueIds as string[];
         const serviceDecision = body?.serviceDecision === "accepted" || body?.serviceDecision === "declined"
           ? body.serviceDecision
           : null;
