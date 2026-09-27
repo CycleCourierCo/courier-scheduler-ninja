@@ -202,7 +202,7 @@ export const reconcileInspectionStatuses = async (
     let query = supabase
       .from('bicycle_inspections')
       .select(
-        'id, status, order_id, approval_recipient, released_to_customer_at, inspection_issues(status, parts_arrived, parts_ordered, parts_in_stock, offered_to_receiver_at, receiver_approved_at, receiver_declined_at, billing_party)'
+        'id, status, order_id, approval_recipient, released_to_customer_at, inspection_type, service_decision, inspection_issues(status, parts_arrived, parts_ordered, parts_in_stock, offered_to_receiver_at, receiver_approved_at, receiver_declined_at, billing_party)'
       )
       .in('status', [
         'issues_found',
@@ -222,6 +222,7 @@ export const reconcileInspectionStatuses = async (
     let updatedCount = 0;
 
     for (const inspection of inspections) {
+      if (inspection.inspection_type === 'inspection_only' && inspection.service_decision === 'pending') continue;
       const issues =
         (inspection.inspection_issues as {
           status: string;
@@ -275,9 +276,11 @@ export const reconcileInspectionStatuses = async (
       // either never offered to the receiver or declined by them too) — the bike
       // ships unrepaired rather than being marked as serviced.
       const terminalStatus = (): InspectionStatus =>
-        approved.length === 0 && issues.some(i => i.status === 'declined')
+        inspection.inspection_type === 'inspection_only' && inspection.service_decision === 'declined' && approved.length === 0
           ? 'ship_as_is'
-          : 'repaired';
+          : approved.length === 0 && issues.some(i => i.status === 'declined') && inspection.service_decision !== 'accepted'
+            ? 'ship_as_is'
+            : 'repaired';
 
       // Delivery jobs approved by the booking account/sender can pass declined
       // repairs on to the buyer — that decision must come before repair work.
@@ -1409,11 +1412,11 @@ export const moveToRepaired = async (inspectionId: string): Promise<BicycleInspe
   try {
     const { data: current } = await supabase
       .from('bicycle_inspections')
-      .select('frame_cleaned_at, drivetrain_degreased_at')
+      .select('frame_cleaned_at, drivetrain_degreased_at, inspection_type, service_decision')
       .eq('id', inspectionId)
       .maybeSingle();
-    const cleaningDone =
-      !!(current as any)?.frame_cleaned_at && !!(current as any)?.drivetrain_degreased_at;
+    const cleaningDone = current?.inspection_type === 'inspection_only' && current?.service_decision === 'declined' ||
+      !!current?.frame_cleaned_at && !!current?.drivetrain_degreased_at;
     const nextStatus: InspectionStatus = cleaningDone ? 'repaired' : 'cleaning';
 
     const { data, error } = await supabase
@@ -1682,6 +1685,15 @@ export const setInspectionCleaningTask = async (
   userId: string,
   userName: string
 ): Promise<BicycleInspection | null> => {
+  const { data: current, error: readError } = await supabase
+    .from('bicycle_inspections')
+    .select('inspection_type, service_decision')
+    .eq('id', inspectionId)
+    .single();
+  if (readError) throw readError;
+  if (current.inspection_type === 'inspection_only' && current.service_decision !== 'accepted') {
+    throw new Error('Cleaning is only available when the customer accepts a service');
+  }
   const now = new Date().toISOString();
   const prefix = task === 'frame' ? 'frame_cleaned' : 'drivetrain_degreased';
   const patch: any = {
