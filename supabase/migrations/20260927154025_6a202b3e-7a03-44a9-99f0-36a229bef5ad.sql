@@ -1,0 +1,1 @@
+DROP FUNCTION public.submit_public_inspection_approval(uuid,uuid[],text); GRANT EXECUTE ON FUNCTION public.submit_public_inspection_approval(uuid,uuid[]) TO anon, authenticated;

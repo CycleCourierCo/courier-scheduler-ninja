@@ -7367,19 +7367,10 @@ export type Database = {
         }
         Returns: Json
       }
-      submit_public_inspection_approval:
-        | {
-            Args: { p_approved_issue_ids: string[]; p_inspection_id: string }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_approved_issue_ids: string[]
-              p_inspection_id: string
-              p_service_decision: string
-            }
-            Returns: Json
-          }
+      submit_public_inspection_approval: {
+        Args: { p_approved_issue_ids: string[]; p_inspection_id: string }
+        Returns: Json
+      }
       submit_public_repair_offer: {
         Args: { p_approved_issue_ids: string[]; p_order_id: string }
         Returns: Json
