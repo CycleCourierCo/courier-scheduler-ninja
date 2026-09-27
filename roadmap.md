@@ -29,3 +29,9 @@
 - [x] Add service acceptance to the customer approval page
 - [x] Prevent declined or undecided services from being invoiced
 - [ ] Verify signed-in workshop and customer flows end to end
+
+## Warehouse storage invoicing
+- [x] Add £40 VAT-inclusive monthly bike charge to weekly and manual QuickBooks invoices, including storage-only customers.
+- [x] Record invoiced bike-months and surface ambiguous failures for review.
+- [x] Verify anniversary and VAT arithmetic with automated tests.
+- [ ] Verify a signed-in invoice preview and a real QuickBooks invoice after the required service product is configured (blocked by external sign-in and QuickBooks setup).

@@ -194,6 +194,18 @@ export default function InvoicesPage() {
     enabled: !!(selectedCustomer && startDate && endDate),
   });
 
+  const { data: storagePreview, isLoading: storageLoading, error: storageError, refetch: refetchStorage } = useQuery({
+    queryKey: ['storage-for-invoice', selectedCustomer, startDate, endDate],
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke('create-quickbooks-invoice', {
+        body: { customerId: selectedCustomer, startDate: startDate?.toISOString(), endDate: endDate?.toISOString(), previewStorage: true },
+      });
+      if (error) throw error;
+      return data as { storageCount: number; storageTotal: number; periods: { bike: string; start: string; end: string }[] };
+    },
+    enabled: !!(selectedCustomer && startDate && endDate),
+  });
+
   const selectedCustomerData = customers?.find(c => c.id === selectedCustomer);
 
   const handleConnectQuickBooks = async () => {
@@ -251,8 +263,8 @@ export default function InvoicesPage() {
   });
 
   const handleCreateInvoice = async () => {
-    if (!selectedCustomerData || !orders || orders.length === 0 || !startDate || !endDate) {
-      notify.error("Missing Information", { description: "Please select a customer, date range, and ensure there are orders to invoice." });
+    if (!selectedCustomerData || !orders || storageLoading || storageError || (orders.length === 0 && !storagePreview?.storageCount) || !startDate || !endDate) {
+      notify.error("Missing Information", { description: "Please select a customer, date range, and ensure there are orders or storage charges to invoice." });
       return;
     }
 
@@ -276,7 +288,7 @@ export default function InvoicesPage() {
           customerName: selectedCustomerData.name,
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),
-          orders: orders,
+          orders,
         },
       });
 
@@ -286,6 +298,7 @@ export default function InvoicesPage() {
 
       // Refetch invoice history to show the new invoice
       refetchHistory();
+      refetchStorage();
 
     } catch (error: any) {
       console.error("Error creating invoice:", error);
@@ -341,17 +354,22 @@ export default function InvoicesPage() {
 
         if (ordersError) throw ordersError;
 
-        if (!customerOrders || customerOrders.length === 0) {
+        const { data: storage, error: storageError } = await supabase.functions.invoke('create-quickbooks-invoice', {
+          body: { customerId: customer.id, startDate: startDate.toISOString(), endDate: endDate.toISOString(), previewStorage: true },
+        });
+        if (storageError) throw storageError;
+
+        if ((!customerOrders || customerOrders.length === 0) && !storage?.storageCount) {
           skippedCustomers.push({
             customerName: customer.name,
             customerEmail: customer.accounts_email || customer.email,
-            reason: 'No orders in date range',
+            reason: 'No orders or storage charges due',
             orderCount: 0,
           });
           return;
         }
 
-        allOrdersData.push(...customerOrders);
+        allOrdersData.push(...(customerOrders || []));
 
         const { data, error } = await supabase.functions.invoke("create-quickbooks-invoice", {
           body: {
@@ -360,7 +378,7 @@ export default function InvoicesPage() {
             customerName: customer.name,
             startDate: startDate.toISOString(),
             endDate: endDate.toISOString(),
-            orders: customerOrders,
+            orders: customerOrders || [],
           },
         });
 
@@ -387,8 +405,9 @@ export default function InvoicesPage() {
         successfulInvoices.push({
           customerName: customer.name,
           customerEmail: customer.accounts_email,
-          orderCount: customerOrders.length,
-          bikeCount: data?.stats?.bikeCount || customerOrders.length,
+          orderCount: customerOrders?.length || 0,
+          bikeCount: data?.stats?.bikeCount || customerOrders?.length || 0,
+          storageCount: data?.stats?.storageCount || 0,
           skippedBikes: data?.stats?.skippedBikes || 0,
           invoiceNumber: data?.stats?.invoiceNumber || data?.invoice_number,
           missingProducts: data?.missingProducts || [],
@@ -531,6 +550,7 @@ export default function InvoicesPage() {
             <ul>
               <li>Total Orders Included in Invoices: ${allOrdersData.length}</li>
               <li>Total Bikes Invoiced: ${totalBikesInvoiced}</li>
+              <li>Warehouse storage periods invoiced: ${successfulInvoices.reduce((sum, inv) => sum + (inv.storageCount || 0), 0)} (£${(successfulInvoices.reduce((sum, inv) => sum + (inv.storageCount || 0), 0) * 40).toFixed(2)} including VAT)</li>
               ${totalBikesSkipped > 0 ? `<li style="color: #dc2626;">Bikes Skipped (Missing Products): ${totalBikesSkipped}</li>` : ''}
               <li>Total Orders from Skipped Customers: ${skippedCustomers.reduce((sum, c) => sum + c.orderCount, 0)}</li>
               <li>Delivered Orders: ${deliveredOrders.length}</li>
@@ -566,6 +586,7 @@ export default function InvoicesPage() {
                   <th>Email</th>
                   <th>Orders</th>
                   <th>Bikes</th>
+                  <th>Storage months</th>
                   <th>Invoice #</th>
                 </tr>
                 ${successfulInvoices.map(inv => `
@@ -574,6 +595,7 @@ export default function InvoicesPage() {
                     <td>${inv.customerEmail}</td>
                     <td>${inv.orderCount}</td>
                     <td>${inv.bikeCount}${inv.skippedBikes > 0 ? ` <span style="color: #dc2626;">(${inv.skippedBikes} skipped)</span>` : ''}</td>
+                    <td>${inv.storageCount || 0}</td>
                     <td>${inv.invoiceNumber || 'N/A'}</td>
                   </tr>
                 `).join('')}
@@ -778,6 +800,20 @@ export default function InvoicesPage() {
           </Card>
         )}
 
+        {storagePreview && storagePreview.storageCount > 0 && (
+          <Card>
+            <CardHeader><CardTitle>Warehouse Storage ({storagePreview.storageCount} × £40 including VAT)</CardTitle></CardHeader>
+            <CardContent className="space-y-2">
+              {storagePreview.periods.map((period, index) => (
+                <div key={`${period.bike}-${period.start}-${index}`} className="flex flex-wrap justify-between gap-2 border-b py-2 text-sm">
+                  <span>{period.bike} · {period.start} to {period.end}</span><span>£40.00</span>
+                </div>
+              ))}
+              <p className="font-medium">Total storage: £{storagePreview.storageTotal.toFixed(2)}</p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Create Invoice Button */}
         <div className="space-y-4">
           {selectedCustomer && startDate && endDate && (
@@ -786,11 +822,13 @@ export default function InvoicesPage() {
                 <p className="text-destructive">❌ Customer needs an accounts email address</p>
               )}
               {ordersLoading && <p>🔄 Loading orders...</p>}
-              {!ordersLoading && orders && orders.length === 0 && (
-                <p className="text-yellow-600">⚠️ No orders found in selected date range</p>
+              {storageLoading && <p>Checking storage charges...</p>}
+              {storageError && <p className="text-destructive">Unable to check storage charges. Please retry before invoicing.</p>}
+              {!ordersLoading && !storageLoading && orders && orders.length === 0 && !storagePreview?.storageCount && !storageError && (
+                <p className="text-muted-foreground">No orders or storage charges due</p>
               )}
-              {!ordersLoading && orders && orders.length > 0 && selectedCustomerData?.accounts_email && (
-                <p className="text-green-600">✅ Ready to create invoice with {orders.length} orders</p>
+              {!ordersLoading && !storageLoading && orders && (orders.length > 0 || storagePreview?.storageCount) && selectedCustomerData?.accounts_email && (
+                <p className="text-foreground">Ready: {orders.length} orders, {storagePreview?.storageCount || 0} storage periods</p>
               )}
             </div>
           )}
@@ -822,7 +860,8 @@ export default function InvoicesPage() {
                 !startDate ||
                 !endDate ||
                 !orders ||
-                orders.length === 0 ||
+                (orders.length === 0 && !storagePreview?.storageCount) ||
+                storageLoading || !!storageError ||
                 !selectedCustomerData?.accounts_email ||
                 isCreatingInvoice ||
                 isCreatingAllInvoices ||
