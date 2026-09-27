@@ -200,7 +200,8 @@ async function findProductByExactName(
       const product: ProductInfo = { 
         id: item.Id, 
         name: item.Name, 
-        price: item.UnitPrice || 0
+        price: item.UnitPrice || 0,
+        taxable: item.Taxable === true,
       };
       console.log(`Found product "${productName}": ID=${product.id}, Price=${product.price}`);
       productCache.set(productName, product);
