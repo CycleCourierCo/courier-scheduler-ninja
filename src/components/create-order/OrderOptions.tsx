@@ -43,8 +43,6 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
     control,
     name: "isEbayOrder",
   });
-  const needsInspection = useWatch({ control, name: "needsInspection" });
-
   const isBikeSwap = useWatch({
     control,
     name: "isBikeSwap",

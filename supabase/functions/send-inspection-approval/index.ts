@@ -56,7 +56,7 @@ serve(async (req) => {
     const { data: inspection, error: inspError } = await admin
       .from("bicycle_inspections")
       .select(
-        "id, order_id, status, released_to_customer_at, approval_email_sent_at, report_url, created_at, approval_recipient, customer_name, customer_email, bike_brand, bike_model, reference"
+        "id, order_id, status, released_to_customer_at, approval_email_sent_at, report_url, created_at, approval_recipient, customer_name, customer_email, bike_brand, bike_model, reference, inspection_type, service_decision"
       )
       .eq("id", inspectionId)
       .maybeSingle();
@@ -102,7 +102,8 @@ serve(async (req) => {
     if (issuesError) throw issuesError;
 
     const pending = (issues || []).filter((i: any) => (i.status || "pending") === "pending");
-    if (pending.length === 0 && !force) {
+    const serviceChoicePending = inspection.inspection_type === "inspection_only" && inspection.service_decision === "pending";
+    if (pending.length === 0 && !serviceChoicePending && !force) {
       return json({ success: true, skipped: "nothing_awaiting_approval" });
     }
 
@@ -169,7 +170,7 @@ serve(async (req) => {
     // Booking accounts approve inside the portal; receivers and walk-ins get a
     // public link that needs no login.
     const link =
-      recipient === "customer"
+      recipient === "customer" && !serviceChoicePending
         ? `${BASE_URL}/customer-orders/${order.id}`
         : `${BASE_URL}/inspection-approval/${inspection.id}`;
 
@@ -192,7 +193,7 @@ serve(async (req) => {
     const html = `
       <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1f2937;line-height:1.5">
         <p>Hi ${esc(greetName)},</p>
-        <p>Our workshop has finished inspecting <strong>${esc(bike)}</strong>${refLine} and found ${pending.length} item${pending.length === 1 ? "" : "s"} that need${pending.length === 1 ? "s" : ""} your approval before we can carry out the work.</p>
+         <p>Our workshop has finished inspecting <strong>${esc(bike)}</strong>${refLine}. ${pending.length > 0 ? `We found ${pending.length} item${pending.length === 1 ? "" : "s"} that need${pending.length === 1 ? "s" : ""} your approval.` : "No repair faults were found."}${serviceChoicePending ? " You can also choose whether to add a full service." : ""}</p>
         <table style="border-collapse:collapse;width:100%;font-size:14px;margin:16px 0">
           <thead>
             <tr style="background:#f1f5f9">
@@ -204,7 +205,7 @@ serve(async (req) => {
           <tbody>${rows}</tbody>
         </table>
         <p>Total if all work is approved: <strong>${money(total)}</strong></p>
-        <p style="margin:20px 0"><a href="${link}" style="background:#0f766e;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;display:inline-block">Review and approve repairs</a></p>
+        <p style="margin:20px 0"><a href="${link}" style="background:#0f766e;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;display:inline-block">Review workshop options</a></p>
         ${reportUrl ? `<p style="font-size:14px"><a href="${esc(reportUrl)}">View the full inspection report (PDF)</a></p>` : ""}
         <p style="font-size:13px;color:#4b5563">${payerNote}</p>
         <p style="font-size:13px;color:#4b5563">Thanks,<br/>CCC - Cycle Courier Co.</p>

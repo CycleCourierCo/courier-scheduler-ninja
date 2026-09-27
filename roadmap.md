@@ -22,3 +22,10 @@
 - [x] My Holidays page, Drivers Rota page, User Management availability + approvals
 - [x] Absence emails (admins + driver)
 - [x] Active-users helper applied to all pickers/filters
+
+## Inspection options
+- [x] Add Inspection only and Inspection and service booking choices
+- [x] Show inspection type to workshop staff and customers
+- [x] Add service acceptance to the customer approval page
+- [x] Prevent declined or undecided services from being invoiced
+- [ ] Verify signed-in workshop and customer flows end to end

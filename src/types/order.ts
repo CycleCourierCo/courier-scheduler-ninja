@@ -337,7 +337,7 @@ export type CreateOrderFormData = {
   collectionCode?: string;
   deliveryInstructions?: string;
   needsInspection: boolean;
-  inspectionType: 'inspection_only' | 'inspection_and_service';
+  inspectionType?: 'inspection_only' | 'inspection_and_service';
   isBoxMyBike?: boolean;
   isWarehouseStorage?: boolean;
   boxBuyer?: { name: string; email: string; phone: string };
