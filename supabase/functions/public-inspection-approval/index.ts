@@ -22,7 +22,7 @@ serve(async (req) => {
     if (!UUID.test(inspectionId)) return json({ error: "A valid inspection is required" }, 400);
 
     return await startSpan("inspection.approval", req.method === "POST" ? "Submit inspection approval" : "Get inspection approval", async () => {
-      if (req.method === "POST") {
+      if (req.method === "POST" && body?.action !== "read") {
         if (!Array.isArray(body?.approvedIssueIds) || body.approvedIssueIds.length > 100 ||
           !body.approvedIssueIds.every((value: unknown) => typeof value === "string" && UUID.test(value)) ||
           new Set(body.approvedIssueIds).size !== body.approvedIssueIds.length) {
