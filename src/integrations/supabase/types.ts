@@ -170,6 +170,7 @@ export type Database = {
           inspected_at: string | null
           inspected_by_id: string | null
           inspected_by_name: string | null
+          inspection_type: string
           invoice_id: string | null
           invoice_number: string | null
           invoice_public_url: string | null
@@ -186,6 +187,7 @@ export type Database = {
           released_to_customer_at: string | null
           report_generated_at: string | null
           report_url: string | null
+          service_decision: string
           status: string
           updated_at: string
         }
@@ -229,6 +231,7 @@ export type Database = {
           inspected_at?: string | null
           inspected_by_id?: string | null
           inspected_by_name?: string | null
+          inspection_type?: string
           invoice_id?: string | null
           invoice_number?: string | null
           invoice_public_url?: string | null
@@ -245,6 +248,7 @@ export type Database = {
           released_to_customer_at?: string | null
           report_generated_at?: string | null
           report_url?: string | null
+          service_decision?: string
           status?: string
           updated_at?: string
         }
@@ -288,6 +292,7 @@ export type Database = {
           inspected_at?: string | null
           inspected_by_id?: string | null
           inspected_by_name?: string | null
+          inspection_type?: string
           invoice_id?: string | null
           invoice_number?: string | null
           invoice_public_url?: string | null
@@ -304,6 +309,7 @@ export type Database = {
           released_to_customer_at?: string | null
           report_generated_at?: string | null
           report_url?: string | null
+          service_decision?: string
           status?: string
           updated_at?: string
         }
@@ -3677,6 +3683,7 @@ export type Database = {
           held_by_driver_at: string | null
           held_by_driver_name: string | null
           id: string
+          inspection_type: string | null
           is_bike_swap: boolean | null
           is_box_my_bike: boolean
           is_ebay_order: boolean | null
@@ -3799,6 +3806,7 @@ export type Database = {
           held_by_driver_at?: string | null
           held_by_driver_name?: string | null
           id?: string
+          inspection_type?: string | null
           is_bike_swap?: boolean | null
           is_box_my_bike?: boolean
           is_ebay_order?: boolean | null
@@ -3921,6 +3929,7 @@ export type Database = {
           held_by_driver_at?: string | null
           held_by_driver_name?: string | null
           id?: string
+          inspection_type?: string | null
           is_bike_swap?: boolean | null
           is_box_my_bike?: boolean
           is_ebay_order?: boolean | null
