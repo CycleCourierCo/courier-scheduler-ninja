@@ -24,6 +24,24 @@ const esc = (s: unknown) =>
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
 
+async function fetchServicePrice(admin: any, userId: string): Promise<number | null> {
+  const { data: token } = await admin
+    .from("quickbooks_tokens")
+    .select("access_token, company_id, expires_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!token?.access_token || !token?.company_id || new Date(token.expires_at).getTime() <= Date.now()) return null;
+  const query = "SELECT * FROM Item WHERE Name = 'Bike Inspection & Service' AND Active = true";
+  const response = await fetch(
+    `https://quickbooks.api.intuit.com/v3/company/${token.company_id}/query?query=${encodeURIComponent(query)}`,
+    { headers: { Authorization: `Bearer ${token.access_token}`, Accept: "application/json" } }
+  );
+  if (!response.ok) return null;
+  const payload = await response.json();
+  const price = Number(payload?.QueryResponse?.Item?.[0]?.UnitPrice);
+  return Number.isFinite(price) ? price : null;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -105,6 +123,16 @@ serve(async (req) => {
     const serviceChoicePending = inspection.inspection_type === "inspection_only" && inspection.service_decision === "pending";
     if (pending.length === 0 && !serviceChoicePending && !force) {
       return json({ success: true, skipped: "nothing_awaiting_approval" });
+    }
+
+    if (serviceChoicePending) {
+      const servicePrice = await fetchServicePrice(admin, user.id);
+      if (servicePrice == null) return json({ error: "Bike Inspection & Service price is unavailable in QuickBooks" }, 400);
+      const { error: priceError } = await admin
+        .from("bicycle_inspections")
+        .update({ service_price_gbp: servicePrice })
+        .eq("id", inspectionId);
+      if (priceError) throw priceError;
     }
 
     // Always refresh the report so the link matches the current state.
