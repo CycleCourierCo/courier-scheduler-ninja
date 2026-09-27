@@ -51,6 +51,7 @@ interface ProductInfo {
   id: string;
   name: string;
   price: number;
+  taxable?: boolean;
 }
 
 // Map legacy bike types to current QuickBooks product names
@@ -146,7 +147,8 @@ async function findProductByBikeType(
       const product: ProductInfo = { 
         id: item.Id, 
         name: item.Name, 
-        price: item.UnitPrice || 0
+        price: item.UnitPrice || 0,
+        taxable: item.Taxable === true,
       };
       console.log(`Found product for ${bikeType}: ID=${product.id}, Price=${product.price}`);
       productCache.set(bikeType, product);
@@ -391,22 +393,24 @@ const handler = async (req: Request): Promise<Response> => {
       user = { id: authUser.id };
     }
 
-    const invoiceData: InvoiceRequest = await req.json();
+    const invoiceData: InvoiceRequest & { previewStorage?: boolean } = await req.json();
     console.log('Creating QuickBooks invoice for:', invoiceData.customerName);
     console.log('Date range:', invoiceData.startDate, 'to', invoiceData.endDate);
     console.log('Total orders:', Array.isArray(invoiceData.orders) ? invoiceData.orders.length : 0);
 
-    const tokenData = await getValidQuickBooksToken(supabase, user.id);
-
-    if (!tokenData) {
-      throw new Error('QuickBooks not connected or refresh failed. Please reconnect to QuickBooks.');
-    }
-    if (!invoiceData.customerId || !invoiceData.startDate || !invoiceData.endDate || !Array.isArray(invoiceData.orders) ||
+    if (!invoiceData.customerId || !invoiceData.startDate || !invoiceData.endDate || (!invoiceData.previewStorage && !Array.isArray(invoiceData.orders)) ||
         !Number.isFinite(Date.parse(invoiceData.startDate)) || !Number.isFinite(Date.parse(invoiceData.endDate)) ||
         Date.parse(invoiceData.startDate) > Date.parse(invoiceData.endDate) || Date.parse(invoiceData.endDate) > Date.now()) {
       throw new Error('Valid customer, date range and orders are required');
     }
     const storagePeriods = await eligibleStoragePeriods(supabase, invoiceData.customerId, londonDate(invoiceData.endDate));
+    if (invoiceData.previewStorage) return new Response(JSON.stringify({
+      storageCount: storagePeriods.length,
+      storageTotal: storagePeriods.length * 40,
+      periods: storagePeriods.map(({ stock, start, end }) => ({ bike: [stock.bike_brand, stock.bike_model].filter(Boolean).join(' ') || 'Bike', start, end })),
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const tokenData = await getValidQuickBooksToken(supabase, user.id);
+    if (!tokenData) throw new Error('QuickBooks not connected or refresh failed. Please reconnect to QuickBooks.');
 
     // Query for sales terms
     const termsUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Term WHERE Active=true`;
@@ -442,6 +446,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Query for VAT tax code (UK 20% standard rate)
     let vatTaxCodeId: string | null = null;
+    let standardVatConfirmed = false;
     
     const taxCodeUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM TaxCode WHERE Active=true`;
     
@@ -469,6 +474,7 @@ const handler = async (req: Request): Promise<Response> => {
       
       if (vatCode) {
         vatTaxCodeId = vatCode.Id;
+        standardVatConfirmed = true;
         console.log('Using VAT tax code:', vatCode.Name, 'with ID:', vatTaxCodeId);
       } else {
         // Fall back to any taxable code (not zero/exempt)
@@ -491,10 +497,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     let storageProduct: ProductInfo | null = null;
     if (storagePeriods.length > 0) {
-      if (!vatTaxCodeId || !['20.0% S', '20% S', 'Standard'].includes(taxCodes.find((code: any) => code.Id === vatTaxCodeId)?.Name)) throw new Error('A confirmed standard 20% VAT tax code is required to invoice warehouse storage');
+      if (!vatTaxCodeId || !standardVatConfirmed) throw new Error('A confirmed standard 20% VAT tax code is required to invoice warehouse storage');
       storageProduct = await findProductByExactName(tokenData.access_token, tokenData.company_id, STORAGE_PRODUCT_NAME);
       if (!storageProduct) throw new Error(`Create the active QuickBooks service product "${STORAGE_PRODUCT_NAME}" with standard 20% VAT before invoicing storage`);
       if (Math.abs(storageProduct.price - STORAGE_NET_GBP) > 0.001) throw new Error(`Set the QuickBooks "${STORAGE_PRODUCT_NAME}" sales price to £33.33 before invoicing storage`);
+      if (storageProduct.taxable !== true) throw new Error(`Set the QuickBooks "${STORAGE_PRODUCT_NAME}" product as taxable at the UK standard 20% VAT rate`);
     }
 
     // Check for special rate code on customer profile
