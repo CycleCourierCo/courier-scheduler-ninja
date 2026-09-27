@@ -27,19 +27,40 @@ const esc = (s: unknown) =>
 async function fetchServicePrice(admin: any, userId: string): Promise<number | null> {
   const { data: token } = await admin
     .from("quickbooks_tokens")
-    .select("access_token, company_id, expires_at")
+    .select("access_token, refresh_token, company_id, expires_at")
     .eq("user_id", userId)
     .maybeSingle();
-  if (!token?.access_token || !token?.company_id || new Date(token.expires_at).getTime() <= Date.now()) return null;
+  if (!token?.access_token || !token?.company_id) return null;
+  let accessToken = token.access_token;
+  if (new Date(token.expires_at).getTime() - Date.now() < 300000) {
+    const clientId = Deno.env.get("QUICKBOOKS_CLIENT_ID");
+    const clientSecret = Deno.env.get("QUICKBOOKS_CLIENT_SECRET");
+    if (!clientId || !clientSecret || !token.refresh_token) return null;
+    const refreshed = await fetch("https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer", {
+      method: "POST",
+      headers: { Authorization: `Basic ${btoa(`${clientId}:${clientSecret}`)}`, "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+      body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: token.refresh_token }),
+    });
+    if (!refreshed.ok) return null;
+    const credentials = await refreshed.json();
+    accessToken = credentials.access_token;
+    const { error: tokenError } = await admin.from("quickbooks_tokens").update({
+      access_token: credentials.access_token,
+      refresh_token: credentials.refresh_token || token.refresh_token,
+      expires_at: new Date(Date.now() + credentials.expires_in * 1000).toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq("user_id", userId);
+    if (tokenError) return null;
+  }
   const query = "SELECT * FROM Item WHERE Name = 'Bike Inspection & Service' AND Active = true";
   const response = await fetch(
     `https://quickbooks.api.intuit.com/v3/company/${token.company_id}/query?query=${encodeURIComponent(query)}`,
-    { headers: { Authorization: `Bearer ${token.access_token}`, Accept: "application/json" } }
+    { headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" } }
   );
   if (!response.ok) return null;
   const payload = await response.json();
   const price = Number(payload?.QueryResponse?.Item?.[0]?.UnitPrice);
-  return Number.isFinite(price) ? price : null;
+  return Number.isFinite(price) && price > 0 ? price : null;
 }
 
 serve(async (req) => {
@@ -125,8 +146,9 @@ serve(async (req) => {
       return json({ success: true, skipped: "nothing_awaiting_approval" });
     }
 
+    let servicePrice: number | null = null;
     if (serviceChoicePending) {
-      const servicePrice = await fetchServicePrice(admin, user.id);
+      servicePrice = await fetchServicePrice(admin, user.id);
       if (servicePrice == null) return json({ error: "Bike Inspection & Service price is unavailable in QuickBooks" }, 400);
       const { error: priceError } = await admin
         .from("bicycle_inspections")
@@ -222,7 +244,8 @@ serve(async (req) => {
       <div style="font-family:Arial,Helvetica,sans-serif;font-size:15px;color:#1f2937;line-height:1.5">
         <p>Hi ${esc(greetName)},</p>
          <p>Our workshop has finished inspecting <strong>${esc(bike)}</strong>${refLine}. ${pending.length > 0 ? `We found ${pending.length} item${pending.length === 1 ? "" : "s"} that need${pending.length === 1 ? "s" : ""} your approval.` : "No repair faults were found."}${serviceChoicePending ? " You can also choose whether to add a full service." : ""}</p>
-        <table style="border-collapse:collapse;width:100%;font-size:14px;margin:16px 0">
+         ${serviceChoicePending ? `<p>Optional full service: <strong>${money(servicePrice ?? 0)}</strong>. You can accept or decline this separately from any repairs.</p>` : ""}
+         ${pending.length > 0 ? `<table style="border-collapse:collapse;width:100%;font-size:14px;margin:16px 0">
           <thead>
             <tr style="background:#f1f5f9">
               <th style="padding:8px;text-align:left">Work needed</th>
@@ -231,8 +254,8 @@ serve(async (req) => {
             </tr>
           </thead>
           <tbody>${rows}</tbody>
-        </table>
-        <p>Total if all work is approved: <strong>${money(total)}</strong></p>
+         </table>
+         <p>Total if all repairs are approved: <strong>${money(total)}</strong></p>` : ""}
         <p style="margin:20px 0"><a href="${link}" style="background:#0f766e;color:#ffffff;padding:12px 20px;border-radius:6px;text-decoration:none;display:inline-block">Review workshop options</a></p>
         ${reportUrl ? `<p style="font-size:14px"><a href="${esc(reportUrl)}">View the full inspection report (PDF)</a></p>` : ""}
         <p style="font-size:13px;color:#4b5563">${payerNote}</p>
@@ -243,7 +266,7 @@ serve(async (req) => {
     const { error: emailError } = await resend.emails.send({
       from: FROM,
       to: [to],
-      subject: jobRef ? `Repairs need approval — job #${jobRef}` : `Repairs need approval — ${bike}`,
+      subject: jobRef ? `Workshop choices — job #${jobRef}` : `Workshop choices — ${bike}`,
       html,
       reply_to: REPLY_TO,
     });

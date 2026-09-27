@@ -836,6 +836,11 @@ export const markAsInspected = async (
       refreshReport(inspection.id);
     }
 
+    if (inspection.inspection_type === 'inspection_only' && inspection.service_decision === 'pending') {
+      await regenerateInspectionReport({ inspectionId: inspection.id });
+      await sendInspectionApprovalEmail(inspection.id);
+    }
+
     return data as BicycleInspection;
   } catch (error) {
     console.error('Error marking as inspected:', error);
