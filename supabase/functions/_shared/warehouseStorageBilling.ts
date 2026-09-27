@@ -38,9 +38,9 @@ export function dueStoragePeriods(stock: StoredBike, through: string): StoragePe
   const periods: StoragePeriod[] = [];
   for (let number = 0; number < 1200; number++) {
     const start = anniversary(deposit, number);
+    // The month that has started is charged in full, but no new month begins
+    // on or after the bike's departure date.
     if (start > through || (cutoff && start >= cutoff && number > 0)) break;
-    // Do not charge a new period after departure, including a bike dispatched on its anniversary.
-    if (cutoff && start >= cutoff && number === 0 && cutoff < deposit) break;
     periods.push({ stock, number, start, end: dayBefore(anniversary(deposit, number + 1)) });
   }
   return periods;
@@ -74,5 +74,8 @@ export async function eligibleStoragePeriods(supabase: any, customerId: string, 
     if (!data || data.length < 500) break;
   }
   const recorded = new Set(ledger.map((row) => `${row.stock_id}:${row.period_number}`));
+  const blocked = ledger.filter((row) => row.status !== 'invoiced' && all.some((period) =>
+    period.stock.id === row.stock_id && period.number === row.period_number));
+  if (blocked.length > 0) throw new Error('Warehouse storage charges need invoice review before this customer can be billed again. Check QuickBooks and the invoice record.');
   return all.filter((period) => !recorded.has(`${period.stock.id}:${period.number}`));
 }
