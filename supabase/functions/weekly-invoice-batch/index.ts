@@ -245,13 +245,14 @@ function buildReportHtml(args: {
     <h3>Successful Invoices</h3>
     ${successful.length > 0 ? `
       <table border="1" cellpadding="8" cellspacing="0">
-        <tr><th>Customer</th><th>Email</th><th>Orders</th><th>Bikes</th><th>Invoice #</th></tr>
+        <tr><th>Customer</th><th>Email</th><th>Orders</th><th>Bikes</th><th>Storage months</th><th>Invoice #</th></tr>
         ${successful.map((i) => `
           <tr>
             <td>${i.customerName}</td>
             <td>${i.customerEmail}</td>
             <td>${i.orderCount}</td>
             <td>${i.bikeCount}${i.skippedBikes > 0 ? ` <span style="color:#dc2626;">(${i.skippedBikes} skipped)</span>` : ''}</td>
+            <td>${i.storageCount || 0}</td>
             <td>${i.invoiceNumber || 'N/A'}</td>
           </tr>`).join('')}
       </table>` : '<p>No successful invoices</p>'}
@@ -415,10 +416,14 @@ async function processBatch(params: {
         .gte('created_at', start.toISOString())
         .lte('created_at', end.toISOString())
         .neq('status', 'cancelled');
+      let storageCount = 0;
+      try { storageCount = (await eligibleStoragePeriods(supabase, customer.id, londonDate(end))).length; }
+      catch (err) { failed.push({ customerName: customer.name, customerEmail: customer.email, error: String(err) }); return; }
+      if (!rows?.length && !storageCount) return;
       skipped.push({
         customerName: customer.name,
         customerEmail: customer.email || 'No email',
-        reason: 'Missing accounts email',
+        reason: storageCount ? `Missing accounts email (${storageCount} storage charges due)` : 'Missing accounts email',
         orderCount: rows?.length || 0,
       });
     });

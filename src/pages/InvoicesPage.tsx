@@ -288,7 +288,7 @@ export default function InvoicesPage() {
           customerName: selectedCustomerData.name,
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),
-          orders: orders,
+            orders,
         },
       });
 
@@ -594,6 +594,7 @@ export default function InvoicesPage() {
                     <td>${inv.customerEmail}</td>
                     <td>${inv.orderCount}</td>
                     <td>${inv.bikeCount}${inv.skippedBikes > 0 ? ` <span style="color: #dc2626;">(${inv.skippedBikes} skipped)</span>` : ''}</td>
+                    <td>${inv.storageCount || 0}</td>
                     <td>${inv.invoiceNumber || 'N/A'}</td>
                   </tr>
                 `).join('')}
