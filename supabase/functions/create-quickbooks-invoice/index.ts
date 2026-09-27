@@ -1009,10 +1009,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('QuickBooks API error:', errorText);
+      console.error('QuickBooks invoice creation failed:', response.status);
       for (const period of claimed) await supabase.from('warehouse_storage_charges').update({ status: 'review', failure_reason: 'QuickBooks rejected invoice creation; verify before retrying.' })
         .eq('stock_id', period.stock.id).eq('period_number', period.number);
-      throw new Error(`Failed to create invoice in QuickBooks: ${errorText}`);
+      throw new Error(`QuickBooks could not create the invoice (status ${response.status}). Review QuickBooks and storage charges before retrying.`);
     }
 
     const quickbooksResponse = await response.json();

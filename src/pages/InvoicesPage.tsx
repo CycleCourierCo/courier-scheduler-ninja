@@ -288,7 +288,7 @@ export default function InvoicesPage() {
           customerName: selectedCustomerData.name,
           startDate: startDate.toISOString(),
           endDate: endDate.toISOString(),
-            orders,
+          orders,
         },
       });
 
