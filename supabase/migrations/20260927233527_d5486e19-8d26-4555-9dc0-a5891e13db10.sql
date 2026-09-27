@@ -1,0 +1,1 @@
+CREATE POLICY warehouse_storage_charges_service_only ON public.warehouse_storage_charges FOR ALL TO service_role USING (true) WITH CHECK (true);
