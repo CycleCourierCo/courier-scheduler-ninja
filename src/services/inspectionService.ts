@@ -1842,6 +1842,7 @@ export const submitPublicRepairOffer = async (
 export interface WorkshopInspectionInput {
   customer_name: string;
   customer_email: string;
+  inspection_type: InspectionType;
   customer_phone?: string | null;
   customer_company?: string | null;
   customer_address?: {
@@ -1869,6 +1870,8 @@ export const createWorkshopInspection = async (
     .insert({
       order_id: null,
       status: 'pending' as InspectionStatus,
+      inspection_type: input.inspection_type,
+      service_decision: input.inspection_type === 'inspection_only' ? 'pending' : 'accepted',
       customer_name: input.customer_name,
       customer_email: input.customer_email,
       customer_phone: input.customer_phone || null,

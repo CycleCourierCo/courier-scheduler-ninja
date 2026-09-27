@@ -1494,6 +1494,7 @@ const BicycleInspections = () => {
     const inspection = i.inspection;
     if (inspection?.invoice_number) return "invoiced";
     if (inspection?.invoice_skipped_at) return "skipped";
+    if (inspection?.service_decision === 'accepted') return null;
     const released =
       inspection?.status === "inspected" ||
       inspection?.status === "repaired" ||

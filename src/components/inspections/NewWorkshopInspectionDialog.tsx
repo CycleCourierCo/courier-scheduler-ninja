@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { createWorkshopInspection } from "@/services/inspectionService";
@@ -33,6 +34,7 @@ export default function NewWorkshopInspectionDialog({
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     customer_name: "",
+    inspection_type: "inspection_and_service" as 'inspection_only' | 'inspection_and_service',
     customer_email: "",
     customer_phone: "",
     customer_company: "",
@@ -64,6 +66,7 @@ export default function NewWorkshopInspectionDialog({
       await createWorkshopInspection(
         {
           customer_name: form.customer_name.trim(),
+          inspection_type: form.inspection_type,
           customer_email: form.customer_email.trim(),
           customer_phone: form.customer_phone.trim() || null,
           customer_company: form.customer_company.trim() || null,
@@ -88,6 +91,7 @@ export default function NewWorkshopInspectionDialog({
       toast.success("Workshop inspection created");
       setForm({
         customer_name: "",
+        inspection_type: "inspection_and_service",
         customer_email: "",
         customer_phone: "",
         customer_company: "",
@@ -123,6 +127,13 @@ export default function NewWorkshopInspectionDialog({
         </DialogHeader>
 
         <div className="space-y-4">
+          <div className="space-y-2">
+            <Label>Workshop option</Label>
+            <RadioGroup value={form.inspection_type} onValueChange={(value: 'inspection_only' | 'inspection_and_service') => setForm(prev => ({ ...prev, inspection_type: value }))} className="grid gap-2 sm:grid-cols-2">
+              <label className="flex cursor-pointer items-center gap-2 rounded-md border p-3 text-sm"><RadioGroupItem value="inspection_only" />Inspection only</label>
+              <label className="flex cursor-pointer items-center gap-2 rounded-md border p-3 text-sm"><RadioGroupItem value="inspection_and_service" />Inspection and service</label>
+            </RadioGroup>
+          </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="wi-name">Customer name *</Label>
