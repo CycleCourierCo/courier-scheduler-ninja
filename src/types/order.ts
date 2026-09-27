@@ -149,6 +149,7 @@ export type Order = {
   user_id: string;  // This property is needed for user filtering
   sender: ContactInfo & { address: Address };
   needsInspection?: boolean;
+  inspectionType?: 'inspection_only' | 'inspection_and_service' | null;
   receiver: ContactInfo & { address: Address };
   pickupDate?: Date | Date[];
   deliveryDate?: Date | Date[];
@@ -336,6 +337,7 @@ export type CreateOrderFormData = {
   collectionCode?: string;
   deliveryInstructions?: string;
   needsInspection: boolean;
+  inspectionType: 'inspection_only' | 'inspection_and_service';
   isBoxMyBike?: boolean;
   isWarehouseStorage?: boolean;
   boxBuyer?: { name: string; email: string; phone: string };

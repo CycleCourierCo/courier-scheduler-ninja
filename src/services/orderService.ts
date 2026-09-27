@@ -380,7 +380,7 @@ export const updateOrderBikes = async (
 
 export const createOrder = async (data: CreateOrderFormData): Promise<Order> => {
   try {
-    const { sender, receiver, bikeBrand, bikeModel, bikeType, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, partExchangeBikeBrand, partExchangeBikeModel, partExchangeBikeType, partExchangeBikeValue, isEbayOrder, collectionCode, deliveryInstructions, needsInspection, isBoxMyBike, boxBuyer, isWarehouseStorage } = data as any;
+    const { sender, receiver, bikeBrand, bikeModel, bikeType, bikeQuantity, bikes, customerOrderNumber, needsPaymentOnCollection, paymentCollectionPhone, isBikeSwap, partExchangeBikeBrand, partExchangeBikeModel, partExchangeBikeType, partExchangeBikeValue, isEbayOrder, collectionCode, deliveryInstructions, needsInspection, inspectionType, isBoxMyBike, boxBuyer, isWarehouseStorage } = data as any;
 
     const {
       street: senderStreet,
@@ -539,6 +539,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         collection_code: collectionCode,
         delivery_instructions: deliveryInstructions,
         needs_inspection: needsInspection || false,
+        inspection_type: needsInspection ? inspectionType : null,
         is_box_my_bike: isBoxMyBike || false,
         is_warehouse_storage: isWarehouseStorage || false,
         box_my_bike_status: isBoxMyBike ? 'awaiting_depot' : null,
