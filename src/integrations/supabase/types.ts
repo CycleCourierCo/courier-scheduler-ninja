@@ -5855,6 +5855,54 @@ export type Database = {
           },
         ]
       }
+      warehouse_storage_charges: {
+        Row: {
+          amount_gbp: number
+          created_at: string
+          customer_id: string
+          failure_reason: string | null
+          id: string
+          period_end: string
+          period_number: number
+          period_start: string
+          quickbooks_invoice_id: string | null
+          quickbooks_invoice_number: string | null
+          status: string
+          stock_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_gbp?: number
+          created_at?: string
+          customer_id: string
+          failure_reason?: string | null
+          id?: string
+          period_end: string
+          period_number: number
+          period_start: string
+          quickbooks_invoice_id?: string | null
+          quickbooks_invoice_number?: string | null
+          status?: string
+          stock_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_gbp?: number
+          created_at?: string
+          customer_id?: string
+          failure_reason?: string | null
+          id?: string
+          period_end?: string
+          period_number?: number
+          period_start?: string
+          quickbooks_invoice_id?: string | null
+          quickbooks_invoice_number?: string | null
+          status?: string
+          stock_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       webhook_configurations: {
         Row: {
           created_at: string | null
