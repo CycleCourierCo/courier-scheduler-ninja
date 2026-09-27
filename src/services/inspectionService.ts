@@ -81,6 +81,7 @@ export const sendInspectionApprovalEmail = async (
       body: { inspectionId, force, ...(recipient ? { recipient } : {}) },
     });
     if (error) throw error;
+    if (data?.error || data?.success === false) throw new Error(data?.error || 'Approval email could not be sent');
     return { success: true, skipped: (data as any)?.skipped };
   } catch (error) {
     console.error('Error sending inspection approval email:', error);
