@@ -9,6 +9,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { trackedFetch } from "../_shared/integrationLog.ts";
 import { applyEmailBrand } from "../_shared/emailLayout.ts";
+import { eligibleStoragePeriods, londonDate } from '../_shared/warehouseStorageBilling.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
@@ -221,6 +222,7 @@ function buildReportHtml(args: {
     <ul>
       <li>Total Orders Included in Invoices: ${allOrders.length}</li>
       <li>Total Bikes Invoiced: ${totalBikesInvoiced}</li>
+      <li>Warehouse storage periods invoiced: ${successful.reduce((s, i) => s + (i.storageCount || 0), 0)} (£${(successful.reduce((s, i) => s + (i.storageCount || 0), 0) * 40).toFixed(2)} including VAT)</li>
       ${totalBikesSkipped > 0 ? `<li style="color:#dc2626;">Bikes Skipped (Missing Products): ${totalBikesSkipped}</li>` : ''}
       <li>Total Orders from Skipped Customers: ${skipped.reduce((s, c) => s + (c.orderCount || 0), 0)}</li>
       <li>Delivered Orders: ${delivered.length}</li>
@@ -320,17 +322,18 @@ async function processBatch(params: {
           .neq('status', 'cancelled');
         if (ordersErr) throw ordersErr;
 
-        if (!orders || orders.length === 0) {
+        const dueStorage = await eligibleStoragePeriods(supabase, customer.id, londonDate(end));
+        if ((!orders || orders.length === 0) && dueStorage.length === 0) {
           skipped.push({
             customerName: customer.name,
             customerEmail: customer.accounts_email || customer.email,
-            reason: 'No orders in date range',
+            reason: 'No orders or storage charges due',
             orderCount: 0,
           });
           return;
         }
 
-        allOrders.push(...orders);
+        allOrders.push(...(orders || []));
 
         const resp = await fetch(invoiceUrl, {
           method: 'POST',
@@ -344,7 +347,7 @@ async function processBatch(params: {
             customerName: customer.name,
             startDate: start.toISOString(),
             endDate: end.toISOString(),
-            orders,
+            orders: orders || [],
           }),
         });
 
@@ -368,8 +371,9 @@ async function processBatch(params: {
         successful.push({
           customerName: customer.name,
           customerEmail: customer.accounts_email,
-          orderCount: orders.length,
-          bikeCount: data?.stats?.bikeCount || orders.length,
+          orderCount: orders?.length || 0,
+          bikeCount: data?.stats?.bikeCount || orders?.length || 0,
+          storageCount: data?.stats?.storageCount || 0,
           skippedBikes: data?.stats?.skippedBikes || 0,
           invoiceNumber: data?.stats?.invoiceNumber || data?.invoice_number,
           missingProducts: data?.missingProducts || [],
