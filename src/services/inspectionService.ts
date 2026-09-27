@@ -202,7 +202,7 @@ export const reconcileInspectionStatuses = async (
     let query = supabase
       .from('bicycle_inspections')
       .select(
-        'id, status, order_id, approval_recipient, released_to_customer_at, inspection_type, service_decision, inspection_issues(status, parts_arrived, parts_ordered, parts_in_stock, offered_to_receiver_at, receiver_approved_at, receiver_declined_at, billing_party)'
+        'id, status, order_id, approval_recipient, released_to_customer_at, inspection_type, service_decision, frame_cleaned_at, drivetrain_degreased_at, inspection_issues(status, parts_arrived, parts_ordered, parts_in_stock, offered_to_receiver_at, receiver_approved_at, receiver_declined_at, billing_party)'
       )
       .in('status', [
         'issues_found',
@@ -275,12 +275,12 @@ export const reconcileInspectionStatuses = async (
       // Nothing was actually repaired (every issue declined by the customer and
       // either never offered to the receiver or declined by them too) — the bike
       // ships unrepaired rather than being marked as serviced.
-      const terminalStatus = (): InspectionStatus =>
-        inspection.inspection_type === 'inspection_only' && inspection.service_decision === 'declined' && approved.length === 0
-          ? 'ship_as_is'
-          : approved.length === 0 && issues.some(i => i.status === 'declined') && inspection.service_decision !== 'accepted'
-            ? 'ship_as_is'
-            : 'repaired';
+      const terminalStatus = (): InspectionStatus => {
+        if (inspection.inspection_type === 'inspection_only' && inspection.service_decision === 'declined' && approved.length === 0) return 'ship_as_is';
+        if (approved.length === 0 && issues.some(i => i.status === 'declined') && inspection.service_decision !== 'accepted') return 'ship_as_is';
+        if (inspection.service_decision === 'accepted' && (!inspection.frame_cleaned_at || !inspection.drivetrain_degreased_at)) return 'cleaning';
+        return 'repaired';
+      };
 
       // Delivery jobs approved by the booking account/sender can pass declined
       // repairs on to the buyer — that decision must come before repair work.
