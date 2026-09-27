@@ -195,7 +195,7 @@ export default function InvoicesPage() {
   });
 
   const { data: storagePreview, isLoading: storageLoading, error: storageError, refetch: refetchStorage } = useQuery({
-    queryKey: ['storage-for-invoice', selectedCustomer, endDate],
+    queryKey: ['storage-for-invoice', selectedCustomer, startDate, endDate],
     queryFn: async () => {
       const { data, error } = await supabase.functions.invoke('create-quickbooks-invoice', {
         body: { customerId: selectedCustomer, startDate: startDate?.toISOString(), endDate: endDate?.toISOString(), previewStorage: true },
@@ -263,7 +263,7 @@ export default function InvoicesPage() {
   });
 
   const handleCreateInvoice = async () => {
-    if (!selectedCustomerData || !orders || (orders.length === 0 && !storagePreview?.storageCount) || !startDate || !endDate) {
+    if (!selectedCustomerData || !orders || storageLoading || storageError || (orders.length === 0 && !storagePreview?.storageCount) || !startDate || !endDate) {
       notify.error("Missing Information", { description: "Please select a customer, date range, and ensure there are orders or storage charges to invoice." });
       return;
     }
@@ -586,6 +586,7 @@ export default function InvoicesPage() {
                   <th>Email</th>
                   <th>Orders</th>
                   <th>Bikes</th>
+                  <th>Storage months</th>
                   <th>Invoice #</th>
                 </tr>
                 ${successfulInvoices.map(inv => `
