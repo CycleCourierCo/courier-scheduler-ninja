@@ -1905,7 +1905,7 @@ export const setApprovalRecipient = async (
 /** Public (unauthenticated) read of an inspection approval request. */
 export const fetchPublicInspectionApproval = async (inspectionId: string): Promise<any> => {
   const { data, error } = await supabase.functions.invoke('public-inspection-approval', {
-    body: { inspectionId },
+    body: { inspectionId, action: 'read' },
   });
   if (error) throw error;
   return data ?? { found: false };
