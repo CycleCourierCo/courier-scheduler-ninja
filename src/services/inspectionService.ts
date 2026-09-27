@@ -1,6 +1,6 @@
 import { pushIssueStatusToInspectaBike } from '@/services/inspectabikeService';
 import { supabase } from "@/integrations/supabase/client";
-import { BicycleInspection, InspectionIssue, InspectionStatus, IssueStatus } from "@/types/inspection";
+import { BicycleInspection, InspectionIssue, InspectionStatus, InspectionType, IssueStatus, ServiceDecision } from "@/types/inspection";
 import { resendReceiverAvailabilityEmail } from "./emailService";
 
 // ---- PDI report helpers -----------------------------------------------------
@@ -514,16 +514,29 @@ const notifyDeclineForIssue = async (issueId: string): Promise<void> => {
 
 
 // Enable inspection for an existing order (admin action)
-export const enableInspectionForOrder = async (orderId: string): Promise<BicycleInspection | null> => {
+export const enableInspectionForOrder = async (orderId: string, inspectionType: InspectionType): Promise<BicycleInspection | null> => {
   try {
     const { error: orderError } = await supabase
       .from('orders')
-      .update({ needs_inspection: true })
+      .update({ needs_inspection: true, inspection_type: inspectionType } as any)
       .eq('id', orderId);
 
     if (orderError) throw orderError;
 
     const inspection = await getOrCreateInspection(orderId);
+    if (inspection && inspection.inspection_type !== inspectionType) {
+      const { data, error } = await supabase
+        .from('bicycle_inspections')
+        .update({
+          inspection_type: inspectionType,
+          service_decision: inspectionType === 'inspection_only' ? 'pending' : 'accepted',
+        } as any)
+        .eq('id', inspection.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as BicycleInspection;
+    }
     return inspection;
   } catch (error) {
     console.error('Error enabling inspection for order:', error);
@@ -780,7 +793,8 @@ export const markAsInspected = async (
     if (!inspection) throw new Error('Failed to get or create inspection');
 
     const now = new Date().toISOString();
-    const cleaningDone =
+    const requiresService = inspection.inspection_type !== 'inspection_only' || inspection.service_decision === 'accepted';
+    const cleaningDone = !requiresService ||
       !!(inspection as any).frame_cleaned_at && !!(inspection as any).drivetrain_degreased_at;
 
     const patch: any = {
@@ -789,7 +803,12 @@ export const markAsInspected = async (
       inspected_by_name: inspectorName,
       notes: notes || null,
     };
-    if (cleaningDone) {
+    if (inspection.inspection_type === 'inspection_only' && inspection.service_decision === 'pending') {
+      patch.status = 'issues_found' as InspectionStatus;
+      patch.released_to_customer_at = now;
+      patch.released_by_id = inspectorId;
+      patch.released_by_name = inspectorName;
+    } else if (cleaningDone) {
       patch.status = 'inspected' as InspectionStatus;
       patch.released_to_customer_at = now;
       patch.released_by_id = inspectorId;
@@ -807,7 +826,7 @@ export const markAsInspected = async (
 
     if (error) throw error;
 
-    if (cleaningDone) {
+    if (cleaningDone && inspection.service_decision !== 'pending') {
       // No-issues + clean path completes the inspection; trigger any deferred
       // receiver availability email now.
       await triggerReceiverAvailabilityIfDeferred(inspection.id);
@@ -1868,8 +1887,8 @@ export const setApprovalRecipient = async (
 
 /** Public (unauthenticated) read of an inspection approval request. */
 export const fetchPublicInspectionApproval = async (inspectionId: string): Promise<any> => {
-  const { data, error } = await supabase.rpc('get_public_inspection_approval' as any, {
-    p_inspection_id: inspectionId,
+  const { data, error } = await supabase.functions.invoke('public-inspection-approval', {
+    body: { inspectionId },
   });
   if (error) throw error;
   return data ?? { found: false };
@@ -1878,11 +1897,11 @@ export const fetchPublicInspectionApproval = async (inspectionId: string): Promi
 /** Public (unauthenticated) submission of the approved repairs. */
 export const submitPublicInspectionApproval = async (
   inspectionId: string,
-  approvedIssueIds: string[]
-): Promise<{ success: boolean; approved?: number; declined?: number; error?: string }> => {
-  const { data, error } = await supabase.rpc('submit_public_inspection_approval' as any, {
-    p_inspection_id: inspectionId,
-    p_approved_issue_ids: approvedIssueIds,
+  approvedIssueIds: string[],
+  serviceDecision?: Exclude<ServiceDecision, 'pending'>
+): Promise<{ success: boolean; approved?: number; declined?: number; service_decision?: ServiceDecision; error?: string }> => {
+  const { data, error } = await supabase.functions.invoke('public-inspection-approval', {
+    body: { inspectionId, approvedIssueIds, serviceDecision },
   });
   if (error) throw error;
   void regenerateInspectionReport({ inspectionId });

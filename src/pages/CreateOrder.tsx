@@ -116,6 +116,7 @@ const orderSchema = z.object({
   collectionCode: z.string().optional(),
   deliveryInstructions: z.string().optional(),
   needsInspection: z.boolean().default(false),
+  inspectionType: z.enum(["inspection_only", "inspection_and_service"]).default("inspection_and_service"),
   isBoxMyBike: z.boolean().default(false),
   isWarehouseStorage: z.boolean().default(false),
   boxBuyer: z.object({
@@ -259,6 +260,7 @@ const CreateOrder = () => {
       collectionCode: "",
       deliveryInstructions: "",
       needsInspection: false,
+      inspectionType: "inspection_and_service",
       isBoxMyBike: false,
       isWarehouseStorage: false,
       boxBuyer: { name: "", email: "", phone: "+44" },

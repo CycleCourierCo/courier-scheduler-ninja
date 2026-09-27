@@ -3,6 +3,7 @@ import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessa
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Control, useWatch, useFormContext } from "react-hook-form";
 import { CreateOrderFormData } from "@/types/order";
 
@@ -42,6 +43,7 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
     control,
     name: "isEbayOrder",
   });
+  const needsInspection = useWatch({ control, name: "needsInspection" });
 
   const isBikeSwap = useWatch({
     control,
@@ -286,10 +288,10 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
                 <FormLabel className="text-base">
-                  Inspect and Service
+                  Workshop inspection
                 </FormLabel>
                 <FormDescription>
-                  Toggle if this bike requires inspection and servicing before delivery.
+                  Add an inspection before delivery.
                 </FormDescription>
               </div>
               <FormControl>
@@ -301,6 +303,30 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
             </FormItem>
           )}
         />
+
+        {needsInspection && (
+          <FormField
+            control={control}
+            name="inspectionType"
+            render={({ field }) => (
+              <FormItem className="rounded-lg border p-4">
+                <FormLabel className="text-base">Choose a workshop option</FormLabel>
+                <FormControl>
+                  <RadioGroup value={field.value} onValueChange={field.onChange} className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3">
+                      <RadioGroupItem value="inspection_only" className="mt-1" />
+                      <span><span className="block font-medium">Inspection only</span><span className="block text-sm text-muted-foreground">Receive the report, then choose any repairs or a full service.</span></span>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3">
+                      <RadioGroupItem value="inspection_and_service" className="mt-1" />
+                      <span><span className="block font-medium">Inspection and service</span><span className="block text-sm text-muted-foreground">The inspection and full service are booked together.</span></span>
+                    </label>
+                  </RadioGroup>
+                </FormControl>
+              </FormItem>
+            )}
+          />
+        )}
 
         <FormField
           control={control}

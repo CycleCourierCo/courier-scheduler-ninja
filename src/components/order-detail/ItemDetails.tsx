@@ -135,7 +135,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
         {order.needsInspection && (
           <div className="flex items-center gap-2 text-amber-600 font-medium mt-2">
             <Wrench className="h-4 w-4" />
-            Bike will be inspected and serviced
+            {order.inspectionType === 'inspection_only' ? 'Bike will be inspected' : 'Bike will be inspected and serviced'}
           </div>
         )}
         {order.isBoxMyBike && (

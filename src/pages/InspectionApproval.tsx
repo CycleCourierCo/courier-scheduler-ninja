@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CheckCircle2, FileText, Loader2, Wrench } from "lucide-react";
+import { CheckCircle2, FileText, Loader2, Settings2, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { toPublicFileUrl } from "@/lib/publicFileUrl";
 import {
@@ -37,6 +37,9 @@ interface ApprovalData {
   reference?: string | null;
   report_url?: string | null;
   issues?: ApprovalIssue[];
+  inspection_type?: 'inspection_only' | 'inspection_and_service';
+  service_decision?: 'pending' | 'accepted' | 'declined';
+  service_price_gbp?: number | null;
 }
 
 export default function InspectionApproval() {
@@ -48,6 +51,7 @@ export default function InspectionApproval() {
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState(false);
   const [approvedNow, setApprovedNow] = useState<ApprovalIssue[]>([]);
+  const [serviceChoice, setServiceChoice] = useState<'accepted' | 'declined' | null>(null);
 
   useEffect(() => {
     if (!id) {
@@ -104,12 +108,18 @@ export default function InspectionApproval() {
   const bike = data?.bike || "your bike";
   const reportUrl = toPublicFileUrl(data?.report_url ?? null);
 
+  const needsServiceChoice = data?.inspection_type === 'inspection_only' && data?.service_decision === 'pending';
+
   const handleSubmit = async (approveAll: boolean) => {
     if (!id) return;
+    if (needsServiceChoice && !serviceChoice) {
+      toast.error("Please accept or decline the service");
+      return;
+    }
     const chosen = approveAll ? pending : pending.filter((i) => selected[i.id]);
     setSubmitting(true);
     try {
-      const result = await submitPublicInspectionApproval(id, chosen.map((i) => i.id));
+      const result = await submitPublicInspectionApproval(id, chosen.map((i) => i.id), serviceChoice ?? undefined);
       if (!result?.success) throw new Error(result?.error || "submit failed");
       setApprovedNow(chosen);
       setSubmitted(true);
@@ -150,7 +160,7 @@ export default function InspectionApproval() {
     );
   }
 
-  const done = submitted || pending.length === 0;
+  const done = submitted || (pending.length === 0 && !needsServiceChoice);
 
   return (
     <DoorstepShell title="Repairs for your bike" reference={data.reference ?? undefined}>
@@ -196,10 +206,29 @@ export default function InspectionApproval() {
                     : "No repairs will be carried out. We'll be in touch about collecting the bike."}
                 </p>
               )}
+              {(serviceChoice || data.service_decision === 'accepted' || data.service_decision === 'declined') && data.inspection_type === 'inspection_only' && (
+                <p className="text-sm font-medium">
+                  Service: {(serviceChoice || data.service_decision) === 'accepted' ? 'Accepted' : 'Declined'}
+                </p>
+              )}
             </CardContent>
           </Card>
         ) : (
-          <Card className="shadow-none">
+          <div className="space-y-4">
+          {needsServiceChoice && (
+            <Card className="shadow-none">
+              <CardHeader><CardTitle className="flex items-center gap-2 text-base"><Settings2 className="h-4 w-4 text-primary" />Add a full service?</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">Choose whether you would like our workshop to service the bike after its inspection.</p>
+                {data.service_price_gbp != null && <p className="doorstep-data">{money(data.service_price_gbp)}</p>}
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant={serviceChoice === 'accepted' ? 'default' : 'outline'} onClick={() => setServiceChoice('accepted')}>Accept service</Button>
+                  <Button variant={serviceChoice === 'declined' ? 'default' : 'outline'} onClick={() => setServiceChoice('declined')}>Decline service</Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          {pending.length > 0 && <Card className="shadow-none">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
                 <Wrench className="h-4 w-4 shrink-0 text-primary" />
@@ -269,7 +298,13 @@ export default function InspectionApproval() {
                 </Button>
               </div>
             </CardContent>
-          </Card>
+          </Card>}
+          {pending.length === 0 && needsServiceChoice && (
+            <Button variant="doorstep" className="w-full" onClick={() => handleSubmit(false)} disabled={submitting || !serviceChoice}>
+              {submitting ? 'Sending...' : 'Confirm choice'}
+            </Button>
+          )}
+          </div>
         )}
     </DoorstepShell>
   );

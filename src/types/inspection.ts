@@ -15,12 +15,17 @@ export type InspectionStatus =
 export type IssueStatus = 'pending' | 'approved' | 'declined' | 'resolved' | 'repaired';
 
 export type ApprovalRecipient = 'customer' | 'sender' | 'receiver' | 'walkin';
+export type InspectionType = 'inspection_only' | 'inspection_and_service';
+export type ServiceDecision = 'pending' | 'accepted' | 'declined';
 
 export interface BicycleInspection {
   id: string;
   /** Null for workshop-only inspections not tied to a transport job. */
   order_id: string | null;
   status: InspectionStatus;
+  inspection_type: InspectionType;
+  service_decision: ServiceDecision;
+  service_price_gbp?: number | null;
   bike_type: string | null;
   // Workshop-only (walk-in) details
   customer_name?: string | null;

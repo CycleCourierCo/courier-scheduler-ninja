@@ -60,6 +60,7 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     collection_driver_name: dbOrder.collection_driver_name,
     delivery_driver_name: dbOrder.delivery_driver_name,
     needsInspection: dbOrder.needs_inspection || false,
+    inspectionType: dbOrder.inspection_type || (dbOrder.needs_inspection ? 'inspection_and_service' : null),
     createdViaApi: dbOrder.created_via_api || false,
     bikeValue: dbOrder.bike_value || undefined,
     bikes: dbOrder.bikes || undefined,

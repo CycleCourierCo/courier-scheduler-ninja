@@ -1829,6 +1829,11 @@ const BicycleInspections = () => {
                 {isWorkshopOnly && (
                   <Badge variant="secondary" className="shrink-0">Workshop only</Badge>
                 )}
+                {inspection && (
+                  <Badge variant="inspection" className="shrink-0">
+                    {inspection.inspection_type === 'inspection_only' ? 'Inspection only' : 'Inspection and service'}
+                  </Badge>
+                )}
               </CardTitle>
               <CardDescription className="break-words">
                 {isWorkshopOnly ? (
@@ -2063,7 +2068,7 @@ const BicycleInspections = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Cleaning tasks (shown pre-repaired-final for every bike) */}
-          {inspection && inspection.status !== "repaired" && inspection.status !== "ship_as_is" && inspection.status !== "inspected" && (
+          {inspection && inspection.service_decision === 'accepted' && inspection.status !== "repaired" && inspection.status !== "ship_as_is" && inspection.status !== "inspected" && (
             <div className="rounded-md border p-3 bg-muted/30 space-y-2">
               <p className="text-sm font-medium">Cleaning</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

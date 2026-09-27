@@ -35,6 +35,7 @@ interface InvoiceRequest {
     sender: any;
     receiver: any;
     needs_inspection?: boolean | null;
+    inspection_type?: string | null;
     is_box_my_bike?: boolean | null;
     is_northern_ireland?: boolean | null;
     guaranteed_delivery?: boolean | null;
@@ -669,7 +670,18 @@ const handler = async (req: Request): Promise<Response> => {
 
         
         // Check if order needs inspection and add service line item
-        if (order.needs_inspection) {
+        let serviceBillable = order.needs_inspection && order.inspection_type !== 'inspection_only';
+        if (order.needs_inspection && order.inspection_type === 'inspection_only') {
+          const { data: inspection } = await supabase
+            .from('bicycle_inspections')
+            .select('service_decision')
+            .eq('order_id', order.id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          serviceBillable = inspection?.service_decision === 'accepted';
+        }
+        if (serviceBillable) {
           const inspectionProduct = await findProductByExactName(
             tokenData.access_token,
             tokenData.company_id,
