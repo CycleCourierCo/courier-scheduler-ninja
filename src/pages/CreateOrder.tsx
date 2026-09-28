@@ -116,7 +116,9 @@ const orderSchema = z.object({
   collectionCode: z.string().optional(),
   deliveryInstructions: z.string().optional(),
   needsInspection: z.boolean().default(false),
+  inspectionType: z.enum(["inspection_only", "inspection_and_service"]).default("inspection_and_service"),
   isBoxMyBike: z.boolean().default(false),
+  isWarehouseStorage: z.boolean().default(false),
   boxBuyer: z.object({
     name: z.string().optional(),
     email: z.string().optional(),
@@ -142,7 +144,7 @@ const orderSchema = z.object({
   }
 
   // Validate receiver only when NOT Box My Bike (depot is auto-filled in that case)
-  if (!data.isBoxMyBike) {
+  if (!data.isBoxMyBike && !data.isWarehouseStorage) {
     const r = data.receiver;
     if (!r?.name || r.name.length < 2) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Name is required", path: ["receiver", "name"] });
@@ -258,7 +260,9 @@ const CreateOrder = () => {
       collectionCode: "",
       deliveryInstructions: "",
       needsInspection: false,
+      inspectionType: "inspection_and_service",
       isBoxMyBike: false,
+      isWarehouseStorage: false,
       boxBuyer: { name: "", email: "", phone: "+44" },
       // Legacy fields for backward compatibility
       bikeBrand: "",
@@ -266,7 +270,10 @@ const CreateOrder = () => {
     },
   });
 
-  const isBoxMyBike = form.watch("isBoxMyBike");
+  const isBoxMyBikeRaw = form.watch("isBoxMyBike");
+  const isWarehouseStorage = form.watch("isWarehouseStorage");
+  // Both options deliver to our depot, so the receiver is auto-filled and hidden.
+  const isBoxMyBike = isBoxMyBikeRaw || isWarehouseStorage;
 
   // Auto-fill receiver with depot when Box My Bike toggled on; clear when toggled off
   React.useEffect(() => {
@@ -654,7 +661,7 @@ const CreateOrder = () => {
                     <TabsContent value="details" className="space-y-6 mt-0">
                       <OrderDetails control={form.control} />
                       <OrderOptions control={form.control} />
-                      {isBoxMyBike && (
+                      {isBoxMyBikeRaw && (
                         <div className="space-y-4 rounded-md border p-4">
                           <div>
                             <h3 className="text-lg font-medium">Buyer Details</h3>
@@ -767,7 +774,7 @@ const CreateOrder = () => {
                             className="w-full sm:w-auto"
                             disabled={isSubmitting}
                           >
-                            {isSubmitting ? "Creating Order..." : "Book Box My Bike"}
+                            {isSubmitting ? "Creating Order..." : isWarehouseStorage ? "Book Warehouse Storage" : "Book Box My Bike"}
                           </Button>
                         ) : (
                           <Button 

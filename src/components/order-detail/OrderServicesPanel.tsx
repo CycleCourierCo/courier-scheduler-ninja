@@ -102,11 +102,11 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
     }
   };
 
-  const handleEnable = async () => {
+  const handleEnable = async (inspectionType: 'inspection_only' | 'inspection_and_service') => {
     if (!order.id) return;
     try {
       setIsEnabling(true);
-      await enableInspectionForOrder(order.id);
+      await enableInspectionForOrder(order.id, inspectionType);
       await onRefresh();
       toast.success("Inspection enabled for this order");
     } catch (error) {
@@ -139,20 +139,27 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
         {order.needsInspection
-          ? "This bike is booked in for inspection and servicing before delivery."
+          ? order.inspectionType === 'inspection_only'
+            ? "This bike is booked for inspection only. The customer chooses service after the report."
+            : "This bike is booked in for inspection and servicing before delivery."
           : "Enable inspection to add this bike to the workshop pipeline before delivery."}
       </p>
       <div className="flex flex-wrap gap-2">
         {!order.needsInspection && (
           <Button
-            onClick={handleEnable}
+            onClick={() => handleEnable('inspection_only')}
             disabled={isEnabling}
             variant="outline"
             size="sm"
             className="flex items-center gap-2"
           >
             <Wrench className="h-4 w-4" />
-            {isEnabling ? "Enabling..." : "Inspect and Service"}
+            {isEnabling ? "Enabling..." : "Inspection only"}
+          </Button>
+        )}
+        {!order.needsInspection && (
+          <Button onClick={() => handleEnable('inspection_and_service')} disabled={isEnabling} variant="outline" size="sm" className="flex items-center gap-2">
+            <Wrench className="h-4 w-4" /> Inspection and service
           </Button>
         )}
         {order.needsInspection && (
@@ -303,10 +310,10 @@ const OrderServicesPanel: React.FC<OrderServicesPanelProps> = ({ order, onRefres
           {row(
             "inspection",
             <Wrench className="h-4 w-4 shrink-0" />,
-            "Inspect & Service",
+            "Workshop inspection",
             <>
               {order.needsInspection ? (
-                <Badge className="bg-amber-600 hover:bg-amber-600">Enabled</Badge>
+                <Badge variant="inspection">{order.inspectionType === 'inspection_only' ? 'Inspection only' : 'Inspection and service'}</Badge>
               ) : (
                 <Badge variant="outline">Not set</Badge>
               )}

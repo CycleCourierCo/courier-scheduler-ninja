@@ -147,17 +147,12 @@ export interface GenerateRoutesInput {
   van_ids?: string[];
   /** Per-day van availability grid: { "2026-01-05": [vanId, ...] }. */
   van_availability?: Record<string, string[]>;
-  firm_days?: number;
-  /** Null means inspection deliveries are never auto-unlocked. */
-  inspection_lead_days?: number | null;
   /** Plan legs whose customer dates have all lapsed anyway (per-run override). */
   include_expired?: boolean;
+  /** Rank jobs by dates left and waiting time; off = all ordinary jobs equal. Default on. */
+  prioritise_age?: boolean;
   /** Whether a 15h long day may be used for a difficult area (0 or 1). */
   max_long_days?: number;
-  /** Jobs a full route should carry (fleet is trimmed down to reach it). */
-  min_jobs_target?: number;
-  /** Fewest jobs a route may carry before it is flagged for a dispatcher. */
-  min_jobs_floor?: number;
   /** Take a van off the road if its route earns less than this (£). */
   min_route_margin?: number;
 }

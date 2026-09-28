@@ -36,7 +36,7 @@ export interface InternalUserOption {
 export async function listReviewableUsers(): Promise<InternalUserOption[]> {
   const { data, error } = await db().rpc("list_internal_users");
   if (error) throw error;
-  return ((data ?? []) as InternalUserOption[]).sort((a, b) =>
+  return ((data ?? []) as any[]).filter((u) => u.is_active !== false).sort((a, b) =>
     (a.name || a.email || "").localeCompare(b.name || b.email || "")
   );
 }

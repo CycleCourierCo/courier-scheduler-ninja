@@ -149,6 +149,7 @@ export type Order = {
   user_id: string;  // This property is needed for user filtering
   sender: ContactInfo & { address: Address };
   needsInspection?: boolean;
+  inspectionType?: 'inspection_only' | 'inspection_and_service' | null;
   receiver: ContactInfo & { address: Address };
   pickupDate?: Date | Date[];
   deliveryDate?: Date | Date[];
@@ -182,6 +183,7 @@ export type Order = {
   isBikeSwap?: boolean;
   isEbayOrder?: boolean;
   isBoxMyBike?: boolean;
+  isWarehouseStorage?: boolean;
   boxMyBikeStatus?: BoxMyBikeStatus | null;
   /** Box My Bike: the end buyer the boxed bike is ultimately going to. */
   boxBuyer?: ContactInfo | null;
@@ -335,7 +337,9 @@ export type CreateOrderFormData = {
   collectionCode?: string;
   deliveryInstructions?: string;
   needsInspection: boolean;
+  inspectionType?: 'inspection_only' | 'inspection_and_service';
   isBoxMyBike?: boolean;
+  isWarehouseStorage?: boolean;
   boxBuyer?: { name: string; email: string; phone: string };
   // Legacy fields for backward compatibility
   bikeBrand?: string;

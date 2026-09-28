@@ -147,8 +147,8 @@ export async function addTaskComment(taskId: string, body: string, authorId: str
   if (error) throw error;
 }
 
-export async function listInternalUsers(): Promise<InternalUser[]> {
+export async function listInternalUsers(opts: { includeInactive?: boolean } = {}): Promise<InternalUser[]> {
   const { data, error } = await (supabase as any).rpc('list_internal_users');
   if (error) throw error;
-  return (data || []) as InternalUser[];
+  return ((data || []) as any[]).filter((u: any) => opts.includeInactive || u.is_active !== false) as InternalUser[];
 }

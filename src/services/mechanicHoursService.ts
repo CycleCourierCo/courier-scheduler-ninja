@@ -1,10 +1,21 @@
 import { supabase } from '@/integrations/supabase/client';
 
-export type StandardMinutesSource = 'catalogue' | 'labour_cost' | 'default' | 'inspection';
+export type StandardMinutesSource = 'catalogue' | 'labour_cost' | 'default' | 'inspection' | 'box_foam';
+
+export const BOX_FOAM_MINUTES = 45;
+
+/** A boxed/foamed job with no mechanic to credit. */
+export interface UnallocatedBoxFoamJob {
+  orderId: string;
+  kind: 'box' | 'foam';
+  tracking: string;
+  bike: string;
+  doneAt: string;
+}
 
 export interface MechanicJobRow {
   id: string;
-  type: 'inspection' | 'repair';
+  type: 'inspection' | 'repair' | 'box' | 'foam';
   label: string;
   minutes: number;
   source: StandardMinutesSource;
@@ -67,6 +78,8 @@ export interface MechanicHoursPerMechanic {
   efficiencyPct: number;
   inspections: number;
   repairs: number;
+  boxed: number;
+  foamed: number;
   jobsPerHour: number;
   minutesPerJob: number;
   availableJobsShare: number;
@@ -77,6 +90,7 @@ export interface MechanicHoursPerMechanic {
 
 export interface MechanicHoursResult {
   daily: MechanicHoursDaily[];
+  unallocatedBoxFoam: UnallocatedBoxFoamJob[];
   perMechanic: MechanicHoursPerMechanic[];
   totals: {
     hours: number;
@@ -352,6 +366,8 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
         efficiencyPct: 0,
         inspections: 0,
         repairs: 0,
+        boxed: 0,
+        foamed: 0,
         jobsPerHour: 0,
         minutesPerJob: 0,
         availableJobsShare: 0,
@@ -445,6 +461,75 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
     }
   });
 
+  // ---- Box My Bike / Foam My Bike: 45 min each ----
+  const unallocatedBoxFoam: UnallocatedBoxFoamJob[] = [];
+  const bfOrders = await fetchAll<any>((f, t) =>
+    (supabase.from('orders') as any)
+      .select('id, tracking_number, bikes, bike_brand, bike_model, box_boxed_at, box_boxed_by_id, foam_foamed_at, foam_foamed_by_id')
+      .or(`and(box_boxed_at.gte.${fromISO},box_boxed_at.lte.${toISO}),and(foam_foamed_at.gte.${fromISO},foam_foamed_at.lte.${toISO})`)
+      .order('id', { ascending: true })
+      .range(f, t),
+  );
+  if (bfOrders.length) {
+    const ids = bfOrders.map((o: any) => o.id);
+    const taskByOrder = new Map<string, { box?: string; foam?: string }>();
+    const neededIds = new Set<string>();
+    for (let i = 0; i < ids.length; i += 200) {
+      const { data: tasks } = await supabase
+        .from('tasks')
+        .select('linked_order_id, title, assignee_id')
+        .in('linked_order_id', ids.slice(i, i + 200))
+        .not('assignee_id', 'is', null);
+      (tasks || []).forEach((t: any) => {
+        const e = taskByOrder.get(t.linked_order_id) || {};
+        const title = String(t.title || '').toLowerCase();
+        if (title.startsWith('box')) e.box = e.box || t.assignee_id;
+        if (title.startsWith('foam')) e.foam = e.foam || t.assignee_id;
+        taskByOrder.set(t.linked_order_id, e);
+      });
+    }
+    const resolved = bfOrders.flatMap((o: any) => {
+      const bike =
+        (Array.isArray(o.bikes) && o.bikes[0] ? [o.bikes[0].brand, o.bikes[0].model] : [o.bike_brand, o.bike_model])
+          .filter(Boolean).join(' ').trim() || 'Bike';
+      const tracking = o.tracking_number || o.id.slice(0, 8);
+      const out: { o: any; kind: 'box' | 'foam'; at: string; mech: string | null; bike: string; tracking: string }[] = [];
+      const inRange = (v: string | null) => !!v && v >= fromISO && v <= toISO;
+      if (inRange(o.box_boxed_at)) out.push({ o, kind: 'box', at: o.box_boxed_at, mech: o.box_boxed_by_id || taskByOrder.get(o.id)?.box || null, bike, tracking });
+      if (inRange(o.foam_foamed_at)) out.push({ o, kind: 'foam', at: o.foam_foamed_at, mech: o.foam_foamed_by_id || taskByOrder.get(o.id)?.foam || null, bike, tracking });
+      out.forEach((r) => r.mech && !mechMap.has(r.mech) && neededIds.add(r.mech));
+      return out;
+    });
+    const names = new Map<string, string>();
+    if (neededIds.size) {
+      const { data: profs } = await supabase.from('profiles').select('id, name, email').in('id', Array.from(neededIds));
+      (profs || []).forEach((p: any) => names.set(p.id, p.name || p.email));
+    }
+    resolved.forEach((r) => {
+      const key = londonDay(r.at);
+      if (key) ensureDay(key).standardMinutes += BOX_FOAM_MINUTES;
+      if (!r.mech) {
+        unallocatedBoxFoam.push({ orderId: r.o.id, kind: r.kind, tracking: r.tracking, bike: r.bike, doneAt: r.at });
+        return;
+      }
+      const mech = ensureMech(r.mech, names.get(r.mech));
+      if (r.kind === 'box') mech.boxed += 1; else mech.foamed += 1;
+      mech.standardMinutes += BOX_FOAM_MINUTES;
+      if (key) {
+        const d = ensureMechDay(mech, key);
+        d.standardMinutes += BOX_FOAM_MINUTES;
+        d.jobs.push({
+          id: `${r.o.id}-${r.kind}`,
+          type: r.kind,
+          label: `${r.kind === 'box' ? 'Box up' : 'Foam up'} ${r.tracking} — ${r.bike}`,
+          minutes: BOX_FOAM_MINUTES,
+          source: 'box_foam',
+        });
+      }
+    });
+    unallocatedBoxFoam.sort((a, b) => b.doneAt.localeCompare(a.doneAt));
+  }
+
   // Mechanics clocked in per day — used to split the day's queue evenly.
   const clockedPerDay = new Map<string, number>();
   mechMap.forEach((m) => {
@@ -479,7 +564,7 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
     });
 
   const perMechanic: MechanicHoursPerMechanic[] = Array.from(mechMap.values()).map((r) => {
-    const jobs = r.inspections + r.repairs;
+    const jobs = r.inspections + r.repairs + r.boxed + r.foamed;
     const hours = round1(r.hours);
     const standardHours = round1(r.standardMinutes / 60);
     let shareJobs = 0;
@@ -521,6 +606,8 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
       efficiencyPct: hours > 0 ? (standardHours / hours) * 100 : 0,
       inspections: r.inspections,
       repairs: r.repairs,
+      boxed: r.boxed,
+      foamed: r.foamed,
       jobsPerHour: hours > 0 ? jobs / hours : 0,
       minutesPerJob: jobs > 0 ? (hours * 60) / jobs : 0,
       availableJobsShare: Math.round(shareJobs * 10) / 10,
@@ -541,6 +628,7 @@ export async function getMechanicHours(fromISO: string, toISO: string): Promise<
 
   return {
     daily,
+    unallocatedBoxFoam,
     perMechanic,
     totals: {
       hours: round1(totalHours),

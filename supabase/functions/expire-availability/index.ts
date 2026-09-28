@@ -42,7 +42,7 @@ serve(async (req) => {
     const today = londonToday();
     const { data: orders, error } = await admin
       .from('orders')
-      .select('id,pickup_date,delivery_date,order_collected,order_delivered,scheduled_pickup_date,scheduled_delivery_date,is_box_my_bike,status')
+      .select('id,pickup_date,delivery_date,order_collected,order_delivered,scheduled_pickup_date,scheduled_delivery_date,is_box_my_bike,is_warehouse_storage,status')
       .not('status', 'in', '(cancelled,delivered)');
     if (error) throw error;
 
@@ -68,7 +68,7 @@ serve(async (req) => {
         }
       };
       check('collection', o.pickup_date, !o.order_collected && !o.scheduled_pickup_date);
-      check('delivery', o.delivery_date, !o.order_delivered && !o.scheduled_delivery_date && !o.is_box_my_bike);
+      check('delivery', o.delivery_date, !o.order_delivered && !o.scheduled_delivery_date && !o.is_box_my_bike && !o.is_warehouse_storage);
     }
 
     for (const batch of [expired, revived]) {

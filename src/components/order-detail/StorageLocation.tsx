@@ -152,6 +152,11 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
           return;
         }
 
+        if ((order as any).isWarehouseStorage || (order as any).is_warehouse_storage) {
+          const { error: stockErr } = await (supabase.rpc as any)("create_stock_from_storage_order", { p_order_id: order.id });
+          if (stockErr) toast.error("Bay saved, but couldn't add the bike to Warehouse Stock");
+          else toast.success("Added to Warehouse Stock");
+        }
         setAllAllocations(newAllocations);
         toast.success(`${bikeQuantity > 1 ? 'All bikes' : 'Bike'} allocated to storage`);
       } catch (error) {

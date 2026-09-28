@@ -3,6 +3,7 @@ import { FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessa
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Control, useWatch, useFormContext } from "react-hook-form";
 import { CreateOrderFormData } from "@/types/order";
 
@@ -42,7 +43,6 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
     control,
     name: "isEbayOrder",
   });
-
   const isBikeSwap = useWatch({
     control,
     name: "isBikeSwap",
@@ -286,10 +286,10 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
             <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
               <div className="space-y-0.5">
                 <FormLabel className="text-base">
-                  Inspect and Service
+                  Workshop inspection
                 </FormLabel>
                 <FormDescription>
-                  Toggle if this bike requires inspection and servicing before delivery.
+                  Add an inspection before delivery.
                 </FormDescription>
               </div>
               <FormControl>
@@ -302,6 +302,30 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
           )}
         />
 
+        {needsInspection && (
+          <FormField
+            control={control}
+            name="inspectionType"
+            render={({ field }) => (
+              <FormItem className="rounded-lg border p-4">
+                <FormLabel className="text-base">Choose a workshop option</FormLabel>
+                <FormControl>
+                  <RadioGroup value={field.value} onValueChange={field.onChange} className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3">
+                      <RadioGroupItem value="inspection_only" className="mt-1" />
+                      <span><span className="block font-medium">Inspection only</span><span className="block text-sm text-muted-foreground">Receive the report, then choose any repairs or a full service.</span></span>
+                    </label>
+                    <label className="flex cursor-pointer items-start gap-3 rounded-md border p-3">
+                      <RadioGroupItem value="inspection_and_service" className="mt-1" />
+                      <span><span className="block font-medium">Inspection and service</span><span className="block text-sm text-muted-foreground">The inspection and full service are booked together.</span></span>
+                    </label>
+                  </RadioGroup>
+                </FormControl>
+              </FormItem>
+            )}
+          />
+        )}
+
         <FormField
           control={control}
           name={"isBoxMyBike" as any}
@@ -313,6 +337,28 @@ const OrderOptions: React.FC<OrderOptionsProps> = ({ control }) => {
                 </FormLabel>
                 <FormDescription>
                   We collect the bike, box it at our depot ready for international shipping, and hand it off to your 3rd-party courier.
+                </FormDescription>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={!!field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={control}
+          name={"isWarehouseStorage" as any}
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <FormLabel className="text-base">
+                  Store at our warehouse
+                </FormLabel>
+                <FormDescription>
+                  We collect the bike and keep it in our Birmingham warehouse. Book it out for delivery later from My Stock.
                 </FormDescription>
               </div>
               <FormControl>

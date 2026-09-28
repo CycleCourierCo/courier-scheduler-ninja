@@ -11,6 +11,7 @@ import TaskNotificationBell from "./tasks/TaskNotificationBell";
 import BrandLogo from "./BrandLogo";
 import { hasRole, getRoles } from "@/lib/roles";
 import { useRoutePermissions } from "@/hooks/useRoutePermissions";
+import { PendingAbsenceBadge } from "./user-management/PendingAbsenceBadge";
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -39,6 +40,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
     items: [
       { to: "/project-management", label: "Project Management", icon: KanbanSquare },
       { to: "/scheduling", label: "Job Scheduling", icon: Calendar },
+      { to: "/drivers-rota", label: "Drivers Rota", icon: CalendarOff },
       { to: "/loading", label: "Loading & Storage", icon: Package },
       { to: "/warehouse-stock", label: "Warehouse Stock", icon: Warehouse },
       { to: "/storage-bays", label: "Storage Bays", icon: Warehouse },
@@ -218,6 +220,7 @@ const Layout: React.FC<LayoutProps> = ({
                             {section.items.map(item => <Link key={item.to} to={item.to} onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                               <item.icon className="mr-2 h-4 w-4" />
                               {item.label}
+                              {item.to === "/users" && <PendingAbsenceBadge />}
                             </Link>)}
                           </div>)}
                         </>}
@@ -311,6 +314,7 @@ const Layout: React.FC<LayoutProps> = ({
                           <Link to={item.to} className="cursor-pointer flex w-full items-center">
                             <item.icon className="mr-2 h-4 w-4" />
                             <span>{item.label}</span>
+                            {item.to === "/users" && <PendingAbsenceBadge />}
                           </Link>
                         </DropdownMenuItem>)}
                       </MenuGroup>)}

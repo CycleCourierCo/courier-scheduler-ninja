@@ -76,6 +76,8 @@ const KnowledgeBase = lazy(() => import("./pages/KnowledgeBase"));
 const ReviewsPage = lazy(() => import("./pages/ReviewsPage"));
 const ReviewDetailPage = lazy(() => import("./pages/ReviewDetailPage"));
 const MyReviewsPage = lazy(() => import("./pages/MyReviewsPage"));
+const DriversRota = lazy(() => import("./pages/DriversRota"));
+const DriverHolidayRequests = lazy(() => import("./pages/DriverHolidayRequests"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -204,6 +206,16 @@ function App() {
               <Route path="/driver-timeslips" element={
                 <ProtectedRoute>
                   <DriverTimeslips />
+                </ProtectedRoute>
+              } />
+              <Route path="/drivers-rota" element={
+                <ProtectedRoute>
+                  <DriversRota />
+                </ProtectedRoute>
+              } />
+              <Route path="/my-holidays" element={
+                <ProtectedRoute>
+                  <DriverHolidayRequests />
                 </ProtectedRoute>
               } />
               <Route path="/mechanic-clock" element={

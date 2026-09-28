@@ -1,6 +1,6 @@
 import { pushIssueStatusToInspectaBike } from '@/services/inspectabikeService';
 import { supabase } from "@/integrations/supabase/client";
-import { BicycleInspection, InspectionIssue, InspectionStatus, IssueStatus } from "@/types/inspection";
+import { BicycleInspection, InspectionIssue, InspectionStatus, InspectionType, IssueStatus, ServiceDecision } from "@/types/inspection";
 import { resendReceiverAvailabilityEmail } from "./emailService";
 
 // ---- PDI report helpers -----------------------------------------------------
@@ -81,6 +81,7 @@ export const sendInspectionApprovalEmail = async (
       body: { inspectionId, force, ...(recipient ? { recipient } : {}) },
     });
     if (error) throw error;
+    if (data?.error || data?.success === false) throw new Error(data?.error || 'Approval email could not be sent');
     return { success: true, skipped: (data as any)?.skipped };
   } catch (error) {
     console.error('Error sending inspection approval email:', error);
@@ -202,7 +203,7 @@ export const reconcileInspectionStatuses = async (
     let query = supabase
       .from('bicycle_inspections')
       .select(
-        'id, status, released_to_customer_at, inspection_issues(status, parts_arrived, parts_ordered, parts_in_stock, offered_to_receiver_at, receiver_approved_at, receiver_declined_at, billing_party)'
+        'id, status, order_id, approval_recipient, released_to_customer_at, inspection_type, service_decision, frame_cleaned_at, drivetrain_degreased_at, inspection_issues(status, parts_arrived, parts_ordered, parts_in_stock, offered_to_receiver_at, receiver_approved_at, receiver_declined_at, billing_party)'
       )
       .in('status', [
         'issues_found',
@@ -222,6 +223,7 @@ export const reconcileInspectionStatuses = async (
     let updatedCount = 0;
 
     for (const inspection of inspections) {
+      if (inspection.inspection_type === 'inspection_only' && inspection.service_decision === 'pending') continue;
       const issues =
         (inspection.inspection_issues as {
           status: string;
@@ -274,31 +276,32 @@ export const reconcileInspectionStatuses = async (
       // Nothing was actually repaired (every issue declined by the customer and
       // either never offered to the receiver or declined by them too) — the bike
       // ships unrepaired rather than being marked as serviced.
-      const terminalStatus = (): InspectionStatus =>
-        approved.length === 0 && issues.some(i => i.status === 'declined')
-          ? 'ship_as_is'
-          : 'repaired';
+      const terminalStatus = (): InspectionStatus => {
+        if (inspection.inspection_type === 'inspection_only' && inspection.service_decision === 'declined' && approved.length === 0) return 'ship_as_is';
+        if (approved.length === 0 && issues.some(i => i.status === 'declined') && inspection.service_decision !== 'accepted') return 'ship_as_is';
+        if (inspection.service_decision === 'accepted' && (!inspection.frame_cleaned_at || !inspection.drivetrain_degreased_at)) return 'cleaning';
+        return 'repaired';
+      };
+
+      // Delivery jobs approved by the booking account/sender can pass declined
+      // repairs on to the buyer — that decision must come before repair work.
+      const recipient = (inspection as any).approval_recipient as string | null;
+      const hasOnwardStep =
+        !!(inspection as any).order_id && recipient !== 'receiver' && recipient !== 'walkin';
+
+      const decide = (): InspectionStatus => {
+        if (hasOnwardStep && declinedNotOffered.length > 0) return 'repairs_declined';
+        if (hasOnwardStep && declinedOffered.length > 0) return 'pending_receiver_approval';
+        if (outstandingApproved.length > 0) return postApprovalStatus();
+        if (declinedNotOffered.length > 0) return 'repairs_declined';
+        if (declinedOffered.length > 0) return 'pending_receiver_approval';
+        return terminalStatus();
+      };
 
       if (currentStatus === 'issues_found' && allResponded) {
-        if (outstandingApproved.length > 0) {
-          nextStatus = postApprovalStatus();
-        } else if (declinedNotOffered.length > 0) {
-          nextStatus = 'repairs_declined';
-        } else if (declinedOffered.length > 0) {
-          nextStatus = 'pending_receiver_approval';
-        } else {
-          nextStatus = terminalStatus();
-        }
+        nextStatus = decide();
       } else if (currentStatus === 'repairs_declined' || currentStatus === 'pending_receiver_approval') {
-        if (outstandingApproved.length > 0) {
-          nextStatus = postApprovalStatus();
-        } else if (declinedNotOffered.length > 0) {
-          nextStatus = 'repairs_declined';
-        } else if (declinedOffered.length > 0) {
-          nextStatus = 'pending_receiver_approval';
-        } else {
-          nextStatus = terminalStatus();
-        }
+        nextStatus = decide();
       } else if (currentStatus === 'awaiting_parts' && allPartsReady) {
         nextStatus = 'awaiting_repair';
       } else if (
@@ -353,11 +356,14 @@ export const getOrCreateInspection = async (
   bikeType?: string | null
 ): Promise<BicycleInspection | null> => {
   try {
-    const { data: byOrder, error: fetchError } = await supabase
+    // Tolerate legacy duplicates: take the earliest record rather than erroring.
+    const { data: byOrderRows, error: fetchError } = await supabase
       .from('bicycle_inspections')
       .select('*')
       .eq('order_id', orderId)
-      .maybeSingle();
+      .order('created_at', { ascending: true })
+      .limit(1);
+    const byOrder = byOrderRows?.[0] ?? null;
 
     if (fetchError) throw fetchError;
 
@@ -397,12 +403,24 @@ export const getOrCreateInspection = async (
       .select()
       .single();
 
-    if (createError) throw createError;
+    if (createError) {
+      // Two submissions raced: re-read the record the other one created.
+      if ((createError as any).code === '23505') {
+        const { data: raced } = await supabase
+          .from('bicycle_inspections')
+          .select('*')
+          .eq('order_id', orderId)
+          .order('created_at', { ascending: true })
+          .limit(1);
+        if (raced?.[0]) return raced[0] as BicycleInspection;
+      }
+      throw createError;
+    }
 
     return newInspection as BicycleInspection;
   } catch (error) {
     console.error('Error getting or creating inspection:', error);
-    return null;
+    throw error;
   }
 };
 
@@ -500,16 +518,29 @@ const notifyDeclineForIssue = async (issueId: string): Promise<void> => {
 
 
 // Enable inspection for an existing order (admin action)
-export const enableInspectionForOrder = async (orderId: string): Promise<BicycleInspection | null> => {
+export const enableInspectionForOrder = async (orderId: string, inspectionType: InspectionType): Promise<BicycleInspection | null> => {
   try {
     const { error: orderError } = await supabase
       .from('orders')
-      .update({ needs_inspection: true })
+      .update({ needs_inspection: true, inspection_type: inspectionType } as any)
       .eq('id', orderId);
 
     if (orderError) throw orderError;
 
     const inspection = await getOrCreateInspection(orderId);
+    if (inspection && inspection.inspection_type !== inspectionType) {
+      const { data, error } = await supabase
+        .from('bicycle_inspections')
+        .update({
+          inspection_type: inspectionType,
+          service_decision: inspectionType === 'inspection_only' ? 'pending' : 'accepted',
+        } as any)
+        .eq('id', inspection.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data as BicycleInspection;
+    }
     return inspection;
   } catch (error) {
     console.error('Error enabling inspection for order:', error);
@@ -766,7 +797,8 @@ export const markAsInspected = async (
     if (!inspection) throw new Error('Failed to get or create inspection');
 
     const now = new Date().toISOString();
-    const cleaningDone =
+    const requiresService = inspection.inspection_type !== 'inspection_only' || inspection.service_decision === 'accepted';
+    const cleaningDone = !requiresService ||
       !!(inspection as any).frame_cleaned_at && !!(inspection as any).drivetrain_degreased_at;
 
     const patch: any = {
@@ -775,7 +807,12 @@ export const markAsInspected = async (
       inspected_by_name: inspectorName,
       notes: notes || null,
     };
-    if (cleaningDone) {
+    if (inspection.inspection_type === 'inspection_only' && inspection.service_decision === 'pending') {
+      patch.status = 'issues_found' as InspectionStatus;
+      patch.released_to_customer_at = now;
+      patch.released_by_id = inspectorId;
+      patch.released_by_name = inspectorName;
+    } else if (cleaningDone) {
       patch.status = 'inspected' as InspectionStatus;
       patch.released_to_customer_at = now;
       patch.released_by_id = inspectorId;
@@ -793,11 +830,16 @@ export const markAsInspected = async (
 
     if (error) throw error;
 
-    if (cleaningDone) {
+    if (cleaningDone && inspection.service_decision !== 'pending') {
       // No-issues + clean path completes the inspection; trigger any deferred
       // receiver availability email now.
       await triggerReceiverAvailabilityIfDeferred(inspection.id);
       refreshReport(inspection.id);
+    }
+
+    if (inspection.inspection_type === 'inspection_only' && inspection.service_decision === 'pending') {
+      await regenerateInspectionReport({ inspectionId: inspection.id });
+      await sendInspectionApprovalEmail(inspection.id);
     }
 
     return data as BicycleInspection;
@@ -1069,6 +1111,7 @@ export const acceptIssue = async (issueId: string): Promise<InspectionIssue | nu
     if (error) throw error;
     pushIssueStatusToInspectaBike(issueId);
     void refreshReportForIssue(issueId);
+    await reconcileForIssue(issueId);
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error accepting issue:', error);
@@ -1097,6 +1140,7 @@ export const declineIssue = async (
     pushIssueStatusToInspectaBike(issueId);
     void refreshReportForIssue(issueId);
     void notifyRepairsDeclined((data as any)?.order_id);
+    await reconcileForIssue(issueId);
 
     return data as InspectionIssue;
   } catch (error) {
@@ -1131,6 +1175,7 @@ export const setIssueStatusAsAdmin = async (
     if (error) throw error;
     pushIssueStatusToInspectaBike(issueId);
     if (status === 'declined') void notifyDeclineForIssue(issueId);
+    await reconcileForIssue(issueId);
     return data as InspectionIssue;
 
   } catch (error) {
@@ -1269,8 +1314,8 @@ export const setIssuePartsInStock = async (
       .single();
 
     if (error) throw error;
-    // Let the shared reconciler pull the bike forward/back as appropriate.
-    await reconcileInspectionStatuses();
+    // Reconcile only this bike; unrelated inspections must not be rewritten.
+    await reconcileForIssue(issueId);
     return data as InspectionIssue;
   } catch (error) {
     console.error('Error setting parts in stock:', error);
@@ -1373,11 +1418,11 @@ export const moveToRepaired = async (inspectionId: string): Promise<BicycleInspe
   try {
     const { data: current } = await supabase
       .from('bicycle_inspections')
-      .select('frame_cleaned_at, drivetrain_degreased_at')
+      .select('frame_cleaned_at, drivetrain_degreased_at, inspection_type, service_decision')
       .eq('id', inspectionId)
       .maybeSingle();
-    const cleaningDone =
-      !!(current as any)?.frame_cleaned_at && !!(current as any)?.drivetrain_degreased_at;
+    const cleaningDone = current?.inspection_type === 'inspection_only' && current?.service_decision === 'declined' ||
+      !!current?.frame_cleaned_at && !!current?.drivetrain_degreased_at;
     const nextStatus: InspectionStatus = cleaningDone ? 'repaired' : 'cleaning';
 
     const { data, error } = await supabase
@@ -1646,6 +1691,15 @@ export const setInspectionCleaningTask = async (
   userId: string,
   userName: string
 ): Promise<BicycleInspection | null> => {
+  const { data: current, error: readError } = await supabase
+    .from('bicycle_inspections')
+    .select('inspection_type, service_decision')
+    .eq('id', inspectionId)
+    .single();
+  if (readError) throw readError;
+  if (current.inspection_type === 'inspection_only' && current.service_decision !== 'accepted') {
+    throw new Error('Cleaning is only available when the customer accepts a service');
+  }
   const now = new Date().toISOString();
   const prefix = task === 'frame' ? 'frame_cleaned' : 'drivetrain_degreased';
   const patch: any = {
@@ -1789,6 +1843,7 @@ export const submitPublicRepairOffer = async (
 export interface WorkshopInspectionInput {
   customer_name: string;
   customer_email: string;
+  inspection_type: InspectionType;
   customer_phone?: string | null;
   customer_company?: string | null;
   customer_address?: {
@@ -1816,6 +1871,8 @@ export const createWorkshopInspection = async (
     .insert({
       order_id: null,
       status: 'pending' as InspectionStatus,
+      inspection_type: input.inspection_type,
+      service_decision: input.inspection_type === 'inspection_only' ? 'pending' : 'accepted',
       customer_name: input.customer_name,
       customer_email: input.customer_email,
       customer_phone: input.customer_phone || null,
@@ -1851,8 +1908,8 @@ export const setApprovalRecipient = async (
 
 /** Public (unauthenticated) read of an inspection approval request. */
 export const fetchPublicInspectionApproval = async (inspectionId: string): Promise<any> => {
-  const { data, error } = await supabase.rpc('get_public_inspection_approval' as any, {
-    p_inspection_id: inspectionId,
+  const { data, error } = await supabase.functions.invoke('public-inspection-approval', {
+    body: { inspectionId, action: 'read' },
   });
   if (error) throw error;
   return data ?? { found: false };
@@ -1861,11 +1918,11 @@ export const fetchPublicInspectionApproval = async (inspectionId: string): Promi
 /** Public (unauthenticated) submission of the approved repairs. */
 export const submitPublicInspectionApproval = async (
   inspectionId: string,
-  approvedIssueIds: string[]
-): Promise<{ success: boolean; approved?: number; declined?: number; error?: string }> => {
-  const { data, error } = await supabase.rpc('submit_public_inspection_approval' as any, {
-    p_inspection_id: inspectionId,
-    p_approved_issue_ids: approvedIssueIds,
+  approvedIssueIds: string[],
+  serviceDecision?: Exclude<ServiceDecision, 'pending'>
+): Promise<{ success: boolean; approved?: number; declined?: number; service_decision?: ServiceDecision; error?: string }> => {
+  const { data, error } = await supabase.functions.invoke('public-inspection-approval', {
+    body: { inspectionId, approvedIssueIds, serviceDecision },
   });
   if (error) throw error;
   void regenerateInspectionReport({ inspectionId });

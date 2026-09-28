@@ -56,7 +56,7 @@ export function useTaskComments(id: string | undefined) {
 export function useInternalUsers() {
   return useQuery({
     queryKey: ['internal-users'],
-    queryFn: listInternalUsers,
+    queryFn: () => listInternalUsers(),
     staleTime: 5 * 60 * 1000,
   });
 }

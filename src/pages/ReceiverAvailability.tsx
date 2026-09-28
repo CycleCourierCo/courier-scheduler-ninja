@@ -138,7 +138,7 @@ export default function ReceiverAvailability() {
 
   if (paramError) {
     return (
-      <DoorstepShell title="Delivery availability" reference={params.id}>
+      <DoorstepShell title="Delivery availability">
         <ErrorState 
           error={paramError} 
           onHome={() => navigate("/")} 
@@ -149,7 +149,7 @@ export default function ReceiverAvailability() {
 
   if (!initialCheckCompleted || isLoading) {
     return (
-      <DoorstepShell title="Delivery availability" reference={params.id}>
+      <DoorstepShell title="Delivery availability">
         <LoadingState message="Loading order details..." />
       </DoorstepShell>
     );
@@ -157,7 +157,7 @@ export default function ReceiverAvailability() {
 
   if (error) {
     return (
-      <DoorstepShell title="Delivery availability" reference={params.id}>
+      <DoorstepShell title="Delivery availability">
         <ErrorState 
           error={error} 
           onHome={() => navigate("/")} 
@@ -168,7 +168,7 @@ export default function ReceiverAvailability() {
 
   if (isConfirmed) {
     return (
-      <DoorstepShell title="Delivery availability" reference={params.id}>
+      <DoorstepShell title="Delivery availability">
         <ConfirmedDatesView
           title="Delivery Availability"
           dates={confirmedDates}
@@ -203,7 +203,7 @@ export default function ReceiverAvailability() {
 
   if (!senderDatesSet && !alreadyCollected) {
     return (
-      <DoorstepShell title="Delivery availability" reference={params.id}>
+      <DoorstepShell title="Delivery availability">
         <ErrorState
           error="Awaiting sender dates — we're waiting for the sender to confirm when the bike can be collected. As soon as they do, we'll email you so you can pick your delivery dates."
           onHome={() => navigate("/")}
@@ -215,7 +215,7 @@ export default function ReceiverAvailability() {
 
   if (inspectionBlocked) {
     return (
-      <DoorstepShell title="Delivery availability" reference={params.id}>
+      <DoorstepShell title="Delivery availability">
         <ErrorState
           error="This delivery isn't ready to schedule yet — the bike is being inspected and serviced. We'll email you as soon as it's ready so you can pick your delivery dates."
           onHome={() => navigate("/")}
@@ -226,7 +226,7 @@ export default function ReceiverAvailability() {
 
   if (isBusinessReceiver && mode === 'unset') {
     return (
-      <DoorstepShell title="Delivery availability" reference={params.id}>
+      <DoorstepShell title="Delivery availability">
         <div>
           <Card>
             <CardHeader className="space-y-1 border-b bg-muted">
@@ -279,7 +279,7 @@ export default function ReceiverAvailability() {
   }
 
   return (
-    <DoorstepShell title="Delivery availability" reference={params.id}>
+    <DoorstepShell title="Delivery availability">
       {isBusinessReceiver && (
         <div className="max-w-4xl mx-auto px-4 pt-4">
           <Button variant="ghost" size="sm" onClick={handleBackToOptions}>

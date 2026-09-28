@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { isNorthernIrelandAddress, NI_SURCHARGE_NET } from "../_shared/northernIreland.ts";
 import { prepareInvoiceDelivery } from "../_shared/quickbooksInvoiceDelivery.ts";
 import { trackedFetch } from "../_shared/integrationLog.ts";
+import { eligibleStoragePeriods, londonDate, STORAGE_NET_GBP, STORAGE_PRODUCT_NAME } from '../_shared/warehouseStorageBilling.ts';
 
 
 const corsHeaders = {
@@ -35,6 +36,7 @@ interface InvoiceRequest {
     sender: any;
     receiver: any;
     needs_inspection?: boolean | null;
+    inspection_type?: string | null;
     is_box_my_bike?: boolean | null;
     is_northern_ireland?: boolean | null;
     guaranteed_delivery?: boolean | null;
@@ -49,6 +51,7 @@ interface ProductInfo {
   id: string;
   name: string;
   price: number;
+  taxable?: boolean;
 }
 
 // Map legacy bike types to current QuickBooks product names
@@ -144,7 +147,8 @@ async function findProductByBikeType(
       const product: ProductInfo = { 
         id: item.Id, 
         name: item.Name, 
-        price: item.UnitPrice || 0
+        price: item.UnitPrice || 0,
+        taxable: item.Taxable === true,
       };
       console.log(`Found product for ${bikeType}: ID=${product.id}, Price=${product.price}`);
       productCache.set(bikeType, product);
@@ -196,7 +200,8 @@ async function findProductByExactName(
       const product: ProductInfo = { 
         id: item.Id, 
         name: item.Name, 
-        price: item.UnitPrice || 0
+        price: item.UnitPrice || 0,
+        taxable: item.Taxable === true,
       };
       console.log(`Found product "${productName}": ID=${product.id}, Price=${product.price}`);
       productCache.set(productName, product);
@@ -389,16 +394,24 @@ const handler = async (req: Request): Promise<Response> => {
       user = { id: authUser.id };
     }
 
-    const invoiceData: InvoiceRequest = await req.json();
+    const invoiceData: InvoiceRequest & { previewStorage?: boolean } = await req.json();
     console.log('Creating QuickBooks invoice for:', invoiceData.customerName);
     console.log('Date range:', invoiceData.startDate, 'to', invoiceData.endDate);
-    console.log('Total orders:', invoiceData.orders.length);
+    console.log('Total orders:', Array.isArray(invoiceData.orders) ? invoiceData.orders.length : 0);
 
-    const tokenData = await getValidQuickBooksToken(supabase, user.id);
-
-    if (!tokenData) {
-      throw new Error('QuickBooks not connected or refresh failed. Please reconnect to QuickBooks.');
+    if (!invoiceData.customerId || !invoiceData.startDate || !invoiceData.endDate || (!invoiceData.previewStorage && !Array.isArray(invoiceData.orders)) ||
+        !Number.isFinite(Date.parse(invoiceData.startDate)) || !Number.isFinite(Date.parse(invoiceData.endDate)) ||
+        Date.parse(invoiceData.startDate) > Date.parse(invoiceData.endDate) || Date.parse(invoiceData.endDate) > Date.now()) {
+      throw new Error('Valid customer, date range and orders are required');
     }
+    const storagePeriods = await eligibleStoragePeriods(supabase, invoiceData.customerId, londonDate(invoiceData.endDate));
+    if (invoiceData.previewStorage) return new Response(JSON.stringify({
+      storageCount: storagePeriods.length,
+      storageTotal: storagePeriods.length * 40,
+      periods: storagePeriods.map(({ stock, start, end }) => ({ bike: [stock.bike_brand, stock.bike_model].filter(Boolean).join(' ') || 'Bike', start, end })),
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    const tokenData = await getValidQuickBooksToken(supabase, user.id);
+    if (!tokenData) throw new Error('QuickBooks not connected or refresh failed. Please reconnect to QuickBooks.');
 
     // Query for sales terms
     const termsUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM Term WHERE Active=true`;
@@ -434,6 +447,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Query for VAT tax code (UK 20% standard rate)
     let vatTaxCodeId: string | null = null;
+    let standardVatConfirmed = false;
     
     const taxCodeUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM TaxCode WHERE Active=true`;
     
@@ -461,6 +475,7 @@ const handler = async (req: Request): Promise<Response> => {
       
       if (vatCode) {
         vatTaxCodeId = vatCode.Id;
+        standardVatConfirmed = true;
         console.log('Using VAT tax code:', vatCode.Name, 'with ID:', vatTaxCodeId);
       } else {
         // Fall back to any taxable code (not zero/exempt)
@@ -479,6 +494,15 @@ const handler = async (req: Request): Promise<Response> => {
       }
     } else {
       console.warn('Failed to fetch tax codes:', await taxCodeResponse.text());
+    }
+
+    let storageProduct: ProductInfo | null = null;
+    if (storagePeriods.length > 0) {
+      if (!vatTaxCodeId || !standardVatConfirmed) throw new Error('A confirmed standard 20% VAT tax code is required to invoice warehouse storage');
+      storageProduct = await findProductByExactName(tokenData.access_token, tokenData.company_id, STORAGE_PRODUCT_NAME);
+      if (!storageProduct) throw new Error(`Create the active QuickBooks service product "${STORAGE_PRODUCT_NAME}" with standard 20% VAT before invoicing storage`);
+      if (Math.abs(storageProduct.price - STORAGE_NET_GBP) > 0.001) throw new Error(`Set the QuickBooks "${STORAGE_PRODUCT_NAME}" sales price to £33.33 before invoicing storage`);
+      if (storageProduct.taxable !== true) throw new Error(`Set the QuickBooks "${STORAGE_PRODUCT_NAME}" product as taxable at the UK standard 20% VAT rate`);
     }
 
     // Check for special rate code on customer profile
@@ -539,17 +563,23 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Read the per-job big-bike flag server-side so it can't be spoofed by the caller
     const largeRateOrderIds = new Set<string>();
+    const inspectionOrderIds = new Set<string>();
+    const acceptedInspectionServiceOrderIds = new Set<string>();
     const orderIdsForFlags = invoiceData.orders.map((o: any) => o.id).filter(Boolean);
     if (orderIdsForFlags.length > 0) {
       const { data: flagRows, error: flagError } = await supabase
         .from('orders')
-        .select('id, use_large_bike_rate')
+        .select('id, use_large_bike_rate, needs_inspection, inspection_type')
         .in('id', orderIdsForFlags);
       if (flagError) {
         throw new Error(`Could not read big-bike rate flags for these jobs: ${flagError.message}`);
       }
       for (const row of flagRows || []) {
         if (row.use_large_bike_rate) largeRateOrderIds.add(row.id);
+        if (row.needs_inspection) {
+          inspectionOrderIds.add(row.id);
+          if (row.inspection_type !== 'inspection_only') acceptedInspectionServiceOrderIds.add(row.id);
+        }
       }
       if (largeRateOrderIds.size > 0 && !largeBikeRateProduct) {
         throw new Error(
@@ -558,6 +588,19 @@ const handler = async (req: Request): Promise<Response> => {
         );
       }
       console.log(`Jobs flagged for big-bike rate: ${largeRateOrderIds.size}`);
+
+      const { data: inspectionRows, error: inspectionError } = await supabase
+        .from('bicycle_inspections')
+        .select('order_id, inspection_type, service_decision')
+        .in('order_id', orderIdsForFlags);
+      if (inspectionError) {
+        throw new Error(`Could not read inspection choices for these jobs: ${inspectionError.message}`);
+      }
+      for (const inspection of inspectionRows || []) {
+        if (inspection.order_id && inspection.service_decision === 'accepted') {
+          acceptedInspectionServiceOrderIds.add(inspection.order_id);
+        }
+      }
     }
 
 
@@ -669,7 +712,8 @@ const handler = async (req: Request): Promise<Response> => {
 
         
         // Check if order needs inspection and add service line item
-        if (order.needs_inspection) {
+        const serviceBillable = inspectionOrderIds.has(order.id) && acceptedInspectionServiceOrderIds.has(order.id);
+        if (serviceBillable) {
           const inspectionProduct = await findProductByExactName(
             tokenData.access_token,
             tokenData.company_id,
@@ -786,6 +830,21 @@ const handler = async (req: Request): Promise<Response> => {
             missingProducts.push('Guaranteed Delivery Date');
           }
         }
+      }
+    }
+    if (storageProduct) {
+      for (const period of storagePeriods) {
+        const bike = [period.stock.bike_brand, period.stock.bike_model].filter(Boolean).join(' ') || 'Bike';
+        lineItems.push({
+          Amount: STORAGE_NET_GBP,
+          DetailType: 'SalesItemLineDetail',
+          SalesItemLineDetail: {
+            ItemRef: { value: storageProduct.id, name: storageProduct.name },
+            Qty: 1, UnitPrice: STORAGE_NET_GBP, ServiceDate: period.start,
+            TaxCodeRef: { value: vatTaxCodeId },
+          },
+          Description: `${bike} - Warehouse storage ${period.start} to ${period.end} (deposited ${londonDate(period.stock.deposited_at)})`,
+        });
       }
     }
     
@@ -906,6 +965,23 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
 
+    // Claim each bike-month after all preflight checks. A failed or uncertain POST
+    // stays in review until reconciled against QuickBooks (never blindly retried).
+    const claimed: typeof storagePeriods = [];
+    for (const period of storagePeriods) {
+      const { data: row, error } = await supabase.from('warehouse_storage_charges').insert({
+        stock_id: period.stock.id, customer_id: invoiceData.customerId,
+        period_number: period.number, period_start: period.start, period_end: period.end,
+        status: 'processing', amount_gbp: 40,
+      }).select('id').single();
+      if (error || !row) {
+        for (const previous of claimed) await supabase.from('warehouse_storage_charges').delete()
+          .eq('stock_id', previous.stock.id).eq('period_number', previous.number).eq('status', 'processing');
+        throw new Error('Storage charge already being invoiced or awaiting review. Check QuickBooks before retrying.');
+      }
+      claimed.push(period);
+    }
+
     // Create invoice in QuickBooks
     const quickbooksApiUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/invoice`;
     
@@ -921,7 +997,7 @@ const handler = async (req: Request): Promise<Response> => {
       ...(salesTermId && { SalesTermRef: { value: salesTermId } })
     };
 
-    const response = await qbFetch(quickbooksApiUrl, {
+    const response = await trackedFetch('quickbooks', 'create invoice', quickbooksApiUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${tokenData.access_token}`,
@@ -933,16 +1009,25 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('QuickBooks API error:', errorText);
-      throw new Error(`Failed to create invoice in QuickBooks: ${errorText}`);
+      console.error('QuickBooks invoice creation failed:', response.status);
+      for (const period of claimed) await supabase.from('warehouse_storage_charges').update({ status: 'review', failure_reason: 'QuickBooks rejected invoice creation; verify before retrying.' })
+        .eq('stock_id', period.stock.id).eq('period_number', period.number);
+      throw new Error(`QuickBooks could not create the invoice (status ${response.status}). Review QuickBooks and storage charges before retrying.`);
     }
 
     const quickbooksResponse = await response.json();
-    console.log('QuickBooks invoice created:', quickbooksResponse);
+    console.log('QuickBooks invoice created');
 
     const qbInvoice = quickbooksResponse.QueryResponse?.Invoice?.[0] || quickbooksResponse.Invoice;
     const invoiceId = qbInvoice?.Id;
     const invoiceNumber = qbInvoice?.DocNumber;
+    if (claimed.length > 0 && !invoiceId) throw new Error('QuickBooks response lacks invoice ID; storage charges require manual review before retrying');
+    for (const period of claimed) {
+      const { error: chargeError } = await supabase.from('warehouse_storage_charges').update({
+        status: 'invoiced', quickbooks_invoice_id: invoiceId, quickbooks_invoice_number: invoiceNumber, failure_reason: null,
+      }).eq('stock_id', period.stock.id).eq('period_number', period.number).eq('status', 'processing');
+      if (chargeError) console.error('Storage invoice ledger update failed', chargeError.message);
+    }
     
     const invoiceUrl = `https://qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
 
@@ -1012,7 +1097,7 @@ const handler = async (req: Request): Promise<Response> => {
       const bikesInOrder = order.bikes?.length || order.bike_quantity || 1;
       return count + bikesInOrder;
     }, 0);
-    const skippedBikes = totalBikesInOrders - lineItems.length;
+    const skippedBikes = Math.max(0, totalBikesInOrders - (lineItems.length - storagePeriods.length));
 
     // Send email report after successful invoice creation
     try {
@@ -1074,7 +1159,8 @@ const handler = async (req: Request): Promise<Response> => {
       missingProducts: missingProducts.length > 0 ? missingProducts : undefined,
       stats: {
         orderCount: invoiceData.orders.length,
-        bikeCount: lineItems.length,
+        bikeCount: Math.max(0, lineItems.length - storagePeriods.length),
+        storageCount: storagePeriods.length,
         skippedBikes: skippedBikes,
         totalAmount: invoice.totalAmount,
         invoiceNumber: invoiceNumber,

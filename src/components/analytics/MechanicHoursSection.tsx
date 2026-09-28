@@ -27,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { UnallocatedBoxFoamCard } from './UnallocatedBoxFoamCard';
 import { getMechanicHours, type StandardMinutesSource, type QueueItem } from '@/services/mechanicHoursService';
 
 const sourceLabel: Record<StandardMinutesSource, string> = {
@@ -34,6 +35,7 @@ const sourceLabel: Record<StandardMinutesSource, string> = {
   labour_cost: 'From price',
   default: 'Fallback',
   inspection: 'Inspection',
+  box_foam: 'Box/Foam 45 min',
 };
 
 const varianceClass = (v: number) =>
@@ -238,6 +240,13 @@ const MechanicHoursSection: React.FC = () => {
           </div>
         </div>
 
+        {data && data.unallocatedBoxFoam.length > 0 && (
+          <UnallocatedBoxFoamCard
+            jobs={data.unallocatedBoxFoam}
+            mechanics={data.perMechanic.map((m) => ({ id: m.mechanicId, name: m.name }))}
+          />
+        )}
+
         {totals && (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
@@ -340,6 +349,7 @@ const MechanicHoursSection: React.FC = () => {
                         <TableHead className="text-right">Utilisation</TableHead>
                         <TableHead className="text-right">Inspections</TableHead>
                         <TableHead className="text-right">Repairs</TableHead>
+                        <TableHead className="text-right">Box / Foam</TableHead>
                         <TableHead className="text-right">Min / job</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -371,11 +381,12 @@ const MechanicHoursSection: React.FC = () => {
                             </TableCell>
                             <TableCell className="text-right">{m.inspections}</TableCell>
                             <TableCell className="text-right">{m.repairs}</TableCell>
+                            <TableCell className="text-right">{m.boxed} / {m.foamed}</TableCell>
                             <TableCell className="text-right">{m.minutesPerJob > 0 ? m.minutesPerJob.toFixed(0) : '—'}</TableCell>
                           </TableRow>
                           {expanded === m.mechanicId && (
                             <TableRow>
-                              <TableCell colSpan={11} className="bg-muted/40">
+                              <TableCell colSpan={12} className="bg-muted/40">
                                 <DayBreakdown days={m.days} />
                               </TableCell>
                             </TableRow>
@@ -427,6 +438,8 @@ const MechanicHoursSection: React.FC = () => {
                         <dd className="text-right tabular-nums">{m.inspections}</dd>
                         <dt className="text-muted-foreground">Repairs</dt>
                         <dd className="text-right tabular-nums">{m.repairs}</dd>
+                        <dt className="text-muted-foreground">Box / Foam</dt>
+                        <dd className="text-right tabular-nums">{m.boxed} / {m.foamed}</dd>
                         <dt className="text-muted-foreground">Min / job</dt>
                         <dd className="text-right tabular-nums">
                           {m.minutesPerJob > 0 ? m.minutesPerJob.toFixed(0) : '—'}
