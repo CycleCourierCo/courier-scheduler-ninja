@@ -453,10 +453,11 @@ const handler = async (req: Request): Promise<Response> => {
     // Query for VAT tax code (UK 20% standard rate)
     let vatTaxCodeId: string | null = null;
     let standardVatConfirmed = false;
+    let taxCodes: any[] = [];
     
     const taxCodeUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM TaxCode WHERE Active=true`;
     
-    const taxCodeResponse = await fetch(taxCodeUrl, {
+    const taxCodeResponse = await qbFetch(taxCodeUrl, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${tokenData.access_token}`,
@@ -466,9 +467,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (taxCodeResponse.ok) {
       const taxCodeData = await taxCodeResponse.json();
-      console.log('Available tax codes:', JSON.stringify(taxCodeData, null, 2));
       
-      const taxCodes = taxCodeData.QueryResponse?.TaxCode || [];
+      taxCodes = taxCodeData.QueryResponse?.TaxCode || [];
       // Look for standard UK VAT rate (20%) - try various common names
       const vatCode = taxCodes.find((code: any) => 
         code.Name === '20.0% S' ||
