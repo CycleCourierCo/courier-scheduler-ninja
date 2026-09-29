@@ -37,6 +37,26 @@ function resolveBikeTypeId(typeId: number | undefined | null): string | null {
 
 // Get ONLY lat/lon coordinates from an address string - does NOT modify any other fields
 async function getCoordinates(addressString: string): Promise<{ lat: number; lon: number } | null> {
+  const found = await getCoordinatesRaw(addressString)
+  // Street lookups can pick the wrong town with the same name; trust the postcode if >15 km apart.
+  const m = (addressString || '').match(/\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i)
+  if (!m) return found
+  try {
+    const r = await fetch(`https://api.postcodes.io/postcodes/${m[1]}${m[2]}`)
+    if (!r.ok) return found
+    const d = await r.json()
+    const pc = typeof d?.result?.latitude === 'number' ? { lat: d.result.latitude, lon: d.result.longitude } : null
+    if (!pc) return found
+    if (!found) return pc
+    const toRad = (x: number) => (x * Math.PI) / 180
+    const h = Math.sin(toRad(pc.lat - found.lat) / 2) ** 2 + Math.cos(toRad(found.lat)) * Math.cos(toRad(pc.lat)) * Math.sin(toRad(pc.lon - found.lon) / 2) ** 2
+    return 2 * 6371 * Math.asin(Math.sqrt(h)) > 15 ? pc : found
+  } catch {
+    return found
+  }
+}
+
+async function getCoordinatesRaw(addressString: string): Promise<{ lat: number; lon: number } | null> {
   const geoapifyKey = Deno.env.get('GEOAPIFY_API_KEY');
   if (!geoapifyKey) {
     console.log('No Geoapify API key, skipping geocoding');
