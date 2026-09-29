@@ -3865,6 +3865,16 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                       Recalculate
                     </Button>
                     <Button
+                      onClick={handleReoptimise}
+                      size="sm"
+                      variant="outline"
+                      disabled={isReoptimising || selectedJobs.filter(j => j.type !== 'break').length < 3}
+                      className="flex-1 h-8 text-xs"
+                    >
+                      {isReoptimising ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Zap className="h-3 w-3 mr-1" />}
+                      {isReoptimising ? 'Optimising...' : 'Re-optimise'}
+                    </Button>
+                    <Button
                       onClick={handleFlipRoute}
                       size="sm"
                       variant="outline"
