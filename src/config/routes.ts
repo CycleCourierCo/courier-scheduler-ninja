@@ -50,6 +50,8 @@ export const APP_ROUTES: AppRoute[] = [
   // Operations
   { key: "scheduling", path: "/scheduling", label: "Job Scheduling", section: "Operations", icon: Calendar,
     defaultRoles: ["route_planner"] },
+  { key: "expiring-dates", path: "/expiring-dates", label: "Expiring Dates", section: "Operations", icon: CalendarClock,
+    defaultRoles: ["route_planner"] },
   { key: "loading", path: "/loading", label: "Loading & Storage", section: "Operations", icon: Package,
     defaultRoles: ["loader"] },
   { key: "warehouse-stock", path: "/warehouse-stock", label: "Warehouse Stock", section: "Operations", icon: Warehouse,
