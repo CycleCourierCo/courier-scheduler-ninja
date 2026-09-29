@@ -2524,11 +2524,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         body: {
           mode: 'reorder',
           shift_start: `${h.padStart(2, '0')}:${(m || '00').padStart(2, '0')}`,
-          van_capacity: vanCapacity,
           stops: stops.map((j) => ({
             orderId: j.orderId, type: j.type, lat: j.lat, lon: j.lon,
             address: (j as any).altAddressText || j.address,
-            spaces: getOrderSpaces(j.orderData, spaceMap),
           })),
         },
       });
@@ -2538,11 +2536,6 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       if (data.bad_locations?.length) {
         const names = data.bad_locations.map((k: string) => byKey.get(k)?.contactName || k).join(', ');
         toast.error(`Route not changed — map pin doesn't match the postcode for: ${names}. Fix the location first.`);
-        return;
-      }
-      if (data.unassigned?.length) {
-        const names = data.unassigned.map((k: string) => byKey.get(k)?.contactName || k).join(', ');
-        toast.error(`Route not changed — these stops don't fit within the van or day limits: ${names}`);
         return;
       }
       const ordered = (data.order as string[]).map((k) => byKey.get(k)).filter(Boolean) as typeof stops;
