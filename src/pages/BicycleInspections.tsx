@@ -1494,7 +1494,12 @@ const BicycleInspections = () => {
     const inspection = i.inspection;
     if (inspection?.invoice_number) return "invoiced";
     if (inspection?.invoice_skipped_at) return "skipped";
-    if (inspection?.service_decision === 'accepted') return null;
+    // Only inspection-only jobs where the customer added a service still need invoicing;
+    // inspection-and-service jobs were all backfilled as accepted and follow the normal rules.
+    if (
+      inspection?.inspection_type === 'inspection_only' &&
+      inspection?.service_decision === 'accepted'
+    ) return null;
     const released =
       inspection?.status === "inspected" ||
       inspection?.status === "repaired" ||
