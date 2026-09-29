@@ -2527,7 +2527,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           van_capacity: vanCapacity,
           stops: stops.map((j) => ({
             orderId: j.orderId, type: j.type, lat: j.lat, lon: j.lon,
-            address: j.altAddressText || j.address,
+            address: (j as any).altAddressText || j.address,
             spaces: getOrderSpaces(j.orderData, spaceMap),
           })),
         },
