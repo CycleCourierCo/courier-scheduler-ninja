@@ -2,12 +2,14 @@
 
 ## What it shows
 
-A new Operations page ("Expiring Dates", `/expiring-dates`) listing order legs that still need a customer date and whose dates are running out or gone. Two groups, each with a count:
+A new Operations page ("Expiring Dates", `/expiring-dates`) listing order legs that still need a customer date and whose dates are running out or gone. Four side-by-side columns (stacking on mobile), each with a count in its heading:
 
-- **Expiring within 3 days** — the leg's last future date is today or within the next 3 days. Shows "X days left" (0 = today is the last day).
-- **Expired** — every date on the leg has passed. Shows "X days expired" counted from the last date.
+- **Last date today** — the leg's final available date is today (0 days left).
+- **Last date tomorrow** — 1 day left.
+- **Last date in 2–3 days** — 2 or 3 days left.
+- **Expired** — every date on the leg has passed. Shows "X days expired" counted from the last date, most-overdue first.
 
-Rows show: tracking number, customer name, bike summary, leg type (Collection / Delivery), the chosen dates, and the days figure. Sorted soonest/most-overdue first within each group.
+Each card shows: tracking number, customer name, bike summary, leg type (Collection / Delivery), the chosen dates, and the days figure. Columns sort soonest/most-overdue first.
 
 Legs **with no dates at all are excluded** — this page is only about jobs that had dates. Legs already scheduled or completed are excluded too, matching the nightly expiry rules:
 
@@ -26,7 +28,7 @@ Added to the Operations menu as "Expiring Dates", default role route_planner (ad
 
 - React Query fetch from `orders` (`status` not in cancelled/delivered) selecting the same fields Job Scheduling uses, plus `is_warehouse_storage` and a join to `order_leg_availability` (leg status + `redate_requested_at`) for the "Asked" badge.
 - All date maths on `YYYY-MM-DD` strings in Europe/London (`en-CA` formatter), same as the rest of scheduling. Today = London today.
-- Group/sort client-side; loading spinner and empty state in the existing office style (Layout + DashboardHeader, office-density).
+- Four-column grid (`grid-cols-1 md:grid-cols-2 xl:grid-cols-4`) with per-column lists; loading spinner and per-column empty states in the existing office style (Layout + DashboardHeader, office-density).
 
 **`src/config/routes.ts`** — add `expiring-dates` route (Operations, CalendarClock icon, `defaultRoles: ["route_planner"]`).
 
@@ -35,4 +37,4 @@ Added to the Operations menu as "Expiring Dates", default role route_planner (ad
 ## Verification
 
 - TypeScript check passes.
-- Preview: page renders with the two groups, correct day counts against live data, and no-date jobs absent. Check as route_planner (menu entry visible) and confirm another role without the permission gets the standard no-access screen.
+- Preview: page renders the four columns, day counts match live data, and no-date jobs are absent. Check as route_planner (menu entry visible) and confirm a role without the permission gets the standard no-access screen.
