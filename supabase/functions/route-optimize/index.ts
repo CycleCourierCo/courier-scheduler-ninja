@@ -336,11 +336,67 @@ serve(async (req) => {
       }
       const sol = await resp.json();
       const route = sol?.routes?.[0];
-      const order: string[] = (route?.steps || [])
+      let order: string[] = (route?.steps || [])
         .filter((st: any) => typeof st?.id === 'number' && st.type !== 'start' && st.type !== 'end')
         .map((st: any) => idToKey.get(st.id)).filter(Boolean);
       const unassigned: string[] = (sol?.unassigned || []).map((u: any) => idToKey.get(u.id)).filter(Boolean);
-      return json({ order, unassigned, duration_s: route?.duration ?? null, distance_m: route?.distance ?? null });
+
+      // Keep every job at the same address together (multi-stop), in the caller's original order.
+      const byKey = new Map(clean.map((s, i) => [s.key, { ...s, idx: i }]));
+      const locOf = (k: string) => { const s = byKey.get(k)!; return `${s.lat.toFixed(5)},${s.lon.toFixed(5)}`; };
+      const precedenceOk = (seq: string[]) => {
+        const pos = new Map(seq.map((k, i) => [k, i]));
+        return clean.every((s) => s.type !== 'delivery' || !pos.has(`${s.orderId}:pickup`)
+          || pos.get(`${s.orderId}:pickup`)! < pos.get(s.key)!);
+      };
+      const groups = new Map<string, string[]>();
+      order.forEach((k) => groups.set(locOf(k), [...(groups.get(locOf(k)) || []), k]));
+      for (const members of groups.values()) {
+        if (members.length < 2) continue;
+        const sorted = [...members].sort((a, b) => byKey.get(a)!.idx - byKey.get(b)!.idx);
+        // Pickups at the address first when an order has both legs there.
+        sorted.sort((a, b) => {
+          const A = byKey.get(a)!, B = byKey.get(b)!;
+          return A.orderId === B.orderId ? (A.type === 'pickup' ? -1 : 1) : 0;
+        });
+        const rest = order.filter((k) => !members.includes(k));
+        const first = order.indexOf(members[0]);
+        const last = order.indexOf(members[members.length - 1]);
+        const beforeFirst = order.slice(0, first).filter((k) => !members.includes(k)).length;
+        const beforeLast = order.slice(0, last).filter((k) => !members.includes(k)).length;
+        const tryAt = (n: number) => [...rest.slice(0, n), ...sorted, ...rest.slice(n)];
+        const a = tryAt(beforeFirst), b = tryAt(beforeLast);
+        if (precedenceOk(a)) order = a; else if (precedenceOk(b)) order = b;
+      }
+
+      // Flag stops whose postcode is far from their pin (wrong map location).
+      const badLocations: string[] = [];
+      try {
+        const pcRe = /\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i;
+        const withPc = stops.map((s: any, i: number) => {
+          const m = typeof s?.address === 'string' ? s.address.match(pcRe) : null;
+          return m ? { i, pc: `${m[1]} ${m[2]}`.toUpperCase() } : null;
+        }).filter(Boolean) as { i: number; pc: string }[];
+        if (withPc.length) {
+          const r = await fetch('https://api.postcodes.io/postcodes', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ postcodes: withPc.map((w) => w.pc) }),
+          });
+          if (r.ok) {
+            const pj = await r.json();
+            (pj?.result || []).forEach((res: any, n: number) => {
+              const g = res?.result; if (!g) return;
+              const s = clean[withPc[n].i];
+              const toRad = (d: number) => d * Math.PI / 180;
+              const dLat = toRad(g.latitude - s.lat), dLon = toRad(g.longitude - s.lon);
+              const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(s.lat)) * Math.cos(toRad(g.latitude)) * Math.sin(dLon / 2) ** 2;
+              if (12742 * Math.asin(Math.sqrt(h)) > 50) badLocations.push(s.key);
+            });
+          }
+        }
+      } catch { /* postcode check is best-effort */ }
+
+      return json({ order, unassigned, bad_locations: badLocations, duration_s: route?.duration ?? null, distance_m: route?.distance ?? null });
     }
     const shiftStart = /^\d{2}:\d{2}$/.test(body?.shift_start ?? '') ? body.shift_start : '09:00';
     const includeExpired = body?.include_expired === true;
