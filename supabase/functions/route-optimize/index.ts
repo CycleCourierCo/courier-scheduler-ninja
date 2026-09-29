@@ -295,10 +295,9 @@ serve(async (req) => {
         }
         clean.push({ key: `${s.orderId}:${s.type}`, orderId: s.orderId, type: s.type, lat, lon, spaces: Math.max(0, Math.min(20, Number.isFinite(spaces) ? spaces : 1)) });
       }
-      const shift = /^\d{2}:\d{2}$/.test(body?.shift_start ?? '') ? body.shift_start : '09:00';
-      const [sh, sm] = shift.split(':').map(Number);
-      const open = sh * HOURS + sm * 60;
-      const cap = Math.round(Math.max(1, Math.min(100, Number(body?.van_capacity) || DEFAULT_CAPACITY)) * 100);
+      // Reorder has no van-capacity or working-day limits: it simply finds the
+      // best order for the stops already chosen. Collection-before-delivery is
+      // still enforced via shipments.
       const byOrder = new Map<string, typeof clean>();
       clean.forEach((s) => byOrder.set(s.orderId, [...(byOrder.get(s.orderId) || []), s]));
       const idToKey = new Map<number, string>();
@@ -308,21 +307,18 @@ serve(async (req) => {
       for (const legs of byOrder.values()) {
         const p = legs.find((l) => l.type === 'pickup'); const d = legs.find((l) => l.type === 'delivery');
         if (p && d) {
-          const amt = [Math.round(p.spaces * 100)];
           const pid = nextId++, did = nextId++;
           idToKey.set(pid, p.key); idToKey.set(did, d.key);
-          shipments.push({ amount: amt, pickup: { id: pid, location: loc(p), service: SERVICE_S }, delivery: { id: did, location: loc(d), service: SERVICE_S } });
+          shipments.push({ pickup: { id: pid, location: loc(p), service: SERVICE_S }, delivery: { id: did, location: loc(d), service: SERVICE_S } });
         } else {
           for (const l of legs) {
             const id = nextId++; idToKey.set(id, l.key);
-            const amt = [Math.round(l.spaces * 100)];
-            jobs.push({ id, location: loc(l), service: SERVICE_S, ...(l.type === 'pickup' ? { pickup: amt } : { delivery: amt }) });
+            jobs.push({ id, location: loc(l), service: SERVICE_S });
           }
         }
       }
       const vehicle = {
         id: 1, profile: 'car', start: [DEPOT.lon, DEPOT.lat], end: [DEPOT.lon, DEPOT.lat],
-        capacity: [cap], time_window: [open, open + NORMAL_CAP_H * HOURS],
         costs: { per_hour: DRIVER_PENCE_PER_HOUR, per_km: PENCE_PER_KM },
       };
       const resp = await fetch(solveUrl, {
