@@ -35,3 +35,4 @@
 - [x] Record invoiced bike-months and surface ambiguous failures for review.
 - [x] Verify anniversary and VAT arithmetic with automated tests.
 - [ ] Verify a signed-in invoice preview and a real QuickBooks invoice after the required service product is configured (blocked by external sign-in and QuickBooks setup).
+- Expiring Dates page: four-column layout (today / tomorrow / 2-3 days / expired), no-date jobs excluded
