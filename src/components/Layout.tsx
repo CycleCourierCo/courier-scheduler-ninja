@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, PoundSterling, Megaphone, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare, BookOpen, Store, ClipboardCheck, Lock, Boxes, KanbanSquare, Plug } from "lucide-react";
+import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarClock, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, PoundSterling, Megaphone, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare, BookOpen, Store, ClipboardCheck, Lock, Boxes, KanbanSquare, Plug } from "lucide-react";
 import NoticeBanner from "./NoticeBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -40,6 +40,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
     items: [
       { to: "/project-management", label: "Project Management", icon: KanbanSquare },
       { to: "/scheduling", label: "Job Scheduling", icon: Calendar },
+      { to: "/expiring-dates", label: "Expiring Dates", icon: CalendarClock },
       { to: "/drivers-rota", label: "Drivers Rota", icon: CalendarOff },
       { to: "/loading", label: "Loading & Storage", icon: Package },
       { to: "/warehouse-stock", label: "Warehouse Stock", icon: Warehouse },
@@ -67,6 +68,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
       { to: "/driver-timeslips", label: "Driver Timeslips", icon: Clock },
       { to: "/fuel-finder", label: "Fuel Finder", icon: Fuel },
       { to: "/claims", label: "Damage Claims", icon: ShieldAlert },
+      { to: "/my-holidays", label: "My Holidays", icon: CalendarOff },
     ],
   },
   {
