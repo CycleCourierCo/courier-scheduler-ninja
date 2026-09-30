@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, PackageOpen } from "lucide-react";
+import { CalendarClock, ExternalLink, PackageOpen } from "lucide-react";
 
 import Layout from "@/components/Layout";
 import DashboardHeader from "@/components/DashboardHeader";
@@ -219,9 +219,21 @@ const ExpiringDatesPage = () => {
                           <span className="truncate text-sm font-medium">
                             {leg.trackingNumber ?? "No tracking number"}
                           </span>
-                          <Badge variant={leg.legType === "collection" ? "default" : "outline"}>
-                            {leg.legType === "collection" ? "Collection" : "Delivery"}
-                          </Badge>
+                          <span className="flex shrink-0 items-center gap-2">
+                            <Badge variant={leg.legType === "collection" ? "default" : "outline"}>
+                              {leg.legType === "collection" ? "Collection" : "Delivery"}
+                            </Badge>
+                            <a
+                              href={`/orders/${leg.orderId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label="Open order in new tab"
+                              title="Open order in new tab"
+                              className="text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          </span>
                         </div>
                         <p className="mt-1 truncate text-sm">{leg.customerName}</p>
                         <p className="truncate text-xs text-muted-foreground">{leg.bikeLabel}</p>
