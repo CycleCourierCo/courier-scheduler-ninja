@@ -281,6 +281,119 @@ serve(async (req) => {
     /* ------------------------------- input -------------------------------- */
 
     const body = await req.json().catch(() => ({}));
+
+    /* ------------- reorder: best order for an existing single route ------------- */
+    if (body?.mode === 'reorder') {
+      const stops = Array.isArray(body?.stops) ? body.stops : [];
+      if (stops.length < 2 || stops.length > 150) return json({ error: 'Between 2 and 150 stops are required' }, 400);
+      const clean: { key: string; orderId: string; type: 'pickup' | 'delivery'; lat: number; lon: number; spaces: number }[] = [];
+      for (const s of stops) {
+        const lat = Number(s?.lat), lon = Number(s?.lon), spaces = Number(s?.spaces ?? 1);
+        if (typeof s?.orderId !== 'string' || !['pickup', 'delivery'].includes(s?.type)
+          || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180 || (lat === 0 && lon === 0)) {
+          return json({ error: 'Every stop needs valid coordinates' }, 400);
+        }
+        clean.push({ key: `${s.orderId}:${s.type}`, orderId: s.orderId, type: s.type, lat, lon, spaces: Math.max(0, Math.min(20, Number.isFinite(spaces) ? spaces : 1)) });
+      }
+      // Reorder has no van-capacity or working-day limits: it simply finds the
+      // best order for the stops already chosen. Collection-before-delivery is
+      // still enforced via shipments.
+      const byOrder = new Map<string, typeof clean>();
+      clean.forEach((s) => byOrder.set(s.orderId, [...(byOrder.get(s.orderId) || []), s]));
+      const idToKey = new Map<number, string>();
+      let nextId = 1;
+      const jobs: any[] = []; const shipments: any[] = [];
+      const loc = (s: { lat: number; lon: number }) => [s.lon, s.lat];
+      for (const legs of byOrder.values()) {
+        const p = legs.find((l) => l.type === 'pickup'); const d = legs.find((l) => l.type === 'delivery');
+        if (p && d) {
+          const pid = nextId++, did = nextId++;
+          idToKey.set(pid, p.key); idToKey.set(did, d.key);
+          shipments.push({ pickup: { id: pid, location: loc(p), service: SERVICE_S }, delivery: { id: did, location: loc(d), service: SERVICE_S } });
+        } else {
+          for (const l of legs) {
+            const id = nextId++; idToKey.set(id, l.key);
+            jobs.push({ id, location: loc(l), service: SERVICE_S });
+          }
+        }
+      }
+      const vehicle = {
+        id: 1, profile: 'car', start: [DEPOT.lon, DEPOT.lat], end: [DEPOT.lon, DEPOT.lat],
+        costs: { per_hour: DRIVER_PENCE_PER_HOUR, per_km: PENCE_PER_KM },
+      };
+      const resp = await fetch(solveUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${VERSO_API_KEY}`, 'X-Api-Key': VERSO_API_KEY },
+        body: JSON.stringify({ vehicles: [vehicle], jobs, shipments, options: { g: false } }),
+      });
+      if (!resp.ok) {
+        console.error('reorder solve failed', resp.status);
+        return json({ error: 'The route optimiser could not solve this route' }, 502);
+      }
+      const sol = await resp.json();
+      const route = sol?.routes?.[0];
+      let order: string[] = (route?.steps || [])
+        .filter((st: any) => typeof st?.id === 'number' && st.type !== 'start' && st.type !== 'end')
+        .map((st: any) => idToKey.get(st.id)).filter(Boolean);
+      const unassigned: string[] = (sol?.unassigned || []).map((u: any) => idToKey.get(u.id)).filter(Boolean);
+
+      // Keep every job at the same address together (multi-stop), in the caller's original order.
+      const byKey = new Map(clean.map((s, i) => [s.key, { ...s, idx: i }]));
+      const locOf = (k: string) => { const s = byKey.get(k)!; return `${s.lat.toFixed(5)},${s.lon.toFixed(5)}`; };
+      const precedenceOk = (seq: string[]) => {
+        const pos = new Map(seq.map((k, i) => [k, i]));
+        return clean.every((s) => s.type !== 'delivery' || !pos.has(`${s.orderId}:pickup`)
+          || pos.get(`${s.orderId}:pickup`)! < pos.get(s.key)!);
+      };
+      const groups = new Map<string, string[]>();
+      order.forEach((k) => groups.set(locOf(k), [...(groups.get(locOf(k)) || []), k]));
+      for (const members of groups.values()) {
+        if (members.length < 2) continue;
+        const sorted = [...members].sort((a, b) => byKey.get(a)!.idx - byKey.get(b)!.idx);
+        // Pickups at the address first when an order has both legs there.
+        sorted.sort((a, b) => {
+          const A = byKey.get(a)!, B = byKey.get(b)!;
+          return A.orderId === B.orderId ? (A.type === 'pickup' ? -1 : 1) : 0;
+        });
+        const rest = order.filter((k) => !members.includes(k));
+        const first = order.indexOf(members[0]);
+        const last = order.indexOf(members[members.length - 1]);
+        const beforeFirst = order.slice(0, first).filter((k) => !members.includes(k)).length;
+        const beforeLast = order.slice(0, last).filter((k) => !members.includes(k)).length;
+        const tryAt = (n: number) => [...rest.slice(0, n), ...sorted, ...rest.slice(n)];
+        const a = tryAt(beforeFirst), b = tryAt(beforeLast);
+        if (precedenceOk(a)) order = a; else if (precedenceOk(b)) order = b;
+      }
+
+      // Flag stops whose postcode is far from their pin (wrong map location).
+      const badLocations: string[] = [];
+      try {
+        const pcRe = /\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i;
+        const withPc = stops.map((s: any, i: number) => {
+          const m = typeof s?.address === 'string' ? s.address.match(pcRe) : null;
+          return m ? { i, pc: `${m[1]} ${m[2]}`.toUpperCase() } : null;
+        }).filter(Boolean) as { i: number; pc: string }[];
+        if (withPc.length) {
+          const r = await fetch('https://api.postcodes.io/postcodes', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ postcodes: withPc.map((w) => w.pc) }),
+          });
+          if (r.ok) {
+            const pj = await r.json();
+            (pj?.result || []).forEach((res: any, n: number) => {
+              const g = res?.result; if (!g) return;
+              const s = clean[withPc[n].i];
+              const toRad = (d: number) => d * Math.PI / 180;
+              const dLat = toRad(g.latitude - s.lat), dLon = toRad(g.longitude - s.lon);
+              const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(s.lat)) * Math.cos(toRad(g.latitude)) * Math.sin(dLon / 2) ** 2;
+              if (12742 * Math.asin(Math.sqrt(h)) > 50) badLocations.push(s.key);
+            });
+          }
+        }
+      } catch { /* postcode check is best-effort */ }
+
+      return json({ order, unassigned, bad_locations: badLocations, duration_s: route?.duration ?? null, distance_m: route?.distance ?? null });
+    }
     const shiftStart = /^\d{2}:\d{2}$/.test(body?.shift_start ?? '') ? body.shift_start : '09:00';
     const includeExpired = body?.include_expired === true;
     // On (default): rank by dates left and waiting time. Off: all ordinary jobs equal.

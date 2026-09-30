@@ -52,6 +52,7 @@ interface ProductInfo {
   name: string;
   price: number;
   taxable?: boolean;
+  salesTaxCodeId?: string | null;
 }
 
 // Map legacy bike types to current QuickBooks product names
@@ -92,16 +93,19 @@ async function qbFetch(url: string, init: RequestInit, maxAttempts = 5): Promise
     const retriable = resp.status === 429 || resp.status >= 500;
     if (!retriable || attempt >= maxAttempts) return resp;
     let waitMs: number;
+    let bodyText = '';
+    try { bodyText = await resp.text(); } catch {}
     const retryAfter = resp.headers.get('Retry-After');
-    if (retryAfter) {
+    const bodyRetry = bodyText.match(/Retry after (\d+)\s*ms/i);
+    if (bodyRetry) {
+      waitMs = Math.min(parseInt(bodyRetry[1], 10) + 500, 20000);
+    } else if (retryAfter) {
       const asInt = parseInt(retryAfter, 10);
-      waitMs = Number.isFinite(asInt) ? asInt * 1000 : 1000;
+      waitMs = Number.isFinite(asInt) ? Math.min(asInt * 1000, 20000) : 1000;
     } else {
-      waitMs = Math.min(500 * 2 ** (attempt - 1), 8000);
+      waitMs = Math.min(1000 * 2 ** (attempt - 1), 16000);
     }
     waitMs += Math.floor(Math.random() * 250);
-    // Drain body to free connection.
-    try { await resp.text(); } catch {}
     console.warn(`[qbFetch] ${resp.status} attempt ${attempt}, retrying in ${waitMs}ms: ${url}`);
     await new Promise((r) => setTimeout(r, waitMs));
   }
@@ -202,6 +206,7 @@ async function findProductByExactName(
         name: item.Name, 
         price: item.UnitPrice || 0,
         taxable: item.Taxable === true,
+        salesTaxCodeId: item.SalesTaxCodeRef?.value ? String(item.SalesTaxCodeRef.value) : null,
       };
       console.log(`Found product "${productName}": ID=${product.id}, Price=${product.price}`);
       productCache.set(productName, product);
@@ -448,10 +453,11 @@ const handler = async (req: Request): Promise<Response> => {
     // Query for VAT tax code (UK 20% standard rate)
     let vatTaxCodeId: string | null = null;
     let standardVatConfirmed = false;
+    let taxCodes: any[] = [];
     
     const taxCodeUrl = `https://quickbooks.api.intuit.com/v3/company/${tokenData.company_id}/query?query=SELECT * FROM TaxCode WHERE Active=true`;
     
-    const taxCodeResponse = await fetch(taxCodeUrl, {
+    const taxCodeResponse = await qbFetch(taxCodeUrl, {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${tokenData.access_token}`,
@@ -461,9 +467,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (taxCodeResponse.ok) {
       const taxCodeData = await taxCodeResponse.json();
-      console.log('Available tax codes:', JSON.stringify(taxCodeData, null, 2));
       
-      const taxCodes = taxCodeData.QueryResponse?.TaxCode || [];
+      taxCodes = taxCodeData.QueryResponse?.TaxCode || [];
       // Look for standard UK VAT rate (20%) - try various common names
       const vatCode = taxCodes.find((code: any) => 
         code.Name === '20.0% S' ||
@@ -502,7 +507,12 @@ const handler = async (req: Request): Promise<Response> => {
       storageProduct = await findProductByExactName(tokenData.access_token, tokenData.company_id, STORAGE_PRODUCT_NAME);
       if (!storageProduct) throw new Error(`Create the active QuickBooks service product "${STORAGE_PRODUCT_NAME}" with standard 20% VAT before invoicing storage`);
       if (Math.abs(storageProduct.price - STORAGE_NET_GBP) > 0.001) throw new Error(`Set the QuickBooks "${STORAGE_PRODUCT_NAME}" sales price to £33.33 before invoicing storage`);
-      if (storageProduct.taxable !== true) throw new Error(`Set the QuickBooks "${STORAGE_PRODUCT_NAME}" product as taxable at the UK standard 20% VAT rate`);
+      // UK QuickBooks stores VAT as SalesTaxCodeRef (Taxable is a US-only flag).
+      // Accept blank (we set the 20% code on the line) or the standard 20% code.
+      if (storageProduct.salesTaxCodeId && storageProduct.salesTaxCodeId !== String(vatTaxCodeId)) {
+        const other = taxCodes.find((c: any) => String(c.Id) === storageProduct!.salesTaxCodeId);
+        throw new Error(`The QuickBooks "${STORAGE_PRODUCT_NAME}" product uses VAT code "${other?.Name ?? storageProduct.salesTaxCodeId}". Change its sales tax to 20.0% S`);
+      }
     }
 
     // Check for special rate code on customer profile

@@ -111,7 +111,7 @@ const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 const BASE_URL = "https://booking.cyclecourierco.com";
 
 /** Minimum gap between proactive updates to the same side of the same job. */
-const QUIET_DAYS = 2;
+const QUIET_DAYS = 4;
 
 type Side = "sender" | "receiver";
 

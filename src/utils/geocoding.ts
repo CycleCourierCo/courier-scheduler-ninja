@@ -8,7 +8,45 @@ export interface GeocodingResult {
   lon: number;
 }
 
+const UK_POSTCODE_RE = /\b([A-Z]{1,2}\d[A-Z\d]?)\s*(\d[A-Z]{2})\b/i;
+
+function distanceKm(a: GeocodingResult, b: GeocodingResult): number {
+  const R = 6371, toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat), dLon = toRad(b.lon - a.lon);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/** Postcode centre from postcodes.io, or null. */
+export async function lookupPostcode(postcode: string): Promise<GeocodingResult | null> {
+  try {
+    const r = await fetch(`https://api.postcodes.io/postcodes/${encodeURIComponent(postcode.replace(/\s+/g, ''))}`);
+    if (!r.ok) return null;
+    const d = await r.json();
+    if (typeof d?.result?.latitude === 'number') return { lat: d.result.latitude, lon: d.result.longitude };
+  } catch { /* ignore */ }
+  return null;
+}
+
+/**
+ * Street-level lookups can pick the wrong town (e.g. "Newport" Essex vs Shropshire).
+ * If the address contains a postcode and the result is >15 km from it, trust the postcode.
+ */
+async function checkAgainstPostcode(addressString: string, result: GeocodingResult | null): Promise<GeocodingResult | null> {
+  const m = addressString.match(UK_POSTCODE_RE);
+  if (!m) return result;
+  const pc = await lookupPostcode(`${m[1]}${m[2]}`);
+  if (!pc) return result;
+  if (!result || distanceKm(result, pc) > 15) return pc;
+  return result;
+}
+
 export async function geocodeAddress(addressString: string): Promise<GeocodingResult | null> {
+  const result = await geocodeAddressRaw(addressString);
+  return checkAgainstPostcode(addressString || '', result);
+}
+
+async function geocodeAddressRaw(addressString: string): Promise<GeocodingResult | null> {
   if (!addressString || addressString.trim().length === 0) {
     return null;
   }

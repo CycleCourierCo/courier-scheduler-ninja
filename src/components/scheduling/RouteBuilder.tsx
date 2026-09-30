@@ -2507,6 +2507,62 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     calculateTimeslots(updatedJobs);
   };
 
+  const [isReoptimising, setIsReoptimising] = useState(false);
+  const handleReoptimise = async () => {
+    const stops = selectedJobs.filter((j) => j.type !== 'break');
+    if (stops.length < 3) return;
+    const missing = stops.filter((j) => !j.lat || !j.lon);
+    if (missing.length) {
+      toast.error(`Add coordinates first: ${missing.map((j) => j.contactName).join(', ')}`);
+      return;
+    }
+    const previous = [...selectedJobs];
+    setIsReoptimising(true);
+    try {
+      const [h, m] = (startTime || '09:00').split(':');
+      const { data, error } = await supabase.functions.invoke('route-optimize', {
+        body: {
+          mode: 'reorder',
+          shift_start: `${h.padStart(2, '0')}:${(m || '00').padStart(2, '0')}`,
+          stops: stops.map((j) => ({
+            orderId: j.orderId, type: j.type, lat: j.lat, lon: j.lon,
+            address: (j as any).altAddressText || j.address,
+          })),
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      const byKey = new Map(stops.map((j) => [`${j.orderId}:${j.type}`, j]));
+      if (data.bad_locations?.length) {
+        const names = data.bad_locations.map((k: string) => byKey.get(k)?.contactName || k).join(', ');
+        toast.error(`Route not changed — map pin doesn't match the postcode for: ${names}. Fix the location first.`);
+        return;
+      }
+      const ordered = (data.order as string[]).map((k) => byKey.get(k)).filter(Boolean) as typeof stops;
+      if (ordered.length !== stops.length) throw new Error('Optimiser returned an incomplete route');
+      // Put breaks back at roughly the same point in the day
+      const result: any[] = [...ordered];
+      previous.forEach((j, i) => {
+        if (j.type !== 'break') return;
+        const pos = Math.round((i / Math.max(1, previous.length - 1)) * result.length);
+        result.splice(Math.min(pos, result.length), 0, j);
+      });
+      setSelectedJobs(result);
+      calculateTimeslots(result);
+      const mins = data.duration_s ? Math.round(data.duration_s / 60) : null;
+      const miles = data.distance_m ? (data.distance_m / 1609.34).toFixed(1) : null;
+      toast.success(
+        `Route re-optimised${mins ? ` · ${Math.floor(mins / 60)}h ${mins % 60}m driving` : ''}${miles ? ` · ${miles} miles` : ''}`,
+        { action: { label: 'Undo', onClick: () => { setSelectedJobs(previous); calculateTimeslots(previous); } } },
+      );
+    } catch (err: any) {
+      console.error('Re-optimise error:', err?.message);
+      toast.error(`Couldn't re-optimise: ${err?.message || 'unknown error'}`);
+    } finally {
+      setIsReoptimising(false);
+    }
+  };
+
   const handleFlipRoute = async () => {
     if (selectedJobs.length < 2) return;
     try {
@@ -3802,6 +3858,16 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                       Recalculate
                     </Button>
                     <Button
+                      onClick={handleReoptimise}
+                      size="sm"
+                      variant="outline"
+                      disabled={isReoptimising || selectedJobs.filter(j => j.type !== 'break').length < 3}
+                      className="flex-1 h-8 text-xs"
+                    >
+                      {isReoptimising ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Zap className="h-3 w-3 mr-1" />}
+                      {isReoptimising ? 'Optimising...' : 'Re-optimise'}
+                    </Button>
+                    <Button
                       onClick={handleFlipRoute}
                       size="sm"
                       variant="outline"
@@ -4004,6 +4070,15 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                 <div className="flex gap-2">
                   <Button onClick={refreshAndCalculateTimeslots} size="sm">
                     Recalculate
+                  </Button>
+                  <Button
+                    onClick={handleReoptimise}
+                    size="sm"
+                    variant="outline"
+                    disabled={isReoptimising || selectedJobs.filter(j => j.type !== 'break').length < 3}
+                  >
+                    {isReoptimising ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Zap className="h-4 w-4 mr-2" />}
+                    {isReoptimising ? 'Optimising...' : 'Re-optimise'}
                   </Button>
                   <Button
                     onClick={handleFlipRoute}

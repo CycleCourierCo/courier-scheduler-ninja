@@ -30,6 +30,7 @@ const CustomerOrderDetail = lazy(() => import("./pages/CustomerOrderDetail"));
 const UserProfile = lazy(() => import("./pages/UserProfile"));
 const AnalyticsPage = lazy(() => import("./pages/AnalyticsPage"));
 const JobScheduling = lazy(() => import("./pages/JobScheduling"));
+const ExpiringDatesPage = lazy(() => import("./pages/ExpiringDatesPage"));
 const AccountApprovals = lazy(() => import("./pages/AccountApprovals"));
 const ApiKeysPage = lazy(() => import("./pages/ApiKeysPage"));
 const PartnerAppsPage = lazy(() => import("./pages/PartnerAppsPage"));
@@ -155,6 +156,11 @@ function App() {
               <Route path="/scheduling" element={
                 <ProtectedRoute>
                   <JobScheduling />
+                </ProtectedRoute>
+              } />
+              <Route path="/expiring-dates" element={
+                <ProtectedRoute>
+                  <ExpiringDatesPage />
                 </ProtectedRoute>
               } />
               <Route path="/account-approvals" element={
