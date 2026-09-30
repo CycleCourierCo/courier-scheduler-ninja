@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ChevronLeft, ChevronRight, AlertTriangle } from "lucide-react";
+import { ChevronLeft, ChevronRight, AlertTriangle, Pencil } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { DriverRotaEditDialog } from "@/components/rota/DriverRotaEditDialog";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,6 +32,15 @@ const DriversRota = () => {
   const today = londonToday();
   const [weekStart, setWeekStart] = useState(weekStartSunday(today));
   const [depot, setDepot] = useState("all");
+  const { userProfile } = useAuth();
+  const isAdmin = userProfile?.role === "admin" || (userProfile?.roles || []).includes("admin");
+  const [editing, setEditing] = useState<{ id: string; name?: string | null; email?: string | null } | null>(null);
+  const nameCell = (drv: { id: string; name?: string | null; email?: string | null }, cls = "") => (
+    <span className={cn("flex items-center gap-1", cls)}>
+      <span className="truncate">{drv.name || drv.email}</span>
+      {isAdmin && <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" aria-label={`Edit ${drv.name || drv.email}`} onClick={() => setEditing(drv)}><Pencil className="h-3.5 w-3.5" /></Button>}
+    </span>
+  );
   const days = useMemo(() => eachDay(weekStart, addDays(weekStart, 6)), [weekStart]);
   const weekEnd = days[6];
 
@@ -157,7 +168,7 @@ const DriversRota = () => {
               <tbody>
                 {shown.map((drv) => (
                   <tr key={drv.id} className="border-b last:border-0">
-                    <td className="p-2 font-medium">{drv.name || drv.email}</td>
+                    <td className="p-2 font-medium">{nameCell(drv)}</td>
                     {days.map((d) => <td key={d} className={cn("p-2 align-top", d === today && "bg-muted/50")}>{renderCell(drv.id, d)}</td>)}
                   </tr>
                 ))}
@@ -179,7 +190,7 @@ const DriversRota = () => {
                   </div>
                   {shown.map((drv) => (
                     <div key={drv.id} className="grid grid-cols-[7rem_1fr] items-start gap-2">
-                      <span className="truncate text-sm">{drv.name || drv.email}</span>
+                      {nameCell(drv, "min-w-0 text-sm")}
                       {renderCell(drv.id, d)}
                     </div>
                   ))}
@@ -190,6 +201,7 @@ const DriversRota = () => {
         </div>
         {!shown.length && !isLoading && <p className="text-sm text-muted-foreground">No active drivers.</p>}
       </div>
+      <DriverRotaEditDialog driver={editing} onOpenChange={(o) => { if (!o) setEditing(null); }} />
     </Layout>
   );
 };
