@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CalendarClock, PackageOpen } from "lucide-react";
+import { CalendarClock, ExternalLink, PackageOpen } from "lucide-react";
 
 import Layout from "@/components/Layout";
 import DashboardHeader from "@/components/DashboardHeader";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import type { ContactInfo, Address } from "@/types/order";
 import { getGroupedBikes } from "@/utils/bikeSummary";
+import ExpiringDatesMap, { type MapLeg } from "@/components/expiring/ExpiringDatesMap";
 
 const londonDay = (v: unknown): string | null => {
   if (typeof v !== "string") return null;
@@ -42,6 +43,8 @@ interface ExpiringLeg {
   lastDate: string;
   daysLeft: number; // negative = expired
   askedForNewDates: boolean;
+  lat: number | null;
+  lng: number | null;
 }
 
 const ExpiringDatesPage = () => {
@@ -91,6 +94,7 @@ const ExpiringDatesPage = () => {
         raw: unknown,
         eligible: boolean,
         customerName: string,
+        contact: (ContactInfo & { address: Address }) | null,
       ) => {
         if (!eligible) return;
         const dates = [
@@ -115,19 +119,46 @@ const ExpiringDatesPage = () => {
           lastDate,
           daysLeft,
           askedForNewDates: asked.has(`${o.id}:${legType}`),
+          lat: contact?.address?.lat ?? null,
+          lng: contact?.address?.lon ?? null,
         });
       };
 
-      consider("collection", o.pickup_date, !o.order_collected && !o.scheduled_pickup_date, sender?.name ?? "Unknown");
+      consider(
+        "collection",
+        o.pickup_date,
+        !o.order_collected && !o.scheduled_pickup_date,
+        sender?.name ?? "Unknown",
+        sender ?? null,
+      );
       consider(
         "delivery",
         o.delivery_date,
         !o.order_delivered && !o.scheduled_delivery_date && !o.is_box_my_bike && !o.is_warehouse_storage,
         receiver?.name ?? "Unknown",
+        receiver ?? null,
       );
     }
     return out;
   }, [data]);
+
+  const mapLegs = useMemo<MapLeg[]>(
+    () =>
+      legs
+        .filter((l) => l.lat != null && l.lng != null)
+        .map((l) => ({
+          key: l.key,
+          trackingNumber: l.trackingNumber,
+          customerName: l.customerName,
+          bikeLabel: l.bikeLabel,
+          legType: l.legType,
+          dates: l.dates,
+          daysLeft: l.daysLeft,
+          lat: l.lat as number,
+          lng: l.lng as number,
+        })),
+    [legs],
+  );
 
   const columns = useMemo(() => {
     const groups: { title: string; legs: ExpiringLeg[] }[] = [
@@ -169,7 +200,9 @@ const ExpiringDatesPage = () => {
             <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-t-2 border-primary"></div>
           </div>
         ) : (
-          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <>
+            {mapLegs.length > 0 && <ExpiringDatesMap legs={mapLegs} />}
+            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             {columns.map((col) => (
               <section key={col.title} className="rounded-lg border bg-card">
                 <header className="flex items-center justify-between border-b px-3 py-2">
@@ -186,9 +219,21 @@ const ExpiringDatesPage = () => {
                           <span className="truncate text-sm font-medium">
                             {leg.trackingNumber ?? "No tracking number"}
                           </span>
-                          <Badge variant={leg.legType === "collection" ? "default" : "outline"}>
-                            {leg.legType === "collection" ? "Collection" : "Delivery"}
-                          </Badge>
+                          <span className="flex shrink-0 items-center gap-2">
+                            <Badge variant={leg.legType === "collection" ? "default" : "outline"}>
+                              {leg.legType === "collection" ? "Collection" : "Delivery"}
+                            </Badge>
+                            <a
+                              href={`/orders/${leg.orderId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label="Open order in new tab"
+                              title="Open order in new tab"
+                              className="text-muted-foreground transition-colors hover:text-foreground"
+                            >
+                              <ExternalLink className="h-4 w-4" />
+                            </a>
+                          </span>
                         </div>
                         <p className="mt-1 truncate text-sm">{leg.customerName}</p>
                         <p className="truncate text-xs text-muted-foreground">{leg.bikeLabel}</p>
@@ -217,8 +262,9 @@ const ExpiringDatesPage = () => {
                 </div>
               </section>
             ))}
-          </div>
-        )}
+            </div>
+            </>
+          )}
 
         {!isLoading && legs.length === 0 && (
           <div className="mt-6 flex items-center justify-center gap-2 rounded-lg border border-dashed p-8 text-muted-foreground">
