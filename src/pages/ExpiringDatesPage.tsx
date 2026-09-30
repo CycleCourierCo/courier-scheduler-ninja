@@ -250,8 +250,9 @@ const ExpiringDatesPage = () => {
                 </div>
               </section>
             ))}
-          </div>
-        )}
+            </div>
+            </>
+          )}
 
         {!isLoading && legs.length === 0 && (
           <div className="mt-6 flex items-center justify-center gap-2 rounded-lg border border-dashed p-8 text-muted-foreground">
