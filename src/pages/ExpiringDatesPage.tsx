@@ -94,6 +94,7 @@ const ExpiringDatesPage = () => {
         raw: unknown,
         eligible: boolean,
         customerName: string,
+        contact: (ContactInfo & { address: Address }) | null,
       ) => {
         if (!eligible) return;
         const dates = [
@@ -118,19 +119,46 @@ const ExpiringDatesPage = () => {
           lastDate,
           daysLeft,
           askedForNewDates: asked.has(`${o.id}:${legType}`),
+          lat: contact?.address?.lat ?? null,
+          lng: contact?.address?.lon ?? null,
         });
       };
 
-      consider("collection", o.pickup_date, !o.order_collected && !o.scheduled_pickup_date, sender?.name ?? "Unknown");
+      consider(
+        "collection",
+        o.pickup_date,
+        !o.order_collected && !o.scheduled_pickup_date,
+        sender?.name ?? "Unknown",
+        sender ?? null,
+      );
       consider(
         "delivery",
         o.delivery_date,
         !o.order_delivered && !o.scheduled_delivery_date && !o.is_box_my_bike && !o.is_warehouse_storage,
         receiver?.name ?? "Unknown",
+        receiver ?? null,
       );
     }
     return out;
   }, [data]);
+
+  const mapLegs = useMemo<MapLeg[]>(
+    () =>
+      legs
+        .filter((l) => l.lat != null && l.lng != null)
+        .map((l) => ({
+          key: l.key,
+          trackingNumber: l.trackingNumber,
+          customerName: l.customerName,
+          bikeLabel: l.bikeLabel,
+          legType: l.legType,
+          dates: l.dates,
+          daysLeft: l.daysLeft,
+          lat: l.lat as number,
+          lng: l.lng as number,
+        })),
+    [legs],
+  );
 
   const columns = useMemo(() => {
     const groups: { title: string; legs: ExpiringLeg[] }[] = [
@@ -172,7 +200,9 @@ const ExpiringDatesPage = () => {
             <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-t-2 border-primary"></div>
           </div>
         ) : (
-          <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <>
+            {mapLegs.length > 0 && <ExpiringDatesMap legs={mapLegs} />}
+            <div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
             {columns.map((col) => (
               <section key={col.title} className="rounded-lg border bg-card">
                 <header className="flex items-center justify-between border-b px-3 py-2">
