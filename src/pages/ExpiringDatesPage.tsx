@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import type { ContactInfo, Address } from "@/types/order";
 import { getGroupedBikes } from "@/utils/bikeSummary";
+import ExpiringDatesMap, { type MapLeg } from "@/components/expiring/ExpiringDatesMap";
 
 const londonDay = (v: unknown): string | null => {
   if (typeof v !== "string") return null;
@@ -42,6 +43,8 @@ interface ExpiringLeg {
   lastDate: string;
   daysLeft: number; // negative = expired
   askedForNewDates: boolean;
+  lat: number | null;
+  lng: number | null;
 }
 
 const ExpiringDatesPage = () => {
