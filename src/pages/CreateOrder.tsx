@@ -433,7 +433,7 @@ const CreateOrder = () => {
         (orderSenderEmail === norm(userProfile?.email) ||
           orderSenderEmail === norm((userProfile as any)?.accounts_email));
 
-      if (isBusinessAccount && isSenderOnOrder && order?.id) {
+      if (!bookFor && isBusinessAccount && isSenderOnOrder && order?.id) {
         toast.info("Set your collection availability now — no need to wait for the email.");
         navigate(`/sender-availability/${order.id}`);
       } else {
