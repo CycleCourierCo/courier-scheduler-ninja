@@ -322,8 +322,11 @@ serve(async (req) => {
         idToKeys.set(id, [...group].sort((a, b) => (a.type === 'pickup' ? -1 : 1) - (b.type === 'pickup' ? -1 : 1)).map((g) => g.key));
         jobs.push({ id, location: loc(group[0]), service: SERVICE_S * group.length });
       }
-      const mkVehicle = (id: number) => ({
-        id, profile: 'car', start: [DEPOT.lon, DEPOT.lat], end: [DEPOT.lon, DEPOT.lat],
+      // Without a cap one van is always cheapest, so share tasks evenly (+small slack).
+      const taskCount = jobs.length + shipments.length * 2;
+      const maxTasks = Math.ceil(taskCount / n) + 1;
+      const mkVehicle = (id: number, cap?: number) => ({
+        id, profile: 'car', ...(cap ? { max_tasks: cap } : {}), start: [DEPOT.lon, DEPOT.lat], end: [DEPOT.lon, DEPOT.lat],
         costs: { fixed: 0, per_hour: DRIVER_PENCE_PER_HOUR, per_km: PENCE_PER_KM },
       });
       const solve = async (vehicles: any[]) => {
@@ -336,7 +339,7 @@ serve(async (req) => {
         return await r.json();
       };
       const [sol, base] = await Promise.all([
-        solve(Array.from({ length: n }, (_, i) => mkVehicle(i + 1))),
+        solve(Array.from({ length: n }, (_, i) => mkVehicle(i + 1, maxTasks))),
         solve([mkVehicle(1)]),
       ]);
       if (!sol) return json({ error: 'The route optimiser could not split this route' }, 502);
