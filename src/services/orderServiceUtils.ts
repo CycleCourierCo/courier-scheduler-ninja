@@ -19,6 +19,8 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
   const result: Order = {
     id: dbOrder.id,
     user_id: dbOrder.user_id,
+    booked_by_id: dbOrder.booked_by_id || null,
+    booked_by_name: dbOrder.booked_by_name || null,
     sender: dbOrder.sender,
     receiver: dbOrder.receiver,
     status: dbOrder.status as OrderStatus,
