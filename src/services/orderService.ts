@@ -446,8 +446,11 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     } catch { /* ignore */ }
     try {
       if (ownerId !== user.id) {
-        const { data: owner } = await supabase.from("profiles").select("name, email").eq("id", ownerId).maybeSingle();
+        const { data: owner } = await supabase.from("profiles").select("name, email, is_business, account_status").eq("id", ownerId).maybeSingle();
         if (!owner) throw new Error("Selected customer account not found");
+        if ((owner as any).is_business && (owner as any).account_status !== "approved") {
+          throw new Error("Selected customer account not found");
+        }
         userEmail = owner.email;
         userName = owner.name || null;
         throw "__owner_loaded__";
