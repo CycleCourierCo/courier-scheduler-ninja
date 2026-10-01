@@ -1,32 +1,24 @@
-# Add Expiring Dates to the menu
+# Make approved repairs move to the right stage automatically
 
-## Why it's missing
+## What I found
+Customer approvals made through the approval link do set a stage, but only once, at the moment they approve. After that, nothing re-checks the stage when parts are marked ordered, arrived or in stock, or when staff approve repairs for the customer. Jobs drift out of step:
 
-There are two menus:
+- **CCC754262915863STEGL1** and **CCC754191680441HARBN4** are in **Awaiting repair**, but one approved part is still missing. They should be **Awaiting parts**.
+- **CCC754109746635MUHIG1** is in **Awaiting repair** with no approved repairs at all. I'll check it and correct it.
+- Jobs in **Awaiting parts** only move on when someone moves them by hand, even after every part has arrived.
 
-- **Staff (non-admin):** built automatically from the page-permission list. Expiring Dates is already set for route planners, so they should already see it.
-- **Admin:** a separate hand-written list in the layout. Expiring Dates was never added to it — that's why you can't see it.
+## The rule (applied everywhere)
+Once the customer has answered every repair, and no buyer decision is still outstanding:
+- At least one approved repair is still waiting on its part → **Awaiting parts**
+- Every approved repair has its part (in stock, or ordered and arrived) → **Awaiting repair**
 
-## Change
+This is checked again every time a repair is approved or declined, or a part is marked ordered, arrived or in stock. So a bike moves from Awaiting parts to Awaiting repair by itself when the last part arrives, and moves back if a new repair needing a part is added. Later stages (In repair, Cleaning, Repaired, Ship as is) are never pushed backwards. The existing buyer-wait rule still takes priority (Repairs declined / Pending receiver approval).
 
-- Add **Expiring Dates** to the **Operations** section of the admin menu (between Job Scheduling and Drivers Rota), with the same calendar-clock icon. It appears in both the desktop menu and the mobile menu automatically.
-
-## Other pages not on any menu
-
-Checked every page in the app against the menus. The only staff pages missing are:
-
-- **Expiring Dates** — fixed above.
-- **My Holidays** (`/my-holidays`) — drivers reach it via the permission-based staff menu, but it's not in the admin menu. I can add it under Fleet if you want.
-
-Everything else not on the menu is a sub-page or public page that's reached from elsewhere, so it doesn't need a menu entry:
-
-- Order/claim/conversation/knowledge/review detail pages (opened from their lists)
-- New Claim form (opened from Damage Claims)
-- Inbox Queues (opened from the Customer Service Inbox)
-- Public pages: tracking, availability, inspection approval, repair offer, NI partner, terms/privacy/about, sign-in, password reset, API docs authorisation
+## Fix existing jobs
+Re-run the rule once across all open inspections so the jobs above, and any others, land in the correct stage. Before changing anything, I'll list which jobs will move.
 
 ## Technical details
-
-- Edit `src/components/Layout.tsx` — add `{ to: "/expiring-dates", label: "Expiring Dates", icon: CalendarClock }` to the Operations group of `ADMIN_MENU_SECTIONS`; `CalendarClock` is added to the lucide import.
-- No permission or database changes needed: route planners already have access by default, admins always have access.
-- Optional: add My Holidays to the admin Fleet section — confirm whether you want this.
+- New database function `recompute_inspection_stage(inspection_id)` uses the same "has part" test as `submit_public_inspection_approval` (`parts_in_stock OR (parts_arrived AND parts_ordered)`). It only changes stage when the current stage is issues_found, awaiting_approval, awaiting_parts or awaiting_repair, and it runs after the buyer-wait guard.
+- AFTER INSERT/UPDATE OF status, parts_ordered, parts_arrived, parts_in_stock / DELETE trigger on `inspection_issues` calls it. Recursion is guarded with `pg_trigger_depth()`.
+- `submit_public_inspection_approval` and `submit_public_repair_offer` call the same function instead of their own CASE logic. `reconcileInspectionStatuses` in `inspectionService.ts` is simplified to rely on it.
+- One-off backfill in the same migration. Receiver-billed repairs count as approved work.
