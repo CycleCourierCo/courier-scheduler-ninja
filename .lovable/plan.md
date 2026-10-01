@@ -9,8 +9,8 @@ Customer approvals made through the approval link do set a stage, but only once,
 
 ## The rule (applied everywhere)
 Once the customer has answered every repair, and no buyer decision is still outstanding:
-- At least one approved repair is still waiting on its part → **Awaiting parts**
-- Every approved repair has its part (in stock, or ordered and arrived) → **Awaiting repair**
+- Any approved repair whose part is not in stock and has not arrived → **Awaiting parts**. An ordered part keeps the bike here until it is marked arrived.
+- Every approved repair's part has arrived or is in stock → **Awaiting repair**
 
 This is checked again every time a repair is approved or declined, or a part is marked ordered, arrived or in stock. So a bike moves from Awaiting parts to Awaiting repair by itself when the last part arrives, and moves back if a new repair needing a part is added. Later stages (In repair, Cleaning, Repaired, Ship as is) are never pushed backwards. The existing buyer-wait rule still takes priority (Repairs declined / Pending receiver approval).
 
