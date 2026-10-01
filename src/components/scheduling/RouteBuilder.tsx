@@ -4177,14 +4177,6 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
               <TimeslotRouteMap
                 stops={timeslotMapStops}
               />
-              <SplitRouteDialog
-                open={splitOpen}
-                onOpenChange={setSplitOpen}
-                stops={selectedJobs.filter((j) => j.type !== 'break') as any}
-                shiftStart={startTime || '09:00'}
-                onLoad={(jobs) => { setSelectedJobs(jobs as any); calculateTimeslots(jobs as any); }}
-                onSave={saveSplitRoute}
-              />
 
               <div className="space-y-3">
                 {capacityWarning}
@@ -4429,6 +4421,14 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         onLoadRoute={handleLoadSavedRoute}
       />
 
+      <SplitRouteDialog
+        open={splitOpen}
+        onOpenChange={setSplitOpen}
+        stops={selectedJobs.filter((j) => j.type !== 'break') as any}
+        shiftStart={startTime || '09:00'}
+        onLoad={(jobs) => { setSelectedJobs(jobs as any); calculateTimeslots(jobs as any); }}
+        onSave={saveSplitRoute}
+      />
       <BulkRouteMessageDialog
         open={bulkMessageOpen}
         onOpenChange={setBulkMessageOpen}
