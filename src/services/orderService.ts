@@ -437,7 +437,21 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     // Prefer `user.user_metadata.name`, fall back to profile, fall back to email.
     let userName: string | null = null;
     let userEmail: string | null = null;
+    const ownerId: string = (data as any).onBehalfOfUserId || user.id;
+    const bookedById = user.id;
+    let bookedByName: string | null = user.user_metadata?.name || user.email || null;
     try {
+      const { data: me } = await supabase.from("profiles").select("name").eq("id", user.id).maybeSingle();
+      if (me?.name) bookedByName = me.name;
+    } catch { /* ignore */ }
+    try {
+      if (ownerId !== user.id) {
+        const { data: owner } = await supabase.from("profiles").select("name, email").eq("id", ownerId).maybeSingle();
+        if (!owner) throw new Error("Selected customer account not found");
+        userEmail = owner.email;
+        userName = owner.name || null;
+        throw "__owner_loaded__";
+      }
       userEmail = user.email;
       userName = user.user_metadata?.name || null;
 
@@ -453,6 +467,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         }
       }
     } catch (userErr) {
+      if (userErr instanceof Error && userErr.message === "Selected customer account not found") throw userErr;
       // Silently handle profile fetch errors
     }
     if (!userName) userName = userEmail || "Customer";
@@ -493,7 +508,9 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     const { data: order, error } = await supabase
       .from("orders")
       .insert({
-        user_id: user.id,
+        user_id: ownerId,
+        booked_by_id: bookedById,
+        booked_by_name: bookedByName,
         sender: {
           name: sender.name,
           email: sender.email,
@@ -577,7 +594,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     // Upsert contacts and link them to the order
     try {
       const [senderContactId, receiverContactId] = await Promise.all([
-        upsertContact(user.id, {
+        upsertContact(ownerId, {
           name: sender.name,
           email: sender.email,
           phone: sender.phone,
@@ -589,7 +606,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
           lat: finalSenderLat,
           lon: finalSenderLon,
         }),
-        upsertContact(user.id, {
+        upsertContact(ownerId, {
           name: receiver.name,
           email: receiver.email,
           phone: receiver.phone,
@@ -627,7 +644,9 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         const { data: reverseOrder, error: reverseError } = await supabase
           .from("orders")
           .insert({
-            user_id: user.id,
+            user_id: ownerId,
+            booked_by_id: bookedById,
+            booked_by_name: bookedByName,
             sender: {
               name: receiver.name,
               email: receiver.email,
