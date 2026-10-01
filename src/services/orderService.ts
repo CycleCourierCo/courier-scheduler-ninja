@@ -449,7 +449,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         const { data: owner } = await supabase.from("profiles").select("name, email, is_business, account_status").eq("id", ownerId).maybeSingle();
         if (!owner) throw new Error("Selected customer account not found");
         if ((owner as any).is_business && (owner as any).account_status !== "approved") {
-          throw new Error("Selected customer account not found");
+          throw new Error("Selected customer account is not approved yet");
         }
         userEmail = owner.email;
         userName = owner.name || null;
@@ -470,7 +470,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         }
       }
     } catch (userErr) {
-      if (userErr instanceof Error && userErr.message === "Selected customer account not found") throw userErr;
+      if (userErr instanceof Error && userErr.message.startsWith("Selected customer account")) throw userErr;
       // Silently handle profile fetch errors
     }
     if (!userName) userName = userEmail || "Customer";
