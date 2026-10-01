@@ -6785,6 +6785,10 @@ export type Database = {
       }
       postgis_version: { Args: never; Returns: string }
       postgis_wagyu_version: { Args: never; Returns: string }
+      recompute_inspection_stage: {
+        Args: { p_inspection_id: string }
+        Returns: undefined
+      }
       resolve_oauth_token_grant: {
         Args: { access_token: string }
         Returns: string
