@@ -54,6 +54,7 @@ import { mapDbOrderToOrderType } from "@/services/orderServiceUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 import { useAuth } from "@/contexts/AuthContext";
+import ChangeOrderOwner from "@/components/order-detail/ChangeOrderOwner";
 
 const safeFormat = (date: Date | string | null | undefined, formatStr: string): string => {
   if (!date) return "";
@@ -1367,6 +1368,17 @@ const OrderDetail = () => {
           onMarkCollected={handleMarkCollected}
           onMarkNotCollected={handleMarkNotCollected}
         />
+        <ChangeOrderOwner
+          orderId={order.id}
+          currentOwnerId={(order as any).user_id}
+          currentOwnerName={bookingCustomer?.name || bookingCustomer?.email}
+          bookedById={(order as any).booked_by_id}
+          bookedByName={(order as any).booked_by_name}
+          mayBeInvoiced={order.status === 'delivered'}
+          isAdmin={isAdmin}
+          onChanged={handleRefreshOrder}
+        />
+
 
         <Card>
           <CardHeader>
