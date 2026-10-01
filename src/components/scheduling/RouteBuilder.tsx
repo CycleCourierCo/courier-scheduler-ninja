@@ -25,6 +25,7 @@ import CSVMatchReviewDialog from './CSVMatchReviewDialog';
 import SaveRouteDialog from './SaveRouteDialog';
 import LoadRouteDialog from './LoadRouteDialog';
 import BulkRouteMessageDialog from './BulkRouteMessageDialog';
+import SplitRouteDialog from './SplitRouteDialog';
 import { MessageSquare, Briefcase, Home, UserRound, ArrowLeftRight } from 'lucide-react';
 import { z } from "zod";
 import { format, differenceInCalendarDays } from "date-fns";
@@ -2563,6 +2564,76 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     }
   };
 
+  // ---- Quick-clean filters for the Get Timeslots popup ----
+  const isUncollectedDelivery = (j: any) =>
+    j.type === 'delivery' && (j.orderData?.order_collected ?? j.order?.order_collected) !== true;
+  const isUninspectedDelivery = (j: any) => {
+    if (j.type !== 'delivery') return false;
+    const needs = (j.orderData?.needs_inspection ?? j.order?.needs_inspection) === true;
+    const st = j.orderData?.inspection_status ?? j.order?.inspection_status;
+    return needs && st !== 'inspected' && st !== 'repaired';
+  };
+  const isNotCustomerDate = (j: any) =>
+    j.type !== 'break' &&
+    getAvailabilityBadge(j.type, selectedDate, j.orderData?.pickup_date, j.orderData?.delivery_date)?.text === 'Not Customer Date';
+  const cleanCounts = {
+    notCollected: selectedJobs.filter(isUncollectedDelivery).length,
+    notInspected: selectedJobs.filter(isUninspectedDelivery).length,
+    notCustomerDate: selectedJobs.filter(isNotCustomerDate).length,
+  };
+  const removeMatching = (pred: (j: any) => boolean, label: string) => {
+    const previous = [...selectedJobs];
+    const next = previous.filter((j) => !pred(j));
+    const removed = previous.length - next.length;
+    if (!removed) return;
+    setSelectedJobs(next);
+    if (next.some((j) => j.type !== 'break')) calculateTimeslots(next);
+    toast.success(`Removed ${removed} ${label}`, {
+      action: { label: 'Undo', onClick: () => { setSelectedJobs(previous); calculateTimeslots(previous); } },
+    });
+  };
+  const [splitOpen, setSplitOpen] = useState(false);
+  const saveSplitRoute = async (jobs: any[], name: string) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast.error('Please sign in again'); return; }
+    const jobData = jobs.map((job) => {
+      const coords = job.orderData ? resolveStopCoords(job.orderData, job.type) : { lat: null, lon: null };
+      return {
+        orderId: job.orderId, type: job.type, address: job.address, contactName: job.contactName,
+        phoneNumber: job.phoneNumber, order: job.order, estimatedTime: job.estimatedTime,
+        lat: coords.lat ?? job.lat, lon: coords.lon ?? job.lon,
+      };
+    });
+    const { error } = await supabase.from('saved_routes').insert({
+      id: uuid(), name, job_data: jobData, start_time: startTime, starting_bikes: startingBikes, created_by: user.id,
+    });
+    if (error) toast.error(`Couldn't save: ${error.message}`); else toast.success(`Saved "${name}"`);
+  };
+  const renderCleanBar = (compact: boolean) => {
+    const cls = compact ? 'flex-1 h-8 text-xs' : '';
+    const stopCount = selectedJobs.filter((j) => j.type !== 'break').length;
+    return (
+      <div className={cn('flex flex-wrap gap-2', compact ? 'mt-2' : 'mt-3')}>
+        <Button size="sm" variant="outline" className={cls} disabled={!cleanCounts.notCollected}
+          onClick={() => removeMatching(isUncollectedDelivery, 'not-collected deliveries')}>
+          Remove not collected ({cleanCounts.notCollected})
+        </Button>
+        <Button size="sm" variant="outline" className={cls} disabled={!cleanCounts.notInspected}
+          onClick={() => removeMatching(isUninspectedDelivery, 'uninspected deliveries')}>
+          Remove not inspected ({cleanCounts.notInspected})
+        </Button>
+        <Button size="sm" variant="outline" className={cls} disabled={!cleanCounts.notCustomerDate}
+          onClick={() => removeMatching(isNotCustomerDate, 'not-customer-date stops')}>
+          Remove not customer dates ({cleanCounts.notCustomerDate})
+        </Button>
+        <Button size="sm" variant="outline" className={cls} disabled={stopCount < 2}
+          onClick={() => setSplitOpen(true)}>
+          Split route ({stopCount})
+        </Button>
+      </div>
+    );
+  };
+
   const handleFlipRoute = async () => {
     if (selectedJobs.length < 2) return;
     try {
@@ -3888,6 +3959,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                       Bulk Message
                     </Button>
                   </div>
+                  {renderCleanBar(true)}
                 </div>
 
                 <TimeslotRouteMap
@@ -4099,6 +4171,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                     Bulk Message
                   </Button>
                 </div>
+                {renderCleanBar(false)}
               </div>
 
               <TimeslotRouteMap
@@ -4348,6 +4421,14 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         onLoadRoute={handleLoadSavedRoute}
       />
 
+      <SplitRouteDialog
+        open={splitOpen}
+        onOpenChange={setSplitOpen}
+        stops={selectedJobs.filter((j) => j.type !== 'break') as any}
+        shiftStart={startTime || '09:00'}
+        onLoad={(jobs) => { setSelectedJobs(jobs as any); calculateTimeslots(jobs as any); }}
+        onSave={saveSplitRoute}
+      />
       <BulkRouteMessageDialog
         open={bulkMessageOpen}
         onOpenChange={setBulkMessageOpen}

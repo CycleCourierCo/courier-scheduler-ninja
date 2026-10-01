@@ -282,6 +282,79 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
 
+    /* ------------- split: share one route's stops across N vans ------------- */
+    if (body?.mode === 'split') {
+      const stops = Array.isArray(body?.stops) ? body.stops : [];
+      const n = Math.floor(Number(body?.routes));
+      if (stops.length < 2 || stops.length > 200) return json({ error: 'Between 2 and 200 stops are required' }, 400);
+      if (!Number.isFinite(n) || n < 2 || n > Math.min(20, stops.length)) return json({ error: 'Choose between 2 and the number of stops' }, 400);
+      const clean: { key: string; orderId: string; type: 'pickup' | 'delivery'; lat: number; lon: number }[] = [];
+      for (const s of stops) {
+        const lat = Number(s?.lat), lon = Number(s?.lon);
+        if (typeof s?.orderId !== 'string' || !['pickup', 'delivery'].includes(s?.type)
+          || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180 || (lat === 0 && lon === 0)) {
+          return json({ error: 'Every stop needs valid coordinates' }, 400);
+        }
+        clean.push({ key: `${s.orderId}:${s.type}`, orderId: s.orderId, type: s.type, lat, lon });
+      }
+      // Cluster same-address stops into one unit so they stay on the same van.
+      const locKey = (s: { lat: number; lon: number }) => `${s.lat.toFixed(5)},${s.lon.toFixed(5)}`;
+      const byOrder = new Map<string, typeof clean>();
+      clean.forEach((s) => byOrder.set(s.orderId, [...(byOrder.get(s.orderId) || []), s]));
+      const idToKeys = new Map<number, string[]>();
+      let nextId = 1;
+      const jobs: any[] = []; const shipments: any[] = [];
+      const loc = (s: { lat: number; lon: number }) => [s.lon, s.lat];
+      const singles = new Map<string, typeof clean>();
+      for (const legs of byOrder.values()) {
+        const p = legs.find((l) => l.type === 'pickup'); const d = legs.find((l) => l.type === 'delivery');
+        if (p && d && locKey(p) !== locKey(d)) {
+          const pid = nextId++, did = nextId++;
+          idToKeys.set(pid, [p.key]); idToKeys.set(did, [d.key]);
+          shipments.push({ pickup: { id: pid, location: loc(p), service: SERVICE_S }, delivery: { id: did, location: loc(d), service: SERVICE_S } });
+        } else {
+          for (const l of legs) singles.set(locKey(l), [...(singles.get(locKey(l)) || []), l]);
+        }
+      }
+      for (const group of singles.values()) {
+        const id = nextId++;
+        // pickups first within an address
+        idToKeys.set(id, [...group].sort((a, b) => (a.type === 'pickup' ? -1 : 1) - (b.type === 'pickup' ? -1 : 1)).map((g) => g.key));
+        jobs.push({ id, location: loc(group[0]), service: SERVICE_S * group.length });
+      }
+      // Without a cap one van is always cheapest, so share tasks evenly (+small slack).
+      const taskCount = jobs.length + shipments.length * 2;
+      const maxTasks = Math.ceil(taskCount / n) + 1;
+      const mkVehicle = (id: number, cap?: number) => ({
+        id, profile: 'car', ...(cap ? { max_tasks: cap } : {}), start: [DEPOT.lon, DEPOT.lat], end: [DEPOT.lon, DEPOT.lat],
+        costs: { fixed: 0, per_hour: DRIVER_PENCE_PER_HOUR, per_km: PENCE_PER_KM },
+      });
+      const solve = async (vehicles: any[]) => {
+        const r = await fetch(solveUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${VERSO_API_KEY}`, 'X-Api-Key': VERSO_API_KEY },
+          body: JSON.stringify({ vehicles, jobs, shipments, options: { g: false } }),
+        });
+        if (!r.ok) { console.error('split solve failed', r.status); return null; }
+        return await r.json();
+      };
+      const [sol, base] = await Promise.all([
+        solve(Array.from({ length: n }, (_, i) => mkVehicle(i + 1, maxTasks))),
+        solve([mkVehicle(1)]),
+      ]);
+      if (!sol) return json({ error: 'The route optimiser could not split this route' }, 502);
+      const routes = (sol.routes || []).map((r: any) => ({
+        order: (r.steps || []).filter((st: any) => typeof st?.id === 'number' && st.type !== 'start' && st.type !== 'end')
+          .flatMap((st: any) => idToKeys.get(st.id) || []),
+        duration_s: r.duration ?? 0,
+        distance_m: r.distance ?? 0,
+      })).filter((r: any) => r.order.length > 0);
+      const unassigned: string[] = (sol.unassigned || []).flatMap((u: any) => idToKeys.get(u.id) || []);
+      const b = base?.routes?.[0];
+      console.log('split solved', { stops: clean.length, requested: n, returned: routes.length, unassigned: unassigned.length });
+      return json({ routes, unassigned, baseline: b ? { duration_s: b.duration ?? 0, distance_m: b.distance ?? 0 } : null });
+    }
+
     /* ------------- reorder: best order for an existing single route ------------- */
     if (body?.mode === 'reorder') {
       const stops = Array.isArray(body?.stops) ? body.stops : [];
