@@ -26,6 +26,7 @@ import { Contact } from "@/services/contactService";
 import { Input } from "@/components/ui/input";
 import { DEPOT_RECEIVER } from "@/constants/depot";
 import { hasRole } from "@/lib/roles";
+import CustomerAccountPicker, { PickedAccount } from "@/components/orders/CustomerAccountPicker";
 
 
 const UK_PHONE_REGEX = /^\+44[0-9]{10}$/; // Validates +44 followed by 10 digits
@@ -212,7 +213,9 @@ const CreateOrder = () => {
   const [activeTab, setActiveTab] = React.useState("details");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const isAdmin = hasRole(userProfile, 'admin');
-  const { data: contacts = [], isLoading: isLoadingContacts } = useContacts(user?.id, isAdmin);
+  const canBookForOthers = isAdmin || hasRole(userProfile, 'cs_agent' as any);
+  const [bookFor, setBookFor] = React.useState<PickedAccount | null>(null);
+  const { data: contacts = [], isLoading: isLoadingContacts } = useContacts(bookFor?.id || user?.id, isAdmin);
 
   const form = useForm<CreateOrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -418,7 +421,7 @@ const CreateOrder = () => {
         deliveryInstructions: deliveryInstructions.trim(),
       };
       
-      const order = await createOrder(transformedData);
+      const order = await createOrder({ ...transformedData, onBehalfOfUserId: bookFor?.id } as any);
       toast.success("Order created successfully!");
 
       // Business accounts go straight to setting collection availability — only when they are the sender
@@ -430,7 +433,7 @@ const CreateOrder = () => {
         (orderSenderEmail === norm(userProfile?.email) ||
           orderSenderEmail === norm((userProfile as any)?.accounts_email));
 
-      if (isBusinessAccount && isSenderOnOrder && order?.id) {
+      if (!bookFor && isBusinessAccount && isSenderOnOrder && order?.id) {
         toast.info("Set your collection availability now — no need to wait for the email.");
         navigate(`/sender-availability/${order.id}`);
       } else {
@@ -580,6 +583,16 @@ const CreateOrder = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {canBookForOthers && (
+              <div className="mb-6 space-y-2">
+                <label className="text-sm font-medium">Book for account</label>
+                <CustomerAccountPicker
+                  value={bookFor}
+                  onChange={setBookFor}
+                  emptyLabel="Leave empty to book under your own account."
+                />
+              </div>
+            )}
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
                 // Handle validation errors with user feedback

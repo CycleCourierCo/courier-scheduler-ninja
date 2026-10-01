@@ -3624,6 +3624,8 @@ export type Database = {
           bike_type: string | null
           bike_value: number | null
           bikes: Json | null
+          booked_by_id: string | null
+          booked_by_name: string | null
           box_boxed_at: string | null
           box_boxed_by_id: string | null
           box_buyer: Json | null
@@ -3747,6 +3749,8 @@ export type Database = {
           bike_type?: string | null
           bike_value?: number | null
           bikes?: Json | null
+          booked_by_id?: string | null
+          booked_by_name?: string | null
           box_boxed_at?: string | null
           box_boxed_by_id?: string | null
           box_buyer?: Json | null
@@ -3870,6 +3874,8 @@ export type Database = {
           bike_type?: string | null
           bike_value?: number | null
           bikes?: Json | null
+          booked_by_id?: string | null
+          booked_by_name?: string | null
           box_boxed_at?: string | null
           box_boxed_by_id?: string | null
           box_buyer?: Json | null
