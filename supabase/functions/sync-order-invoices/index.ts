@@ -156,12 +156,31 @@ Deno.serve(async (req) => {
       if (invoices.length < 1000) break;
     }
 
+    let unlinkedCount: number | null = null;
+    let unlinkedEarliestDate: string | null = null;
+    let unlinkedLatestDate: string | null = null;
+    try {
+      const { data: summaryRows, error: summaryError } = await supabase.rpc('unlinked_invoice_summary');
+      if (summaryError) throw summaryError;
+      const summary = (summaryRows || [])[0];
+      if (summary) {
+        unlinkedCount = Number(summary.unlinked_count);
+        unlinkedEarliestDate = summary.earliest_date || null;
+        unlinkedLatestDate = summary.latest_date || null;
+      }
+    } catch (summaryError) {
+      console.error('Failed to load unlinked invoice summary:', summaryError instanceof Error ? summaryError.message : summaryError);
+    }
+
     const result = {
       invoicesScanned,
       linkedCount,
       alreadyLinkedCount,
       unmatchedCount,
       ambiguousCount,
+      unlinkedCount,
+      unlinkedEarliestDate,
+      unlinkedLatestDate,
     };
     await supabase.from('order_invoice_sync_runs').update({
       status: 'completed',
