@@ -37,6 +37,7 @@ const PartnerAppsPage = lazy(() => import("./pages/PartnerAppsPage"));
 const OAuthAuthorizePage = lazy(() => import("./pages/OAuthAuthorizePage"));
 const WebhookConfigPage = lazy(() => import("./pages/WebhookConfigPage"));
 const InvoicesPage = lazy(() => import("./pages/InvoicesPage"));
+const QuickBooksProducts = lazy(() => import("./pages/QuickBooksProducts"));
 const AboutPage = lazy(() => import("./pages/AboutPage"));
 const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
 const TermsPage = lazy(() => import("./pages/TermsPage"));
@@ -186,6 +187,11 @@ function App() {
               <Route path="/users" element={
                 <ProtectedRoute>
                   <UserManagement />
+                </ProtectedRoute>
+              } />
+              <Route path="/quickbooks-products" element={
+                <ProtectedRoute>
+                  <QuickBooksProducts />
                 </ProtectedRoute>
               } />
               <Route path="/invoices" element={
