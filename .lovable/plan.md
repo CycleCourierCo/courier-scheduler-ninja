@@ -1,27 +1,19 @@
-# Route builder: protect on-route jobs and pair-aware splitting
+# Manage QuickBooks products from the portal
 
-## What you flagged
+Yes. A new admin-only **QuickBooks Products** page lets you see, add, edit and remove products without opening QuickBooks.
 
-- **Remove not collected:** today a delivery is removed whenever the order's "collected" flag isn't set. A job that is on route (driver on the way to collect, or collecting as part of the route) hasn't got that flag yet — so its delivery **would** be removed. That's wrong.
-- **Split route:** the split only keeps stops at the same address together. A collection and delivery for the same order at different addresses can end up on different vans.
+## What you can do
+- **See all products**: name, type (Service / Non-inventory), sales price, VAT code, income account, and whether it's active. You can search and filter by active or inactive.
+- **Add a product**: name, type, description, sales price (before VAT), VAT code (picked from your QuickBooks VAT codes) and income account (picked from your QuickBooks accounts).
+- **Edit a product**: change any of the fields above. Changes save straight into QuickBooks.
+- **Remove a product**: QuickBooks doesn't let anyone fully delete a product. It only lets you make it **inactive**, and that is what Remove will do. You can make it active again later.
 
-## Changes
+## Safety
+- You'll get a warning before renaming or removing a product the platform relies on, such as Warehouse Bike Storage, Bike Inspection & Service, Box My Bike, Guaranteed Delivery Date, or the special-rate products. Invoices find these by exact name, so renaming one would stop those invoices.
+- Only admins see the page. It sits in the admin menu next to Invoices.
 
-### 1. Remove not collected — keep on-route jobs
-In `RouteBuilder.tsx`, `isUncollectedDelivery` also keeps a delivery when the order's status shows the collection is under way or done:
-- `driver_to_collection`, `collection_scheduled`, `collected`, `driver_to_delivery`, `shipped`
-- Scotland/ferry in-transit statuses (`in_transit_to_scotland`, `at_scotland_depot`, `awaiting_trunk_to_depot`, `in_transit_to_depot`, `collected_from_partner` handling already elsewhere)
-- Depot/3PL statuses where the bike is already in our hands (`awaiting_depot`, `in_depot_awaiting_boxing`, `boxed_awaiting_label`, `awaiting_3p_collection`, `collected_by_3p`, `delivered_by_3p`)
-
-Only deliveries where the collection hasn't started (status like `scheduled`/`pending` and not collected) are removed. The button count updates to match.
-
-### 2. Split route — keep each order's collection and delivery on the same van
-In the `route-optimize` edge function's `split` mode:
-- Group stops by order: an order's collection and delivery become one linked pair (VROOM shipment) so the optimiser must place both on the same vehicle, collection first.
-- Same-address clustering stays as-is.
-- Everything else (balanced stop counts per van, baseline cost comparison, unassigned list) is unchanged.
-
-## Technical notes
-- Frontend-only change for the filter (`src/components/scheduling/RouteBuilder.tsx`).
-- Split change is in `supabase/functions/route-optimize/index.ts`, `split` mode only — reorder and full generation are untouched.
-- No database changes.
+## Technical details
+- New edge function `quickbooks-products` (admin JWT check, CORS, uses the existing stored QuickBooks token and refresh flow). Actions: `list` (Item query, paged), `list_refs` (TaxCode + Income Account), `create`, `update` (sparse update with SyncToken), `deactivate` / `reactivate` (Active=false/true). QbSQL strings escaped. No PII or tokens logged.
+- New page `src/pages/QuickBooksProducts.tsx` with a table and an add/edit dialog. Route added to the routes config, and an entry added to the admin menu.
+- A protected-name list is shared with the invoice functions so the warning matches the names they look up.
+- No database changes. QuickBooks stays the source of truth, and nothing is cached.
