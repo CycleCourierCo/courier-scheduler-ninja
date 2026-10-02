@@ -55,6 +55,7 @@ import { generateSingleOrderLabel } from "@/utils/labelUtils";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import ChangeOrderOwner from "@/components/order-detail/ChangeOrderOwner";
+import OrderInvoiceLinks from "@/components/order-detail/OrderInvoiceLinks";
 
 const safeFormat = (date: Date | string | null | undefined, formatStr: string): string => {
   if (!date) return "";
@@ -1340,6 +1341,7 @@ const OrderDetail = () => {
   
   const showAdminControls = true;
   const isAdmin = hasRole(userProfile, 'admin');
+  const canViewInvoices = isAdmin || hasRole(userProfile, 'cs_agent');
   const isAdminOrRoutePlanner = hasRole(userProfile, 'admin') || hasRole(userProfile, 'route_planner');
   
   const handleRefreshOrder = async () => {
@@ -1378,6 +1380,7 @@ const OrderDetail = () => {
           isAdmin={isAdmin}
           onChanged={handleRefreshOrder}
         />
+        {canViewInvoices && <OrderInvoiceLinks orderId={order.id} />}
 
 
         <Card>
