@@ -13,7 +13,7 @@ In `supabase/functions/send-order-updates/index.ts`, add a short "What happens n
 | --- | --- |
 | Booking received / waiting for collection dates | "Once you choose your dates, we'll build a route and send your time slot the day before collection." |
 | Waiting for delivery dates | "Once dates are chosen, we'll arrange delivery and send the time slot the day before." |
-| Dates received, planning route | "We'll confirm your collection date shortly, then send your time slot the day before." |
+| Dates received, planning route | "We'll send your time slot the day before we're due with you — there's nothing else you need to do." (No separate date confirmation is promised; the timeslot is the next contact.) |
 | Collection booked (sender + receiver) | "You'll get your time slot the day before; after collection we'll arrange delivery around the receiver's dates." |
 | At depot / awaiting inspection | "After inspection we'll confirm any work needed, then arrange delivery." |
 | Inspected, no issues | "The bike is being cleaned and prepared; we'll then arrange your delivery dates." |
