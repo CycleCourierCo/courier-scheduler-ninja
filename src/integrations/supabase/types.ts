@@ -3489,6 +3489,92 @@ export type Database = {
           },
         ]
       }
+      order_invoice_links: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_date: string | null
+          link_source: string
+          order_id: string
+          quickbooks_invoice_id: string
+          quickbooks_invoice_number: string | null
+          quickbooks_invoice_url: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_date?: string | null
+          link_source: string
+          order_id: string
+          quickbooks_invoice_id: string
+          quickbooks_invoice_number?: string | null
+          quickbooks_invoice_url: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_date?: string | null
+          link_source?: string
+          order_id?: string
+          quickbooks_invoice_id?: string
+          quickbooks_invoice_number?: string | null
+          quickbooks_invoice_url?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_invoice_links_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_invoice_sync_runs: {
+        Row: {
+          already_linked_count: number
+          ambiguous_count: number
+          completed_at: string | null
+          error_message: string | null
+          id: string
+          invoices_scanned: number
+          linked_count: number
+          started_at: string
+          started_by: string
+          status: string
+          unmatched_count: number
+        }
+        Insert: {
+          already_linked_count?: number
+          ambiguous_count?: number
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          invoices_scanned?: number
+          linked_count?: number
+          started_at?: string
+          started_by: string
+          status: string
+          unmatched_count?: number
+        }
+        Update: {
+          already_linked_count?: number
+          ambiguous_count?: number
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          invoices_scanned?: number
+          linked_count?: number
+          started_at?: string
+          started_by?: string
+          status?: string
+          unmatched_count?: number
+        }
+        Relationships: []
+      }
       order_leg_availability: {
         Row: {
           availability_expired_at: string | null
