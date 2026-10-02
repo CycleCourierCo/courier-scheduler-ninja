@@ -32,6 +32,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
       { to: "/bulk-upload", label: "Bulk Upload", icon: Upload },
       { to: "/tracking", label: "Track Order", icon: Truck },
       { to: "/invoices", label: "Invoices", icon: FileText },
+      { to: "/quickbooks-products", label: "QuickBooks Products", icon: Boxes },
       { to: "/pricing", label: "Pricing", icon: PoundSterling },
     ],
   },
