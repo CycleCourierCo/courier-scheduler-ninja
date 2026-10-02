@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.tsx';
 import './index.css';
 import { supabase } from '@/integrations/supabase/client';
+import { initPostHog } from '@/lib/posthog';
 
 // Initialize Sentry before rendering
 // Enable if DSN is configured (works in both dev preview and production)
@@ -42,6 +43,9 @@ Sentry.init({
 } catch {
   // Error reporting unavailable (blocked script/storage) — carry on.
 }
+
+// PostHog product analytics — safe no-op when the connector isn't linked.
+initPostHog();
 
 // Global handler for unhandled promise rejections
 window.addEventListener('unhandledrejection', (event) => {
