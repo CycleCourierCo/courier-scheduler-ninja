@@ -617,8 +617,10 @@ const handler = async (req: Request): Promise<Response> => {
     // Build line items with bike-type-based pricing (or special rate if set)
     const lineItems: any[] = [];
     const missingProducts: string[] = [];
+    const invoicedOrderIds = new Set<string>();
     
     for (const order of invoiceData.orders) {
+      const lineCountBeforeOrder = lineItems.length;
       const senderName = order.sender?.name || 'Unknown Sender';
       const receiverName = order.receiver?.name || 'Unknown Receiver';
       const serviceDate = new Date(order.created_at).toISOString().split('T')[0];
@@ -841,6 +843,7 @@ const handler = async (req: Request): Promise<Response> => {
           }
         }
       }
+      if (lineItems.length > lineCountBeforeOrder) invoicedOrderIds.add(order.id);
     }
     if (storageProduct) {
       for (const period of storagePeriods) {
@@ -1031,7 +1034,7 @@ const handler = async (req: Request): Promise<Response> => {
     const qbInvoice = quickbooksResponse.QueryResponse?.Invoice?.[0] || quickbooksResponse.Invoice;
     const invoiceId = qbInvoice?.Id;
     const invoiceNumber = qbInvoice?.DocNumber;
-    if (claimed.length > 0 && !invoiceId) throw new Error('QuickBooks response lacks invoice ID; storage charges require manual review before retrying');
+    if (!invoiceId) throw new Error('QuickBooks response lacks invoice ID; review the invoice before retrying');
     for (const period of claimed) {
       const { error: chargeError } = await supabase.from('warehouse_storage_charges').update({
         status: 'invoiced', quickbooks_invoice_id: invoiceId, quickbooks_invoice_number: invoiceNumber, failure_reason: null,
@@ -1040,6 +1043,22 @@ const handler = async (req: Request): Promise<Response> => {
     }
     
     const invoiceUrl = `https://qbo.intuit.com/app/invoice?txnId=${invoiceId}`;
+
+    if (invoicedOrderIds.size > 0) {
+      const links = [...invoicedOrderIds].map((orderId) => ({
+        order_id: orderId,
+        quickbooks_invoice_id: String(invoiceId),
+        quickbooks_invoice_number: invoiceNumber ? String(invoiceNumber) : null,
+        quickbooks_invoice_url: invoiceUrl,
+        invoice_date: qbInvoice?.TxnDate || invoiceData.endDate.split('T')[0],
+        link_source: 'invoice_creation',
+        updated_at: new Date().toISOString(),
+      }));
+      const { error: linkError } = await supabase
+        .from('order_invoice_links')
+        .upsert(links, { onConflict: 'order_id,quickbooks_invoice_id' });
+      if (linkError) console.error('Failed to save order invoice links:', linkError.message);
+    }
 
     // Customer-facing delivery: public share link + QuickBooks' own branded invoice email.
     const delivery = await prepareInvoiceDelivery(
