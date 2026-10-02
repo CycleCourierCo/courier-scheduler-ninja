@@ -73,6 +73,12 @@ type InvoiceSyncRun = {
   ambiguous_count: number;
 };
 
+type UnlinkedInvoiceSummary = {
+  unlinked_count: number;
+  earliest_date: string | null;
+  latest_date: string | null;
+};
+
 export default function InvoicesPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<string>("");
   const [startDate, setStartDate] = useState<Date>();
@@ -116,15 +122,29 @@ export default function InvoicesPage() {
     },
   });
 
+  const { data: unlinkedSummary, refetch: refetchUnlinkedSummary } = useQuery({
+    queryKey: ["unlinked-invoice-summary"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("unlinked_invoice_summary");
+      if (error) throw error;
+      const row = (data && data[0]) || null;
+      return row as UnlinkedInvoiceSummary | null;
+    },
+  });
+
   const handleSyncOrderInvoices = async () => {
     setIsSyncingInvoices(true);
     try {
       const { data, error } = await supabase.functions.invoke("sync-order-invoices", { body: {} });
       if (error) throw error;
+      const stillUnlinked = typeof data?.unlinkedCount === "number"
+        ? ` ${data.unlinkedCount} orders still unlinked.`
+        : "";
       notify.success("Invoice links synced", {
-        description: `${data.linkedCount} linked, ${data.alreadyLinkedCount} already linked, ${data.unmatchedCount} unmatched, ${data.ambiguousCount} ambiguous.`,
+        description: `${data.linkedCount} linked, ${data.alreadyLinkedCount} already linked, ${data.unmatchedCount} unmatched, ${data.ambiguousCount} ambiguous.${stillUnlinked}`,
       });
       refetchLatestSync();
+      refetchUnlinkedSummary();
     } catch (error: any) {
       console.error("Invoice link sync failed:", error);
       notify.error("Invoice sync failed", { description: error?.message || "Could not sync QuickBooks invoices" });
@@ -736,6 +756,21 @@ export default function InvoicesPage() {
             Last invoice-link sync: {latestSync.status}
             {latestSync.completed_at ? ` on ${format(new Date(latestSync.completed_at), "d MMM yyyy 'at' HH:mm")}` : ""}
             {latestSync.status === "completed" ? ` — ${latestSync.linked_count} linked, ${latestSync.already_linked_count} already linked, ${latestSync.unmatched_count} unmatched, ${latestSync.ambiguous_count} ambiguous.` : ""}
+          </div>
+        )}
+
+        {unlinkedSummary && unlinkedSummary.unlinked_count > 0 && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+            <span className="font-medium">
+              {unlinkedSummary.unlinked_count.toLocaleString()} delivered {unlinkedSummary.unlinked_count === 1 ? "order has" : "orders have"} no linked invoice
+            </span>
+            {unlinkedSummary.earliest_date && unlinkedSummary.latest_date && (
+              <span className="text-muted-foreground">
+                {" "}— spanning {format(new Date(`${unlinkedSummary.earliest_date}T12:00:00`), "d MMM yyyy")}
+                {" "}to {format(new Date(`${unlinkedSummary.latest_date}T12:00:00`), "d MMM yyyy")}
+              </span>
+            )}
+            . Run <span className="font-medium">Sync order invoice links</span> to match historical QuickBooks invoices.
           </div>
         )}
 
