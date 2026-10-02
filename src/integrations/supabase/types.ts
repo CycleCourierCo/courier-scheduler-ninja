@@ -7533,6 +7533,14 @@ export type Database = {
         Args: { p_approved_issue_ids: string[]; p_order_id: string }
         Returns: Json
       }
+      unlinked_invoice_summary: {
+        Args: never
+        Returns: {
+          earliest_date: string
+          latest_date: string
+          unlinked_count: number
+        }[]
+      }
       unlockrows: { Args: { "": string }; Returns: number }
       update_user_profile_for_management: {
         Args: { p_updates: Json; p_user_id: string }
