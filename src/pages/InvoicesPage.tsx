@@ -105,6 +105,34 @@ export default function InvoicesPage() {
     },
   });
 
+  const { data: latestSync, refetch: refetchLatestSync } = useQuery({
+    queryKey: ["latest-order-invoice-sync"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("order_invoice_sync_runs")
+        .select("id, completed_at, status, invoices_scanned, linked_count, already_linked_count, unmatched_count, ambiguous_count")
+        .order("started_at", { ascending: false }).limit(1).maybeSingle();
+      if (error) throw error;
+      return data as InvoiceSyncRun | null;
+    },
+  });
+
+  const handleSyncOrderInvoices = async () => {
+    setIsSyncingInvoices(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-order-invoices", { body: {} });
+      if (error) throw error;
+      notify.success("Invoice links synced", {
+        description: `${data.linkedCount} linked, ${data.alreadyLinkedCount} already linked, ${data.unmatchedCount} unmatched, ${data.ambiguousCount} ambiguous.`,
+      });
+      refetchLatestSync();
+    } catch (error: any) {
+      console.error("Invoice link sync failed:", error);
+      notify.error("Invoice sync failed", { description: error?.message || "Could not sync QuickBooks invoices" });
+    } finally {
+      setIsSyncingInvoices(false);
+    }
+  };
+
   // Check QuickBooks connection status
   const { data: quickBooksToken } = useQuery({
     queryKey: ['quickbooks-token'],
@@ -515,33 +543,6 @@ export default function InvoicesPage() {
         return null;
       })
 
-  const { data: latestSync, refetch: refetchLatestSync } = useQuery({
-    queryKey: ["latest-order-invoice-sync"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("order_invoice_sync_runs")
-        .select("id, completed_at, status, invoices_scanned, linked_count, already_linked_count, unmatched_count, ambiguous_count")
-        .order("started_at", { ascending: false }).limit(1).maybeSingle();
-      if (error) throw error;
-      return data as InvoiceSyncRun | null;
-    },
-  });
-
-  const handleSyncOrderInvoices = async () => {
-    setIsSyncingInvoices(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("sync-order-invoices", { body: {} });
-      if (error) throw error;
-      notify.success("Invoice links synced", {
-        description: `${data.linkedCount} linked, ${data.alreadyLinkedCount} already linked, ${data.unmatchedCount} unmatched, ${data.ambiguousCount} ambiguous.`,
-      });
-      refetchLatestSync();
-    } catch (error: any) {
-      console.error("Invoice link sync failed:", error);
-      notify.error("Invoice sync failed", { description: error?.message || "Could not sync QuickBooks invoices" });
-    } finally {
-      setIsSyncingInvoices(false);
-    }
-  };
       .filter(t => t !== null);
 
     const avgCreationToDelivery = deliveryTimes.length > 0
