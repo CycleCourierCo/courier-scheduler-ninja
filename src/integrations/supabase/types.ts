@@ -3620,6 +3620,7 @@ export type Database = {
         Row: {
           bike_brand: string | null
           bike_model: string | null
+          bike_preparation_email_sent_at: string | null
           bike_quantity: number | null
           bike_type: string | null
           bike_value: number | null
@@ -3745,6 +3746,7 @@ export type Database = {
         Insert: {
           bike_brand?: string | null
           bike_model?: string | null
+          bike_preparation_email_sent_at?: string | null
           bike_quantity?: number | null
           bike_type?: string | null
           bike_value?: number | null
@@ -3870,6 +3872,7 @@ export type Database = {
         Update: {
           bike_brand?: string | null
           bike_model?: string | null
+          bike_preparation_email_sent_at?: string | null
           bike_quantity?: number | null
           bike_type?: string | null
           bike_value?: number | null
