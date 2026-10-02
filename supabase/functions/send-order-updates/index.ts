@@ -650,6 +650,13 @@ function buildHtml(order: any, update: Update, name: string): string {
   const journey =
     `<div style="margin:4px 0 0;">${emailUI.statusPill(pres.pill[0] as any, pres.pill[1])}</div>` +
     emailUI.stripMap(stages, stageIndex(stages, pres.labels, pres.fallback));
+  const nextStep = nextStepFor(update.stageKey);
+  const nextStepHtml = nextStep
+    ? `<div style="margin:20px 0;padding:14px 16px;background-color:#f0f7ff;border-radius:5px;border-left:4px solid #4a65d5;">
+        <p style="margin:0 0 4px;font-weight:bold;color:#333;">What happens next:</p>
+        <p style="margin:0;color:#555;line-height:1.6;">${nextStep}</p>
+      </div>`
+    : "";
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color:#1f2937;">
       <h2>Hello ${name},</h2>
@@ -661,6 +668,7 @@ function buildHtml(order: any, update: Update, name: string): string {
         ${order.tracking_number ? `<p style="margin:8px 0 0;"><strong>Tracking Number:</strong> ${order.tracking_number}</p>` : ""}
       </div>
       ${body}
+      ${nextStepHtml}
       ${expectationsHtml(expectationsForOrder(order))}
       ${trackingUrl ? `<div style="text-align:center;margin:24px 0;"><a href="${trackingUrl}" style="background-color:#4a65d5;color:#ffffff;padding:12px 20px;text-decoration:none;border-radius:5px;font-weight:bold;">Track Your Bike</a></div>` : ""}
       <p>If anything has changed or you have a question, just reply to this email.</p>
@@ -672,6 +680,7 @@ function buildHtml(order: any, update: Update, name: string): string {
 function buildText(order: any, update: Update, name: string): string {
   const trackingUrl = order.tracking_number ? `${BASE_URL}/tracking/${order.tracking_number}` : "";
   const strip = (s: string) => s.replace(/<[^>]+>/g, "");
+  const nextStep = nextStepFor(update.stageKey);
   return [
     `Hello ${name},`,
     "",
@@ -683,6 +692,7 @@ function buildText(order: any, update: Update, name: string): string {
     "",
     ...update.lines.map(strip),
     "",
+    ...(nextStep ? [`What happens next: ${nextStep}`, ""] : []),
     expectationsText(expectationsForOrder(order)),
     trackingUrl ? `Track your bike: ${trackingUrl}` : "",
     "",
