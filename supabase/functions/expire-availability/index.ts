@@ -42,7 +42,7 @@ serve(async (req) => {
     const today = londonToday();
     const { data: orders, error } = await admin
       .from('orders')
-      .select('id,pickup_date,delivery_date,order_collected,order_delivered,scheduled_pickup_date,scheduled_delivery_date,is_box_my_bike,is_warehouse_storage,status')
+      .select('id,pickup_date,delivery_date,order_collected,order_delivered,scheduled_pickup_date,scheduled_delivery_date,is_box_my_bike,is_warehouse_storage,status,ni_direction')
       .not('status', 'in', '(cancelled,delivered)');
     if (error) throw error;
 
@@ -58,8 +58,10 @@ serve(async (req) => {
     const liveKeys = new Set<string>();
 
     for (const o of ((orders as any[]) || [])) {
+      // NI / ferry work and paused orders never enter route planning.
+      const plannable = !o.ni_direction && !['on_hold', 'pending_approval'].includes(String(o.status));
       const check = (legType: 'collection' | 'delivery', raw: unknown, eligible: boolean) => {
-        if (!eligible) return;
+        if (!eligible || !plannable) return;
         liveKeys.add(`${o.id}:${legType}`);
         const dates = [...new Set((Array.isArray(raw) ? raw : []).map(dateKey).filter((d): d is string => !!d))];
         const hasFuture = dates.some((d) => d >= today);
