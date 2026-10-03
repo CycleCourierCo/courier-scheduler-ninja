@@ -538,8 +538,10 @@ serve(async (req) => {
 
     const vansForDate: Record<string, typeof allVans> = {};
     for (const date of selectedDates) {
-      const allowed = grid[date] ?? (flatVanIds.length > 0 ? flatVanIds : allVans.map((v) => v.id));
-      vansForDate[date] = allVans.filter((v) => allowed.includes(v.id) && !blocked.has(`${v.id}:${date}`));
+      // The planner's ticks are the truth for that day; saved days off only apply when no ticks were sent.
+      const ticked = Array.isArray(grid[date]) ? grid[date] : null;
+      const allowed = ticked ?? (flatVanIds.length > 0 ? flatVanIds : allVans.map((v) => v.id));
+      vansForDate[date] = allVans.filter((v) => allowed.includes(v.id) && (ticked !== null || !blocked.has(`${v.id}:${date}`)));
     }
     if (selectedDates.every((d) => vansForDate[d].length === 0)) {
       return json({ error: 'No vans are available on the days you picked' }, 400);
