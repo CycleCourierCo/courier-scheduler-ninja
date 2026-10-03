@@ -536,9 +536,18 @@ serve(async (req) => {
     const blocked = new Set(((unavailRes.data as any[]) || [])
       .map((r) => `${r.van_id}:${dateKey(r.unavailable_on) ?? r.unavailable_on}`));
 
+    // Vans that already have a locked route that day.
+    const { data: lockedVanRows } = await admin
+      .from('route_plan_routes').select('van_id,route_date')
+      .in('day_status', ['locked', 'confirmed']).in('route_date', selectedDates);
+    for (const r of (lockedVanRows as any[]) || []) {
+      if (r.van_id) blocked.add(`${r.van_id}:${dateKey(r.route_date) ?? r.route_date}`);
+    }
+
     const vansForDate: Record<string, typeof allVans> = {};
     for (const date of selectedDates) {
-      // The planner's ticks are the truth for that day; saved days off only apply when no ticks were sent.
+      // The planner's ticks are the truth for that day (a ticked locked van is a deliberate choice);
+      // saved days off and locked vans only apply when no ticks were sent.
       const ticked = Array.isArray(grid[date]) ? grid[date] : null;
       const allowed = ticked ?? (flatVanIds.length > 0 ? flatVanIds : allVans.map((v) => v.id));
       vansForDate[date] = allVans.filter((v) => allowed.includes(v.id) && (ticked !== null || !blocked.has(`${v.id}:${date}`)));
@@ -1135,11 +1144,18 @@ serve(async (req) => {
           const before = servedKeys(solved!);
           const after = retry ? servedKeys(retry) : new Set<string>();
           const lost = [...before].filter((k) => !after.has(k));
-          if (!retry || lost.length > 0) {
+          const lostMustGo = lost.filter((k) => {
+            const leg = legs.find((l) => l.key === k);
+            return !!leg && mustGo(leg, date);
+          });
+          // A weak van stays only for must-go work or if it pays its way;
+          // ordinary jobs on a dropped van wait for a later day.
+          if (!retry || lostMustGo.length > 0 || (lost.length > 0 && weakest.margin >= 0)) {
             protectedVans.add(weakest.r.meta.vanId);
             dayDebug.removals.push({
               van: weakest.r.meta.vanName, jobs: weakest.r.stops.length,
-              outcome: 'kept — work would be left undone', lost_jobs: lost.length,
+              outcome: lostMustGo.length > 0 ? 'kept — must-go work would be lost' : 'kept — route makes a profit',
+              lost_jobs: lost.length, lost_must_go: lostMustGo.length,
             });
             continue;
           }
