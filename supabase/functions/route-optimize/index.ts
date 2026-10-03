@@ -580,13 +580,26 @@ serve(async (req) => {
       .from('route_plan_stops')
       .select('order_id,leg_type,route_plan_routes!inner(day_status,route_date)')
       .in('route_plan_routes.day_status', ['locked', 'confirmed']);
-    const locked = new Set(((lockedRows as any[]) || []).map((r) => `${r.order_id}:${r.leg_type}`));
-    // A bike collected on a locked day is in the depot from the next day onwards.
+    // Only today/future locked routes reserve a job. A locked route whose date
+    // has passed (and was never done) must not hide the job from future runs.
+    const locked = new Set<string>();
+    const staleLocked: any[] = [];
     const lockedCollectionDate: Record<string, string> = {};
     for (const r of ((lockedRows as any[]) || [])) {
-      if (r.leg_type !== 'collection') continue;
       const d = dateKey(r.route_plan_routes?.route_date);
-      if (d) lockedCollectionDate[r.order_id] = d;
+      if (d && d < today) {
+        staleLocked.push({ order_id: r.order_id, leg_type: r.leg_type, route_date: d });
+        continue;
+      }
+      locked.add(`${r.order_id}:${r.leg_type}`);
+      // A bike collected on a locked day is in the depot from the next day onwards.
+      if (r.leg_type === 'collection' && d) lockedCollectionDate[r.order_id] = d;
+    }
+    if (staleLocked.length > 0) {
+      const labelByOrder: Record<string, string> = {};
+      for (const o of ((orderRows as any[]) || [])) labelByOrder[o.id] = o.tracking_number || o.id.slice(0, 8);
+      for (const s of staleLocked) s.label = labelByOrder[s.order_id] ?? s.order_id.slice(0, 8);
+      console.log(`stale locked legs ignored: ${staleLocked.length}`);
     }
 
     const { data: availRows } = await admin
@@ -1441,6 +1454,8 @@ serve(async (req) => {
       debug,
       days,
       at_risk: atRisk,
+      stale_locked_count: staleLocked.length,
+      stale_locked: staleLocked.slice(0, 50),
       needs_new_dates: needsNewDates.sort((a, b) => a.severity - b.severity),
       vans: allVans,
       weekly: { van_days_available: vanDaysAvailable, van_days_needed: vanDaysNeeded, short_days: [] },
