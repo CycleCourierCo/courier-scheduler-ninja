@@ -12,6 +12,8 @@ export interface PlanStop {
   guaranteed: boolean;
   /** Planned on a later plan day because its own dates were full. */
   planned_after_expiry?: boolean;
+  must_go?: "expired" | "last_date" | null;
+  last_date?: string | null;
 }
 
 export interface PlanRoute {
