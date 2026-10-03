@@ -54,21 +54,31 @@ serve(async (req) => {
     const now = new Date().toISOString();
     const expired: any[] = [];
     const revived: any[] = [];
+    /** Legs that still need doing on open orders; any other saved note is stale. */
+    const liveKeys = new Set<string>();
 
     for (const o of ((orders as any[]) || [])) {
       const check = (legType: 'collection' | 'delivery', raw: unknown, eligible: boolean) => {
         if (!eligible) return;
+        liveKeys.add(`${o.id}:${legType}`);
         const dates = [...new Set((Array.isArray(raw) ? raw : []).map(dateKey).filter((d): d is string => !!d))];
         const hasFuture = dates.some((d) => d >= today);
         const current = state.get(`${o.id}:${legType}`) ?? 'active';
         if (dates.length > 0 && !hasFuture && current === 'active') {
-          expired.push({ order_id: o.id, leg_type: legType, availability_status: 'expired', availability_expired_at: now });
+          expired.push({ order_id: o.id, leg_type: legType, availability_status: 'expired', availability_expired_at: now, redate_requested_at: null });
         } else if (hasFuture && current !== 'active') {
           revived.push({ order_id: o.id, leg_type: legType, availability_status: 'active', availability_expired_at: null, redate_requested_at: null });
         }
       };
       check('collection', o.pickup_date, !o.order_collected && !o.scheduled_pickup_date);
       check('delivery', o.delivery_date, !o.order_delivered && !o.scheduled_delivery_date && !o.is_box_my_bike && !o.is_warehouse_storage);
+    }
+
+    // Notes left on delivered/cancelled orders, NI work or finished/booked legs.
+    for (const [key, st] of state) {
+      if (st === 'active' || liveKeys.has(key)) continue;
+      const [order_id, leg_type] = key.split(':');
+      revived.push({ order_id, leg_type, availability_status: 'active', availability_expired_at: null, redate_requested_at: null });
     }
 
     for (const batch of [expired, revived]) {
