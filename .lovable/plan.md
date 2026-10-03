@@ -1,59 +1,21 @@
-# Booked jobs on the Expiring Dates page
+# Create Shipday carriers when the Driver role is added to an existing user
 
-## What it shows
+Today, adding the Driver role to someone who already has an account only saves the role — no Shipday carrier is created, so they can't be matched to route work. (Brand-new drivers already get carriers via the add-driver flow; this covers existing users being made drivers.)
 
-Today the page hides any job that has been booked (it has a scheduled pickup or delivery
-date), so once you plan a job it disappears — even if the customer's own dates were
-expiring or already expired. Staff lose the at-a-glance picture of whether the urgent
-jobs are covered.
+## What changes
 
-Each of the four columns (Last date today / Last date tomorrow / Last date in 2–3 days /
-Expired) gets a **separate "Booked" section at the bottom**, under a small divider
-heading with its own count. Jobs whose customer dates land in that column but which have
-now been booked appear there, clearly marked:
+1. **Automatic Shipday setup on role change**
+   - When the Driver role is added to a user who didn't have it before **and** who has no Shipday carrier saved yet, the app creates the two Shipday entries (main + "Temp") using the existing `create-shipday-carrier` function, with the user's name, email and phone.
+   - Both Shipday IDs and names are saved onto the user's record, so route work and carrier matching can use them straight away.
+   - If the user already has a Shipday carrier saved, nothing is re-created — no duplicates.
 
-- Card looks like the normal cards but dimmed, with a green "Booked for Sun 4 Oct" badge
-  showing the scheduled date, instead of the days-left badge.
-- Same info otherwise: tracking number, customer, bikes, leg badge, open-order link.
-- The main list on top (not yet booked) stays exactly as it is, and the column heading
-  count keeps counting only the not-yet-booked jobs — so the watch list stays honest.
+2. **Clear feedback**
+   - Success: "Roles updated — Shipday driver created."
+   - If Shipday fails (duplicate email, API problem): the role is still saved, and a warning says the Shipday driver couldn't be created so you can retry or link one manually from the driver's record.
+   - Removing the Driver role does **not** delete anything in Shipday.
 
-Live data check: this surfaces 12 collection legs and 16 delivery legs today (8
-deliveries and 3 collections with expired customer dates, plus the rest expiring
-tomorrow or in 2–3 days).
+## Technical notes
 
-## What counts as "booked"
-
-- Collection leg: `scheduled_pickup_date` is set and the order isn't collected yet.
-- Delivery leg: `scheduled_delivery_date` is set, order not delivered, and still not a
-  Box My Bike / warehouse-storage order (same rule as now).
-- The Northern Ireland exclusion and the never-gave-dates exclusion stay exactly as
-  they are.
-- The map keeps showing only the not-yet-booked jobs — booked work no longer needs
-  chasing, so it stays off the map.
-
-## Technical changes
-
-**`src/pages/ExpiringDatesPage.tsx`** only.
-
-- The query already selects `scheduled_pickup_date` / `scheduled_delivery_date`, so no
-  new fetch. The `eligible` flag passed to `consider` becomes a three-way value
-  (`'open' | 'booked' | 'skip'`):
-  - collection: collected → skip; scheduled date set → 'booked'; else 'open'.
-  - delivery: delivered / box / warehouse → skip; scheduled date set → 'booked'; else
-    'open'.
-- `ExpiringLeg` gains `booked: boolean` and `bookedDate: string | null` (normalised to a
-  London `YYYY-MM-DD` string with the existing `londonDay` helper).
-- Bucketing by `daysLeft` (from the customer's last chosen date) is unchanged — booked
-  jobs go in the same column their dates belong to.
-- Column rendering: after the existing list, if any booked legs landed in that column,
-  render a divider row ("Booked" + count) and the booked cards (dimmed, green booked
-  badge). Both sections sort soonest/most-overdue first as now.
-- The empty-state message at the bottom ("No jobs with dates expiring…") now only
-  triggers when there are neither open nor booked legs.
-
-## Verification
-
-- TypeScript check passes; build OK.
-- Preview: columns show their open jobs on top and a Booked section at the bottom with
-  counts matching the live data above; map unchanged.
+- `src/pages/UserManagement.tsx` → `handleRolesChange`: after `manage-user-roles` succeeds, detect `nextRoles.includes('driver') && !previousRoles.includes('driver') && !user.shipday_driver_id`. If so, invoke `create-shipday-carrier` with `{ name, email, phone }` from the profile, then update `profiles` with `shipday_driver_id`, `shipday_driver_name`, `shipday_temp_driver_id`, `shipday_temp_driver_name` from the response. Toast reflects partial failure.
+- `create-shipday-carrier` is admin-only, so this only fires for admins; sales users editing roles get the role saved with a note that Shipday setup needs an admin.
+- No schema or edge function changes — reuses the existing function and profile columns.
