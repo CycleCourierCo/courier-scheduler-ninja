@@ -1250,7 +1250,8 @@ const OrderDetail = () => {
     }
   };
 
-  if (loading) {
+  // Only block the page on first load; background reloads must not tear down open pop-ups
+  if (loading && (!order || order.id !== id)) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-[60vh]">
