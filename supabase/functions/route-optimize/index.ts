@@ -1339,6 +1339,8 @@ serve(async (req) => {
             eta: isoFromEpoch(s.arrival), lat: s.leg.lat, lon: s.leg.lon,
             is_difficult_area: s.leg.areaIdx !== null, label: s.leg.label,
             guaranteed: !!s.leg.guaranteedDate,
+            must_go: s.leg.lapsed ? 'expired' : (s.leg.lastDate && s.leg.lastDate <= p.meta.date ? 'last_date' : null),
+            last_date: s.leg.lastDate ?? (s.leg.allDates[s.leg.allDates.length - 1] ?? null),
           })),
         });
       });
@@ -1398,11 +1400,12 @@ serve(async (req) => {
         remaining_dates: l.futureDates.length,
         last_date: l.lastDate ?? (l.allDates[l.allDates.length - 1] ?? null),
         guaranteed_date: l.guaranteedDate,
+        must_go: l.lapsed ? 'expired' : 'last_date',
         reason: l.guaranteedDate ? 'Guaranteed date could not be met'
           : excludedKeys.has(l.key) ? 'Needs a long day — another difficult area was chosen'
-          : l.lapsed ? 'Dates had expired — planned via the expired-jobs override'
-          : l.legType === 'delivery' && !l.inDepot ? 'Waiting on its collection being planned'
-          : 'Its last available date was full',
+          : l.legType === 'delivery' && !l.inDepot ? 'Collection is planned in this run — can\'t deliver the same day'
+          : l.lapsed ? 'Expired — too far from the other routes for any van to fit it'
+          : 'Last date — too far from the other routes for any van to fit it',
       }));
 
     const carried = unplaced.filter((l) => !urgentInPlan(l)).length;
