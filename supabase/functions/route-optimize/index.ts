@@ -1011,6 +1011,7 @@ serve(async (req) => {
         return true;
       });
       dayDebug.pool = pool.length;
+      dayDebug.lapsed_in_pool = pool.filter((l) => l.lapsed).length;
 
       excludedLongArea[date] = [];
       if (pool.length === 0) continue;
@@ -1178,6 +1179,7 @@ serve(async (req) => {
           if (s.leg.legType === 'collection') collectedInRun[s.leg.orderId] = date;
         }
       }
+      dayDebug.lapsed_placed = solved!.reduce((n, r) => n + r.stops.filter((s) => s.leg.lapsed).length, 0);
       dayDebug.vans_used = new Set(solved!.map((r) => r.meta.vanId)).size;
       dayDebug.jobs_per_route = solved!.map((r) => r.stops.length);
       dayDebug.margin_per_route = solved!.map((r) => money(r).margin);
@@ -1319,6 +1321,11 @@ serve(async (req) => {
     /* ------------------------------ response ------------------------------ */
 
     const unplaced = legs.filter((l) => !assigned.has(l.key));
+    const lapsedOffered = includeExpired ? legs.filter((l) => l.lapsed).length : 0;
+    const lapsedPlaced = legs.filter((l) => l.lapsed && assigned.has(l.key)).length;
+    debug.include_expired = includeExpired;
+    debug.lapsed_offered = lapsedOffered;
+    debug.lapsed_placed = lapsedPlaced;
 
     const days = selectedDates.map((date, idx) => {
       const dayRoutes = routesByDate[date] ?? [];
