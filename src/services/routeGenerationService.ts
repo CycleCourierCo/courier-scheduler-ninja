@@ -122,6 +122,11 @@ export interface RoutePlanResult {
   carried_count?: number;
   /** Left-over jobs whose dates had all lapsed (override runs only). */
   unplanned_lapsed_count?: number;
+  /** Whether expired-date jobs were offered to the optimiser on this run. */
+  include_expired?: boolean;
+  /** Expired-date legs offered to the optimiser, and how many made it onto a route. */
+  lapsed_offered?: number;
+  lapsed_placed?: number;
   /** Jobs whose last remaining date falls inside this plan window. */
   expiring_in_plan_count?: number;
   /** Of those, jobs not placed on any route. */
@@ -265,29 +270,65 @@ export const fetchWorkingDays = async (): Promise<string[]> => {
   return Array.isArray(days) && days.length > 0 ? days : ["sun", "mon", "tue", "wed", "thu"];
 };
 
-/** Legs currently marked expired or waiting on new dates — shown before any run. */
+const londonDateKey = (v: unknown): string | null => {
+  if (typeof v !== "string") return null;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(d);
+};
+
+/**
+ * Legs that are genuinely out of dates right now — shown before any run.
+ * Uses the same rules as the optimiser: open, non-NI order; the leg still needs
+ * doing; dates were given and every one has passed (London time). Old saved
+ * notes on finished, cancelled or re-dated legs are ignored.
+ */
 export const fetchLapsedLegs = async (): Promise<NeedsNewDatesLeg[]> => {
   const { data, error } = await supabase
     .from("order_leg_availability")
-    .select("order_id,leg_type,availability_status,orders!inner(tracking_number)");
+    .select(
+      "order_id,leg_type,availability_status,orders!inner(tracking_number,status,ni_direction,order_collected,order_delivered,scheduled_pickup_date,scheduled_delivery_date,is_box_my_bike,is_warehouse_storage,pickup_date,delivery_date,guaranteed_delivery,guaranteed_delivery_date)",
+    )
+    .in("availability_status", ["expired", "awaiting_new_dates"]);
   if (error) throw error;
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  const closed = ["cancelled", "delivered", "on_hold", "pending_approval"];
   return ((data as any[]) || [])
-    .filter((r) => r.availability_status === "expired" || r.availability_status === "awaiting_new_dates")
-    .map((r) => ({
-      order_id: r.order_id as string,
-      label: (r.orders?.tracking_number || r.order_id.slice(0, 8)) as string,
-      leg_type: r.leg_type as string,
-      severity: 3,
-      date_state: "expired" as const,
-      reason: r.availability_status === "awaiting_new_dates"
-        ? "Waiting on new dates from the customer"
-        : "Dates expired",
-      days_in_depot: null,
-      last_date: null,
-      guaranteed_date: null,
-      status: r.availability_status as "expired" | "awaiting_new_dates",
-      linked_leg_note: null,
-    }));
+    .filter((r) => {
+      const o = r.orders;
+      if (!o || closed.includes(String(o.status)) || o.ni_direction) return false;
+      const isCollection = r.leg_type === "collection";
+      const needed = isCollection
+        ? !o.order_collected && !o.scheduled_pickup_date
+        : !o.order_delivered && !o.scheduled_delivery_date && !o.is_box_my_bike && !o.is_warehouse_storage;
+      if (!needed) return false;
+      const raw = isCollection ? o.pickup_date : o.delivery_date;
+      const dates = (Array.isArray(raw) ? raw : []).map(londonDateKey).filter((d): d is string => !!d);
+      return dates.length > 0 && dates.every((d) => d < today);
+    })
+    .map((r) => {
+      const o = r.orders;
+      const raw = r.leg_type === "collection" ? o.pickup_date : o.delivery_date;
+      const dates = (raw as unknown[]).map(londonDateKey).filter((d): d is string => !!d).sort();
+      const guaranteed = o.guaranteed_delivery && r.leg_type === "delivery" ? londonDateKey(o.guaranteed_delivery_date) : null;
+      const missed = !!(guaranteed && guaranteed < today);
+      return {
+        order_id: r.order_id as string,
+        label: (o.tracking_number || r.order_id.slice(0, 8)) as string,
+        leg_type: r.leg_type as string,
+        severity: missed ? 1 : 3,
+        date_state: missed ? ("guaranteed_missed" as const) : ("expired" as const),
+        reason: missed
+          ? "Guaranteed date missed"
+          : r.availability_status === "awaiting_new_dates"
+            ? "Waiting on new dates from the customer"
+            : "Dates expired",
+        days_in_depot: null,
+        last_date: dates[dates.length - 1] ?? null,
+        guaranteed_date: guaranteed,
+        status: r.availability_status as "expired" | "awaiting_new_dates",
+        linked_leg_note: null,
+      };
+    });
 };
 
 /** Difficult-area outlines for faint map shading. */
