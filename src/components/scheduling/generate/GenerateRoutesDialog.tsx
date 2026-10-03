@@ -16,7 +16,7 @@ import {
   AtRiskLeg, NeedsNewDatesLeg, PlanDay, PlanRoute, RoutePlanResult, summarisePlan, allPlanRoutes,
   clearNewDatesRequest, fetchDifficultAreas, fetchLapsedLegs, fetchPlanningVans, fetchWorkingDays, formatDuration,
   generateRoutes, isWorkingDay, lockPlanDay, nextWorkingDays, refreshAvailabilityExpiry,
-  requestNewDates, selectPlanRoute, setVanUnavailable, unlockPlanDay,
+  requestNewDates, selectPlanRoute, setVanUnavailable, unlockPlanDay, fetchVanUnavailability,
 } from "@/services/routeGenerationService";
 import DaySummary from "./DaySummary";
 import { cn } from "@/lib/utils";
@@ -332,6 +332,18 @@ const GenerateRoutesDialog: React.FC = () => {
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [lockedDays, setLockedDays] = useState<string[]>([]);
 
+  /** Vans ticked for a day = every van minus its saved days off. */
+  const gridFor = (days: string[], vanIds: string[], off: Set<string>) =>
+    Object.fromEntries(days.map((d) => [d, vanIds.filter((id) => !off.has(`${id}:${d}`))]));
+
+  const saveVanDay = async (vanId: string, date: string, unavailable: boolean) => {
+    try {
+      await setVanUnavailable(vanId, date, unavailable);
+    } catch (e) {
+      toast.error(`Couldn't save that van's day: ${(e as Error).message || "unknown error"}`);
+    }
+  };
+
   useEffect(() => {
     if (!open) return;
     (async () => {
@@ -343,40 +355,40 @@ const GenerateRoutesDialog: React.FC = () => {
       setWorkingDays(days);
       const defaults = nextWorkingDays(days, 5);
       setDates(defaults);
-      setGrid(Object.fromEntries(defaults.map((d) => [d, vanRows.map((v) => v.id)])));
+      const off = await fetchVanUnavailability(defaults).catch(() => new Set<string>());
+      setGrid(gridFor(defaults, vanRows.map((v) => v.id), off));
       fetchDifficultAreas().then(setAreas).catch(() => setAreas([]));
       fetchLapsedLegs().then(setLapsedLegs).catch(() => setLapsedLegs([]));
     })();
   }, [open]);
 
   const toggleDate = (date: string) => {
+    const adding = !dates.includes(date);
     setDates((prev) => {
       const next = prev.includes(date) ? prev.filter((d) => d !== date) : [...prev, date].sort();
-      setGrid((g) => {
-        const copy = { ...g };
-        if (!copy[date]) copy[date] = vans.map((v) => v.id);
-        return copy;
-      });
       return next.slice(0, MAX_DAYS);
     });
+    if (adding && !grid[date]) {
+      const all = vans.map((v) => v.id);
+      setGrid((g) => ({ ...g, [date]: all }));
+      fetchVanUnavailability([date])
+        .then((off) => setGrid((g) => ({ ...g, ...gridFor([date], all, off) })))
+        .catch(() => null);
+    }
   };
 
   const toggleVanDay = async (date: string, vanId: string) => {
     const current = grid[date] ?? vans.map((v) => v.id);
     const nowAvailable = !current.includes(vanId);
     setGrid({ ...grid, [date]: nowAvailable ? [...current, vanId] : current.filter((id) => id !== vanId) });
-    try {
-      await setVanUnavailable(vanId, date, !nowAvailable);
-    } catch {
-      // grid still applies to this run even if the note could not be saved
-    }
+    await saveVanDay(vanId, date, !nowAvailable);
   };
 
   /** Tick or untick every van on one day. */
   const setDayVans = async (date: string, on: boolean) => {
     const all = vans.map((v) => v.id);
     setGrid((g) => ({ ...g, [date]: on ? all : [] }));
-    await Promise.all(all.map((id) => setVanUnavailable(id, date, !on).catch(() => null)));
+    await Promise.all(all.map((id) => saveVanDay(id, date, !on)));
   };
 
   /** Tick or untick one van across every day being planned. */
@@ -391,7 +403,7 @@ const GenerateRoutesDialog: React.FC = () => {
       }
       return copy;
     });
-    await Promise.all(dates.map((d) => setVanUnavailable(vanId, d, !on).catch(() => null)));
+    await Promise.all(dates.map((d) => saveVanDay(vanId, d, !on)));
   };
 
   const candidateDates = useMemo(() => {
