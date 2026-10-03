@@ -336,11 +336,11 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
     }
   };
 
-  const Shell = ({ children }: { children: React.ReactNode }) =>
-    bare ? <div>{children}</div> : <Card>{children}</Card>;
+  // Stable wrapper type (a component declared here would remount inputs on every keystroke)
+  const ShellTag: React.ElementType = bare ? "div" : Card;
 
   return (
-    <Shell>
+    <ShellTag>
       {!bare && (
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
@@ -585,7 +585,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
           </AlertDialog>
         )}
       </CardContent>
-    </Shell>
+    </ShellTag>
   );
 };
 

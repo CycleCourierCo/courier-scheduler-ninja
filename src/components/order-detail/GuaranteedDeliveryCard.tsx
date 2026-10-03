@@ -233,15 +233,12 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
       })
     : null;
 
-  const Shell = ({ children }: { children: React.ReactNode }) =>
-    bare ? (
-      <div>{children}</div>
-    ) : (
-      <Card className={isOn ? "overflow-hidden border-green-500/50" : "overflow-hidden"}>{children}</Card>
-    );
+  // Stable wrapper type (a component declared here would remount the dialog on every keystroke)
+  const ShellTag: React.ElementType = bare ? "div" : Card;
+  const shellClass = bare ? undefined : isOn ? "overflow-hidden border-green-500/50" : "overflow-hidden";
 
   return (
-    <Shell>
+    <ShellTag className={shellClass}>
       {!bare && (
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -455,7 +452,7 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Shell>
+    </ShellTag>
   );
 };
 
