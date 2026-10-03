@@ -1135,11 +1135,18 @@ serve(async (req) => {
           const before = servedKeys(solved!);
           const after = retry ? servedKeys(retry) : new Set<string>();
           const lost = [...before].filter((k) => !after.has(k));
-          if (!retry || lost.length > 0) {
+          const lostMustGo = lost.filter((k) => {
+            const leg = legs.find((l) => l.key === k);
+            return !!leg && mustGo(leg, date);
+          });
+          // A weak van stays only for must-go work or if it pays its way;
+          // ordinary jobs on a dropped van wait for a later day.
+          if (!retry || lostMustGo.length > 0 || (lost.length > 0 && weakest.margin >= 0)) {
             protectedVans.add(weakest.r.meta.vanId);
             dayDebug.removals.push({
               van: weakest.r.meta.vanName, jobs: weakest.r.stops.length,
-              outcome: 'kept — work would be left undone', lost_jobs: lost.length,
+              outcome: lostMustGo.length > 0 ? 'kept — must-go work would be lost' : 'kept — route makes a profit',
+              lost_jobs: lost.length, lost_must_go: lostMustGo.length,
             });
             continue;
           }
