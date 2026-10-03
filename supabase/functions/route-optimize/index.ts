@@ -1407,6 +1407,9 @@ serve(async (req) => {
     return json({
       plan_id: planId,
       mode: 'greedy',
+      include_expired: includeExpired,
+      lapsed_offered: lapsedOffered,
+      lapsed_placed: lapsedPlaced,
       unplanned_count: unplaced.length,
       carried_count: carried,
       unplanned_lapsed_count: unplaced.filter((l) => l.lapsed).length,
