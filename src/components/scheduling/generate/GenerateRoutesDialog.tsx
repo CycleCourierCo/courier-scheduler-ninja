@@ -100,11 +100,31 @@ const RouteCard: React.FC<{ route: PlanRoute; date: string; onUse: (route: PlanR
             </Badge>
           )}
           {route.guaranteed_count > 0 && <Badge>Guaranteed ×{route.guaranteed_count}</Badge>}
+          {(() => {
+            const exp = route.stops.filter((s) => s.must_go === "expired").length;
+            const last = route.stops.filter((s) => s.must_go === "last_date").length;
+            if (!exp && !last) return null;
+            return (
+              <Badge variant={exp ? "destructive" : "secondary"}>
+                {[exp ? `${exp} expired` : null, last ? `${last} last date` : null].filter(Boolean).join(", ")}
+              </Badge>
+            );
+          })()}
         </div>
       </div>
       <p className="text-sm text-muted-foreground">
         {route.stop_count} stops · {formatDuration(route.duration_s)} · {route.miles} mi · {route.max_load}/{route.van_capacity} spaces
       </p>
+      {route.stops.some((s) => s.must_go) && (
+        <ul className="space-y-0.5 text-xs">
+          {route.stops.filter((s) => s.must_go).map((s) => (
+            <li key={`mg-${s.seq}`} className={s.must_go === "expired" ? "text-destructive" : "text-muted-foreground"}>
+              {s.label} · {s.leg_type} · {s.must_go === "expired" ? "expired" : "last date"}
+              {s.last_date ? ` ${format(new Date(`${s.last_date}T12:00:00`), "d MMM")}` : ""}
+            </li>
+          ))}
+        </ul>
+      )}
       {(route.thin ?? false) && (route.urgent_labels?.length ?? 0) > 0 && (
         <p className="text-xs text-muted-foreground">
           Kept for urgent jobs: {route.urgent_labels!.join(", ")}
