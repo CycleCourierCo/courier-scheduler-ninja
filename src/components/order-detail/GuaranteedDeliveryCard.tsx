@@ -452,7 +452,7 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Shell>
+    </ShellTag>
   );
 };
 
