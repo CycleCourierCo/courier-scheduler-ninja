@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import type { ContactInfo, Address } from "@/types/order";
 import { getGroupedBikes } from "@/utils/bikeSummary";
+import { isNorthernIrelandAddress } from "@/utils/northernIreland";
 import ExpiringDatesMap, { type MapLeg } from "@/components/expiring/ExpiringDatesMap";
 
 const londonDay = (v: unknown): string | null => {
@@ -84,6 +85,10 @@ const ExpiringDatesPage = () => {
     for (const o of data.orders as any[]) {
       const sender = o.sender as (ContactInfo & { address: Address }) | null;
       const receiver = o.receiver as (ContactInfo & { address: Address }) | null;
+      // Northern Ireland work is never route-planned from the depot — hide it here.
+      if (isNorthernIrelandAddress(sender?.address) || isNorthernIrelandAddress(receiver?.address)) {
+        continue;
+      }
       const bikeLabel =
         getGroupedBikes(o as any)
           .map((b) => (b.quantity > 1 ? `${b.quantity}× ${b.label}` : b.label))
@@ -168,10 +173,10 @@ const ExpiringDatesPage = () => {
       { title: "Expired", legs: [] },
     ];
     for (const leg of legs) {
-      if (leg.daysLeft === 0) groups[0].legs.push(leg);
+      if (leg.daysLeft < 0) groups[3].legs.push(leg);
+      else if (leg.daysLeft === 0) groups[0].legs.push(leg);
       else if (leg.daysLeft === 1) groups[1].legs.push(leg);
-      else if (leg.daysLeft <= 3) groups[2].legs.push(leg);
-      else groups[3].legs.push(leg);
+      else groups[2].legs.push(leg);
     }
     // Expired: most-overdue first; others already soonest-first via lastDate sort below
     for (const g of groups) {
