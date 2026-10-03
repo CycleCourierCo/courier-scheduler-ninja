@@ -1448,6 +1448,8 @@ serve(async (req) => {
       debug,
       days,
       at_risk: atRisk,
+      stale_locked_count: staleLocked.length,
+      stale_locked: staleLocked.slice(0, 50),
       needs_new_dates: needsNewDates.sort((a, b) => a.severity - b.severity),
       vans: allVans,
       weekly: { van_days_available: vanDaysAvailable, van_days_needed: vanDaysNeeded, short_days: [] },
