@@ -360,12 +360,33 @@ export const unlockPlanDay = async (planId: string, date: string) => {
 
 /** Mark a generated route as the one being used. */
 export const selectPlanRoute = async (planId: string, routeId: string) => {
+  // Marks the route as used only — locking a day is always a deliberate "Lock day".
   const { error } = await supabase
     .from("route_plan_routes" as any)
-    .update({ selected: true, day_status: "locked", is_provisional: false })
+    .update({ selected: true })
     .eq("id", routeId);
   if (error) throw error;
   await supabase.from("route_plans" as any).update({ status: "partially_selected" }).eq("id", planId);
+};
+
+export interface LockedDayRoute { plan_id: string; route_date: string; van_id: string | null; van_name: string | null; stops: number }
+
+/** Locked or confirmed routes on the given dates, so the planner can show and release them. */
+export const fetchLockedRoutes = async (dates: string[]): Promise<LockedDayRoute[]> => {
+  if (dates.length === 0) return [];
+  const { data, error } = await supabase
+    .from("route_plan_routes" as any)
+    .select("plan_id,route_date,van_id,van_name,route_plan_stops(count)")
+    .in("day_status", ["locked", "confirmed"])
+    .in("route_date", dates);
+  if (error) throw error;
+  return ((data as any[]) || []).map((r) => ({
+    plan_id: r.plan_id,
+    route_date: String(r.route_date).slice(0, 10),
+    van_id: r.van_id ?? null,
+    van_name: r.van_name ?? null,
+    stops: Number(r.route_plan_stops?.[0]?.count ?? 0),
+  }));
 };
 
 /** Ask the customer for fresh dates on an expired leg. */
