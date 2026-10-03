@@ -1,28 +1,37 @@
-# PostHog on the Vercel live site
+# Include expired-date jobs in route generation by default
 
-Your live site is served from Vercel (the project already has a `vercel.json`), and the PostHog tracking code is already built into the app — but it reads its keys from a Lovable connector variable that doesn't exist in the Vercel build, so the live site currently sends nothing. This makes it work in both places.
+## What's happening
 
-## Changes
+Jobs whose customer dates have all passed (like easbs9 and chrm11) are excluded from
+Generate Routes unless you press the **"Include expired jobs (n)"** button first. That
+button resets to off every time the dialog opens, so a run near Bristol skipped them
+silently even though they were right on the route.
 
-1. **Support standard variable names** — update `src/lib/posthog.ts` so it also reads `VITE_POSTHOG_KEY` and `VITE_POSTHOG_HOST` (the names PostHog/Vercel use), falling back to the existing Lovable connector variables. The Lovable preview keeps working unchanged, and a missing variable still means no analytics rather than an error.
+## The change
 
-2. **You add the keys in Vercel** (one-time, in your Vercel dashboard — I can't do this part for you):
-   - Vercel project → **Settings → Environment Variables**
-   - Add `VITE_POSTHOG_KEY` = your PostHog project API key — the `phc_...` token, the same one already in the project's `.env`, also found in PostHog → Project Settings
-   - Add `VITE_POSTHOG_HOST` = `https://eu.i.posthog.com`
-   - Set them for **Production** (and Preview if you want)
-   - Redeploy (Vercel → Deployments → Redeploy) so the variables are baked into the build
+Expired jobs are included automatically — no button press needed:
 
-3. **Verify** — after redeploy, browse the live site and confirm events appear in the PostHog dashboard.
+- The "Include expired jobs" switch starts **on** every time the dialog opens, so a
+  normal run plans expired jobs alongside everything else. You can still switch it off
+  for a run if you deliberately want to leave them out.
+- Included expired jobs keep their existing behaviour: a priority boost so they're
+  planned ahead of ordinary work, their lapsed dates treated as usable windows (they
+  can land on any planned day), and they stay listed in the **Needs new dates** panel
+  so it's obvious the customer hasn't confirmed anything.
+- The day summary keeps showing how many planned jobs had lapsed dates.
 
-## Notes
+## Technical notes
 
-- Same privacy guards apply on the live site: form field values masked, session recording off.
-- If the variables aren't set, the site runs exactly as before — no errors, just no analytics.
-- Nothing else about the Vercel deployment changes; no PostHog snippet goes into `index.html`.
+- `src/components/scheduling/generate/GenerateRoutesDialog.tsx`: change
+  `useState(false)` to `useState(true)` for `includeExpired`, and reset it to `true`
+  whenever the dialog re-opens / dates change if there's a reset effect. Button label
+  wording updated to "Excluding expired jobs" / "Include expired jobs" so the off state
+  is the explicit choice.
+- No edge function change needed — `route-optimize` already honours
+  `include_expired: true` with the priority boost and lapsed-date windows.
 
-## Technical details
+## Verification
 
-- File touched: `src/lib/posthog.ts` only (env var lookup order: `VITE_POSTHOG_KEY` → `VITE_LOVABLE_CONNECTOR_POSTHOG_API_KEY`; host: `VITE_POSTHOG_HOST` → connector region → EU default).
-- No new dependencies; `posthog-js` is already installed and bundled.
-
+- TypeScript check passes; build OK.
+- Confirm in the dialog that the button shows as on by default and a run includes
+  expired jobs near the route.
