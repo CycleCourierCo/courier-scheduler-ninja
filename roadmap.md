@@ -6,3 +6,4 @@
 - [x] Expiring Dates page: Northern Ireland jobs excluded (either end in NI)
 
 - [x] Expired-jobs button counts only genuinely expired open legs (21, not 71); optimiser decides expiry from actual dates; stale notes cleared; runs report "X of Y expired jobs planned"
+- [x] Planner ticks reflect saved van days off; optimiser uses exactly the ticked vans

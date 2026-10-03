@@ -396,6 +396,17 @@ export const clearNewDatesRequest = async (orderId: string, legType: string) => 
 };
 
 /** Mark a van as unavailable (or available again) on a day. */
+/** Saved van days off for the given dates, as "vanId:YYYY-MM-DD" keys. */
+export const fetchVanUnavailability = async (dates: string[]): Promise<Set<string>> => {
+  if (dates.length === 0) return new Set();
+  const { data, error } = await supabase
+    .from("van_unavailability" as any)
+    .select("van_id,unavailable_on")
+    .in("unavailable_on", dates);
+  if (error) throw error;
+  return new Set(((data as any[]) || []).map((r) => `${r.van_id}:${String(r.unavailable_on).slice(0, 10)}`));
+};
+
 export const setVanUnavailable = async (vanId: string, date: string, unavailable: boolean) => {
   if (unavailable) {
     const { error } = await supabase
