@@ -17,6 +17,7 @@ import {
   clearNewDatesRequest, fetchDifficultAreas, fetchLapsedLegs, fetchPlanningVans, fetchWorkingDays, formatDuration,
   generateRoutes, isWorkingDay, lockPlanDay, nextWorkingDays, refreshAvailabilityExpiry,
   requestNewDates, selectPlanRoute, setVanUnavailable, unlockPlanDay, fetchVanUnavailability,
+  fetchLockedRoutes, type LockedDayRoute,
 } from "@/services/routeGenerationService";
 import DaySummary from "./DaySummary";
 import { cn } from "@/lib/utils";
@@ -331,6 +332,13 @@ const GenerateRoutesDialog: React.FC = () => {
   const [lapsedLegs, setLapsedLegs] = useState<NeedsNewDatesLeg[]>([]);
   const [activeDate, setActiveDate] = useState<string | null>(null);
   const [lockedDays, setLockedDays] = useState<string[]>([]);
+  const [lockedRoutes, setLockedRoutes] = useState<LockedDayRoute[]>([]);
+
+  // Keep the locked-day notice in step with the days being planned.
+  useEffect(() => {
+    if (!open || dates.length === 0) return;
+    fetchLockedRoutes(dates).then(setLockedRoutes).catch(() => null);
+  }, [open, dates.join(","), lockedDays.join(",")]);
 
   /** Vans ticked for a day = every van minus its saved days off. */
   const gridFor = (days: string[], vanIds: string[], off: Set<string>) =>
@@ -355,7 +363,13 @@ const GenerateRoutesDialog: React.FC = () => {
       setWorkingDays(days);
       const defaults = nextWorkingDays(days, 5);
       setDates(defaults);
-      const off = await fetchVanUnavailability(defaults).catch(() => new Set<string>());
+      const [off, lockedList] = await Promise.all([
+        fetchVanUnavailability(defaults).catch(() => new Set<string>()),
+        fetchLockedRoutes(defaults).catch(() => [] as LockedDayRoute[]),
+      ]);
+      // A van with a locked route that day starts unticked, so it isn't given a second route.
+      for (const r of lockedList) if (r.van_id) off.add(`${r.van_id}:${r.route_date}`);
+      setLockedRoutes(lockedList);
       setGrid(gridFor(defaults, vanRows.map((v) => v.id), off));
       fetchDifficultAreas().then(setAreas).catch(() => setAreas([]));
       fetchLapsedLegs().then(setLapsedLegs).catch(() => setLapsedLegs([]));
@@ -506,6 +520,22 @@ const GenerateRoutesDialog: React.FC = () => {
     }
   };
 
+  /** Release every locked route on a day (from any plan) so it can be planned again. */
+  const handleUnlockDate = async (date: string) => {
+    const plans = [...new Set(lockedRoutes.filter((r) => r.route_date === date).map((r) => r.plan_id))];
+    try {
+      await Promise.all(plans.map((p) => unlockPlanDay(p, date)));
+      setLockedRoutes((prev) => prev.filter((r) => r.route_date !== date));
+      setLockedDays((prev) => prev.filter((d) => d !== date));
+      const all = vans.map((v) => v.id);
+      const off = await fetchVanUnavailability([date]).catch(() => new Set<string>());
+      setGrid((g) => ({ ...g, ...gridFor([date], all, off) }));
+      toast.success(`${dayLabel(date)} unlocked — its jobs and vans are back in play`);
+    } catch (e) {
+      toast.error((e as Error).message || "Could not unlock that day");
+    }
+  };
+
   const handleLockDay = async (date: string, lock: boolean) => {
     if (!result?.plan_id) return;
     setBusyRoute(true);
@@ -530,7 +560,7 @@ const GenerateRoutesDialog: React.FC = () => {
         .map((s) => `${s.order_id}:${s.leg_type === "collection" ? "pickup" : "delivery"}`)
         .join(",");
       window.open(`/scheduling?jobs=${jobs}&date=${activeDay.date}`, "_blank");
-      toast.success("Route locked — Get Timeslots opened in a new tab");
+      toast.success("Opened in Get Timeslots");
     } catch (e) {
       toast.error((e as Error).message || "Could not use that route");
     } finally {
@@ -652,6 +682,22 @@ const GenerateRoutesDialog: React.FC = () => {
               </Button>
             </div>
           </div>
+          {[...new Set(lockedRoutes.map((r) => r.route_date))].sort().map((d) => {
+            const dayRoutes = lockedRoutes.filter((r) => r.route_date === d);
+            const stops = dayRoutes.reduce((n, r) => n + r.stops, 0);
+            return (
+              <div key={d} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-primary/40 bg-primary/5 p-2 text-sm">
+                <span>
+                  <Lock className="mr-1 inline h-3.5 w-3.5" />
+                  {format(new Date(`${d}T12:00:00`), "EEE d")}: {dayRoutes.length} route{dayRoutes.length === 1 ? "" : "s"} locked ({stops} jobs)
+                  {" — "}{dayRoutes.map((r) => r.van_name).filter(Boolean).join(", ")}. Those jobs and vans are left out of new plans.
+                </span>
+                <Button type="button" size="sm" variant="outline" className="gap-1" onClick={() => handleUnlockDate(d)}>
+                  <Unlock className="h-3.5 w-3.5" /> Unlock
+                </Button>
+              </div>
+            );
+          })}
           {vans.length === 0 ? (
             <p className="text-sm text-muted-foreground">No vans found.</p>
           ) : (
