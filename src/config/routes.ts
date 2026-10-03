@@ -44,6 +44,8 @@ export const APP_ROUTES: AppRoute[] = [
     defaultRoles: [...CUSTOMERS, "route_planner", "cs_agent"] },
   { key: "invoices", path: "/invoices", label: "Invoices", section: "Orders", icon: FileText,
     defaultRoles: [] },
+  { key: "quickbooks-products", path: "/quickbooks-products", label: "QuickBooks Products", section: "Orders", icon: FileText,
+    hiddenInMenu: true, defaultRoles: [] },
   { key: "pricing", path: "/pricing", label: "Pricing", section: "Orders", icon: PoundSterling,
     defaultRoles: [...CUSTOMERS] },
 

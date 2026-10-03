@@ -54,6 +54,8 @@ import { mapDbOrderToOrderType } from "@/services/orderServiceUtils";
 import { generateSingleOrderLabel } from "@/utils/labelUtils";
 import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 import { useAuth } from "@/contexts/AuthContext";
+import ChangeOrderOwner from "@/components/order-detail/ChangeOrderOwner";
+import OrderInvoiceLinks from "@/components/order-detail/OrderInvoiceLinks";
 
 const safeFormat = (date: Date | string | null | undefined, formatStr: string): string => {
   if (!date) return "";
@@ -1248,7 +1250,8 @@ const OrderDetail = () => {
     }
   };
 
-  if (loading) {
+  // Only block the page on first load; background reloads must not tear down open pop-ups
+  if (loading && (!order || order.id !== id)) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-[60vh]">
@@ -1339,6 +1342,7 @@ const OrderDetail = () => {
   
   const showAdminControls = true;
   const isAdmin = hasRole(userProfile, 'admin');
+  const canViewInvoices = isAdmin || hasRole(userProfile, 'cs_agent');
   const isAdminOrRoutePlanner = hasRole(userProfile, 'admin') || hasRole(userProfile, 'route_planner');
   
   const handleRefreshOrder = async () => {
@@ -1367,6 +1371,18 @@ const OrderDetail = () => {
           onMarkCollected={handleMarkCollected}
           onMarkNotCollected={handleMarkNotCollected}
         />
+        <ChangeOrderOwner
+          orderId={order.id}
+          currentOwnerId={(order as any).user_id}
+          currentOwnerName={bookingCustomer?.name || bookingCustomer?.email}
+          bookedById={(order as any).booked_by_id}
+          bookedByName={(order as any).booked_by_name}
+          mayBeInvoiced={order.status === 'delivered'}
+          isAdmin={isAdmin}
+          onChanged={handleRefreshOrder}
+        />
+        {canViewInvoices && <OrderInvoiceLinks orderId={order.id} />}
+
 
         <Card>
           <CardHeader>

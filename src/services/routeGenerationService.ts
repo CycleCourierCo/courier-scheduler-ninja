@@ -12,6 +12,8 @@ export interface PlanStop {
   guaranteed: boolean;
   /** Planned on a later plan day because its own dates were full. */
   planned_after_expiry?: boolean;
+  must_go?: "expired" | "last_date" | null;
+  last_date?: string | null;
 }
 
 export interface PlanRoute {
@@ -122,6 +124,11 @@ export interface RoutePlanResult {
   carried_count?: number;
   /** Left-over jobs whose dates had all lapsed (override runs only). */
   unplanned_lapsed_count?: number;
+  /** Whether expired-date jobs were offered to the optimiser on this run. */
+  include_expired?: boolean;
+  /** Expired-date legs offered to the optimiser, and how many made it onto a route. */
+  lapsed_offered?: number;
+  lapsed_placed?: number;
   /** Jobs whose last remaining date falls inside this plan window. */
   expiring_in_plan_count?: number;
   /** Of those, jobs not placed on any route. */
@@ -265,29 +272,65 @@ export const fetchWorkingDays = async (): Promise<string[]> => {
   return Array.isArray(days) && days.length > 0 ? days : ["sun", "mon", "tue", "wed", "thu"];
 };
 
-/** Legs currently marked expired or waiting on new dates — shown before any run. */
+const londonDateKey = (v: unknown): string | null => {
+  if (typeof v !== "string") return null;
+  const d = new Date(v);
+  return isNaN(d.getTime()) ? null : new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(d);
+};
+
+/**
+ * Legs that are genuinely out of dates right now — shown before any run.
+ * Uses the same rules as the optimiser: open, non-NI order; the leg still needs
+ * doing; dates were given and every one has passed (London time). Old saved
+ * notes on finished, cancelled or re-dated legs are ignored.
+ */
 export const fetchLapsedLegs = async (): Promise<NeedsNewDatesLeg[]> => {
   const { data, error } = await supabase
     .from("order_leg_availability")
-    .select("order_id,leg_type,availability_status,orders!inner(tracking_number)");
+    .select(
+      "order_id,leg_type,availability_status,orders!inner(tracking_number,status,ni_direction,order_collected,order_delivered,scheduled_pickup_date,scheduled_delivery_date,is_box_my_bike,is_warehouse_storage,pickup_date,delivery_date,guaranteed_delivery,guaranteed_delivery_date)",
+    )
+    .in("availability_status", ["expired", "awaiting_new_dates"]);
   if (error) throw error;
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  const closed = ["cancelled", "delivered", "on_hold", "pending_approval"];
   return ((data as any[]) || [])
-    .filter((r) => r.availability_status === "expired" || r.availability_status === "awaiting_new_dates")
-    .map((r) => ({
-      order_id: r.order_id as string,
-      label: (r.orders?.tracking_number || r.order_id.slice(0, 8)) as string,
-      leg_type: r.leg_type as string,
-      severity: 3,
-      date_state: "expired" as const,
-      reason: r.availability_status === "awaiting_new_dates"
-        ? "Waiting on new dates from the customer"
-        : "Dates expired",
-      days_in_depot: null,
-      last_date: null,
-      guaranteed_date: null,
-      status: r.availability_status as "expired" | "awaiting_new_dates",
-      linked_leg_note: null,
-    }));
+    .filter((r) => {
+      const o = r.orders;
+      if (!o || closed.includes(String(o.status)) || o.ni_direction) return false;
+      const isCollection = r.leg_type === "collection";
+      const needed = isCollection
+        ? !o.order_collected && !o.scheduled_pickup_date
+        : !o.order_delivered && !o.scheduled_delivery_date && !o.is_box_my_bike && !o.is_warehouse_storage;
+      if (!needed) return false;
+      const raw = isCollection ? o.pickup_date : o.delivery_date;
+      const dates = (Array.isArray(raw) ? raw : []).map(londonDateKey).filter((d): d is string => !!d);
+      return dates.length > 0 && dates.every((d) => d < today);
+    })
+    .map((r) => {
+      const o = r.orders;
+      const raw = r.leg_type === "collection" ? o.pickup_date : o.delivery_date;
+      const dates = (raw as unknown[]).map(londonDateKey).filter((d): d is string => !!d).sort();
+      const guaranteed = o.guaranteed_delivery && r.leg_type === "delivery" ? londonDateKey(o.guaranteed_delivery_date) : null;
+      const missed = !!(guaranteed && guaranteed < today);
+      return {
+        order_id: r.order_id as string,
+        label: (o.tracking_number || r.order_id.slice(0, 8)) as string,
+        leg_type: r.leg_type as string,
+        severity: missed ? 1 : 3,
+        date_state: missed ? ("guaranteed_missed" as const) : ("expired" as const),
+        reason: missed
+          ? "Guaranteed date missed"
+          : r.availability_status === "awaiting_new_dates"
+            ? "Waiting on new dates from the customer"
+            : "Dates expired",
+        days_in_depot: null,
+        last_date: dates[dates.length - 1] ?? null,
+        guaranteed_date: guaranteed,
+        status: r.availability_status as "expired" | "awaiting_new_dates",
+        linked_leg_note: null,
+      };
+    });
 };
 
 /** Difficult-area outlines for faint map shading. */
@@ -319,12 +362,33 @@ export const unlockPlanDay = async (planId: string, date: string) => {
 
 /** Mark a generated route as the one being used. */
 export const selectPlanRoute = async (planId: string, routeId: string) => {
+  // Marks the route as used only — locking a day is always a deliberate "Lock day".
   const { error } = await supabase
     .from("route_plan_routes" as any)
-    .update({ selected: true, day_status: "locked", is_provisional: false })
+    .update({ selected: true })
     .eq("id", routeId);
   if (error) throw error;
   await supabase.from("route_plans" as any).update({ status: "partially_selected" }).eq("id", planId);
+};
+
+export interface LockedDayRoute { plan_id: string; route_date: string; van_id: string | null; van_name: string | null; stops: number }
+
+/** Locked or confirmed routes on the given dates, so the planner can show and release them. */
+export const fetchLockedRoutes = async (dates: string[]): Promise<LockedDayRoute[]> => {
+  if (dates.length === 0) return [];
+  const { data, error } = await supabase
+    .from("route_plan_routes" as any)
+    .select("plan_id,route_date,van_id,van_name,route_plan_stops(count)")
+    .in("day_status", ["locked", "confirmed"])
+    .in("route_date", dates);
+  if (error) throw error;
+  return ((data as any[]) || []).map((r) => ({
+    plan_id: r.plan_id,
+    route_date: String(r.route_date).slice(0, 10),
+    van_id: r.van_id ?? null,
+    van_name: r.van_name ?? null,
+    stops: Number(r.route_plan_stops?.[0]?.count ?? 0),
+  }));
 };
 
 /** Ask the customer for fresh dates on an expired leg. */
@@ -355,6 +419,17 @@ export const clearNewDatesRequest = async (orderId: string, legType: string) => 
 };
 
 /** Mark a van as unavailable (or available again) on a day. */
+/** Saved van days off for the given dates, as "vanId:YYYY-MM-DD" keys. */
+export const fetchVanUnavailability = async (dates: string[]): Promise<Set<string>> => {
+  if (dates.length === 0) return new Set();
+  const { data, error } = await supabase
+    .from("van_unavailability" as any)
+    .select("van_id,unavailable_on")
+    .in("unavailable_on", dates);
+  if (error) throw error;
+  return new Set(((data as any[]) || []).map((r) => `${r.van_id}:${String(r.unavailable_on).slice(0, 10)}`));
+};
+
 export const setVanUnavailable = async (vanId: string, date: string, unavailable: boolean) => {
   if (unavailable) {
     const { error } = await supabase

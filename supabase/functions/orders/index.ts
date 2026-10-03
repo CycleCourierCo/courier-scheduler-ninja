@@ -28,6 +28,37 @@ const BIKE_TYPE_BY_ID: Record<number, string> = {
   17: 'Turbo Trainer',
 }
 
+const BOXED_OR_NON_BIKE_TYPE_IDS = new Set([11, 14, 15, 16, 17])
+const BOXED_OR_NON_BIKE_TYPES = new Set(
+  [...BOXED_OR_NON_BIKE_TYPE_IDS].map((id) => BIKE_TYPE_BY_ID[id].toLowerCase()),
+)
+
+function includesUnboxedBike(bikes: unknown, fallbackType: string | null): boolean {
+  if (Array.isArray(bikes) && bikes.length > 0) {
+    return bikes.some((bike) => {
+      if (!bike || typeof bike !== 'object') return false
+      const item = bike as Record<string, unknown>
+      const quantity = Number(item.quantity ?? 1)
+      if (!Number.isFinite(quantity) || quantity <= 0) return false
+      const typeId = Number(item.type_id)
+      if (Number.isInteger(typeId)) return !BOXED_OR_NON_BIKE_TYPE_IDS.has(typeId)
+      const type = typeof item.type === 'string' ? item.type.trim().toLowerCase() : ''
+      return type !== '' && !BOXED_OR_NON_BIKE_TYPES.has(type)
+    })
+  }
+
+  return Boolean(fallbackType && !BOXED_OR_NON_BIKE_TYPES.has(fallbackType.trim().toLowerCase()))
+}
+
+function escapeEmailHtml(value: unknown): string {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+}
+
 function resolveBikeTypeId(typeId: number | undefined | null): string | null {
   if (typeId === undefined || typeId === null) return null
   const resolved = BIKE_TYPE_BY_ID[typeId]
@@ -589,6 +620,86 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
                 from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>"
               }
             })
+          }
+
+          const shouldSendPreparationEmail = Boolean(body.sender?.email)
+            && includesUnboxedBike(order.bikes, order.bike_type)
+
+          if (shouldSendPreparationEmail) {
+            const claimedAt = new Date().toISOString()
+            const { data: claimedOrder, error: claimError } = await supabase
+              .from('orders')
+              .update({ bike_preparation_email_sent_at: claimedAt })
+              .eq('id', order.id)
+              .is('bike_preparation_email_sent_at', null)
+              .select('id')
+              .maybeSingle()
+
+            if (claimError) {
+              console.error('Could not claim bike preparation email:', claimError.message)
+            } else if (claimedOrder) {
+              const senderName = escapeEmailHtml(body.sender.name || 'there')
+              const preparationText = `Hello ${body.sender.name || 'there'},
+
+Preparing Your Bike for Collection
+
+Your bike does not need to be boxed or professionally packaged — that's the whole point of our unboxed bike collection service.
+
+We use custom bike racks, secure strapping and thick protective blankets to keep bikes protected during transport. However, if you have a few minutes before collection, there are a few simple things you can do to provide some extra protection.
+
+Ideally, but not essential:
+
+- 🚲 Remove the pedals where possible. (Not necessary for folding bikes.)
+- 🛡️ Add foam lagging, pipe insulation or bubble wrap around the frame and other vulnerable tubes. We provide protective blankets, but every bit of extra protection helps.
+- 🔌 Put chargers and accessories in a bag and securely attach it to the bike. Loose items can become separated or lost during transport.
+- 🧰 Remove or secure any loose items such as bottles, pumps, lights, computers or removable accessories.
+- 🔒 Make sure anything fitted to the bike is securely fastened and won't come loose during transport.
+
+Don't worry if you can't do any of the above.
+
+You do not need to box, dismantle or professionally package your bike. Our drivers are trained to handle bikes carefully, and we use dedicated racking, straps and protective blankets throughout the journey.
+
+Simply have the bike ready and accessible at the agreed collection time, and we'll take care of the rest.
+
+The Cycle Courier Co. Team`
+              const { error: preparationError } = await supabase.functions.invoke('send-email', {
+                body: {
+                  to: body.sender.email,
+                  subject: 'How to prepare your bike for your unboxed bike collection',
+                  html: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1f2937; line-height: 1.6;">
+                      <p>Hello ${senderName},</p>
+                      <h2>Preparing Your Bike for Collection</h2>
+                      <p>Your bike does not need to be boxed or professionally packaged — that's the whole point of our unboxed bike collection service.</p>
+                      <p>We use custom bike racks, secure strapping and thick protective blankets to keep bikes protected during transport. However, if you have a few minutes before collection, there are a few simple things you can do to provide some extra protection.</p>
+                      <p><strong>Ideally, but not essential:</strong></p>
+                      <ul>
+                        <li>🚲 Remove the pedals where possible. (Not necessary for folding bikes.)</li>
+                        <li>🛡️ Add foam lagging, pipe insulation or bubble wrap around the frame and other vulnerable tubes. We provide protective blankets, but every bit of extra protection helps.</li>
+                        <li>🔌 Put chargers and accessories in a bag and securely attach it to the bike. Loose items can become separated or lost during transport.</li>
+                        <li>🧰 Remove or secure any loose items such as bottles, pumps, lights, computers or removable accessories.</li>
+                        <li>🔒 Make sure anything fitted to the bike is securely fastened and won't come loose during transport.</li>
+                      </ul>
+                      <p><strong>Don't worry if you can't do any of the above.</strong></p>
+                      <p>You do not need to box, dismantle or professionally package your bike. Our drivers are trained to handle bikes carefully, and we use dedicated racking, straps and protective blankets throughout the journey.</p>
+                      <p>Simply have the bike ready and accessible at the agreed collection time, and we'll take care of the rest.</p>
+                      <p>The Cycle Courier Co. Team</p>
+                    </div>
+                  `,
+                  text: preparationText,
+                  from: 'CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>',
+                },
+              })
+
+              if (preparationError) {
+                console.error('Bike preparation email failed:', preparationError.message)
+                await supabase
+                  .from('orders')
+                  .update({ bike_preparation_email_sent_at: null })
+                  .eq('id', order.id)
+                  .eq('bike_preparation_email_sent_at', claimedAt)
+              }
+            }
           }
 
           if (body.sender?.email) {

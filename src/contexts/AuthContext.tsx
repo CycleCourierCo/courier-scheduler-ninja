@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import { identifyPostHogUser, resetPostHogUser } from "@/lib/posthog";
 import { toast } from "sonner";
 
 
@@ -89,6 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           id: session.user.id,
           email: session.user.email,
         });
+        identifyPostHogUser(session.user.id, session.user.email);
         
         // Use setTimeout to defer async operations (prevents auth deadlock)
         setTimeout(() => {
@@ -103,6 +105,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else {
         // Clear Sentry user context when signed out
         Sentry.setUser(null);
+        resetPostHogUser();
         setUserProfile(null);
         setIsLoading(false);
       }
@@ -232,6 +235,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Clear Sentry user context
       Sentry.setUser(null);
+      resetPostHogUser();
       
       const { error } = await supabase.auth.signOut();
       if (error) throw error;

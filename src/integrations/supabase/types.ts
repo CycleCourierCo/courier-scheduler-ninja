@@ -3489,6 +3489,92 @@ export type Database = {
           },
         ]
       }
+      order_invoice_links: {
+        Row: {
+          created_at: string
+          id: string
+          invoice_date: string | null
+          link_source: string
+          order_id: string
+          quickbooks_invoice_id: string
+          quickbooks_invoice_number: string | null
+          quickbooks_invoice_url: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          invoice_date?: string | null
+          link_source: string
+          order_id: string
+          quickbooks_invoice_id: string
+          quickbooks_invoice_number?: string | null
+          quickbooks_invoice_url: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          invoice_date?: string | null
+          link_source?: string
+          order_id?: string
+          quickbooks_invoice_id?: string
+          quickbooks_invoice_number?: string | null
+          quickbooks_invoice_url?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_invoice_links_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      order_invoice_sync_runs: {
+        Row: {
+          already_linked_count: number
+          ambiguous_count: number
+          completed_at: string | null
+          error_message: string | null
+          id: string
+          invoices_scanned: number
+          linked_count: number
+          started_at: string
+          started_by: string
+          status: string
+          unmatched_count: number
+        }
+        Insert: {
+          already_linked_count?: number
+          ambiguous_count?: number
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          invoices_scanned?: number
+          linked_count?: number
+          started_at?: string
+          started_by: string
+          status: string
+          unmatched_count?: number
+        }
+        Update: {
+          already_linked_count?: number
+          ambiguous_count?: number
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          invoices_scanned?: number
+          linked_count?: number
+          started_at?: string
+          started_by?: string
+          status?: string
+          unmatched_count?: number
+        }
+        Relationships: []
+      }
       order_leg_availability: {
         Row: {
           availability_expired_at: string | null
@@ -3620,10 +3706,13 @@ export type Database = {
         Row: {
           bike_brand: string | null
           bike_model: string | null
+          bike_preparation_email_sent_at: string | null
           bike_quantity: number | null
           bike_type: string | null
           bike_value: number | null
           bikes: Json | null
+          booked_by_id: string | null
+          booked_by_name: string | null
           box_boxed_at: string | null
           box_boxed_by_id: string | null
           box_buyer: Json | null
@@ -3743,10 +3832,13 @@ export type Database = {
         Insert: {
           bike_brand?: string | null
           bike_model?: string | null
+          bike_preparation_email_sent_at?: string | null
           bike_quantity?: number | null
           bike_type?: string | null
           bike_value?: number | null
           bikes?: Json | null
+          booked_by_id?: string | null
+          booked_by_name?: string | null
           box_boxed_at?: string | null
           box_boxed_by_id?: string | null
           box_buyer?: Json | null
@@ -3866,10 +3958,13 @@ export type Database = {
         Update: {
           bike_brand?: string | null
           bike_model?: string | null
+          bike_preparation_email_sent_at?: string | null
           bike_quantity?: number | null
           bike_type?: string | null
           bike_value?: number | null
           bikes?: Json | null
+          booked_by_id?: string | null
+          booked_by_name?: string | null
           box_boxed_at?: string | null
           box_boxed_by_id?: string | null
           box_buyer?: Json | null
@@ -6785,6 +6880,10 @@ export type Database = {
       }
       postgis_version: { Args: never; Returns: string }
       postgis_wagyu_version: { Args: never; Returns: string }
+      recompute_inspection_stage: {
+        Args: { p_inspection_id: string }
+        Returns: undefined
+      }
       resolve_oauth_token_grant: {
         Args: { access_token: string }
         Returns: string
@@ -7433,6 +7532,14 @@ export type Database = {
       submit_public_repair_offer: {
         Args: { p_approved_issue_ids: string[]; p_order_id: string }
         Returns: Json
+      }
+      unlinked_invoice_summary: {
+        Args: never
+        Returns: {
+          earliest_date: string
+          latest_date: string
+          unlinked_count: number
+        }[]
       }
       unlockrows: { Args: { "": string }; Returns: number }
       update_user_profile_for_management: {

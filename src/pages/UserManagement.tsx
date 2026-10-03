@@ -96,16 +96,55 @@ const UserManagement: React.FC = () => {
       return;
     }
     try {
+      const previousRoles = getUserRoles(users.find(u => u.id === userId) || ({ id: userId } as UserProfile));
       const { error } = await supabase.functions.invoke('manage-user-roles', {
         body: { action: 'setMany', userId, roles: nextRoles }
       });
       if (error) throw error;
       setRolesByUser(prev => ({ ...prev, [userId]: nextRoles }));
-      toast.success("Roles updated");
+
+      // Driver role newly added to a user with no Shipday carrier yet — create one.
+      const target = users.find(u => u.id === userId);
+      const becameDriver = nextRoles.includes('driver') && !previousRoles.includes('driver');
+      if (becameDriver && target && !target.shipday_driver_id) {
+        const shipdayOk = await createShipdayForUser(target);
+        if (shipdayOk) {
+          toast.success("Roles updated — Shipday driver created.");
+        } else {
+          toast.warning("Roles updated, but the Shipday driver couldn't be created. Link one from the driver's record, or ask an admin to retry.");
+        }
+      } else {
+        toast.success("Roles updated");
+      }
       fetchUsers();
     } catch (error) {
       console.error("Error updating roles:", error);
       toast.error("Couldn't update this user's roles. Try again in a moment.");
+    }
+  };
+
+  /** Creates the main + Temp Shipday carriers for an existing user and saves the IDs. Returns true on success. */
+  const createShipdayForUser = async (user: UserProfile): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('create-shipday-carrier', {
+        body: { name: user.name || user.email || 'Driver', email: user.email, phone: user.phone || '' }
+      });
+      if (error) throw error;
+      if (!data?.main?.id) return false;
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          shipday_driver_id: String(data.main.id),
+          shipday_driver_name: data.main.name,
+          shipday_temp_driver_id: data.temp?.id ? String(data.temp.id) : null,
+          shipday_temp_driver_name: data.temp?.name ?? null,
+        } as any)
+        .eq('id', user.id);
+      if (updateError) throw updateError;
+      return true;
+    } catch (error) {
+      console.error("Error creating Shipday carrier for user:", error);
+      return false;
     }
   };
 

@@ -32,15 +32,45 @@ interface GuaranteedDeliveryCardProps {
   bare?: boolean;
 }
 
+// Form state lives outside the component so a rebuild of the page can't wipe what's being typed
+const draftStore = new Map<string, Record<string, unknown>>();
+function useDraft<T>(orderId: string | undefined, field: string, initial: T) {
+  const key = orderId || "_";
+  const [value, setValue] = useState<T>(() => {
+    const d = draftStore.get(key);
+    return d && field in d ? (d[field] as T) : initial;
+  });
+  const set = React.useCallback((v: T) => {
+    const d = draftStore.get(key) || {};
+    d[field] = v;
+    draftStore.set(key, d);
+    setValue(v);
+  }, [key, field]);
+  return [value, set] as const;
+}
+
 const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDeliveryCardProps) => {
-  const [open, setOpen] = useState(false);
-  const [payer, setPayer] = useState<GuaranteedDeliveryPayer>("account");
-  const [amount, setAmount] = useState<string>("0");
-  const [guaranteedDate, setGuaranteedDate] = useState<string>("");
-  const [note, setNote] = useState("");
+  const [open, setOpenRaw] = useDraft<boolean>(order?.id, "open", false);
+  const [payer, setPayer] = useDraft<GuaranteedDeliveryPayer>(order?.id, "payer", "account");
+  const [amount, setAmount] = useDraft<string>(order?.id, "amount", "0");
+  const [guaranteedDate, setGuaranteedDate] = useDraft<string>(order?.id, "date", "");
+  const [note, setNote] = useDraft<string>(order?.id, "note", "");
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
   const pausedRef = React.useRef(false);
+  const setOpen = (next: boolean) => {
+    setOpenRaw(next);
+    if (!next) draftStore.delete(order?.id || "_");
+  };
+
+  // If we were rebuilt while the pop-up was open, keep refreshes paused
+  React.useEffect(() => {
+    if (open && !pausedRef.current) {
+      pausedRef.current = true;
+      pausePolling();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Never leave polling paused if this card unmounts while the dialog is open
   React.useEffect(() => () => {
@@ -203,15 +233,12 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
       })
     : null;
 
-  const Shell = ({ children }: { children: React.ReactNode }) =>
-    bare ? (
-      <div>{children}</div>
-    ) : (
-      <Card className={isOn ? "overflow-hidden border-green-500/50" : "overflow-hidden"}>{children}</Card>
-    );
+  // Stable wrapper type (a component declared here would remount the dialog on every keystroke)
+  const ShellTag: React.ElementType = bare ? "div" : Card;
+  const shellClass = bare ? undefined : isOn ? "overflow-hidden border-green-500/50" : "overflow-hidden";
 
   return (
-    <Shell>
+    <ShellTag className={shellClass}>
       {!bare && (
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -330,7 +357,13 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
       </CardContent>
 
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogContent className="max-w-md">
+        <DialogContent
+          className="max-w-md"
+          onKeyDown={(e) => e.stopPropagation()}
+          onKeyUp={(e) => e.stopPropagation()}
+          onInput={(e) => e.stopPropagation()}
+          onChange={(e) => e.stopPropagation()}
+        >
           <DialogHeader>
             <DialogTitle>Guaranteed date delivery</DialogTitle>
             <DialogDescription>
@@ -419,7 +452,7 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Shell>
+    </ShellTag>
   );
 };
 

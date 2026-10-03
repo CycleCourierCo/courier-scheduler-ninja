@@ -282,6 +282,79 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
 
+    /* ------------- split: share one route's stops across N vans ------------- */
+    if (body?.mode === 'split') {
+      const stops = Array.isArray(body?.stops) ? body.stops : [];
+      const n = Math.floor(Number(body?.routes));
+      if (stops.length < 2 || stops.length > 200) return json({ error: 'Between 2 and 200 stops are required' }, 400);
+      if (!Number.isFinite(n) || n < 2 || n > Math.min(20, stops.length)) return json({ error: 'Choose between 2 and the number of stops' }, 400);
+      const clean: { key: string; orderId: string; type: 'pickup' | 'delivery'; lat: number; lon: number }[] = [];
+      for (const s of stops) {
+        const lat = Number(s?.lat), lon = Number(s?.lon);
+        if (typeof s?.orderId !== 'string' || !['pickup', 'delivery'].includes(s?.type)
+          || !Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180 || (lat === 0 && lon === 0)) {
+          return json({ error: 'Every stop needs valid coordinates' }, 400);
+        }
+        clean.push({ key: `${s.orderId}:${s.type}`, orderId: s.orderId, type: s.type, lat, lon });
+      }
+      // Cluster same-address stops into one unit so they stay on the same van.
+      const locKey = (s: { lat: number; lon: number }) => `${s.lat.toFixed(5)},${s.lon.toFixed(5)}`;
+      const byOrder = new Map<string, typeof clean>();
+      clean.forEach((s) => byOrder.set(s.orderId, [...(byOrder.get(s.orderId) || []), s]));
+      const idToKeys = new Map<number, string[]>();
+      let nextId = 1;
+      const jobs: any[] = []; const shipments: any[] = [];
+      const loc = (s: { lat: number; lon: number }) => [s.lon, s.lat];
+      const singles = new Map<string, typeof clean>();
+      for (const legs of byOrder.values()) {
+        const p = legs.find((l) => l.type === 'pickup'); const d = legs.find((l) => l.type === 'delivery');
+        if (p && d && locKey(p) !== locKey(d)) {
+          const pid = nextId++, did = nextId++;
+          idToKeys.set(pid, [p.key]); idToKeys.set(did, [d.key]);
+          shipments.push({ pickup: { id: pid, location: loc(p), service: SERVICE_S }, delivery: { id: did, location: loc(d), service: SERVICE_S } });
+        } else {
+          for (const l of legs) singles.set(locKey(l), [...(singles.get(locKey(l)) || []), l]);
+        }
+      }
+      for (const group of singles.values()) {
+        const id = nextId++;
+        // pickups first within an address
+        idToKeys.set(id, [...group].sort((a, b) => (a.type === 'pickup' ? -1 : 1) - (b.type === 'pickup' ? -1 : 1)).map((g) => g.key));
+        jobs.push({ id, location: loc(group[0]), service: SERVICE_S * group.length });
+      }
+      // Without a cap one van is always cheapest, so share tasks evenly (+small slack).
+      const taskCount = jobs.length + shipments.length * 2;
+      const maxTasks = Math.ceil(taskCount / n) + 1;
+      const mkVehicle = (id: number, cap?: number) => ({
+        id, profile: 'car', ...(cap ? { max_tasks: cap } : {}), start: [DEPOT.lon, DEPOT.lat], end: [DEPOT.lon, DEPOT.lat],
+        costs: { fixed: 0, per_hour: DRIVER_PENCE_PER_HOUR, per_km: PENCE_PER_KM },
+      });
+      const solve = async (vehicles: any[]) => {
+        const r = await fetch(solveUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${VERSO_API_KEY}`, 'X-Api-Key': VERSO_API_KEY },
+          body: JSON.stringify({ vehicles, jobs, shipments, options: { g: false } }),
+        });
+        if (!r.ok) { console.error('split solve failed', r.status); return null; }
+        return await r.json();
+      };
+      const [sol, base] = await Promise.all([
+        solve(Array.from({ length: n }, (_, i) => mkVehicle(i + 1, maxTasks))),
+        solve([mkVehicle(1)]),
+      ]);
+      if (!sol) return json({ error: 'The route optimiser could not split this route' }, 502);
+      const routes = (sol.routes || []).map((r: any) => ({
+        order: (r.steps || []).filter((st: any) => typeof st?.id === 'number' && st.type !== 'start' && st.type !== 'end')
+          .flatMap((st: any) => idToKeys.get(st.id) || []),
+        duration_s: r.duration ?? 0,
+        distance_m: r.distance ?? 0,
+      })).filter((r: any) => r.order.length > 0);
+      const unassigned: string[] = (sol.unassigned || []).flatMap((u: any) => idToKeys.get(u.id) || []);
+      const b = base?.routes?.[0];
+      console.log('split solved', { stops: clean.length, requested: n, returned: routes.length, unassigned: unassigned.length });
+      return json({ routes, unassigned, baseline: b ? { duration_s: b.duration ?? 0, distance_m: b.distance ?? 0 } : null });
+    }
+
     /* ------------- reorder: best order for an existing single route ------------- */
     if (body?.mode === 'reorder') {
       const stops = Array.isArray(body?.stops) ? body.stops : [];
@@ -463,10 +536,21 @@ serve(async (req) => {
     const blocked = new Set(((unavailRes.data as any[]) || [])
       .map((r) => `${r.van_id}:${dateKey(r.unavailable_on) ?? r.unavailable_on}`));
 
+    // Vans that already have a locked route that day.
+    const { data: lockedVanRows } = await admin
+      .from('route_plan_routes').select('van_id,route_date')
+      .in('day_status', ['locked', 'confirmed']).in('route_date', selectedDates);
+    for (const r of (lockedVanRows as any[]) || []) {
+      if (r.van_id) blocked.add(`${r.van_id}:${dateKey(r.route_date) ?? r.route_date}`);
+    }
+
     const vansForDate: Record<string, typeof allVans> = {};
     for (const date of selectedDates) {
-      const allowed = grid[date] ?? (flatVanIds.length > 0 ? flatVanIds : allVans.map((v) => v.id));
-      vansForDate[date] = allVans.filter((v) => allowed.includes(v.id) && !blocked.has(`${v.id}:${date}`));
+      // The planner's ticks are the truth for that day (a ticked locked van is a deliberate choice);
+      // saved days off and locked vans only apply when no ticks were sent.
+      const ticked = Array.isArray(grid[date]) ? grid[date] : null;
+      const allowed = ticked ?? (flatVanIds.length > 0 ? flatVanIds : allVans.map((v) => v.id));
+      vansForDate[date] = allVans.filter((v) => allowed.includes(v.id) && (ticked !== null || !blocked.has(`${v.id}:${date}`)));
     }
     if (selectedDates.every((d) => vansForDate[d].length === 0)) {
       return json({ error: 'No vans are available on the days you picked' }, 400);
@@ -476,7 +560,7 @@ serve(async (req) => {
 
     const { data: orderRows, error: ordersErr } = await admin
       .from('orders')
-      .select('id,tracking_number,user_id,created_at,status,sender,receiver,bikes,bike_type,bike_quantity,pickup_date,delivery_date,scheduled_pickup_date,scheduled_delivery_date,order_collected,order_delivered,needs_inspection,is_box_my_bike,ni_direction,guaranteed_delivery,guaranteed_delivery_date,bicycle_inspections(status)')
+      .select('id,tracking_number,user_id,created_at,status,sender,receiver,bikes,bike_type,bike_quantity,pickup_date,delivery_date,scheduled_pickup_date,scheduled_delivery_date,order_collected,order_delivered,needs_inspection,is_box_my_bike,ni_direction,guaranteed_delivery,guaranteed_delivery_date,is_warehouse_storage,bicycle_inspections(status)')
       .not('status', 'in', '(cancelled,delivered)');
     if (ordersErr) throw ordersErr;
 
@@ -496,13 +580,26 @@ serve(async (req) => {
       .from('route_plan_stops')
       .select('order_id,leg_type,route_plan_routes!inner(day_status,route_date)')
       .in('route_plan_routes.day_status', ['locked', 'confirmed']);
-    const locked = new Set(((lockedRows as any[]) || []).map((r) => `${r.order_id}:${r.leg_type}`));
-    // A bike collected on a locked day is in the depot from the next day onwards.
+    // Only today/future locked routes reserve a job. A locked route whose date
+    // has passed (and was never done) must not hide the job from future runs.
+    const locked = new Set<string>();
+    const staleLocked: any[] = [];
     const lockedCollectionDate: Record<string, string> = {};
     for (const r of ((lockedRows as any[]) || [])) {
-      if (r.leg_type !== 'collection') continue;
       const d = dateKey(r.route_plan_routes?.route_date);
-      if (d) lockedCollectionDate[r.order_id] = d;
+      if (d && d < today) {
+        staleLocked.push({ order_id: r.order_id, leg_type: r.leg_type, route_date: d });
+        continue;
+      }
+      locked.add(`${r.order_id}:${r.leg_type}`);
+      // A bike collected on a locked day is in the depot from the next day onwards.
+      if (r.leg_type === 'collection' && d) lockedCollectionDate[r.order_id] = d;
+    }
+    if (staleLocked.length > 0) {
+      const labelByOrder: Record<string, string> = {};
+      for (const o of ((orderRows as any[]) || [])) labelByOrder[o.id] = o.tracking_number || o.id.slice(0, 8);
+      for (const s of staleLocked) s.label = labelByOrder[s.order_id] ?? s.order_id.slice(0, 8);
+      console.log(`stale locked legs ignored: ${staleLocked.length}`);
     }
 
     const { data: availRows } = await admin
@@ -551,12 +648,21 @@ serve(async (req) => {
         const key = `${order.id}:${legType}`;
         if (locked.has(key) || !eligible) return;
         const state = availState[key];
-        const legStatus = state?.availability_status ?? 'active';
+        const storedStatus = state?.availability_status ?? 'active';
         const future = dates.filter((d) => d >= today);
+        // Expired is decided from the customer's actual dates, never a stale saved note.
         const expired = dates.length > 0 && future.length === 0;
-        const lapsed = (expired || dates.length === 0 || legStatus !== 'active') && dates.length > 0;
+        const lapsed = expired;
+        if (future.length > 0 && storedStatus !== 'active') {
+          // Customer has given fresh dates since: clear the old note and plan normally.
+          expiryUpserts.push({
+            order_id: order.id, leg_type: legType,
+            availability_status: 'active', availability_expired_at: null, redate_requested_at: null,
+          });
+        }
+        const legStatus = future.length > 0 ? 'active' : storedStatus;
 
-        if (expired || dates.length === 0 || legStatus !== 'active') {
+        if (expired || dates.length === 0) {
           const neverDated = dates.length === 0;
           const guaranteedMissed = !!(guaranteed && guaranteed < today);
           const inDepot = legType === 'delivery' && !!order.order_collected;
@@ -577,7 +683,7 @@ serve(async (req) => {
             linked_leg_note: legType === 'collection' && deliveryDates.some((d) => d >= today)
               ? 'Delivery dates will likely lapse too — ask for both' : null,
           });
-          if (dates.length > 0 && expired && legStatus === 'active') {
+          if (expired && storedStatus === 'active') {
             expiryUpserts.push({
               order_id: order.id, leg_type: legType,
               availability_status: 'expired', availability_expired_at: new Date().toISOString(),
@@ -620,7 +726,7 @@ serve(async (req) => {
         'delivery', deliveryDates,
         Number(order.receiver?.address?.lat), Number(order.receiver?.address?.lon),
         guaranteed,
-        !order.order_delivered && !order.scheduled_delivery_date && !order.is_box_my_bike,
+        !order.order_delivered && !order.scheduled_delivery_date && !order.is_box_my_bike && !order.is_warehouse_storage,
       );
     }
 
@@ -929,6 +1035,7 @@ serve(async (req) => {
         return true;
       });
       dayDebug.pool = pool.length;
+      dayDebug.lapsed_in_pool = pool.filter((l) => l.lapsed).length;
 
       excludedLongArea[date] = [];
       if (pool.length === 0) continue;
@@ -1050,11 +1157,18 @@ serve(async (req) => {
           const before = servedKeys(solved!);
           const after = retry ? servedKeys(retry) : new Set<string>();
           const lost = [...before].filter((k) => !after.has(k));
-          if (!retry || lost.length > 0) {
+          const lostMustGo = lost.filter((k) => {
+            const leg = legs.find((l) => l.key === k);
+            return !!leg && mustGo(leg, date);
+          });
+          // A weak van stays only for must-go work or if it pays its way;
+          // ordinary jobs on a dropped van wait for a later day.
+          if (!retry || lostMustGo.length > 0 || (lost.length > 0 && weakest.margin >= 0)) {
             protectedVans.add(weakest.r.meta.vanId);
             dayDebug.removals.push({
               van: weakest.r.meta.vanName, jobs: weakest.r.stops.length,
-              outcome: 'kept — work would be left undone', lost_jobs: lost.length,
+              outcome: lostMustGo.length > 0 ? 'kept — must-go work would be lost' : 'kept — route makes a profit',
+              lost_jobs: lost.length, lost_must_go: lostMustGo.length,
             });
             continue;
           }
@@ -1096,6 +1210,7 @@ serve(async (req) => {
           if (s.leg.legType === 'collection') collectedInRun[s.leg.orderId] = date;
         }
       }
+      dayDebug.lapsed_placed = solved!.reduce((n, r) => n + r.stops.filter((s) => s.leg.lapsed).length, 0);
       dayDebug.vans_used = new Set(solved!.map((r) => r.meta.vanId)).size;
       dayDebug.jobs_per_route = solved!.map((r) => r.stops.length);
       dayDebug.margin_per_route = solved!.map((r) => money(r).margin);
@@ -1224,6 +1339,8 @@ serve(async (req) => {
             eta: isoFromEpoch(s.arrival), lat: s.leg.lat, lon: s.leg.lon,
             is_difficult_area: s.leg.areaIdx !== null, label: s.leg.label,
             guaranteed: !!s.leg.guaranteedDate,
+            must_go: s.leg.lapsed ? 'expired' : (s.leg.lastDate && s.leg.lastDate <= p.meta.date ? 'last_date' : null),
+            last_date: s.leg.lastDate ?? (s.leg.allDates[s.leg.allDates.length - 1] ?? null),
           })),
         });
       });
@@ -1237,6 +1354,11 @@ serve(async (req) => {
     /* ------------------------------ response ------------------------------ */
 
     const unplaced = legs.filter((l) => !assigned.has(l.key));
+    const lapsedOffered = includeExpired ? legs.filter((l) => l.lapsed).length : 0;
+    const lapsedPlaced = legs.filter((l) => l.lapsed && assigned.has(l.key)).length;
+    debug.include_expired = includeExpired;
+    debug.lapsed_offered = lapsedOffered;
+    debug.lapsed_placed = lapsedPlaced;
 
     const days = selectedDates.map((date, idx) => {
       const dayRoutes = routesByDate[date] ?? [];
@@ -1278,11 +1400,12 @@ serve(async (req) => {
         remaining_dates: l.futureDates.length,
         last_date: l.lastDate ?? (l.allDates[l.allDates.length - 1] ?? null),
         guaranteed_date: l.guaranteedDate,
+        must_go: l.lapsed ? 'expired' : 'last_date',
         reason: l.guaranteedDate ? 'Guaranteed date could not be met'
           : excludedKeys.has(l.key) ? 'Needs a long day — another difficult area was chosen'
-          : l.lapsed ? 'Dates had expired — planned via the expired-jobs override'
-          : l.legType === 'delivery' && !l.inDepot ? 'Waiting on its collection being planned'
-          : 'Its last available date was full',
+          : l.legType === 'delivery' && !l.inDepot ? 'Collection is planned in this run — can\'t deliver the same day'
+          : l.lapsed ? 'Expired — too far from the other routes for any van to fit it'
+          : 'Last date — too far from the other routes for any van to fit it',
       }));
 
     const carried = unplaced.filter((l) => !urgentInPlan(l)).length;
@@ -1318,6 +1441,9 @@ serve(async (req) => {
     return json({
       plan_id: planId,
       mode: 'greedy',
+      include_expired: includeExpired,
+      lapsed_offered: lapsedOffered,
+      lapsed_placed: lapsedPlaced,
       unplanned_count: unplaced.length,
       carried_count: carried,
       unplanned_lapsed_count: unplaced.filter((l) => l.lapsed).length,
@@ -1331,6 +1457,8 @@ serve(async (req) => {
       debug,
       days,
       at_risk: atRisk,
+      stale_locked_count: staleLocked.length,
+      stale_locked: staleLocked.slice(0, 50),
       needs_new_dates: needsNewDates.sort((a, b) => a.severity - b.severity),
       vans: allVans,
       weekly: { van_days_available: vanDaysAvailable, van_days_needed: vanDaysNeeded, short_days: [] },

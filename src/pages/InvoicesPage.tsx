@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, FileText, Send, ExternalLink, Eye, Filter, Trash2 } from "lucide-react";
+import { CalendarIcon, FileText, Send, ExternalLink, Eye, Filter, Trash2, RefreshCw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import Layout from "@/components/Layout";
@@ -62,6 +62,23 @@ type InvoiceHistory = {
   created_at: string;
 };
 
+type InvoiceSyncRun = {
+  id: string;
+  completed_at: string | null;
+  status: string;
+  invoices_scanned: number;
+  linked_count: number;
+  already_linked_count: number;
+  unmatched_count: number;
+  ambiguous_count: number;
+};
+
+type UnlinkedInvoiceSummary = {
+  unlinked_count: number;
+  earliest_date: string | null;
+  latest_date: string | null;
+};
+
 export default function InvoicesPage() {
   const [selectedCustomer, setSelectedCustomer] = useState<string>("");
   const [startDate, setStartDate] = useState<Date>();
@@ -71,6 +88,7 @@ export default function InvoicesPage() {
   const [quickBooksConnected, setQuickBooksConnected] = useState(false);
   const [isCreatingAllInvoices, setIsCreatingAllInvoices] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
+  const [isSyncingInvoices, setIsSyncingInvoices] = useState(false);
   
   // Invoice history filters
   const [historyCustomerFilter, setHistoryCustomerFilter] = useState<string>("all");
@@ -92,6 +110,48 @@ export default function InvoicesPage() {
       return data as Customer[];
     },
   });
+
+  const { data: latestSync, refetch: refetchLatestSync } = useQuery({
+    queryKey: ["latest-order-invoice-sync"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("order_invoice_sync_runs")
+        .select("id, completed_at, status, invoices_scanned, linked_count, already_linked_count, unmatched_count, ambiguous_count")
+        .order("started_at", { ascending: false }).limit(1).maybeSingle();
+      if (error) throw error;
+      return data as InvoiceSyncRun | null;
+    },
+  });
+
+  const { data: unlinkedSummary, refetch: refetchUnlinkedSummary } = useQuery({
+    queryKey: ["unlinked-invoice-summary"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("unlinked_invoice_summary");
+      if (error) throw error;
+      const row = (data && data[0]) || null;
+      return row as UnlinkedInvoiceSummary | null;
+    },
+  });
+
+  const handleSyncOrderInvoices = async () => {
+    setIsSyncingInvoices(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("sync-order-invoices", { body: {} });
+      if (error) throw error;
+      const stillUnlinked = typeof data?.unlinkedCount === "number"
+        ? ` ${data.unlinkedCount} orders still unlinked.`
+        : "";
+      notify.success("Invoice links synced", {
+        description: `${data.linkedCount} linked, ${data.alreadyLinkedCount} already linked, ${data.unmatchedCount} unmatched, ${data.ambiguousCount} ambiguous.${stillUnlinked}`,
+      });
+      refetchLatestSync();
+      refetchUnlinkedSummary();
+    } catch (error: any) {
+      console.error("Invoice link sync failed:", error);
+      notify.error("Invoice sync failed", { description: error?.message || "Could not sync QuickBooks invoices" });
+    } finally {
+      setIsSyncingInvoices(false);
+    }
+  };
 
   // Check QuickBooks connection status
   const { data: quickBooksToken } = useQuery({
@@ -502,6 +562,7 @@ export default function InvoicesPage() {
         }
         return null;
       })
+
       .filter(t => t !== null);
 
     const avgCreationToDelivery = deliveryTimes.length > 0
@@ -677,12 +738,41 @@ export default function InvoicesPage() {
           )}
           
           {quickBooksConnected && (
-            <div className="flex items-center gap-2 text-green-600">
-              <div className="h-2 w-2 bg-green-600 rounded-full"></div>
-              QuickBooks Connected
+            <div className="flex flex-wrap items-center justify-end gap-3">
+              <div className="flex items-center gap-2 text-green-600">
+                <div className="h-2 w-2 bg-green-600 rounded-full"></div>
+                QuickBooks Connected
+              </div>
+              <Button variant="outline" onClick={handleSyncOrderInvoices} disabled={isSyncingInvoices}>
+                <RefreshCw className={`mr-2 h-4 w-4 ${isSyncingInvoices ? "animate-spin" : ""}`} />
+                {isSyncingInvoices ? "Syncing…" : "Sync order invoice links"}
+              </Button>
             </div>
           )}
         </div>
+
+        {latestSync && (
+          <div className="text-sm text-muted-foreground">
+            Last invoice-link sync: {latestSync.status}
+            {latestSync.completed_at ? ` on ${format(new Date(latestSync.completed_at), "d MMM yyyy 'at' HH:mm")}` : ""}
+            {latestSync.status === "completed" ? ` — ${latestSync.linked_count} linked, ${latestSync.already_linked_count} already linked, ${latestSync.unmatched_count} unmatched, ${latestSync.ambiguous_count} ambiguous.` : ""}
+          </div>
+        )}
+
+        {unlinkedSummary && unlinkedSummary.unlinked_count > 0 && (
+          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+            <span className="font-medium">
+              {unlinkedSummary.unlinked_count.toLocaleString()} delivered {unlinkedSummary.unlinked_count === 1 ? "order has" : "orders have"} no linked invoice
+            </span>
+            {unlinkedSummary.earliest_date && unlinkedSummary.latest_date && (
+              <span className="text-muted-foreground">
+                {" "}— spanning {format(new Date(`${unlinkedSummary.earliest_date}T12:00:00`), "d MMM yyyy")}
+                {" "}to {format(new Date(`${unlinkedSummary.latest_date}T12:00:00`), "d MMM yyyy")}
+              </span>
+            )}
+            . Run <span className="font-medium">Sync order invoice links</span> to match historical QuickBooks invoices.
+          </div>
+        )}
 
         <Card>
           <CardHeader>

@@ -183,6 +183,81 @@ const STAGE_PRIORITY: Record<string, number> = {
 
 const stagePriority = (stageKey: string): number => STAGE_PRIORITY[stageKey] ?? 20;
 
+/**
+ * One "what happens next" line per update stage, shown in every proactive
+ * update email just above the typical time frames note. Single place to edit.
+ */
+const NEXT_STEPS: Record<string, string> = {
+  booked_awaiting_request:
+    "Once you choose your dates, we'll build a route and send your time slot the day before collection.",
+  awaiting_sender_dates:
+    "Once you choose your dates, we'll build a route and send your time slot the day before collection.",
+  awaiting_receiver_dates:
+    "Once you've chosen your dates, we'll arrange delivery and send your time slot the day before.",
+  sender_dates_received:
+    "We'll send your time slot the day before we're due with you - there's nothing else you need to do.",
+  collection_scheduled:
+    "You'll get your time slot the day before; after collection we'll arrange delivery around the receiver's dates.",
+  collection_scheduled_receiver:
+    "After collection we'll arrange your delivery around the dates you've given us, and send your time slot the day before.",
+  in_depot:
+    "We'll arrange your delivery dates next and send your time slot the day before.",
+  in_depot_awaiting_inspection:
+    "After the inspection we'll confirm any work needed, then arrange delivery.",
+  in_depot_inspected:
+    "The bike is being cleaned and prepared; we'll then arrange your delivery dates.",
+  in_depot_issues_found:
+    "We'll send the repair options for approval; once decided, work starts and delivery is arranged after.",
+  in_depot_in_repair:
+    "Once the work is finished and the bike is cleaned, we'll arrange delivery.",
+  in_depot_ship_as_is:
+    "We'll arrange your delivery dates next and send your time slot the day before.",
+  in_depot_service_complete:
+    "We'll arrange your delivery dates next and send your time slot the day before.",
+  sender_bike_on_way:
+    "Nothing needed from you - the buyer will be kept updated through to delivery.",
+  delivery_scheduled:
+    "You'll get your time slot the day before - please be in to receive the bike.",
+  delivery_scheduled_sender:
+    "Nothing needed from you - we'll hand the bike over to the buyer on that date.",
+  collection_delayed:
+    "We're rebooking your collection now and will send a new time slot as soon as it's set.",
+  delivery_delayed:
+    "We're rebooking your delivery now and will send a new time slot as soon as it's set.",
+  box_awaiting_depot:
+    "Once it arrives, our team will professionally box it ready for its onward courier.",
+  box_in_depot:
+    "It's in the queue to be professionally boxed, then handed to the onward courier.",
+  box_boxed:
+    "We're waiting on the shipping label, then the courier collects it for onward delivery.",
+  box_awaiting_3p:
+    "The courier will collect it shortly; tracking then continues with them.",
+  box_collected_3p:
+    "It's with the onward courier now - tracking continues with them through to delivery.",
+  foam_pending_collection:
+    "Once collected, your bike comes to our depot to be foam-protected for the ferry crossing.",
+  foam_pending_foaming:
+    "Next it's foam-protected, then it travels to the ferry port for the crossing to Northern Ireland.",
+  foam_ready:
+    "Next it travels to the ferry port and crosses to Northern Ireland, then on to final delivery.",
+  foam_at_ferry:
+    "It crosses by ferry to Northern Ireland; we'll confirm your final delivery date once it has arrived.",
+  foam_crossed_to_ni:
+    "It's now on its way for final delivery in Northern Ireland.",
+  foam_delivered_ni:
+    "Nothing further - your bike has been delivered.",
+  ni_awaiting_collection:
+    "Our ferry partner collects it in Northern Ireland and brings it across to mainland UK.",
+  ni_collected:
+    "It crosses by ferry to mainland UK, then comes to our depot for final delivery.",
+  ni_crossed_ferry:
+    "It comes to our depot next, then we arrange final delivery to the destination.",
+  ni_received_from_partner:
+    "We'll arrange final delivery to the destination and send the time slot the day before.",
+};
+
+const nextStepFor = (stageKey: string): string | null => NEXT_STEPS[stageKey] ?? null;
+
 /** Keeps only the highest-priority update per side. */
 function highestPriorityPerSide(updates: Update[]): Update[] {
   const best = new Map<Side, Update>();
@@ -575,6 +650,13 @@ function buildHtml(order: any, update: Update, name: string): string {
   const journey =
     `<div style="margin:4px 0 0;">${emailUI.statusPill(pres.pill[0] as any, pres.pill[1])}</div>` +
     emailUI.stripMap(stages, stageIndex(stages, pres.labels, pres.fallback));
+  const nextStep = nextStepFor(update.stageKey);
+  const nextStepHtml = nextStep
+    ? `<div style="margin:20px 0;padding:14px 16px;background-color:#f0f7ff;border-radius:5px;border-left:4px solid #4a65d5;">
+        <p style="margin:0 0 4px;font-weight:bold;color:#333;">What happens next:</p>
+        <p style="margin:0;color:#555;line-height:1.6;">${nextStep}</p>
+      </div>`
+    : "";
   return `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color:#1f2937;">
       <h2>Hello ${name},</h2>
@@ -586,6 +668,7 @@ function buildHtml(order: any, update: Update, name: string): string {
         ${order.tracking_number ? `<p style="margin:8px 0 0;"><strong>Tracking Number:</strong> ${order.tracking_number}</p>` : ""}
       </div>
       ${body}
+      ${nextStepHtml}
       ${expectationsHtml(expectationsForOrder(order))}
       ${trackingUrl ? `<div style="text-align:center;margin:24px 0;"><a href="${trackingUrl}" style="background-color:#4a65d5;color:#ffffff;padding:12px 20px;text-decoration:none;border-radius:5px;font-weight:bold;">Track Your Bike</a></div>` : ""}
       <p>If anything has changed or you have a question, just reply to this email.</p>
@@ -597,6 +680,7 @@ function buildHtml(order: any, update: Update, name: string): string {
 function buildText(order: any, update: Update, name: string): string {
   const trackingUrl = order.tracking_number ? `${BASE_URL}/tracking/${order.tracking_number}` : "";
   const strip = (s: string) => s.replace(/<[^>]+>/g, "");
+  const nextStep = nextStepFor(update.stageKey);
   return [
     `Hello ${name},`,
     "",
@@ -608,6 +692,7 @@ function buildText(order: any, update: Update, name: string): string {
     "",
     ...update.lines.map(strip),
     "",
+    ...(nextStep ? [`What happens next: ${nextStep}`, ""] : []),
     expectationsText(expectationsForOrder(order)),
     trackingUrl ? `Track your bike: ${trackingUrl}` : "",
     "",
