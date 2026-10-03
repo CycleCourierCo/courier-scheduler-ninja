@@ -624,12 +624,21 @@ serve(async (req) => {
         const key = `${order.id}:${legType}`;
         if (locked.has(key) || !eligible) return;
         const state = availState[key];
-        const legStatus = state?.availability_status ?? 'active';
+        const storedStatus = state?.availability_status ?? 'active';
         const future = dates.filter((d) => d >= today);
+        // Expired is decided from the customer's actual dates, never a stale saved note.
         const expired = dates.length > 0 && future.length === 0;
-        const lapsed = (expired || dates.length === 0 || legStatus !== 'active') && dates.length > 0;
+        const lapsed = expired;
+        if (future.length > 0 && storedStatus !== 'active') {
+          // Customer has given fresh dates since: clear the old note and plan normally.
+          expiryUpserts.push({
+            order_id: order.id, leg_type: legType,
+            availability_status: 'active', availability_expired_at: null, redate_requested_at: null,
+          });
+        }
+        const legStatus = future.length > 0 ? 'active' : storedStatus;
 
-        if (expired || dates.length === 0 || legStatus !== 'active') {
+        if (expired || dates.length === 0) {
           const neverDated = dates.length === 0;
           const guaranteedMissed = !!(guaranteed && guaranteed < today);
           const inDepot = legType === 'delivery' && !!order.order_collected;
@@ -650,7 +659,7 @@ serve(async (req) => {
             linked_leg_note: legType === 'collection' && deliveryDates.some((d) => d >= today)
               ? 'Delivery dates will likely lapse too — ask for both' : null,
           });
-          if (dates.length > 0 && expired && legStatus === 'active') {
+          if (expired && storedStatus === 'active') {
             expiryUpserts.push({
               order_id: order.id, leg_type: legType,
               availability_status: 'expired', availability_expired_at: new Date().toISOString(),
