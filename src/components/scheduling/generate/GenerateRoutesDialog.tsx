@@ -324,7 +324,7 @@ const GenerateRoutesDialog: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [busyRoute, setBusyRoute] = useState(false);
   const [result, setResult] = useState<RoutePlanResult | null>(null);
-  const [includeExpired, setIncludeExpired] = useState(false);
+  const [includeExpired, setIncludeExpired] = useState(true);
   const [prioritiseAge, setPrioritiseAge] = useState(true);
   /** Whether a 15h long day may be used for one difficult area. */
   const [maxLongDays, setMaxLongDays] = useState(1);
@@ -412,6 +412,15 @@ const GenerateRoutesDialog: React.FC = () => {
     const seen = new Set(runLegs.map((l) => `${l.order_id}:${l.leg_type}`));
     return [...runLegs, ...lapsedLegs.filter((l) => !seen.has(`${l.order_id}:${l.leg_type}`))];
   }, [result, lapsedLegs]);
+
+  /** Only legs whose customer dates have actually expired — never first-date or missed-guarantee jobs. */
+  const expiredCount = useMemo(
+    () =>
+      needsDates.filter(
+        (l) => (l.date_state ?? (l.severity === 1 ? "guaranteed_missed" : "expired")) === "expired",
+      ).length,
+    [needsDates],
+  );
 
   const planInput = (gridOverride?: Record<string, string[]>) => ({
     selected_dates: dates,
@@ -612,7 +621,7 @@ const GenerateRoutesDialog: React.FC = () => {
           <div className="flex items-center justify-between gap-2">
             <Label>Van availability</Label>
             <div className="flex flex-wrap items-center gap-2">
-              {needsDates.length > 0 && (
+              {expiredCount > 0 && (
                 <Button
                   type="button"
                   size="sm"
@@ -622,8 +631,8 @@ const GenerateRoutesDialog: React.FC = () => {
                 >
                   <CalendarClock className="h-3.5 w-3.5" />
                   {includeExpired
-                    ? `Including ${needsDates.length} expired job${needsDates.length === 1 ? "" : "s"}`
-                    : `Include expired jobs (${needsDates.length})`}
+                    ? `Including ${expiredCount} expired job${expiredCount === 1 ? "" : "s"}`
+                    : `Include expired jobs (${expiredCount})`}
                 </Button>
               )}
               <Button type="button" size="sm" variant="ghost" className="gap-2" onClick={handleRefreshExpiry}>
