@@ -549,7 +549,7 @@ serve(async (req) => {
 
     const { data: orderRows, error: ordersErr } = await admin
       .from('orders')
-      .select('id,tracking_number,user_id,created_at,status,sender,receiver,bikes,bike_type,bike_quantity,pickup_date,delivery_date,scheduled_pickup_date,scheduled_delivery_date,order_collected,order_delivered,needs_inspection,is_box_my_bike,ni_direction,guaranteed_delivery,guaranteed_delivery_date,bicycle_inspections(status)')
+      .select('id,tracking_number,user_id,created_at,status,sender,receiver,bikes,bike_type,bike_quantity,pickup_date,delivery_date,scheduled_pickup_date,scheduled_delivery_date,order_collected,order_delivered,needs_inspection,is_box_my_bike,ni_direction,guaranteed_delivery,guaranteed_delivery_date,is_warehouse_storage,bicycle_inspections(status)')
       .not('status', 'in', '(cancelled,delivered)');
     if (ordersErr) throw ordersErr;
 
@@ -624,12 +624,21 @@ serve(async (req) => {
         const key = `${order.id}:${legType}`;
         if (locked.has(key) || !eligible) return;
         const state = availState[key];
-        const legStatus = state?.availability_status ?? 'active';
+        const storedStatus = state?.availability_status ?? 'active';
         const future = dates.filter((d) => d >= today);
+        // Expired is decided from the customer's actual dates, never a stale saved note.
         const expired = dates.length > 0 && future.length === 0;
-        const lapsed = (expired || dates.length === 0 || legStatus !== 'active') && dates.length > 0;
+        const lapsed = expired;
+        if (future.length > 0 && storedStatus !== 'active') {
+          // Customer has given fresh dates since: clear the old note and plan normally.
+          expiryUpserts.push({
+            order_id: order.id, leg_type: legType,
+            availability_status: 'active', availability_expired_at: null, redate_requested_at: null,
+          });
+        }
+        const legStatus = future.length > 0 ? 'active' : storedStatus;
 
-        if (expired || dates.length === 0 || legStatus !== 'active') {
+        if (expired || dates.length === 0) {
           const neverDated = dates.length === 0;
           const guaranteedMissed = !!(guaranteed && guaranteed < today);
           const inDepot = legType === 'delivery' && !!order.order_collected;
@@ -650,7 +659,7 @@ serve(async (req) => {
             linked_leg_note: legType === 'collection' && deliveryDates.some((d) => d >= today)
               ? 'Delivery dates will likely lapse too — ask for both' : null,
           });
-          if (dates.length > 0 && expired && legStatus === 'active') {
+          if (expired && storedStatus === 'active') {
             expiryUpserts.push({
               order_id: order.id, leg_type: legType,
               availability_status: 'expired', availability_expired_at: new Date().toISOString(),
@@ -693,7 +702,7 @@ serve(async (req) => {
         'delivery', deliveryDates,
         Number(order.receiver?.address?.lat), Number(order.receiver?.address?.lon),
         guaranteed,
-        !order.order_delivered && !order.scheduled_delivery_date && !order.is_box_my_bike,
+        !order.order_delivered && !order.scheduled_delivery_date && !order.is_box_my_bike && !order.is_warehouse_storage,
       );
     }
 
@@ -1002,6 +1011,7 @@ serve(async (req) => {
         return true;
       });
       dayDebug.pool = pool.length;
+      dayDebug.lapsed_in_pool = pool.filter((l) => l.lapsed).length;
 
       excludedLongArea[date] = [];
       if (pool.length === 0) continue;
@@ -1169,6 +1179,7 @@ serve(async (req) => {
           if (s.leg.legType === 'collection') collectedInRun[s.leg.orderId] = date;
         }
       }
+      dayDebug.lapsed_placed = solved!.reduce((n, r) => n + r.stops.filter((s) => s.leg.lapsed).length, 0);
       dayDebug.vans_used = new Set(solved!.map((r) => r.meta.vanId)).size;
       dayDebug.jobs_per_route = solved!.map((r) => r.stops.length);
       dayDebug.margin_per_route = solved!.map((r) => money(r).margin);
@@ -1310,6 +1321,11 @@ serve(async (req) => {
     /* ------------------------------ response ------------------------------ */
 
     const unplaced = legs.filter((l) => !assigned.has(l.key));
+    const lapsedOffered = includeExpired ? legs.filter((l) => l.lapsed).length : 0;
+    const lapsedPlaced = legs.filter((l) => l.lapsed && assigned.has(l.key)).length;
+    debug.include_expired = includeExpired;
+    debug.lapsed_offered = lapsedOffered;
+    debug.lapsed_placed = lapsedPlaced;
 
     const days = selectedDates.map((date, idx) => {
       const dayRoutes = routesByDate[date] ?? [];
@@ -1391,6 +1407,9 @@ serve(async (req) => {
     return json({
       plan_id: planId,
       mode: 'greedy',
+      include_expired: includeExpired,
+      lapsed_offered: lapsedOffered,
+      lapsed_placed: lapsedPlaced,
       unplanned_count: unplaced.length,
       carried_count: carried,
       unplanned_lapsed_count: unplaced.filter((l) => l.lapsed).length,

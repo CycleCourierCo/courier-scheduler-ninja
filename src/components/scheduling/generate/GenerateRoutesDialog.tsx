@@ -722,6 +722,13 @@ const GenerateRoutesDialog: React.FC = () => {
               </div>
             )}
             <RunDetails debug={result.debug} />
+            {result.include_expired !== undefined && (
+              <p className="text-sm text-muted-foreground">
+                {result.include_expired
+                  ? `${result.lapsed_placed ?? 0} of ${result.lapsed_offered ?? 0} expired job${(result.lapsed_offered ?? 0) === 1 ? "" : "s"} planned`
+                  : "Expired jobs were left out of this run"}
+              </p>
+            )}
 
             <DaySummary
               date={`plan:${result.plan_id ?? ""}`}
