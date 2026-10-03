@@ -595,6 +595,12 @@ serve(async (req) => {
       // A bike collected on a locked day is in the depot from the next day onwards.
       if (r.leg_type === 'collection' && d) lockedCollectionDate[r.order_id] = d;
     }
+    if (staleLocked.length > 0) {
+      const labelByOrder: Record<string, string> = {};
+      for (const o of ((orderRows as any[]) || [])) labelByOrder[o.id] = o.tracking_number || o.id.slice(0, 8);
+      for (const s of staleLocked) s.label = labelByOrder[s.order_id] ?? s.order_id.slice(0, 8);
+      console.log(`stale locked legs ignored: ${staleLocked.length}`);
+    }
 
     const { data: availRows } = await admin
       .from('order_leg_availability')
