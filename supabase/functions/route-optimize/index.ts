@@ -549,7 +549,7 @@ serve(async (req) => {
 
     const { data: orderRows, error: ordersErr } = await admin
       .from('orders')
-      .select('id,tracking_number,user_id,created_at,status,sender,receiver,bikes,bike_type,bike_quantity,pickup_date,delivery_date,scheduled_pickup_date,scheduled_delivery_date,order_collected,order_delivered,needs_inspection,is_box_my_bike,ni_direction,guaranteed_delivery,guaranteed_delivery_date,bicycle_inspections(status)')
+      .select('id,tracking_number,user_id,created_at,status,sender,receiver,bikes,bike_type,bike_quantity,pickup_date,delivery_date,scheduled_pickup_date,scheduled_delivery_date,order_collected,order_delivered,needs_inspection,is_box_my_bike,ni_direction,guaranteed_delivery,guaranteed_delivery_date,is_warehouse_storage,bicycle_inspections(status)')
       .not('status', 'in', '(cancelled,delivered)');
     if (ordersErr) throw ordersErr;
 
@@ -702,7 +702,7 @@ serve(async (req) => {
         'delivery', deliveryDates,
         Number(order.receiver?.address?.lat), Number(order.receiver?.address?.lon),
         guaranteed,
-        !order.order_delivered && !order.scheduled_delivery_date && !order.is_box_my_bike,
+        !order.order_delivered && !order.scheduled_delivery_date && !order.is_box_my_bike && !order.is_warehouse_storage,
       );
     }
 
