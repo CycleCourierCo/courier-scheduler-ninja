@@ -580,13 +580,20 @@ serve(async (req) => {
       .from('route_plan_stops')
       .select('order_id,leg_type,route_plan_routes!inner(day_status,route_date)')
       .in('route_plan_routes.day_status', ['locked', 'confirmed']);
-    const locked = new Set(((lockedRows as any[]) || []).map((r) => `${r.order_id}:${r.leg_type}`));
-    // A bike collected on a locked day is in the depot from the next day onwards.
+    // Only today/future locked routes reserve a job. A locked route whose date
+    // has passed (and was never done) must not hide the job from future runs.
+    const locked = new Set<string>();
+    const staleLocked: any[] = [];
     const lockedCollectionDate: Record<string, string> = {};
     for (const r of ((lockedRows as any[]) || [])) {
-      if (r.leg_type !== 'collection') continue;
       const d = dateKey(r.route_plan_routes?.route_date);
-      if (d) lockedCollectionDate[r.order_id] = d;
+      if (d && d < today) {
+        staleLocked.push({ order_id: r.order_id, leg_type: r.leg_type, route_date: d });
+        continue;
+      }
+      locked.add(`${r.order_id}:${r.leg_type}`);
+      // A bike collected on a locked day is in the depot from the next day onwards.
+      if (r.leg_type === 'collection' && d) lockedCollectionDate[r.order_id] = d;
     }
 
     const { data: availRows } = await admin
