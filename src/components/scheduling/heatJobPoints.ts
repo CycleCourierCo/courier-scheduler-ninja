@@ -152,3 +152,46 @@ export const isLegViableOnDate = (
 
   return true;
 };
+
+/**
+ * Is this leg expired? It still needs doing, isn't booked onto a date, and
+ * every customer availability date has passed (Europe/London). Deliveries
+ * keep the same collected/inspection gating as isLegViableOnDate.
+ * Northern Ireland legs are excluded, matching the Expiring Dates page.
+ */
+export const isLegExpired = (
+  order: OrderData,
+  type: "collection" | "delivery",
+  opts?: { collectedOnRoute?: boolean; asOf?: Date }
+): boolean => {
+  if (order.ni_direction) return false;
+  const realToday = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  const asOfStr = opts?.asOf ? dayStr(opts.asOf) : realToday;
+  const today = asOfStr > realToday ? asOfStr : realToday;
+
+  if (type === "collection") {
+    if (!needsCollectionLeg(order)) return false;
+    if (order.scheduled_pickup_date) return false;
+    const dates = ((order.pickup_date as string[] | null) || []).map(dayStr);
+    return dates.length > 0 && dates.every((d) => d < today);
+  }
+
+  if (!needsDeliveryLeg(order)) return false;
+  if (order.scheduled_delivery_date) return false;
+  const dates = ((order.delivery_date as string[] | null) || []).map(dayStr);
+  if (dates.length === 0 || !dates.every((d) => d < today)) return false;
+
+  const booked = order.scheduled_pickup_date ? dayStr(order.scheduled_pickup_date as string) : null;
+  const collectedInTime =
+    order.order_collected === true ||
+    (!!booked && booked >= realToday && booked < today) ||
+    opts?.collectedOnRoute === true;
+  if (!collectedInTime) return false;
+
+  if (order.needs_inspection === true) {
+    const done = order.inspection_status === "inspected" || order.inspection_status === "repaired";
+    if (!done) return false;
+  }
+
+  return true;
+};
