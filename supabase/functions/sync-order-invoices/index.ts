@@ -100,6 +100,7 @@ Deno.serve(async (req) => {
     let alreadyLinkedCount = 0;
     let unmatchedCount = 0;
     let ambiguousCount = 0;
+    const unmatchedRows: any[] = [];
 
     for (let start = 1; ; start += 1000) {
       const query = `SELECT * FROM Invoice STARTPOSITION ${start} MAXRESULTS 1000`;
@@ -154,7 +155,17 @@ Deno.serve(async (req) => {
           existing.add(key);
         }
         if (invoiceAmbiguous) ambiguousCount++;
-        if (!invoiceMatched && !invoiceAmbiguous) unmatchedCount++;
+        if (!invoiceMatched && !invoiceAmbiguous) {
+          unmatchedCount++;
+          unmatchedRows.push({
+            quickbooks_invoice_id: String(invoice.Id),
+            invoice_number: invoice.DocNumber ? String(invoice.DocNumber) : null,
+            customer_name: invoice.CustomerRef?.name || null,
+            invoice_date: invoice.TxnDate || null,
+            total_amount: invoice.TotalAmt ?? null,
+            synced_at: new Date().toISOString(),
+          });
+        }
       }
 
       if (pendingLinks.length > 0) {
@@ -163,6 +174,12 @@ Deno.serve(async (req) => {
         if (error) throw error;
       }
       if (invoices.length < 1000) break;
+    }
+
+    await supabase.from('quickbooks_unmatched_invoices').delete().neq('quickbooks_invoice_id', '');
+    for (let i = 0; i < unmatchedRows.length; i += 500) {
+      const { error } = await supabase.from('quickbooks_unmatched_invoices').upsert(unmatchedRows.slice(i, i + 500));
+      if (error) throw error;
     }
 
     let unlinkedCount: number | null = null;
