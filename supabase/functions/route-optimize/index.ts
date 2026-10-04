@@ -824,7 +824,7 @@ serve(async (req) => {
 
     /** A job that must not be lost inside this plan at all. */
     const urgentInPlan = (leg: Leg) =>
-      !!leg.guaranteedDate || (leg.lapsed && includeExpired)
+      !!leg.guaranteedDate || !!leg.forGuarantee || (leg.lapsed && includeExpired)
       || (!!leg.lastDate && leg.lastDate <= lastSelectedDate);
 
     /* ------------------------------ solving ------------------------------- */
@@ -1378,7 +1378,7 @@ serve(async (req) => {
         miles: routeMiles(r.route),
         maxLoad: Math.round((maxLoadUnits / 10) * 100) / 100,
         geometry: typeof r.route.geometry === 'string' ? r.route.geometry : null,
-        region: r.meta.areaName,
+        region: r.meta.areaName ?? r.meta.sectorName ?? null,
         spreadMi: spreadMiles(ordered.map((s) => s.leg)),
         thin,
         belowFloor: ordered.length < floorCutoff,
@@ -1514,7 +1514,13 @@ serve(async (req) => {
         last_date: l.lastDate ?? (l.allDates[l.allDates.length - 1] ?? null),
         guaranteed_date: l.guaranteedDate,
         must_go: l.lapsed ? 'expired' : 'last_date',
-        reason: l.guaranteedDate ? 'Guaranteed date could not be met'
+        reason: l.guaranteedDate
+          ? (guaranteeBlocked.some((g) => g.orderId === l.orderId)
+            ? `Collection can't happen before the guaranteed date ${l.guaranteedDate}`
+            : 'Guaranteed date could not be met')
+          : l.forGuarantee ? `Collection needed before the guaranteed date ${l.forGuarantee} — no van could fit it`
+          : l.legType === 'delivery' && !l.inDepot && pastDueCollection[l.orderId]
+            ? `Not collected yet — collection booked for ${pastDueCollection[l.orderId]} didn't happen`
           : excludedKeys.has(l.key) ? 'Needs a long day — another difficult area was chosen'
           : l.legType === 'delivery' && !l.inDepot ? 'Collection is planned in this run — can\'t deliver the same day'
           : l.lapsed ? 'Expired — too far from the other routes for any van to fit it'
