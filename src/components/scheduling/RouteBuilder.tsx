@@ -2857,7 +2857,53 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     const baseCoords = { lat: 52.4690197, lon: -1.8757663 }; // Birmingham coordinates for Lawden Road, B10 0AD
     
     // Runs the arrival-time chain for a given ordered list of stops
+    const legKey = (a: { lat: number; lon: number }, b: { lat: number; lon: number }) =>
+      `${a.lat.toFixed(5)},${a.lon.toFixed(5)}>${b.lat.toFixed(5)},${b.lon.toFixed(5)}`;
+    const cachedTravel = async (a: { lat: number; lon: number }, b: { lat: number; lon: number }) => {
+      const k = legKey(a, b);
+      const hit = legCacheRef.current.get(k);
+      if (hit) return hit;
+      const leg = await calculateTravelTime(a, b);
+      legCacheRef.current.set(k, leg);
+      return leg;
+    };
+    // Fetch every leg of the route in parallel (cap 6 at a time) before timing it
+    const prefetchLegs = async (list: any[]) => {
+      const points: { lat: number; lon: number }[] = [baseCoords];
+      const seen = new Set<string>();
+      for (const job of list) {
+        if (job.type === 'break') continue;
+        if (job.locationGroupId) {
+          if (seen.has(job.locationGroupId)) continue;
+          seen.add(job.locationGroupId);
+        }
+        points.push({ lat: job.lat!, lon: job.lon! });
+      }
+      points.push(baseCoords);
+      const pairs: [any, any][] = [];
+      const keys = new Set<string>();
+      for (let i = 0; i < points.length - 1; i++) {
+        const k = legKey(points[i], points[i + 1]);
+        if (keys.has(k) || legCacheRef.current.has(k)) continue;
+        keys.add(k);
+        pairs.push([points[i], points[i + 1]]);
+      }
+      let done = 0;
+      if (isLatest()) setCalcProgress({ done: 0, total: pairs.length });
+      let next = 0;
+      const worker = async () => {
+        while (next < pairs.length) {
+          const [a, b] = pairs[next++];
+          await cachedTravel(a, b);
+          done++;
+          if (isLatest()) setCalcProgress({ done, total: pairs.length });
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(6, pairs.length) }, worker));
+    };
+
     const computeChain = async (list: any[]) => {
+      await prefetchLegs(list);
       const updatedJobs: any[] = [];
       let currentTime = new Date(`2024-01-01 ${startTime}`);
       const startClock = new Date(currentTime.getTime());
