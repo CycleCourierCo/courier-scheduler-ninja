@@ -47,6 +47,7 @@ const RevenueReconciliationCard = ({ year }: { year: number }) => {
                 <TableHead className="text-right">On this page</TableHead>
                 <TableHead className="text-right">From invoices</TableHead>
                 <TableHead className="text-right">Estimated</TableHead>
+                <TableHead className="text-right">Paid via website</TableHead>
                 <TableHead className="text-right">Invoiced in QuickBooks</TableHead>
                 <TableHead className="text-right">Not on a timeslip</TableHead>
               </TableRow>
@@ -61,6 +62,10 @@ const RevenueReconciliationCard = ({ year }: { year: number }) => {
                     {gbp(r.estimatedOnPage)}
                     {r.estimatedJobs > 0 && <span className="text-muted-foreground"> ({r.estimatedJobs} jobs)</span>}
                   </TableCell>
+                  <TableCell className="text-right">
+                    {gbp(r.shopifyOnPage)}
+                    {r.shopifyJobs > 0 && <span className="text-muted-foreground"> ({r.shopifyJobs} jobs)</span>}
+                  </TableCell>
                   <TableCell className="text-right">{gbp(r.invoicedTransport)}</TableCell>
                   <TableCell className="text-right">{gbp(Math.max(0, r.invoicedTransport - r.invoicedOnPage))}</TableCell>
                 </TableRow>
@@ -70,6 +75,7 @@ const RevenueReconciliationCard = ({ year }: { year: number }) => {
                 <TableCell className="text-right">{gbp(total.page)}</TableCell>
                 <TableCell className="text-right">{gbp(total.inv)}</TableCell>
                 <TableCell className="text-right">{gbp(total.est)} ({total.jobs} jobs)</TableCell>
+                <TableCell className="text-right">{gbp(total.shop)} ({total.shopJobs} jobs)</TableCell>
                 <TableCell className="text-right">{gbp(total.qb)}</TableCell>
                 <TableCell className="text-right">{gbp(Math.max(0, total.qb - total.inv))}</TableCell>
               </TableRow>
