@@ -118,7 +118,8 @@ export const bandForAge = (ageDays: number): AgeBand =>
 export const isLegViableOnDate = (
   order: OrderData,
   type: "collection" | "delivery",
-  targetDate: Date
+  targetDate: Date,
+  opts?: { collectedOnRoute?: boolean }
 ): boolean => {
   const target = dayStr(targetDate);
   const pickupDates = ((order.pickup_date as string[] | null) || []).map(dayStr);
@@ -134,8 +135,14 @@ export const isLegViableOnDate = (
   if (order.scheduled_delivery_date) return false;
   if (!deliveryDates.includes(target)) return false;
 
+  // Customer availability is not a collection. Only a real collection counts:
+  // marked collected, or booked for a date from today up to (not incl.) target.
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  const booked = order.scheduled_pickup_date ? dayStr(order.scheduled_pickup_date as string) : null;
   const collectedInTime =
-    order.order_collected === true || pickupDates.some((d) => d < target);
+    order.order_collected === true ||
+    (!!booked && booked >= today && booked < target) ||
+    opts?.collectedOnRoute === true;
   if (!collectedInTime) return false;
 
   if (order.needs_inspection === true) {
