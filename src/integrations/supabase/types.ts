@@ -3499,6 +3499,7 @@ export type Database = {
           quickbooks_invoice_id: string
           quickbooks_invoice_number: string | null
           quickbooks_invoice_url: string
+          transport_net_amount: number | null
           updated_at: string
         }
         Insert: {
@@ -3510,6 +3511,7 @@ export type Database = {
           quickbooks_invoice_id: string
           quickbooks_invoice_number?: string | null
           quickbooks_invoice_url: string
+          transport_net_amount?: number | null
           updated_at?: string
         }
         Update: {
@@ -3521,6 +3523,7 @@ export type Database = {
           quickbooks_invoice_id?: string
           quickbooks_invoice_number?: string | null
           quickbooks_invoice_url?: string
+          transport_net_amount?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -4143,6 +4146,7 @@ export type Database = {
           is_business: boolean | null
           is_test_account: boolean
           large_bike_rate_code: string | null
+          large_bike_rate_from: string | null
           large_bike_rate_price: number | null
           latitude: number | null
           leave_year_start: string
@@ -4197,6 +4201,7 @@ export type Database = {
           is_business?: boolean | null
           is_test_account?: boolean
           large_bike_rate_code?: string | null
+          large_bike_rate_from?: string | null
           large_bike_rate_price?: number | null
           latitude?: number | null
           leave_year_start?: string
@@ -4251,6 +4256,7 @@ export type Database = {
           is_business?: boolean | null
           is_test_account?: boolean
           large_bike_rate_code?: string | null
+          large_bike_rate_from?: string | null
           large_bike_rate_price?: number | null
           latitude?: number | null
           leave_year_start?: string
@@ -6675,6 +6681,7 @@ export type Database = {
           is_business: boolean | null
           is_test_account: boolean
           large_bike_rate_code: string | null
+          large_bike_rate_from: string | null
           large_bike_rate_price: number | null
           latitude: number | null
           leave_year_start: string
@@ -7571,6 +7578,7 @@ export type Database = {
           is_business: boolean | null
           is_test_account: boolean
           large_bike_rate_code: string | null
+          large_bike_rate_from: string | null
           large_bike_rate_price: number | null
           latitude: number | null
           leave_year_start: string
