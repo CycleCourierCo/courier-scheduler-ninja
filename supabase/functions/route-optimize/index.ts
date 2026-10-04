@@ -961,11 +961,20 @@ serve(async (req) => {
         costs: { per_hour: DRIVER_PENCE_PER_HOUR, per_km: PENCE_PER_KM },
         // London vans carry only the London skill, so they can serve London work
         // and unskilled corridor work — never ordinary jobs elsewhere.
-        skills: kind.london ? [DIFFICULT_SKILL] : [GENERAL_SKILL],
+        // Ordinary vans also carry the sector skills of their arc; long-day and
+        // spare vans may cover any sector.
+        skills: kind.london
+          ? [DIFFICULT_SKILL]
+          : [GENERAL_SKILL, ...(kind.sectors ?? [0, 1, 2, 3, 4, 5, 6, 7]).map((s) => SECTOR_BASE + s)],
       };
+      const sectorName = kind.sectors && kind.sectors.length > 0 && kind.sectors.length < 8
+        ? (kind.sectors.length === 1
+          ? SECTOR_NAMES[kind.sectors[0]]
+          : `${SECTOR_NAMES[kind.sectors[0]]} to ${SECTOR_NAMES[kind.sectors[kind.sectors.length - 1]]}`)
+        : null;
       const meta: VanDay = {
         vehicleId: id, date, vanId: van.id, vanName: van.name, capacity: van.capacity,
-        long: kind.long, spare: !!kind.spare, areaName: kind.areaName ?? null,
+        long: kind.long, spare: !!kind.spare, areaName: kind.areaName ?? null, sectorName,
       };
       return { vehicle, meta };
     };
@@ -1015,12 +1024,45 @@ serve(async (req) => {
     ): Promise<SolvedRoute[] | null> => {
       const vehicles: any[] = [];
       const meta: Record<number, VanDay> = {};
+
+      // Give each ordinary van one contiguous arc of compass sectors, balanced by
+      // the work in each, so every sector with work is covered by some van.
+      const ordinaryIdx = assignments
+        .map((a, i) => (!a.london && !a.long && !a.spare ? i : -1))
+        .filter((i) => i >= 0);
+      const sectorFor: Record<number, number[] | null> = {};
+      if (ordinaryIdx.length > 0) {
+        const counts = Array(8).fill(0);
+        for (const l of pool) { const s = legSector(l); if (s !== null) counts[s]++; }
+        const busy = counts.filter((c) => c > 0).length;
+        if (busy > 0) {
+          const arcs = sectorArcs(counts, Math.min(ordinaryIdx.length, busy))
+            .map((arc) => arc.filter((s, i, a) => counts[s] > 0 || (i > 0 && i < a.length - 1)))
+            .filter((arc) => arc.length > 0);
+          const jobsIn = (arc: number[]) => arc.reduce((n, s) => n + counts[s], 0);
+          const vansOn = arcs.map(() => 0);
+          ordinaryIdx.forEach((ai, k) => {
+            let pick = k;
+            if (k >= arcs.length) {
+              // extra vans go to the arc with the most work per van
+              pick = 0;
+              for (let j = 1; j < arcs.length; j++) {
+                if (jobsIn(arcs[j]) / (vansOn[j] + 1) > jobsIn(arcs[pick]) / (vansOn[pick] + 1)) pick = j;
+              }
+            }
+            vansOn[pick]++;
+            sectorFor[ai] = arcs[pick];
+          });
+        }
+      }
+
       assignments.forEach((a, idx) => {
         const built = buildVehicle(a.van, date, idx, {
           long: a.long,
           spare: a.spare,
           areaName: a.london ? (difficultAreas[londonAreaIdx]?.name ?? 'London') : null,
           london: a.london,
+          sectors: sectorFor[idx] ?? null,
         });
         vehicles.push(built.vehicle);
         meta[built.meta.vehicleId] = built.meta;
