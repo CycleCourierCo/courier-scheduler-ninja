@@ -463,6 +463,73 @@ export const getRevenueForTimeslip = async (timeslip: Timeslip, stats?: RevenueS
   return totalRevenue;
 };
 
+// ============ Cost basis: real fuel + maintenance vs flat-rate estimate ============
+export type CostMode = 'actual' | 'flat';
+
+// Net fuel (from uploaded fuel invoices) + maintenance cost per van per month.
+// Key: `${vehicle_id}|${yyyy-MM}` -> net £
+let vehicleCostCache: { at: number; data: Map<string, number> } | null = null;
+const VEHICLE_COST_TTL = 10 * 60 * 1000;
+
+export const getVehicleMonthlyCosts = async (): Promise<Map<string, number>> => {
+  if (vehicleCostCache && Date.now() - vehicleCostCache.at < VEHICLE_COST_TTL) return vehicleCostCache.data;
+  const data = new Map<string, number>();
+  const add = (vehicleId: unknown, date: unknown, amount: unknown) => {
+    if (!vehicleId || !date || !amount) return;
+    const key = `${vehicleId}|${String(date).slice(0, 7)}`;
+    data.set(key, (data.get(key) || 0) + Number(amount));
+  };
+  const loadTable = async (table: string, dateCol: string, amountCol: string) => {
+    for (let from = 0; ; from += 1000) {
+      const { error, data: rows } = await supabase
+        .from(table)
+        .select(`${dateCol}, vehicle_id, ${amountCol}`)
+        .range(from, from + 999);
+      if (error) { console.error(`Error loading ${table} for cost basis:`, error); break; }
+      for (const r of (rows || []) as Array<Record<string, unknown>>) {
+        add(r.vehicle_id, r[dateCol], Number(r[amountCol] || 0));
+      }
+      if (!rows || rows.length < 1000) break;
+    }
+  };
+  await Promise.all([
+    loadTable('fuel_transactions', 'trx_date', 'net_amount'),
+    loadTable('vehicle_maintenance_logs', 'service_date', 'cost'),
+  ]);
+  vehicleCostCache = { at: Date.now(), data };
+  return data;
+};
+
+// Per van, per month real cost per mile: (fuel net + maintenance) / miles driven that month
+export const buildVehicleCostPerMile = (timeslips: Timeslip[], costs: Map<string, number>): Map<string, number> => {
+  const miles = new Map<string, number>();
+  for (const ts of timeslips) {
+    if (!ts.vehicle_id || !ts.date) continue;
+    const key = `${ts.vehicle_id}|${ts.date.slice(0, 7)}`;
+    miles.set(key, (miles.get(key) || 0) + (ts.mileage || 0));
+  }
+  const rates = new Map<string, number>();
+  for (const [key, m] of miles) {
+    if (m <= 0) continue;
+    rates.set(key, (costs.get(key) || 0) / m);
+  }
+  return rates;
+};
+
+let costContext: { mode: CostMode; rateMap: Map<string, number> | null } = { mode: 'flat', rateMap: null };
+export const setCostContext = (mode: CostMode, rateMap: Map<string, number> | null) => {
+  costContext = { mode, rateMap };
+};
+
+const prepareCostContext = async (mode: CostMode, timeslips: Timeslip[]) => {
+  if (mode === 'actual') {
+    const costs = await getVehicleMonthlyCosts();
+    setCostContext('actual', buildVehicleCostPerMile(timeslips, costs));
+  } else {
+    setCostContext('flat', null);
+  }
+};
+
 export const calculateProfitability = (
   totalJobs: number,
   timeslip: Timeslip,
@@ -478,8 +545,15 @@ export const calculateProfitability = (
     return sum + (addon.hours * timeslip.hourly_rate);
   }, 0);
 
-  // Calculate mileage costs
-  const mileageCosts = (timeslip.mileage || 0) * costPerMile;
+  // Mileage costs: in 'actual' mode use the van's real fuel + maintenance cost per mile
+  // for the van and month of the timeslip; otherwise the flat estimate rate.
+  let mileageCosts: number;
+  if (costContext.mode === 'actual' && costContext.rateMap && timeslip.vehicle_id && timeslip.date) {
+    const rate = costContext.rateMap.get(`${timeslip.vehicle_id}|${timeslip.date.slice(0, 7)}`) ?? 0;
+    mileageCosts = (timeslip.mileage || 0) * rate;
+  } else {
+    mileageCosts = (timeslip.mileage || 0) * costPerMile;
+  }
 
   // Total costs = driver pay + mileage costs
   const totalCosts = (timeslip.total_pay || 0) + mileageCosts;
