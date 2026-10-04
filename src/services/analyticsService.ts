@@ -282,6 +282,7 @@ export const getOrdersCreatedSeries = (
     bucket: bucketKey(b, g),
     label: bucketLabel(b, g),
     count: counts[bucketKey(b, g)] || 0,
+    predicted: predictBucket(b, g, counts[bucketKey(b, g)] || 0),
   }));
 };
 
@@ -808,7 +809,15 @@ export const getOrdersCompletedSeries = (
 
   return buckets.map(b => {
     const k = bucketKey(b, g);
-    return { bucket: k, label: bucketLabel(b, g), ...data[k] };
+    const d = data[k];
+    return {
+      bucket: k,
+      label: bucketLabel(b, g),
+      ...d,
+      predictedOrders: predictBucket(b, g, d.orders),
+      predictedCollections: predictBucket(b, g, d.collections),
+      predictedDeliveries: predictBucket(b, g, d.deliveries),
+    };
   });
 };
 
