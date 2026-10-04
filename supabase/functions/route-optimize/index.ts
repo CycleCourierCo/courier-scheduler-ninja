@@ -1579,8 +1579,8 @@ serve(async (req) => {
             ? `Not collected yet — collection booked for ${pastDueCollection[l.orderId]} isn't marked done`
           : excludedKeys.has(l.key) ? 'Needs a long day — another difficult area was chosen'
           : l.legType === 'delivery' && !l.inDepot ? 'Collection is planned in this run — can\'t deliver the same day'
-          : l.lapsed ? 'Expired — too far from the other routes for any van to fit it'
-          : 'Last date — too far from the other routes for any van to fit it',
+          : l.lapsed ? 'Expired — too far for any van to fit it with the last job by 8:30pm'
+          : 'Last date — too far for any van to fit it with the last job by 8:30pm',
       }));
 
     const carried = unplaced.filter((l) => !urgentInPlan(l)).length;
