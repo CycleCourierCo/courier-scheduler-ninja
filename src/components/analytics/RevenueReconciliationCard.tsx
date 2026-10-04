@@ -45,11 +45,11 @@ const RevenueReconciliationCard = ({ year }: { year: number }) => {
               <TableRow>
                 <TableHead>Month</TableHead>
                 <TableHead className="text-right">On this page</TableHead>
-                <TableHead className="text-right">From invoices</TableHead>
+                <TableHead className="text-right">Invoiced (jobs on this page)</TableHead>
                 <TableHead className="text-right">Estimated</TableHead>
                 <TableHead className="text-right">Paid via website</TableHead>
-                <TableHead className="text-right">Invoiced in QuickBooks</TableHead>
-                <TableHead className="text-right">Not on a timeslip</TableHead>
+                <TableHead className="text-right">All transport invoiced in QuickBooks</TableHead>
+                <TableHead className="text-right">Invoiced, not on this page</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -83,7 +83,9 @@ const RevenueReconciliationCard = ({ year }: { year: number }) => {
           </Table>
         )}
         <p className="mt-3 text-xs text-muted-foreground">
-          Invoice amounts fill in after an admin presses "Sync order invoice links" on the Invoices page.
+          QuickBooks includes invoiced work this page can't see — days with no approved timeslip and invoices
+          not yet linked to an order — so it is usually higher. Invoice amounts fill in after an admin presses
+          "Sync order invoice links" on the Invoices page.
         </p>
       </CardContent>
     </Card>
