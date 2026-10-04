@@ -1463,7 +1463,7 @@ serve(async (req) => {
           below_floor: p.belowFloor,
           thin_reason: p.thinReason,
           urgent_labels: p.mustGoLabels,
-          guaranteed_count: p.ordered.filter((s) => !!s.leg.guaranteedDate).length,
+          guaranteed_count: p.ordered.filter((s) => !!s.leg.guaranteedDate || !!s.leg.forGuarantee).length,
           must_go_count: p.mustGoLabels.length,
           revenue: p.revenue,
           cost: p.cost,
