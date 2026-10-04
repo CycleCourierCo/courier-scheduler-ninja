@@ -100,6 +100,7 @@ const RouteCard: React.FC<{ route: PlanRoute; date: string; onUse: (route: PlanR
             </Badge>
           )}
           {route.guaranteed_count > 0 && <Badge>Guaranteed ×{route.guaranteed_count}</Badge>}
+          {(route as any).overlap_with?.length > 0 && <Badge variant="destructive">Overlaps with {(route as any).overlap_with.join(", ")}</Badge>}
           {(() => {
             const exp = route.stops.filter((s) => s.must_go === "expired").length;
             const last = route.stops.filter((s) => s.must_go === "last_date").length;
@@ -145,7 +146,7 @@ const RouteCard: React.FC<{ route: PlanRoute; date: string; onUse: (route: PlanR
                   <span className="text-muted-foreground">{stop.seq}.</span>
                   <span className="font-medium">{stop.label}</span>
                   <Badge variant="outline" className="text-xs">{stop.leg_type}</Badge>
-                  {stop.guaranteed && <Badge className="text-xs">Guaranteed</Badge>}
+                  {stop.guaranteed && <Badge className="text-xs">Guaranteed{(stop as any).guaranteed_date ? ` ${(stop as any).guaranteed_date}` : ""}</Badge>}
                   {stop.planned_after_expiry && <Badge variant="secondary" className="text-xs">After dates</Badge>}
                 </span>
                 <span className="text-muted-foreground">
