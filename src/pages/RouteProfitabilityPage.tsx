@@ -318,6 +318,7 @@ const RouteProfitabilityPage = () => {
             label: "Month",
           }}
           costPerMileRate={costPerMile}
+          costMode={costMode}
           draftCount={draftCount}
           yearData={{
             timeslips: yearTimeslips,
@@ -347,6 +348,7 @@ const RouteProfitabilityPage = () => {
         {/* Invoice vs Route Comparison */}
         <InvoiceVsCostComparison
           costPerMile={costPerMile}
+          costMode={costMode}
           revenuePerStop={revenuePerStop}
           useBikeTypePricing={useBikeTypePricing}
         />
@@ -376,6 +378,23 @@ const RouteProfitabilityPage = () => {
                 id="bike-type-pricing"
                 checked={useBikeTypePricing}
                 onCheckedChange={setUseBikeTypePricing}
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="real-costs" className="text-base">
+                  Use real costs (fuel + van maintenance)
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Costs use driver pay plus each van's real fuel (net, from fuel invoices) and maintenance
+                  costs, spread by the van's miles each month. Turn off to use a flat per-mile estimate instead.
+                </p>
+              </div>
+              <Switch
+                id="real-costs"
+                checked={costMode === 'actual'}
+                onCheckedChange={(checked) => setCostMode(checked ? 'actual' : 'flat')}
               />
             </div>
 
@@ -421,17 +440,19 @@ const RouteProfitabilityPage = () => {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="cost">Cost per Mile (£)</Label>
-                <Input
-                  id="cost"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={costPerMile}
-                  onChange={(e) => setCostPerMile(parseFloat(e.target.value) || 0)}
-                />
-              </div>
+              {costMode === 'flat' && (
+                <div className="space-y-2">
+                  <Label htmlFor="cost">Estimate cost per mile (£) — used only with real costs off</Label>
+                  <Input
+                    id="cost"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={costPerMile}
+                    onChange={(e) => setCostPerMile(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
