@@ -42,7 +42,7 @@ const RouteProfitabilityPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [revenuePerStop, setRevenuePerStop] = useState<number>(32);
   const [costPerMile, setCostPerMile] = useState<number>(0.45);
-  const [useBikeTypePricing, setUseBikeTypePricing] = useState<boolean>(false);
+  const [useBikeTypePricing, setUseBikeTypePricing] = useState<boolean>(true);
   const queryClient = useQueryClient();
 
   // State for selected week (defaults to current week)
