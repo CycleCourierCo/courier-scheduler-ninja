@@ -319,7 +319,7 @@ export const getRevenueForRouteStops = async (
 
   const { data: orders, error } = await supabase
     .from('orders')
-    .select('id, user_id, bikes, bike_type, bike_quantity')
+    .select('id, user_id, bikes, bike_type, bike_quantity, use_large_bike_rate')
     .in('id', orderIds);
   if (error || !orders) {
     return { revenue: 0, orderCount: orderIds.length, stopCount: relevant.length };
