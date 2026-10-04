@@ -883,8 +883,9 @@ const JobItem: React.FC<JobItemProps> = ({
                             })()}
                           </div>
                           {getFoamBadge(groupedJob.orderData, groupedJob.type) && groupedJob.orderData?.receiver?.address && (
-                            <p className="text-[10px] text-muted-foreground">
-                              Final destination: {groupedJob.orderData.receiver.name} — {[groupedJob.orderData.receiver.address.street, groupedJob.orderData.receiver.address.city, groupedJob.orderData.receiver.address.zipCode].filter(Boolean).join(', ')}
+                            <p className="text-[10px] text-muted-foreground" data-nodrag>
+                              <span data-nodrag className="select-text cursor-text">Final destination: {groupedJob.orderData.receiver.name} — {[groupedJob.orderData.receiver.address.street, groupedJob.orderData.receiver.address.city, groupedJob.orderData.receiver.address.zipCode].filter(Boolean).join(', ')}</span>
+                              <CopyAddressButton text={[groupedJob.orderData.receiver.address.street, groupedJob.orderData.receiver.address.city, groupedJob.orderData.receiver.address.zipCode].filter(Boolean).join(', ')} />
                             </p>
                           )}
                           {groupedJob.orderData?.delivery_instructions && (
