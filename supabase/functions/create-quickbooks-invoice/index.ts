@@ -399,9 +399,7 @@ const handler = async (req: Request): Promise<Response> => {
       user = { id: authUser.id };
     }
 
-    const invoiceData: InvoiceRequest & { previewStorage?: boolean } = await req.json();
-    console.log('Creating QuickBooks invoice for:', invoiceData.customerName);
-    console.log('Date range:', invoiceData.startDate, 'to', invoiceData.endDate);
+    const invoiceData: InvoiceRequest & { previewStorage?: boolean; singleOrder?: boolean } = await req.json();
     console.log('Total orders:', Array.isArray(invoiceData.orders) ? invoiceData.orders.length : 0);
 
     if (!invoiceData.customerId || !invoiceData.startDate || !invoiceData.endDate || (!invoiceData.previewStorage && !Array.isArray(invoiceData.orders)) ||
@@ -409,7 +407,13 @@ const handler = async (req: Request): Promise<Response> => {
         Date.parse(invoiceData.startDate) > Date.parse(invoiceData.endDate) || Date.parse(invoiceData.endDate) > Date.now()) {
       throw new Error('Valid customer, date range and orders are required');
     }
-    const storagePeriods = await eligibleStoragePeriods(supabase, invoiceData.customerId, londonDate(invoiceData.endDate));
+    if (invoiceData.singleOrder) {
+      if (!Array.isArray(invoiceData.orders) || invoiceData.orders.length !== 1) throw new Error('Exactly one job is required');
+      const { data: existing } = await supabase.from('order_invoice_links')
+        .select('quickbooks_invoice_number').eq('order_id', invoiceData.orders[0].id).limit(1).maybeSingle();
+      if (existing) throw new Error(`This job is already on invoice ${existing.quickbooks_invoice_number ?? ''}`.trim());
+    }
+    const storagePeriods = invoiceData.singleOrder ? [] : await eligibleStoragePeriods(supabase, invoiceData.customerId, londonDate(invoiceData.endDate));
     if (invoiceData.previewStorage) return new Response(JSON.stringify({
       storageCount: storagePeriods.length,
       storageTotal: storagePeriods.length * 40,

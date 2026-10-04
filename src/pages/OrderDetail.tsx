@@ -1381,7 +1381,7 @@ const OrderDetail = () => {
           isAdmin={isAdmin}
           onChanged={handleRefreshOrder}
         />
-        {canViewInvoices && <OrderInvoiceLinks orderId={order.id} />}
+        {canViewInvoices && <OrderInvoiceLinks orderId={order.id} canInvoice={isAdmin} />}
 
 
         <Card>
