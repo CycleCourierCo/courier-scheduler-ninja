@@ -521,7 +521,7 @@ export const setCostContext = (mode: CostMode, rateMap: Map<string, number> | nu
   costContext = { mode, rateMap };
 };
 
-const prepareCostContext = async (mode: CostMode, timeslips: Timeslip[]) => {
+export const prepareCostContext = async (mode: CostMode, timeslips: Timeslip[]) => {
   if (mode === 'actual') {
     const costs = await getVehicleMonthlyCosts();
     setCostContext('actual', buildVehicleCostPerMile(timeslips, costs));

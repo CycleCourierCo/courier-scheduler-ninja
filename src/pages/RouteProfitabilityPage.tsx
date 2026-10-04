@@ -29,6 +29,7 @@ import {
   getTimeslipsForYear,
   calculateWeeklyProfitabilityForMonth,
   calculateMonthlyProfitabilityForYear,
+  prepareCostContext,
   CostMode,
 } from "@/services/profitabilityService";
 import { Timeslip } from "@/types/timeslip";
