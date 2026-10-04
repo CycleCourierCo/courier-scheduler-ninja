@@ -1117,6 +1117,9 @@ const JobItem: React.FC<JobItemProps> = ({
               </Badge>
             )
           )}
+          {job.estimatedTime && job.estimatedTime > '20:30' && (
+            <Badge variant="destructive" className="text-xs px-1.5 py-0">After 8:30pm</Badge>
+          )}
           
           <div className="flex flex-wrap gap-1 justify-end">
             {job.type !== 'break' && !job.lat && !job.lon && (
