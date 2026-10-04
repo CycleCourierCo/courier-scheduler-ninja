@@ -250,6 +250,7 @@ export const getInspectionStageDurations = (
     issues_to_parts: [],
     parts_to_repair: [],
     repair_to_repaired: [],
+    collected_to_repaired: [],
   };
 
   inspections.forEach(insp => {
