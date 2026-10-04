@@ -322,14 +322,11 @@ const loadInvoiceAmounts = async (orderIds: string[]) => {
 };
 
 export interface RevenueSourceStats { invoiced: number; estimated: number; estimatedJobs: number; invoicedJobs: number; }
-let revenueStats: RevenueSourceStats = { invoiced: 0, estimated: 0, estimatedJobs: 0, invoicedJobs: 0 };
-export const getRevenueSourceStats = (): RevenueSourceStats => ({ ...revenueStats });
 
 // Clear the cache (call at start of a new profitability calculation batch)
 export const clearSpecialRatePriceCache = () => {
   specialRatePriceCache.clear();
   invoiceAmountCache.clear();
-  revenueStats = { invoiced: 0, estimated: 0, estimatedJobs: 0, invoicedJobs: 0 };
 };
 
 // Estimated full (collection + delivery) net price for an order not yet invoiced
@@ -406,7 +403,7 @@ export const getRevenueForRouteStops = async (
 
 // Fetch orders for a timeslip and calculate revenue based on bike types (halved per stop)
 // If a customer has a special_rate_price, use that instead of standard bike-type pricing
-export const getRevenueForTimeslip = async (timeslip: Timeslip): Promise<number> => {
+export const getRevenueForTimeslip = async (timeslip: Timeslip, stats?: RevenueSourceStats): Promise<number> => {
   const driverName = timeslip.driver?.shipday_driver_name;
   const driverFullName = timeslip.driver?.name;
   const date = timeslip.date;
@@ -440,14 +437,12 @@ export const getRevenueForTimeslip = async (timeslip: Timeslip): Promise<number>
     if (invoiced != null && invoiced > 0) {
       const value = (invoiced / 2) * legs;
       totalRevenue += value;
-      revenueStats.invoiced += value;
-      revenueStats.invoicedJobs += 1;
+      if (stats) { stats.invoiced += value; stats.invoicedJobs += 1; }
       continue;
     }
     const value = ((await estimateOrderNet(order, date)) / 2) * legs;
     totalRevenue += value;
-    revenueStats.estimated += value;
-    revenueStats.estimatedJobs += 1;
+    if (stats) { stats.estimated += value; stats.estimatedJobs += 1; }
   }
 
   return totalRevenue;
@@ -756,4 +751,50 @@ export const calculateUnitEconomics = (
     totalHours,
     driverDays,
   };
+};
+
+export interface MonthlyReconciliationRow {
+  month: string; // YYYY-MM
+  pageRevenue: number;
+  invoicedOnPage: number;
+  estimatedOnPage: number;
+  estimatedJobs: number;
+  invoicedTransport: number;
+}
+
+// Compare page revenue (approved timeslips) against all transport invoiced in QuickBooks per month
+export const getMonthlyReconciliation = async (year: number): Promise<MonthlyReconciliationRow[]> => {
+  const start = `${year}-01-01`;
+  const end = `${year}-12-31`;
+  const timeslips = await fetchApprovedTimeslips(start, end);
+  const rows = new Map<string, MonthlyReconciliationRow>();
+  const row = (m: string) => {
+    if (!rows.has(m)) rows.set(m, { month: m, pageRevenue: 0, invoicedOnPage: 0, estimatedOnPage: 0, estimatedJobs: 0, invoicedTransport: 0 });
+    return rows.get(m)!;
+  };
+  for (const ts of timeslips) {
+    const stats: RevenueSourceStats = { invoiced: 0, estimated: 0, estimatedJobs: 0, invoicedJobs: 0 };
+    const rev = await getRevenueForTimeslip(ts, stats);
+    const r = row(ts.date.slice(0, 7));
+    r.pageRevenue += rev;
+    r.invoicedOnPage += stats.invoiced;
+    r.estimatedOnPage += stats.estimated;
+    r.estimatedJobs += stats.estimatedJobs;
+  }
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from('order_invoice_links')
+      .select('id, invoice_date, transport_net_amount')
+      .gte('invoice_date', start)
+      .lte('invoice_date', end)
+      .order('id', { ascending: true })
+      .range(from, from + 999);
+    if (error) throw error;
+    for (const l of (data || []) as Array<{ invoice_date: string | null; transport_net_amount: number | null }>) {
+      if (!l.invoice_date) continue;
+      row(String(l.invoice_date).slice(0, 7)).invoicedTransport += Number(l.transport_net_amount || 0);
+    }
+    if (!data || data.length < 1000) break;
+  }
+  return Array.from(rows.values()).sort((a, b) => a.month.localeCompare(b.month));
 };
