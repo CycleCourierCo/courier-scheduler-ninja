@@ -780,6 +780,8 @@ export interface MonthlyReconciliationRow {
   invoicedOnPage: number;
   estimatedOnPage: number;
   estimatedJobs: number;
+  shopifyOnPage: number;
+  shopifyJobs: number;
   invoicedTransport: number;
 }
 
@@ -790,17 +792,19 @@ export const getMonthlyReconciliation = async (year: number): Promise<MonthlyRec
   const timeslips = await fetchApprovedTimeslips(start, end);
   const rows = new Map<string, MonthlyReconciliationRow>();
   const row = (m: string) => {
-    if (!rows.has(m)) rows.set(m, { month: m, pageRevenue: 0, invoicedOnPage: 0, estimatedOnPage: 0, estimatedJobs: 0, invoicedTransport: 0 });
+    if (!rows.has(m)) rows.set(m, { month: m, pageRevenue: 0, invoicedOnPage: 0, estimatedOnPage: 0, estimatedJobs: 0, shopifyOnPage: 0, shopifyJobs: 0, invoicedTransport: 0 });
     return rows.get(m)!;
   };
   for (const ts of timeslips) {
-    const stats: RevenueSourceStats = { invoiced: 0, estimated: 0, estimatedJobs: 0, invoicedJobs: 0 };
+    const stats: RevenueSourceStats = { invoiced: 0, estimated: 0, estimatedJobs: 0, invoicedJobs: 0, shopify: 0, shopifyJobs: 0 };
     const rev = await getRevenueForTimeslip(ts, stats);
     const r = row(ts.date.slice(0, 7));
     r.pageRevenue += rev;
     r.invoicedOnPage += stats.invoiced;
     r.estimatedOnPage += stats.estimated;
     r.estimatedJobs += stats.estimatedJobs;
+    r.shopifyOnPage += stats.shopify;
+    r.shopifyJobs += stats.shopifyJobs;
   }
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase
