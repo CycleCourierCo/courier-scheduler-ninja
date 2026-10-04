@@ -21,6 +21,7 @@ import {
   aggregateProfitability,
   getTotalJobs,
   getRevenueForTimeslip,
+  getDraftTimeslipCount,
   getCurrentWeekRange,
   getTimeslipsForWeek,
   calculateDailyProfitability,
@@ -157,6 +158,11 @@ const RouteProfitabilityPage = () => {
     }),
     { revenue: 0, costs: 0, profit: 0 }
   );
+
+  const { data: draftCount = 0 } = useQuery({
+    queryKey: ['profitability-drafts', selectedYear],
+    queryFn: () => getDraftTimeslipCount(`${selectedYear}-01-01`, `${selectedYear}-12-31`),
+  });
 
   const updateMileageMutation = useMutation({
     mutationFn: ({ id, mileage }: { id: string; mileage: number }) =>
@@ -306,6 +312,8 @@ const RouteProfitabilityPage = () => {
             profit: monthlyTotals.profit,
             label: "Month",
           }}
+          costPerMileRate={costPerMile}
+          draftCount={draftCount}
           yearData={{
             timeslips: yearTimeslips,
             revenue: yearlyTotals.revenue,
