@@ -54,6 +54,12 @@ import TimeslotRouteMap from "./TimeslotRouteMap";
 import { COST_PER_MILE, DRIVER_HOURLY_RATE, formatGBP } from "@/lib/routeCosts";
 
 // Location grouping radius for consolidating messages (in meters)
+const describeBikes = (o: any): string => {
+  const list = Array.isArray(o?.bikes) ? o.bikes : [];
+  const names = list.map((b: any) => [b?.brand, b?.model].filter(Boolean).join(' ').trim()).filter(Boolean);
+  if (names.length) return names.join(', ');
+  return [o?.bike_brand, o?.bike_model].filter(Boolean).join(' ') || 'Bike';
+};
 const LOCATION_GROUPING_RADIUS_METERS = 750;
 
 // Coordinate validation schema
@@ -3104,9 +3110,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       const deliveries: string[] = [];
       
       jobsAtLocation.forEach(job => {
-        const brand = job.orderData?.bike_brand || 'Unknown Brand';
-        const model = job.orderData?.bike_model || 'Unknown Model';
-        const bikeInfo = `${brand} ${model}`;
+        const bikeInfo = describeBikes(job.orderData);
         if (job.type === 'pickup') collections.push(bikeInfo);
         else if (job.type === 'delivery') deliveries.push(bikeInfo);
       });
@@ -3222,7 +3226,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           const collections: string[] = [];
           const deliveries: string[] = [];
           jobsAtLocation.forEach(job => {
-            const bikeInfo = `${job.orderData?.bike_brand || 'Unknown Brand'} ${job.orderData?.bike_model || 'Unknown Model'}`;
+            const bikeInfo = describeBikes(job.orderData);
             if (job.type === 'pickup') collections.push(bikeInfo);
             else if (job.type === 'delivery') deliveries.push(bikeInfo);
           });
