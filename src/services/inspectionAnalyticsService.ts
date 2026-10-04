@@ -250,6 +250,7 @@ export const getInspectionStageDurations = (
     issues_to_parts: [],
     parts_to_repair: [],
     repair_to_repaired: [],
+    collected_to_repaired: [],
   };
 
   inspections.forEach(insp => {
@@ -296,6 +297,10 @@ export const getInspectionStageDurations = (
     const repairStart = firstPartsArrived ?? firstResponded;
     const d6 = diffHours(repairStart ?? null, lastResolved ?? null);
     if (d6 !== null) buckets.repair_to_repaired.push(d6);
+
+    // 7. Collected → Repaired (end to end)
+    const d7 = diffHours(collectedAt, lastResolved ?? null);
+    if (d7 !== null) buckets.collected_to_repaired.push(d7);
   });
 
   const labels: Record<string, string> = {
@@ -305,6 +310,7 @@ export const getInspectionStageDurations = (
     issues_to_parts: "Response → Parts Ordered",
     parts_to_repair: "Parts Ordered → Parts Arrived",
     repair_to_repaired: "Awaiting Repair → Repaired",
+    collected_to_repaired: "Collected → Repaired",
   };
 
   return Object.entries(buckets).map(([key, vals]) => ({
