@@ -666,7 +666,7 @@ const JobItem: React.FC<JobItemProps> = ({
         ref={combinedRef}
         className={`flex items-start justify-between p-2 bg-background border rounded-lg transition-opacity ${
           isDragging ? 'opacity-50' : ''
-        } hover:shadow-md cursor-move gap-2`}
+        } hover:shadow-md gap-2`}
       >
         <div className="flex items-start gap-2 min-w-0 flex-1">
           <div className="flex flex-col items-center flex-shrink-0">
@@ -734,7 +734,7 @@ const JobItem: React.FC<JobItemProps> = ({
               // Multiple jobs at same location
               <div className="space-y-1.5">
                 <p className="text-xs font-medium">📍 Multiple stops</p>
-                <p className="text-xs text-muted-foreground break-words min-w-0">{job.address}</p>
+                <p className="text-xs text-muted-foreground min-w-0"><CopyableAddress text={job.address} /></p>
                 <div className="space-y-1">
                   {(() => {
                     // Sort grouped jobs: deliveries first, then pickups
@@ -909,7 +909,7 @@ const JobItem: React.FC<JobItemProps> = ({
               // Single job
               <div className="space-y-0.5">
                 <p className="text-xs font-medium truncate">{job.contactName}</p>
-                <p className="text-xs text-muted-foreground line-clamp-1 break-words">{job.address}</p>
+                <p className="text-xs text-muted-foreground min-w-0"><CopyableAddress text={job.address} /></p>
                 <div className="flex gap-1 flex-wrap items-center">
                   {job.type === 'break' ? (
                     <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 px-1.5 py-0">
