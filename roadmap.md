@@ -12,3 +12,4 @@
 - [x] Route Profitability: bike-type pricing on by default; special flat rates override; Matthew Coulthard £65 flat, £150 for big-bike jobs (use_large_bike_rate)
 - [x] Route Profitability costs now use real fuel (net, from fuel invoices) + van maintenance, spread by each van's miles per month; flat 45p rate kept as an "estimate" toggle (off by default)
 - [x] Revenue check table relabelled: "Invoiced (jobs on this page)" / "All transport invoiced in QuickBooks" + note explaining the gap
+- [x] Analytics: predicted end-of-period dashed lines on Inspections Booked vs Completed, Orders Created, and Orders Completed charts
