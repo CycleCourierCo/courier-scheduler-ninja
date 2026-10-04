@@ -3291,7 +3291,24 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
             address: result.job.address,
             estimatedTime: result.job.estimatedTime || '',
             bikesOnboard: result.bikeCount,
-            bikeQuantity: result.job.orderData?.bike_quantity || 1,
+            ...(() => {
+              const od: any = result.job.orderData || {};
+              const groups = new Map<string, { label: string; quantity: number }>();
+              const list: any[] = Array.isArray(od.bikes) ? od.bikes : [];
+              for (const b of list) {
+                const parts = [b?.brand, b?.model].map((s: any) => (s || '').toString().trim()).filter(Boolean).join(' ');
+                const type = (b?.type || '').toString().trim();
+                const label = type ? `${parts || 'Bike'} — ${type}` : parts || 'Bike';
+                const g = groups.get(label.toLowerCase());
+                if (g) g.quantity += 1; else groups.set(label.toLowerCase(), { label, quantity: 1 });
+              }
+              let bikes = Array.from(groups.values());
+              if (bikes.length === 0) {
+                const label = [od.bike_brand ?? od.bikeBrand, od.bike_model ?? od.bikeModel].filter(Boolean).join(' ') || 'Bike';
+                bikes = [{ label, quantity: Number(od.bike_quantity ?? od.bikeQuantity) || 1 }];
+              }
+              return { bikes, bikeQuantity: bikes.reduce((s, g) => s + g.quantity, 0) };
+            })(),
             trackingNumber: result.job.orderData?.tracking_number,
             bikeBrand: result.job.orderData?.bike_brand,
             bikeModel: result.job.orderData?.bike_model,
