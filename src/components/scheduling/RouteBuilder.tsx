@@ -564,7 +564,36 @@ const BikeCountBadge: React.FC<BikeCountBadgeProps> = ({ orderData, bikeCount, v
   );
 };
 
+// One-tap copy button for an address, with a brief "Copied" tick.
+const CopyAddressButton: React.FC<{ text: string }> = ({ text }) => {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      data-nodrag
+      aria-label="Copy address"
+      title="Copy address"
+      className="inline-flex h-4 w-4 items-center justify-center rounded text-muted-foreground hover:text-foreground shrink-0"
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(text).catch(() => {});
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+    >
+      {copied ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
+    </button>
+  );
+};
 
+// Address text that can be selected/copied instead of starting a drag.
+const CopyableAddress: React.FC<{ text: string; className?: string }> = ({ text, className }) => (
+  <span className="inline-flex items-start gap-1 min-w-0" data-nodrag>
+    <span data-nodrag className={`select-text cursor-text break-words min-w-0 ${className || ''}`}>{text}</span>
+    <CopyAddressButton text={text} />
+  </span>
+);
 
 const JobItem: React.FC<JobItemProps> = ({
   job, 
