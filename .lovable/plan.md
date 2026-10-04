@@ -9,7 +9,8 @@
 ## What I'll build
 1. **Real invoiced revenue per job.** For each delivered job, take the delivery lines from its linked QuickBooks invoice (the tracking number is already on every line). Leave out repairs, inspections, storage, Box My Bike and guaranteed-delivery lines, so only transport income counts. Show it **net of VAT**, the same way QuickBooks reports income.
 2. **Use it on the page.** Each timeslip's revenue = the real invoiced amount for the trips that driver did (split half collection, half delivery). If a job has no linked invoice yet, use an estimate and mark it "estimated".
-   - **Price change on 2 Feb 2026:** jobs before then are estimated at the old **£65 flat rate per bike, no VAT** (£32.50 per trip). From 2 Feb, the bike-type price list is used, with VAT taken off. Special rates (like Matthew's) still win in both periods.
+   - **Price change on 2 Feb 2026:** jobs before then are estimated at the old **£65 flat rate per bike, no VAT** (£32.50 per trip). From 2 Feb, the bike-type price list is used, with VAT taken off.
+   - **Matthew Coulthard's special rate only applies from 13 Sep 2026**, the first invoice it was used on. Before that his jobs use the normal pricing for their date. Special rates get a "from" date on the account so this works for other customers too.
 3. **Show the mix.** The unit economics card says e.g. "£41,200 invoiced · £3,100 estimated (52 jobs not yet invoiced)", so you can see how real the figure is.
 4. **Monthly check.** A small table on the page: transport revenue on the page vs. total transport invoiced in QuickBooks that month, plus a "not on a timeslip" figure for jobs invoiced but missing a timeslip. That should explain any gap against your £368k.
 
