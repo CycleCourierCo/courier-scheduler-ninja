@@ -113,9 +113,20 @@ Deno.serve(async (req) => {
 
       const pendingLinks: any[] = [];
       for (const invoice of invoices) {
-        const descriptions = (invoice.Line || [])
+        const lines = invoice.Line || [];
+        const descriptions = lines
           .map((line: any) => String(line.Description || ''))
           .join('\n');
+        // Net transport amount per tracking number (Collection and Delivery products only)
+        const transportByRef = new Map<string, number>();
+        for (const line of lines) {
+          const itemName = String(line.SalesItemLineDetail?.ItemRef?.name || '');
+          if (!/collection\s*(and|&)\s*delivery/i.test(itemName)) continue;
+          const refs = [...new Set((String(line.Description || '').match(/CCC[A-Z0-9]+/gi) || []).map((v: string) => v.toUpperCase()))];
+          if (refs.length === 0) continue;
+          const share = Number(line.Amount || 0) / refs.length;
+          for (const ref of refs) transportByRef.set(ref, (transportByRef.get(ref) || 0) + share);
+        }
         const references = [...new Set((descriptions.match(/CCC[A-Z0-9]+/gi) || []).map((value: string) => value.toUpperCase()))];
         let invoiceMatched = false;
         let invoiceAmbiguous = false;
@@ -128,10 +139,8 @@ Deno.serve(async (req) => {
           if (orderIds.length !== 1) continue;
           invoiceMatched = true;
           const key = `${orderIds[0]}:${invoice.Id}`;
-          if (existing.has(key)) {
-            alreadyLinkedCount++;
-            continue;
-          }
+          if (existing.has(key)) alreadyLinkedCount++;
+          else linkedCount++;
           pendingLinks.push({
             order_id: orderIds[0],
             quickbooks_invoice_id: String(invoice.Id),
@@ -139,6 +148,7 @@ Deno.serve(async (req) => {
             quickbooks_invoice_url: `https://qbo.intuit.com/app/invoice?txnId=${invoice.Id}`,
             invoice_date: invoice.TxnDate || null,
             link_source: 'quickbooks_sync',
+            transport_net_amount: transportByRef.has(reference) ? Math.round(transportByRef.get(reference)! * 100) / 100 : 0,
             updated_at: new Date().toISOString(),
           });
           existing.add(key);
