@@ -20,6 +20,7 @@ interface UnitEconomicsCardProps {
   monthData: PeriodData;
   yearData: PeriodData;
   costPerMileRate?: number;
+  costMode?: "actual" | "flat";
   draftCount?: number;
 }
 
@@ -117,7 +118,7 @@ const MetricsGrid = ({ metrics }: { metrics: UnitEconomicsMetrics }) => (
   </div>
 );
 
-const UnitEconomicsCard = ({ dayData, weekData, monthData, yearData, costPerMileRate, draftCount }: UnitEconomicsCardProps) => {
+const UnitEconomicsCard = ({ dayData, weekData, monthData, yearData, costPerMileRate, costMode = "flat", draftCount }: UnitEconomicsCardProps) => {
   const [tab, setTab] = useState("week");
 
   const periods = useMemo(() => ({
@@ -152,9 +153,19 @@ const UnitEconomicsCard = ({ dayData, weekData, monthData, yearData, costPerMile
           {!!draftCount && (
             <p>{draftCount} draft timeslip{draftCount === 1 ? "" : "s"} this year not included until approved.</p>
           )}
-          <p>
-            Costs = driver pay + mileage{typeof costPerMileRate === "number" ? ` at £${costPerMileRate.toFixed(2)}/mile` : ""}. Van, insurance and overheads not included.
-          </p>
+          {costMode === "actual" ? (
+            <>
+              <p>
+                Costs = driver pay + real fuel (net, from fuel invoices) + van maintenance, spread by each
+                van's miles that month. Months without uploaded invoices show no fuel or maintenance cost.
+              </p>
+              <p>Insurance and other overheads not included.</p>
+            </>
+          ) : (
+            <p>
+              Costs = driver pay + mileage{typeof costPerMileRate === "number" ? ` at £${costPerMileRate.toFixed(2)}/mile` : ""} (flat estimate). Van, insurance and overheads not included.
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>
