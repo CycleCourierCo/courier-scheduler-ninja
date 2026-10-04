@@ -330,7 +330,7 @@ export const clearSpecialRatePriceCache = () => {
 };
 
 // Estimated full (collection + delivery) net price for an order not yet invoiced
-const estimateOrderNet = async (order: any, date: string): Promise<number> => {
+export const estimateOrderNet = async (order: any, date: string): Promise<number> => {
   const rates = await getSpecialRates(order.user_id);
   const special = resolveSpecialRate(rates, Boolean(order.use_large_bike_rate), date);
   const qty = order.bike_quantity || 1;
