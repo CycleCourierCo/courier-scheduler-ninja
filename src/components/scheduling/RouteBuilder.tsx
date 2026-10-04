@@ -1097,8 +1097,9 @@ const JobItem: React.FC<JobItemProps> = ({
                 {job.type !== 'break' && (
                   <>
                     {getFoamBadge(job.orderData, job.type) && job.orderData?.receiver?.address && (
-                      <p className="text-[10px] text-muted-foreground">
-                        Final destination: {job.orderData.receiver.name} — {[job.orderData.receiver.address.street, job.orderData.receiver.address.city, job.orderData.receiver.address.zipCode].filter(Boolean).join(', ')}
+                      <p className="text-[10px] text-muted-foreground" data-nodrag>
+                        <span data-nodrag className="select-text cursor-text">Final destination: {job.orderData.receiver.name} — {[job.orderData.receiver.address.street, job.orderData.receiver.address.city, job.orderData.receiver.address.zipCode].filter(Boolean).join(', ')}</span>
+                        <CopyAddressButton text={[job.orderData.receiver.address.street, job.orderData.receiver.address.city, job.orderData.receiver.address.zipCode].filter(Boolean).join(', ')} />
                       </p>
                     )}
                     {job.orderData?.delivery_instructions && (
