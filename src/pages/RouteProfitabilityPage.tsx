@@ -404,7 +404,7 @@ const RouteProfitabilityPage = () => {
 
               {!useBikeTypePricing && (
                 <div className="space-y-2">
-                  <Label htmlFor="revenue">Revenue per Job (£)</Label>
+                  <Label htmlFor="revenue">Fallback per Job (£) — used only with bike-type pricing off</Label>
                   <Input
                     id="revenue"
                     type="number"

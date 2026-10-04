@@ -56,6 +56,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         special_rate_code: user.special_rate_code,
         special_rate_price: user.special_rate_price,
         large_bike_rate_code: user.large_bike_rate_code ?? null,
+        large_bike_rate_price: (user as any).large_bike_rate_price ?? null,
         opening_hours: user.opening_hours || DEFAULT_OPENING_HOURS,
         is_test_account: user.is_test_account,
         show_sender_on_label: user.show_sender_on_label ?? false,
@@ -304,6 +305,20 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                   />
                   <p className="text-xs text-muted-foreground">
                     If set, this price per delivery will be used in profitability calculations instead of the standard bike-type pricing.
+                  </p>
+                </div>
+                <div className="space-y-2 min-w-0 sm:col-span-2">
+                  <Label htmlFor="edit-large-bike-rate-price">Big Bike Rate Price (£ per delivery)</Label>
+                  <Input
+                    id="edit-large-bike-rate-price"
+                    type="number"
+                    step="0.01"
+                    placeholder="e.g., 150.00"
+                    value={(formData as any).large_bike_rate_price ?? ''}
+                    onChange={(e) => setFormData({ ...formData, large_bike_rate_price: e.target.value ? parseFloat(e.target.value) : null } as any)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Optional. Used in profitability calculations for jobs ticked as "Charge big-bike rate" instead of the special rate price.
                   </p>
                 </div>
                 <div className="sm:col-span-2">
