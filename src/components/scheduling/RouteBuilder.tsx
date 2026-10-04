@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, RefreshCw, Loader2, Zap, Truck, ArrowUpDown, ChevronUp, ChevronDown, Ship, AlertCircle } from "lucide-react";
+import { Clock, MapPin, Send, Route, GripVertical, Plus, Coffee, Edit3, Calendar, Package, PackageX, Filter, X, Wrench, Save, FolderOpen, CheckCircle, XCircle, RefreshCw, Loader2, Zap, Truck, ArrowUpDown, ChevronUp, ChevronDown, Ship, AlertCircle, Copy, Check } from "lucide-react";
 import { OrderData, ShipdayVerificationResults } from "@/pages/JobScheduling";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
@@ -564,7 +564,36 @@ const BikeCountBadge: React.FC<BikeCountBadgeProps> = ({ orderData, bikeCount, v
   );
 };
 
+// One-tap copy button for an address, with a brief "Copied" tick.
+const CopyAddressButton: React.FC<{ text: string }> = ({ text }) => {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      type="button"
+      data-nodrag
+      aria-label="Copy address"
+      title="Copy address"
+      className="inline-flex h-4 w-4 items-center justify-center rounded text-muted-foreground hover:text-foreground shrink-0"
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => {
+        e.stopPropagation();
+        navigator.clipboard.writeText(text).catch(() => {});
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      }}
+    >
+      {copied ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
+    </button>
+  );
+};
 
+// Address text that can be selected/copied instead of starting a drag.
+const CopyableAddress: React.FC<{ text: string; className?: string }> = ({ text, className }) => (
+  <span className="inline-flex items-start gap-1 min-w-0" data-nodrag>
+    <span data-nodrag className={`select-text cursor-text break-words min-w-0 ${className || ''}`}>{text}</span>
+    <CopyAddressButton text={text} />
+  </span>
+);
 
 const JobItem: React.FC<JobItemProps> = ({
   job, 
@@ -637,7 +666,7 @@ const JobItem: React.FC<JobItemProps> = ({
         ref={combinedRef}
         className={`flex items-start justify-between p-2 bg-background border rounded-lg transition-opacity ${
           isDragging ? 'opacity-50' : ''
-        } hover:shadow-md cursor-move gap-2`}
+        } hover:shadow-md gap-2`}
       >
         <div className="flex items-start gap-2 min-w-0 flex-1">
           <div className="flex flex-col items-center flex-shrink-0">
@@ -705,7 +734,7 @@ const JobItem: React.FC<JobItemProps> = ({
               // Multiple jobs at same location
               <div className="space-y-1.5">
                 <p className="text-xs font-medium">📍 Multiple stops</p>
-                <p className="text-xs text-muted-foreground break-words min-w-0">{job.address}</p>
+                <p className="text-xs text-muted-foreground min-w-0"><CopyableAddress text={job.address} /></p>
                 <div className="space-y-1">
                   {(() => {
                     // Sort grouped jobs: deliveries first, then pickups
@@ -854,8 +883,9 @@ const JobItem: React.FC<JobItemProps> = ({
                             })()}
                           </div>
                           {getFoamBadge(groupedJob.orderData, groupedJob.type) && groupedJob.orderData?.receiver?.address && (
-                            <p className="text-[10px] text-muted-foreground">
-                              Final destination: {groupedJob.orderData.receiver.name} — {[groupedJob.orderData.receiver.address.street, groupedJob.orderData.receiver.address.city, groupedJob.orderData.receiver.address.zipCode].filter(Boolean).join(', ')}
+                            <p className="text-[10px] text-muted-foreground" data-nodrag>
+                              <span data-nodrag className="select-text cursor-text">Final destination: {groupedJob.orderData.receiver.name} — {[groupedJob.orderData.receiver.address.street, groupedJob.orderData.receiver.address.city, groupedJob.orderData.receiver.address.zipCode].filter(Boolean).join(', ')}</span>
+                              <CopyAddressButton text={[groupedJob.orderData.receiver.address.street, groupedJob.orderData.receiver.address.city, groupedJob.orderData.receiver.address.zipCode].filter(Boolean).join(', ')} />
                             </p>
                           )}
                           {groupedJob.orderData?.delivery_instructions && (
@@ -880,7 +910,7 @@ const JobItem: React.FC<JobItemProps> = ({
               // Single job
               <div className="space-y-0.5">
                 <p className="text-xs font-medium truncate">{job.contactName}</p>
-                <p className="text-xs text-muted-foreground line-clamp-1 break-words">{job.address}</p>
+                <p className="text-xs text-muted-foreground min-w-0"><CopyableAddress text={job.address} /></p>
                 <div className="flex gap-1 flex-wrap items-center">
                   {job.type === 'break' ? (
                     <Badge variant="outline" className="text-xs bg-orange-100 text-orange-800 px-1.5 py-0">
@@ -1067,8 +1097,9 @@ const JobItem: React.FC<JobItemProps> = ({
                 {job.type !== 'break' && (
                   <>
                     {getFoamBadge(job.orderData, job.type) && job.orderData?.receiver?.address && (
-                      <p className="text-[10px] text-muted-foreground">
-                        Final destination: {job.orderData.receiver.name} — {[job.orderData.receiver.address.street, job.orderData.receiver.address.city, job.orderData.receiver.address.zipCode].filter(Boolean).join(', ')}
+                      <p className="text-[10px] text-muted-foreground" data-nodrag>
+                        <span data-nodrag className="select-text cursor-text">Final destination: {job.orderData.receiver.name} — {[job.orderData.receiver.address.street, job.orderData.receiver.address.city, job.orderData.receiver.address.zipCode].filter(Boolean).join(', ')}</span>
+                        <CopyAddressButton text={[job.orderData.receiver.address.street, job.orderData.receiver.address.city, job.orderData.receiver.address.zipCode].filter(Boolean).join(', ')} />
                       </p>
                     )}
                     {job.orderData?.delivery_instructions && (
@@ -1116,6 +1147,9 @@ const JobItem: React.FC<JobItemProps> = ({
                 {job.estimatedTime}
               </Badge>
             )
+          )}
+          {job.estimatedTime && job.estimatedTime > '20:30' && (
+            <Badge variant="destructive" className="text-xs px-1.5 py-0">After 8:30pm</Badge>
           )}
           
           <div className="flex flex-wrap gap-1 justify-end">
@@ -1797,6 +1831,26 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       lat: contact.lat,
       lon: contact.lon,
     });
+  };
+
+  // Add a job from the nearby-jobs map and re-time the whole route
+  const addJobFromMap = (order: OrderData, type: 'pickup' | 'delivery') => {
+    if (selectedJobs.some(j => j.orderId === order.id && j.type === type)) return;
+    const contact: any = getLegContact(order, type);
+    const newJob: SelectedJob = {
+      orderId: order.id,
+      type,
+      address: formatAddress(contact.address),
+      contactName: contact.name,
+      orderData: order,
+      phoneNumber: contact.phone,
+      order: selectedJobs.length + 1,
+      lat: contact.lat,
+      lon: contact.lon,
+    };
+    const next = [...selectedJobs, newJob];
+    setSelectedJobs(next);
+    calculateTimeslots(next);
   };
 
   // CSV Upload handlers
@@ -3268,7 +3322,24 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
             address: result.job.address,
             estimatedTime: result.job.estimatedTime || '',
             bikesOnboard: result.bikeCount,
-            bikeQuantity: result.job.orderData?.bike_quantity || 1,
+            ...(() => {
+              const od: any = result.job.orderData || {};
+              const groups = new Map<string, { label: string; quantity: number }>();
+              const list: any[] = Array.isArray(od.bikes) ? od.bikes : [];
+              for (const b of list) {
+                const parts = [b?.brand, b?.model].map((s: any) => (s || '').toString().trim()).filter(Boolean).join(' ');
+                const type = (b?.type || '').toString().trim();
+                const label = type ? `${parts || 'Bike'} — ${type}` : parts || 'Bike';
+                const g = groups.get(label.toLowerCase());
+                if (g) g.quantity += 1; else groups.set(label.toLowerCase(), { label, quantity: 1 });
+              }
+              let bikes = Array.from(groups.values());
+              if (bikes.length === 0) {
+                const label = [od.bike_brand ?? od.bikeBrand, od.bike_model ?? od.bikeModel].filter(Boolean).join(' ') || 'Bike';
+                bikes = [{ label, quantity: Number(od.bike_quantity ?? od.bikeQuantity) || 1 }];
+              }
+              return { bikes, bikeQuantity: bikes.reduce((s, g) => s + g.quantity, 0) };
+            })(),
             trackingNumber: result.job.orderData?.tracking_number,
             bikeBrand: result.job.orderData?.bike_brand,
             bikeModel: result.job.orderData?.bike_model,

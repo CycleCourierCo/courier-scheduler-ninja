@@ -22,6 +22,7 @@ interface StopResult {
   trackingNumber?: string;
   bikeBrand?: string;
   bikeModel?: string;
+  bikes?: { label: string; quantity: number }[];
   breakDuration?: number;
   breakType?: 'lunch' | 'stop';
   results: {
@@ -75,48 +76,72 @@ function buildEmailHTML(data: RouteReportRequest): string {
     ? data.stops[data.stops.length - 1].bikesOnboard 
     : data.startingBikes;
 
-  const stopsHtml = data.stops.map((stop) => {
-    const statusHtml = stop.type === 'break' 
-      ? '<span style="color: #9ca3af;">---</span>'
-      : `
-        <span title="WhatsApp">${getStatusIcon(stop.results.whatsapp.success)}</span>
-        <span title="Shipday">${getStatusIcon(stop.results.shipday.success)}</span>
-        <span title="Email">${getStatusIcon(stop.results.email.success)}</span>
-      `;
+  const esc = (v: unknown) => String(v ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const norm = (a: string) => (a || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const qty = (s: StopResult) => s.bikes?.length ? s.bikes.reduce((n, b) => n + (b.quantity || 0), 0) : (s.bikeQuantity || 1);
 
-    const bikeInfo = stop.type === 'break' 
-      ? '' 
-      : `<br><span style="font-size: 11px; color: #6b7280;">${stop.bikeBrand || ''} ${stop.bikeModel || ''}</span>`;
+  // Group consecutive non-break stops at the same address
+  const groups: StopResult[][] = [];
+  for (const stop of data.stops) {
+    const last = groups[groups.length - 1];
+    if (last && stop.type !== 'break' && last[0].type !== 'break' && norm(last[0].address) && norm(last[0].address) === norm(stop.address)) last.push(stop);
+    else groups.push([stop]);
+  }
 
-    const breakInfo = stop.type === 'break' 
-      ? ` (${stop.breakDuration}min ${stop.breakType === 'lunch' ? '🍽️' : '☕'})` 
-      : '';
+  const bikeList = (s: StopResult) => {
+    const list = s.bikes?.length ? s.bikes : [{ label: [s.bikeBrand, s.bikeModel].filter(Boolean).join(' ') || 'Bike', quantity: s.bikeQuantity || 1 }];
+    const shown = list.slice(0, 5).map(b => `${b.quantity}x ${esc(b.label)}`).join('<br>');
+    const more = list.length > 5 ? `<br>+${list.length - 5} more` : '';
+    return `<span style="font-size: 11px; color: #6b7280;">${shown}${more}</span>`;
+  };
+  const chip = (s: StopResult) => {
+    const n = qty(s); const up = s.type === 'pickup';
+    return `<span style="display:inline-block;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:600;background:${up ? '#dbeafe' : '#dcfce7'};color:${up ? '#1d4ed8' : '#166534'};">${up ? '+' : '-'}${n} bike${n === 1 ? '' : 's'}</span>`;
+  };
 
-    return `
+  const stopsHtml = groups.map((group) => {
+    const first = group[0];
+    const lastStop = group[group.length - 1];
+    if (first.type === 'break') {
+      return `
       <tr style="border-bottom: 1px solid #e5e7eb;">
-        <td style="padding: 12px 8px; text-align: center; font-weight: bold; color: #374151;">${stop.sequence}</td>
-        <td style="padding: 12px 8px; text-align: center; font-family: monospace;">${stop.estimatedTime || '-'}</td>
+        <td style="padding: 12px 8px; text-align: center; font-weight: bold;">${first.sequence}</td>
+        <td style="padding: 12px 8px; text-align: center; font-family: monospace;">${esc(first.estimatedTime) || '-'}</td>
+        <td style="padding: 12px 8px;"><span style="display:inline-block;padding:2px 8px;border-radius:4px;background-color:${getTypeColor('break')}20;color:${getTypeColor('break')};font-size:12px;font-weight:500;">${getTypeLabel('break')} (${first.breakDuration}min ${first.breakType === 'lunch' ? '🍽️' : '☕'})</span></td>
+        <td style="padding: 12px 8px;"></td>
+        <td style="padding: 12px 8px; text-align: center;">🚲 ${first.bikesOnboard}</td>
+        <td style="padding: 12px 8px; text-align: center; color: #9ca3af;">---</td>
+      </tr>`;
+    }
+    const seq = group.length > 1 ? `${first.sequence}–${lastStop.sequence}` : `${first.sequence}`;
+    const types = Array.from(new Set(group.map(s => s.type)));
+    const typeHtml = types.map(t => `<span style="display:inline-block;margin:0 4px 4px 0;padding:2px 8px;border-radius:4px;background-color:${getTypeColor(t)}20;color:${getTypeColor(t)};font-size:12px;font-weight:500;">${getTypeLabel(t)}</span>`).join('');
+    const jobsHtml = group.map(s => `
+          <div style="margin-top: 6px;">
+            <strong>${esc(s.contactName)}</strong> ${chip(s)}
+            ${s.trackingNumber ? `<span style="font-size: 10px; color: #6b7280;"> 📦 ${esc(s.trackingNumber)}</span>` : ''}
+            <br>${bikeList(s)}
+          </div>`).join('');
+    const status = group.map(s => `${getStatusIcon(s.results.whatsapp.success)}${getStatusIcon(s.results.shipday.success)}${getStatusIcon(s.results.email.success)}`).join('<br>');
+    return `
+      <tr style="border-bottom: 1px solid #e5e7eb; vertical-align: top;">
+        <td style="padding: 12px 8px; text-align: center; font-weight: bold; color: #374151;">${seq}</td>
+        <td style="padding: 12px 8px; text-align: center; font-family: monospace;">${esc(first.estimatedTime) || '-'}</td>
+        <td style="padding: 12px 8px;">${typeHtml}</td>
         <td style="padding: 12px 8px;">
-          <span style="display: inline-block; padding: 2px 8px; border-radius: 4px; background-color: ${getTypeColor(stop.type)}20; color: ${getTypeColor(stop.type)}; font-size: 12px; font-weight: 500;">
-            ${getTypeLabel(stop.type)}${breakInfo}
-          </span>
-        </td>
-        <td style="padding: 12px 8px;">
-          <strong>${stop.contactName}</strong>${bikeInfo}
-          <br><span style="font-size: 11px; color: #9ca3af;">${stop.address}</span>
-          ${stop.trackingNumber ? `<br><span style="font-size: 10px; color: #6b7280;">📦 ${stop.trackingNumber}</span>` : ''}
+          <span style="font-size: 12px; color: #374151; font-weight: 600;">${esc(first.address)}</span>
+          ${group.length > 1 ? `<br><span style="font-size: 11px; color: #9ca3af;">${group.length} jobs at this address</span>` : ''}
+          ${jobsHtml}
         </td>
         <td style="padding: 12px 8px; text-align: center;">
-          <span style="display: inline-block; padding: 4px 8px; border-radius: 50%; background-color: #dcfce7; color: #166534; font-weight: bold;">
-            🚲 ${stop.bikesOnboard}
-          </span>
+          <span style="display: inline-block; padding: 4px 8px; border-radius: 50%; background-color: #dcfce7; color: #166534; font-weight: bold;">🚲 ${lastStop.bikesOnboard}</span>
         </td>
-        <td style="padding: 12px 8px; text-align: center; font-size: 16px;">
-          ${statusHtml}
-        </td>
-      </tr>
-    `;
+        <td style="padding: 12px 8px; text-align: center; font-size: 14px;">${status}</td>
+      </tr>`;
   }).join('');
+
+  const bikesCollected = data.stops.filter(s => s.type === 'pickup').reduce((n, s) => n + qty(s), 0);
+  const bikesDelivered = data.stops.filter(s => s.type === 'delivery').reduce((n, s) => n + qty(s), 0);
 
   return `
 <!DOCTYPE html>
@@ -162,6 +187,9 @@ function buildEmailHTML(data: RouteReportRequest): string {
         <div style="font-size: 24px; font-weight: bold; color: #9a3412;">${data.summary.totalBreaks}</div>
         <div style="font-size: 12px; color: #f97316;">Breaks</div>
       </div>
+    </div>
+    <div style="margin-top: 12px; font-size: 14px; color: #374151;">
+      Bikes collected: <strong>${bikesCollected}</strong> &nbsp;|&nbsp; Bikes delivered: <strong>${bikesDelivered}</strong>
     </div>
   </div>
 

@@ -20,6 +20,7 @@ const json = (body: unknown, status = 200) =>
 
 const DEPOT = { lat: 52.4690197, lon: -1.8757663 };
 const SERVICE_S = 900;
+const LAST_JOB_BY = '20:30';
 const HOURS = 3600;
 const NORMAL_CAP_H = 13;   // depot to depot, including the return leg
 const LONG_CAP_H = 15;     // difficult-area long day
@@ -866,14 +867,17 @@ serve(async (req) => {
     /** A leg's single window on one day: whole shift, or the business's hours. */
     const windowFor = (leg: Leg, date: string, capH: number): [number, number] | null => {
       const shiftOpen = londonEpoch(date, shiftStart);
-      let window: [number, number] = [shiftOpen, shiftOpen + capH * HOURS];
+      // Last job must start by 20:30 London time; the drive home may run later.
+      const lastStart = londonEpoch(date, LAST_JOB_BY);
+      let window: [number, number] = [shiftOpen, Math.min(lastStart, shiftOpen + capH * HOURS)];
+      if (window[1] <= window[0]) return null;
       const day = leg.businessHours?.[weekdayKey(date)];
       if (day && day.open === false) return null;
       if (day && day.open && !day.is24h && day.start && day.end) {
         const open = londonEpoch(date, day.start);
         const close = londonEpoch(date, day.end) - SERVICE_S;
         if (close <= open) return null;
-        window = [Math.max(open, shiftOpen), Math.min(close, shiftOpen + capH * HOURS)];
+        window = [Math.max(open, shiftOpen), Math.min(close, window[1])];
         if (window[1] <= window[0]) return null;
       }
       return window;
@@ -1575,8 +1579,8 @@ serve(async (req) => {
             ? `Not collected yet — collection booked for ${pastDueCollection[l.orderId]} isn't marked done`
           : excludedKeys.has(l.key) ? 'Needs a long day — another difficult area was chosen'
           : l.legType === 'delivery' && !l.inDepot ? 'Collection is planned in this run — can\'t deliver the same day'
-          : l.lapsed ? 'Expired — too far from the other routes for any van to fit it'
-          : 'Last date — too far from the other routes for any van to fit it',
+          : l.lapsed ? 'Expired — too far for any van to fit it with the last job by 8:30pm'
+          : 'Last date — too far for any van to fit it with the last job by 8:30pm',
       }));
 
     const carried = unplaced.filter((l) => !urgentInPlan(l)).length;
