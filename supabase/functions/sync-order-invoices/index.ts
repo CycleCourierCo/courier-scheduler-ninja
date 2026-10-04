@@ -161,7 +161,6 @@ Deno.serve(async (req) => {
         const { error } = await supabase.from('order_invoice_links')
           .upsert(pendingLinks, { onConflict: 'order_id,quickbooks_invoice_id' });
         if (error) throw error;
-        linkedCount += pendingLinks.length;
       }
       if (invoices.length < 1000) break;
     }
