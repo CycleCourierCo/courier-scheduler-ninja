@@ -14,9 +14,9 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { 
-  getTimeslipsForDate, 
-  updateTimeslipMileage, 
+import {
+  getTimeslipsForDate,
+  updateTimeslipMileage,
   calculateProfitability,
   aggregateProfitability,
   getTotalJobs,
@@ -29,6 +29,7 @@ import {
   getTimeslipsForYear,
   calculateWeeklyProfitabilityForMonth,
   calculateMonthlyProfitabilityForYear,
+  CostMode,
 } from "@/services/profitabilityService";
 import { Timeslip } from "@/types/timeslip";
 import WeeklyProfitabilityChart from "@/components/analytics/WeeklyProfitabilityChart";
@@ -43,6 +44,7 @@ const RouteProfitabilityPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [revenuePerStop, setRevenuePerStop] = useState<number>(32);
   const [costPerMile, setCostPerMile] = useState<number>(0.45);
+  const [costMode, setCostMode] = useState<CostMode>('actual');
   const [useBikeTypePricing, setUseBikeTypePricing] = useState<boolean>(true);
   const queryClient = useQueryClient();
 
