@@ -180,6 +180,7 @@ export interface CreatedSeriesPoint {
   bucket: string;
   label: string;
   count: number;
+  predicted: number | null;
 }
 
 export interface CompletedSeriesPoint {
@@ -188,6 +189,9 @@ export interface CompletedSeriesPoint {
   orders: number;
   collections: number;
   deliveries: number;
+  predictedOrders: number | null;
+  predictedCollections: number | null;
+  predictedDeliveries: number | null;
 }
 
 const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
