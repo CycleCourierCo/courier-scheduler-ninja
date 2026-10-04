@@ -2929,7 +2929,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
           if (isNewLocation) {
             // Calculate travel time only for the first job at this location
-            const leg = await calculateTravelTime(lastLocationCoords, { lat: job.lat!, lon: job.lon! });
+            const leg = await cachedTravel(lastLocationCoords, { lat: job.lat!, lon: job.lon! });
             currentTime = new Date(currentTime.getTime() + leg.minutes * 60000);
             totalMeters += leg.meters;
 
@@ -2967,7 +2967,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       }
 
       // Return leg to depot
-      const returnLeg = await calculateTravelTime(lastLocationCoords, baseCoords);
+      const returnLeg = await cachedTravel(lastLocationCoords, baseCoords);
       currentTime = new Date(currentTime.getTime() + returnLeg.minutes * 60000);
       totalMeters += returnLeg.meters;
       const endTimeRounded = roundTimeToNext5Minutes(currentTime);
