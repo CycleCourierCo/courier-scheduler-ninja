@@ -906,6 +906,9 @@ const GenerateRoutesDialog: React.FC = () => {
                   </div>
 
                   <div className="space-y-3">
+                    {(activeDay as any).capacity_note && (
+                      <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">{(activeDay as any).capacity_note}</div>
+                    )}
                     <React.Suspense fallback={<div className="flex h-[420px] items-center justify-center rounded-md border"><MapPin className="h-5 w-5 animate-pulse" /></div>}>
                       <RoutePlanMapLazy routes={activeRoutes} areas={areas} />
                     </React.Suspense>
