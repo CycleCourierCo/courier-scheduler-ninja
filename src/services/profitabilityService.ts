@@ -265,7 +265,7 @@ export const getTotalJobs = async (timeslip: Timeslip): Promise<number> => {
 };
 
 // Cache for special rate price lookups to avoid repeated queries
-interface SpecialRates { special: number | null; large: number | null; }
+interface SpecialRates { special: number | null; large: number | null; largeFrom: string | null; }
 const specialRatePriceCache = new Map<string, SpecialRates>();
 
 // Fetch the special_rate_price (and large_bike_rate_price) for a customer, with caching
@@ -276,29 +276,74 @@ const getSpecialRates = async (userId: string): Promise<SpecialRates> => {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('special_rate_price, large_bike_rate_price')
+    .select('special_rate_price, large_bike_rate_price, large_bike_rate_from')
     .eq('id', userId)
     .single();
 
   const rates: SpecialRates = {
     special: (!error && data?.special_rate_price != null) ? Number(data.special_rate_price) : null,
     large: (!error && data?.large_bike_rate_price != null) ? Number(data.large_bike_rate_price) : null,
+    largeFrom: (!error && (data as any)?.large_bike_rate_from) ? String((data as any).large_bike_rate_from) : null,
   };
   specialRatePriceCache.set(userId, rates);
   return rates;
 };
 
 // Resolve the per-delivery flat price for a special-rate customer.
-// Big-bike-flagged jobs use the large bike rate price when one is set.
-const resolveSpecialRate = (rates: SpecialRates, useLargeBikeRate: boolean): number | null => {
+// Big-bike-flagged jobs use the large bike rate price when one is set and in effect on the job date.
+const resolveSpecialRate = (rates: SpecialRates, useLargeBikeRate: boolean, date?: string): number | null => {
   if (rates.special === null) return null;
-  if (useLargeBikeRate && rates.large !== null) return rates.large;
+  const largeActive = rates.large !== null && (!rates.largeFrom || !date || date >= rates.largeFrom);
+  if (useLargeBikeRate && largeActive) return rates.large;
   return rates.special;
 };
+
+// Before this date the business charged a flat £65 per bike and was not VAT registered.
+export const VAT_PRICING_START = '2026-02-02';
+const LEGACY_FLAT_RATE = 65;
+const VAT_RATE = 1.2;
+
+// Invoiced (net of VAT) transport amount per order, from QuickBooks invoice lines
+const invoiceAmountCache = new Map<string, number | null>();
+const loadInvoiceAmounts = async (orderIds: string[]) => {
+  const missing = orderIds.filter(id => !invoiceAmountCache.has(id));
+  for (let i = 0; i < missing.length; i += 200) {
+    const chunk = missing.slice(i, i + 200);
+    const { data } = await supabase
+      .from('order_invoice_links')
+      .select('order_id, transport_net_amount')
+      .in('order_id', chunk);
+    for (const id of chunk) invoiceAmountCache.set(id, null);
+    for (const row of (data || []) as Array<{ order_id: string; transport_net_amount: number | null }>) {
+      const amt = Number(row.transport_net_amount || 0);
+      if (amt > 0) invoiceAmountCache.set(row.order_id, (invoiceAmountCache.get(row.order_id) || 0) + amt);
+    }
+  }
+};
+
+export interface RevenueSourceStats { invoiced: number; estimated: number; estimatedJobs: number; invoicedJobs: number; }
 
 // Clear the cache (call at start of a new profitability calculation batch)
 export const clearSpecialRatePriceCache = () => {
   specialRatePriceCache.clear();
+  invoiceAmountCache.clear();
+};
+
+// Estimated full (collection + delivery) net price for an order not yet invoiced
+const estimateOrderNet = async (order: any, date: string): Promise<number> => {
+  const rates = await getSpecialRates(order.user_id);
+  const special = resolveSpecialRate(rates, Boolean(order.use_large_bike_rate), date);
+  const qty = order.bike_quantity || 1;
+  if (special !== null) return special * qty;
+  if (date < VAT_PRICING_START) return LEGACY_FLAT_RATE * qty;
+  const bikesArray = order.bikes as Array<{ bike_type?: string; quantity?: number }> | null;
+  let gross = 0;
+  if (bikesArray && Array.isArray(bikesArray) && bikesArray.length > 0) {
+    for (const bike of bikesArray) gross += getRevenuePerStopForBikeType(bike.bike_type || order.bike_type) * 2 * (bike.quantity || 1);
+  } else {
+    gross = getRevenuePerStopForBikeType(order.bike_type) * 2 * qty;
+  }
+  return gross / VAT_RATE;
 };
 
 // Calculate route revenue from the stops selected in RouteBuilder.
@@ -331,7 +376,7 @@ export const getRevenueForRouteStops = async (
     const stopsPresent = stopsByOrder.get(order.id) || 0;
     if (stopsPresent === 0) continue;
 
-    const specialRate = resolveSpecialRate(await getSpecialRates(order.user_id), Boolean(order.use_large_bike_rate));
+    const specialRate = resolveSpecialRate(await getSpecialRates(order.user_id), Boolean(order.use_large_bike_rate), new Date().toISOString().slice(0, 10));
 
     let perStopValue = 0;
     if (specialRate !== null) {
@@ -358,7 +403,7 @@ export const getRevenueForRouteStops = async (
 
 // Fetch orders for a timeslip and calculate revenue based on bike types (halved per stop)
 // If a customer has a special_rate_price, use that instead of standard bike-type pricing
-export const getRevenueForTimeslip = async (timeslip: Timeslip): Promise<number> => {
+export const getRevenueForTimeslip = async (timeslip: Timeslip, stats?: RevenueSourceStats): Promise<number> => {
   const driverName = timeslip.driver?.shipday_driver_name;
   const driverFullName = timeslip.driver?.name;
   const date = timeslip.date;
@@ -376,6 +421,7 @@ export const getRevenueForTimeslip = async (timeslip: Timeslip): Promise<number>
   );
 
   let totalRevenue = 0;
+  await loadInvoiceAmounts(uniqueOrders.map(o => o.id));
 
   for (const order of uniqueOrders) {
     // Count each leg this driver did on this date (collection and delivery both count)
@@ -386,30 +432,17 @@ export const getRevenueForTimeslip = async (timeslip: Timeslip): Promise<number>
     const legs = Math.max(1,
       (col && nameVariants.has(col) && pDate === date ? 1 : 0) +
       (del && nameVariants.has(del) && dDate === date ? 1 : 0));
-    // Check if the customer has a special rate price (big-bike jobs use the large rate when set)
-    const specialRate = resolveSpecialRate(await getSpecialRates(order.user_id), Boolean(order.use_large_bike_rate));
 
-    if (specialRate !== null) {
-      // Special rate is per delivery (full price), halved for per-stop
-      const qty = order.bike_quantity || 1;
-      totalRevenue += (specialRate / 2) * qty * legs;
+    const invoiced = invoiceAmountCache.get(order.id);
+    if (invoiced != null && invoiced > 0) {
+      const value = (invoiced / 2) * legs;
+      totalRevenue += value;
+      if (stats) { stats.invoiced += value; stats.invoicedJobs += 1; }
       continue;
     }
-
-    // Standard bike-type pricing
-    const bikesArray = order.bikes as Array<{ bike_type?: string; quantity?: number }> | null;
-    
-    if (bikesArray && Array.isArray(bikesArray) && bikesArray.length > 0) {
-      for (const bike of bikesArray) {
-        const qty = bike.quantity || 1;
-        const revenuePerStop = getRevenuePerStopForBikeType(bike.bike_type || order.bike_type);
-        totalRevenue += revenuePerStop * qty * legs;
-      }
-    } else {
-      const qty = order.bike_quantity || 1;
-      const revenuePerStop = getRevenuePerStopForBikeType(order.bike_type);
-      totalRevenue += revenuePerStop * qty * legs;
-    }
+    const value = ((await estimateOrderNet(order, date)) / 2) * legs;
+    totalRevenue += value;
+    if (stats) { stats.estimated += value; stats.estimatedJobs += 1; }
   }
 
   return totalRevenue;
@@ -718,4 +751,50 @@ export const calculateUnitEconomics = (
     totalHours,
     driverDays,
   };
+};
+
+export interface MonthlyReconciliationRow {
+  month: string; // YYYY-MM
+  pageRevenue: number;
+  invoicedOnPage: number;
+  estimatedOnPage: number;
+  estimatedJobs: number;
+  invoicedTransport: number;
+}
+
+// Compare page revenue (approved timeslips) against all transport invoiced in QuickBooks per month
+export const getMonthlyReconciliation = async (year: number): Promise<MonthlyReconciliationRow[]> => {
+  const start = `${year}-01-01`;
+  const end = `${year}-12-31`;
+  const timeslips = await fetchApprovedTimeslips(start, end);
+  const rows = new Map<string, MonthlyReconciliationRow>();
+  const row = (m: string) => {
+    if (!rows.has(m)) rows.set(m, { month: m, pageRevenue: 0, invoicedOnPage: 0, estimatedOnPage: 0, estimatedJobs: 0, invoicedTransport: 0 });
+    return rows.get(m)!;
+  };
+  for (const ts of timeslips) {
+    const stats: RevenueSourceStats = { invoiced: 0, estimated: 0, estimatedJobs: 0, invoicedJobs: 0 };
+    const rev = await getRevenueForTimeslip(ts, stats);
+    const r = row(ts.date.slice(0, 7));
+    r.pageRevenue += rev;
+    r.invoicedOnPage += stats.invoiced;
+    r.estimatedOnPage += stats.estimated;
+    r.estimatedJobs += stats.estimatedJobs;
+  }
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from('order_invoice_links')
+      .select('id, invoice_date, transport_net_amount')
+      .gte('invoice_date', start)
+      .lte('invoice_date', end)
+      .order('id', { ascending: true })
+      .range(from, from + 999);
+    if (error) throw error;
+    for (const l of (data || []) as Array<{ invoice_date: string | null; transport_net_amount: number | null }>) {
+      if (!l.invoice_date) continue;
+      row(String(l.invoice_date).slice(0, 7)).invoicedTransport += Number(l.transport_net_amount || 0);
+    }
+    if (!data || data.length < 1000) break;
+  }
+  return Array.from(rows.values()).sort((a, b) => a.month.localeCompare(b.month));
 };
