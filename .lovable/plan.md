@@ -10,10 +10,15 @@ Fix:
 - Each route card warns "Overlaps with {van}" if this still happens, so it's never silent.
 
 ## 2. CCC754296471539KATYO4 (Poole BH12 to YO43, guaranteed Tuesday)
-Checked: the bike hasn't been collected yet, and its **collection** is on Monday's routes (AV66UTH / KW65ULZ / LK67PRZ in different runs). The delivery can only go on Tuesday's plan, after the bike is collected Monday — that's why it isn't a Monday delivery. No bug there, but:
-- Route cards will show a "Guaranteed {date}" badge on the collection stop, so you can see it's been planned for the guarantee.
-- If you generate Tuesday, the delivery gets top priority.
+Not collected yet, and Monday is the last day it can be collected for a Tuesday delivery. The planner dropped it with "no van could fit it" — Poole is far south and the slice rules plus the normal route-hour limit left no van able to reach it. A guaranteed job on its last possible collection day should never be dropped like that.
+
+Fix:
+- On the last valid collection day, a guaranteed collection becomes a must-place job: it's allowed into any van's slice and that van may run up to the long-day limit to fit it.
+- The planner picks the van that adds the least extra time (e.g. the south/south-west van).
+- If it still truly can't fit, At-risk says why (e.g. "needs X extra hours") instead of a generic message.
+- Route cards show a "Guaranteed {date}" badge on that stop.
 
 ## Technical
 - route-optimize: enforce sector assignment as VROOM job skills per van; core radius 8 mi; post-solve overlap check on route bearing, one re-solve; `overlap_with` on route debug.
+- Guaranteed last-day collections: no sector skill, priority 100, long-day time window on the cheapest-insertion van; specific at-risk reason with extra time needed.
 - GenerateRoutesDialog: overlap warning + guaranteed badge on collection stops.
