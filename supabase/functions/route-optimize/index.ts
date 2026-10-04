@@ -1534,6 +1534,7 @@ serve(async (req) => {
         van_names: [...usedVans].map((id) => (vansForDate[date] ?? []).find((v) => v.id === id)?.name).filter(Boolean),
         spare_vans: Math.max(0, available - usedVans.size),
         is_provisional: false,
+        capacity_note: debug.days[date]?.capacity_note ?? null,
         shortfall: hint ? { extra_vans: 1, extra_jobs: hint.jobs, urgent: hint.must_go } : null,
         spare_van_hint: hint,
         variants: [{ variant: 'primary', routes: dayRoutes, tradeoff_note: null }],
