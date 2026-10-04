@@ -297,6 +297,10 @@ export const getInspectionStageDurations = (
     const repairStart = firstPartsArrived ?? firstResponded;
     const d6 = diffHours(repairStart ?? null, lastResolved ?? null);
     if (d6 !== null) buckets.repair_to_repaired.push(d6);
+
+    // 7. Collected → Repaired (end to end)
+    const d7 = diffHours(collectedAt, lastResolved ?? null);
+    if (d7 !== null) buckets.collected_to_repaired.push(d7);
   });
 
   const labels: Record<string, string> = {
