@@ -66,7 +66,7 @@ export const fetchInspectionsForAnalytics = async (): Promise<InspectionAnalytic
 
 export const getInspectionsOverTime = (
   inspections: InspectionAnalyticsRecord[]
-): { month: string; label: string; booked: number; completed: number }[] => {
+): { month: string; label: string; booked: number; completed: number; predicted: number | null }[] => {
   const map: Record<string, { booked: number; completed: number }> = {};
   const keyFor = (value: string | null | undefined): string | null => {
     if (!value) return null;
@@ -86,12 +86,23 @@ export const getInspectionsOverTime = (
     if (completedKey) ensure(completedKey).completed += 1;
   });
 
+  // Project the current month to its end: booked so far ÷ days elapsed × days in month
+  const now = new Date();
+  const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const daysElapsed = now.getDate();
+
   return Object.entries(map)
     .map(([month, counts]) => {
       const [y, m] = month.split('-');
       const date = new Date(Number(y), Number(m) - 1, 1);
       const label = date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
-      return { month, label, booked: counts.booked, completed: counts.completed };
+      let predicted: number | null;
+      if (month < currentKey) predicted = counts.booked;
+      else if (month === currentKey)
+        predicted = Math.round((counts.booked / daysElapsed) * daysInMonth);
+      else predicted = null;
+      return { month, label, booked: counts.booked, completed: counts.completed, predicted };
     })
     .sort((a, b) => a.month.localeCompare(b.month));
 };
