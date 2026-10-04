@@ -208,7 +208,8 @@ const RouteProfitabilityPage = () => {
   return (
     <Layout>
       
-      <div className="office-density container mx-auto space-y-6 p-4 sm:p-6">
+      <div className="office-density container mx-auto space-y-6 p-4 sm:p-6" data-cost-version={costCtxReady}>
+
         <div className="flex items-center gap-2">
           <TrendingUp className="h-8 w-8 text-primary" />
           <h1>Route profitability</h1>
