@@ -42,7 +42,7 @@ const RouteProfitabilityPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [revenuePerStop, setRevenuePerStop] = useState<number>(32);
   const [costPerMile, setCostPerMile] = useState<number>(0.45);
-  const [useBikeTypePricing, setUseBikeTypePricing] = useState<boolean>(false);
+  const [useBikeTypePricing, setUseBikeTypePricing] = useState<boolean>(true);
   const queryClient = useQueryClient();
 
   // State for selected week (defaults to current week)
@@ -404,7 +404,7 @@ const RouteProfitabilityPage = () => {
 
               {!useBikeTypePricing && (
                 <div className="space-y-2">
-                  <Label htmlFor="revenue">Revenue per Job (£)</Label>
+                  <Label htmlFor="revenue">Fallback per Job (£) — used only with bike-type pricing off</Label>
                   <Input
                     id="revenue"
                     type="number"

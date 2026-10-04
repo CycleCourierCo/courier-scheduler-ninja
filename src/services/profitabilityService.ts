@@ -125,7 +125,7 @@ const fetchOrdersForDate = async (date: string) => {
   const startOfDay = `${date}T00:00:00`;
   const endOfDay = `${date}T23:59:59.999`;
 
-  const selectFields = 'id, bike_type, bike_quantity, bikes, user_id, collection_driver_name, delivery_driver_name, scheduled_pickup_date, scheduled_delivery_date' as const;
+  const selectFields = 'id, bike_type, bike_quantity, bikes, user_id, use_large_bike_rate, collection_driver_name, delivery_driver_name, scheduled_pickup_date, scheduled_delivery_date' as const;
 
   const [pickupRes, deliveryRes] = await Promise.all([
     supabase
@@ -265,23 +265,35 @@ export const getTotalJobs = async (timeslip: Timeslip): Promise<number> => {
 };
 
 // Cache for special rate price lookups to avoid repeated queries
-const specialRatePriceCache = new Map<string, number | null>();
+interface SpecialRates { special: number | null; large: number | null; }
+const specialRatePriceCache = new Map<string, SpecialRates>();
 
-// Fetch the special_rate_price for a customer, with caching
-const getSpecialRatePrice = async (userId: string): Promise<number | null> => {
+// Fetch the special_rate_price (and large_bike_rate_price) for a customer, with caching
+const getSpecialRates = async (userId: string): Promise<SpecialRates> => {
   if (specialRatePriceCache.has(userId)) {
     return specialRatePriceCache.get(userId)!;
   }
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('special_rate_price')
+    .select('special_rate_price, large_bike_rate_price')
     .eq('id', userId)
     .single();
 
-  const price = (!error && data?.special_rate_price != null) ? Number(data.special_rate_price) : null;
-  specialRatePriceCache.set(userId, price);
-  return price;
+  const rates: SpecialRates = {
+    special: (!error && data?.special_rate_price != null) ? Number(data.special_rate_price) : null,
+    large: (!error && data?.large_bike_rate_price != null) ? Number(data.large_bike_rate_price) : null,
+  };
+  specialRatePriceCache.set(userId, rates);
+  return rates;
+};
+
+// Resolve the per-delivery flat price for a special-rate customer.
+// Big-bike-flagged jobs use the large bike rate price when one is set.
+const resolveSpecialRate = (rates: SpecialRates, useLargeBikeRate: boolean): number | null => {
+  if (rates.special === null) return null;
+  if (useLargeBikeRate && rates.large !== null) return rates.large;
+  return rates.special;
 };
 
 // Clear the cache (call at start of a new profitability calculation batch)
@@ -307,7 +319,7 @@ export const getRevenueForRouteStops = async (
 
   const { data: orders, error } = await supabase
     .from('orders')
-    .select('id, user_id, bikes, bike_type, bike_quantity')
+    .select('id, user_id, bikes, bike_type, bike_quantity, use_large_bike_rate')
     .in('id', orderIds);
   if (error || !orders) {
     return { revenue: 0, orderCount: orderIds.length, stopCount: relevant.length };
@@ -319,7 +331,7 @@ export const getRevenueForRouteStops = async (
     const stopsPresent = stopsByOrder.get(order.id) || 0;
     if (stopsPresent === 0) continue;
 
-    const specialRate = await getSpecialRatePrice(order.user_id);
+    const specialRate = resolveSpecialRate(await getSpecialRates(order.user_id), Boolean(order.use_large_bike_rate));
 
     let perStopValue = 0;
     if (specialRate !== null) {
@@ -374,8 +386,8 @@ export const getRevenueForTimeslip = async (timeslip: Timeslip): Promise<number>
     const legs = Math.max(1,
       (col && nameVariants.has(col) && pDate === date ? 1 : 0) +
       (del && nameVariants.has(del) && dDate === date ? 1 : 0));
-    // Check if the customer has a special rate price
-    const specialRate = await getSpecialRatePrice(order.user_id);
+    // Check if the customer has a special rate price (big-bike jobs use the large rate when set)
+    const specialRate = resolveSpecialRate(await getSpecialRates(order.user_id), Boolean(order.use_large_bike_rate));
 
     if (specialRate !== null) {
       // Special rate is per delivery (full price), halved for per-stop

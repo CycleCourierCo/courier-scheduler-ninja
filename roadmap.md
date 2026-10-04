@@ -9,3 +9,4 @@
 - [x] Planner ticks reflect saved van days off; optimiser uses exactly the ticked vans
 - [x] Use route no longer locks; locked-day notice with Unlock; locked vans not reused; weak loss-making vans dropped unless carrying must-go work; Sunday 4 Oct accidental locks released
 - [x] Timeslot stop addresses: selectable/copyable + copy icon next to each address
+- [x] Route Profitability: bike-type pricing on by default; special flat rates override; Matthew Coulthard £65 flat, £150 for big-bike jobs (use_large_bike_rate)
