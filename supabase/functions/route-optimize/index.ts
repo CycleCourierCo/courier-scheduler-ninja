@@ -41,6 +41,42 @@ const LONDON_MAX_VANS = 2;      // London work is fenced to at most this many va
 const CORRIDOR_MI = 12;         // how far off the depot->London line an "on the way" job may sit
 const DIFFICULT_SKILL = 1;      // London-only work
 const GENERAL_SKILL = 2;        // ordinary work (London vans do not carry this)
+const SECTOR_BASE = 10;         // skills 10..17 = compass sectors around the depot
+const SECTOR_CORE_MI = 15;      // jobs this close to the depot can go on any van
+const SECTOR_NAMES = ['North', 'North-east', 'East', 'South-east', 'South', 'South-west', 'West', 'North-west'];
+/** Compass sector (0 = N, clockwise) of a point as seen from the depot. */
+const sectorOf = (lat: number, lon: number): number => {
+  const dy = lat - DEPOT.lat;
+  const dx = (lon - DEPOT.lon) * Math.cos((DEPOT.lat * Math.PI) / 180);
+  const deg = ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360;
+  return Math.floor(((deg + 22.5) % 360) / 45);
+};
+/** Split the 8 sectors (circular) into k contiguous arcs with balanced job counts. */
+const sectorArcs = (counts: number[], k: number): number[][] => {
+  const n = 8;
+  k = Math.max(1, Math.min(k, n));
+  let best: { cost: number; arcs: number[][] } | null = null;
+  for (let off = 0; off < n; off++) {
+    const seq = Array.from({ length: n }, (_, i) => (i + off) % n);
+    // dp[i][j] = min max-load splitting first i sectors into j arcs
+    const pre = [0]; for (const s of seq) pre.push(pre[pre.length - 1] + counts[s]);
+    const dp = Array.from({ length: n + 1 }, () => Array(k + 1).fill(Infinity));
+    const cut = Array.from({ length: n + 1 }, () => Array(k + 1).fill(0));
+    dp[0][0] = 0;
+    for (let j = 1; j <= k; j++) for (let i = 1; i <= n; i++) for (let p = j - 1; p < i; p++) {
+      const v = Math.max(dp[p][j - 1], pre[i] - pre[p]);
+      if (v < dp[i][j]) { dp[i][j] = v; cut[i][j] = p; }
+    }
+    const cost = dp[n][k];
+    if (!best || cost < best.cost) {
+      const arcs: number[][] = [];
+      let i = n;
+      for (let j = k; j >= 1; j--) { const p = cut[i][j]; arcs.unshift(seq.slice(p, i)); i = p; }
+      best = { cost, arcs };
+    }
+  }
+  return best!.arcs.filter((a) => a.length > 0);
+};
 
 const milesBetween = (aLat: number, aLon: number, bLat: number, bLon: number) => {
   const R = 3958.8;
@@ -224,11 +260,13 @@ interface Leg {
   needsInspection: boolean;
   inDepot: boolean;
   bookedCollection: string | null;
+  /** Collection for a guaranteed delivery: must happen before this date. */
+  forGuarantee: string | null;
 }
 
 interface VanDay {
   vehicleId: number; date: string; vanId: string; vanName: string; capacity: number;
-  long: boolean; spare: boolean; areaName: string | null;
+  long: boolean; spare: boolean; areaName: string | null; sectorName?: string | null;
 }
 
 interface Stop { leg: Leg; arrival: number }
@@ -634,9 +672,15 @@ serve(async (req) => {
       const pickupDates = clean(order.pickup_date);
       const deliveryDates = clean(order.delivery_date);
       const collectedDate = order.order_collected ? dateKey(order.scheduled_pickup_date) : null;
-      const bookedCollection = !order.order_collected && order.scheduled_pickup_date
-        ? dateKey(order.scheduled_pickup_date)
+      // A booked collection only counts if it's still to come: a past booking that
+      // never got collected does not put the bike in the depot.
+      const bookedPickup = !order.order_collected ? dateKey(order.scheduled_pickup_date) : null;
+      if (bookedPickup && bookedPickup < today) pastDueCollection[order.id] = bookedPickup;
+      const bookedCollection = bookedPickup && bookedPickup >= today
+        ? bookedPickup
         : (!order.order_collected ? lockedCollectionDate[order.id] ?? null : null);
+      const guaranteedDelivery = order.guaranteed_delivery && order.guaranteed_delivery_date && !order.order_delivered
+        ? dateKey(order.guaranteed_delivery_date) : null;
 
       const considerLeg = (
         legType: 'collection' | 'delivery',
@@ -644,6 +688,7 @@ serve(async (req) => {
         lat: number, lon: number,
         guaranteed: string | null,
         eligible: boolean,
+        deliverBy: string | null = null,
       ) => {
         const key = `${order.id}:${legType}`;
         if (locked.has(key) || !eligible) return;
