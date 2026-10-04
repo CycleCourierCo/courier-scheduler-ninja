@@ -282,7 +282,7 @@ const getSpecialRates = async (userId: string): Promise<SpecialRates> => {
 
   const rates: SpecialRates = {
     special: (!error && data?.special_rate_price != null) ? Number(data.special_rate_price) : null,
-    large: (!error && (data as any)?.large_bike_rate_price != null) ? Number((data as any).large_bike_rate_price) : null,
+    large: (!error && data?.large_bike_rate_price != null) ? Number(data.large_bike_rate_price) : null,
   };
   specialRatePriceCache.set(userId, rates);
   return rates;

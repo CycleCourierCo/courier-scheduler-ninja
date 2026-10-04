@@ -56,7 +56,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         special_rate_code: user.special_rate_code,
         special_rate_price: user.special_rate_price,
         large_bike_rate_code: user.large_bike_rate_code ?? null,
-        large_bike_rate_price: (user as any).large_bike_rate_price ?? null,
+        large_bike_rate_price: user.large_bike_rate_price ?? null,
         opening_hours: user.opening_hours || DEFAULT_OPENING_HOURS,
         is_test_account: user.is_test_account,
         show_sender_on_label: user.show_sender_on_label ?? false,
@@ -314,8 +314,8 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     type="number"
                     step="0.01"
                     placeholder="e.g., 150.00"
-                    value={(formData as any).large_bike_rate_price ?? ''}
-                    onChange={(e) => setFormData({ ...formData, large_bike_rate_price: e.target.value ? parseFloat(e.target.value) : null } as any)}
+                    value={formData.large_bike_rate_price ?? ''}
+                    onChange={(e) => setFormData({ ...formData, large_bike_rate_price: e.target.value ? parseFloat(e.target.value) : null })}
                   />
                   <p className="text-xs text-muted-foreground">
                     Optional. Used in profitability calculations for jobs ticked as "Charge big-bike rate" instead of the special rate price.
