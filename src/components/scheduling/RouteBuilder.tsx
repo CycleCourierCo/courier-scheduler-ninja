@@ -1257,6 +1257,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   // Only the newest timeslot calculation may save its result.
   const calcRunRef = React.useRef(0);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [calcProgress, setCalcProgress] = useState({ done: 0, total: 0 });
+  const legCacheRef = React.useRef(new Map<string, { minutes: number; meters: number }>());
   const timeslotMapStops = React.useMemo(
     () => selectedJobs.map((job) => ({
       ...job,
@@ -2822,6 +2824,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     const runId = ++calcRunRef.current;
     const isLatest = () => runId === calcRunRef.current;
     setIsCalculating(true);
+    setCalcProgress({ done: 0, total: 0 });
+    setShowTimeslotDialog(true);
 
     // Refresh coordinates/contact from the live order so NI deliveries always
     // route to the ferry hand-off, even if the stop was added/saved earlier.
@@ -2857,7 +2861,53 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     const baseCoords = { lat: 52.4690197, lon: -1.8757663 }; // Birmingham coordinates for Lawden Road, B10 0AD
     
     // Runs the arrival-time chain for a given ordered list of stops
+    const legKey = (a: { lat: number; lon: number }, b: { lat: number; lon: number }) =>
+      `${a.lat.toFixed(5)},${a.lon.toFixed(5)}>${b.lat.toFixed(5)},${b.lon.toFixed(5)}`;
+    const cachedTravel = async (a: { lat: number; lon: number }, b: { lat: number; lon: number }) => {
+      const k = legKey(a, b);
+      const hit = legCacheRef.current.get(k);
+      if (hit) return hit;
+      const leg = await calculateTravelTime(a, b);
+      legCacheRef.current.set(k, leg);
+      return leg;
+    };
+    // Fetch every leg of the route in parallel (cap 6 at a time) before timing it
+    const prefetchLegs = async (list: any[]) => {
+      const points: { lat: number; lon: number }[] = [baseCoords];
+      const seen = new Set<string>();
+      for (const job of list) {
+        if (job.type === 'break') continue;
+        if (job.locationGroupId) {
+          if (seen.has(job.locationGroupId)) continue;
+          seen.add(job.locationGroupId);
+        }
+        points.push({ lat: job.lat!, lon: job.lon! });
+      }
+      points.push(baseCoords);
+      const pairs: [any, any][] = [];
+      const keys = new Set<string>();
+      for (let i = 0; i < points.length - 1; i++) {
+        const k = legKey(points[i], points[i + 1]);
+        if (keys.has(k) || legCacheRef.current.has(k)) continue;
+        keys.add(k);
+        pairs.push([points[i], points[i + 1]]);
+      }
+      let done = 0;
+      if (isLatest()) setCalcProgress({ done: 0, total: pairs.length });
+      let next = 0;
+      const worker = async () => {
+        while (next < pairs.length) {
+          const [a, b] = pairs[next++];
+          await cachedTravel(a, b);
+          done++;
+          if (isLatest()) setCalcProgress({ done, total: pairs.length });
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(6, pairs.length) }, worker));
+    };
+
     const computeChain = async (list: any[]) => {
+      await prefetchLegs(list);
       const updatedJobs: any[] = [];
       let currentTime = new Date(`2024-01-01 ${startTime}`);
       const startClock = new Date(currentTime.getTime());
@@ -2883,7 +2933,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
           if (isNewLocation) {
             // Calculate travel time only for the first job at this location
-            const leg = await calculateTravelTime(lastLocationCoords, { lat: job.lat!, lon: job.lon! });
+            const leg = await cachedTravel(lastLocationCoords, { lat: job.lat!, lon: job.lon! });
             currentTime = new Date(currentTime.getTime() + leg.minutes * 60000);
             totalMeters += leg.meters;
 
@@ -2921,7 +2971,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       }
 
       // Return leg to depot
-      const returnLeg = await calculateTravelTime(lastLocationCoords, baseCoords);
+      const returnLeg = await cachedTravel(lastLocationCoords, baseCoords);
       currentTime = new Date(currentTime.getTime() + returnLeg.minutes * 60000);
       totalMeters += returnLeg.meters;
       const endTimeRounded = roundTimeToNext5Minutes(currentTime);
@@ -4042,7 +4092,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                     </Button>
                   </div>
                   {renderCleanBar(true)}
-                  {isCalculating && <p className="text-xs text-muted-foreground">Updating times…</p>}
+                  {isCalculating && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>{calcProgress.total > 0 ? `Working out drive times… ${calcProgress.done} of ${calcProgress.total}` : 'Updating times…'}</span>
+                    {calcProgress.total > 0 && (
+                      <div className="h-1.5 w-32 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full bg-primary transition-all" style={{ width: `${Math.round((calcProgress.done / calcProgress.total) * 100)}%` }} />
+                      </div>
+                    )}
+                  </div>
+                )}
                 </div>
 
                 <TimeslotRouteMap
@@ -4258,7 +4318,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                   </Button>
                 </div>
                 {renderCleanBar(false)}
-                {isCalculating && <p className="text-xs text-muted-foreground">Updating times…</p>}
+                {isCalculating && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>{calcProgress.total > 0 ? `Working out drive times… ${calcProgress.done} of ${calcProgress.total}` : 'Updating times…'}</span>
+                    {calcProgress.total > 0 && (
+                      <div className="h-1.5 w-32 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full bg-primary transition-all" style={{ width: `${Math.round((calcProgress.done / calcProgress.total) * 100)}%` }} />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <TimeslotRouteMap
