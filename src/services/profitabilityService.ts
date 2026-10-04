@@ -331,7 +331,7 @@ export const getRevenueForRouteStops = async (
     const stopsPresent = stopsByOrder.get(order.id) || 0;
     if (stopsPresent === 0) continue;
 
-    const specialRate = resolveSpecialRate(await getSpecialRates(order.user_id), Boolean((order as any).use_large_bike_rate));
+    const specialRate = resolveSpecialRate(await getSpecialRates(order.user_id), Boolean(order.use_large_bike_rate));
 
     let perStopValue = 0;
     if (specialRate !== null) {
@@ -387,7 +387,7 @@ export const getRevenueForTimeslip = async (timeslip: Timeslip): Promise<number>
       (col && nameVariants.has(col) && pDate === date ? 1 : 0) +
       (del && nameVariants.has(del) && dDate === date ? 1 : 0));
     // Check if the customer has a special rate price (big-bike jobs use the large rate when set)
-    const specialRate = resolveSpecialRate(await getSpecialRates(order.user_id), Boolean((order as any).use_large_bike_rate));
+    const specialRate = resolveSpecialRate(await getSpecialRates(order.user_id), Boolean(order.use_large_bike_rate));
 
     if (specialRate !== null) {
       // Special rate is per delivery (full price), halved for per-stop
