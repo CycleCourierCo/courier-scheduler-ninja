@@ -810,6 +810,8 @@ serve(async (req) => {
      */
     const legPriority = (leg: Leg, date: string) => {
       if (mustGo(leg, date)) return 100;
+      // Collection that a guaranteed delivery depends on: just below must-go.
+      if (leg.forGuarantee) return 90;
       // Previous behaviour: every ordinary job counts the same.
       if (!prioritiseAge) return 50;
       const left = Math.max(1, leg.futureDates.filter((d) => d >= date).length);
@@ -911,15 +913,26 @@ serve(async (req) => {
       return milesBetween(leg.lat, leg.lon, py, px) <= CORRIDOR_MI;
     };
 
+    /** Compass sector a job is fenced to, or null (London, corridor, near the depot). */
+    const legSector = (leg: Leg): number | null => {
+      if (isLondonLeg(leg) || isCorridorLeg(leg)) return null;
+      if (milesBetween(leg.lat, leg.lon, DEPOT.lat, DEPOT.lon) <= SECTOR_CORE_MI) return null;
+      return sectorOf(leg.lat, leg.lon);
+    };
+
     const buildJob = (leg: Leg, date: string, capH: number) => {
       const window = windowFor(leg, date, capH);
       if (!window) return null;
       const load = [Math.max(1, Math.round(leg.spaces * 10))];
       // London legs: London vans only. Corridor legs: any van. Everything else:
       // ordinary vans only, so the London van cannot wander off its corridor.
+      // Ordinary jobs away from the depot also need a van covering their sector,
+      // so no van works both sides of Birmingham in one day.
+      const sector = legSector(leg);
       const skills = isLondonLeg(leg)
         ? [DIFFICULT_SKILL]
-        : isCorridorLeg(leg) ? null : [GENERAL_SKILL];
+        : isCorridorLeg(leg) ? null
+        : sector === null ? [GENERAL_SKILL] : [GENERAL_SKILL, SECTOR_BASE + sector];
       return {
         id: leg.jobId,
         location: [leg.lon, leg.lat],
@@ -934,7 +947,7 @@ serve(async (req) => {
     const buildVehicle = (
       van: { id: string; name: string; capacity: number },
       date: string, idx: number,
-      kind: { long: boolean; spare?: boolean; areaName?: string | null; london?: boolean },
+      kind: { long: boolean; spare?: boolean; areaName?: string | null; london?: boolean; sectors?: number[] | null },
     ) => {
       const shiftOpen = londonEpoch(date, shiftStart);
       const capH = kind.long ? LONG_CAP_H : NORMAL_CAP_H;
