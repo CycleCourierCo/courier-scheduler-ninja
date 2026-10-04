@@ -179,7 +179,9 @@ const UnlinkedInvoicesPanel = ({ onChanged }: { onChanged: () => void }) => {
           <Button variant="outline" size="sm" onClick={() => setShowUnmatched((v) => !v)}>
             {showUnmatched ? "Hide" : "Show"} invoices with no tracking numbers
           </Button>
-          <Button size="sm" onClick={() => setOpen((v) => !v)}>{open ? "Hide" : "View"} unlinked jobs</Button>
+          <Button size="sm" onClick={() => setOpen((v) => !v)}>
+            {open ? "Hide unlinked jobs" : "Link invoices"}
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -222,9 +224,20 @@ const UnlinkedInvoicesPanel = ({ onChanged }: { onChanged: () => void }) => {
                   {customers.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <span className="text-sm text-muted-foreground">{selected.size} ticked</span>
-              <Input className="w-44" placeholder="QuickBooks invoice no." value={invoiceNumber} onChange={(e) => setInvoiceNumber(e.target.value)} />
-              <Button size="sm" disabled={busy || !invoiceNumber.trim() || selected.size === 0} onClick={linkSelected}>Link to invoice</Button>
+            </div>
+
+            <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-md border bg-card p-3 shadow-sm">
+              <span className="text-sm font-medium">{selected.size} job{selected.size === 1 ? "" : "s"} ticked</span>
+              <Input
+                className="w-44"
+                placeholder="QuickBooks invoice no."
+                value={invoiceNumber}
+                onChange={(e) => setInvoiceNumber(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") linkSelected(); }}
+              />
+              <Button size="sm" disabled={busy || !invoiceNumber.trim() || selected.size === 0} onClick={linkSelected}>
+                {busy ? "Linking…" : "Link to invoice"}
+              </Button>
               <Button size="sm" variant="outline" disabled={busy || selected.size === 0} onClick={excludeSelected}>Mark not to be invoiced</Button>
             </div>
 
