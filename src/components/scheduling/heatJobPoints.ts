@@ -162,10 +162,12 @@ export const isLegViableOnDate = (
 export const isLegExpired = (
   order: OrderData,
   type: "collection" | "delivery",
-  opts?: { collectedOnRoute?: boolean }
+  opts?: { collectedOnRoute?: boolean; asOf?: Date }
 ): boolean => {
   if (order.ni_direction) return false;
-  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  const realToday = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(new Date());
+  const asOfStr = opts?.asOf ? dayStr(opts.asOf) : realToday;
+  const today = asOfStr > realToday ? asOfStr : realToday;
 
   if (type === "collection") {
     if (!needsCollectionLeg(order)) return false;
@@ -182,7 +184,7 @@ export const isLegExpired = (
   const booked = order.scheduled_pickup_date ? dayStr(order.scheduled_pickup_date as string) : null;
   const collectedInTime =
     order.order_collected === true ||
-    (!!booked && booked >= today) ||
+    (!!booked && booked >= realToday && booked < today) ||
     opts?.collectedOnRoute === true;
   if (!collectedInTime) return false;
 
