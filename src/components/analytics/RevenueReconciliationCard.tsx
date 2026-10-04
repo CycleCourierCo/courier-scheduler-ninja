@@ -18,9 +18,11 @@ const RevenueReconciliationCard = ({ year }: { year: number }) => {
       inv: t.inv + r.invoicedOnPage,
       est: t.est + r.estimatedOnPage,
       jobs: t.jobs + r.estimatedJobs,
+      shop: t.shop + r.shopifyOnPage,
+      shopJobs: t.shopJobs + r.shopifyJobs,
       qb: t.qb + r.invoicedTransport,
     }),
-    { page: 0, inv: 0, est: 0, jobs: 0, qb: 0 }
+    { page: 0, inv: 0, est: 0, jobs: 0, shop: 0, shopJobs: 0, qb: 0 }
   );
 
   return (
@@ -29,8 +31,9 @@ const RevenueReconciliationCard = ({ year }: { year: number }) => {
         <CardTitle>Revenue check against invoices ({year})</CardTitle>
         <CardDescription>
           All figures exclude VAT. Page revenue uses the real invoiced delivery amount for each job where
-          one is linked, and an estimate otherwise. QuickBooks column is all collection and delivery
-          invoiced that month. Repairs, storage and other extras are left out.
+          one is linked, and an estimate otherwise. Website (Shopify) orders are paid at checkout, so they
+          never have an invoice — they're shown separately, not as missing invoices. QuickBooks column is
+          all collection and delivery invoiced that month. Repairs, storage and other extras are left out.
         </CardDescription>
       </CardHeader>
       <CardContent className="overflow-x-auto">
