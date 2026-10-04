@@ -403,6 +403,7 @@ export const getCustomerOrdersOverTimeRanged = (
     bucket: bucketKey(b, g),
     label: bucketLabel(b, g),
     count: counts[bucketKey(b, g)] || 0,
+    predicted: predictBucket(b, g, counts[bucketKey(b, g)] || 0),
   }));
 };
 
