@@ -436,6 +436,7 @@ export const getRevenueForTimeslip = async (timeslip: Timeslip, stats?: RevenueS
 
   let totalRevenue = 0;
   await loadInvoiceAmounts(uniqueOrders.map(o => o.id));
+  const shopifyId = stats ? await getShopifyUserId() : null;
 
   for (const order of uniqueOrders) {
     // Count each leg this driver did on this date (collection and delivery both count)
