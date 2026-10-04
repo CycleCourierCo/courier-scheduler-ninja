@@ -4143,6 +4143,7 @@ export type Database = {
           is_business: boolean | null
           is_test_account: boolean
           large_bike_rate_code: string | null
+          large_bike_rate_price: number | null
           latitude: number | null
           leave_year_start: string
           licence_back_path: string | null
@@ -4196,6 +4197,7 @@ export type Database = {
           is_business?: boolean | null
           is_test_account?: boolean
           large_bike_rate_code?: string | null
+          large_bike_rate_price?: number | null
           latitude?: number | null
           leave_year_start?: string
           licence_back_path?: string | null
@@ -4249,6 +4251,7 @@ export type Database = {
           is_business?: boolean | null
           is_test_account?: boolean
           large_bike_rate_code?: string | null
+          large_bike_rate_price?: number | null
           latitude?: number | null
           leave_year_start?: string
           licence_back_path?: string | null
@@ -6672,6 +6675,7 @@ export type Database = {
           is_business: boolean | null
           is_test_account: boolean
           large_bike_rate_code: string | null
+          large_bike_rate_price: number | null
           latitude: number | null
           leave_year_start: string
           licence_back_path: string | null
@@ -7567,6 +7571,7 @@ export type Database = {
           is_business: boolean | null
           is_test_account: boolean
           large_bike_rate_code: string | null
+          large_bike_rate_price: number | null
           latitude: number | null
           leave_year_start: string
           licence_back_path: string | null
