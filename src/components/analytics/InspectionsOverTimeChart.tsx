@@ -11,7 +11,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface InspectionsOverTimeChartProps {
-  data: { month: string; label: string; booked: number; completed: number }[];
+  data: { month: string; label: string; booked: number; completed: number; predicted: number | null }[];
 }
 
 const InspectionsOverTimeChart = ({ data }: InspectionsOverTimeChartProps) => {
