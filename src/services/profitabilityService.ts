@@ -121,7 +121,26 @@ export const calculateTotalJobsFromOrders = async (orderIds: string[]): Promise<
 };
 
 // Helper: fetch orders for a specific date using two queries (pickup OR delivery) and merge
-const fetchOrdersForDate = async (date: string) => {
+const ordersForDateMemo = new Map<string, { at: number; p: Promise<any[]> }>();
+const fetchOrdersForDate = (date: string): Promise<any[]> => {
+  const hit = ordersForDateMemo.get(date);
+  if (hit && Date.now() - hit.at < 5 * 60 * 1000) return hit.p;
+  const p = fetchOrdersForDateRaw(date).catch((e) => { ordersForDateMemo.delete(date); throw e; });
+  ordersForDateMemo.set(date, { at: Date.now(), p });
+  return p;
+};
+
+// Run async work over items with limited parallelism, preserving order
+const mapLimit = async <T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> => {
+  const out: R[] = new Array(items.length);
+  let i = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (i < items.length) { const k = i++; out[k] = await fn(items[k]); }
+  }));
+  return out;
+};
+
+const fetchOrdersForDateRaw = async (date: string) => {
   const startOfDay = `${date}T00:00:00`;
   const endOfDay = `${date}T23:59:59.999`;
 
@@ -205,26 +224,14 @@ export const calculateTotalJobsFromDriverDate = async (
 
 // Get total jobs for a timeslip (hybrid: uses total_jobs if available, else calculates)
 export const getTotalJobs = async (timeslip: Timeslip): Promise<number> => {
-  console.log('🔍 getTotalJobs called for timeslip:', {
-    id: timeslip.id,
-    date: timeslip.date,
-    total_jobs: timeslip.total_jobs,
-    driver_name: timeslip.driver?.shipday_driver_name,
-    has_driver_object: !!timeslip.driver
-  });
 
   // Use total_jobs if available (new timeslips)
   if (timeslip.total_jobs !== null && timeslip.total_jobs !== undefined) {
-    console.log('✅ Using total_jobs from database:', timeslip.total_jobs);
     return timeslip.total_jobs;
   }
 
   // Try driver name + date matching first (for historic timeslips)
   if (timeslip.driver?.shipday_driver_name && timeslip.date) {
-    console.log('🔄 Calculating from driver name + date:', {
-      driver: timeslip.driver.shipday_driver_name,
-      date: timeslip.date
-    });
     
     const jobsFromOrders = await calculateTotalJobsFromDriverDate(
       timeslip.driver.shipday_driver_name,
@@ -232,16 +239,10 @@ export const getTotalJobs = async (timeslip: Timeslip): Promise<number> => {
       timeslip.driver.name
     );
     
-    console.log('📊 Jobs calculated from driver/date:', jobsFromOrders);
-    
     if (jobsFromOrders > 0) {
       return jobsFromOrders;
     }
   } else {
-    console.log('⚠️ Missing driver name or date:', {
-      has_driver_name: !!timeslip.driver?.shipday_driver_name,
-      has_date: !!timeslip.date
-    });
   }
 
   // Fallback: Calculate from job_locations if order_ids exist
@@ -249,18 +250,11 @@ export const getTotalJobs = async (timeslip: Timeslip): Promise<number> => {
     .map(loc => loc.order_id)
     .filter((id): id is string => !!id);
 
-  console.log('📍 Trying job_locations fallback:', {
-    orderIds_count: orderIds.length
-  });
-
   if (orderIds.length > 0) {
     const uniqueOrderIds = [...new Set(orderIds)];
     const result = await calculateTotalJobsFromOrders(uniqueOrderIds);
-    console.log('📦 Jobs from order IDs:', result);
     return result;
   }
-
-  console.log('❌ No jobs found, returning 0');
   return 0;
 };
 
@@ -640,10 +634,12 @@ export const calculateWeeklyProfitabilityForMonth = async (
       const dateString = format(day, 'yyyy-MM-dd');
       const dayTimeslips = timeslipsByDate[dateString] || [];
       
-      for (const timeslip of dayTimeslips) {
+      const dayMetrics = await mapLimit(dayTimeslips, 8, async (timeslip) => {
         const totalJobs = await getTotalJobs(timeslip);
         const bikeRevenue = useBikeTypePricing ? await getRevenueForTimeslip(timeslip) : undefined;
-        const metrics = calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile, bikeRevenue);
+        return calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile, bikeRevenue);
+      });
+      for (const metrics of dayMetrics) {
         weekRevenue += metrics.revenue;
         weekCosts += metrics.totalCosts;
       }
@@ -695,10 +691,12 @@ export const calculateMonthlyProfitabilityForYear = async (
     let monthRevenue = 0;
     let monthCosts = 0;
 
-    for (const timeslip of monthTimeslips) {
+    const monthMetrics = await mapLimit(monthTimeslips, 8, async (timeslip) => {
       const totalJobs = await getTotalJobs(timeslip);
       const bikeRevenue = useBikeTypePricing ? await getRevenueForTimeslip(timeslip) : undefined;
-      const metrics = calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile, bikeRevenue);
+      return calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile, bikeRevenue);
+    });
+    for (const metrics of monthMetrics) {
       monthRevenue += metrics.revenue;
       monthCosts += metrics.totalCosts;
     }
@@ -795,9 +793,12 @@ export const getMonthlyReconciliation = async (year: number): Promise<MonthlyRec
     if (!rows.has(m)) rows.set(m, { month: m, pageRevenue: 0, invoicedOnPage: 0, estimatedOnPage: 0, estimatedJobs: 0, shopifyOnPage: 0, shopifyJobs: 0, invoicedTransport: 0 });
     return rows.get(m)!;
   };
-  for (const ts of timeslips) {
+  const results = await mapLimit(timeslips, 8, async (ts) => {
     const stats: RevenueSourceStats = { invoiced: 0, estimated: 0, estimatedJobs: 0, invoicedJobs: 0, shopify: 0, shopifyJobs: 0 };
     const rev = await getRevenueForTimeslip(ts, stats);
+    return { ts, stats, rev };
+  });
+  for (const { ts, stats, rev } of results) {
     const r = row(ts.date.slice(0, 7));
     r.pageRevenue += rev;
     r.invoicedOnPage += stats.invoiced;
