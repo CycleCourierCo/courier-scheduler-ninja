@@ -49,6 +49,15 @@ const InspectionsOverTimeChart = ({ data }: InspectionsOverTimeChartProps) => {
               stroke="hsl(var(--chart-2, var(--muted-foreground)))"
               activeDot={{ r: 8 }}
             />
+            <Line
+              type="monotone"
+              dataKey="predicted"
+              name="Predicted (booked)"
+              stroke="hsl(var(--muted-foreground))"
+              strokeDasharray="5 5"
+              dot={false}
+              activeDot={{ r: 6 }}
+            />
           </LineChart>
         </ResponsiveContainer>
       </CardContent>

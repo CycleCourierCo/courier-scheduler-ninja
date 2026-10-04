@@ -67,6 +67,9 @@ const OrdersCompletedChart = ({ orders }: OrdersCompletedChartProps) => {
             <Line type="monotone" dataKey="orders" name="Orders Completed" stroke="#16a34a" strokeWidth={2} dot={{ r: 3 }} />
             <Line type="monotone" dataKey="collections" name="Collections" stroke="#4a65d5" strokeWidth={2} dot={{ r: 3 }} />
             <Line type="monotone" dataKey="deliveries" name="Deliveries" stroke="#f59e0b" strokeWidth={2} dot={{ r: 3 }} />
+            <Line type="monotone" dataKey="predictedOrders" name="Predicted Orders" stroke="#16a34a" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+            <Line type="monotone" dataKey="predictedCollections" name="Predicted Collections" stroke="#4a65d5" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+            <Line type="monotone" dataKey="predictedDeliveries" name="Predicted Deliveries" stroke="#f59e0b" strokeWidth={2} strokeDasharray="5 5" dot={false} />
           </LineChart>
         </ResponsiveContainer>
       </CardContent>
