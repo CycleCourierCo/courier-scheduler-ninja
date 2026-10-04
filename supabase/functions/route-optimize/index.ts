@@ -1176,6 +1176,9 @@ serve(async (req) => {
         return true;
       });
       dayDebug.pool = pool.length;
+      if (pool.length > dayVans.length * 3 * 17) {
+        dayDebug.capacity_note = `Only ${dayVans.length} van${dayVans.length === 1 ? '' : 's'} ticked for ${pool.length} jobs — guaranteed and last-date jobs may push others off.`;
+      }
       dayDebug.lapsed_in_pool = pool.filter((l) => l.lapsed).length;
 
       excludedLongArea[date] = [];
