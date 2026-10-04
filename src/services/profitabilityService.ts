@@ -321,7 +321,21 @@ const loadInvoiceAmounts = async (orderIds: string[]) => {
   }
 };
 
-export interface RevenueSourceStats { invoiced: number; estimated: number; estimatedJobs: number; invoicedJobs: number; }
+export interface RevenueSourceStats { invoiced: number; estimated: number; estimatedJobs: number; invoicedJobs: number; shopify: number; shopifyJobs: number; }
+
+// Orders booked through the website account are paid at checkout, so they never
+// need a QuickBooks invoice. Track their revenue separately from "estimated".
+let shopifyUserIdCache: string | null | undefined;
+export const getShopifyUserId = async (): Promise<string | null> => {
+  if (shopifyUserIdCache !== undefined) return shopifyUserIdCache;
+  const { data } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('email', 'shopify@cyclecourierco.com')
+    .maybeSingle();
+  shopifyUserIdCache = data?.id ?? null;
+  return shopifyUserIdCache;
+};
 
 // Clear the cache (call at start of a new profitability calculation batch)
 export const clearSpecialRatePriceCache = () => {
@@ -442,7 +456,13 @@ export const getRevenueForTimeslip = async (timeslip: Timeslip, stats?: RevenueS
     }
     const value = ((await estimateOrderNet(order, date)) / 2) * legs;
     totalRevenue += value;
-    if (stats) { stats.estimated += value; stats.estimatedJobs += 1; }
+    if (stats) {
+      if (shopifyId && order.user_id === shopifyId) {
+        stats.shopify += value; stats.shopifyJobs += 1;
+      } else {
+        stats.estimated += value; stats.estimatedJobs += 1;
+      }
+    }
   }
 
   return totalRevenue;
