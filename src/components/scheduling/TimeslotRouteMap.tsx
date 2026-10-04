@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { OrderData } from "@/pages/JobScheduling";
 import { getLegContact } from "@/utils/niDelivery";
-import { isLegViableOnDate } from "./heatJobPoints";
+import { isLegExpired, isLegViableOnDate } from "./heatJobPoints";
 import { DEPOT_LOCATION } from "@/constants/depot";
 import { supabase } from "@/integrations/supabase/client";
 import { decodePolyline } from "@/services/routeGenerationService";
@@ -45,10 +45,10 @@ const milesBetween = (a: [number, number], b: [number, number]) => {
   const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a[0])) * Math.cos(r(b[0])) * Math.sin(dLon / 2) ** 2;
   return 3958.8 * 2 * Math.asin(Math.sqrt(h));
 };
-const candidateIcon = (type: "pickup" | "delivery") =>
+const candidateIcon = (type: "pickup" | "delivery", expired = false) =>
   L.divIcon({
     className: "",
-    html: `<div style="width:16px;height:16px;border-radius:${type === "pickup" ? "50%" : "3px"};background:hsl(var(${type === "pickup" ? "--primary" : "--destructive"}));opacity:.65;border:2px solid hsl(var(--background))"></div>`,
+    html: `<div style="width:16px;height:16px;border-radius:${type === "pickup" ? "50%" : "3px"};background:${expired ? "#CB2B3E" : `hsl(var(${type === "pickup" ? "--primary" : "--destructive"}))`};opacity:${expired ? ".9" : ".65"};border:2px solid hsl(var(--background))"></div>`,
     iconSize: [16, 16],
     iconAnchor: [8, 8],
     popupAnchor: [0, -10],
@@ -81,13 +81,15 @@ const TimeslotRouteMap: React.FC<TimeslotRouteMapProps> = ({ stops, mobile = fal
   const candidates = useMemo(() => {
     if (!showNearby || !routeDate || !onAddCandidate) return [];
     const onRoute = new Set(stops.map((s) => `${s.orderId}-${s.type}`));
-    const out: { order: OrderData; type: "pickup" | "delivery"; lat: number; lon: number; miles: number; name: string; address: string }[] = [];
+    const out: { order: OrderData; type: "pickup" | "delivery"; lat: number; lon: number; miles: number; name: string; address: string; expired: boolean }[] = [];
     for (const order of orders) {
       for (const type of ["pickup", "delivery"] as const) {
         if (onRoute.has(`${order.id}-${type}`)) continue;
-        if (!isLegViableOnDate(order, type === "pickup" ? "collection" : "delivery", routeDate, {
-          collectedOnRoute: type === "delivery" && onRoute.has(`${order.id}-pickup`),
-        })) continue;
+        const legType = type === "pickup" ? "collection" : "delivery";
+        const collectedOnRoute = type === "delivery" && onRoute.has(`${order.id}-pickup`);
+        const viable = isLegViableOnDate(order, legType, routeDate, { collectedOnRoute });
+        const expired = !viable && isLegExpired(order, legType, { collectedOnRoute });
+        if (!viable && !expired) continue;
         const c: any = getLegContact(order, type);
         const lat = c?.lat ?? c?.address?.lat;
         const lon = c?.lon ?? c?.address?.lon;
