@@ -677,10 +677,13 @@ serve(async (req) => {
       // A booked collection only counts if it's still to come: a past booking that
       // never got collected does not put the bike in the depot.
       const bookedPickup = !order.order_collected ? dateKey(order.scheduled_pickup_date) : null;
-      if (bookedPickup && bookedPickup < today) pastDueCollection[order.id] = bookedPickup;
-      const bookedCollection = bookedPickup && bookedPickup >= today
+      // Today's booking only counts once the driver has actually marked it collected.
+      const lockedPickup = !order.order_collected ? lockedCollectionDate[order.id] ?? null : null;
+      const dueBooking = bookedPickup ?? lockedPickup;
+      if (dueBooking && dueBooking <= today) pastDueCollection[order.id] = dueBooking;
+      const bookedCollection = bookedPickup && bookedPickup > today
         ? bookedPickup
-        : (!order.order_collected ? lockedCollectionDate[order.id] ?? null : null);
+        : (lockedPickup && lockedPickup > today ? lockedPickup : null);
       const guaranteedDelivery = order.guaranteed_delivery && order.guaranteed_delivery_date && !order.order_delivered
         ? dateKey(order.guaranteed_delivery_date) : null;
 
@@ -1520,7 +1523,7 @@ serve(async (req) => {
             : 'Guaranteed date could not be met')
           : l.forGuarantee ? `Collection needed before the guaranteed date ${l.forGuarantee} — no van could fit it`
           : l.legType === 'delivery' && !l.inDepot && pastDueCollection[l.orderId]
-            ? `Not collected yet — collection booked for ${pastDueCollection[l.orderId]} didn't happen`
+            ? `Not collected yet — collection booked for ${pastDueCollection[l.orderId]} isn't marked done`
           : excludedKeys.has(l.key) ? 'Needs a long day — another difficult area was chosen'
           : l.legType === 'delivery' && !l.inDepot ? 'Collection is planned in this run — can\'t deliver the same day'
           : l.lapsed ? 'Expired — too far from the other routes for any van to fit it'
