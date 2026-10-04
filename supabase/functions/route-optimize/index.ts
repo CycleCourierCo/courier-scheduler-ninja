@@ -623,6 +623,8 @@ serve(async (req) => {
     const locked = new Set<string>();
     const staleLocked: any[] = [];
     const lockedCollectionDate: Record<string, string> = {};
+    const pastDueCollection: Record<string, string> = {};
+    const guaranteeBlocked: { orderId: string; label: string; deliverBy: string }[] = [];
     for (const r of ((lockedRows as any[]) || [])) {
       const d = dateKey(r.route_plan_routes?.route_date);
       if (d && d < today) {
@@ -739,15 +741,24 @@ serve(async (req) => {
 
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
         if (guaranteed && !selectedDates.includes(guaranteed)) return;
-        if (!lapsed && !guaranteed && !future.some((d) => selectedDates.includes(d))) return;
+        // Collection for a guaranteed delivery: only dates at least a day before it.
+        let usableFuture = future;
+        if (deliverBy) {
+          const before = future.filter((d) => d < deliverBy);
+          if (before.length === 0 && future.length > 0) {
+            guaranteeBlocked.push({ orderId: order.id, label, deliverBy });
+          }
+          if (before.length > 0) usableFuture = before;
+        }
+        if (!lapsed && !guaranteed && !usableFuture.some((d) => selectedDates.includes(d))) return;
 
         legs.push({
           key, jobId: nextJobId++, orderId: order.id, legType, lat, lon, spaces, value,
           allDates: dates,
-          futureDates: guaranteed ? [guaranteed] : future,
+          futureDates: guaranteed ? [guaranteed] : usableFuture,
           guaranteedDate: guaranteed,
           lapsed,
-          lastDate: future.length ? future[future.length - 1] : null,
+          lastDate: usableFuture.length ? usableFuture[usableFuture.length - 1] : null,
           ageDays: (() => { const d = dateKey(order.created_at); return d ? daysSince(d) : 0; })(),
           depotDays: legType === 'delivery' && collectedDate ? daysSince(collectedDate) : 0,
           areaIdx: difficultAreaIdx(lat, lon),
@@ -755,6 +766,7 @@ serve(async (req) => {
           needsInspection: !!order.needs_inspection && !inspectionDone,
           inDepot: legType === 'delivery' ? !!order.order_collected : false,
           bookedCollection,
+          forGuarantee: deliverBy,
         });
       };
 
@@ -763,6 +775,7 @@ serve(async (req) => {
         Number(order.sender?.address?.lat), Number(order.sender?.address?.lon),
         null,
         !order.order_collected && !order.scheduled_pickup_date,
+        guaranteedDelivery,
       );
 
       const guaranteed = order.guaranteed_delivery && order.guaranteed_delivery_date
