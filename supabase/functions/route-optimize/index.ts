@@ -20,6 +20,7 @@ const json = (body: unknown, status = 200) =>
 
 const DEPOT = { lat: 52.4690197, lon: -1.8757663 };
 const SERVICE_S = 900;
+const LAST_JOB_BY = '20:30';
 const HOURS = 3600;
 const NORMAL_CAP_H = 13;   // depot to depot, including the return leg
 const LONG_CAP_H = 15;     // difficult-area long day
