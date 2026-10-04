@@ -35,6 +35,7 @@ import WeeklyProfitabilityChart from "@/components/analytics/WeeklyProfitability
 import MonthlyProfitabilityChart from "@/components/analytics/MonthlyProfitabilityChart";
 import YearlyProfitabilityChart from "@/components/analytics/YearlyProfitabilityChart";
 import UnitEconomicsCard from "@/components/analytics/UnitEconomicsCard";
+import RevenueReconciliationCard from "@/components/analytics/RevenueReconciliationCard";
 import InvoiceVsCostComparison from "@/components/analytics/InvoiceVsCostComparison";
 
 
@@ -288,6 +289,8 @@ const RouteProfitabilityPage = () => {
         {weekTimeslips.length > 0 && (
           <WeeklyProfitabilityChart data={dailyChartData} />
         )}
+
+        <RevenueReconciliationCard year={selectedYear} />
 
         {/* Unit Economics */}
         <UnitEconomicsCard

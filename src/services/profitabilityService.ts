@@ -376,7 +376,7 @@ export const getRevenueForRouteStops = async (
     const stopsPresent = stopsByOrder.get(order.id) || 0;
     if (stopsPresent === 0) continue;
 
-    const specialRate = resolveSpecialRate(await getSpecialRates(order.user_id), Boolean(order.use_large_bike_rate));
+    const specialRate = resolveSpecialRate(await getSpecialRates(order.user_id), Boolean(order.use_large_bike_rate), new Date().toISOString().slice(0, 10));
 
     let perStopValue = 0;
     if (specialRate !== null) {
