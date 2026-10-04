@@ -12,10 +12,11 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { cn } from "@/lib/utils";
-import { aggregateProfitability, getTimeslipsForWeek } from "@/services/profitabilityService";
+import { aggregateProfitability, getTimeslipsForWeek, CostMode } from "@/services/profitabilityService";
 
 interface InvoiceVsCostComparisonProps {
   costPerMile: number;
+  costMode?: CostMode;
   revenuePerStop: number;
   useBikeTypePricing: boolean;
 }
