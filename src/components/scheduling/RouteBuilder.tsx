@@ -1220,6 +1220,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   }, [orders]);
   const [showTimeslotDialog, setShowTimeslotDialog] = useState(false);
   const [routeStats, setRouteStats] = useState<{ endTime: string; distanceMiles: number; durationMinutes: number } | null>(null);
+  // Only the newest timeslot calculation may save its result.
+  const calcRunRef = React.useRef(0);
+  const [isCalculating, setIsCalculating] = useState(false);
   const timeslotMapStops = React.useMemo(
     () => selectedJobs.map((job) => ({
       ...job,
@@ -2762,6 +2765,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     const rawJobs = jobsToCalculate || selectedJobs;
 
     if (rawJobs.length === 0) return;
+    const runId = ++calcRunRef.current;
+    const isLatest = () => runId === calcRunRef.current;
+    setIsCalculating(true);
 
     // Refresh coordinates/contact from the live order so NI deliveries always
     // route to the ferry hand-off, even if the stop was added/saved earlier.
@@ -2790,6 +2796,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     if (jobsWithoutCoords.length > 0) {
       const addressList = jobsWithoutCoords.map(job => `${job.contactName} (${job.address})`).join('\n');
       toast.error(`Missing coordinates for addresses:\n${addressList}\n\nPlease ensure all addresses have latitude/longitude coordinates.`);
+      if (isLatest()) setIsCalculating(false);
       return;
     }
 
@@ -2893,17 +2900,19 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         result = { ...result, updatedJobs: withResolved };
       }
 
+      if (!isLatest()) return;
       setRouteStats(result.stats);
       setSelectedJobs(result.updatedJobs);
       setShowTimeslotDialog(true);
 
     } catch (error) {
+      if (!isLatest()) return;
       console.error('Error calculating timeslots:', error);
       toast.error('Failed to calculate timeslots. Please try again.');
       setRouteStats(null);
       
-      // Fallback to mock calculation
-      const updatedJobs = selectedJobs.map((job, index) => {
+      // Fallback to mock calculation, using the stops this run was given
+      const updatedJobs = jobs.map((job: any, index: number) => {
         const startDateTime = new Date(`2024-01-01 ${startTime}`);
         const travelTimeMinutes = (index + 1) * 15; // Mock 15 minutes between stops
         const arrivalTime = new Date(startDateTime.getTime() + travelTimeMinutes * 60000);
@@ -2916,6 +2925,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
       setSelectedJobs(updatedJobs);
       setShowTimeslotDialog(true);
+    } finally {
+      if (isLatest()) setIsCalculating(false);
     }
   };
 
@@ -3960,6 +3971,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                     </Button>
                   </div>
                   {renderCleanBar(true)}
+                  {isCalculating && <p className="text-xs text-muted-foreground">Updating times…</p>}
                 </div>
 
                 <TimeslotRouteMap
@@ -4175,6 +4187,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                   </Button>
                 </div>
                 {renderCleanBar(false)}
+                {isCalculating && <p className="text-xs text-muted-foreground">Updating times…</p>}
               </div>
 
               <TimeslotRouteMap
