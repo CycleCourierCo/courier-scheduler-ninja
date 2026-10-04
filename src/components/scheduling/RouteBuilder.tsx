@@ -54,6 +54,12 @@ import TimeslotRouteMap from "./TimeslotRouteMap";
 import { COST_PER_MILE, DRIVER_HOURLY_RATE, formatGBP } from "@/lib/routeCosts";
 
 // Location grouping radius for consolidating messages (in meters)
+const describeBikes = (o: any): string => {
+  const list = Array.isArray(o?.bikes) ? o.bikes : [];
+  const names = list.map((b: any) => [b?.brand, b?.model].filter(Boolean).join(' ').trim()).filter(Boolean);
+  if (names.length) return names.join(', ');
+  return [o?.bike_brand, o?.bike_model].filter(Boolean).join(' ') || 'Bike';
+};
 const LOCATION_GROUPING_RADIUS_METERS = 750;
 
 // Coordinate validation schema
@@ -2445,7 +2451,13 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
         const existingKey = getContactKey(firstJobInGroup);
         // Only merge when contact keys match. If either is missing, fall back to location-only merge.
-        const contactMatches = jobKey && existingKey ? jobKey === existingKey : true;
+        const pc = (j: SelectedJob) => {
+          const c: any = j.type === 'pickup' ? j.orderData?.sender : j.orderData?.receiver;
+          return (c?.address?.zipCode || '').toString().replace(/\s+/g, '').toUpperCase();
+        };
+        const contactMatches = jobKey && existingKey
+          ? jobKey === existingKey
+          : !!pc(job) && pc(job) === pc(firstJobInGroup);
         if (!contactMatches) continue;
 
         groupId = existingGroupId;
@@ -3098,9 +3110,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       const deliveries: string[] = [];
       
       jobsAtLocation.forEach(job => {
-        const brand = job.orderData?.bike_brand || 'Unknown Brand';
-        const model = job.orderData?.bike_model || 'Unknown Model';
-        const bikeInfo = `${brand} ${model}`;
+        const bikeInfo = describeBikes(job.orderData);
         if (job.type === 'pickup') collections.push(bikeInfo);
         else if (job.type === 'delivery') deliveries.push(bikeInfo);
       });
@@ -3184,23 +3194,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       const groupedLocationMap = new Map<string, SelectedJob[]>();
       const standaloneJobs: SelectedJob[] = [];
       const coordinateGroups: { [key: string]: SelectedJob[] } = {};
-      
-      for (const job of jobsToSend) {
-        if (!job.lat || !job.lon) { standaloneJobs.push(job); continue; }
-        
-        let foundGroupKey: string | null = null;
-        for (const [groupKey, groupJobs] of Object.entries(coordinateGroups)) {
-          const first = groupJobs[0];
-          if (first.lat && first.lon && isSameLocation({ lat: job.lat, lon: job.lon }, { lat: first.lat, lon: first.lon })) {
-            foundGroupKey = groupKey;
-            break;
-          }
-        }
-        
-        if (foundGroupKey) coordinateGroups[foundGroupKey].push(job);
-        else coordinateGroups[`coord-${job.lat}-${job.lon}`] = [job];
+      // Same grouping as the stop cards: same place AND same customer.
+      for (const job of groupJobsByLocation(jobsToSend)) {
+        const key = job.locationGroupId;
+        if (!key) { standaloneJobs.push(job); continue; }
+        (coordinateGroups[key] ||= []).push(job);
       }
-      
+      // Jobs without coordinates are dropped by groupJobsByLocation; keep them standalone.
+      for (const job of jobsToSend) {
+        if (!job.lat || !job.lon) standaloneJobs.push(job);
+      }
+
       for (const [groupKey, jobs] of Object.entries(coordinateGroups)) {
         if (jobs.length >= 2) groupedLocationMap.set(groupKey, jobs);
         else standaloneJobs.push(jobs[0]);
@@ -3222,7 +3226,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           const collections: string[] = [];
           const deliveries: string[] = [];
           jobsAtLocation.forEach(job => {
-            const bikeInfo = `${job.orderData?.bike_brand || 'Unknown Brand'} ${job.orderData?.bike_model || 'Unknown Model'}`;
+            const bikeInfo = describeBikes(job.orderData);
             if (job.type === 'pickup') collections.push(bikeInfo);
             else if (job.type === 'delivery') deliveries.push(bikeInfo);
           });
