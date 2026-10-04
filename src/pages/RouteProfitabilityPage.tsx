@@ -101,14 +101,14 @@ const RouteProfitabilityPage = () => {
   });
 
   const { data: weekAggregated } = useQuery({
-    queryKey: ['profitability-week-summary', weekStartString, weekEndString, revenuePerStop, costPerMile, useBikeTypePricing],
-    queryFn: () => aggregateProfitability(weekTimeslips, revenuePerStop, costPerMile, useBikeTypePricing),
+    queryKey: ['profitability-week-summary', weekStartString, weekEndString, revenuePerStop, costPerMile, useBikeTypePricing, costMode],
+    queryFn: () => aggregateProfitability(weekTimeslips, revenuePerStop, costPerMile, useBikeTypePricing, costMode),
     enabled: weekTimeslips.length > 0,
   });
 
   const { data: dailyChartData = [] } = useQuery({
-    queryKey: ['profitability-daily-chart', weekStartString, weekEndString, revenuePerStop, costPerMile, useBikeTypePricing],
-    queryFn: () => calculateDailyProfitability(weekTimeslips, monday, sunday, revenuePerStop, costPerMile, useBikeTypePricing),
+    queryKey: ['profitability-daily-chart', weekStartString, weekEndString, revenuePerStop, costPerMile, useBikeTypePricing, costMode],
+    queryFn: () => calculateDailyProfitability(weekTimeslips, monday, sunday, revenuePerStop, costPerMile, useBikeTypePricing, costMode),
     enabled: weekTimeslips.length > 0,
   });
 
@@ -127,8 +127,8 @@ const RouteProfitabilityPage = () => {
   });
 
   const { data: weeklyChartData = [] } = useQuery({
-    queryKey: ['profitability-weekly-chart', selectedMonthYear, selectedMonthNum, monthTimeslips.length, revenuePerStop, costPerMile, useBikeTypePricing],
-    queryFn: () => calculateWeeklyProfitabilityForMonth(monthTimeslips, selectedMonthYear, selectedMonthNum, revenuePerStop, costPerMile, useBikeTypePricing),
+    queryKey: ['profitability-weekly-chart', selectedMonthYear, selectedMonthNum, monthTimeslips.length, revenuePerStop, costPerMile, useBikeTypePricing, costMode],
+    queryFn: () => calculateWeeklyProfitabilityForMonth(monthTimeslips, selectedMonthYear, selectedMonthNum, revenuePerStop, costPerMile, useBikeTypePricing, costMode),
     enabled: monthTimeslips.length > 0,
   });
 
@@ -148,8 +148,8 @@ const RouteProfitabilityPage = () => {
   });
 
   const { data: monthlyChartData = [] } = useQuery({
-    queryKey: ['profitability-monthly-chart', selectedYear, yearTimeslips.length, revenuePerStop, costPerMile, useBikeTypePricing],
-    queryFn: () => calculateMonthlyProfitabilityForYear(yearTimeslips, selectedYear, revenuePerStop, costPerMile, useBikeTypePricing),
+    queryKey: ['profitability-monthly-chart', selectedYear, yearTimeslips.length, revenuePerStop, costPerMile, useBikeTypePricing, costMode],
+    queryFn: () => calculateMonthlyProfitabilityForYear(yearTimeslips, selectedYear, revenuePerStop, costPerMile, useBikeTypePricing, costMode),
     enabled: yearTimeslips.length > 0,
   });
 
@@ -188,8 +188,8 @@ const RouteProfitabilityPage = () => {
   };
 
   const { data: aggregated } = useQuery({
-    queryKey: ['profitability-summary', dateString, timeslips.length, revenuePerStop, costPerMile, useBikeTypePricing],
-    queryFn: () => aggregateProfitability(timeslips, revenuePerStop, costPerMile, useBikeTypePricing),
+    queryKey: ['profitability-summary', dateString, timeslips.length, revenuePerStop, costPerMile, useBikeTypePricing, costMode],
+    queryFn: () => aggregateProfitability(timeslips, revenuePerStop, costPerMile, useBikeTypePricing, costMode),
     enabled: timeslips.length > 0,
   });
 
