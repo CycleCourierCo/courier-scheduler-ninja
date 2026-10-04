@@ -573,9 +573,11 @@ export const aggregateProfitability = async (
   timeslips: Timeslip[],
   revenuePerStop: number,
   costPerMile: number,
-  useBikeTypePricing: boolean = false
+  useBikeTypePricing: boolean = false,
+  costMode: CostMode = 'flat'
 ) => {
   clearSpecialRatePriceCache();
+  await prepareCostContext(costMode, timeslips);
   let totalRevenue = 0;
   let totalCosts = 0;
   let totalProfit = 0;
@@ -603,8 +605,10 @@ export const calculateDailyProfitability = async (
   endDate: Date,
   revenuePerStop: number,
   costPerMile: number,
-  useBikeTypePricing: boolean = false
+  useBikeTypePricing: boolean = false,
+  costMode: CostMode = 'flat'
 ): Promise<DailyProfitability[]> => {
+  await prepareCostContext(costMode, timeslips);
   // Generate all days in the range (Monday to Sunday)
   const daysInWeek = eachDayOfInterval({ start: startDate, end: endDate });
   
@@ -667,8 +671,10 @@ export const calculateWeeklyProfitabilityForMonth = async (
   month: number,
   revenuePerStop: number,
   costPerMile: number,
-  useBikeTypePricing: boolean = false
+  useBikeTypePricing: boolean = false,
+  costMode: CostMode = 'flat'
 ): Promise<WeeklyProfitabilityData[]> => {
+  await prepareCostContext(costMode, timeslips);
   const monthStart = startOfMonth(new Date(year, month));
   const monthEnd = endOfMonth(monthStart);
   
@@ -739,8 +745,10 @@ export const calculateMonthlyProfitabilityForYear = async (
   year: number,
   revenuePerStop: number,
   costPerMile: number,
-  useBikeTypePricing: boolean = false
+  useBikeTypePricing: boolean = false,
+  costMode: CostMode = 'flat'
 ): Promise<MonthlyProfitabilityData[]> => {
+  await prepareCostContext(costMode, timeslips);
   const yearStart = startOfYear(new Date(year, 0));
   const yearEnd = endOfYear(yearStart);
   
