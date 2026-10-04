@@ -133,6 +133,15 @@ export default function InvoicesPage() {
     },
   });
 
+  const { data: invoiceCutoff } = useQuery({
+    queryKey: ["invoice-check-cutoff"],
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)("invoice_check_cutoff");
+      if (error) throw error;
+      return (data as string | null) || null;
+    },
+  });
+
   const handleSyncOrderInvoices = async () => {
     setIsSyncingInvoices(true);
     try {
@@ -773,6 +782,12 @@ export default function InvoicesPage() {
             )}
             . No QuickBooks invoice mentions these jobs by tracking number, so syncing again won't link them. Open the list below to link them by hand or mark them as not to be invoiced.
           </div>
+        )}
+
+        {invoiceCutoff && (
+          <p className="text-sm text-muted-foreground">
+            Jobs from {format(new Date(invoiceCutoff), "d MMM yyyy")} onwards are waiting for the next weekly invoice run, so they aren't counted as missing yet.
+          </p>
         )}
 
         <UnlinkedInvoicesPanel onChanged={() => refetchUnlinkedSummary()} />
