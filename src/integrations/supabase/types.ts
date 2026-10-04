@@ -3489,6 +3489,35 @@ export type Database = {
           },
         ]
       }
+      order_invoice_exclusions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          order_id: string
+          reason: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          order_id: string
+          reason?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          order_id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_invoice_exclusions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_invoice_links: {
         Row: {
           created_at: string
@@ -4334,6 +4363,33 @@ export type Database = {
           token_type?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      quickbooks_unmatched_invoices: {
+        Row: {
+          customer_name: string | null
+          invoice_date: string | null
+          invoice_number: string | null
+          quickbooks_invoice_id: string
+          synced_at: string
+          total_amount: number | null
+        }
+        Insert: {
+          customer_name?: string | null
+          invoice_date?: string | null
+          invoice_number?: string | null
+          quickbooks_invoice_id: string
+          synced_at?: string
+          total_amount?: number | null
+        }
+        Update: {
+          customer_name?: string | null
+          invoice_date?: string | null
+          invoice_number?: string | null
+          quickbooks_invoice_id?: string
+          synced_at?: string
+          total_amount?: number | null
         }
         Relationships: []
       }
@@ -7543,6 +7599,21 @@ export type Database = {
       submit_public_repair_offer: {
         Args: { p_approved_issue_ids: string[]; p_order_id: string }
         Returns: Json
+      }
+      unlinked_invoice_orders: {
+        Args: never
+        Returns: {
+          bike_quantity: number
+          bike_type: string
+          bikes: Json
+          created_at: string
+          customer_id: string
+          customer_name: string
+          is_b2b: boolean
+          order_id: string
+          paid_by_card: boolean
+          tracking_number: string
+        }[]
       }
       unlinked_invoice_summary: {
         Args: never
