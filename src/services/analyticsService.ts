@@ -241,6 +241,26 @@ const inRange = (d: Date, range: TimeRange): boolean => {
   return t >= startT && t <= endT;
 };
 
+// Project the current incomplete bucket to its end:
+// count so far ÷ days elapsed × total days in the period.
+// Past buckets return the actual count; future buckets return null.
+const predictBucket = (bucketDate: Date, g: Granularity, count: number): number | null => {
+  const now = new Date();
+  const start = bucketStart(bucketDate, g);
+  const currentStart = bucketStart(now, g);
+  if (start.getTime() < currentStart.getTime()) return count;
+  if (start.getTime() > currentStart.getTime()) return null;
+  let totalDays: number;
+  if (g === "day") totalDays = 1;
+  else if (g === "week") totalDays = 7;
+  else totalDays = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+  const elapsedDays = Math.max(
+    1,
+    Math.floor((_startOfDay(now).getTime() - start.getTime()) / 86400000) + 1
+  );
+  return Math.round((count / elapsedDays) * totalDays);
+};
+
 export const getOrdersCreatedSeries = (
   orders: Order[],
   range: TimeRange,
