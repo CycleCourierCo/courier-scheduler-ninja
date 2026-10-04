@@ -1257,6 +1257,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   // Only the newest timeslot calculation may save its result.
   const calcRunRef = React.useRef(0);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [calcProgress, setCalcProgress] = useState({ done: 0, total: 0 });
+  const legCacheRef = React.useRef(new Map<string, { minutes: number; meters: number }>());
   const timeslotMapStops = React.useMemo(
     () => selectedJobs.map((job) => ({
       ...job,
@@ -2822,6 +2824,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     const runId = ++calcRunRef.current;
     const isLatest = () => runId === calcRunRef.current;
     setIsCalculating(true);
+    setCalcProgress({ done: 0, total: 0 });
+    setShowTimeslotDialog(true);
 
     // Refresh coordinates/contact from the live order so NI deliveries always
     // route to the ferry hand-off, even if the stop was added/saved earlier.
@@ -4088,7 +4092,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                     </Button>
                   </div>
                   {renderCleanBar(true)}
-                  {isCalculating && <p className="text-xs text-muted-foreground">Updating times…</p>}
+                  {isCalculating && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>{calcProgress.total > 0 ? `Working out drive times… ${calcProgress.done} of ${calcProgress.total}` : 'Updating times…'}</span>
+                    {calcProgress.total > 0 && (
+                      <div className="h-1.5 w-32 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full bg-primary transition-all" style={{ width: `${Math.round((calcProgress.done / calcProgress.total) * 100)}%` }} />
+                      </div>
+                    )}
+                  </div>
+                )}
                 </div>
 
                 <TimeslotRouteMap
@@ -4304,7 +4318,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                   </Button>
                 </div>
                 {renderCleanBar(false)}
-                {isCalculating && <p className="text-xs text-muted-foreground">Updating times…</p>}
+                {isCalculating && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>{calcProgress.total > 0 ? `Working out drive times… ${calcProgress.done} of ${calcProgress.total}` : 'Updating times…'}</span>
+                    {calcProgress.total > 0 && (
+                      <div className="h-1.5 w-32 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full bg-primary transition-all" style={{ width: `${Math.round((calcProgress.done / calcProgress.total) * 100)}%` }} />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <TimeslotRouteMap
