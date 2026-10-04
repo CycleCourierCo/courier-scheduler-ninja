@@ -1802,6 +1802,26 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     });
   };
 
+  // Add a job from the nearby-jobs map and re-time the whole route
+  const addJobFromMap = (order: OrderData, type: 'pickup' | 'delivery') => {
+    if (selectedJobs.some(j => j.orderId === order.id && j.type === type)) return;
+    const contact: any = getLegContact(order, type);
+    const newJob: SelectedJob = {
+      orderId: order.id,
+      type,
+      address: formatAddress(contact.address),
+      contactName: contact.name,
+      orderData: order,
+      phoneNumber: contact.phone,
+      order: selectedJobs.length + 1,
+      lat: contact.lat,
+      lon: contact.lon,
+    };
+    const next = [...selectedJobs, newJob];
+    setSelectedJobs(next);
+    calculateTimeslots(next);
+  };
+
   // CSV Upload handlers
   const handleCsvFileSelect = (content: string) => {
     setIsProcessingCsv(true);
