@@ -27,11 +27,9 @@ type UnlinkedOrder = {
   estimate: number;
 };
 
-const PORTAL_INVOICING_START = "2025-09-01";
 const gbp = (n: number) => `£${Math.round(n).toLocaleString("en-GB")}`;
 
 const tagFor = (o: UnlinkedOrder) => {
-  if (o.created_at.slice(0, 10) < PORTAL_INVOICING_START) return "Before portal invoicing";
   if (o.paid_by_card) return "Customer paid by card";
   if (o.is_b2b) return "Business – not invoiced";
   return "Not invoiced";
