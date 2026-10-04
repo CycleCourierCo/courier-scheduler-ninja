@@ -97,7 +97,7 @@ const TimeslotRouteMap: React.FC<TimeslotRouteMapProps> = ({ stops, mobile = fal
         const miles = Math.min(...points.map((p) => milesBetween(p, [lat, lon])));
         if (miles > radius) continue;
         const a = c?.address || {};
-        out.push({ order, type, lat, lon, miles, name: c?.name || "", address: [a.street, a.city, a.zipCode].filter(Boolean).join(", ") });
+        out.push({ order, type, lat, lon, miles, expired, name: c?.name || "", address: [a.street, a.city, a.zipCode].filter(Boolean).join(", ") });
       }
     }
     return out;
@@ -179,7 +179,7 @@ const TimeslotRouteMap: React.FC<TimeslotRouteMapProps> = ({ stops, mobile = fal
             <select className="rounded border bg-background px-1 py-0.5" value={radius} onChange={(e) => setRadius(Number(e.target.value))}>
               {RADII.map((r) => <option key={r} value={r}>within {r} miles</option>)}
             </select>
-            <span className="text-muted-foreground">{candidates.length} nearby · ● collection ■ delivery</span>
+            <span className="text-muted-foreground">{candidates.length} nearby · ● collection ■ delivery · red = expired</span>
           </>
         )}
       </div>
@@ -223,10 +223,11 @@ const TimeslotRouteMap: React.FC<TimeslotRouteMapProps> = ({ stops, mobile = fal
           </Marker>
         ))}
         {candidates.map((c) => (
-          <Marker key={`cand-${c.order.id}-${c.type}`} position={[c.lat, c.lon]} icon={candidateIcon(c.type)}>
+          <Marker key={`cand-${c.order.id}-${c.type}`} position={[c.lat, c.lon]} icon={candidateIcon(c.type, c.expired)}>
             <Popup>
               <div className="min-w-40 space-y-1 text-xs">
                 <p className="font-semibold">{c.name}</p>
+                {c.expired && <p className="font-semibold text-destructive">Expired — dates have passed</p>}
                 <p>{c.type === "pickup" ? "Collection" : "Delivery"} · {c.miles.toFixed(1)} miles from route</p>
                 <p>{c.address}</p>
                 {c.order.tracking_number && <p>Order: {c.order.tracking_number}</p>}
