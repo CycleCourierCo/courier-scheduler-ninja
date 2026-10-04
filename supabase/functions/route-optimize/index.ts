@@ -42,7 +42,7 @@ const CORRIDOR_MI = 12;         // how far off the depot->London line an "on the
 const DIFFICULT_SKILL = 1;      // London-only work
 const GENERAL_SKILL = 2;        // ordinary work (London vans do not carry this)
 const SECTOR_BASE = 10;         // skills 10..17 = compass sectors around the depot
-const SECTOR_CORE_MI = 15;      // jobs this close to the depot can go on any van
+const SECTOR_CORE_MI = 8;       // jobs this close to the depot can go on any van
 const SECTOR_NAMES = ['North', 'North-east', 'East', 'South-east', 'South', 'South-west', 'West', 'North-west'];
 /** Compass sector (0 = N, clockwise) of a point as seen from the depot. */
 const sectorOf = (lat: number, lon: number): number => {
@@ -935,7 +935,8 @@ serve(async (req) => {
       const skills = isLondonLeg(leg)
         ? [DIFFICULT_SKILL]
         : isCorridorLeg(leg) ? null
-        : sector === null ? [GENERAL_SKILL] : [GENERAL_SKILL, SECTOR_BASE + sector];
+        : (sector === null || (leg.forGuarantee && leg.lastDate === date)) ? [GENERAL_SKILL]
+        : [GENERAL_SKILL, SECTOR_BASE + sector];
       return {
         id: leg.jobId,
         location: [leg.lon, leg.lat],
@@ -1031,7 +1032,7 @@ serve(async (req) => {
       // Give each ordinary van one contiguous arc of compass sectors, balanced by
       // the work in each, so every sector with work is covered by some van.
       const ordinaryIdx = assignments
-        .map((a, i) => (!a.london && !a.long && !a.spare ? i : -1))
+        .map((a, i) => (!a.london && !a.long ? i : -1))
         .filter((i) => i >= 0);
       const sectorFor: Record<number, number[] | null> = {};
       if (ordinaryIdx.length > 0) {
@@ -1392,6 +1393,22 @@ serve(async (req) => {
       };
     });
 
+    /** Main compass direction of a route (null when it stays near the depot or in London). */
+    const mainSector = (p: any): number | null => {
+      if (p.meta.areaName) return null;
+      const counts = Array(8).fill(0);
+      for (const st of p.ordered) { const sc = legSector(st.leg); if (sc !== null) counts[sc]++; }
+      const max = Math.max(...counts);
+      return max > 0 ? counts.indexOf(max) : null;
+    };
+    const overlapWith = (p: any): string[] => {
+      const mine = mainSector(p);
+      if (mine === null) return [];
+      return prepared
+        .filter((o: any) => o !== p && o.meta.date === p.meta.date && mainSector(o) === mine)
+        .map((o: any) => o.meta.vanName);
+    };
+
     if (prepared.length > 0) {
       const { data: routeRows, error: routeErr } = await admin.from('route_plan_routes').insert(
         prepared.map((p) => ({
@@ -1439,6 +1456,7 @@ serve(async (req) => {
           van_capacity: p.meta.capacity,
           geometry: p.geometry,
           region: p.region,
+          overlap_with: overlapWith(p),
           spread_mi: p.spreadMi,
           spread_warning: p.spreadMi > SPREAD_WARN_MI,
           thin: p.thin,
@@ -1454,7 +1472,8 @@ serve(async (req) => {
             seq: i + 1, leg_type: s.leg.legType, order_id: s.leg.orderId,
             eta: isoFromEpoch(s.arrival), lat: s.leg.lat, lon: s.leg.lon,
             is_difficult_area: s.leg.areaIdx !== null, label: s.leg.label,
-            guaranteed: !!s.leg.guaranteedDate,
+            guaranteed: !!s.leg.guaranteedDate || !!s.leg.forGuarantee,
+            guaranteed_date: s.leg.guaranteedDate ?? s.leg.forGuarantee ?? null,
             must_go: s.leg.lapsed ? 'expired' : (s.leg.lastDate && s.leg.lastDate <= p.meta.date ? 'last_date' : null),
             last_date: s.leg.lastDate ?? (s.leg.allDates[s.leg.allDates.length - 1] ?? null),
           })),
