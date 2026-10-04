@@ -168,7 +168,14 @@ const UnlinkedInvoicesPanel = ({ onChanged }: { onChanged: () => void }) => {
       <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
         <div>
           <CardTitle>Jobs with no linked invoice</CardTitle>
-          <CardDescription>Link jobs to a QuickBooks invoice by its number, or mark them as not to be invoiced.</CardDescription>
+          <CardDescription>
+            Link jobs to a QuickBooks invoice by its number, or mark them as not to be invoiced.
+            {shopifyCount > 0 && (
+              <span className="block mt-1">
+                {shopifyCount.toLocaleString("en-GB")} website orders excluded — paid online at checkout, no invoice needed.
+              </span>
+            )}
+          </CardDescription>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowUnmatched((v) => !v)}>
