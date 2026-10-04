@@ -481,8 +481,8 @@ export const getVehicleMonthlyCosts = async (): Promise<Map<string, number>> => 
   };
   const loadTable = async (table: string, dateCol: string, amountCol: string) => {
     for (let from = 0; ; from += 1000) {
-      const { error, data: rows } = await supabase
-        .from(table)
+      const client = supabase.from(table) as any;
+      const { error, data: rows } = await client
         .select(`${dateCol}, vehicle_id, ${amountCol}`)
         .range(from, from + 999);
       if (error) { console.error(`Error loading ${table} for cost basis:`, error); break; }
