@@ -85,7 +85,9 @@ const TimeslotRouteMap: React.FC<TimeslotRouteMapProps> = ({ stops, mobile = fal
     for (const order of orders) {
       for (const type of ["pickup", "delivery"] as const) {
         if (onRoute.has(`${order.id}-${type}`)) continue;
-        if (!isLegViableOnDate(order, type === "pickup" ? "collection" : "delivery", routeDate)) continue;
+        if (!isLegViableOnDate(order, type === "pickup" ? "collection" : "delivery", routeDate, {
+          collectedOnRoute: type === "delivery" && onRoute.has(`${order.id}-pickup`),
+        })) continue;
         const c: any = getLegContact(order, type);
         const lat = c?.lat ?? c?.address?.lat;
         const lon = c?.lon ?? c?.address?.lon;
