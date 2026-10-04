@@ -310,6 +310,7 @@ export const getInspectionStageDurations = (
     issues_to_parts: "Response → Parts Ordered",
     parts_to_repair: "Parts Ordered → Parts Arrived",
     repair_to_repaired: "Awaiting Repair → Repaired",
+    collected_to_repaired: "Collected → Repaired",
   };
 
   return Object.entries(buckets).map(([key, vals]) => ({
