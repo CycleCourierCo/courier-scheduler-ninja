@@ -194,6 +194,17 @@ const RouteProfitabilityPage = () => {
     enabled: timeslips.length > 0,
   });
 
+  // Keep the per-timeslip rows on the same cost basis as the summary cards
+  const [costCtxReady, setCostCtxReady] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (timeslips.length > 0) await prepareCostContext(costMode, timeslips);
+      if (!cancelled) setCostCtxReady(n => n + 1);
+    })();
+    return () => { cancelled = true; };
+  }, [timeslips, costMode]);
+
   return (
     <Layout>
       
