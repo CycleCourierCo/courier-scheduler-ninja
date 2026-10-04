@@ -3965,6 +3965,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                 <TimeslotRouteMap
                   mobile
                   stops={timeslotMapStops}
+                  orders={orderList}
+                  routeDate={selectedDate}
+                  onAddCandidate={toggleGuaranteedJob}
                 />
 
                 {/* Route */}
@@ -4176,6 +4179,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
               <TimeslotRouteMap
                 stops={timeslotMapStops}
+                orders={orderList}
+                routeDate={selectedDate}
+                onAddCandidate={toggleGuaranteedJob}
               />
 
               <div className="space-y-3">

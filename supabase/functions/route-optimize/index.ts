@@ -41,6 +41,42 @@ const LONDON_MAX_VANS = 2;      // London work is fenced to at most this many va
 const CORRIDOR_MI = 12;         // how far off the depot->London line an "on the way" job may sit
 const DIFFICULT_SKILL = 1;      // London-only work
 const GENERAL_SKILL = 2;        // ordinary work (London vans do not carry this)
+const SECTOR_BASE = 10;         // skills 10..17 = compass sectors around the depot
+const SECTOR_CORE_MI = 8;       // jobs this close to the depot can go on any van
+const SECTOR_NAMES = ['North', 'North-east', 'East', 'South-east', 'South', 'South-west', 'West', 'North-west'];
+/** Compass sector (0 = N, clockwise) of a point as seen from the depot. */
+const sectorOf = (lat: number, lon: number): number => {
+  const dy = lat - DEPOT.lat;
+  const dx = (lon - DEPOT.lon) * Math.cos((DEPOT.lat * Math.PI) / 180);
+  const deg = ((Math.atan2(dx, dy) * 180) / Math.PI + 360) % 360;
+  return Math.floor(((deg + 22.5) % 360) / 45);
+};
+/** Split the 8 sectors (circular) into k contiguous arcs with balanced job counts. */
+const sectorArcs = (counts: number[], k: number): number[][] => {
+  const n = 8;
+  k = Math.max(1, Math.min(k, n));
+  let best: { cost: number; arcs: number[][] } | null = null;
+  for (let off = 0; off < n; off++) {
+    const seq = Array.from({ length: n }, (_, i) => (i + off) % n);
+    // dp[i][j] = min max-load splitting first i sectors into j arcs
+    const pre = [0]; for (const s of seq) pre.push(pre[pre.length - 1] + counts[s]);
+    const dp = Array.from({ length: n + 1 }, () => Array(k + 1).fill(Infinity));
+    const cut = Array.from({ length: n + 1 }, () => Array(k + 1).fill(0));
+    dp[0][0] = 0;
+    for (let j = 1; j <= k; j++) for (let i = 1; i <= n; i++) for (let p = j - 1; p < i; p++) {
+      const v = Math.max(dp[p][j - 1], pre[i] - pre[p]);
+      if (v < dp[i][j]) { dp[i][j] = v; cut[i][j] = p; }
+    }
+    const cost = dp[n][k];
+    if (!best || cost < best.cost) {
+      const arcs: number[][] = [];
+      let i = n;
+      for (let j = k; j >= 1; j--) { const p = cut[i][j]; arcs.unshift(seq.slice(p, i)); i = p; }
+      best = { cost, arcs };
+    }
+  }
+  return best!.arcs.filter((a) => a.length > 0);
+};
 
 const milesBetween = (aLat: number, aLon: number, bLat: number, bLon: number) => {
   const R = 3958.8;
@@ -224,11 +260,13 @@ interface Leg {
   needsInspection: boolean;
   inDepot: boolean;
   bookedCollection: string | null;
+  /** Collection for a guaranteed delivery: must happen before this date. */
+  forGuarantee: string | null;
 }
 
 interface VanDay {
   vehicleId: number; date: string; vanId: string; vanName: string; capacity: number;
-  long: boolean; spare: boolean; areaName: string | null;
+  long: boolean; spare: boolean; areaName: string | null; sectorName?: string | null;
 }
 
 interface Stop { leg: Leg; arrival: number }
@@ -585,6 +623,8 @@ serve(async (req) => {
     const locked = new Set<string>();
     const staleLocked: any[] = [];
     const lockedCollectionDate: Record<string, string> = {};
+    const pastDueCollection: Record<string, string> = {};
+    const guaranteeBlocked: { orderId: string; label: string; deliverBy: string }[] = [];
     for (const r of ((lockedRows as any[]) || [])) {
       const d = dateKey(r.route_plan_routes?.route_date);
       if (d && d < today) {
@@ -634,9 +674,18 @@ serve(async (req) => {
       const pickupDates = clean(order.pickup_date);
       const deliveryDates = clean(order.delivery_date);
       const collectedDate = order.order_collected ? dateKey(order.scheduled_pickup_date) : null;
-      const bookedCollection = !order.order_collected && order.scheduled_pickup_date
-        ? dateKey(order.scheduled_pickup_date)
-        : (!order.order_collected ? lockedCollectionDate[order.id] ?? null : null);
+      // A booked collection only counts if it's still to come: a past booking that
+      // never got collected does not put the bike in the depot.
+      const bookedPickup = !order.order_collected ? dateKey(order.scheduled_pickup_date) : null;
+      // Today's booking only counts once the driver has actually marked it collected.
+      const lockedPickup = !order.order_collected ? lockedCollectionDate[order.id] ?? null : null;
+      const dueBooking = bookedPickup ?? lockedPickup;
+      if (dueBooking && dueBooking <= today) pastDueCollection[order.id] = dueBooking;
+      const bookedCollection = bookedPickup && bookedPickup > today
+        ? bookedPickup
+        : (lockedPickup && lockedPickup > today ? lockedPickup : null);
+      const guaranteedDelivery = order.guaranteed_delivery && order.guaranteed_delivery_date && !order.order_delivered
+        ? dateKey(order.guaranteed_delivery_date) : null;
 
       const considerLeg = (
         legType: 'collection' | 'delivery',
@@ -644,6 +693,7 @@ serve(async (req) => {
         lat: number, lon: number,
         guaranteed: string | null,
         eligible: boolean,
+        deliverBy: string | null = null,
       ) => {
         const key = `${order.id}:${legType}`;
         if (locked.has(key) || !eligible) return;
@@ -694,15 +744,24 @@ serve(async (req) => {
 
         if (!Number.isFinite(lat) || !Number.isFinite(lon)) return;
         if (guaranteed && !selectedDates.includes(guaranteed)) return;
-        if (!lapsed && !guaranteed && !future.some((d) => selectedDates.includes(d))) return;
+        // Collection for a guaranteed delivery: only dates at least a day before it.
+        let usableFuture = future;
+        if (deliverBy) {
+          const before = future.filter((d) => d < deliverBy);
+          if (before.length === 0 && future.length > 0) {
+            guaranteeBlocked.push({ orderId: order.id, label, deliverBy });
+          }
+          if (before.length > 0) usableFuture = before;
+        }
+        if (!lapsed && !guaranteed && !usableFuture.some((d) => selectedDates.includes(d))) return;
 
         legs.push({
           key, jobId: nextJobId++, orderId: order.id, legType, lat, lon, spaces, value,
           allDates: dates,
-          futureDates: guaranteed ? [guaranteed] : future,
+          futureDates: guaranteed ? [guaranteed] : usableFuture,
           guaranteedDate: guaranteed,
           lapsed,
-          lastDate: future.length ? future[future.length - 1] : null,
+          lastDate: usableFuture.length ? usableFuture[usableFuture.length - 1] : null,
           ageDays: (() => { const d = dateKey(order.created_at); return d ? daysSince(d) : 0; })(),
           depotDays: legType === 'delivery' && collectedDate ? daysSince(collectedDate) : 0,
           areaIdx: difficultAreaIdx(lat, lon),
@@ -710,6 +769,7 @@ serve(async (req) => {
           needsInspection: !!order.needs_inspection && !inspectionDone,
           inDepot: legType === 'delivery' ? !!order.order_collected : false,
           bookedCollection,
+          forGuarantee: deliverBy,
         });
       };
 
@@ -718,6 +778,7 @@ serve(async (req) => {
         Number(order.sender?.address?.lat), Number(order.sender?.address?.lon),
         null,
         !order.order_collected && !order.scheduled_pickup_date,
+        guaranteedDelivery,
       );
 
       const guaranteed = order.guaranteed_delivery && order.guaranteed_delivery_date
@@ -752,6 +813,8 @@ serve(async (req) => {
      */
     const legPriority = (leg: Leg, date: string) => {
       if (mustGo(leg, date)) return 100;
+      // Collection that a guaranteed delivery depends on: just below must-go.
+      if (leg.forGuarantee) return 90;
       // Previous behaviour: every ordinary job counts the same.
       if (!prioritiseAge) return 50;
       const left = Math.max(1, leg.futureDates.filter((d) => d >= date).length);
@@ -764,7 +827,7 @@ serve(async (req) => {
 
     /** A job that must not be lost inside this plan at all. */
     const urgentInPlan = (leg: Leg) =>
-      !!leg.guaranteedDate || (leg.lapsed && includeExpired)
+      !!leg.guaranteedDate || !!leg.forGuarantee || (leg.lapsed && includeExpired)
       || (!!leg.lastDate && leg.lastDate <= lastSelectedDate);
 
     /* ------------------------------ solving ------------------------------- */
@@ -853,15 +916,27 @@ serve(async (req) => {
       return milesBetween(leg.lat, leg.lon, py, px) <= CORRIDOR_MI;
     };
 
+    /** Compass sector a job is fenced to, or null (London, corridor, near the depot). */
+    const legSector = (leg: Leg): number | null => {
+      if (isLondonLeg(leg) || isCorridorLeg(leg)) return null;
+      if (milesBetween(leg.lat, leg.lon, DEPOT.lat, DEPOT.lon) <= SECTOR_CORE_MI) return null;
+      return sectorOf(leg.lat, leg.lon);
+    };
+
     const buildJob = (leg: Leg, date: string, capH: number) => {
       const window = windowFor(leg, date, capH);
       if (!window) return null;
       const load = [Math.max(1, Math.round(leg.spaces * 10))];
       // London legs: London vans only. Corridor legs: any van. Everything else:
       // ordinary vans only, so the London van cannot wander off its corridor.
+      // Ordinary jobs away from the depot also need a van covering their sector,
+      // so no van works both sides of Birmingham in one day.
+      const sector = legSector(leg);
       const skills = isLondonLeg(leg)
         ? [DIFFICULT_SKILL]
-        : isCorridorLeg(leg) ? null : [GENERAL_SKILL];
+        : isCorridorLeg(leg) ? null
+        : (sector === null || (leg.forGuarantee && leg.lastDate === date)) ? [GENERAL_SKILL]
+        : [GENERAL_SKILL, SECTOR_BASE + sector];
       return {
         id: leg.jobId,
         location: [leg.lon, leg.lat],
@@ -876,7 +951,7 @@ serve(async (req) => {
     const buildVehicle = (
       van: { id: string; name: string; capacity: number },
       date: string, idx: number,
-      kind: { long: boolean; spare?: boolean; areaName?: string | null; london?: boolean },
+      kind: { long: boolean; spare?: boolean; areaName?: string | null; london?: boolean; sectors?: number[] | null },
     ) => {
       const shiftOpen = londonEpoch(date, shiftStart);
       const capH = kind.long ? LONG_CAP_H : NORMAL_CAP_H;
@@ -890,11 +965,20 @@ serve(async (req) => {
         costs: { per_hour: DRIVER_PENCE_PER_HOUR, per_km: PENCE_PER_KM },
         // London vans carry only the London skill, so they can serve London work
         // and unskilled corridor work — never ordinary jobs elsewhere.
-        skills: kind.london ? [DIFFICULT_SKILL] : [GENERAL_SKILL],
+        // Ordinary vans also carry the sector skills of their arc; long-day and
+        // spare vans may cover any sector.
+        skills: kind.london
+          ? [DIFFICULT_SKILL]
+          : [GENERAL_SKILL, ...(kind.sectors ?? [0, 1, 2, 3, 4, 5, 6, 7]).map((s) => SECTOR_BASE + s)],
       };
+      const sectorName = kind.sectors && kind.sectors.length > 0 && kind.sectors.length < 8
+        ? (kind.sectors.length === 1
+          ? SECTOR_NAMES[kind.sectors[0]]
+          : `${SECTOR_NAMES[kind.sectors[0]]} to ${SECTOR_NAMES[kind.sectors[kind.sectors.length - 1]]}`)
+        : null;
       const meta: VanDay = {
         vehicleId: id, date, vanId: van.id, vanName: van.name, capacity: van.capacity,
-        long: kind.long, spare: !!kind.spare, areaName: kind.areaName ?? null,
+        long: kind.long, spare: !!kind.spare, areaName: kind.areaName ?? null, sectorName,
       };
       return { vehicle, meta };
     };
@@ -944,12 +1028,45 @@ serve(async (req) => {
     ): Promise<SolvedRoute[] | null> => {
       const vehicles: any[] = [];
       const meta: Record<number, VanDay> = {};
+
+      // Give each ordinary van one contiguous arc of compass sectors, balanced by
+      // the work in each, so every sector with work is covered by some van.
+      const ordinaryIdx = assignments
+        .map((a, i) => (!a.london && !a.long ? i : -1))
+        .filter((i) => i >= 0);
+      const sectorFor: Record<number, number[] | null> = {};
+      if (ordinaryIdx.length > 0) {
+        const counts = Array(8).fill(0);
+        for (const l of pool) { const s = legSector(l); if (s !== null) counts[s]++; }
+        const busy = counts.filter((c) => c > 0).length;
+        if (busy > 0) {
+          const arcs = sectorArcs(counts, Math.min(ordinaryIdx.length, busy))
+            .map((arc) => arc.filter((s, i, a) => counts[s] > 0 || (i > 0 && i < a.length - 1)))
+            .filter((arc) => arc.length > 0);
+          const jobsIn = (arc: number[]) => arc.reduce((n, s) => n + counts[s], 0);
+          const vansOn = arcs.map(() => 0);
+          ordinaryIdx.forEach((ai, k) => {
+            let pick = k;
+            if (k >= arcs.length) {
+              // extra vans go to the arc with the most work per van
+              pick = 0;
+              for (let j = 1; j < arcs.length; j++) {
+                if (jobsIn(arcs[j]) / (vansOn[j] + 1) > jobsIn(arcs[pick]) / (vansOn[pick] + 1)) pick = j;
+              }
+            }
+            vansOn[pick]++;
+            sectorFor[ai] = arcs[pick];
+          });
+        }
+      }
+
       assignments.forEach((a, idx) => {
         const built = buildVehicle(a.van, date, idx, {
           long: a.long,
           spare: a.spare,
           areaName: a.london ? (difficultAreas[londonAreaIdx]?.name ?? 'London') : null,
           london: a.london,
+          sectors: sectorFor[idx] ?? null,
         });
         vehicles.push(built.vehicle);
         meta[built.meta.vehicleId] = built.meta;
@@ -983,8 +1100,32 @@ serve(async (req) => {
         routes: (solution?.routes || []).length, unassigned: (solution?.unassigned || []).length,
         cost: Number(solution?.summary?.cost) || null,
       });
+      // Guaranteed work for today must never lose out to a pile of nearer jobs.
+      // If any was left out, solve again with every other job's importance
+      // scaled right down so the guaranteed job always wins its place.
+      const forcedIds = new Set(pool
+        .filter((l) => l.guaranteedDate === date || (!!l.forGuarantee && l.lastDate === date))
+        .map((l) => l.jobId));
+      const missedForced = (solution?.unassigned || []).filter((u: any) => forcedIds.has(Number(u.id)));
+      if (missedForced.length > 0) {
+        const scaled = jobs.map((j: any) => forcedIds.has(Number(j.id))
+          ? { ...j, priority: 100 }
+          : { ...j, priority: Math.max(1, Math.round((Number(j.priority) || 0) / 12)) });
+        try {
+          const retry = await postSolve({ vehicles, jobs: scaled, options: exploreOk ? { g: true, x: 5 } : { g: true } });
+          const stillMissed = (retry?.unassigned || []).filter((u: any) => forcedIds.has(Number(u.id))).length;
+          console.log('forced guaranteed re-solve', { date, missed: missedForced.length, still_missed: stillMissed });
+          if (stillMissed < missedForced.length) solution = retry;
+          for (const u of (solution?.unassigned || [])) {
+            if (forcedIds.has(Number(u.id))) forcedInfeasible.add(Number(u.id));
+          }
+        } catch (e) {
+          console.log('forced re-solve failed', (e as Error).message);
+        }
+      }
       return readSolution(solution, meta);
     };
+    const forcedInfeasible = new Set<number>();
 
     /* ---------------------------- the daily loop -------------------------- */
 
@@ -1035,6 +1176,9 @@ serve(async (req) => {
         return true;
       });
       dayDebug.pool = pool.length;
+      if (pool.length > dayVans.length * 3 * 17) {
+        dayDebug.capacity_note = `Only ${dayVans.length} van${dayVans.length === 1 ? '' : 's'} ticked for ${pool.length} jobs — guaranteed and last-date jobs may push others off.`;
+      }
       dayDebug.lapsed_in_pool = pool.filter((l) => l.lapsed).length;
 
       excludedLongArea[date] = [];
@@ -1265,7 +1409,7 @@ serve(async (req) => {
         miles: routeMiles(r.route),
         maxLoad: Math.round((maxLoadUnits / 10) * 100) / 100,
         geometry: typeof r.route.geometry === 'string' ? r.route.geometry : null,
-        region: r.meta.areaName,
+        region: r.meta.areaName ?? r.meta.sectorName ?? null,
         spreadMi: spreadMiles(ordered.map((s) => s.leg)),
         thin,
         belowFloor: ordered.length < floorCutoff,
@@ -1275,6 +1419,22 @@ serve(async (req) => {
         mustGoLabels: mustGoLabels.slice(0, 10),
       };
     });
+
+    /** Main compass direction of a route (null when it stays near the depot or in London). */
+    const mainSector = (p: any): number | null => {
+      if (p.meta.areaName) return null;
+      const counts = Array(8).fill(0);
+      for (const st of p.ordered) { const sc = legSector(st.leg); if (sc !== null) counts[sc]++; }
+      const max = Math.max(...counts);
+      return max > 0 ? counts.indexOf(max) : null;
+    };
+    const overlapWith = (p: any): string[] => {
+      const mine = mainSector(p);
+      if (mine === null) return [];
+      return prepared
+        .filter((o: any) => o !== p && o.meta.date === p.meta.date && mainSector(o) === mine)
+        .map((o: any) => o.meta.vanName);
+    };
 
     if (prepared.length > 0) {
       const { data: routeRows, error: routeErr } = await admin.from('route_plan_routes').insert(
@@ -1323,13 +1483,14 @@ serve(async (req) => {
           van_capacity: p.meta.capacity,
           geometry: p.geometry,
           region: p.region,
+          overlap_with: overlapWith(p),
           spread_mi: p.spreadMi,
           spread_warning: p.spreadMi > SPREAD_WARN_MI,
           thin: p.thin,
           below_floor: p.belowFloor,
           thin_reason: p.thinReason,
           urgent_labels: p.mustGoLabels,
-          guaranteed_count: p.ordered.filter((s) => !!s.leg.guaranteedDate).length,
+          guaranteed_count: p.ordered.filter((s) => !!s.leg.guaranteedDate || !!s.leg.forGuarantee).length,
           must_go_count: p.mustGoLabels.length,
           revenue: p.revenue,
           cost: p.cost,
@@ -1338,7 +1499,8 @@ serve(async (req) => {
             seq: i + 1, leg_type: s.leg.legType, order_id: s.leg.orderId,
             eta: isoFromEpoch(s.arrival), lat: s.leg.lat, lon: s.leg.lon,
             is_difficult_area: s.leg.areaIdx !== null, label: s.leg.label,
-            guaranteed: !!s.leg.guaranteedDate,
+            guaranteed: !!s.leg.guaranteedDate || !!s.leg.forGuarantee,
+            guaranteed_date: s.leg.guaranteedDate ?? s.leg.forGuarantee ?? null,
             must_go: s.leg.lapsed ? 'expired' : (s.leg.lastDate && s.leg.lastDate <= p.meta.date ? 'last_date' : null),
             last_date: s.leg.lastDate ?? (s.leg.allDates[s.leg.allDates.length - 1] ?? null),
           })),
@@ -1372,6 +1534,7 @@ serve(async (req) => {
         van_names: [...usedVans].map((id) => (vansForDate[date] ?? []).find((v) => v.id === id)?.name).filter(Boolean),
         spare_vans: Math.max(0, available - usedVans.size),
         is_provisional: false,
+        capacity_note: debug.days[date]?.capacity_note ?? null,
         shortfall: hint ? { extra_vans: 1, extra_jobs: hint.jobs, urgent: hint.must_go } : null,
         spare_van_hint: hint,
         variants: [{ variant: 'primary', routes: dayRoutes, tradeoff_note: null }],
@@ -1401,7 +1564,15 @@ serve(async (req) => {
         last_date: l.lastDate ?? (l.allDates[l.allDates.length - 1] ?? null),
         guaranteed_date: l.guaranteedDate,
         must_go: l.lapsed ? 'expired' : 'last_date',
-        reason: l.guaranteedDate ? 'Guaranteed date could not be met'
+        reason: l.guaranteedDate
+          ? (guaranteeBlocked.some((g) => g.orderId === l.orderId)
+            ? `Collection can't happen before the guaranteed date ${l.guaranteedDate}`
+            : 'Guaranteed date could not be met')
+          : l.forGuarantee ? (forcedInfeasible.has(l.jobId)
+            ? `Collection needed before the guaranteed date ${l.forGuarantee} — too far for any ticked van even when put first; add a van or book a courier`
+            : `Collection needed before the guaranteed date ${l.forGuarantee} — no van could fit it`)
+          : l.legType === 'delivery' && !l.inDepot && pastDueCollection[l.orderId]
+            ? `Not collected yet — collection booked for ${pastDueCollection[l.orderId]} isn't marked done`
           : excludedKeys.has(l.key) ? 'Needs a long day — another difficult area was chosen'
           : l.legType === 'delivery' && !l.inDepot ? 'Collection is planned in this run — can\'t deliver the same day'
           : l.lapsed ? 'Expired — too far from the other routes for any van to fit it'

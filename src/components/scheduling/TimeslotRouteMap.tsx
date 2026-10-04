@@ -2,6 +2,12 @@ import React, { useEffect, useMemo, useState } from "react";
 import * as Sentry from "@sentry/react";
 import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import L from "leaflet";
+import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
+import { OrderData } from "@/pages/JobScheduling";
+import { getLegContact } from "@/utils/niDelivery";
+import { isLegViableOnDate } from "./heatJobPoints";
 import { DEPOT_LOCATION } from "@/constants/depot";
 import { supabase } from "@/integrations/supabase/client";
 import { decodePolyline } from "@/services/routeGenerationService";
@@ -26,11 +32,33 @@ export interface TimeslotMapStop {
 interface TimeslotRouteMapProps {
   stops: TimeslotMapStop[];
   mobile?: boolean;
+  orders?: OrderData[];
+  routeDate?: Date;
+  onAddCandidate?: (order: OrderData, type: "pickup" | "delivery") => void;
 }
+
+const RADII = [2, 5, 10, 20];
+const milesBetween = (a: [number, number], b: [number, number]) => {
+  const r = (d: number) => (d * Math.PI) / 180;
+  const dLat = r(b[0] - a[0]);
+  const dLon = r(b[1] - a[1]);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a[0])) * Math.cos(r(b[0])) * Math.sin(dLon / 2) ** 2;
+  return 3958.8 * 2 * Math.asin(Math.sqrt(h));
+};
+const candidateIcon = (type: "pickup" | "delivery") =>
+  L.divIcon({
+    className: "",
+    html: `<div style="width:16px;height:16px;border-radius:${type === "pickup" ? "50%" : "3px"};background:hsl(var(${type === "pickup" ? "--primary" : "--destructive"}));opacity:.65;border:2px solid hsl(var(--background))"></div>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+    popupAnchor: [0, -10],
+  });
 
 const MAX_STOPS_PER_REQUEST = 20;
 
-const TimeslotRouteMap: React.FC<TimeslotRouteMapProps> = ({ stops, mobile = false }) => {
+const TimeslotRouteMap: React.FC<TimeslotRouteMapProps> = ({ stops, mobile = false, orders = [], routeDate, onAddCandidate }) => {
+  const [showNearby, setShowNearby] = useState(true);
+  const [radius, setRadius] = useState(5);
   const mappedStops = useMemo(
     () => stops.filter(
       (stop): stop is TimeslotMapStop & { lat: number; lon: number; type: "pickup" | "delivery" } =>
@@ -49,6 +77,27 @@ const TimeslotRouteMap: React.FC<TimeslotRouteMapProps> = ({ stops, mobile = fal
     ],
     [mappedStops],
   );
+
+  const candidates = useMemo(() => {
+    if (!showNearby || !routeDate || !onAddCandidate) return [];
+    const onRoute = new Set(stops.map((s) => `${s.orderId}-${s.type}`));
+    const out: { order: OrderData; type: "pickup" | "delivery"; lat: number; lon: number; miles: number; name: string; address: string }[] = [];
+    for (const order of orders) {
+      for (const type of ["pickup", "delivery"] as const) {
+        if (onRoute.has(`${order.id}-${type}`)) continue;
+        if (!isLegViableOnDate(order, type === "pickup" ? "collection" : "delivery", routeDate)) continue;
+        const c: any = getLegContact(order, type);
+        const lat = c?.lat ?? c?.address?.lat;
+        const lon = c?.lon ?? c?.address?.lon;
+        if (typeof lat !== "number" || typeof lon !== "number") continue;
+        const miles = Math.min(...points.map((p) => milesBetween(p, [lat, lon])));
+        if (miles > radius) continue;
+        const a = c?.address || {};
+        out.push({ order, type, lat, lon, miles, name: c?.name || "", address: [a.street, a.city, a.zipCode].filter(Boolean).join(", ") });
+      }
+    }
+    return out;
+  }, [showNearby, routeDate, onAddCandidate, stops, orders, points, radius]);
 
   useEffect(() => {
     let active = true;
@@ -114,6 +163,23 @@ const TimeslotRouteMap: React.FC<TimeslotRouteMapProps> = ({ stops, mobile = fal
   }
 
   return (
+    <div className="space-y-2">
+    {onAddCandidate && (
+      <div className="flex flex-wrap items-center gap-3 text-xs">
+        <label className="flex items-center gap-2">
+          <Switch checked={showNearby} onCheckedChange={setShowNearby} />
+          Show nearby jobs that could go on this route
+        </label>
+        {showNearby && (
+          <>
+            <select className="rounded border bg-background px-1 py-0.5" value={radius} onChange={(e) => setRadius(Number(e.target.value))}>
+              {RADII.map((r) => <option key={r} value={r}>within {r} miles</option>)}
+            </select>
+            <span className="text-muted-foreground">{candidates.length} nearby · ● collection ■ delivery</span>
+          </>
+        )}
+      </div>
+    )}
     <div className={`relative w-full overflow-hidden rounded-md border bg-muted ${mobile ? "h-64" : "h-[420px]"}`}>
       <MapContainer
         center={[DEPOT_LOCATION.lat, DEPOT_LOCATION.lon]}
@@ -152,12 +218,26 @@ const TimeslotRouteMap: React.FC<TimeslotRouteMapProps> = ({ stops, mobile = fal
             </Popup>
           </Marker>
         ))}
+        {candidates.map((c) => (
+          <Marker key={`cand-${c.order.id}-${c.type}`} position={[c.lat, c.lon]} icon={candidateIcon(c.type)}>
+            <Popup>
+              <div className="min-w-40 space-y-1 text-xs">
+                <p className="font-semibold">{c.name}</p>
+                <p>{c.type === "pickup" ? "Collection" : "Delivery"} · {c.miles.toFixed(1)} miles from route</p>
+                <p>{c.address}</p>
+                {c.order.tracking_number && <p>Order: {c.order.tracking_number}</p>}
+                <Button size="sm" className="h-7 w-full" onClick={() => onAddCandidate?.(c.order, c.type)}>Add to route</Button>
+              </div>
+            </Popup>
+          </Marker>
+        ))}
       </MapContainer>
       {(isLoading || pathUnavailable) && (
         <div className="pointer-events-none absolute left-2 top-2 z-[500] rounded border bg-card px-2 py-1 text-xs text-card-foreground shadow-sm">
           {isLoading ? "Loading road route…" : "Road line unavailable — showing stops"}
         </div>
       )}
+    </div>
     </div>
   );
 };
