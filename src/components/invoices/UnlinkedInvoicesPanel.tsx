@@ -79,6 +79,27 @@ const UnlinkedInvoicesPanel = ({ onChanged }: { onChanged: () => void }) => {
     },
   });
 
+  // Website (Shopify) orders are paid at checkout, so they never need an invoice — show how many were excluded
+  const { data: shopifyCount = 0 } = useQuery({
+    queryKey: ["shopify-excluded-orders-count"],
+    queryFn: async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", "shopify@cyclecourierco.com")
+        .maybeSingle();
+      if (!profile?.id) return 0;
+      const { count, error } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", profile.id)
+        .eq("order_delivered", true);
+      if (error) return 0;
+      return count ?? 0;
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
   const customers = useMemo(
     () => Array.from(new Set(orders.map((o) => o.customer_name || "Unknown"))).sort(),
     [orders]
