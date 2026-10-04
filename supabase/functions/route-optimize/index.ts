@@ -1100,8 +1100,32 @@ serve(async (req) => {
         routes: (solution?.routes || []).length, unassigned: (solution?.unassigned || []).length,
         cost: Number(solution?.summary?.cost) || null,
       });
+      // Guaranteed work for today must never lose out to a pile of nearer jobs.
+      // If any was left out, solve again with every other job's importance
+      // scaled right down so the guaranteed job always wins its place.
+      const forcedIds = new Set(pool
+        .filter((l) => l.guaranteedDate === date || (!!l.forGuarantee && l.lastDate === date))
+        .map((l) => l.jobId));
+      const missedForced = (solution?.unassigned || []).filter((u: any) => forcedIds.has(Number(u.id)));
+      if (missedForced.length > 0) {
+        const scaled = jobs.map((j: any) => forcedIds.has(Number(j.id))
+          ? { ...j, priority: 100 }
+          : { ...j, priority: Math.max(1, Math.round((Number(j.priority) || 0) / 12)) });
+        try {
+          const retry = await postSolve({ vehicles, jobs: scaled, options: exploreOk ? { g: true, x: 5 } : { g: true } });
+          const stillMissed = (retry?.unassigned || []).filter((u: any) => forcedIds.has(Number(u.id))).length;
+          console.log('forced guaranteed re-solve', { date, missed: missedForced.length, still_missed: stillMissed });
+          if (stillMissed < missedForced.length) solution = retry;
+          for (const u of (solution?.unassigned || [])) {
+            if (forcedIds.has(Number(u.id))) forcedInfeasible.add(Number(u.id));
+          }
+        } catch (e) {
+          console.log('forced re-solve failed', (e as Error).message);
+        }
+      }
       return readSolution(solution, meta);
     };
+    const forcedInfeasible = new Set<number>();
 
     /* ---------------------------- the daily loop -------------------------- */
 
@@ -1540,7 +1564,9 @@ serve(async (req) => {
           ? (guaranteeBlocked.some((g) => g.orderId === l.orderId)
             ? `Collection can't happen before the guaranteed date ${l.guaranteedDate}`
             : 'Guaranteed date could not be met')
-          : l.forGuarantee ? `Collection needed before the guaranteed date ${l.forGuarantee} — no van could fit it`
+          : l.forGuarantee ? (forcedInfeasible.has(l.jobId)
+            ? `Collection needed before the guaranteed date ${l.forGuarantee} — too far for any ticked van even when put first; add a van or book a courier`
+            : `Collection needed before the guaranteed date ${l.forGuarantee} — no van could fit it`)
           : l.legType === 'delivery' && !l.inDepot && pastDueCollection[l.orderId]
             ? `Not collected yet — collection booked for ${pastDueCollection[l.orderId]} isn't marked done`
           : excludedKeys.has(l.key) ? 'Needs a long day — another difficult area was chosen'
