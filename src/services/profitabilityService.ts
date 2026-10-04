@@ -321,7 +321,21 @@ const loadInvoiceAmounts = async (orderIds: string[]) => {
   }
 };
 
-export interface RevenueSourceStats { invoiced: number; estimated: number; estimatedJobs: number; invoicedJobs: number; }
+export interface RevenueSourceStats { invoiced: number; estimated: number; estimatedJobs: number; invoicedJobs: number; shopify: number; shopifyJobs: number; }
+
+// Orders booked through the website account are paid at checkout, so they never
+// need a QuickBooks invoice. Track their revenue separately from "estimated".
+let shopifyUserIdCache: string | null | undefined;
+export const getShopifyUserId = async (): Promise<string | null> => {
+  if (shopifyUserIdCache !== undefined) return shopifyUserIdCache;
+  const { data } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('email', 'shopify@cyclecourierco.com')
+    .maybeSingle();
+  shopifyUserIdCache = data?.id ?? null;
+  return shopifyUserIdCache;
+};
 
 // Clear the cache (call at start of a new profitability calculation batch)
 export const clearSpecialRatePriceCache = () => {
@@ -422,6 +436,7 @@ export const getRevenueForTimeslip = async (timeslip: Timeslip, stats?: RevenueS
 
   let totalRevenue = 0;
   await loadInvoiceAmounts(uniqueOrders.map(o => o.id));
+  const shopifyId = stats ? await getShopifyUserId() : null;
 
   for (const order of uniqueOrders) {
     // Count each leg this driver did on this date (collection and delivery both count)
@@ -442,7 +457,13 @@ export const getRevenueForTimeslip = async (timeslip: Timeslip, stats?: RevenueS
     }
     const value = ((await estimateOrderNet(order, date)) / 2) * legs;
     totalRevenue += value;
-    if (stats) { stats.estimated += value; stats.estimatedJobs += 1; }
+    if (stats) {
+      if (shopifyId && order.user_id === shopifyId) {
+        stats.shopify += value; stats.shopifyJobs += 1;
+      } else {
+        stats.estimated += value; stats.estimatedJobs += 1;
+      }
+    }
   }
 
   return totalRevenue;
@@ -759,6 +780,8 @@ export interface MonthlyReconciliationRow {
   invoicedOnPage: number;
   estimatedOnPage: number;
   estimatedJobs: number;
+  shopifyOnPage: number;
+  shopifyJobs: number;
   invoicedTransport: number;
 }
 
@@ -769,17 +792,19 @@ export const getMonthlyReconciliation = async (year: number): Promise<MonthlyRec
   const timeslips = await fetchApprovedTimeslips(start, end);
   const rows = new Map<string, MonthlyReconciliationRow>();
   const row = (m: string) => {
-    if (!rows.has(m)) rows.set(m, { month: m, pageRevenue: 0, invoicedOnPage: 0, estimatedOnPage: 0, estimatedJobs: 0, invoicedTransport: 0 });
+    if (!rows.has(m)) rows.set(m, { month: m, pageRevenue: 0, invoicedOnPage: 0, estimatedOnPage: 0, estimatedJobs: 0, shopifyOnPage: 0, shopifyJobs: 0, invoicedTransport: 0 });
     return rows.get(m)!;
   };
   for (const ts of timeslips) {
-    const stats: RevenueSourceStats = { invoiced: 0, estimated: 0, estimatedJobs: 0, invoicedJobs: 0 };
+    const stats: RevenueSourceStats = { invoiced: 0, estimated: 0, estimatedJobs: 0, invoicedJobs: 0, shopify: 0, shopifyJobs: 0 };
     const rev = await getRevenueForTimeslip(ts, stats);
     const r = row(ts.date.slice(0, 7));
     r.pageRevenue += rev;
     r.invoicedOnPage += stats.invoiced;
     r.estimatedOnPage += stats.estimated;
     r.estimatedJobs += stats.estimatedJobs;
+    r.shopifyOnPage += stats.shopify;
+    r.shopifyJobs += stats.shopifyJobs;
   }
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase

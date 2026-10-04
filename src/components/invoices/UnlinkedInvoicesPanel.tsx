@@ -79,6 +79,27 @@ const UnlinkedInvoicesPanel = ({ onChanged }: { onChanged: () => void }) => {
     },
   });
 
+  // Website (Shopify) orders are paid at checkout, so they never need an invoice — show how many were excluded
+  const { data: shopifyCount = 0 } = useQuery({
+    queryKey: ["shopify-excluded-orders-count"],
+    queryFn: async () => {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("email", "shopify@cyclecourierco.com")
+        .maybeSingle();
+      if (!profile?.id) return 0;
+      const { count, error } = await supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", profile.id)
+        .eq("order_delivered", true);
+      if (error) return 0;
+      return count ?? 0;
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
   const customers = useMemo(
     () => Array.from(new Set(orders.map((o) => o.customer_name || "Unknown"))).sort(),
     [orders]
@@ -147,7 +168,14 @@ const UnlinkedInvoicesPanel = ({ onChanged }: { onChanged: () => void }) => {
       <CardHeader className="flex flex-row items-start justify-between gap-2 space-y-0">
         <div>
           <CardTitle>Jobs with no linked invoice</CardTitle>
-          <CardDescription>Link jobs to a QuickBooks invoice by its number, or mark them as not to be invoiced.</CardDescription>
+          <CardDescription>
+            Link jobs to a QuickBooks invoice by its number, or mark them as not to be invoiced.
+            {shopifyCount > 0 && (
+              <span className="block mt-1">
+                {shopifyCount.toLocaleString("en-GB")} website orders excluded — paid online at checkout, no invoice needed.
+              </span>
+            )}
+          </CardDescription>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowUnmatched((v) => !v)}>
