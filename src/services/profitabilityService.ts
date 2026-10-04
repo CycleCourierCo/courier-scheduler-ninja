@@ -49,19 +49,39 @@ export interface MonthlyProfitabilityData {
   profit: number;
 }
 
-export const getTimeslipsForDate = async (date: string): Promise<Timeslip[]> => {
-  const { data, error } = await supabase
-    .from('timeslips')
-    .select(`
-      *,
-      driver:profiles!timeslips_driver_id_fkey(*)
-    `)
-    .eq('date', date)
-    .order('driver_id');
-
-  if (error) throw error;
-  return (data as unknown as Timeslip[]) || [];
+// Only approved timeslips count towards profitability; drafts lack final mileage/pay.
+const fetchApprovedTimeslips = async (startDate: string, endDate: string): Promise<Timeslip[]> => {
+  const PAGE = 1000;
+  const all: Timeslip[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('timeslips')
+      .select(`*, driver:profiles!timeslips_driver_id_fkey(*)`)
+      .eq('status', 'approved')
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    all.push(...((data as unknown as Timeslip[]) || []));
+    if (!data || data.length < PAGE) break;
+  }
+  return all;
 };
+
+export const getDraftTimeslipCount = async (startDate: string, endDate: string): Promise<number> => {
+  const { count, error } = await supabase
+    .from('timeslips')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'draft')
+    .gte('date', startDate)
+    .lte('date', endDate);
+  if (error) throw error;
+  return count || 0;
+};
+
+export const getTimeslipsForDate = async (date: string): Promise<Timeslip[]> => fetchApprovedTimeslips(date, date);
 
 export const updateTimeslipMileage = async (id: string, mileage: number): Promise<void> => {
   const { error } = await supabase
@@ -80,24 +100,8 @@ export const getCurrentWeekRange = () => {
   return { monday, sunday };
 };
 
-export const getTimeslipsForWeek = async (startDate: string, endDate: string): Promise<Timeslip[]> => {
-  const { data, error } = await supabase
-    .from('timeslips')
-    .select(`
-      *,
-      driver:profiles!timeslips_driver_id_fkey(*)
-    `)
-    .gte('date', startDate)
-    .lte('date', endDate)
-    .order('date', { ascending: true });
-
-  if (error) {
-    console.error('Error fetching week timeslips:', error);
-    throw error;
-  }
-
-  return (data as unknown as Timeslip[]) || [];
-};
+export const getTimeslipsForWeek = async (startDate: string, endDate: string): Promise<Timeslip[]> =>
+  fetchApprovedTimeslips(startDate, endDate);
 
 // Calculate total jobs from order IDs (for historic timeslips without total_jobs)
 export const calculateTotalJobsFromOrders = async (orderIds: string[]): Promise<number> => {
@@ -362,13 +366,21 @@ export const getRevenueForTimeslip = async (timeslip: Timeslip): Promise<number>
   let totalRevenue = 0;
 
   for (const order of uniqueOrders) {
+    // Count each leg this driver did on this date (collection and delivery both count)
+    const col = order.collection_driver_name?.trim();
+    const del = order.delivery_driver_name?.trim();
+    const pDate = String(order.scheduled_pickup_date || '').slice(0, 10);
+    const dDate = String(order.scheduled_delivery_date || '').slice(0, 10);
+    const legs = Math.max(1,
+      (col && nameVariants.has(col) && pDate === date ? 1 : 0) +
+      (del && nameVariants.has(del) && dDate === date ? 1 : 0));
     // Check if the customer has a special rate price
     const specialRate = await getSpecialRatePrice(order.user_id);
 
     if (specialRate !== null) {
       // Special rate is per delivery (full price), halved for per-stop
       const qty = order.bike_quantity || 1;
-      totalRevenue += (specialRate / 2) * qty;
+      totalRevenue += (specialRate / 2) * qty * legs;
       continue;
     }
 
@@ -379,12 +391,12 @@ export const getRevenueForTimeslip = async (timeslip: Timeslip): Promise<number>
       for (const bike of bikesArray) {
         const qty = bike.quantity || 1;
         const revenuePerStop = getRevenuePerStopForBikeType(bike.bike_type || order.bike_type);
-        totalRevenue += revenuePerStop * qty;
+        totalRevenue += revenuePerStop * qty * legs;
       }
     } else {
       const qty = order.bike_quantity || 1;
       const revenuePerStop = getRevenuePerStopForBikeType(order.bike_type);
-      totalRevenue += revenuePerStop * qty;
+      totalRevenue += revenuePerStop * qty * legs;
     }
   }
 
@@ -505,53 +517,13 @@ export const calculateDailyProfitability = async (
 // Get timeslips for an entire month
 export const getTimeslipsForMonth = async (year: number, month: number): Promise<Timeslip[]> => {
   const monthStart = startOfMonth(new Date(year, month));
-  const monthEnd = endOfMonth(monthStart);
-  
-  const startString = format(monthStart, 'yyyy-MM-dd');
-  const endString = format(monthEnd, 'yyyy-MM-dd');
-
-  const { data, error } = await supabase
-    .from('timeslips')
-    .select(`
-      *,
-      driver:profiles!timeslips_driver_id_fkey(*)
-    `)
-    .gte('date', startString)
-    .lte('date', endString)
-    .order('date', { ascending: true });
-
-  if (error) {
-    console.error('Error fetching month timeslips:', error);
-    throw error;
-  }
-
-  return (data as unknown as Timeslip[]) || [];
+  return fetchApprovedTimeslips(format(monthStart, 'yyyy-MM-dd'), format(endOfMonth(monthStart), 'yyyy-MM-dd'));
 };
 
 // Get timeslips for an entire year
 export const getTimeslipsForYear = async (year: number): Promise<Timeslip[]> => {
   const yearStart = startOfYear(new Date(year, 0));
-  const yearEnd = endOfYear(yearStart);
-  
-  const startString = format(yearStart, 'yyyy-MM-dd');
-  const endString = format(yearEnd, 'yyyy-MM-dd');
-
-  const { data, error } = await supabase
-    .from('timeslips')
-    .select(`
-      *,
-      driver:profiles!timeslips_driver_id_fkey(*)
-    `)
-    .gte('date', startString)
-    .lte('date', endString)
-    .order('date', { ascending: true });
-
-  if (error) {
-    console.error('Error fetching year timeslips:', error);
-    throw error;
-  }
-
-  return (data as unknown as Timeslip[]) || [];
+  return fetchApprovedTimeslips(format(yearStart, 'yyyy-MM-dd'), format(endOfYear(yearStart), 'yyyy-MM-dd'));
 };
 
 // Calculate weekly profitability for a month (returns 4-5 weeks)
@@ -690,6 +662,10 @@ export interface UnitEconomicsMetrics {
   costPerDriverDay: number;
   profitPerDriverDay: number;
   revenuePerHour: number;
+  revenuePerJob: number;
+  costPerJob: number;
+  profitPerJob: number;
+  totalJobs: number;
   totalStops: number;
   totalMiles: number;
   totalHours: number;
@@ -703,6 +679,7 @@ export const calculateUnitEconomics = (
   totalProfit: number
 ): UnitEconomicsMetrics => {
   const totalStops = timeslips.reduce((sum, ts) => sum + (ts.total_stops || 0), 0);
+  const totalJobs = timeslips.reduce((sum, ts) => sum + (ts.total_jobs ?? ts.total_stops ?? 0), 0);
   const totalMiles = timeslips.reduce((sum, ts) => sum + (ts.mileage || 0), 0);
   const totalHours = timeslips.reduce((sum, ts) => sum + (ts.total_hours || 0), 0);
   const driverDays = timeslips.length;
@@ -720,6 +697,10 @@ export const calculateUnitEconomics = (
     costPerDriverDay: safe(totalCosts, driverDays),
     profitPerDriverDay: safe(totalProfit, driverDays),
     revenuePerHour: safe(totalRevenue, totalHours),
+    revenuePerJob: safe(totalRevenue, totalJobs),
+    costPerJob: safe(totalCosts, totalJobs),
+    profitPerJob: safe(totalProfit, totalJobs),
+    totalJobs,
     totalStops,
     totalMiles,
     totalHours,

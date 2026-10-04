@@ -19,6 +19,8 @@ interface UnitEconomicsCardProps {
   weekData: PeriodData;
   monthData: PeriodData;
   yearData: PeriodData;
+  costPerMileRate?: number;
+  draftCount?: number;
 }
 
 const MetricCell = ({ label, value, prefix = "£", colored = false }: {
@@ -43,17 +45,31 @@ const MetricsGrid = ({ metrics }: { metrics: UnitEconomicsMetrics }) => (
   <div className="space-y-4">
     {/* Summary context */}
     <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-      <span>{metrics.totalStops} stops</span>
+      <span>{metrics.totalJobs} jobs</span>
+      <span>{metrics.totalStops} stops (addresses)</span>
       <span>{metrics.totalMiles.toFixed(0)} miles</span>
       <span>{metrics.driverDays} driver-days</span>
       <span>{metrics.totalHours.toFixed(1)} hours</span>
+    </div>
+
+    {/* Per Job */}
+    <div>
+      <div className="flex items-center gap-1.5 mb-2">
+        <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
+        <h4 className="text-sm font-medium text-muted-foreground">Per Job</h4>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <MetricCell label="Revenue" value={metrics.revenuePerJob} />
+        <MetricCell label="Cost" value={metrics.costPerJob} />
+        <MetricCell label="Profit" value={metrics.profitPerJob} colored />
+      </div>
     </div>
 
     {/* Per Stop */}
     <div>
       <div className="flex items-center gap-1.5 mb-2">
         <BarChart3 className="h-3.5 w-3.5 text-muted-foreground" />
-        <h4 className="text-sm font-medium text-muted-foreground">Per Stop</h4>
+        <h4 className="text-sm font-medium text-muted-foreground">Per Stop (address visited)</h4>
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
         <MetricCell label="Revenue" value={metrics.revenuePerStop} />
@@ -101,7 +117,7 @@ const MetricsGrid = ({ metrics }: { metrics: UnitEconomicsMetrics }) => (
   </div>
 );
 
-const UnitEconomicsCard = ({ dayData, weekData, monthData, yearData }: UnitEconomicsCardProps) => {
+const UnitEconomicsCard = ({ dayData, weekData, monthData, yearData, costPerMileRate, draftCount }: UnitEconomicsCardProps) => {
   const [tab, setTab] = useState("week");
 
   const periods = useMemo(() => ({
@@ -132,6 +148,14 @@ const UnitEconomicsCard = ({ dayData, weekData, monthData, yearData }: UnitEcono
           <TabsContent value="month"><MetricsGrid metrics={periods.month} /></TabsContent>
           <TabsContent value="year"><MetricsGrid metrics={periods.year} /></TabsContent>
         </Tabs>
+        <div className="mt-4 space-y-1 text-xs text-muted-foreground">
+          {!!draftCount && (
+            <p>{draftCount} draft timeslip{draftCount === 1 ? "" : "s"} this year not included until approved.</p>
+          )}
+          <p>
+            Costs = driver pay + mileage{typeof costPerMileRate === "number" ? ` at £${costPerMileRate.toFixed(2)}/mile` : ""}. Van, insurance and overheads not included.
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
