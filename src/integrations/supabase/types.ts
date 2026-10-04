@@ -6856,6 +6856,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      invoice_check_cutoff: { Args: never; Returns: string }
       invoke_backfill_shipday_jobs: { Args: never; Returns: undefined }
       invoke_cs_resend_fetch: { Args: never; Returns: undefined }
       invoke_expire_availability: { Args: never; Returns: undefined }
