@@ -4370,6 +4370,15 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                     <MessageSquare className="h-4 w-4 mr-2" />
                     Bulk Message
                   </Button>
+                  <Button
+                    onClick={handleAddRouteJobsToShipday}
+                    size="sm"
+                    variant="outline"
+                    disabled={isLoadingShipday || isVerifyingShipday || routeJobsMissingShipday.length === 0}
+                  >
+                    {isLoadingShipday ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+                    Add all to Shipday ({routeJobsMissingShipday.length})
+                  </Button>
                 </div>
                 {renderCleanBar(false)}
                 {isCalculating && (
