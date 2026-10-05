@@ -1,6 +1,24 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Timeslip, JobLocation, CustomAddon } from "@/types/timeslip";
 
+const PAGE_SIZE = 1000;
+
+// Fetch all rows from a query builder by paging with .range() — Supabase caps
+// a single request at 1,000 rows, so unpaginated queries silently truncate.
+async function fetchAllPages<T>(buildQuery: (from: number, to: number) => any): Promise<T[]> {
+  const all: T[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await buildQuery(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    const rows = (data || []) as T[];
+    all.push(...rows);
+    if (rows.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return all;
+}
+
 export const timeslipService = {
   // Get all timeslips (admin only)
   async getAllTimeslips(filters?: {
@@ -11,38 +29,42 @@ export const timeslipService = {
     noMileage?: boolean;
     noVehicle?: boolean;
   }) {
-    let query = supabase
-      .from('timeslips')
-      .select('*, driver:profiles!timeslips_driver_id_fkey(*), vehicle:vehicles(id, registration, make)')
-      .order('date', { ascending: false });
-    
-    if (filters?.status) {
-      query = query.eq('status', filters.status);
-    }
-    
-    if (filters?.driverId) {
-      query = query.eq('driver_id', filters.driverId);
-    }
-    
-    if (filters?.dateFrom) {
-      query = query.gte('date', filters.dateFrom);
-    }
-    
-    if (filters?.dateTo) {
-      query = query.lte('date', filters.dateTo);
-    }
+    const buildQuery = (from: number, to: number) => {
+      let query = supabase
+        .from('timeslips')
+        .select('*, driver:profiles!timeslips_driver_id_fkey(*), vehicle:vehicles(id, registration, make)')
+        .order('date', { ascending: false })
+        .range(from, to);
 
-    if (filters?.noMileage) {
-      query = query.or('mileage.is.null,mileage.eq.0');
-    }
+      if (filters?.status) {
+        query = query.eq('status', filters.status);
+      }
 
-    if (filters?.noVehicle) {
-      query = query.is('vehicle_id', null);
-    }
-    
-    const { data, error } = await query;
-    if (error) throw error;
-    return (data || []).map(item => ({
+      if (filters?.driverId) {
+        query = query.eq('driver_id', filters.driverId);
+      }
+
+      if (filters?.dateFrom) {
+        query = query.gte('date', filters.dateFrom);
+      }
+
+      if (filters?.dateTo) {
+        query = query.lte('date', filters.dateTo);
+      }
+
+      if (filters?.noMileage) {
+        query = query.or('mileage.is.null,mileage.eq.0');
+      }
+
+      if (filters?.noVehicle) {
+        query = query.is('vehicle_id', null);
+      }
+
+      return query;
+    };
+
+    const data = await fetchAllPages<any>(buildQuery);
+    return data.map(item => ({
       ...item,
       job_locations: (item.job_locations as any as JobLocation[]) || [],
       custom_addons: (item.custom_addons as any as CustomAddon[]) || []
@@ -51,15 +73,17 @@ export const timeslipService = {
 
   // Get driver's approved timeslips
   async getDriverTimeslips(driverId: string) {
-    const { data, error } = await supabase
-      .from('timeslips')
-      .select('*, driver:profiles!timeslips_driver_id_fkey(*)')
-      .eq('driver_id', driverId)
-      .eq('status', 'approved')
-      .order('date', { ascending: false });
-    
-    if (error) throw error;
-    return (data || []).map(item => ({
+    const data = await fetchAllPages<any>((from, to) =>
+      supabase
+        .from('timeslips')
+        .select('*, driver:profiles!timeslips_driver_id_fkey(*)')
+        .eq('driver_id', driverId)
+        .eq('status', 'approved')
+        .order('date', { ascending: false })
+        .range(from, to)
+    );
+
+    return data.map(item => ({
       ...item,
       job_locations: (item.job_locations as any as JobLocation[]) || [],
       custom_addons: (item.custom_addons as any as CustomAddon[]) || []
