@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -3515,6 +3516,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   };
 
   const [isLoadingShipday, setIsLoadingShipday] = useState(false);
+  const [pendingShipdayPush, setPendingShipdayPush] = useState<{ count: number; run: () => Promise<void> } | null>(null);
 
   const missingVisibleShipdayJobs = availableJobs.filter(
     (job): job is typeof job & { type: 'pickup' | 'delivery' } =>
@@ -3604,11 +3606,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     };
 
     if (jobsToAdd.length > 20) {
-      notify.confirm({
-        title: `Add ${jobsToAdd.length} route jobs to Shipday?`,
-        confirmLabel: 'Add all',
-        onConfirm: doPush,
-      });
+      setPendingShipdayPush({ count: jobsToAdd.length, run: doPush });
       return;
     }
 
@@ -3719,6 +3717,18 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   return (
     <TooltipProvider>
       <div className="space-y-6">
+      <AlertDialog open={!!pendingShipdayPush} onOpenChange={(o) => { if (!o) setPendingShipdayPush(null); }}>
+        <AlertDialogContent className="z-[200]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Add {pendingShipdayPush?.count} route jobs to Shipday?</AlertDialogTitle>
+            <AlertDialogDescription>Each job not already on Shipday will be added one by one.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { const p = pendingShipdayPush; setPendingShipdayPush(null); void p?.run(); }}>Add all</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <GuaranteedDatePanel
         orders={orderList}
         selectedKeys={new Set(selectedJobs.map(j => `${j.orderId}-${j.type}`))}
