@@ -483,12 +483,14 @@ async function sendEmail(
     const bikeBrand = order.bike_brand || "bike";
     const bikeModel = order.bike_model || "";
 
-    emailSubject = `Your ${bikeBrand} ${isCollection ? "collection" : "delivery"} has been scheduled - ${order.tracking_number || ""}`;
+    const orderNo = order.customer_order_number ? String(order.customer_order_number) : "";
+    emailSubject = `Your ${bikeBrand} ${isCollection ? "collection" : "delivery"} has been scheduled - ${order.tracking_number || ""}${orderNo ? ` (Order #: ${orderNo})` : ""}`;
 
     emailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
         <h2>Dear ${contact.name || "Customer"},</h2>
         <p>Your <strong>${bikeBrand} ${bikeModel}</strong> ${isCollection ? "Collection" : "Delivery"} has been scheduled for:</p>
+        ${orderNo ? `<p>Order #: <strong>${orderNo}</strong></p>` : ""}
         <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
           <p style="margin: 0; font-size: 18px;"><strong>${formattedDate}</strong></p>
           <p style="margin: 5px 0; font-size: 16px;">Between <strong>${startTime}</strong> and <strong>${endTime}</strong></p>
@@ -660,7 +662,7 @@ serve(async (req: Request): Promise<Response> => {
       const startTime = deliveryTime;
       const endTime = calculateEndTime(deliveryTime);
       const bikeBrand = order.bike_brand || "bike";
-      const bikeModel = order.bike_model || "";
+      const bikeModel = `${order.bike_model || ""}${order.customer_order_number ? ` (Order #: ${order.customer_order_number})` : ""}`.trim();
       const trackingUrl = order.tracking_number
         ? `https://cyclecourierco.com/tracking/${order.tracking_number}`
         : "https://cyclecourierco.com";
