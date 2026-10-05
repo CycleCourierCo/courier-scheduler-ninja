@@ -341,6 +341,18 @@ const handler = async (req: Request): Promise<Response> => {
         }
       }
 
+      // Never overwrite an approved timeslip
+      const { data: existingSlip } = await supabaseClient
+        .from('timeslips')
+        .select('id, status')
+        .eq('driver_id', driver.id)
+        .eq('date', date)
+        .maybeSingle();
+      if (existingSlip?.status === 'approved') {
+        warnings.push(`Skipped ${driverName}: timeslip already approved`);
+        continue;
+      }
+
       // Create or update timeslip (upsert on driver_id, date)
       const { data: timeslip, error: timeslipError } = await supabaseClient
         .from('timeslips')
