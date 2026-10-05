@@ -3446,10 +3446,18 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const availableJobs = getJobsFromOrders();
   const totalUnfilteredJobs = getJobsFromOrders(false).length;
   const hasActiveFilters = filterDate || showCollectedOnly || showCollectionToday || showExpiredDatesOnly;
-  const visibleShipdayIds = [...new Set(availableJobs.flatMap(job => {
-    const id = job.type === 'pickup' ? job.order.shipday_pickup_id : job.order.shipday_delivery_id;
-    return id ? [id] : [];
-  }))];
+  const visibleShipdayIds = [...new Set([
+    ...availableJobs.flatMap(job => {
+      const id = job.type === 'pickup' ? job.order.shipday_pickup_id : job.order.shipday_delivery_id;
+      return id ? [id] : [];
+    }),
+    // Also check jobs on the current route, even if they aren't in the visible list
+    ...selectedJobs.flatMap(j => {
+      if (!j.orderData || (j.type !== 'pickup' && j.type !== 'delivery')) return [];
+      const id = j.type === 'pickup' ? j.orderData.shipday_pickup_id : j.orderData.shipday_delivery_id;
+      return id ? [id] : [];
+    }),
+  ])];
   const visibleShipdaySignature = visibleShipdayIds.slice().sort().join('|');
 
   React.useEffect(() => {
@@ -3561,7 +3569,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       j.type !== 'break' &&
       !!j.orderData &&
       (j.type === 'pickup' || j.type === 'delivery') &&
-      !['verified', 'pending'].includes(getShipdayStatus(j.orderData, j.type))
+      getShipdayStatus(j.orderData, j.type) !== 'verified' &&
+      // Only skip unchecked jobs while a check is still running
+      !(isVerifyingShipday && getShipdayStatus(j.orderData, j.type) === 'pending')
   );
 
   const handleAddRouteJobsToShipday = async () => {
