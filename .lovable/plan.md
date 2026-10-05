@@ -1,134 +1,141 @@
-# Privacy audit of the Cycle Courier Co app (no code changed)
+# Audit 2: what the business-client data agreement needs to cover (no code changed)
 
-The findings come from reading the code and checking the live database. Anything marked **[confirm]** couldn't be proved from the code alone. This is not legal advice.
+This builds on audit 1. The findings come from the code and the live database. **[CONFIRM]** means the code can't prove it. This is not legal advice.
 
-## 1. Personal data held
+## A. Controller or processor, by activity
 
-| Data | Where it's kept | Who sees it | Deleted? |
+| Activity | Role | Why |
+|---|---|---|
+| Collection/delivery, route planning, proof of delivery | Processor | The client orders the job; we use their customer's details only to do it |
+| Timeslot WhatsApps/emails | Processor (probably) | Part of carrying out the job. Sent in our name with our wording, so put it in the agreement as an instruction |
+| SMS | n/a | The app doesn't send SMS. Shipday may text tracking links [CONFIRM] |
+| **Review request WhatsApps** | **Independent controller** | Staff send them by hand to the sender or receiver, for our own benefit. No opt-out and no business-client check in the code |
+| Customer service (inbound WhatsApp/email) | Mixed | Questions about the job: processor. Complaints about us: controller |
+| **Address book saving** | Processor, but needs saying | Every order saves sender and receiver into the *booking account's* own address book (`orders` function, around lines 597-640). This is the client's data, but the agreement should state it |
+| **Analytics (PostHog/Sentry)** | **Controller** | Our own product analytics. Customers who open the tracking page are tracked |
+| Inspection/repair offers | Mixed or joint | Staff choose who gets the offer: the booking account, the sender or the receiver (default: receiver). Offering paid repairs to the client's customer is our own commercial activity unless the client tells us to |
+| Claims | Controller | Our liability and our insurance |
+| Customer webhooks | Processor | The client's own data sent to the client's own address |
+| Fraud/security (postcode checks, IP logs) | Controller | Our own legitimate interest |
+| Retention and backups | Controller in practice | We decide how long data is kept, and it's currently kept forever |
+
+## B. Outside services (sub-processors)
+
+| Provider | Service | Data | Region | Transfer mechanism | Their data agreement | Can we object to their changes? |
+|---|---|---|---|---|---|---|
+| Supabase Inc. | Database, login, files | Everything | [CONFIRM project region] | [CONFIRM] | Yes, standard terms | Notice only |
+| Shipday Inc. | Driver dispatch, proof of delivery | Names, addresses, phones, notes, photos, signatures | US [CONFIRM] | [CONFIRM] | [CONFIRM] | [CONFIRM] |
+| SendZen (and Meta WhatsApp) | WhatsApp | Phone, name, bike, times, order number, message text | [CONFIRM] | [CONFIRM] | [CONFIRM] | [CONFIRM] |
+| Resend Inc. | Email in and out | Email, name, order details, inbound email text | US | [CONFIRM] | Yes [CONFIRM signed] | Notice only |
+| Intuit (QuickBooks) | Invoicing | Billing customer, invoice lines with tracking/order references | US/global | [CONFIRM] | Yes | No |
+| Google (Maps, via Lovable connector) | Geocoding, route lines | Addresses / coordinates | US | [CONFIRM] | Yes | No |
+| Geoapify | Geocoding/routing, fuel stations | Addresses/coordinates | Germany (EU, UK adequacy) | Adequacy | [CONFIRM] | [CONFIRM] |
+| Verso (hosted VROOM) | Route optimisation | Coordinates, time windows [CONFIRM no names] | [CONFIRM] | [CONFIRM] | [CONFIRM] | [CONFIRM] |
+| Functional Software (Sentry) | Errors + session recording | IP, headers, user ID + email, screen recordings | [CONFIRM US/EU org] | [CONFIRM] | Yes | Notice only |
+| PostHog Inc. | Analytics | Page views, clicks, on-screen text, staff email | EU host | Adequacy | Yes | Notice only |
+| Shopify | Incoming website orders | Customer details (incoming) | Global | n/a (we receive) | n/a | n/a |
+| Inspectabike | Inspections | Bike/job details, possibly the customer's name [CONFIRM] | UK [CONFIRM] | n/a | [CONFIRM] | [CONFIRM] |
+| Lovable (hosting/connector gateway) | App hosting, Maps calls | Coordinates; page traffic | [CONFIRM] | [CONFIRM] | [CONFIRM] | [CONFIRM] |
+| Partner couriers / NI ferry partner | Hand-offs | Name, address, phone, bike | UK | n/a | [CONFIRM written contracts] | n/a |
+
+No AI provider (Gemini or similar) receives data. That claim in audit 1 was wrong.
+
+## C. Data leaving the UK
+
+| From | To | Data | Country |
 |---|---|---|---|
-| Sender/receiver name, email, phone, address, postcode, alternative locations | orders (`sender`, `receiver`, alt locations), contacts | Staff by role; the customer for their own orders | Never |
-| Access/delivery notes (can include health or access needs) | orders `delivery_instructions`, `sender_notes`, `receiver_notes` | Staff, drivers via Shipday | Never |
-| Bikes: make, model, frame size, value, serial/frame details | orders `bikes`, `bike_value`; inspections | Staff, the customer | Never |
-| Payment-collection phone, "needs payment on collection" | orders | Staff | Never. No card or bank fields exist |
-| Order refs, appointment dates/times, status, tracking events | orders | Staff, the customer, the public tracking page | Never |
-| Proof of delivery photos/signatures | Shipday's own CDN links saved in `tracking_events` | Anyone with the link [confirm Shipday access] | Never |
-| Foam/NI delivery photos, labels | Private buckets, short-lived signed links after a postcode check | Staff, the receiver after the postcode check | Never |
-| Inspection customer name/email/phone/address, reports | `bicycle_inspections`, `inspection-reports` bucket (private) | Staff, mechanics | Never |
-| Claims evidence, damage descriptions, market value | `claims`, `claim-evidence` bucket (private) | Staff | Never |
-| Customer service emails and WhatsApps (full message text) | `cs_messages`, `cs_conversations` | Customer service and admin | Never |
-| Business accounts: company, address, accounts email, phone | profiles | Admin, the account owner | When the user is deleted [confirm related rows] |
-| **Driver driving licence images, licence number and expiry** | profiles + private `driver-licences` bucket | Admin | Never |
-| Driver names on jobs, timesheets with job locations, absence notes | orders, timeslips, `driver_absence_requests` | Admin, the driver | Never |
-| Mechanic clock-in location (one reading per clock-in/out) | mechanic timeslips, `mechanic-clock-photos` | Admin | Never |
-| Fuel cards and transactions per vehicle/driver | fuel tables, `fuel-invoices` bucket | Admin | Never |
-| IP address of postcode-check attempts | `tracking_postcode_attempts` | System | Never |
-| Email delivery events (recipient address) | `email_delivery_events` | Staff | Never |
-| Integration call logs | `integration_call_logs` | Admin | **Yes, nightly clean-up** |
+| Order creation / sync | Shipday | Full job details plus proof of delivery | US [CONFIRM] |
+| Emails / support inbox | Resend | Contact details, message text | US |
+| Invoicing | QuickBooks | Billing details | US |
+| Geocoding / route lines | Google | Addresses/coordinates | US |
+| Browser | Sentry | IP, email, screen recordings | [CONFIRM] |
+| Browser | PostHog | Usage, on-screen text | EU |
+| Geocoding | Geoapify | Addresses | Germany |
+| Database | Supabase | Everything | [CONFIRM] |
+| WhatsApp | SendZen / Meta | Phone, message | [CONFIRM] / global |
 
-Every table in the app's database has access rules switched on, except `labour_times` and `labour_time_multipliers`, which hold no personal data.
+## D. Deletion
 
-## 2. Outside services receiving data
-
-| Service | What it gets | Customer / driver | Likely location |
-|---|---|---|---|
-| Supabase (database, login, files) | Everything | Both | [confirm region, likely EU] |
-| Shipday | Names, addresses, phones, notes, proof of delivery | Both | US |
-| SendZen (WhatsApp) | Phone numbers, names, job details, message text | Customers | [confirm]. Meta processes messages globally |
-| Resend (email, support inbox) | Emails, names, order details, inbound emails | Both | US |
-| QuickBooks | Customer names, addresses, invoice lines | Customers | US |
-| Google Maps | Addresses/coordinates | Customers | US |
-| Geoapify | Addresses/coordinates (routing, fuel stations) | Customers | Germany |
-| Sentry | Errors, IP, request headers, **10% of sessions recorded, plus every session that has an error** | Both | US/EU [confirm org region] |
-| PostHog | Page views and clicks; on-screen text not masked | Both | EU |
-| Shopify | Website order customer details (incoming) | Customers | Canada/global |
-| Inspectabike | Bike/job details, possibly the customer's name | Customers | UK [confirm] |
-| DVLA | Van registrations | Neither (company vans) | UK |
-| Customer webhooks | Full sender/receiver details sent to the business client's own URL, signed | Customers | Client's choice |
-| AI route planning (Lovable AI / Gemini) and VROOM | [confirm exactly which addresses or coordinates are sent] | Customers | [confirm] |
-| Verso | Key exists, use unclear | [confirm] | [confirm] |
-
-## 3. Messages and public links
-
-- Timeslot WhatsApps and emails contain the name, bike, date, time window, tracking link and now the customer's order number.
-- **Public tracking page:** opens with the tracking number, order ID or customer order number. Changing dates and viewing photos need the postcode (10 tries per 10 minutes). The basic view has no attempt limit. [confirm exactly what the basic view shows]
-- Repair-offer and inspection-approval links use long random IDs that can't be guessed.
-
-## 4. Driver location
-
-The app doesn't record drivers' locations continuously. Live tracking happens inside Shipday. The only location the app reads is a single reading at mechanic clock-in/out.
-
-## 5. Photos
-
-All of the app's own storage buckets are private, and photos are only shown through short-lived links. Location data inside photo files (EXIF) is **not removed**. Proof-of-delivery photos stay on Shipday's servers.
-
-## 6. Cookies and tracking
-
-- PostHog uses cookies and browser storage. Sentry records sessions.
-- **No cookie consent banner.** Under UK PECR, analytics and session recording need consent.
-- No advertising pixels.
-
-## 7. Security in place
-
-- Individual logins, staff roles kept in a separate table, and access rules on every table that holds personal data.
-- Incoming webhooks from Shipday, Resend, SendZen and Shopify are checked with a shared secret. Webhooks sent to clients are signed.
-- Private buckets with signed links, and a postcode check before photos or availability changes.
-- Rate limiting only on business sign-up (in memory) and the postcode check.
-- Earlier security scans found about 150 open warnings. The app is **not** fully hardened.
-
-## 8. Retention: proposed periods vs what the app actually does
-
-| Proposed | What happens now |
+| Data | Can it be deleted? |
 |---|---|
-| Orders/contacts: 6 years | Kept forever. No deletion |
-| Proof of delivery/photos: 12 months | Kept forever (here and at Shipday) |
-| Messages: 2 years | Kept forever |
-| Analytics: 14 months | Set by PostHog/Sentry account settings [confirm] |
-| Business-client data: per contract | No per-client deletion. **This doesn't meet the PedalUK agreement's 30 days** |
+| Orders | Admins can delete. **Deleting a business account's user also deletes every one of its orders**, along with their inspections, comments, invoice links and webhook logs. This is a data-loss and tax-records risk |
+| Contacts | Yes: owner or staff can delete |
+| Photos/files | No delete feature in the app. Files can only be removed by hand from storage |
+| Proof of delivery | Lives at Shipday. `delete-shipday-order` removes Shipday jobs, but [CONFIRM] whether that removes the photos |
+| Messages (customer service) | No delete feature |
+| Inspections | Delete permission exists [CONFIRM UI] |
+| Claims | No delete permission |
+| Webhook logs | Removed only when the order is deleted. They store the full payload, including customer contact details |
+| Integration call logs | Automatic nightly clean-up |
+| Analytics | Only through the PostHog/Sentry dashboards |
+| Backups | Supabase controls these [CONFIRM how long kept] |
 
-## 9. Controller vs processor
+**Deleting one client's data:** not possible in a safe, controlled way today. The only route is deleting the user, which wipes all their orders and leaves photos, messages and Shipday records behind.
 
-- **Our own data (we decide how it's used):** direct and website bookings, business account details, invoicing, claims, customer service, drivers, staff, security logs.
-- **Processor (on business clients' behalf):** their customers' names, addresses, phones, notes, proof of delivery and status.
-- **Unclear areas:**
-  - Business clients' customers get our own WhatsApps/emails and review requests.
-  - Their details are saved into our address book.
-  - They show up in our analytics.
-  - Inspection or repair offers are sent to the receiver.
+## E. Driver devices
 
-## 10. What the business-client data agreement needs to cover
+The app has no camera upload for drivers. Collection and delivery photos and signatures are taken in the **Shipday driver app** and stay on Shipday's servers. The app has no way to remove copies on the phone, wipe devices, or stop drivers using photos for themselves. That has to come from policy and Shipday settings.
 
-Following our instructions, staff confidentiality, security measures (sections 5 and 7), the named list of outside services (section 2), data leaving the UK (US providers), help with data requests and breaches, help with impact assessments, deletion or return at the end of the contract, audits, processing records, and breach notice times. Cycle Courier-specific items to add:
-- partner couriers and ferry hand-offs
-- printed labels
-- photos taken on drivers' phones
-- customer webhooks
-- customer service message history
+## F. Special category data (health, disability and so on)
 
-## 11. Facts the policy needs
+There is **no field designed** to hold health or accessibility details. It could only turn up by chance in free-text fields:
+- order notes (`delivery_instructions`, `sender_notes`, `receiver_notes`)
+- order comments
+- customer service messages
+- claims notes
+- inspection notes
 
-- **Confirmed from the code:** everything in sections 1 to 8 above that isn't marked [confirm].
-- **For you to confirm:**
-  - the registered office (the PedalUK agreement and our records differ)
-  - privacy contact inbox
-  - Supabase and Sentry regions
-  - SendZen location
-  - Verso and AI route-planning data
-  - retention periods you want
-  - whether you send marketing
-  - partner couriers and ferry partner names
-- **Recommendations (not done):**
-  - add a cookie consent banner
-  - mask text in Sentry recordings or switch recording off
-  - remove location data from uploaded photos
-  - add automatic deletion that matches the policy
-  - limit attempts on the basic tracking lookup
-- **For a solicitor or data protection adviser:**
-  - US transfer safeguards (Data Bridge / International Data Transfer Agreement)
-  - lawful basis for the review WhatsApps
-  - the controller/processor split for business clients
-  - storing drivers' licence images
-  - the PedalUK 30-day deletion clause, compared with keeping records 6 years for tax
+## G. Webhooks to clients
+
+- **Who sets it up:** the client does it themselves (any signed-in account). The client chooses the destination.
+- **What's sent:** order ID, tracking number, customer order number, status, **full sender and receiver details (name, address, phone, email)**, bikes, dates, and Box-My-Bike fields.
+- **Signing:** HMAC-SHA256 in `X-Webhook-Signature`, with each client's secret stored in Vault.
+- **Retries:** 3 tries (1, 2 and 4 seconds apart), 30-second timeout.
+- **Logs:** `webhook_delivery_logs` stores the full payload plus up to 5,000 characters of the response. They are never cleaned up.
+
+## H. Public tracking page
+
+- **Tracking number, order ID or customer order number, no postcode:**
+  - Shown: sender and receiver name, city and country; bikes; dates/timeslots; status timeline; notes; inspection summary; business opening hours; whether proof of delivery exists.
+  - Not shown: no street address, postcode, phone or email.
+- **With the correct postcode:** also shows that side's proof-of-delivery photos and signature, and for the receiver, the foam delivery photos. 10 tries per 10 minutes per order/IP.
+- **Risk:** the basic lookup has **no attempt limit**. Customer order numbers are set by the client and may be short or in sequence, and `sender_notes` / `receiver_notes` are shown without the postcode. Names, towns and notes can therefore be found by guessing numbers.
+
+## I. Analytics and session recording
+
+- **PostHog:**
+  - runs on every page, including tracking
+  - records clicks automatically; element details are masked but **on-screen text is not**, so names and addresses shown on screen can be captured
+  - typed form input isn't captured
+  - session recording is off
+  - signed-in users are identified by ID and **email**
+  - uses cookies and browser storage
+- **Sentry:**
+  - `sendDefaultPii: true`, so IP and headers are sent
+  - user ID and **email** are attached
+  - 10% of sessions are recorded, plus every session that hits an error
+  - no masking settings are set, so it relies on the defaults (mask text, block media) [CONFIRM installed version]
+- **No cookie consent banner.**
+
+## J. Items that MUST be resolved before Cycorco signs a DPA with a business client
+
+| # | Rank | Issue | What's needed |
+|---|---|---|---|
+| 1 | CRITICAL | No way to delete or return one client's data. Deleting the user wipes all their orders and leaves files, messages and Shipday records behind | Technical: a per-client delete/anonymise and export job. Contract: delete/return clause with realistic timings, plus an exception for tax records |
+| 2 | CRITICAL | Data kept forever, which conflicts with deletion periods clients ask for (PedalUK wants 30 days) | Technical: automatic retention. Contract: retention schedule in the agreement, keeping invoice data for 6 years |
+| 3 | CRITICAL | US transfers (Shipday, Resend, QuickBooks, Google, maybe Sentry/Supabase) without documented safeguards | Contract: transfer clause with Data Bridge / International Data Transfer Agreement / UK Addendum. Admin: collect each provider's data agreement |
+| 4 | HIGH | Review WhatsApps and repair offers go to the client's customers for our own benefit | Contract: name them as permitted instructions or exclude them. Technical: a per-client switch |
+| 5 | HIGH | Basic tracking lookup can be guessed and shows names, towns and notes | Technical: attempt limit, require the postcode before names/notes show, hide notes |
+| 6 | HIGH | Sentry recordings and PostHog on-screen text can capture client customer data, and there's no consent banner | Technical: mask or disable on the tracking and staff pages, plus a consent banner. Contract: list them as sub-processors, or keep client data out of them |
+| 7 | HIGH | Sub-processor list, regions and agreements not confirmed | Admin: a confirmed sub-processor schedule. Contract: process for notifying and objecting to new ones |
+| 8 | MEDIUM | Webhook logs keep full contact details forever | Technical: clean-up after X days. Contract: covered under deletion |
+| 9 | MEDIUM | Proof-of-delivery photos stay on Shipday; deletion and keep-period unknown | Admin: confirm Shipday's retention and deletion. Contract: list Shipday by name |
+| 10 | MEDIUM | Free-text notes may contain health information | Contract: special category clause (use only for the job). Technical: staff guidance |
+| 11 | MEDIUM | Deleting a business account wipes invoice-linked orders | Technical: block user deletion when orders exist, or anonymise instead |
+| 12 | LOW | Address book auto-saves contacts | Contract: describe it as part of the service |
+| 13 | LOW | Driver devices are outside the app's control | Contract: device and security measures schedule. Policy: Shipday app settings, phone passcodes |
+| 14 | LOW | Earlier security scan warnings still open | Technical: work through the security findings before any audit-rights clause is used |
 
 ## Next step after approval
 
-Write the new privacy policy using only the confirmed facts, and leave clearly marked placeholders for each item still to confirm. No other app changes.
+Nothing gets built automatically. Tell me which items above you want fixed in the app, or ask me to draft the agreement or the privacy policy using these facts.
