@@ -29,38 +29,42 @@ export const timeslipService = {
     noMileage?: boolean;
     noVehicle?: boolean;
   }) {
-    let query = supabase
-      .from('timeslips')
-      .select('*, driver:profiles!timeslips_driver_id_fkey(*), vehicle:vehicles(id, registration, make)')
-      .order('date', { ascending: false });
-    
-    if (filters?.status) {
-      query = query.eq('status', filters.status);
-    }
-    
-    if (filters?.driverId) {
-      query = query.eq('driver_id', filters.driverId);
-    }
-    
-    if (filters?.dateFrom) {
-      query = query.gte('date', filters.dateFrom);
-    }
-    
-    if (filters?.dateTo) {
-      query = query.lte('date', filters.dateTo);
-    }
+    const buildQuery = (from: number, to: number) => {
+      let query = supabase
+        .from('timeslips')
+        .select('*, driver:profiles!timeslips_driver_id_fkey(*), vehicle:vehicles(id, registration, make)')
+        .order('date', { ascending: false })
+        .range(from, to);
 
-    if (filters?.noMileage) {
-      query = query.or('mileage.is.null,mileage.eq.0');
-    }
+      if (filters?.status) {
+        query = query.eq('status', filters.status);
+      }
 
-    if (filters?.noVehicle) {
-      query = query.is('vehicle_id', null);
-    }
-    
-    const { data, error } = await query;
-    if (error) throw error;
-    return (data || []).map(item => ({
+      if (filters?.driverId) {
+        query = query.eq('driver_id', filters.driverId);
+      }
+
+      if (filters?.dateFrom) {
+        query = query.gte('date', filters.dateFrom);
+      }
+
+      if (filters?.dateTo) {
+        query = query.lte('date', filters.dateTo);
+      }
+
+      if (filters?.noMileage) {
+        query = query.or('mileage.is.null,mileage.eq.0');
+      }
+
+      if (filters?.noVehicle) {
+        query = query.is('vehicle_id', null);
+      }
+
+      return query;
+    };
+
+    const data = await fetchAllPages<any>(buildQuery);
+    return data.map(item => ({
       ...item,
       job_locations: (item.job_locations as any as JobLocation[]) || [],
       custom_addons: (item.custom_addons as any as CustomAddon[]) || []
