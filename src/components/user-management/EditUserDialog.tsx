@@ -82,11 +82,33 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
 
   const handleSave = async () => {
     if (!user) return;
-    
+
     setSaving(true);
     try {
+      const newEmail = formData.email?.trim().toLowerCase();
+      const oldEmail = user.email?.trim().toLowerCase();
+      if (newEmail && newEmail !== oldEmail) {
+        const { data, error } = await supabase.functions.invoke('update-user-email', {
+          body: { userId: user.id, email: newEmail },
+        });
+        if (error) {
+          let bodyMsg: string | undefined;
+          try {
+            const ctx: any = (error as any)?.context;
+            if (ctx && typeof ctx.json === 'function') {
+              const parsed = await ctx.json();
+              if (parsed?.error) bodyMsg = String(parsed.error);
+            }
+          } catch { /* ignore */ }
+          throw new Error(bodyMsg || error.message);
+        }
+        if (data?.error) throw new Error(String(data.error));
+        toast.success('Login email updated — they now sign in with the new address.');
+      }
       await onSave(user.id, formData);
       onClose();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save changes');
     } finally {
       setSaving(false);
     }
