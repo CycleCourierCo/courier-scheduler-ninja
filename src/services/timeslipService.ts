@@ -73,15 +73,17 @@ export const timeslipService = {
 
   // Get driver's approved timeslips
   async getDriverTimeslips(driverId: string) {
-    const { data, error } = await supabase
-      .from('timeslips')
-      .select('*, driver:profiles!timeslips_driver_id_fkey(*)')
-      .eq('driver_id', driverId)
-      .eq('status', 'approved')
-      .order('date', { ascending: false });
-    
-    if (error) throw error;
-    return (data || []).map(item => ({
+    const data = await fetchAllPages<any>((from, to) =>
+      supabase
+        .from('timeslips')
+        .select('*, driver:profiles!timeslips_driver_id_fkey(*)')
+        .eq('driver_id', driverId)
+        .eq('status', 'approved')
+        .order('date', { ascending: false })
+        .range(from, to)
+    );
+
+    return data.map(item => ({
       ...item,
       job_locations: (item.job_locations as any as JobLocation[]) || [],
       custom_addons: (item.custom_addons as any as CustomAddon[]) || []
