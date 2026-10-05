@@ -1,6 +1,24 @@
 import { supabase } from "@/integrations/supabase/client";
 import { Timeslip, JobLocation, CustomAddon } from "@/types/timeslip";
 
+const PAGE_SIZE = 1000;
+
+// Fetch all rows from a query builder by paging with .range() — Supabase caps
+// a single request at 1,000 rows, so unpaginated queries silently truncate.
+async function fetchAllPages<T>(buildQuery: (from: number, to: number) => any): Promise<T[]> {
+  const all: T[] = [];
+  let from = 0;
+  while (true) {
+    const { data, error } = await buildQuery(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    const rows = (data || []) as T[];
+    all.push(...rows);
+    if (rows.length < PAGE_SIZE) break;
+    from += PAGE_SIZE;
+  }
+  return all;
+}
+
 export const timeslipService = {
   // Get all timeslips (admin only)
   async getAllTimeslips(filters?: {
