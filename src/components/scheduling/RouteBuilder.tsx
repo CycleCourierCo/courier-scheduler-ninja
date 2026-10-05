@@ -3110,7 +3110,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       const deliveries: string[] = [];
       
       jobsAtLocation.forEach(job => {
-        const bikeInfo = describeBikes(job.orderData);
+        const bikeInfo = describeBikes(job.orderData) + ((job.orderData as any)?.customer_order_number ? ` (Order #: ${(job.orderData as any).customer_order_number})` : "");
         if (job.type === 'pickup') collections.push(bikeInfo);
         else if (job.type === 'delivery') deliveries.push(bikeInfo);
       });
@@ -3226,7 +3226,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           const collections: string[] = [];
           const deliveries: string[] = [];
           jobsAtLocation.forEach(job => {
-            const bikeInfo = describeBikes(job.orderData);
+            const bikeInfo = describeBikes(job.orderData) + ((job.orderData as any)?.customer_order_number ? ` (Order #: ${(job.orderData as any).customer_order_number})` : "");
             if (job.type === 'pickup') collections.push(bikeInfo);
             else if (job.type === 'delivery') deliveries.push(bikeInfo);
           });
