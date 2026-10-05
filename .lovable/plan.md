@@ -1,65 +1,134 @@
-# New, fuller privacy policy
+# Privacy audit of the Cycle Courier Co app (no code changed)
 
-Replace the current short privacy policy page with a complete UK GDPR policy for Cycorco Ltd, trading as Cycle Courier Co. The page layout stays the same. Only the wording changes, and the "Last updated" date becomes 5 October 2026. Nothing else in the app changes.
+The findings come from reading the code and checking the live database. Anything marked **[confirm]** couldn't be proved from the code alone. This is not legal advice.
 
-## Sections
+## 1. Personal data held
 
-1. **Who we are.** Cycorco Ltd t/a Cycle Courier Co., company no. 16220087, VAT GB507727188, registered office, and contact details (info@cyclecourierco.com, +44 121 798 0767).
-2. **Our two roles.**
-   - Controller: for our own customers and website users.
-   - Processor: for business clients (bike shops, retailers, schemes). In that case the client's privacy notice applies, we only follow their instructions, and we send any data requests on to them.
-3. **What we collect.**
-   - Identity and contact details
-   - Collection and delivery addresses and access notes
-   - Bike details (make, model, frame number, value)
-   - Order references and appointment times
-   - Proof of collection and delivery (photos, signatures)
-   - Inspection and repair records
-   - Messages and calls with our team
-   - Billing details (we never store card numbers)
-   - Driver location while on a route
-   - Website and technical data
-4. **Sensitive information.** We only use health or access needs written in job notes to complete that job.
-5. **How we use it, and why we're allowed to.** A table that matches each purpose to its legal basis:
-   - Bookings, deliveries and repairs: contract
-   - Timeslot WhatsApps, texts and emails: contract or legitimate interest
-   - Invoicing and accounting: legal obligation
-   - Claims and disputes: legitimate interest
-   - Fraud prevention and security: legitimate interest
-   - Service quality and route planning: legitimate interest
-   - Marketing: consent, which you can opt out of at any time
-6. **Who we share it with.** Grouped by type:
-   - Delivery management and driver apps
-   - WhatsApp, SMS and email providers
-   - Accounting software
-   - Mapping and route planning
-   - Cloud hosting
-   - Error monitoring and website analytics
-   - Partner couriers and ferry partners (Northern Ireland)
-   - Insurers, and authorities where the law requires it
+| Data | Where it's kept | Who sees it | Deleted? |
+|---|---|---|---|
+| Sender/receiver name, email, phone, address, postcode, alternative locations | orders (`sender`, `receiver`, alt locations), contacts | Staff by role; the customer for their own orders | Never |
+| Access/delivery notes (can include health or access needs) | orders `delivery_instructions`, `sender_notes`, `receiver_notes` | Staff, drivers via Shipday | Never |
+| Bikes: make, model, frame size, value, serial/frame details | orders `bikes`, `bike_value`; inspections | Staff, the customer | Never |
+| Payment-collection phone, "needs payment on collection" | orders | Staff | Never. No card or bank fields exist |
+| Order refs, appointment dates/times, status, tracking events | orders | Staff, the customer, the public tracking page | Never |
+| Proof of delivery photos/signatures | Shipday's own CDN links saved in `tracking_events` | Anyone with the link [confirm Shipday access] | Never |
+| Foam/NI delivery photos, labels | Private buckets, short-lived signed links after a postcode check | Staff, the receiver after the postcode check | Never |
+| Inspection customer name/email/phone/address, reports | `bicycle_inspections`, `inspection-reports` bucket (private) | Staff, mechanics | Never |
+| Claims evidence, damage descriptions, market value | `claims`, `claim-evidence` bucket (private) | Staff | Never |
+| Customer service emails and WhatsApps (full message text) | `cs_messages`, `cs_conversations` | Customer service and admin | Never |
+| Business accounts: company, address, accounts email, phone | profiles | Admin, the account owner | When the user is deleted [confirm related rows] |
+| **Driver driving licence images, licence number and expiry** | profiles + private `driver-licences` bucket | Admin | Never |
+| Driver names on jobs, timesheets with job locations, absence notes | orders, timeslips, `driver_absence_requests` | Admin, the driver | Never |
+| Mechanic clock-in location (one reading per clock-in/out) | mechanic timeslips, `mechanic-clock-photos` | Admin | Never |
+| Fuel cards and transactions per vehicle/driver | fuel tables, `fuel-invoices` bucket | Admin | Never |
+| IP address of postcode-check attempts | `tracking_postcode_attempts` | System | Never |
+| Email delivery events (recipient address) | `email_delivery_events` | Staff | Never |
+| Integration call logs | `integration_call_logs` | Admin | **Yes, nightly clean-up** |
 
-   We never sell data.
-7. **Data leaving the UK.** Some providers are based outside the UK. We use UK-approved safeguards (adequacy regulations, the International Data Transfer Agreement or the UK Addendum).
-8. **How long we keep it.** A table:
-   - Order and contact data: 6 years after the job (tax law)
-   - Proof of delivery and photos: 12 months
-   - Messages: 2 years
-   - Website analytics: 14 months
-   - Business clients' data: as agreed in their contract
-9. **Security.** Individual staff logins with role-based access, encryption in transit, access logs, staff confidentiality and training, and secure disposal of printed labels.
-10. **Your rights.** Access, correction, deletion, restriction, objection, data portability, withdrawing consent and complaining to the ICO (ico.org.uk, 0303 123 1113). We reply within one month.
-11. **Data breaches.** We assess every breach and tell the ICO within 72 hours when required, tell affected people where the risk is high, and tell business clients without delay.
-12. **Cookies and tracking.** Essential cookies, analytics cookies, and how to control them.
-13. **Children.** Our services are not aimed at under-18s.
-14. **Changes and contact.** How we update this policy, and how to contact us.
+Every table in the app's database has access rules switched on, except `labour_times` and `labour_time_multipliers`, which hold no personal data.
 
-## Check before publishing
+## 2. Outside services receiving data
 
-- **Registered office:** the PedalUK agreement says Izabella House, 24-26 Regent Place, Birmingham B1 3NJ, but your company details say 30 Wake Green Road, Birmingham B13 9PB. Which one is correct?
-- **Retention periods:** the periods above are my suggestions. Please confirm or change them.
-- **Privacy contact:** the current page says privacy@cyclecourierco.com. Does that inbox exist, or should it be info@?
-- This is a draft, not legal advice. Have a solicitor review it.
+| Service | What it gets | Customer / driver | Likely location |
+|---|---|---|---|
+| Supabase (database, login, files) | Everything | Both | [confirm region, likely EU] |
+| Shipday | Names, addresses, phones, notes, proof of delivery | Both | US |
+| SendZen (WhatsApp) | Phone numbers, names, job details, message text | Customers | [confirm]. Meta processes messages globally |
+| Resend (email, support inbox) | Emails, names, order details, inbound emails | Both | US |
+| QuickBooks | Customer names, addresses, invoice lines | Customers | US |
+| Google Maps | Addresses/coordinates | Customers | US |
+| Geoapify | Addresses/coordinates (routing, fuel stations) | Customers | Germany |
+| Sentry | Errors, IP, request headers, **10% of sessions recorded, plus every session that has an error** | Both | US/EU [confirm org region] |
+| PostHog | Page views and clicks; on-screen text not masked | Both | EU |
+| Shopify | Website order customer details (incoming) | Customers | Canada/global |
+| Inspectabike | Bike/job details, possibly the customer's name | Customers | UK [confirm] |
+| DVLA | Van registrations | Neither (company vans) | UK |
+| Customer webhooks | Full sender/receiver details sent to the business client's own URL, signed | Customers | Client's choice |
+| AI route planning (Lovable AI / Gemini) and VROOM | [confirm exactly which addresses or coordinates are sent] | Customers | [confirm] |
+| Verso | Key exists, use unclear | [confirm] | [confirm] |
 
-## Technical details
+## 3. Messages and public links
 
-- Rewrite `src/pages/PrivacyPolicyPage.tsx` only, using the existing Card, semantic tokens and simple tables. Copy changes only.
+- Timeslot WhatsApps and emails contain the name, bike, date, time window, tracking link and now the customer's order number.
+- **Public tracking page:** opens with the tracking number, order ID or customer order number. Changing dates and viewing photos need the postcode (10 tries per 10 minutes). The basic view has no attempt limit. [confirm exactly what the basic view shows]
+- Repair-offer and inspection-approval links use long random IDs that can't be guessed.
+
+## 4. Driver location
+
+The app doesn't record drivers' locations continuously. Live tracking happens inside Shipday. The only location the app reads is a single reading at mechanic clock-in/out.
+
+## 5. Photos
+
+All of the app's own storage buckets are private, and photos are only shown through short-lived links. Location data inside photo files (EXIF) is **not removed**. Proof-of-delivery photos stay on Shipday's servers.
+
+## 6. Cookies and tracking
+
+- PostHog uses cookies and browser storage. Sentry records sessions.
+- **No cookie consent banner.** Under UK PECR, analytics and session recording need consent.
+- No advertising pixels.
+
+## 7. Security in place
+
+- Individual logins, staff roles kept in a separate table, and access rules on every table that holds personal data.
+- Incoming webhooks from Shipday, Resend, SendZen and Shopify are checked with a shared secret. Webhooks sent to clients are signed.
+- Private buckets with signed links, and a postcode check before photos or availability changes.
+- Rate limiting only on business sign-up (in memory) and the postcode check.
+- Earlier security scans found about 150 open warnings. The app is **not** fully hardened.
+
+## 8. Retention: proposed periods vs what the app actually does
+
+| Proposed | What happens now |
+|---|---|
+| Orders/contacts: 6 years | Kept forever. No deletion |
+| Proof of delivery/photos: 12 months | Kept forever (here and at Shipday) |
+| Messages: 2 years | Kept forever |
+| Analytics: 14 months | Set by PostHog/Sentry account settings [confirm] |
+| Business-client data: per contract | No per-client deletion. **This doesn't meet the PedalUK agreement's 30 days** |
+
+## 9. Controller vs processor
+
+- **Our own data (we decide how it's used):** direct and website bookings, business account details, invoicing, claims, customer service, drivers, staff, security logs.
+- **Processor (on business clients' behalf):** their customers' names, addresses, phones, notes, proof of delivery and status.
+- **Unclear areas:**
+  - Business clients' customers get our own WhatsApps/emails and review requests.
+  - Their details are saved into our address book.
+  - They show up in our analytics.
+  - Inspection or repair offers are sent to the receiver.
+
+## 10. What the business-client data agreement needs to cover
+
+Following our instructions, staff confidentiality, security measures (sections 5 and 7), the named list of outside services (section 2), data leaving the UK (US providers), help with data requests and breaches, help with impact assessments, deletion or return at the end of the contract, audits, processing records, and breach notice times. Cycle Courier-specific items to add:
+- partner couriers and ferry hand-offs
+- printed labels
+- photos taken on drivers' phones
+- customer webhooks
+- customer service message history
+
+## 11. Facts the policy needs
+
+- **Confirmed from the code:** everything in sections 1 to 8 above that isn't marked [confirm].
+- **For you to confirm:**
+  - the registered office (the PedalUK agreement and our records differ)
+  - privacy contact inbox
+  - Supabase and Sentry regions
+  - SendZen location
+  - Verso and AI route-planning data
+  - retention periods you want
+  - whether you send marketing
+  - partner couriers and ferry partner names
+- **Recommendations (not done):**
+  - add a cookie consent banner
+  - mask text in Sentry recordings or switch recording off
+  - remove location data from uploaded photos
+  - add automatic deletion that matches the policy
+  - limit attempts on the basic tracking lookup
+- **For a solicitor or data protection adviser:**
+  - US transfer safeguards (Data Bridge / International Data Transfer Agreement)
+  - lawful basis for the review WhatsApps
+  - the controller/processor split for business clients
+  - storing drivers' licence images
+  - the PedalUK 30-day deletion clause, compared with keeping records 6 years for tax
+
+## Next step after approval
+
+Write the new privacy policy using only the confirmed facts, and leave clearly marked placeholders for each item still to confirm. No other app changes.
