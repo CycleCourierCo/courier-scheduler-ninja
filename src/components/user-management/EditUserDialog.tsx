@@ -201,6 +201,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                   value={formData.email || ''}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
+                <p className="text-xs text-muted-foreground">This is the email they sign in with.</p>
               </div>
               <div className="space-y-2 min-w-0">
                 <Label htmlFor="edit-phone">Phone</Label>
