@@ -3555,6 +3555,56 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     await doPush();
   };
 
+  // Route jobs (timeslot popup) not yet on Shipday
+  const routeJobsMissingShipday = selectedJobs.filter(
+    (j): j is typeof j & { type: 'pickup' | 'delivery' } =>
+      j.type !== 'break' &&
+      !!j.orderData &&
+      (j.type === 'pickup' || j.type === 'delivery') &&
+      !['verified', 'pending'].includes(getShipdayStatus(j.orderData, j.type))
+  );
+
+  const handleAddRouteJobsToShipday = async () => {
+    if (routeJobsMissingShipday.length === 0) {
+      toast.info('All route jobs are already on Shipday');
+      return;
+    }
+
+    const jobsToAdd = [...routeJobsMissingShipday];
+    const doPush = async () => {
+      setIsLoadingShipday(true);
+      toast.info(`Adding ${jobsToAdd.length} route jobs to Shipday...`);
+      let success = 0;
+      let failed = 0;
+
+      for (const job of jobsToAdd) {
+        try {
+          await createShipdayOrder(job.orderId, job.type);
+          success++;
+        } catch (err) {
+          console.error('Failed to add route job to Shipday', job, err);
+          failed++;
+        }
+      }
+
+      if (failed === 0) toast.success(`${success} route jobs added to Shipday`);
+      else toast.warning(`${success} added, ${failed} failed`);
+      onReVerifyShipday?.();
+      setIsLoadingShipday(false);
+    };
+
+    if (jobsToAdd.length > 20) {
+      notify.confirm({
+        title: `Add ${jobsToAdd.length} route jobs to Shipday?`,
+        confirmLabel: 'Add all',
+        onConfirm: doPush,
+      });
+      return;
+    }
+
+    await doPush();
+  };
+
   const handleLoadFilteredIntoShipday = async () => {
     const jobs = availableJobs.filter(j => j.type === 'pickup' || j.type === 'delivery') as Array<{ orderId: string; type: 'pickup' | 'delivery'; order: OrderData }>;
     if (jobs.length === 0) {
@@ -4095,6 +4145,16 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                       Bulk Message
                     </Button>
                   </div>
+                  <Button
+                    onClick={handleAddRouteJobsToShipday}
+                    size="sm"
+                    variant="outline"
+                    disabled={isLoadingShipday || isVerifyingShipday || routeJobsMissingShipday.length === 0}
+                    className="w-full h-8 text-xs"
+                  >
+                    {isLoadingShipday ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
+                    Add all to Shipday ({routeJobsMissingShipday.length})
+                  </Button>
                   {renderCleanBar(true)}
                   {isCalculating && (
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -4319,6 +4379,15 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                   >
                     <MessageSquare className="h-4 w-4 mr-2" />
                     Bulk Message
+                  </Button>
+                  <Button
+                    onClick={handleAddRouteJobsToShipday}
+                    size="sm"
+                    variant="outline"
+                    disabled={isLoadingShipday || isVerifyingShipday || routeJobsMissingShipday.length === 0}
+                  >
+                    {isLoadingShipday ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+                    Add all to Shipday ({routeJobsMissingShipday.length})
                   </Button>
                 </div>
                 {renderCleanBar(false)}
