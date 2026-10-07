@@ -39,15 +39,18 @@ const GuaranteedDatePanel = ({ orders, selectedKeys, onToggleJob }: GuaranteedDa
     const out: GuaranteedRow[] = [];
 
     orders.forEach((order) => {
-      const date = (order as any).guaranteed_delivery_date as string | null;
-      if (!(order as any).guaranteed_delivery || !date) return;
+      if (!(order as any).guaranteed_delivery) return;
+      const gType = ((order as any).guaranteed_type as string) || "delivery";
+      const delDate = (order as any).guaranteed_delivery_date as string | null;
+      const colDate = (order as any).guaranteed_collection_date as string | null;
 
       const legs: ("pickup" | "delivery")[] = [];
-      if (needsCollectionLeg(order)) legs.push("pickup");
-      if (needsDeliveryLeg(order)) legs.push("delivery");
+      if (needsCollectionLeg(order) && (gType === "delivery" ? !!delDate : !!colDate)) legs.push("pickup");
+      if (needsDeliveryLeg(order) && gType !== "collection" && !!delDate) legs.push("delivery");
       if (legs.length === 0) return;
 
       legs.forEach((type) => {
+        const date = (type === "pickup" && gType !== "delivery" ? colDate : delDate) as string;
         const contact: any = getLegContact(order, type);
         out.push({
           key: `${order.id}-${type}`,
