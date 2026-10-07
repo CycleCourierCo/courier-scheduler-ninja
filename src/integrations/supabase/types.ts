@@ -3791,6 +3791,7 @@ export type Database = {
           foam_pending_foaming_at: string | null
           foam_status: Database["public"]["Enums"]["foam_status"] | null
           foam_tracking_url: string | null
+          guaranteed_collection_date: string | null
           guaranteed_delivery: boolean
           guaranteed_delivery_amount: number
           guaranteed_delivery_date: string | null
@@ -3804,6 +3805,7 @@ export type Database = {
           guaranteed_delivery_marked_by_name: string | null
           guaranteed_delivery_note: string | null
           guaranteed_delivery_payer: string | null
+          guaranteed_type: string
           held_by_driver_at: string | null
           held_by_driver_name: string | null
           id: string
@@ -3917,6 +3919,7 @@ export type Database = {
           foam_pending_foaming_at?: string | null
           foam_status?: Database["public"]["Enums"]["foam_status"] | null
           foam_tracking_url?: string | null
+          guaranteed_collection_date?: string | null
           guaranteed_delivery?: boolean
           guaranteed_delivery_amount?: number
           guaranteed_delivery_date?: string | null
@@ -3930,6 +3933,7 @@ export type Database = {
           guaranteed_delivery_marked_by_name?: string | null
           guaranteed_delivery_note?: string | null
           guaranteed_delivery_payer?: string | null
+          guaranteed_type?: string
           held_by_driver_at?: string | null
           held_by_driver_name?: string | null
           id?: string
@@ -4043,6 +4047,7 @@ export type Database = {
           foam_pending_foaming_at?: string | null
           foam_status?: Database["public"]["Enums"]["foam_status"] | null
           foam_tracking_url?: string | null
+          guaranteed_collection_date?: string | null
           guaranteed_delivery?: boolean
           guaranteed_delivery_amount?: number
           guaranteed_delivery_date?: string | null
@@ -4056,6 +4061,7 @@ export type Database = {
           guaranteed_delivery_marked_by_name?: string | null
           guaranteed_delivery_note?: string | null
           guaranteed_delivery_payer?: string | null
+          guaranteed_type?: string
           held_by_driver_at?: string | null
           held_by_driver_name?: string | null
           id?: string

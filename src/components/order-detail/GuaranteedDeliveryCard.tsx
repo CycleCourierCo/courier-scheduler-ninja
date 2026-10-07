@@ -55,6 +55,8 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
   const [amount, setAmount] = useDraft<string>(order?.id, "amount", "0");
   const [guaranteedDate, setGuaranteedDate] = useDraft<string>(order?.id, "date", "");
   const [note, setNote] = useDraft<string>(order?.id, "note", "");
+  const [gType, setGType] = useDraft<"delivery" | "collection" | "both">(order?.id, "gtype", "delivery");
+  const [collectionDate, setCollectionDate] = useDraft<string>(order?.id, "cdate", "");
   const [saving, setSaving] = useState(false);
   const [removing, setRemoving] = useState(false);
   const pausedRef = React.useRef(false);
@@ -103,8 +105,16 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
       return;
     }
 
-    if (!guaranteedDate) {
+    if (gType !== "collection" && !guaranteedDate) {
       toast.error("Choose the guaranteed delivery date");
+      return;
+    }
+    if (gType !== "delivery" && !collectionDate) {
+      toast.error("Choose the guaranteed collection date");
+      return;
+    }
+    if (gType === "both" && guaranteedDate < collectionDate) {
+      toast.error("Delivery can't be before the collection date");
       return;
     }
 
@@ -130,8 +140,13 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
           id: user?.id,
           name: (user?.user_metadata as any)?.name || user?.email || null,
         },
-        guaranteedDate
+        gType === "collection" ? collectionDate : guaranteedDate
       );
+      const { error: typeErr } = await supabase
+        .from("orders")
+        .update({ guaranteed_type: gType, guaranteed_collection_date: gType === "delivery" ? null : collectionDate } as any)
+        .eq("id", order.id);
+      if (typeErr) throw typeErr;
 
       if (payer === "account") {
         toast.success(
@@ -200,6 +215,8 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
     setPayer((currentPayer as GuaranteedDeliveryPayer) || "account");
     setAmount(currentGross ? currentGross.toFixed(2) : "0");
     setGuaranteedDate(order?.guaranteed_delivery_date || "");
+    setGType((order?.guaranteed_type as any) || "delivery");
+    setCollectionDate(order?.guaranteed_collection_date || "");
     setNote(order?.guaranteed_delivery_note || "");
     handleOpenChange(true);
   };
@@ -208,19 +225,23 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
     setPayer("account");
     setAmount("");
     setGuaranteedDate("");
+    setGType("delivery");
+    setCollectionDate("");
     setNote("");
     handleOpenChange(true);
   };
 
-  const guaranteedDateLabel = order?.guaranteed_delivery_date
-    ? new Date(`${order.guaranteed_delivery_date}T12:00:00`).toLocaleDateString("en-GB", {
-        timeZone: "Europe/London",
-        weekday: "short",
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
+  const fmtDay = (d?: string | null) => d
+    ? new Date(`${d}T12:00:00`).toLocaleDateString("en-GB", {
+        timeZone: "Europe/London", weekday: "short", day: "2-digit", month: "short", year: "numeric",
       })
     : null;
+  const savedType = (order?.guaranteed_type as string) || "delivery";
+  const guaranteedDateLabel = savedType === "collection"
+    ? (fmtDay(order?.guaranteed_collection_date) ? `Collection ${fmtDay(order?.guaranteed_collection_date)}` : null)
+    : savedType === "both"
+      ? `Collection ${fmtDay(order?.guaranteed_collection_date) ?? "not set"} · Delivery ${fmtDay(order?.guaranteed_delivery_date) ?? "not set"}`
+      : (fmtDay(order?.guaranteed_delivery_date) ? `Delivery ${fmtDay(order?.guaranteed_delivery_date)}` : null);
 
   const markedAt = order?.guaranteed_delivery_marked_at
     ? new Date(order.guaranteed_delivery_marked_at).toLocaleString("en-GB", {
@@ -401,14 +422,36 @@ const GuaranteedDeliveryCard = ({ order, onUpdate, bare = false }: GuaranteedDel
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="gd-date">Guaranteed delivery date</Label>
-              <Input
-                id="gd-date"
-                type="date"
-                value={guaranteedDate}
-                onChange={(e) => setGuaranteedDate(e.target.value)}
-              />
+              <Label>What is guaranteed?</Label>
+              <RadioGroup value={gType} onValueChange={(v) => setGType(v as any)} className="flex flex-wrap gap-4">
+                {(["delivery", "collection", "both"] as const).map((t) => (
+                  <div key={t} className="flex items-center gap-2">
+                    <RadioGroupItem value={t} id={`gd-type-${t}`} />
+                    <Label htmlFor={`gd-type-${t}`} className="font-normal capitalize">{t === "both" ? "Both" : t}</Label>
+                  </div>
+                ))}
+              </RadioGroup>
             </div>
+
+            {gType !== "delivery" && (
+              <div className="space-y-2">
+                <Label htmlFor="gd-cdate">Guaranteed collection date</Label>
+                <Input id="gd-cdate" type="date" value={collectionDate} onChange={(e) => setCollectionDate(e.target.value)} />
+              </div>
+            )}
+
+            {gType !== "collection" && (
+              <div className="space-y-2">
+                <Label htmlFor="gd-date">Guaranteed delivery date</Label>
+                <Input
+                  id="gd-date"
+                  type="date"
+                  min={gType === "both" ? collectionDate || undefined : undefined}
+                  value={guaranteedDate}
+                  onChange={(e) => setGuaranteedDate(e.target.value)}
+                />
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="gd-amount">Total amount to charge (£, incl. VAT)</Label>

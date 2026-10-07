@@ -599,7 +599,7 @@ serve(async (req) => {
 
     const { data: orderRows, error: ordersErr } = await admin
       .from('orders')
-      .select('id,tracking_number,user_id,created_at,status,sender,receiver,bikes,bike_type,bike_quantity,pickup_date,delivery_date,scheduled_pickup_date,scheduled_delivery_date,order_collected,order_delivered,needs_inspection,is_box_my_bike,ni_direction,guaranteed_delivery,guaranteed_delivery_date,is_warehouse_storage,bicycle_inspections(status)')
+      .select('id,tracking_number,user_id,created_at,status,sender,receiver,bikes,bike_type,bike_quantity,pickup_date,delivery_date,scheduled_pickup_date,scheduled_delivery_date,order_collected,order_delivered,needs_inspection,is_box_my_bike,ni_direction,guaranteed_delivery,guaranteed_delivery_date,guaranteed_type,guaranteed_collection_date,is_warehouse_storage,bicycle_inspections(status)')
       .not('status', 'in', '(cancelled,delivered)');
     if (ordersErr) throw ordersErr;
 
@@ -685,8 +685,11 @@ serve(async (req) => {
       const bookedCollection = bookedPickup && bookedPickup > today
         ? bookedPickup
         : (lockedPickup && lockedPickup > today ? lockedPickup : null);
-      const guaranteedDelivery = order.guaranteed_delivery && order.guaranteed_delivery_date && !order.order_delivered
+      const gType: string = order.guaranteed_type || 'delivery';
+      const guaranteedDelivery = order.guaranteed_delivery && gType !== 'collection' && order.guaranteed_delivery_date && !order.order_delivered
         ? dateKey(order.guaranteed_delivery_date) : null;
+      const guaranteedCollection = order.guaranteed_delivery && gType !== 'delivery' && order.guaranteed_collection_date && !order.order_collected
+        ? dateKey(order.guaranteed_collection_date) : null;
 
       const considerLeg = (
         legType: 'collection' | 'delivery',
@@ -777,13 +780,12 @@ serve(async (req) => {
       considerLeg(
         'collection', pickupDates,
         Number(order.sender?.address?.lat), Number(order.sender?.address?.lon),
-        null,
+        guaranteedCollection,
         !order.order_collected && !order.scheduled_pickup_date,
-        guaranteedDelivery,
+        guaranteedCollection ? null : guaranteedDelivery,
       );
 
-      const guaranteed = order.guaranteed_delivery && order.guaranteed_delivery_date
-        ? dateKey(order.guaranteed_delivery_date) : null;
+      const guaranteed = guaranteedDelivery;
       considerLeg(
         'delivery', deliveryDates,
         Number(order.receiver?.address?.lat), Number(order.receiver?.address?.lon),
@@ -885,13 +887,19 @@ serve(async (req) => {
 
     /* ------------------------- London containment ------------------------- */
 
+    // No London area is drawn in the database, so a built-in Greater London
+    // zone (about the M25) is used unless a drawn "London" area exists.
     const londonAreaIdx = difficultAreas.findIndex((a) => /london/i.test(a.name));
-    const hasLondonArea = londonAreaIdx >= 0;
-    const isLondonLeg = (leg: Leg) => hasLondonArea && leg.areaIdx === londonAreaIdx;
+    const LONDON_CENTRE = { lat: 51.5074, lon: -0.1278 };
+    const LONDON_RADIUS_MI = 17;
+    const hasLondonArea = true;
+    const isLondonLeg = (leg: Leg) => londonAreaIdx >= 0
+      ? leg.areaIdx === londonAreaIdx
+      : milesBetween(leg.lat, leg.lon, LONDON_CENTRE.lat, LONDON_CENTRE.lon) <= LONDON_RADIUS_MI;
 
-    /** Middle of the drawn London area, used as the far end of the corridor. */
+    /** Middle of the London area, used as the far end of the corridor. */
     const londonCentroid = (() => {
-      if (!hasLondonArea) return null;
+      if (londonAreaIdx < 0) return LONDON_CENTRE;
       let lat = 0, lon = 0, n = 0;
       for (const ring of difficultAreas[londonAreaIdx].rings) {
         for (const pt of ring) {
@@ -899,7 +907,7 @@ serve(async (req) => {
           lon += Number(pt[0]); lat += Number(pt[1]); n++;
         }
       }
-      return n > 0 ? { lat: lat / n, lon: lon / n } : null;
+      return n > 0 ? { lat: lat / n, lon: lon / n } : LONDON_CENTRE;
     })();
 
     /**
@@ -994,8 +1002,8 @@ serve(async (req) => {
         if (!m) continue;
         const stops: Stop[] = [];
         for (const s of (Array.isArray(route.steps) ? route.steps : [])) {
-          if (s.type !== 'job') continue;
-          const leg = legsById[Number(s.job)];
+          if (s.type !== 'job' && s.type !== 'pickup' && s.type !== 'delivery') continue;
+          const leg = legsById[Number(s.type === 'job' ? s.job : (s.id ?? s.job))];
           if (!leg) continue;
           stops.push({ leg, arrival: Number(s.arrival) || londonEpoch(m.date, shiftStart) });
         }
@@ -1080,24 +1088,44 @@ serve(async (req) => {
       const londonVans = assignments.filter((a) => a.london).length;
       const anyLong = assignments.some((a) => a.long);
       const capH = anyLong ? LONG_CAP_H : NORMAL_CAP_H;
-      const jobs = pool
-        .filter((leg) => (isLondonLeg(leg) ? londonVans > 0 : true))
-        .map((leg) => buildJob(leg, date, capH))
-        .filter((j): j is any => !!j);
-      if (jobs.length === 0) return null;
+      const usable = pool.filter((leg) => (isLondonLeg(leg) ? londonVans > 0 : true));
+      const built = new Map<number, any>();
+      for (const leg of usable) { const j = buildJob(leg, date, capH); if (j) built.set(leg.jobId, j); }
+      // Same-day collect & deliver: pair the two legs as one shipment so the
+      // same van collects first, then delivers.
+      const shipments: any[] = [];
+      const paired = new Set<number>();
+      for (const d of usable) {
+        if (d.legType !== 'delivery' || !sameDayIds.has(d.jobId)) continue;
+        const c = usable.find((l) => l.orderId === d.orderId && l.legType === 'collection');
+        const cj = c && built.get(c.jobId); const dj = built.get(d.jobId);
+        if (!c || !cj || !dj) { built.delete(d.jobId); continue; }
+        const ck = JSON.stringify(cj.skills ?? null), dk = JSON.stringify(dj.skills ?? null);
+        const skills = ck === dk ? cj.skills : (cj.skills == null ? dj.skills : dj.skills == null ? cj.skills : undefined);
+        if (skills === undefined) { built.delete(d.jobId); continue; }   // different areas: don't pair
+        const strip = (j: any) => ({ id: j.id, location: j.location, service: j.service, time_windows: j.time_windows });
+        shipments.push({
+          pickup: strip(cj), delivery: strip(dj),
+          amount: cj.pickup, priority: Math.max(cj.priority ?? 0, dj.priority ?? 0),
+          ...(skills ? { skills } : {}),
+        });
+        paired.add(c.jobId); paired.add(d.jobId);
+      }
+      const jobs = [...built.entries()].filter(([id]) => !paired.has(id)).map(([, j]) => j);
+      if (jobs.length === 0 && shipments.length === 0) return null;
 
       let solution: any;
       if (exploreOk) {
         try {
-          solution = await postSolve({ vehicles, jobs, options: { g: true, x: 5 } });
+          solution = await postSolve({ vehicles, jobs, shipments, options: { g: true, x: 5 } });
         } catch (e) {
           if (/distance costing/i.test((e as Error).message)) throw e;
           exploreOk = false;
           debug.exploration = false;
-          solution = await postSolve({ vehicles, jobs, options: { g: true } });
+          solution = await postSolve({ vehicles, jobs, shipments, options: { g: true } });
         }
       } else {
-        solution = await postSolve({ vehicles, jobs, options: { g: true } });
+        solution = await postSolve({ vehicles, jobs, shipments, options: { g: true } });
       }
       console.log('verso solve', {
         date, jobs: jobs.length, vehicles: vehicles.length,
@@ -1116,7 +1144,7 @@ serve(async (req) => {
           ? { ...j, priority: 100 }
           : { ...j, priority: Math.max(1, Math.round((Number(j.priority) || 0) / 12)) });
         try {
-          const retry = await postSolve({ vehicles, jobs: scaled, options: exploreOk ? { g: true, x: 5 } : { g: true } });
+          const retry = await postSolve({ vehicles, jobs: scaled, shipments, options: exploreOk ? { g: true, x: 5 } : { g: true } });
           const stillMissed = (retry?.unassigned || []).filter((u: any) => forcedIds.has(Number(u.id))).length;
           console.log('forced guaranteed re-solve', { date, missed: missedForced.length, still_missed: stillMissed });
           if (stillMissed < missedForced.length) solution = retry;
@@ -1130,6 +1158,8 @@ serve(async (req) => {
       return readSolution(solution, meta);
     };
     const forcedInfeasible = new Set<number>();
+    /** Deliveries allowed today only because their collection is paired with them. */
+    let sameDayIds = new Set<number>();
 
     /* ---------------------------- the daily loop -------------------------- */
 
@@ -1179,6 +1209,20 @@ serve(async (req) => {
         if (leg.legType === 'delivery' && !deliveryReady(leg, date)) return false;
         return true;
       });
+      // Same-day collect & deliver: a not-yet-collected delivery can join when
+      // its collection is in today's pool and both customers are free today.
+      sameDayIds = new Set<number>();
+      for (const leg of legs) {
+        if (leg.legType !== 'delivery' || placedKeys.has(leg.key) || leg.needsInspection || leg.lapsed) continue;
+        if (pool.includes(leg)) continue;
+        const okDate = leg.guaranteedDate ? leg.guaranteedDate === date : leg.futureDates.includes(date);
+        if (!okDate) continue;
+        const col = pool.find((l) => l.orderId === leg.orderId && l.legType === 'collection');
+        if (!col) continue;
+        sameDayIds.add(leg.jobId);
+        pool.push(leg);
+      }
+      dayDebug.same_day_pairs = sameDayIds.size;
       dayDebug.pool = pool.length;
       if (pool.length > dayVans.length * 3 * 17) {
         dayDebug.capacity_note = `Only ${dayVans.length} van${dayVans.length === 1 ? '' : 's'} ticked for ${pool.length} jobs — guaranteed and last-date jobs may push others off.`;
@@ -1488,6 +1532,9 @@ serve(async (req) => {
           geometry: p.geometry,
           region: p.region,
           overlap_with: overlapWith(p),
+          london_mixed: p.ordered.some((s) => isLondonLeg(s.leg))
+            && p.ordered.some((s) => !isLondonLeg(s.leg) && !isCorridorLeg(s.leg)
+              && milesBetween(s.leg.lat, s.leg.lon, DEPOT.lat, DEPOT.lon) > SECTOR_CORE_MI),
           spread_mi: p.spreadMi,
           spread_warning: p.spreadMi > SPREAD_WARN_MI,
           thin: p.thin,
@@ -1505,6 +1552,7 @@ serve(async (req) => {
             is_difficult_area: s.leg.areaIdx !== null, label: s.leg.label,
             guaranteed: !!s.leg.guaranteedDate || !!s.leg.forGuarantee,
             guaranteed_date: s.leg.guaranteedDate ?? s.leg.forGuarantee ?? null,
+            same_day: p.ordered.some((o) => o.leg.orderId === s.leg.orderId && o.leg.legType !== s.leg.legType),
             must_go: s.leg.lapsed ? 'expired' : (s.leg.lastDate && s.leg.lastDate <= p.meta.date ? 'last_date' : null),
             last_date: s.leg.lastDate ?? (s.leg.allDates[s.leg.allDates.length - 1] ?? null),
           })),
