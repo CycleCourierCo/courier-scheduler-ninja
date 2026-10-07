@@ -4,6 +4,8 @@ import type { Order } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
 import thermalHeader from "@/assets/brand/thermal-header-203dpi.png.asset.json";
 import thermalCompactHeader from "@/assets/brand/thermal-header-compact-203dpi.png.asset.json";
+import repairIcon from "@/assets/labels/label-icon-repair.png.asset.json";
+import boxIcon from "@/assets/labels/label-icon-box.png.asset.json";
 import { publicBrandAssetUrl } from "@/lib/brandAssets";
 
 export const LABEL_WIDTH = 288; // 4 inches in points
@@ -11,10 +13,18 @@ export const LABEL_HEIGHT = 432; // 6 inches in points
 const MARGIN = 15;
 const BODY_SIZE = 12;
 const LINE_HEIGHT = 15;
+const ICON_SIZE = 24;
+const INDICATOR_GAP = 12;
+const INDICATOR_HEIGHT = ICON_SIZE + 14;
 const HEADER_HEIGHT = LABEL_WIDTH * 252 / 812;
 const COMPACT_HEADER_HEIGHT = LABEL_WIDTH * 144 / 812;
 
-type ThermalArtwork = { full: Uint8Array; compact: Uint8Array };
+type ThermalArtwork = {
+  full: Uint8Array;
+  compact: Uint8Array;
+  repair?: Uint8Array;
+  box?: Uint8Array;
+};
 let artwork: ThermalArtwork | undefined;
 let artworkRequest: Promise<ThermalArtwork> | undefined;
 
@@ -27,9 +37,22 @@ export const prepareThermalLabelArtwork = (): Promise<ThermalArtwork> => {
       if (!response.ok) throw new Error("Could not load thermal label artwork. Please try again.");
       return new Uint8Array(await response.arrayBuffer());
     };
-    artworkRequest = Promise.all([load(thermalHeader.url), load(thermalCompactHeader.url)])
-      .then(([full, compact]) => {
-        artwork = { full, compact };
+    const loadOptionalIcon = async (path: string) => {
+      try {
+        return await load(path);
+      } catch (error) {
+        console.warn(`Could not preload thermal label icon ${path}:`, error);
+        return undefined;
+      }
+    };
+    artworkRequest = Promise.all([
+      load(thermalHeader.url),
+      load(thermalCompactHeader.url),
+      loadOptionalIcon(repairIcon.url),
+      loadOptionalIcon(boxIcon.url),
+    ])
+      .then(([full, compact, repair, box]) => {
+        artwork = { full, compact, repair, box };
         return artwork;
       }).catch((error) => {
         artworkRequest = undefined;
@@ -157,26 +180,14 @@ export const renderLabelPage = (
   const bikeType = bike?.type || order.bikeType;
   const typeLines = bikeType ? wrap(`Type: ${bikeType}`, BODY_SIZE) : [];
   const codeLines = order.collectionCode ? wrap(`eBay Code: ${order.collectionCode}`, BODY_SIZE) : [];
-  const flags = [
-    order.needsInspection ? 'INSPECTION' : '',
-    order.isBoxMyBike ? 'BOX MY BIKE' : '',
-    order.isNorthernIreland ? 'NI' : '',
-  ].filter(Boolean);
-  pdf.setFontSize(BODY_SIZE);
-  const flagWidths = flags.map(flag => pdf.getTextWidth(flag) + 16);
-  let flagRows = flags.length ? 1 : 0;
-  let rowWidth = 0;
-  flagWidths.forEach(width => {
-    if (rowWidth && rowWidth + width > contentWidth) { flagRows++; rowWidth = 0; }
-    rowWidth += width + 8;
-  });
+  const hasIndicators = order.needsInspection || order.isBoxMyBike || order.isNorthernIreland;
 
   // Measure the entire body before choosing artwork; never shrink text to fit.
   const bodyHeight = 12 + trackingLines.length * 20 + 10
     + (senderLines.length ? 15 + senderLines.length * LINE_HEIGHT + 10 : 0)
     + 15 + receiverLines.length * LINE_HEIGHT + 12
     + 15 + (itemLines.length + typeLines.length + codeLines.length) * LINE_HEIGHT
-    + (flags.length ? 14 + flagRows * 30 : 0);
+    + (hasIndicators ? INDICATOR_HEIGHT : 0);
   const useCompact = HEADER_HEIGHT + 8 + bodyHeight > LABEL_HEIGHT - MARGIN;
   const headerHeight = useCompact ? COMPACT_HEADER_HEIGHT : HEADER_HEIGHT;
   if (headerHeight + 8 + bodyHeight > LABEL_HEIGHT - MARGIN) {
@@ -206,15 +217,33 @@ export const renderLabelPage = (
   textLines(itemLines);
   textLines(typeLines);
   textLines(codeLines);
-  if (flags.length) {
-    y += 8;
+  if (hasIndicators) {
+    y += 10;
     let x = MARGIN;
-    flags.forEach((flag, index) => {
-      const width = flagWidths[index];
-      if (x > MARGIN && x + width > labelWidth - MARGIN) { x = MARGIN; y += 30; }
-      pdf.rect(x, y - 12, width, 24, 'S');
-      pdf.text(flag, x + 8, y + 4);
-      x += width + 8;
-    });
+    const drawFallback = (label: string) => {
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(10);
+      const width = Math.max(ICON_SIZE, pdf.getTextWidth(label) + 8);
+      pdf.rect(x, y, width, ICON_SIZE, 'S');
+      pdf.text(label, x + width / 2, y + 16, { align: 'center' });
+      x += width + INDICATOR_GAP;
+    };
+    const drawIcon = (image: Uint8Array | undefined, alias: string, fallback: string) => {
+      if (!image) {
+        drawFallback(fallback);
+        return;
+      }
+      try {
+        pdf.addImage(image, 'PNG', x, y, ICON_SIZE, ICON_SIZE, alias, 'NONE');
+        x += ICON_SIZE + INDICATOR_GAP;
+      } catch (error) {
+        console.warn(`Could not render thermal label icon ${alias}:`, error);
+        drawFallback(fallback);
+      }
+    };
+
+    if (order.needsInspection) drawIcon(artwork.repair, 'thermal-repair-icon', 'SERVICE');
+    if (order.isBoxMyBike) drawIcon(artwork.box, 'thermal-box-icon', 'BOX');
+    if (order.isNorthernIreland) drawFallback('NI');
   }
 };
