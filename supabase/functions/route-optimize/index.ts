@@ -885,13 +885,19 @@ serve(async (req) => {
 
     /* ------------------------- London containment ------------------------- */
 
+    // No London area is drawn in the database, so a built-in Greater London
+    // zone (about the M25) is used unless a drawn "London" area exists.
     const londonAreaIdx = difficultAreas.findIndex((a) => /london/i.test(a.name));
-    const hasLondonArea = londonAreaIdx >= 0;
-    const isLondonLeg = (leg: Leg) => hasLondonArea && leg.areaIdx === londonAreaIdx;
+    const LONDON_CENTRE = { lat: 51.5074, lon: -0.1278 };
+    const LONDON_RADIUS_MI = 17;
+    const hasLondonArea = true;
+    const isLondonLeg = (leg: Leg) => londonAreaIdx >= 0
+      ? leg.areaIdx === londonAreaIdx
+      : milesBetween(leg.lat, leg.lon, LONDON_CENTRE.lat, LONDON_CENTRE.lon) <= LONDON_RADIUS_MI;
 
-    /** Middle of the drawn London area, used as the far end of the corridor. */
+    /** Middle of the London area, used as the far end of the corridor. */
     const londonCentroid = (() => {
-      if (!hasLondonArea) return null;
+      if (londonAreaIdx < 0) return LONDON_CENTRE;
       let lat = 0, lon = 0, n = 0;
       for (const ring of difficultAreas[londonAreaIdx].rings) {
         for (const pt of ring) {
@@ -899,7 +905,7 @@ serve(async (req) => {
           lon += Number(pt[0]); lat += Number(pt[1]); n++;
         }
       }
-      return n > 0 ? { lat: lat / n, lon: lon / n } : null;
+      return n > 0 ? { lat: lat / n, lon: lon / n } : LONDON_CENTRE;
     })();
 
     /**
