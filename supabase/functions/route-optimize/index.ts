@@ -599,7 +599,7 @@ serve(async (req) => {
 
     const { data: orderRows, error: ordersErr } = await admin
       .from('orders')
-      .select('id,tracking_number,user_id,created_at,status,sender,receiver,bikes,bike_type,bike_quantity,pickup_date,delivery_date,scheduled_pickup_date,scheduled_delivery_date,order_collected,order_delivered,needs_inspection,is_box_my_bike,ni_direction,guaranteed_delivery,guaranteed_delivery_date,is_warehouse_storage,bicycle_inspections(status)')
+      .select('id,tracking_number,user_id,created_at,status,sender,receiver,bikes,bike_type,bike_quantity,pickup_date,delivery_date,scheduled_pickup_date,scheduled_delivery_date,order_collected,order_delivered,needs_inspection,is_box_my_bike,ni_direction,guaranteed_delivery,guaranteed_delivery_date,guaranteed_type,guaranteed_collection_date,is_warehouse_storage,bicycle_inspections(status)')
       .not('status', 'in', '(cancelled,delivered)');
     if (ordersErr) throw ordersErr;
 
@@ -685,8 +685,11 @@ serve(async (req) => {
       const bookedCollection = bookedPickup && bookedPickup > today
         ? bookedPickup
         : (lockedPickup && lockedPickup > today ? lockedPickup : null);
-      const guaranteedDelivery = order.guaranteed_delivery && order.guaranteed_delivery_date && !order.order_delivered
+      const gType: string = order.guaranteed_type || 'delivery';
+      const guaranteedDelivery = order.guaranteed_delivery && gType !== 'collection' && order.guaranteed_delivery_date && !order.order_delivered
         ? dateKey(order.guaranteed_delivery_date) : null;
+      const guaranteedCollection = order.guaranteed_delivery && gType !== 'delivery' && order.guaranteed_collection_date && !order.order_collected
+        ? dateKey(order.guaranteed_collection_date) : null;
 
       const considerLeg = (
         legType: 'collection' | 'delivery',
@@ -777,13 +780,12 @@ serve(async (req) => {
       considerLeg(
         'collection', pickupDates,
         Number(order.sender?.address?.lat), Number(order.sender?.address?.lon),
-        null,
+        guaranteedCollection,
         !order.order_collected && !order.scheduled_pickup_date,
-        guaranteedDelivery,
+        guaranteedCollection ? null : guaranteedDelivery,
       );
 
-      const guaranteed = order.guaranteed_delivery && order.guaranteed_delivery_date
-        ? dateKey(order.guaranteed_delivery_date) : null;
+      const guaranteed = guaranteedDelivery;
       considerLeg(
         'delivery', deliveryDates,
         Number(order.receiver?.address?.lat), Number(order.receiver?.address?.lon),
@@ -1000,8 +1002,8 @@ serve(async (req) => {
         if (!m) continue;
         const stops: Stop[] = [];
         for (const s of (Array.isArray(route.steps) ? route.steps : [])) {
-          if (s.type !== 'job') continue;
-          const leg = legsById[Number(s.job)];
+          if (s.type !== 'job' && s.type !== 'pickup' && s.type !== 'delivery') continue;
+          const leg = legsById[Number(s.type === 'job' ? s.job : (s.id ?? s.job))];
           if (!leg) continue;
           stops.push({ leg, arrival: Number(s.arrival) || londonEpoch(m.date, shiftStart) });
         }
