@@ -1,5 +1,8 @@
 # Roadmap
 
+- [ ] Replace label branding and layout with supplied thermal artwork after plan approval
+- [ ] Verify representative thermal-label PDFs; actual printer test requires user
+
 - [x] Include expired-date jobs in Generate Routes by default (toggle starts on)
 - [x] Fix "Include expired jobs (n)" count — now counts only actually-expired jobs
 - [x] Expiring Dates page: expired jobs now land in the Expired column
