@@ -21,7 +21,7 @@ import { Truck, Printer, CalendarIcon, Package, Send } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import jsPDF from 'jspdf';
-import { renderLabelPage, resolveSenderLabelAccounts } from "@/utils/labelUtils";
+import { renderLabelPage, resolveSenderLabelAccounts, prepareThermalLabelArtwork } from "@/utils/labelUtils";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasRole } from "@/lib/roles";
 import { Label } from "@/components/ui/label";
@@ -566,12 +566,16 @@ const LoadingUnloadingPage = () => {
   };
 
   const generateLabels = async (orders: Order[], deliveryOrders: Order[]) => {
+    if (!selectedDate) return;
     try {
       // Create PDF with exact 4x6 inch page size for label printers
       const labelWidth = 288; // 4 inches in points
       const labelHeight = 432; // 6 inches in points
 
-      const senderLabelAccounts = await resolveSenderLabelAccounts([...orders, ...deliveryOrders]);
+      const [senderLabelAccounts] = await Promise.all([
+        resolveSenderLabelAccounts([...orders, ...deliveryOrders]),
+        prepareThermalLabelArtwork(),
+      ]);
 
       const pdf = new jsPDF('portrait', 'pt', [labelWidth, labelHeight]);
       let isFirstPage = true;
@@ -629,7 +633,7 @@ const LoadingUnloadingPage = () => {
         currentY += 30;
         
         pdf.setFontSize(14);
-        const dateText = format(selectedDate!, 'EEEE, MMMM d, yyyy');
+        const dateText = format(selectedDate, 'EEEE, MMMM d, yyyy');
         const dateTextWidth = pdf.getTextWidth(dateText);
         pdf.text(dateText, (labelWidth - dateTextWidth) / 2, currentY);
         
@@ -644,7 +648,7 @@ const LoadingUnloadingPage = () => {
         });
       });
 
-      pdf.save(`collection-labels-${format(selectedDate!, 'yyyy-MM-dd')}.pdf`);
+      pdf.save(`collection-labels-${format(selectedDate, 'yyyy-MM-dd')}.pdf`);
     } catch (error) {
       throw new Error(`PDF generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
