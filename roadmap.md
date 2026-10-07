@@ -2,6 +2,7 @@
 
 - [x] Replace label branding and layout with supplied thermal artwork
 - [x] Verify sample single, multi-bike, long-address, compact-header and driver-separated PDFs; one-bit 203 dpi confirmed
+- [x] Restore inspection, Box My Bike and Northern Ireland indicators on thermal labels
 - [ ] Verify physical thermal print quality — requires user to print a sample at 100% on their printer
 
 - [x] Include expired-date jobs in Generate Routes by default (toggle starts on)
