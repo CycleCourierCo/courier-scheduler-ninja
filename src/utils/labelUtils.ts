@@ -4,6 +4,8 @@ import type { Order } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
 import thermalHeader from "@/assets/brand/thermal-header-203dpi.png.asset.json";
 import thermalCompactHeader from "@/assets/brand/thermal-header-compact-203dpi.png.asset.json";
+import repairIcon from "@/assets/labels/label-icon-repair.png.asset.json";
+import boxIcon from "@/assets/labels/label-icon-box.png.asset.json";
 import { publicBrandAssetUrl } from "@/lib/brandAssets";
 
 export const LABEL_WIDTH = 288; // 4 inches in points
@@ -46,8 +48,8 @@ export const prepareThermalLabelArtwork = (): Promise<ThermalArtwork> => {
     artworkRequest = Promise.all([
       load(thermalHeader.url),
       load(thermalCompactHeader.url),
-      loadOptionalIcon('/label-icon-repair.png'),
-      loadOptionalIcon('/label-icon-box.png'),
+      loadOptionalIcon(repairIcon.url),
+      loadOptionalIcon(boxIcon.url),
     ])
       .then(([full, compact, repair, box]) => {
         artwork = { full, compact, repair, box };
