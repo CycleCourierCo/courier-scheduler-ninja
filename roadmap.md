@@ -1,7 +1,8 @@
 # Roadmap
 
-- [ ] Replace label branding and layout with supplied thermal artwork after plan approval
-- [ ] Verify representative thermal-label PDFs; actual printer test requires user
+- [x] Replace label branding and layout with supplied thermal artwork
+- [x] Verify sample single, multi-bike, long-address, compact-header and driver-separated PDFs; one-bit 203 dpi confirmed
+- [ ] Verify physical thermal print quality — requires user to print a sample at 100% on their printer
 
 - [x] Include expired-date jobs in Generate Routes by default (toggle starts on)
 - [x] Fix "Include expired jobs (n)" count — now counts only actually-expired jobs
