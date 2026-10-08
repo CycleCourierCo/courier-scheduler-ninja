@@ -11,7 +11,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface InspectionsOverTimeChartProps {
-  data: { month: string; label: string; booked: number; completed: number }[];
+  data: { month: string; label: string; booked: number; completed: number; predicted: number | null }[];
 }
 
 const InspectionsOverTimeChart = ({ data }: InspectionsOverTimeChartProps) => {
@@ -48,6 +48,15 @@ const InspectionsOverTimeChart = ({ data }: InspectionsOverTimeChartProps) => {
               name="Completed"
               stroke="hsl(var(--chart-2, var(--muted-foreground)))"
               activeDot={{ r: 8 }}
+            />
+            <Line
+              type="monotone"
+              dataKey="predicted"
+              name="Predicted (booked)"
+              stroke="hsl(var(--muted-foreground))"
+              strokeDasharray="5 5"
+              dot={false}
+              activeDot={{ r: 6 }}
             />
           </LineChart>
         </ResponsiveContainer>

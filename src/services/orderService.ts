@@ -889,6 +889,8 @@ export const clearGuaranteedDelivery = async (orderId: string): Promise<void> =>
       guaranteed_delivery_payer: null,
       guaranteed_delivery_amount: 0,
       guaranteed_delivery_date: null,
+      guaranteed_type: "delivery",
+      guaranteed_collection_date: null,
       guaranteed_delivery_note: null,
       guaranteed_delivery_invoice_id: null,
       guaranteed_delivery_invoice_number: null,

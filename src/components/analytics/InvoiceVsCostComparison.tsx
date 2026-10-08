@@ -12,10 +12,11 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { cn } from "@/lib/utils";
-import { aggregateProfitability, getTimeslipsForWeek } from "@/services/profitabilityService";
+import { aggregateProfitability, getTimeslipsForWeek, CostMode } from "@/services/profitabilityService";
 
 interface InvoiceVsCostComparisonProps {
   costPerMile: number;
+  costMode?: CostMode;
   revenuePerStop: number;
   useBikeTypePricing: boolean;
 }
@@ -26,7 +27,7 @@ const chartConfig = {
   costs: { label: "Costs", color: "hsl(25, 95%, 53%)" },
 };
 
-const InvoiceVsCostComparison = ({ costPerMile, revenuePerStop, useBikeTypePricing }: InvoiceVsCostComparisonProps) => {
+const InvoiceVsCostComparison = ({ costPerMile, costMode = 'flat', revenuePerStop, useBikeTypePricing }: InvoiceVsCostComparisonProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [startDate, setStartDate] = useState<Date>(startOfMonth(new Date()));
   const [endDate, setEndDate] = useState<Date>(endOfMonth(new Date()));
@@ -59,8 +60,8 @@ const InvoiceVsCostComparison = ({ costPerMile, revenuePerStop, useBikeTypePrici
 
   // Calculate route profitability
   const { data: routeData, isLoading: loadingRoute } = useQuery({
-    queryKey: ["invoice-comparison-route", timeslips, revenuePerStop, costPerMile, useBikeTypePricing],
-    queryFn: () => aggregateProfitability(timeslips, revenuePerStop, costPerMile, useBikeTypePricing),
+    queryKey: ["invoice-comparison-route", timeslips, revenuePerStop, costPerMile, useBikeTypePricing, costMode],
+    queryFn: () => aggregateProfitability(timeslips, revenuePerStop, costPerMile, useBikeTypePricing, costMode),
     enabled: isOpen && timeslips.length > 0,
   });
 

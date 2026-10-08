@@ -49,19 +49,39 @@ export interface MonthlyProfitabilityData {
   profit: number;
 }
 
-export const getTimeslipsForDate = async (date: string): Promise<Timeslip[]> => {
-  const { data, error } = await supabase
-    .from('timeslips')
-    .select(`
-      *,
-      driver:profiles!timeslips_driver_id_fkey(*)
-    `)
-    .eq('date', date)
-    .order('driver_id');
-
-  if (error) throw error;
-  return (data as unknown as Timeslip[]) || [];
+// Only approved timeslips count towards profitability; drafts lack final mileage/pay.
+const fetchApprovedTimeslips = async (startDate: string, endDate: string): Promise<Timeslip[]> => {
+  const PAGE = 1000;
+  const all: Timeslip[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from('timeslips')
+      .select(`*, driver:profiles!timeslips_driver_id_fkey(*)`)
+      .eq('status', 'approved')
+      .gte('date', startDate)
+      .lte('date', endDate)
+      .order('date', { ascending: true })
+      .order('id', { ascending: true })
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    all.push(...((data as unknown as Timeslip[]) || []));
+    if (!data || data.length < PAGE) break;
+  }
+  return all;
 };
+
+export const getDraftTimeslipCount = async (startDate: string, endDate: string): Promise<number> => {
+  const { count, error } = await supabase
+    .from('timeslips')
+    .select('id', { count: 'exact', head: true })
+    .eq('status', 'draft')
+    .gte('date', startDate)
+    .lte('date', endDate);
+  if (error) throw error;
+  return count || 0;
+};
+
+export const getTimeslipsForDate = async (date: string): Promise<Timeslip[]> => fetchApprovedTimeslips(date, date);
 
 export const updateTimeslipMileage = async (id: string, mileage: number): Promise<void> => {
   const { error } = await supabase
@@ -80,24 +100,8 @@ export const getCurrentWeekRange = () => {
   return { monday, sunday };
 };
 
-export const getTimeslipsForWeek = async (startDate: string, endDate: string): Promise<Timeslip[]> => {
-  const { data, error } = await supabase
-    .from('timeslips')
-    .select(`
-      *,
-      driver:profiles!timeslips_driver_id_fkey(*)
-    `)
-    .gte('date', startDate)
-    .lte('date', endDate)
-    .order('date', { ascending: true });
-
-  if (error) {
-    console.error('Error fetching week timeslips:', error);
-    throw error;
-  }
-
-  return (data as unknown as Timeslip[]) || [];
-};
+export const getTimeslipsForWeek = async (startDate: string, endDate: string): Promise<Timeslip[]> =>
+  fetchApprovedTimeslips(startDate, endDate);
 
 // Calculate total jobs from order IDs (for historic timeslips without total_jobs)
 export const calculateTotalJobsFromOrders = async (orderIds: string[]): Promise<number> => {
@@ -117,11 +121,30 @@ export const calculateTotalJobsFromOrders = async (orderIds: string[]): Promise<
 };
 
 // Helper: fetch orders for a specific date using two queries (pickup OR delivery) and merge
-const fetchOrdersForDate = async (date: string) => {
+const ordersForDateMemo = new Map<string, { at: number; p: Promise<any[]> }>();
+const fetchOrdersForDate = (date: string): Promise<any[]> => {
+  const hit = ordersForDateMemo.get(date);
+  if (hit && Date.now() - hit.at < 5 * 60 * 1000) return hit.p;
+  const p = fetchOrdersForDateRaw(date).catch((e) => { ordersForDateMemo.delete(date); throw e; });
+  ordersForDateMemo.set(date, { at: Date.now(), p });
+  return p;
+};
+
+// Run async work over items with limited parallelism, preserving order
+const mapLimit = async <T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> => {
+  const out: R[] = new Array(items.length);
+  let i = 0;
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (i < items.length) { const k = i++; out[k] = await fn(items[k]); }
+  }));
+  return out;
+};
+
+const fetchOrdersForDateRaw = async (date: string) => {
   const startOfDay = `${date}T00:00:00`;
   const endOfDay = `${date}T23:59:59.999`;
 
-  const selectFields = 'id, bike_type, bike_quantity, bikes, user_id, collection_driver_name, delivery_driver_name, scheduled_pickup_date, scheduled_delivery_date' as const;
+  const selectFields = 'id, bike_type, bike_quantity, bikes, user_id, use_large_bike_rate, collection_driver_name, delivery_driver_name, scheduled_pickup_date, scheduled_delivery_date' as const;
 
   const [pickupRes, deliveryRes] = await Promise.all([
     supabase
@@ -201,26 +224,14 @@ export const calculateTotalJobsFromDriverDate = async (
 
 // Get total jobs for a timeslip (hybrid: uses total_jobs if available, else calculates)
 export const getTotalJobs = async (timeslip: Timeslip): Promise<number> => {
-  console.log('🔍 getTotalJobs called for timeslip:', {
-    id: timeslip.id,
-    date: timeslip.date,
-    total_jobs: timeslip.total_jobs,
-    driver_name: timeslip.driver?.shipday_driver_name,
-    has_driver_object: !!timeslip.driver
-  });
 
   // Use total_jobs if available (new timeslips)
   if (timeslip.total_jobs !== null && timeslip.total_jobs !== undefined) {
-    console.log('✅ Using total_jobs from database:', timeslip.total_jobs);
     return timeslip.total_jobs;
   }
 
   // Try driver name + date matching first (for historic timeslips)
   if (timeslip.driver?.shipday_driver_name && timeslip.date) {
-    console.log('🔄 Calculating from driver name + date:', {
-      driver: timeslip.driver.shipday_driver_name,
-      date: timeslip.date
-    });
     
     const jobsFromOrders = await calculateTotalJobsFromDriverDate(
       timeslip.driver.shipday_driver_name,
@@ -228,16 +239,10 @@ export const getTotalJobs = async (timeslip: Timeslip): Promise<number> => {
       timeslip.driver.name
     );
     
-    console.log('📊 Jobs calculated from driver/date:', jobsFromOrders);
-    
     if (jobsFromOrders > 0) {
       return jobsFromOrders;
     }
   } else {
-    console.log('⚠️ Missing driver name or date:', {
-      has_driver_name: !!timeslip.driver?.shipday_driver_name,
-      has_date: !!timeslip.date
-    });
   }
 
   // Fallback: Calculate from job_locations if order_ids exist
@@ -245,44 +250,108 @@ export const getTotalJobs = async (timeslip: Timeslip): Promise<number> => {
     .map(loc => loc.order_id)
     .filter((id): id is string => !!id);
 
-  console.log('📍 Trying job_locations fallback:', {
-    orderIds_count: orderIds.length
-  });
-
   if (orderIds.length > 0) {
     const uniqueOrderIds = [...new Set(orderIds)];
     const result = await calculateTotalJobsFromOrders(uniqueOrderIds);
-    console.log('📦 Jobs from order IDs:', result);
     return result;
   }
-
-  console.log('❌ No jobs found, returning 0');
   return 0;
 };
 
 // Cache for special rate price lookups to avoid repeated queries
-const specialRatePriceCache = new Map<string, number | null>();
+interface SpecialRates { special: number | null; large: number | null; largeFrom: string | null; }
+const specialRatePriceCache = new Map<string, SpecialRates>();
 
-// Fetch the special_rate_price for a customer, with caching
-const getSpecialRatePrice = async (userId: string): Promise<number | null> => {
+// Fetch the special_rate_price (and large_bike_rate_price) for a customer, with caching
+const getSpecialRates = async (userId: string): Promise<SpecialRates> => {
   if (specialRatePriceCache.has(userId)) {
     return specialRatePriceCache.get(userId)!;
   }
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('special_rate_price')
+    .select('special_rate_price, large_bike_rate_price, large_bike_rate_from')
     .eq('id', userId)
     .single();
 
-  const price = (!error && data?.special_rate_price != null) ? Number(data.special_rate_price) : null;
-  specialRatePriceCache.set(userId, price);
-  return price;
+  const rates: SpecialRates = {
+    special: (!error && data?.special_rate_price != null) ? Number(data.special_rate_price) : null,
+    large: (!error && data?.large_bike_rate_price != null) ? Number(data.large_bike_rate_price) : null,
+    largeFrom: (!error && (data as any)?.large_bike_rate_from) ? String((data as any).large_bike_rate_from) : null,
+  };
+  specialRatePriceCache.set(userId, rates);
+  return rates;
+};
+
+// Resolve the per-delivery flat price for a special-rate customer.
+// Big-bike-flagged jobs use the large bike rate price when one is set and in effect on the job date.
+const resolveSpecialRate = (rates: SpecialRates, useLargeBikeRate: boolean, date?: string): number | null => {
+  if (rates.special === null) return null;
+  const largeActive = rates.large !== null && (!rates.largeFrom || !date || date >= rates.largeFrom);
+  if (useLargeBikeRate && largeActive) return rates.large;
+  return rates.special;
+};
+
+// Before this date the business charged a flat £65 per bike and was not VAT registered.
+export const VAT_PRICING_START = '2026-02-02';
+const LEGACY_FLAT_RATE = 65;
+const VAT_RATE = 1.2;
+
+// Invoiced (net of VAT) transport amount per order, from QuickBooks invoice lines
+const invoiceAmountCache = new Map<string, number | null>();
+const loadInvoiceAmounts = async (orderIds: string[]) => {
+  const missing = orderIds.filter(id => !invoiceAmountCache.has(id));
+  for (let i = 0; i < missing.length; i += 200) {
+    const chunk = missing.slice(i, i + 200);
+    const { data } = await supabase
+      .from('order_invoice_links')
+      .select('order_id, transport_net_amount')
+      .in('order_id', chunk);
+    for (const id of chunk) invoiceAmountCache.set(id, null);
+    for (const row of (data || []) as Array<{ order_id: string; transport_net_amount: number | null }>) {
+      const amt = Number(row.transport_net_amount || 0);
+      if (amt > 0) invoiceAmountCache.set(row.order_id, (invoiceAmountCache.get(row.order_id) || 0) + amt);
+    }
+  }
+};
+
+export interface RevenueSourceStats { invoiced: number; estimated: number; estimatedJobs: number; invoicedJobs: number; shopify: number; shopifyJobs: number; }
+
+// Orders booked through the website account are paid at checkout, so they never
+// need a QuickBooks invoice. Track their revenue separately from "estimated".
+let shopifyUserIdCache: string | null | undefined;
+export const getShopifyUserId = async (): Promise<string | null> => {
+  if (shopifyUserIdCache !== undefined) return shopifyUserIdCache;
+  const { data } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('email', 'shopify@cyclecourierco.com')
+    .maybeSingle();
+  shopifyUserIdCache = data?.id ?? null;
+  return shopifyUserIdCache;
 };
 
 // Clear the cache (call at start of a new profitability calculation batch)
 export const clearSpecialRatePriceCache = () => {
   specialRatePriceCache.clear();
+  invoiceAmountCache.clear();
+};
+
+// Estimated full (collection + delivery) net price for an order not yet invoiced
+export const estimateOrderNet = async (order: any, date: string): Promise<number> => {
+  const rates = await getSpecialRates(order.user_id);
+  const special = resolveSpecialRate(rates, Boolean(order.use_large_bike_rate), date);
+  const qty = order.bike_quantity || 1;
+  if (special !== null) return special * qty;
+  if (date < VAT_PRICING_START) return LEGACY_FLAT_RATE * qty;
+  const bikesArray = order.bikes as Array<{ bike_type?: string; quantity?: number }> | null;
+  let gross = 0;
+  if (bikesArray && Array.isArray(bikesArray) && bikesArray.length > 0) {
+    for (const bike of bikesArray) gross += getRevenuePerStopForBikeType(bike.bike_type || order.bike_type) * 2 * (bike.quantity || 1);
+  } else {
+    gross = getRevenuePerStopForBikeType(order.bike_type) * 2 * qty;
+  }
+  return gross / VAT_RATE;
 };
 
 // Calculate route revenue from the stops selected in RouteBuilder.
@@ -303,7 +372,7 @@ export const getRevenueForRouteStops = async (
 
   const { data: orders, error } = await supabase
     .from('orders')
-    .select('id, user_id, bikes, bike_type, bike_quantity')
+    .select('id, user_id, bikes, bike_type, bike_quantity, use_large_bike_rate')
     .in('id', orderIds);
   if (error || !orders) {
     return { revenue: 0, orderCount: orderIds.length, stopCount: relevant.length };
@@ -315,7 +384,7 @@ export const getRevenueForRouteStops = async (
     const stopsPresent = stopsByOrder.get(order.id) || 0;
     if (stopsPresent === 0) continue;
 
-    const specialRate = await getSpecialRatePrice(order.user_id);
+    const specialRate = resolveSpecialRate(await getSpecialRates(order.user_id), Boolean(order.use_large_bike_rate), new Date().toISOString().slice(0, 10));
 
     let perStopValue = 0;
     if (specialRate !== null) {
@@ -342,7 +411,7 @@ export const getRevenueForRouteStops = async (
 
 // Fetch orders for a timeslip and calculate revenue based on bike types (halved per stop)
 // If a customer has a special_rate_price, use that instead of standard bike-type pricing
-export const getRevenueForTimeslip = async (timeslip: Timeslip): Promise<number> => {
+export const getRevenueForTimeslip = async (timeslip: Timeslip, stats?: RevenueSourceStats): Promise<number> => {
   const driverName = timeslip.driver?.shipday_driver_name;
   const driverFullName = timeslip.driver?.name;
   const date = timeslip.date;
@@ -360,35 +429,105 @@ export const getRevenueForTimeslip = async (timeslip: Timeslip): Promise<number>
   );
 
   let totalRevenue = 0;
+  await loadInvoiceAmounts(uniqueOrders.map(o => o.id));
+  const shopifyId = stats ? await getShopifyUserId() : null;
 
   for (const order of uniqueOrders) {
-    // Check if the customer has a special rate price
-    const specialRate = await getSpecialRatePrice(order.user_id);
+    // Count each leg this driver did on this date (collection and delivery both count)
+    const col = order.collection_driver_name?.trim();
+    const del = order.delivery_driver_name?.trim();
+    const pDate = String(order.scheduled_pickup_date || '').slice(0, 10);
+    const dDate = String(order.scheduled_delivery_date || '').slice(0, 10);
+    const legs = Math.max(1,
+      (col && nameVariants.has(col) && pDate === date ? 1 : 0) +
+      (del && nameVariants.has(del) && dDate === date ? 1 : 0));
 
-    if (specialRate !== null) {
-      // Special rate is per delivery (full price), halved for per-stop
-      const qty = order.bike_quantity || 1;
-      totalRevenue += (specialRate / 2) * qty;
+    const invoiced = invoiceAmountCache.get(order.id);
+    if (invoiced != null && invoiced > 0) {
+      const value = (invoiced / 2) * legs;
+      totalRevenue += value;
+      if (stats) { stats.invoiced += value; stats.invoicedJobs += 1; }
       continue;
     }
-
-    // Standard bike-type pricing
-    const bikesArray = order.bikes as Array<{ bike_type?: string; quantity?: number }> | null;
-    
-    if (bikesArray && Array.isArray(bikesArray) && bikesArray.length > 0) {
-      for (const bike of bikesArray) {
-        const qty = bike.quantity || 1;
-        const revenuePerStop = getRevenuePerStopForBikeType(bike.bike_type || order.bike_type);
-        totalRevenue += revenuePerStop * qty;
+    const value = ((await estimateOrderNet(order, date)) / 2) * legs;
+    totalRevenue += value;
+    if (stats) {
+      if (shopifyId && order.user_id === shopifyId) {
+        stats.shopify += value; stats.shopifyJobs += 1;
+      } else {
+        stats.estimated += value; stats.estimatedJobs += 1;
       }
-    } else {
-      const qty = order.bike_quantity || 1;
-      const revenuePerStop = getRevenuePerStopForBikeType(order.bike_type);
-      totalRevenue += revenuePerStop * qty;
     }
   }
 
   return totalRevenue;
+};
+
+// ============ Cost basis: real fuel + maintenance vs flat-rate estimate ============
+export type CostMode = 'actual' | 'flat';
+
+// Net fuel (from uploaded fuel invoices) + maintenance cost per van per month.
+// Key: `${vehicle_id}|${yyyy-MM}` -> net £
+let vehicleCostCache: { at: number; data: Map<string, number> } | null = null;
+const VEHICLE_COST_TTL = 10 * 60 * 1000;
+
+export const getVehicleMonthlyCosts = async (): Promise<Map<string, number>> => {
+  if (vehicleCostCache && Date.now() - vehicleCostCache.at < VEHICLE_COST_TTL) return vehicleCostCache.data;
+  const data = new Map<string, number>();
+  const add = (vehicleId: unknown, date: unknown, amount: unknown) => {
+    if (!vehicleId || !date || !amount) return;
+    const key = `${vehicleId}|${String(date).slice(0, 7)}`;
+    data.set(key, (data.get(key) || 0) + Number(amount));
+  };
+  const loadTable = async (table: string, dateCol: string, amountCol: string) => {
+    for (let from = 0; ; from += 1000) {
+      const client = (supabase as any).from(table);
+      const { error, data: rows } = await client
+        .select(`${dateCol}, vehicle_id, ${amountCol}`)
+        .range(from, from + 999);
+      if (error) { console.error(`Error loading ${table} for cost basis:`, error); break; }
+      for (const r of (rows || []) as Array<Record<string, unknown>>) {
+        add(r.vehicle_id, r[dateCol], Number(r[amountCol] || 0));
+      }
+      if (!rows || rows.length < 1000) break;
+    }
+  };
+  await Promise.all([
+    loadTable('fuel_transactions', 'trx_date', 'net_amount'),
+    loadTable('vehicle_maintenance_logs', 'service_date', 'cost'),
+  ]);
+  vehicleCostCache = { at: Date.now(), data };
+  return data;
+};
+
+// Per van, per month real cost per mile: (fuel net + maintenance) / miles driven that month
+export const buildVehicleCostPerMile = (timeslips: Timeslip[], costs: Map<string, number>): Map<string, number> => {
+  const miles = new Map<string, number>();
+  for (const ts of timeslips) {
+    if (!ts.vehicle_id || !ts.date) continue;
+    const key = `${ts.vehicle_id}|${ts.date.slice(0, 7)}`;
+    miles.set(key, (miles.get(key) || 0) + (ts.mileage || 0));
+  }
+  const rates = new Map<string, number>();
+  for (const [key, m] of miles) {
+    if (m <= 0) continue;
+    rates.set(key, (costs.get(key) || 0) / m);
+  }
+  return rates;
+};
+
+let costContext: { mode: CostMode; rateMap: Map<string, number> | null } = { mode: 'flat', rateMap: null };
+export const setCostContext = (mode: CostMode, rateMap: Map<string, number> | null) => {
+  costContext = { mode, rateMap };
+};
+
+export const prepareCostContext = async (mode: CostMode, timeslips: Timeslip[]) => {
+  if (mode === 'actual') {
+    const costs = await getVehicleMonthlyCosts();
+    setCostContext('actual', buildVehicleCostPerMile(timeslips, costs));
+  } else {
+    setCostContext('flat', null);
+  }
 };
 
 export const calculateProfitability = (
@@ -406,8 +545,15 @@ export const calculateProfitability = (
     return sum + (addon.hours * timeslip.hourly_rate);
   }, 0);
 
-  // Calculate mileage costs
-  const mileageCosts = (timeslip.mileage || 0) * costPerMile;
+  // Mileage costs: in 'actual' mode use the van's real fuel + maintenance cost per mile
+  // for the van and month of the timeslip; otherwise the flat estimate rate.
+  let mileageCosts: number;
+  if (costContext.mode === 'actual' && costContext.rateMap && timeslip.vehicle_id && timeslip.date) {
+    const rate = costContext.rateMap.get(`${timeslip.vehicle_id}|${timeslip.date.slice(0, 7)}`) ?? 0;
+    mileageCosts = (timeslip.mileage || 0) * rate;
+  } else {
+    mileageCosts = (timeslip.mileage || 0) * costPerMile;
+  }
 
   // Total costs = driver pay + mileage costs
   const totalCosts = (timeslip.total_pay || 0) + mileageCosts;
@@ -427,9 +573,11 @@ export const aggregateProfitability = async (
   timeslips: Timeslip[],
   revenuePerStop: number,
   costPerMile: number,
-  useBikeTypePricing: boolean = false
+  useBikeTypePricing: boolean = false,
+  costMode: CostMode = 'flat'
 ) => {
   clearSpecialRatePriceCache();
+  await prepareCostContext(costMode, timeslips);
   let totalRevenue = 0;
   let totalCosts = 0;
   let totalProfit = 0;
@@ -457,8 +605,10 @@ export const calculateDailyProfitability = async (
   endDate: Date,
   revenuePerStop: number,
   costPerMile: number,
-  useBikeTypePricing: boolean = false
+  useBikeTypePricing: boolean = false,
+  costMode: CostMode = 'flat'
 ): Promise<DailyProfitability[]> => {
+  await prepareCostContext(costMode, timeslips);
   // Generate all days in the range (Monday to Sunday)
   const daysInWeek = eachDayOfInterval({ start: startDate, end: endDate });
   
@@ -505,53 +655,13 @@ export const calculateDailyProfitability = async (
 // Get timeslips for an entire month
 export const getTimeslipsForMonth = async (year: number, month: number): Promise<Timeslip[]> => {
   const monthStart = startOfMonth(new Date(year, month));
-  const monthEnd = endOfMonth(monthStart);
-  
-  const startString = format(monthStart, 'yyyy-MM-dd');
-  const endString = format(monthEnd, 'yyyy-MM-dd');
-
-  const { data, error } = await supabase
-    .from('timeslips')
-    .select(`
-      *,
-      driver:profiles!timeslips_driver_id_fkey(*)
-    `)
-    .gte('date', startString)
-    .lte('date', endString)
-    .order('date', { ascending: true });
-
-  if (error) {
-    console.error('Error fetching month timeslips:', error);
-    throw error;
-  }
-
-  return (data as unknown as Timeslip[]) || [];
+  return fetchApprovedTimeslips(format(monthStart, 'yyyy-MM-dd'), format(endOfMonth(monthStart), 'yyyy-MM-dd'));
 };
 
 // Get timeslips for an entire year
 export const getTimeslipsForYear = async (year: number): Promise<Timeslip[]> => {
   const yearStart = startOfYear(new Date(year, 0));
-  const yearEnd = endOfYear(yearStart);
-  
-  const startString = format(yearStart, 'yyyy-MM-dd');
-  const endString = format(yearEnd, 'yyyy-MM-dd');
-
-  const { data, error } = await supabase
-    .from('timeslips')
-    .select(`
-      *,
-      driver:profiles!timeslips_driver_id_fkey(*)
-    `)
-    .gte('date', startString)
-    .lte('date', endString)
-    .order('date', { ascending: true });
-
-  if (error) {
-    console.error('Error fetching year timeslips:', error);
-    throw error;
-  }
-
-  return (data as unknown as Timeslip[]) || [];
+  return fetchApprovedTimeslips(format(yearStart, 'yyyy-MM-dd'), format(endOfYear(yearStart), 'yyyy-MM-dd'));
 };
 
 // Calculate weekly profitability for a month (returns 4-5 weeks)
@@ -561,8 +671,10 @@ export const calculateWeeklyProfitabilityForMonth = async (
   month: number,
   revenuePerStop: number,
   costPerMile: number,
-  useBikeTypePricing: boolean = false
+  useBikeTypePricing: boolean = false,
+  costMode: CostMode = 'flat'
 ): Promise<WeeklyProfitabilityData[]> => {
+  await prepareCostContext(costMode, timeslips);
   const monthStart = startOfMonth(new Date(year, month));
   const monthEnd = endOfMonth(monthStart);
   
@@ -602,10 +714,12 @@ export const calculateWeeklyProfitabilityForMonth = async (
       const dateString = format(day, 'yyyy-MM-dd');
       const dayTimeslips = timeslipsByDate[dateString] || [];
       
-      for (const timeslip of dayTimeslips) {
+      const dayMetrics = await mapLimit(dayTimeslips, 8, async (timeslip) => {
         const totalJobs = await getTotalJobs(timeslip);
         const bikeRevenue = useBikeTypePricing ? await getRevenueForTimeslip(timeslip) : undefined;
-        const metrics = calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile, bikeRevenue);
+        return calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile, bikeRevenue);
+      });
+      for (const metrics of dayMetrics) {
         weekRevenue += metrics.revenue;
         weekCosts += metrics.totalCosts;
       }
@@ -631,8 +745,10 @@ export const calculateMonthlyProfitabilityForYear = async (
   year: number,
   revenuePerStop: number,
   costPerMile: number,
-  useBikeTypePricing: boolean = false
+  useBikeTypePricing: boolean = false,
+  costMode: CostMode = 'flat'
 ): Promise<MonthlyProfitabilityData[]> => {
+  await prepareCostContext(costMode, timeslips);
   const yearStart = startOfYear(new Date(year, 0));
   const yearEnd = endOfYear(yearStart);
   
@@ -657,10 +773,12 @@ export const calculateMonthlyProfitabilityForYear = async (
     let monthRevenue = 0;
     let monthCosts = 0;
 
-    for (const timeslip of monthTimeslips) {
+    const monthMetrics = await mapLimit(monthTimeslips, 8, async (timeslip) => {
       const totalJobs = await getTotalJobs(timeslip);
       const bikeRevenue = useBikeTypePricing ? await getRevenueForTimeslip(timeslip) : undefined;
-      const metrics = calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile, bikeRevenue);
+      return calculateProfitability(totalJobs, timeslip, revenuePerStop, costPerMile, bikeRevenue);
+    });
+    for (const metrics of monthMetrics) {
       monthRevenue += metrics.revenue;
       monthCosts += metrics.totalCosts;
     }
@@ -690,6 +808,10 @@ export interface UnitEconomicsMetrics {
   costPerDriverDay: number;
   profitPerDriverDay: number;
   revenuePerHour: number;
+  revenuePerJob: number;
+  costPerJob: number;
+  profitPerJob: number;
+  totalJobs: number;
   totalStops: number;
   totalMiles: number;
   totalHours: number;
@@ -703,6 +825,7 @@ export const calculateUnitEconomics = (
   totalProfit: number
 ): UnitEconomicsMetrics => {
   const totalStops = timeslips.reduce((sum, ts) => sum + (ts.total_stops || 0), 0);
+  const totalJobs = timeslips.reduce((sum, ts) => sum + (ts.total_jobs ?? ts.total_stops ?? 0), 0);
   const totalMiles = timeslips.reduce((sum, ts) => sum + (ts.mileage || 0), 0);
   const totalHours = timeslips.reduce((sum, ts) => sum + (ts.total_hours || 0), 0);
   const driverDays = timeslips.length;
@@ -720,9 +843,66 @@ export const calculateUnitEconomics = (
     costPerDriverDay: safe(totalCosts, driverDays),
     profitPerDriverDay: safe(totalProfit, driverDays),
     revenuePerHour: safe(totalRevenue, totalHours),
+    revenuePerJob: safe(totalRevenue, totalJobs),
+    costPerJob: safe(totalCosts, totalJobs),
+    profitPerJob: safe(totalProfit, totalJobs),
+    totalJobs,
     totalStops,
     totalMiles,
     totalHours,
     driverDays,
   };
+};
+
+export interface MonthlyReconciliationRow {
+  month: string; // YYYY-MM
+  pageRevenue: number;
+  invoicedOnPage: number;
+  estimatedOnPage: number;
+  estimatedJobs: number;
+  shopifyOnPage: number;
+  shopifyJobs: number;
+  invoicedTransport: number;
+}
+
+// Compare page revenue (approved timeslips) against all transport invoiced in QuickBooks per month
+export const getMonthlyReconciliation = async (year: number): Promise<MonthlyReconciliationRow[]> => {
+  const start = `${year}-01-01`;
+  const end = `${year}-12-31`;
+  const timeslips = await fetchApprovedTimeslips(start, end);
+  const rows = new Map<string, MonthlyReconciliationRow>();
+  const row = (m: string) => {
+    if (!rows.has(m)) rows.set(m, { month: m, pageRevenue: 0, invoicedOnPage: 0, estimatedOnPage: 0, estimatedJobs: 0, shopifyOnPage: 0, shopifyJobs: 0, invoicedTransport: 0 });
+    return rows.get(m)!;
+  };
+  const results = await mapLimit(timeslips, 8, async (ts) => {
+    const stats: RevenueSourceStats = { invoiced: 0, estimated: 0, estimatedJobs: 0, invoicedJobs: 0, shopify: 0, shopifyJobs: 0 };
+    const rev = await getRevenueForTimeslip(ts, stats);
+    return { ts, stats, rev };
+  });
+  for (const { ts, stats, rev } of results) {
+    const r = row(ts.date.slice(0, 7));
+    r.pageRevenue += rev;
+    r.invoicedOnPage += stats.invoiced;
+    r.estimatedOnPage += stats.estimated;
+    r.estimatedJobs += stats.estimatedJobs;
+    r.shopifyOnPage += stats.shopify;
+    r.shopifyJobs += stats.shopifyJobs;
+  }
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from('order_invoice_links')
+      .select('id, invoice_date, transport_net_amount')
+      .gte('invoice_date', start)
+      .lte('invoice_date', end)
+      .order('id', { ascending: true })
+      .range(from, from + 999);
+    if (error) throw error;
+    for (const l of (data || []) as Array<{ invoice_date: string | null; transport_net_amount: number | null }>) {
+      if (!l.invoice_date) continue;
+      row(String(l.invoice_date).slice(0, 7)).invoicedTransport += Number(l.transport_net_amount || 0);
+    }
+    if (!data || data.length < 1000) break;
+  }
+  return Array.from(rows.values()).sort((a, b) => a.month.localeCompare(b.month));
 };

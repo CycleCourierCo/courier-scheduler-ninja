@@ -12,6 +12,7 @@ import { CalendarIcon, FileText, Send, ExternalLink, Eye, Filter, Trash2, Refres
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import Layout from "@/components/Layout";
+import UnlinkedInvoicesPanel from "@/components/invoices/UnlinkedInvoicesPanel";
 
 type Customer = {
   id: string;
@@ -129,6 +130,15 @@ export default function InvoicesPage() {
       if (error) throw error;
       const row = (data && data[0]) || null;
       return row as UnlinkedInvoiceSummary | null;
+    },
+  });
+
+  const { data: invoiceCutoff } = useQuery({
+    queryKey: ["invoice-check-cutoff"],
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)("invoice_check_cutoff");
+      if (error) throw error;
+      return (data as string | null) || null;
     },
   });
 
@@ -770,9 +780,17 @@ export default function InvoicesPage() {
                 {" "}to {format(new Date(`${unlinkedSummary.latest_date}T12:00:00`), "d MMM yyyy")}
               </span>
             )}
-            . Run <span className="font-medium">Sync order invoice links</span> to match historical QuickBooks invoices.
+            . No QuickBooks invoice mentions these jobs by tracking number, so syncing again won't link them. Open the list below to link them by hand or mark them as not to be invoiced.
           </div>
         )}
+
+        {invoiceCutoff && (
+          <p className="text-sm text-muted-foreground">
+            Jobs from {format(new Date(invoiceCutoff), "d MMM yyyy")} onwards are waiting for the next weekly invoice run, so they aren't counted as missing yet.
+          </p>
+        )}
+
+        <UnlinkedInvoicesPanel onChanged={() => refetchUnlinkedSummary()} />
 
         <Card>
           <CardHeader>

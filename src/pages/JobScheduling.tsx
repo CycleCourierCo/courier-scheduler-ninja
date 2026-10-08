@@ -136,16 +136,10 @@ const JobScheduling = () => {
     const runId = shipdayVerificationRun.current + 1;
     shipdayVerificationRun.current = runId;
 
-    if (shipdayIds.length === 0) {
-      setShipdayVerification({});
-      setShipdayPickupAddresses({});
-      return;
-    }
+    if (shipdayIds.length === 0) return;
 
     setIsVerifyingShipday(true);
     try {
-      const results: ShipdayVerificationResults = {};
-      const pickupAddresses: ShipdayPickupAddresses = {};
       const batchSize = 200;
 
       for (let start = 0; start < shipdayIds.length; start += batchSize) {
@@ -157,10 +151,9 @@ const JobScheduling = () => {
         if (error) throw error;
         if (shipdayVerificationRun.current !== runId) return;
 
-        Object.assign(results, data.results || {});
-        Object.assign(pickupAddresses, data.pickupAddresses || {});
-        setShipdayVerification({ ...results });
-        setShipdayPickupAddresses({ ...pickupAddresses });
+        // Merge so earlier results (e.g. route jobs) aren't wiped by later checks
+        setShipdayVerification(prev => ({ ...prev, ...(data.results || {}) }));
+        setShipdayPickupAddresses(prev => ({ ...prev, ...(data.pickupAddresses || {}) }));
       }
     } catch (err) {
       console.error('Error verifying Shipday orders:', err);

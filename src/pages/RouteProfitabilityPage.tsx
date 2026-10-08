@@ -14,13 +14,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { 
-  getTimeslipsForDate, 
-  updateTimeslipMileage, 
+import {
+  getTimeslipsForDate,
+  updateTimeslipMileage,
   calculateProfitability,
   aggregateProfitability,
   getTotalJobs,
   getRevenueForTimeslip,
+  getDraftTimeslipCount,
   getCurrentWeekRange,
   getTimeslipsForWeek,
   calculateDailyProfitability,
@@ -28,12 +29,15 @@ import {
   getTimeslipsForYear,
   calculateWeeklyProfitabilityForMonth,
   calculateMonthlyProfitabilityForYear,
+  prepareCostContext,
+  CostMode,
 } from "@/services/profitabilityService";
 import { Timeslip } from "@/types/timeslip";
 import WeeklyProfitabilityChart from "@/components/analytics/WeeklyProfitabilityChart";
 import MonthlyProfitabilityChart from "@/components/analytics/MonthlyProfitabilityChart";
 import YearlyProfitabilityChart from "@/components/analytics/YearlyProfitabilityChart";
 import UnitEconomicsCard from "@/components/analytics/UnitEconomicsCard";
+import RevenueReconciliationCard from "@/components/analytics/RevenueReconciliationCard";
 import InvoiceVsCostComparison from "@/components/analytics/InvoiceVsCostComparison";
 
 
@@ -41,7 +45,8 @@ const RouteProfitabilityPage = () => {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [revenuePerStop, setRevenuePerStop] = useState<number>(32);
   const [costPerMile, setCostPerMile] = useState<number>(0.45);
-  const [useBikeTypePricing, setUseBikeTypePricing] = useState<boolean>(false);
+  const [costMode, setCostMode] = useState<CostMode>('actual');
+  const [useBikeTypePricing, setUseBikeTypePricing] = useState<boolean>(true);
   const queryClient = useQueryClient();
 
   // State for selected week (defaults to current week)
@@ -97,14 +102,14 @@ const RouteProfitabilityPage = () => {
   });
 
   const { data: weekAggregated } = useQuery({
-    queryKey: ['profitability-week-summary', weekStartString, weekEndString, revenuePerStop, costPerMile, useBikeTypePricing],
-    queryFn: () => aggregateProfitability(weekTimeslips, revenuePerStop, costPerMile, useBikeTypePricing),
+    queryKey: ['profitability-week-summary', weekStartString, weekEndString, revenuePerStop, costPerMile, useBikeTypePricing, costMode],
+    queryFn: () => aggregateProfitability(weekTimeslips, revenuePerStop, costPerMile, useBikeTypePricing, costMode),
     enabled: weekTimeslips.length > 0,
   });
 
   const { data: dailyChartData = [] } = useQuery({
-    queryKey: ['profitability-daily-chart', weekStartString, weekEndString, revenuePerStop, costPerMile, useBikeTypePricing],
-    queryFn: () => calculateDailyProfitability(weekTimeslips, monday, sunday, revenuePerStop, costPerMile, useBikeTypePricing),
+    queryKey: ['profitability-daily-chart', weekStartString, weekEndString, revenuePerStop, costPerMile, useBikeTypePricing, costMode],
+    queryFn: () => calculateDailyProfitability(weekTimeslips, monday, sunday, revenuePerStop, costPerMile, useBikeTypePricing, costMode),
     enabled: weekTimeslips.length > 0,
   });
 
@@ -123,8 +128,8 @@ const RouteProfitabilityPage = () => {
   });
 
   const { data: weeklyChartData = [] } = useQuery({
-    queryKey: ['profitability-weekly-chart', selectedMonthYear, selectedMonthNum, monthTimeslips.length, revenuePerStop, costPerMile, useBikeTypePricing],
-    queryFn: () => calculateWeeklyProfitabilityForMonth(monthTimeslips, selectedMonthYear, selectedMonthNum, revenuePerStop, costPerMile, useBikeTypePricing),
+    queryKey: ['profitability-weekly-chart', selectedMonthYear, selectedMonthNum, monthTimeslips.length, revenuePerStop, costPerMile, useBikeTypePricing, costMode],
+    queryFn: () => calculateWeeklyProfitabilityForMonth(monthTimeslips, selectedMonthYear, selectedMonthNum, revenuePerStop, costPerMile, useBikeTypePricing, costMode),
     enabled: monthTimeslips.length > 0,
   });
 
@@ -144,8 +149,8 @@ const RouteProfitabilityPage = () => {
   });
 
   const { data: monthlyChartData = [] } = useQuery({
-    queryKey: ['profitability-monthly-chart', selectedYear, yearTimeslips.length, revenuePerStop, costPerMile, useBikeTypePricing],
-    queryFn: () => calculateMonthlyProfitabilityForYear(yearTimeslips, selectedYear, revenuePerStop, costPerMile, useBikeTypePricing),
+    queryKey: ['profitability-monthly-chart', selectedYear, yearTimeslips.length, revenuePerStop, costPerMile, useBikeTypePricing, costMode],
+    queryFn: () => calculateMonthlyProfitabilityForYear(yearTimeslips, selectedYear, revenuePerStop, costPerMile, useBikeTypePricing, costMode),
     enabled: yearTimeslips.length > 0,
   });
 
@@ -157,6 +162,11 @@ const RouteProfitabilityPage = () => {
     }),
     { revenue: 0, costs: 0, profit: 0 }
   );
+
+  const { data: draftCount = 0 } = useQuery({
+    queryKey: ['profitability-drafts', selectedYear],
+    queryFn: () => getDraftTimeslipCount(`${selectedYear}-01-01`, `${selectedYear}-12-31`),
+  });
 
   const updateMileageMutation = useMutation({
     mutationFn: ({ id, mileage }: { id: string; mileage: number }) =>
@@ -179,15 +189,27 @@ const RouteProfitabilityPage = () => {
   };
 
   const { data: aggregated } = useQuery({
-    queryKey: ['profitability-summary', dateString, timeslips.length, revenuePerStop, costPerMile, useBikeTypePricing],
-    queryFn: () => aggregateProfitability(timeslips, revenuePerStop, costPerMile, useBikeTypePricing),
+    queryKey: ['profitability-summary', dateString, timeslips.length, revenuePerStop, costPerMile, useBikeTypePricing, costMode],
+    queryFn: () => aggregateProfitability(timeslips, revenuePerStop, costPerMile, useBikeTypePricing, costMode),
     enabled: timeslips.length > 0,
   });
+
+  // Keep the per-timeslip rows on the same cost basis as the summary cards
+  const [costCtxReady, setCostCtxReady] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (timeslips.length > 0) await prepareCostContext(costMode, timeslips);
+      if (!cancelled) setCostCtxReady(n => n + 1);
+    })();
+    return () => { cancelled = true; };
+  }, [timeslips, costMode]);
 
   return (
     <Layout>
       
-      <div className="office-density container mx-auto space-y-6 p-4 sm:p-6">
+      <div className="office-density container mx-auto space-y-6 p-4 sm:p-6" data-cost-version={costCtxReady}>
+
         <div className="flex items-center gap-2">
           <TrendingUp className="h-8 w-8 text-primary" />
           <h1>Route profitability</h1>
@@ -283,6 +305,8 @@ const RouteProfitabilityPage = () => {
           <WeeklyProfitabilityChart data={dailyChartData} />
         )}
 
+        <RevenueReconciliationCard year={selectedYear} />
+
         {/* Unit Economics */}
         <UnitEconomicsCard
           dayData={{
@@ -306,6 +330,9 @@ const RouteProfitabilityPage = () => {
             profit: monthlyTotals.profit,
             label: "Month",
           }}
+          costPerMileRate={costPerMile}
+          costMode={costMode}
+          draftCount={draftCount}
           yearData={{
             timeslips: yearTimeslips,
             revenue: yearlyTotals.revenue,
@@ -334,6 +361,7 @@ const RouteProfitabilityPage = () => {
         {/* Invoice vs Route Comparison */}
         <InvoiceVsCostComparison
           costPerMile={costPerMile}
+          costMode={costMode}
           revenuePerStop={revenuePerStop}
           useBikeTypePricing={useBikeTypePricing}
         />
@@ -363,6 +391,23 @@ const RouteProfitabilityPage = () => {
                 id="bike-type-pricing"
                 checked={useBikeTypePricing}
                 onCheckedChange={setUseBikeTypePricing}
+              />
+            </div>
+
+            <div className="flex items-center justify-between rounded-lg border p-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="real-costs" className="text-base">
+                  Use real costs (fuel + van maintenance)
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  Costs use driver pay plus each van's real fuel (net, from fuel invoices) and maintenance
+                  costs, spread by the van's miles each month. Turn off to use a flat per-mile estimate instead.
+                </p>
+              </div>
+              <Switch
+                id="real-costs"
+                checked={costMode === 'actual'}
+                onCheckedChange={(checked) => setCostMode(checked ? 'actual' : 'flat')}
               />
             </div>
 
@@ -396,7 +441,7 @@ const RouteProfitabilityPage = () => {
 
               {!useBikeTypePricing && (
                 <div className="space-y-2">
-                  <Label htmlFor="revenue">Revenue per Job (£)</Label>
+                  <Label htmlFor="revenue">Fallback per Job (£) — used only with bike-type pricing off</Label>
                   <Input
                     id="revenue"
                     type="number"
@@ -408,17 +453,19 @@ const RouteProfitabilityPage = () => {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="cost">Cost per Mile (£)</Label>
-                <Input
-                  id="cost"
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={costPerMile}
-                  onChange={(e) => setCostPerMile(parseFloat(e.target.value) || 0)}
-                />
-              </div>
+              {costMode === 'flat' && (
+                <div className="space-y-2">
+                  <Label htmlFor="cost">Estimate cost per mile (£) — used only with real costs off</Label>
+                  <Input
+                    id="cost"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={costPerMile}
+                    onChange={(e) => setCostPerMile(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

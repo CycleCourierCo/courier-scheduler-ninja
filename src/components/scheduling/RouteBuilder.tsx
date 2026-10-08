@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -54,6 +55,12 @@ import TimeslotRouteMap from "./TimeslotRouteMap";
 import { COST_PER_MILE, DRIVER_HOURLY_RATE, formatGBP } from "@/lib/routeCosts";
 
 // Location grouping radius for consolidating messages (in meters)
+const describeBikes = (o: any): string => {
+  const list = Array.isArray(o?.bikes) ? o.bikes : [];
+  const names = list.map((b: any) => [b?.brand, b?.model].filter(Boolean).join(' ').trim()).filter(Boolean);
+  if (names.length) return names.join(', ');
+  return [o?.bike_brand, o?.bike_model].filter(Boolean).join(' ') || 'Bike';
+};
 const LOCATION_GROUPING_RADIUS_METERS = 750;
 
 // Coordinate validation schema
@@ -1257,6 +1264,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   // Only the newest timeslot calculation may save its result.
   const calcRunRef = React.useRef(0);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [calcProgress, setCalcProgress] = useState({ done: 0, total: 0 });
+  const legCacheRef = React.useRef(new Map<string, { minutes: number; meters: number }>());
   const timeslotMapStops = React.useMemo(
     () => selectedJobs.map((job) => ({
       ...job,
@@ -2443,7 +2452,13 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
         const existingKey = getContactKey(firstJobInGroup);
         // Only merge when contact keys match. If either is missing, fall back to location-only merge.
-        const contactMatches = jobKey && existingKey ? jobKey === existingKey : true;
+        const pc = (j: SelectedJob) => {
+          const c: any = j.type === 'pickup' ? j.orderData?.sender : j.orderData?.receiver;
+          return (c?.address?.zipCode || '').toString().replace(/\s+/g, '').toUpperCase();
+        };
+        const contactMatches = jobKey && existingKey
+          ? jobKey === existingKey
+          : !!pc(job) && pc(job) === pc(firstJobInGroup);
         if (!contactMatches) continue;
 
         groupId = existingGroupId;
@@ -2822,6 +2837,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     const runId = ++calcRunRef.current;
     const isLatest = () => runId === calcRunRef.current;
     setIsCalculating(true);
+    setCalcProgress({ done: 0, total: 0 });
+    setShowTimeslotDialog(true);
 
     // Refresh coordinates/contact from the live order so NI deliveries always
     // route to the ferry hand-off, even if the stop was added/saved earlier.
@@ -2857,7 +2874,53 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     const baseCoords = { lat: 52.4690197, lon: -1.8757663 }; // Birmingham coordinates for Lawden Road, B10 0AD
     
     // Runs the arrival-time chain for a given ordered list of stops
+    const legKey = (a: { lat: number; lon: number }, b: { lat: number; lon: number }) =>
+      `${a.lat.toFixed(5)},${a.lon.toFixed(5)}>${b.lat.toFixed(5)},${b.lon.toFixed(5)}`;
+    const cachedTravel = async (a: { lat: number; lon: number }, b: { lat: number; lon: number }) => {
+      const k = legKey(a, b);
+      const hit = legCacheRef.current.get(k);
+      if (hit) return hit;
+      const leg = await calculateTravelTime(a, b);
+      legCacheRef.current.set(k, leg);
+      return leg;
+    };
+    // Fetch every leg of the route in parallel (cap 6 at a time) before timing it
+    const prefetchLegs = async (list: any[]) => {
+      const points: { lat: number; lon: number }[] = [baseCoords];
+      const seen = new Set<string>();
+      for (const job of list) {
+        if (job.type === 'break') continue;
+        if (job.locationGroupId) {
+          if (seen.has(job.locationGroupId)) continue;
+          seen.add(job.locationGroupId);
+        }
+        points.push({ lat: job.lat!, lon: job.lon! });
+      }
+      points.push(baseCoords);
+      const pairs: [any, any][] = [];
+      const keys = new Set<string>();
+      for (let i = 0; i < points.length - 1; i++) {
+        const k = legKey(points[i], points[i + 1]);
+        if (keys.has(k) || legCacheRef.current.has(k)) continue;
+        keys.add(k);
+        pairs.push([points[i], points[i + 1]]);
+      }
+      let done = 0;
+      if (isLatest()) setCalcProgress({ done: 0, total: pairs.length });
+      let next = 0;
+      const worker = async () => {
+        while (next < pairs.length) {
+          const [a, b] = pairs[next++];
+          await cachedTravel(a, b);
+          done++;
+          if (isLatest()) setCalcProgress({ done, total: pairs.length });
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(6, pairs.length) }, worker));
+    };
+
     const computeChain = async (list: any[]) => {
+      await prefetchLegs(list);
       const updatedJobs: any[] = [];
       let currentTime = new Date(`2024-01-01 ${startTime}`);
       const startClock = new Date(currentTime.getTime());
@@ -2883,7 +2946,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
           if (isNewLocation) {
             // Calculate travel time only for the first job at this location
-            const leg = await calculateTravelTime(lastLocationCoords, { lat: job.lat!, lon: job.lon! });
+            const leg = await cachedTravel(lastLocationCoords, { lat: job.lat!, lon: job.lon! });
             currentTime = new Date(currentTime.getTime() + leg.minutes * 60000);
             totalMeters += leg.meters;
 
@@ -2921,7 +2984,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       }
 
       // Return leg to depot
-      const returnLeg = await calculateTravelTime(lastLocationCoords, baseCoords);
+      const returnLeg = await cachedTravel(lastLocationCoords, baseCoords);
       currentTime = new Date(currentTime.getTime() + returnLeg.minutes * 60000);
       totalMeters += returnLeg.meters;
       const endTimeRounded = roundTimeToNext5Minutes(currentTime);
@@ -3048,9 +3111,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       const deliveries: string[] = [];
       
       jobsAtLocation.forEach(job => {
-        const brand = job.orderData?.bike_brand || 'Unknown Brand';
-        const model = job.orderData?.bike_model || 'Unknown Model';
-        const bikeInfo = `${brand} ${model}`;
+        const bikeInfo = describeBikes(job.orderData) + ((job.orderData as any)?.customer_order_number ? ` (Order #: ${(job.orderData as any).customer_order_number})` : "");
         if (job.type === 'pickup') collections.push(bikeInfo);
         else if (job.type === 'delivery') deliveries.push(bikeInfo);
       });
@@ -3134,23 +3195,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       const groupedLocationMap = new Map<string, SelectedJob[]>();
       const standaloneJobs: SelectedJob[] = [];
       const coordinateGroups: { [key: string]: SelectedJob[] } = {};
-      
-      for (const job of jobsToSend) {
-        if (!job.lat || !job.lon) { standaloneJobs.push(job); continue; }
-        
-        let foundGroupKey: string | null = null;
-        for (const [groupKey, groupJobs] of Object.entries(coordinateGroups)) {
-          const first = groupJobs[0];
-          if (first.lat && first.lon && isSameLocation({ lat: job.lat, lon: job.lon }, { lat: first.lat, lon: first.lon })) {
-            foundGroupKey = groupKey;
-            break;
-          }
-        }
-        
-        if (foundGroupKey) coordinateGroups[foundGroupKey].push(job);
-        else coordinateGroups[`coord-${job.lat}-${job.lon}`] = [job];
+      // Same grouping as the stop cards: same place AND same customer.
+      for (const job of groupJobsByLocation(jobsToSend)) {
+        const key = job.locationGroupId;
+        if (!key) { standaloneJobs.push(job); continue; }
+        (coordinateGroups[key] ||= []).push(job);
       }
-      
+      // Jobs without coordinates are dropped by groupJobsByLocation; keep them standalone.
+      for (const job of jobsToSend) {
+        if (!job.lat || !job.lon) standaloneJobs.push(job);
+      }
+
       for (const [groupKey, jobs] of Object.entries(coordinateGroups)) {
         if (jobs.length >= 2) groupedLocationMap.set(groupKey, jobs);
         else standaloneJobs.push(jobs[0]);
@@ -3172,7 +3227,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           const collections: string[] = [];
           const deliveries: string[] = [];
           jobsAtLocation.forEach(job => {
-            const bikeInfo = `${job.orderData?.bike_brand || 'Unknown Brand'} ${job.orderData?.bike_model || 'Unknown Model'}`;
+            const bikeInfo = describeBikes(job.orderData) + ((job.orderData as any)?.customer_order_number ? ` (Order #: ${(job.orderData as any).customer_order_number})` : "");
             if (job.type === 'pickup') collections.push(bikeInfo);
             else if (job.type === 'delivery') deliveries.push(bikeInfo);
           });
@@ -3392,10 +3447,18 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const availableJobs = getJobsFromOrders();
   const totalUnfilteredJobs = getJobsFromOrders(false).length;
   const hasActiveFilters = filterDate || showCollectedOnly || showCollectionToday || showExpiredDatesOnly;
-  const visibleShipdayIds = [...new Set(availableJobs.flatMap(job => {
-    const id = job.type === 'pickup' ? job.order.shipday_pickup_id : job.order.shipday_delivery_id;
-    return id ? [id] : [];
-  }))];
+  const visibleShipdayIds = [...new Set([
+    ...availableJobs.flatMap(job => {
+      const id = job.type === 'pickup' ? job.order.shipday_pickup_id : job.order.shipday_delivery_id;
+      return id ? [id] : [];
+    }),
+    // Also check jobs on the current route, even if they aren't in the visible list
+    ...selectedJobs.flatMap(j => {
+      if (!j.orderData || (j.type !== 'pickup' && j.type !== 'delivery')) return [];
+      const id = j.type === 'pickup' ? j.orderData.shipday_pickup_id : j.orderData.shipday_delivery_id;
+      return id ? [id] : [];
+    }),
+  ])];
   const visibleShipdaySignature = visibleShipdayIds.slice().sort().join('|');
 
   React.useEffect(() => {
@@ -3453,6 +3516,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   };
 
   const [isLoadingShipday, setIsLoadingShipday] = useState(false);
+  const [pendingShipdayPush, setPendingShipdayPush] = useState<{ count: number; run: () => Promise<void> } | null>(null);
 
   const missingVisibleShipdayJobs = availableJobs.filter(
     (job): job is typeof job & { type: 'pickup' | 'delivery' } =>
@@ -3495,6 +3559,54 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         confirmLabel: 'Add all',
         onConfirm: doPush,
       });
+      return;
+    }
+
+    await doPush();
+  };
+
+  // Route jobs (timeslot popup) not yet on Shipday
+  const routeJobsMissingShipday = selectedJobs.filter(
+    (j): j is typeof j & { type: 'pickup' | 'delivery' } =>
+      j.type !== 'break' &&
+      !!j.orderData &&
+      (j.type === 'pickup' || j.type === 'delivery') &&
+      getShipdayStatus(j.orderData, j.type) !== 'verified' &&
+      // Only skip unchecked jobs while a check is still running
+      !(isVerifyingShipday && getShipdayStatus(j.orderData, j.type) === 'pending')
+  );
+
+  const handleAddRouteJobsToShipday = async () => {
+    if (routeJobsMissingShipday.length === 0) {
+      toast.info('All route jobs are already on Shipday');
+      return;
+    }
+
+    const jobsToAdd = [...routeJobsMissingShipday];
+    const doPush = async () => {
+      setIsLoadingShipday(true);
+      toast.info(`Adding ${jobsToAdd.length} route jobs to Shipday...`);
+      let success = 0;
+      let failed = 0;
+
+      for (const job of jobsToAdd) {
+        try {
+          await createShipdayOrder(job.orderId, job.type);
+          success++;
+        } catch (err) {
+          console.error('Failed to add route job to Shipday', job, err);
+          failed++;
+        }
+      }
+
+      if (failed === 0) toast.success(`${success} route jobs added to Shipday`);
+      else toast.warning(`${success} added, ${failed} failed`);
+      onReVerifyShipday?.();
+      setIsLoadingShipday(false);
+    };
+
+    if (jobsToAdd.length > 20) {
+      setPendingShipdayPush({ count: jobsToAdd.length, run: doPush });
       return;
     }
 
@@ -3605,6 +3717,18 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   return (
     <TooltipProvider>
       <div className="space-y-6">
+      <AlertDialog open={!!pendingShipdayPush} onOpenChange={(o) => { if (!o) setPendingShipdayPush(null); }}>
+        <AlertDialogContent className="z-[200]">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Add {pendingShipdayPush?.count} route jobs to Shipday?</AlertDialogTitle>
+            <AlertDialogDescription>Each job not already on Shipday will be added one by one.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { const p = pendingShipdayPush; setPendingShipdayPush(null); void p?.run(); }}>Add all</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <GuaranteedDatePanel
         orders={orderList}
         selectedKeys={new Set(selectedJobs.map(j => `${j.orderId}-${j.type}`))}
@@ -4041,8 +4165,28 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                       Bulk Message
                     </Button>
                   </div>
+                  <Button
+                    onClick={handleAddRouteJobsToShipday}
+                    size="sm"
+                    variant="outline"
+                    disabled={isLoadingShipday || isVerifyingShipday || routeJobsMissingShipday.length === 0}
+                    className="w-full h-8 text-xs"
+                  >
+                    {isLoadingShipday ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
+                    Add all to Shipday ({routeJobsMissingShipday.length})
+                  </Button>
                   {renderCleanBar(true)}
-                  {isCalculating && <p className="text-xs text-muted-foreground">Updating times…</p>}
+                  {isCalculating && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>{calcProgress.total > 0 ? `Working out drive times… ${calcProgress.done} of ${calcProgress.total}` : 'Updating times…'}</span>
+                    {calcProgress.total > 0 && (
+                      <div className="h-1.5 w-32 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full bg-primary transition-all" style={{ width: `${Math.round((calcProgress.done / calcProgress.total) * 100)}%` }} />
+                      </div>
+                    )}
+                  </div>
+                )}
                 </div>
 
                 <TimeslotRouteMap
@@ -4256,9 +4400,28 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                     <MessageSquare className="h-4 w-4 mr-2" />
                     Bulk Message
                   </Button>
+                  <Button
+                    onClick={handleAddRouteJobsToShipday}
+                    size="sm"
+                    variant="outline"
+                    disabled={isLoadingShipday || isVerifyingShipday || routeJobsMissingShipday.length === 0}
+                  >
+                    {isLoadingShipday ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
+                    Add all to Shipday ({routeJobsMissingShipday.length})
+                  </Button>
                 </div>
                 {renderCleanBar(false)}
-                {isCalculating && <p className="text-xs text-muted-foreground">Updating times…</p>}
+                {isCalculating && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <span>{calcProgress.total > 0 ? `Working out drive times… ${calcProgress.done} of ${calcProgress.total}` : 'Updating times…'}</span>
+                    {calcProgress.total > 0 && (
+                      <div className="h-1.5 w-32 rounded-full bg-muted overflow-hidden">
+                        <div className="h-full bg-primary transition-all" style={{ width: `${Math.round((calcProgress.done / calcProgress.total) * 100)}%` }} />
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <TimeslotRouteMap

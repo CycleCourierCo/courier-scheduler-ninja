@@ -66,6 +66,7 @@ const OrdersCreatedChart = ({ orders }: OrdersCreatedChartProps) => {
             <Tooltip formatter={(v) => [`${v} orders`, "Created"]} labelFormatter={(l) => String(l)} />
             <Legend />
             <Line type="monotone" dataKey="count" name="Orders Created" stroke="#4a65d5" strokeWidth={2} dot={{ r: 3 }} activeDot={{ r: 6 }} />
+            <Line type="monotone" dataKey="predicted" name="Predicted" stroke="#4a65d5" strokeWidth={2} strokeDasharray="5 5" dot={false} activeDot={{ r: 5 }} />
           </LineChart>
         </ResponsiveContainer>
       </CardContent>

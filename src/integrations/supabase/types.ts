@@ -3489,6 +3489,35 @@ export type Database = {
           },
         ]
       }
+      order_invoice_exclusions: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          order_id: string
+          reason: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          order_id: string
+          reason?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          order_id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "order_invoice_exclusions_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: true
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       order_invoice_links: {
         Row: {
           created_at: string
@@ -3499,6 +3528,7 @@ export type Database = {
           quickbooks_invoice_id: string
           quickbooks_invoice_number: string | null
           quickbooks_invoice_url: string
+          transport_net_amount: number | null
           updated_at: string
         }
         Insert: {
@@ -3510,6 +3540,7 @@ export type Database = {
           quickbooks_invoice_id: string
           quickbooks_invoice_number?: string | null
           quickbooks_invoice_url: string
+          transport_net_amount?: number | null
           updated_at?: string
         }
         Update: {
@@ -3521,6 +3552,7 @@ export type Database = {
           quickbooks_invoice_id?: string
           quickbooks_invoice_number?: string | null
           quickbooks_invoice_url?: string
+          transport_net_amount?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -3759,6 +3791,7 @@ export type Database = {
           foam_pending_foaming_at: string | null
           foam_status: Database["public"]["Enums"]["foam_status"] | null
           foam_tracking_url: string | null
+          guaranteed_collection_date: string | null
           guaranteed_delivery: boolean
           guaranteed_delivery_amount: number
           guaranteed_delivery_date: string | null
@@ -3772,6 +3805,7 @@ export type Database = {
           guaranteed_delivery_marked_by_name: string | null
           guaranteed_delivery_note: string | null
           guaranteed_delivery_payer: string | null
+          guaranteed_type: string
           held_by_driver_at: string | null
           held_by_driver_name: string | null
           id: string
@@ -3885,6 +3919,7 @@ export type Database = {
           foam_pending_foaming_at?: string | null
           foam_status?: Database["public"]["Enums"]["foam_status"] | null
           foam_tracking_url?: string | null
+          guaranteed_collection_date?: string | null
           guaranteed_delivery?: boolean
           guaranteed_delivery_amount?: number
           guaranteed_delivery_date?: string | null
@@ -3898,6 +3933,7 @@ export type Database = {
           guaranteed_delivery_marked_by_name?: string | null
           guaranteed_delivery_note?: string | null
           guaranteed_delivery_payer?: string | null
+          guaranteed_type?: string
           held_by_driver_at?: string | null
           held_by_driver_name?: string | null
           id?: string
@@ -4011,6 +4047,7 @@ export type Database = {
           foam_pending_foaming_at?: string | null
           foam_status?: Database["public"]["Enums"]["foam_status"] | null
           foam_tracking_url?: string | null
+          guaranteed_collection_date?: string | null
           guaranteed_delivery?: boolean
           guaranteed_delivery_amount?: number
           guaranteed_delivery_date?: string | null
@@ -4024,6 +4061,7 @@ export type Database = {
           guaranteed_delivery_marked_by_name?: string | null
           guaranteed_delivery_note?: string | null
           guaranteed_delivery_payer?: string | null
+          guaranteed_type?: string
           held_by_driver_at?: string | null
           held_by_driver_name?: string | null
           id?: string
@@ -4143,6 +4181,8 @@ export type Database = {
           is_business: boolean | null
           is_test_account: boolean
           large_bike_rate_code: string | null
+          large_bike_rate_from: string | null
+          large_bike_rate_price: number | null
           latitude: number | null
           leave_year_start: string
           licence_back_path: string | null
@@ -4196,6 +4236,8 @@ export type Database = {
           is_business?: boolean | null
           is_test_account?: boolean
           large_bike_rate_code?: string | null
+          large_bike_rate_from?: string | null
+          large_bike_rate_price?: number | null
           latitude?: number | null
           leave_year_start?: string
           licence_back_path?: string | null
@@ -4249,6 +4291,8 @@ export type Database = {
           is_business?: boolean | null
           is_test_account?: boolean
           large_bike_rate_code?: string | null
+          large_bike_rate_from?: string | null
+          large_bike_rate_price?: number | null
           latitude?: number | null
           leave_year_start?: string
           licence_back_path?: string | null
@@ -4325,6 +4369,33 @@ export type Database = {
           token_type?: string
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      quickbooks_unmatched_invoices: {
+        Row: {
+          customer_name: string | null
+          invoice_date: string | null
+          invoice_number: string | null
+          quickbooks_invoice_id: string
+          synced_at: string
+          total_amount: number | null
+        }
+        Insert: {
+          customer_name?: string | null
+          invoice_date?: string | null
+          invoice_number?: string | null
+          quickbooks_invoice_id: string
+          synced_at?: string
+          total_amount?: number | null
+        }
+        Update: {
+          customer_name?: string | null
+          invoice_date?: string | null
+          invoice_number?: string | null
+          quickbooks_invoice_id?: string
+          synced_at?: string
+          total_amount?: number | null
         }
         Relationships: []
       }
@@ -6672,6 +6743,8 @@ export type Database = {
           is_business: boolean | null
           is_test_account: boolean
           large_bike_rate_code: string | null
+          large_bike_rate_from: string | null
+          large_bike_rate_price: number | null
           latitude: number | null
           leave_year_start: string
           licence_back_path: string | null
@@ -6789,6 +6862,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      invoice_check_cutoff: { Args: never; Returns: string }
       invoke_backfill_shipday_jobs: { Args: never; Returns: undefined }
       invoke_cs_resend_fetch: { Args: never; Returns: undefined }
       invoke_expire_availability: { Args: never; Returns: undefined }
@@ -7533,6 +7607,21 @@ export type Database = {
         Args: { p_approved_issue_ids: string[]; p_order_id: string }
         Returns: Json
       }
+      unlinked_invoice_orders: {
+        Args: never
+        Returns: {
+          bike_quantity: number
+          bike_type: string
+          bikes: Json
+          created_at: string
+          customer_id: string
+          customer_name: string
+          is_b2b: boolean
+          order_id: string
+          paid_by_card: boolean
+          tracking_number: string
+        }[]
+      }
       unlinked_invoice_summary: {
         Args: never
         Returns: {
@@ -7567,6 +7656,8 @@ export type Database = {
           is_business: boolean | null
           is_test_account: boolean
           large_bike_rate_code: string | null
+          large_bike_rate_from: string | null
+          large_bike_rate_price: number | null
           latitude: number | null
           leave_year_start: string
           licence_back_path: string | null

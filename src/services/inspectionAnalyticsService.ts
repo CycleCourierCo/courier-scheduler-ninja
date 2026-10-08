@@ -66,7 +66,7 @@ export const fetchInspectionsForAnalytics = async (): Promise<InspectionAnalytic
 
 export const getInspectionsOverTime = (
   inspections: InspectionAnalyticsRecord[]
-): { month: string; label: string; booked: number; completed: number }[] => {
+): { month: string; label: string; booked: number; completed: number; predicted: number | null }[] => {
   const map: Record<string, { booked: number; completed: number }> = {};
   const keyFor = (value: string | null | undefined): string | null => {
     if (!value) return null;
@@ -86,12 +86,23 @@ export const getInspectionsOverTime = (
     if (completedKey) ensure(completedKey).completed += 1;
   });
 
+  // Project the current month to its end: booked so far ÷ days elapsed × days in month
+  const now = new Date();
+  const currentKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const daysElapsed = now.getDate();
+
   return Object.entries(map)
     .map(([month, counts]) => {
       const [y, m] = month.split('-');
       const date = new Date(Number(y), Number(m) - 1, 1);
       const label = date.toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
-      return { month, label, booked: counts.booked, completed: counts.completed };
+      let predicted: number | null;
+      if (month < currentKey) predicted = counts.booked;
+      else if (month === currentKey)
+        predicted = Math.round((counts.booked / daysElapsed) * daysInMonth);
+      else predicted = null;
+      return { month, label, booked: counts.booked, completed: counts.completed, predicted };
     })
     .sort((a, b) => a.month.localeCompare(b.month));
 };
@@ -250,6 +261,7 @@ export const getInspectionStageDurations = (
     issues_to_parts: [],
     parts_to_repair: [],
     repair_to_repaired: [],
+    collected_to_repaired: [],
   };
 
   inspections.forEach(insp => {
@@ -296,6 +308,10 @@ export const getInspectionStageDurations = (
     const repairStart = firstPartsArrived ?? firstResponded;
     const d6 = diffHours(repairStart ?? null, lastResolved ?? null);
     if (d6 !== null) buckets.repair_to_repaired.push(d6);
+
+    // 7. Collected → Repaired (end to end)
+    const d7 = diffHours(collectedAt, lastResolved ?? null);
+    if (d7 !== null) buckets.collected_to_repaired.push(d7);
   });
 
   const labels: Record<string, string> = {
@@ -305,6 +321,7 @@ export const getInspectionStageDurations = (
     issues_to_parts: "Response → Parts Ordered",
     parts_to_repair: "Parts Ordered → Parts Arrived",
     repair_to_repaired: "Awaiting Repair → Repaired",
+    collected_to_repaired: "Collected → Repaired",
   };
 
   return Object.entries(buckets).map(([key, vals]) => ({

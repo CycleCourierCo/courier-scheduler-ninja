@@ -180,6 +180,7 @@ export interface CreatedSeriesPoint {
   bucket: string;
   label: string;
   count: number;
+  predicted: number | null;
 }
 
 export interface CompletedSeriesPoint {
@@ -188,6 +189,9 @@ export interface CompletedSeriesPoint {
   orders: number;
   collections: number;
   deliveries: number;
+  predictedOrders: number | null;
+  predictedCollections: number | null;
+  predictedDeliveries: number | null;
 }
 
 const MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -237,6 +241,26 @@ const inRange = (d: Date, range: TimeRange): boolean => {
   return t >= startT && t <= endT;
 };
 
+// Project the current incomplete bucket to its end:
+// count so far ÷ days elapsed × total days in the period.
+// Past buckets return the actual count; future buckets return null.
+const predictBucket = (bucketDate: Date, g: Granularity, count: number): number | null => {
+  const now = new Date();
+  const start = bucketStart(bucketDate, g);
+  const currentStart = bucketStart(now, g);
+  if (start.getTime() < currentStart.getTime()) return count;
+  if (start.getTime() > currentStart.getTime()) return null;
+  let totalDays: number;
+  if (g === "day") totalDays = 1;
+  else if (g === "week") totalDays = 7;
+  else totalDays = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+  const elapsedDays = Math.max(
+    1,
+    Math.floor((_startOfDay(now).getTime() - start.getTime()) / 86400000) + 1
+  );
+  return Math.round((count / elapsedDays) * totalDays);
+};
+
 export const getOrdersCreatedSeries = (
   orders: Order[],
   range: TimeRange,
@@ -258,6 +282,7 @@ export const getOrdersCreatedSeries = (
     bucket: bucketKey(b, g),
     label: bucketLabel(b, g),
     count: counts[bucketKey(b, g)] || 0,
+    predicted: predictBucket(b, g, counts[bucketKey(b, g)] || 0),
   }));
 };
 
@@ -378,6 +403,7 @@ export const getCustomerOrdersOverTimeRanged = (
     bucket: bucketKey(b, g),
     label: bucketLabel(b, g),
     count: counts[bucketKey(b, g)] || 0,
+    predicted: predictBucket(b, g, counts[bucketKey(b, g)] || 0),
   }));
 };
 
@@ -784,7 +810,15 @@ export const getOrdersCompletedSeries = (
 
   return buckets.map(b => {
     const k = bucketKey(b, g);
-    return { bucket: k, label: bucketLabel(b, g), ...data[k] };
+    const d = data[k];
+    return {
+      bucket: k,
+      label: bucketLabel(b, g),
+      ...d,
+      predictedOrders: predictBucket(b, g, d.orders),
+      predictedCollections: predictBucket(b, g, d.collections),
+      predictedDeliveries: predictBucket(b, g, d.deliveries),
+    };
   });
 };
 

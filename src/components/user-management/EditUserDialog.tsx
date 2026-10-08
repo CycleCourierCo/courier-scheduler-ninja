@@ -56,6 +56,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         special_rate_code: user.special_rate_code,
         special_rate_price: user.special_rate_price,
         large_bike_rate_code: user.large_bike_rate_code ?? null,
+        large_bike_rate_price: user.large_bike_rate_price ?? null,
         opening_hours: user.opening_hours || DEFAULT_OPENING_HOURS,
         is_test_account: user.is_test_account,
         show_sender_on_label: user.show_sender_on_label ?? false,
@@ -81,11 +82,33 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
 
   const handleSave = async () => {
     if (!user) return;
-    
+
     setSaving(true);
     try {
+      const newEmail = formData.email?.trim().toLowerCase();
+      const oldEmail = user.email?.trim().toLowerCase();
+      if (newEmail && newEmail !== oldEmail) {
+        const { data, error } = await supabase.functions.invoke('update-user-email', {
+          body: { userId: user.id, email: newEmail },
+        });
+        if (error) {
+          let bodyMsg: string | undefined;
+          try {
+            const ctx: any = (error as any)?.context;
+            if (ctx && typeof ctx.json === 'function') {
+              const parsed = await ctx.json();
+              if (parsed?.error) bodyMsg = String(parsed.error);
+            }
+          } catch { /* ignore */ }
+          throw new Error(bodyMsg || error.message);
+        }
+        if (data?.error) throw new Error(String(data.error));
+        toast.success('Login email updated — they now sign in with the new address.');
+      }
       await onSave(user.id, formData);
       onClose();
+    } catch (err: any) {
+      toast.error(err?.message || 'Failed to save changes');
     } finally {
       setSaving(false);
     }
@@ -178,6 +201,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                   value={formData.email || ''}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
+                <p className="text-xs text-muted-foreground">This is the email they sign in with.</p>
               </div>
               <div className="space-y-2 min-w-0">
                 <Label htmlFor="edit-phone">Phone</Label>
@@ -304,6 +328,20 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                   />
                   <p className="text-xs text-muted-foreground">
                     If set, this price per delivery will be used in profitability calculations instead of the standard bike-type pricing.
+                  </p>
+                </div>
+                <div className="space-y-2 min-w-0 sm:col-span-2">
+                  <Label htmlFor="edit-large-bike-rate-price">Big Bike Rate Price (£ per delivery)</Label>
+                  <Input
+                    id="edit-large-bike-rate-price"
+                    type="number"
+                    step="0.01"
+                    placeholder="e.g., 150.00"
+                    value={formData.large_bike_rate_price ?? ''}
+                    onChange={(e) => setFormData({ ...formData, large_bike_rate_price: e.target.value ? parseFloat(e.target.value) : null })}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Optional. Used in profitability calculations for jobs ticked as "Charge big-bike rate" instead of the special rate price.
                   </p>
                 </div>
                 <div className="sm:col-span-2">
