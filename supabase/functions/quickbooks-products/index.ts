@@ -78,6 +78,19 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const action = String(body.action || '');
+
+    // Public retail catalogue (read-only) for the product consistency report.
+    if (action === 'shopify_list') {
+      const res = await fetch('https://cyclecourierco.com/products.json?limit=250');
+      if (!res.ok) return json({ error: `Could not read the Shopify shop (${res.status})` }, 502);
+      const d = await res.json();
+      return json({
+        products: (d.products || []).map((p: any) => ({
+          id: String(p.id), title: String(p.title || ''),
+          variants: (p.variants || []).map((v: any) => ({ id: String(v.id), title: String(v.title || ''), price: Number(v.price) || 0 })),
+        })),
+      });
+    }
     const tok = await getToken(supabase, user.id);
     if (!tok) return json({ error: 'QuickBooks is not connected. Connect it from the Invoices page.' }, 400);
 
