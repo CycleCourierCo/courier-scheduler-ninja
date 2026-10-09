@@ -7,7 +7,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Control, useWatch, useFormContext } from "react-hook-form";
 import { CreateOrderFormData } from "@/types/order";
 
-const BIKE_TYPES = [
+export const BIKE_TYPES = [
   "Non-Electric - Mountain Bike",
   "Non-Electric - Road Bike",
   "Non-Electric - Hybrid",

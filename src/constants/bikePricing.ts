@@ -49,7 +49,7 @@ export const BIKE_TYPE_ID_BY_NAME: Record<string, number> = Object.fromEntries(
 );
 
 // Maps order bike_type values to their full delivery price
-const bikeTypePriceMap: Record<string, number> = {
+export const bikeTypePriceMap: Record<string, number> = {
   // Exact matches from order bike_type values
   "Boxed Kids Bikes": 35,
   "Wheelset/Frameset": 35,
