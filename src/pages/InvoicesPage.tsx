@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import Layout from "@/components/Layout";
 import UnlinkedInvoicesPanel from "@/components/invoices/UnlinkedInvoicesPanel";
+import CancelledInvoicedPanel from "@/components/invoices/CancelledInvoicedPanel";
 
 type Customer = {
   id: string;
@@ -791,6 +792,8 @@ export default function InvoicesPage() {
         )}
 
         <UnlinkedInvoicesPanel onChanged={() => refetchUnlinkedSummary()} />
+
+        <CancelledInvoicedPanel />
 
         <Card>
           <CardHeader>
