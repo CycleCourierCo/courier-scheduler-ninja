@@ -101,6 +101,7 @@ import InspectionFilters, {
   type InspectionFilterState,
 } from "@/components/inspections/InspectionFilters";
 import { uuid } from "@/lib/uuid";
+import { getWorkshopOverdue, DEFAULT_OVERDUE_LIMITS, STAGE_LABELS, type OverdueLimits } from "@/utils/workshopOverdue";
 
 // (workshop settings/labour pricing consumed inside RepairPicker)
 
@@ -266,6 +267,33 @@ const BicycleInspections = () => {
 
   const [customerResponses, setCustomerResponses] = useState<Record<string, string>>({});
   const [sortBy, setSortBy] = useState<"oldest_collected" | "newest_collected" | "tracking_asc">("oldest_collected");
+
+  // Workshop time limits for the Overdue tab and badges.
+  const { data: overdueLimits = DEFAULT_OVERDUE_LIMITS } = useQuery({
+    queryKey: ["workshop-overdue-limits"],
+    queryFn: async () => {
+      const { data } = await supabase.from("workshop_settings")
+        .select("overdue_inspection_days, overdue_parts_unordered_days, overdue_parts_ordered_days, overdue_repair_days")
+        .limit(1).maybeSingle();
+      return { ...DEFAULT_OVERDUE_LIMITS, ...((data as Partial<OverdueLimits>) || {}) } as OverdueLimits;
+    },
+    staleTime: 10 * 60 * 1000,
+  });
+
+  const chaseMutation = useMutation({
+    mutationFn: async (orderId: string) => {
+      const { data, error } = await supabase.functions.invoke("workshop-overdue", { body: { action: "chase", orderId } });
+      if (error) {
+        let msg = error.message;
+        try { msg = (await (error as any).context?.json())?.error || msg; } catch { /* ignore */ }
+        throw new Error(msg);
+      }
+      if (data?.error) throw new Error(data.error);
+      return data as { sentTo: string };
+    },
+    onSuccess: (d) => toast.success(`Chase sent to ${d.sentTo}`),
+    onError: (e: Error) => toast.error(e.message),
+  });
   // Storage bay editing + bike photo lightbox (from the inspection card)
   const [storageDialogOrder, setStorageDialogOrder] = useState<any | null>(null);
   const [photoDialog, setPhotoDialog] = useState<{ title: string; urls: string[] } | null>(null);
@@ -1721,6 +1749,15 @@ const BicycleInspections = () => {
     };
   }, [filteredInspections]);
 
+  const overdueList = useMemo(() => {
+    if (!canManageInspections) return [];
+    return (filteredInspections as any[])
+      .map((o) => ({ o, od: getWorkshopOverdue(o, overdueLimits) }))
+      .filter((x) => x.od?.overdue)
+      .sort((a, b) => b.od!.workingDays - a.od!.workingDays)
+      .map((x) => x.o);
+  }, [filteredInspections, overdueLimits, canManageInspections]);
+
   const renderInspectionCard = (order: any) => {
     const inspection = order.inspection;
     const orderIssues = order.issues || [];
@@ -2038,6 +2075,23 @@ const BicycleInspections = () => {
               <Badge variant={badgeConfig.variant} className="max-w-full whitespace-normal text-left sm:whitespace-nowrap sm:text-center">
                 {badgeConfig.label}
               </Badge>
+              {canManageInspections && (() => {
+                const od = getWorkshopOverdue(order, overdueLimits);
+                if (!od?.overdue) return null;
+                return (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="destructive" title={STAGE_LABELS[od.stage]}>
+                      Overdue · {od.workingDays} working day{od.workingDays === 1 ? "" : "s"}
+                    </Badge>
+                    {!order.workshop_only && (
+                      <Button size="sm" variant="outline" className="h-7" disabled={chaseMutation.isPending}
+                        onClick={() => chaseMutation.mutate(order.id)}>
+                        Chase mechanic
+                      </Button>
+                    )}
+                  </div>
+                );
+              })()}
               {isAdmin && inspection?.id && (
                 <Select
                   value={inspection.status}
@@ -3504,6 +3558,12 @@ const BicycleInspections = () => {
             )}
             <div className="w-full">
             <TabsList className="grid w-full grid-cols-1 gap-1 h-auto sm:flex sm:flex-wrap">
+              {canManageInspections && (
+                <TabsTrigger value="overdue" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
+                  Overdue
+                  {overdueList.length > 0 && <Badge variant="destructive" className="ml-1">{overdueList.length}</Badge>}
+                </TabsTrigger>
+              )}
               <TabsTrigger value="awaiting" className="w-full justify-start sm:w-auto sm:justify-center flex items-center gap-1">
                 Awaiting
                 {awaitingInspection.length > 0 && (
@@ -3656,6 +3716,17 @@ const BicycleInspections = () => {
                 <p className="text-muted-foreground text-center py-8">No bikes awaiting parts</p>
               ) : (
                 awaitingParts.map(renderInspectionCard)
+              )}
+            </TabsContent>
+
+            <TabsContent value="overdue" className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Bikes past their workshop time limit (Mon–Fri working days), longest first. Mechanics also get their own list by email at 8am each working day.
+              </p>
+              {overdueList.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8">Nothing overdue in the workshop</p>
+              ) : (
+                overdueList.map(renderInspectionCard)
               )}
             </TabsContent>
 

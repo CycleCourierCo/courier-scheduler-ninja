@@ -2303,6 +2303,50 @@ export type Database = {
           },
         ]
       }
+      inspection_chases: {
+        Row: {
+          automatic: boolean
+          created_at: string
+          days_in_stage: number | null
+          id: string
+          order_id: string
+          sent_by_id: string | null
+          sent_by_name: string | null
+          sent_to: string | null
+          stage: string
+        }
+        Insert: {
+          automatic?: boolean
+          created_at?: string
+          days_in_stage?: number | null
+          id?: string
+          order_id: string
+          sent_by_id?: string | null
+          sent_by_name?: string | null
+          sent_to?: string | null
+          stage: string
+        }
+        Update: {
+          automatic?: boolean
+          created_at?: string
+          days_in_stage?: number | null
+          id?: string
+          order_id?: string
+          sent_by_id?: string | null
+          sent_by_name?: string | null
+          sent_to?: string | null
+          stage?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_chases_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inspection_comments: {
         Row: {
           author_id: string
@@ -6296,6 +6340,10 @@ export type Database = {
           id: number
           inspection_standard_minutes: number
           min_charge_gbp: number
+          overdue_inspection_days: number
+          overdue_parts_ordered_days: number
+          overdue_parts_unordered_days: number
+          overdue_repair_days: number
           redate_mode: string
           updated_at: string
           updated_by: string | null
@@ -6310,6 +6358,10 @@ export type Database = {
           id?: number
           inspection_standard_minutes?: number
           min_charge_gbp?: number
+          overdue_inspection_days?: number
+          overdue_parts_ordered_days?: number
+          overdue_parts_unordered_days?: number
+          overdue_repair_days?: number
           redate_mode?: string
           updated_at?: string
           updated_by?: string | null
@@ -6324,6 +6376,10 @@ export type Database = {
           id?: number
           inspection_standard_minutes?: number
           min_charge_gbp?: number
+          overdue_inspection_days?: number
+          overdue_parts_ordered_days?: number
+          overdue_parts_unordered_days?: number
+          overdue_repair_days?: number
           redate_mode?: string
           updated_at?: string
           updated_by?: string | null
@@ -6881,6 +6937,7 @@ export type Database = {
       invoke_refresh_vehicles: { Args: never; Returns: undefined }
       invoke_send_order_updates: { Args: never; Returns: undefined }
       invoke_weekly_invoice_batch: { Args: never; Returns: undefined }
+      invoke_workshop_overdue_digest: { Args: never; Returns: undefined }
       is_account_approved: { Args: { user_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_admin_or_sales: { Args: never; Returns: boolean }
