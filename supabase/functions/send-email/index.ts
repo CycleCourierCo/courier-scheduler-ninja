@@ -641,7 +641,7 @@ async function handleFerryConfirmation(orderId: string, resend: any): Promise<Re
 // Wait briefly, then confirm the leg is really complete. Shipday can send a
 // completion/photo event a moment before ORDER_FAILED for the same job.
 async function legStillComplete(supabase: any, orderId: string, leg: "pickup" | "delivery"): Promise<boolean> {
-  await new Promise((r) => setTimeout(r, 4000));
+  await new Promise((r) => setTimeout(r, 2500));
   const { data: o } = await supabase
     .from("orders")
     .select("status, order_collected, order_delivered, tracking_events")
