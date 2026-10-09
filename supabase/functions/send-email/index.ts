@@ -638,6 +638,26 @@ async function handleFerryConfirmation(orderId: string, resend: any): Promise<Re
   }
 }
 
+// Wait briefly, then confirm the leg is really complete. Shipday can send a
+// completion/photo event a moment before ORDER_FAILED for the same job.
+async function legStillComplete(supabase: any, orderId: string, leg: "pickup" | "delivery"): Promise<boolean> {
+  await new Promise((r) => setTimeout(r, 4000));
+  const { data: o } = await supabase
+    .from("orders")
+    .select("status, order_collected, order_delivered, tracking_events")
+    .eq("id", orderId)
+    .single();
+  if (!o) return false;
+  if (leg === "pickup" && o.order_collected !== true) return false;
+  if (leg === "delivery" && o.order_delivered !== true && o.status !== "delivered") return false;
+  const updates: any[] = o.tracking_events?.shipday?.updates || [];
+  const last = updates
+    .filter((u: any) => u.leg === leg && ["ORDER_FAILED", "ORDER_COMPLETED", "ORDER_POD_UPLOAD"].includes(u.event))
+    .sort((a: any, b: any) => String(a.timestamp).localeCompare(String(b.timestamp)))
+    .pop();
+  return last?.event !== "ORDER_FAILED";
+}
+
 async function handleDeliveryConfirmation(orderId: string, resend: any): Promise<Response> {
   try {
     console.log("Starting delivery confirmation process for order:", orderId);
@@ -659,6 +679,13 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
           status: 404
         }
       );
+    }
+
+    if (!order.delivery_confirmation_sent_at && !(await legStillComplete(supabase, orderId, "delivery"))) {
+      console.log("Delivery not complete (failed or reverted) - skipping delivery confirmation");
+      return new Response(JSON.stringify({ success: true, skipped: "not delivered" }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
+      });
     }
 
     // Check if delivery confirmation emails have already been sent
@@ -863,13 +890,21 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
 
     // Atomically claim this order so duplicate webhooks can't send twice.
     // The marker is written BEFORE any email goes out; only the winning caller proceeds.
+    if (!order.collection_confirmation_sent_at && !(await legStillComplete(supabase, orderId, "pickup"))) {
+      console.log("Collection not complete (failed or reverted) - skipping collection confirmation");
+      return new Response(JSON.stringify({ success: true, skipped: "not collected" }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200,
+      });
+    }
+
+    // Claim only if the bike is still flagged collected. Never set the flag here.
     const { data: claimed, error: claimError } = await supabase
       .from("orders")
       .update({
         collection_confirmation_sent_at: new Date().toISOString(),
-        order_collected: true,
       })
       .eq("id", orderId)
+      .eq("order_collected", true)
       .is("collection_confirmation_sent_at", null)
       .select("id");
 
