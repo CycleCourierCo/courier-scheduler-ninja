@@ -1,5 +1,7 @@
 import { useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +10,7 @@ import { pricingData, bikeTypePriceMap, BIKE_TYPE_BY_ID } from "@/constants/bike
 import { BIKE_TYPES as BOOKING_TYPES } from "@/components/create-order/OrderDetails";
 import { BIKE_TYPES as BOOKING_OPTION_TYPES } from "@/components/create-order/OrderOptions";
 
-type QbItem = { id: string; name: string; price: number; active: boolean };
+type QbItem = { id: string; syncToken: string; name: string; type: string; description: string; price: number; active: boolean; taxCodeId: string | null; incomeAccountId: string | null };
 type ShopifyProduct = { id: string; title: string; variants: { id: string; title: string; price: number }[] };
 
 // Reduce the many spellings of a product to one comparison key.
@@ -29,8 +31,8 @@ export function productKey(raw: string): string {
   return ALIASES[s] ?? ALIASES[raw.toLowerCase()] ?? s;
 }
 
-async function call(action: string) {
-  const { data, error } = await supabase.functions.invoke("quickbooks-products", { body: { action } });
+async function call(action: string, extra: Record<string, unknown> = {}) {
+  const { data, error } = await supabase.functions.invoke("quickbooks-products", { body: { action, ...extra } });
   if (error) throw new Error(error.message);
   if (data?.error) throw new Error(data.error);
   return data;
@@ -49,6 +51,17 @@ export default function ProductConsistencyReport({ qbItems }: { qbItems: QbItem[
     queryKey: ["shopify-retail-products"],
     queryFn: async () => (await call("shopify_list")).products as ShopifyProduct[],
     staleTime: 600000,
+  });
+
+  const qc = useQueryClient();
+  // The app price is the master: push it to the linked QuickBooks item.
+  const syncQb = useMutation({
+    mutationFn: ({ item, price }: { item: QbItem; price: number }) => call("update", { product: {
+      id: item.id, syncToken: item.syncToken, name: item.name, type: item.type, description: item.description,
+      price, taxCodeId: item.taxCodeId, incomeAccountId: item.incomeAccountId,
+    } }),
+    onSuccess: () => { toast.success("QuickBooks price updated"); qc.invalidateQueries({ queryKey: ["qb-products"] }); },
+    onError: (e: Error) => toast.error(e.message),
   });
 
   const rows = useMemo(() => {
@@ -99,7 +112,7 @@ export default function ProductConsistencyReport({ qbItems }: { qbItems: QbItem[
       <CardHeader>
         <CardTitle className="text-base">Product consistency ({withIssues} of {rows.length} need attention)</CardTitle>
         <p className="text-sm text-muted-foreground">
-          Read-only comparison. App, pricing page and QuickBooks prices are ex VAT. Shopify prices are retail, as shown on the website (incl. VAT).
+          Read-only comparison. App, pricing page and QuickBooks prices are ex VAT. Shopify is a separate retail price list (incl. VAT), so only names and missing products are flagged there — change Shopify by hand.
           The Shopify column shows the England &amp; Wales product; NI is shown separately.
         </p>
         {shopify.isError && <p className="text-sm text-destructive">Couldn't read Shopify: {(shopify.error as Error).message}</p>}
@@ -124,7 +137,12 @@ export default function ProductConsistencyReport({ qbItems }: { qbItems: QbItem[
                     <td className="pr-2">{money(r.pricingPage)}</td>
                     <td className="pr-2">{r.booking ? "Yes" : "—"}</td>
                     <td className="pr-2">{r.api ? "Yes" : "—"}</td>
-                    <td className="pr-2">{r.qb ? <span>{money(r.qb.price)}<br /><span className="text-xs text-muted-foreground">{r.qb.name}</span></span> : "—"}</td>
+                    <td className="pr-2">{r.qb ? <span>{money(r.qb.price)}<br /><span className="text-xs text-muted-foreground">{r.qb.name}</span>
+                      {r.appPrice != null && Math.abs(r.qb.price - r.appPrice) > 0.005 && (
+                        <><br /><Button size="sm" variant="outline" className="mt-1 h-7" disabled={syncQb.isPending}
+                          onClick={() => { if (confirm(`Set "${r.qb!.name}" in QuickBooks to £${r.appPrice!.toFixed(2)}?`)) syncQb.mutate({ item: r.qb!, price: r.appPrice! }); }}>
+                          Set to app price</Button></>
+                      )}</span> : "—"}</td>
                     <td className="pr-2">{money(r.shopify)}</td>
                     <td className="pr-2">{money(r.shopifyNi)}</td>
                     <td className="space-x-1 space-y-1">
