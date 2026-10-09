@@ -6668,7 +6668,9 @@ export type Database = {
         Returns: {
           cancelled_at: string
           customer_name: string
+          had_failed_collection: boolean
           invoice_date: string
+          last_failed_collection_at: string
           order_created_at: string
           order_id: string
           quickbooks_invoice_id: string
