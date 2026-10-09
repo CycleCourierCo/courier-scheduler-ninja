@@ -310,8 +310,42 @@ serve(async (req) => {
         update.orderId === shipdayOrderId && update.event === "ORDER_COMPLETED"
       );
       
-      // If no prior completion event exists, treat POD upload as completion
-      if (!hasCompletionEvent) {
+      // A photo is also attached when a driver FAILS a job, so a POD upload is
+      // only a completion when Shipday itself says the job is complete and no
+      // failure has been recorded for this Shipday job.
+      const lastForJob = [...existingUpdates]
+        .filter((u: any) => u.orderId === shipdayOrderId && ["ORDER_FAILED", "ORDER_COMPLETED"].includes(u.event))
+        .sort((a: any, b: any) => String(a.timestamp).localeCompare(String(b.timestamp)))
+        .pop();
+      const failedAlready = lastForJob?.event === "ORDER_FAILED";
+      let podCanonical = "";
+      if (!hasCompletionEvent && !failedAlready) {
+        const shipdayApiKey = Deno.env.get("SHIPDAY_API_KEY");
+        if (shipdayApiKey) {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000);
+            const res = await fetch(`https://api.shipday.com/orders/${shipdayOrderId}`, {
+              method: "GET",
+              headers: { "Authorization": `Basic ${shipdayApiKey}`, "Content-Type": "application/json" },
+              signal: controller.signal,
+            });
+            clearTimeout(timeoutId);
+            if (res.ok) {
+              const j = await res.json();
+              const o = Array.isArray(j) ? j[0] : j;
+              podCanonical = String(o?.orderStatus?.orderState || o?.orderStatus || o?.order_status || "").toUpperCase();
+            }
+          } catch (_e) {
+            console.warn(`Shipday verification failed for POD on ${shipdayOrderId}`);
+          }
+        }
+      }
+      const podIsCompletion = ["ALREADY_DELIVERED", "COMPLETED", "DELIVERED", "PICKED_UP"].includes(podCanonical);
+      console.log(`POD upload for ${shipdayOrderId}: canonical=${podCanonical || "unknown"} failedAlready=${failedAlready}`);
+
+      // Only treat POD as completion when Shipday confirms the job is complete
+      if (!hasCompletionEvent && !failedAlready && podIsCompletion) {
         if (isPickup) {
           newStatus = "collected";
           statusDescription = isInboundFerryPickup
@@ -325,9 +359,11 @@ serve(async (req) => {
         }
         console.log(`POD upload treated as completion for ${isPickup ? "pickup" : "delivery"} order ${shipdayOrderId}`);
       } else {
-        // Keep current status if completion already recorded
+        // Keep current status — completion already recorded, or the job failed / isn't complete
         newStatus = dbOrder.status;
-        statusDescription = isPickup ? "Proof of collection uploaded" : "Proof of delivery uploaded";
+        statusDescription = (failedAlready || (!hasCompletionEvent && !podIsCompletion))
+          ? (isPickup ? "Photo uploaded (collection not completed)" : "Photo uploaded (delivery not completed)")
+          : (isPickup ? "Proof of collection uploaded" : "Proof of delivery uploaded");
         console.log(`Processing POD upload for ${isPickup ? "pickup" : "delivery"} order ${shipdayOrderId}`);
       }
     } else if (event === "ORDER_ACCEPTED_AND_STARTED") {
