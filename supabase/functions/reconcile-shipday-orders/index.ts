@@ -305,7 +305,7 @@ serve(async (req) => {
         const deliveryDates = dbOrder.delivery_date;
         const senderSet = Array.isArray(pickupDates) && pickupDates.length > 0;
         const receiverSet = Array.isArray(deliveryDates) && deliveryDates.length > 0;
-        const isCollected = dbOrder.order_collected === true || dbOrder.status === "collected";
+        const isCollected = dbOrder.order_collected === true;
         const revert = (includeCollected: boolean) => {
           if (includeCollected && isCollected) return "collected";
           if (senderSet && receiverSet) return "scheduled_dates_pending";
@@ -374,7 +374,7 @@ serve(async (req) => {
       const foamOrder = !!currentFoamStatus;
       const nowIso = new Date().toISOString();
 
-      if (newStatus === "collected" || newStatus === "driver_to_delivery") {
+      if (newStatus === "collected" && (isPickup || dbOrder.order_collected === true)) {
         updateData.order_collected = true;
         if (foamOrder && currentFoamStatus === "pending_collection") {
           updateData.foam_status = "pending_foaming";
@@ -438,9 +438,14 @@ serve(async (req) => {
           // failed it still physically has it — record them as the holder.
           updateData.loaded_onto_van = false;
           updateData.loaded_onto_van_at = null;
-          updateData.held_by_driver_name =
-            sOrder.carrier?.name || (dbOrder as any).delivery_driver_name || null;
-          updateData.held_by_driver_at = new Date().toISOString();
+          if (dbOrder.order_collected === true) {
+            updateData.held_by_driver_name =
+              sOrder.carrier?.name || (dbOrder as any).delivery_driver_name || null;
+            updateData.held_by_driver_at = new Date().toISOString();
+          } else {
+            updateData.held_by_driver_name = null;
+            updateData.held_by_driver_at = null;
+          }
         }
         updateData.tracking_events = trackingEvents;
       }

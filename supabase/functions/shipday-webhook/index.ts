@@ -287,7 +287,7 @@ serve(async (req) => {
       const deliveryDates = (dbOrder as any).delivery_date;
       const senderSet = Array.isArray(pickupDates) && pickupDates.length > 0;
       const receiverSet = Array.isArray(deliveryDates) && deliveryDates.length > 0;
-      const isCollected = (dbOrder as any).order_collected === true || dbOrder.status === 'collected';
+      const isCollected = (dbOrder as any).order_collected === true;
 
       const computeRevert = (includeCollected: boolean): string => {
         if (includeCollected && isCollected) return 'collected';
@@ -460,7 +460,7 @@ serve(async (req) => {
     const nowIso = new Date().toISOString();
 
     // Set collection/delivery booleans based on status
-    if (newStatus === 'collected' || newStatus === 'driver_to_delivery' || newStatus === 'delivery_scheduled') {
+    if (newStatus === 'collected' && (isPickup || (dbOrder as any).order_collected === true)) {
       updateData.order_collected = true;
       // Collected foam bikes are on their way to the depot for foaming.
       if (foamOrder && currentFoamStatus === 'pending_collection') {
@@ -519,9 +519,14 @@ serve(async (req) => {
         // them as the current holder for the loading page / loading list.
         updateData.loaded_onto_van = false;
         updateData.loaded_onto_van_at = null;
-        updateData.held_by_driver_name =
-          payload.carrier?.name || (dbOrder as any).delivery_driver_name || null;
-        updateData.held_by_driver_at = new Date().toISOString();
+        if ((dbOrder as any).order_collected === true) {
+          updateData.held_by_driver_name =
+            payload.carrier?.name || (dbOrder as any).delivery_driver_name || null;
+          updateData.held_by_driver_at = new Date().toISOString();
+        } else {
+          updateData.held_by_driver_name = null;
+          updateData.held_by_driver_at = null;
+        }
       }
       updateData.tracking_events = trackingEvents;
     }
