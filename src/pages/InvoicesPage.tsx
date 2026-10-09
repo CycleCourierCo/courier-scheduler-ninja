@@ -1161,6 +1161,13 @@ export default function InvoicesPage() {
                     </div>
                   </div>
                 ))}
+                <div className="flex items-center justify-between pt-2 text-sm">
+                  <span className="text-muted-foreground">Page {historyPage} of {historyPageCount} · {historyResult?.count || 0} invoices</span>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" disabled={historyPage <= 1} onClick={() => setHistoryPage(historyPage - 1)}>Previous</Button>
+                    <Button size="sm" variant="outline" disabled={historyPage >= historyPageCount} onClick={() => setHistoryPage(historyPage + 1)}>Next</Button>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
