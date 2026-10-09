@@ -158,3 +158,6 @@ verify_jwt = false
 # Staff-only: the caller's JWT and role are checked in code.
 [functions.route-optimize]
 verify_jwt = true
+
+[functions.workshop-overdue]
+verify_jwt = false
