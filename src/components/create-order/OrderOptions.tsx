@@ -7,25 +7,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Control, useWatch, useFormContext } from "react-hook-form";
 import { CreateOrderFormData } from "@/types/order";
 
-export const BIKE_TYPES = [
-  "Non-Electric - Mountain Bike",
-  "Non-Electric - Road Bike",
-  "Non-Electric - Hybrid",
-  "Electric Bike - Under 25kg",
-  "Electric Bike - Over 50kg",
-  "Cargo Bike",
-  "Longtail Cargo Bike",
-  "Stationary Bike",
-  "Kids Bikes",
-  "BMX Bikes",
-  "Boxed Kids Bikes",
-  "Folding Bikes",
-  "Tandem",
-  "Travel Bike Box",
-  "Wheelset/Frameset",
-  "Bike Rack",
-  "Turbo Trainer",
-] as const;
+import { BOOKING_BIKE_TYPES } from "@/constants/bikePricing";
+export const BIKE_TYPES = BOOKING_BIKE_TYPES;
 
 interface OrderOptionsProps {
   control: Control<CreateOrderFormData>;
