@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Control, useWatch } from "react-hook-form";
 import { CreateOrderFormData } from "@/types/order";
 
-const BIKE_TYPES = [
+export const BIKE_TYPES = [
   "Non-Electric - Mountain Bike",
   "Non-Electric - Road Bike",
   "Non-Electric - Hybrid",
