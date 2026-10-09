@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import { Download, ExternalLink, RefreshCw } from "lucide-react";
@@ -24,6 +25,8 @@ type Row = {
   timing: "after" | "before" | "unknown";
   resolved_at: string | null;
   resolution_note: string | null;
+  had_failed_collection: boolean;
+  last_failed_collection_at: string | null;
 };
 
 type QbStatus = { status: string; balance: number; total: number };
@@ -47,6 +50,10 @@ export default function CancelledInvoicedPanel() {
   const [showResolved, setShowResolved] = useState(false);
   const [qb, setQb] = useState<Record<string, QbStatus>>({});
   const [checking, setChecking] = useState(false);
+  const [customer, setCustomer] = useState("all");
+  const [failedOnly, setFailedOnly] = useState(false);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 25;
 
   const { data: rows = [], isLoading, refetch } = useQuery({
     queryKey: ["cancelled-invoiced-orders"],
@@ -64,12 +71,26 @@ export default function CancelledInvoicedPanel() {
 
   const filtered = useMemo(() => rows.filter((r) => {
     if (!showResolved && r.resolved_at) return false;
+    if (customer !== "all" && (r.customer_name || "Unknown") !== customer) return false;
+    if (failedOnly && !r.had_failed_collection) return false;
     const q = search.trim().toLowerCase();
     if (q && !`${r.customer_name || ""} ${r.tracking_number || ""} ${r.quickbooks_invoice_number || ""}`.toLowerCase().includes(q)) return false;
     if (from && (!r.invoice_date || r.invoice_date < from)) return false;
     if (to && (!r.invoice_date || r.invoice_date > to)) return false;
     return true;
-  }), [rows, search, from, to, showResolved]);
+  }), [rows, search, from, to, showResolved, customer, failedOnly]);
+
+  const customerOptions = useMemo(() => {
+    const m = new Map<string, number>();
+    rows.forEach((r) => { if (!showResolved && r.resolved_at) return; const k = r.customer_name || "Unknown"; m.set(k, (m.get(k) || 0) + 1); });
+    return [...m.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  }, [rows, showResolved]);
+
+  useEffect(() => { setPage(1); }, [search, from, to, showResolved, customer, failedOnly]);
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const failedCount = filtered.filter((r) => r.had_failed_collection).length;
 
   const total = filtered.reduce((s, r) => s + Number(r.transport_net_amount || 0), 0);
 
@@ -109,10 +130,10 @@ export default function CancelledInvoicedPanel() {
 
   const downloadCsv = () => {
     const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
-    const head = ["Tracking", "Customer", "Invoice", "Invoice date", "Job amount (net)", "Cancelled", "Order date", "Timing", "QuickBooks status", "Resolved", "Note"];
+    const head = ["Tracking", "Customer", "Invoice", "Invoice date", "Job amount (net)", "Cancelled", "Order date", "Timing", "Failed collection", "QuickBooks status", "Resolved", "Note"];
     const lines = filtered.map((r) => [
       r.tracking_number, r.customer_name, r.quickbooks_invoice_number, r.invoice_date, r.transport_net_amount,
-      r.cancelled_at, r.order_created_at, TIMING_LABEL[r.timing], QB_LABEL[qb[r.quickbooks_invoice_id]?.status] || "",
+      r.cancelled_at, r.order_created_at, TIMING_LABEL[r.timing], r.had_failed_collection ? (r.last_failed_collection_at || "Yes") : "", QB_LABEL[qb[r.quickbooks_invoice_id]?.status] || "",
       r.resolved_at, r.resolution_note,
     ].map(esc).join(","));
     const blob = new Blob([[head.join(","), ...lines].join("\n")], { type: "text/csv" });
@@ -135,6 +156,18 @@ export default function CancelledInvoicedPanel() {
           <Input className="w-56" placeholder="Customer, tracking or invoice" value={search} onChange={(e) => setSearch(e.target.value)} />
           <Input type="date" className="w-40" value={from} onChange={(e) => setFrom(e.target.value)} aria-label="Invoice date from" />
           <Input type="date" className="w-40" value={to} onChange={(e) => setTo(e.target.value)} aria-label="Invoice date to" />
+          <Select value={customer} onValueChange={setCustomer}>
+            <SelectTrigger className="w-56" aria-label="Customer"><SelectValue placeholder="All customers" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All customers</SelectItem>
+              {customerOptions.map(([name, n]) => (
+                <SelectItem key={name} value={name}>{name} ({n})</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <label className="flex items-center gap-2 text-sm">
+            <Checkbox checked={failedOnly} onCheckedChange={(v) => setFailedOnly(!!v)} /> Failed collection only
+          </label>
           <label className="flex items-center gap-2 text-sm">
             <Checkbox checked={showResolved} onCheckedChange={(v) => setShowResolved(!!v)} /> Show resolved
           </label>
@@ -147,7 +180,7 @@ export default function CancelledInvoicedPanel() {
         </div>
 
         <p className="text-sm">
-          <span className="font-medium">{filtered.length} jobs</span> — {money(total)} billed for collection and delivery (net of VAT)
+          <span className="font-medium">{filtered.length} jobs</span> — {money(total)} billed for collection and delivery (net of VAT) · {failedCount} had a failed collection
         </p>
 
         {isLoading ? (
@@ -165,7 +198,7 @@ export default function CancelledInvoicedPanel() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((r) => {
+                {pageRows.map((r) => {
                   const s = qb[r.quickbooks_invoice_id];
                   return (
                     <tr key={`${r.order_id}:${r.quickbooks_invoice_id}`} className="border-t align-top">
@@ -186,6 +219,9 @@ export default function CancelledInvoicedPanel() {
                       <td className="p-2">{fmt(r.cancelled_at)}</td>
                       <td className="p-2">
                         <Badge variant={r.timing === "unknown" ? "secondary" : "destructive"}>{TIMING_LABEL[r.timing]}</Badge>
+                        {r.had_failed_collection && (
+                          <div className="mt-1"><Badge variant="outline">Failed collection{r.last_failed_collection_at ? ` · ${fmt(r.last_failed_collection_at)}` : ""}</Badge></div>
+                        )}
                       </td>
                       <td className="p-2">{s ? QB_LABEL[s.status] || s.status : "—"}</td>
                       <td className="p-2">
@@ -203,6 +239,13 @@ export default function CancelledInvoicedPanel() {
                 })}
               </tbody>
             </table>
+            <div className="flex items-center justify-between pt-3 text-sm">
+              <span className="text-muted-foreground">Page {safePage} of {pageCount}</span>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)}>Previous</Button>
+                <Button size="sm" variant="outline" disabled={safePage >= pageCount} onClick={() => setPage(safePage + 1)}>Next</Button>
+              </div>
+            </div>
           </div>
         )}
       </CardContent>

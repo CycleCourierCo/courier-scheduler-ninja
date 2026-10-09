@@ -96,6 +96,9 @@ export default function InvoicesPage() {
   const [historyCustomerFilter, setHistoryCustomerFilter] = useState<string>("all");
   const [historyStartDate, setHistoryStartDate] = useState<Date>();
   const [historyEndDate, setHistoryEndDate] = useState<Date>();
+  const [historyPage, setHistoryPage] = useState(1);
+  const HISTORY_PAGE_SIZE = 25;
+  useEffect(() => { setHistoryPage(1); }, [historyCustomerFilter, historyStartDate, historyEndDate]);
   
 
   const { data: customers, isLoading: customersLoading } = useQuery({
@@ -183,12 +186,12 @@ export default function InvoicesPage() {
   });
 
   // Fetch invoice history with filters
-  const { data: invoiceHistory, isLoading: historyLoading, refetch: refetchHistory } = useQuery({
-    queryKey: ['invoice-history', historyCustomerFilter, historyStartDate, historyEndDate],
+  const { data: historyResult, isLoading: historyLoading, refetch: refetchHistory } = useQuery({
+    queryKey: ['invoice-history', historyCustomerFilter, historyStartDate, historyEndDate, historyPage],
     queryFn: async () => {
       let query = supabase
         .from('invoice_history')
-        .select('*');
+        .select('*', { count: 'exact' });
 
       // Apply customer filter
       if (historyCustomerFilter && historyCustomerFilter !== "all") {
@@ -205,13 +208,16 @@ export default function InvoicesPage() {
         query = query.lte('created_at', endOfDay.toISOString());
       }
 
-      query = query.order('created_at', { ascending: false }).limit(200);
+      query = query.order('created_at', { ascending: false }).range((historyPage - 1) * HISTORY_PAGE_SIZE, historyPage * HISTORY_PAGE_SIZE - 1);
 
-      const { data, error } = await query;
+      const { data, error, count } = await query;
       if (error) throw error;
-      return data as InvoiceHistory[];
+      return { rows: (data || []) as InvoiceHistory[], count: count || 0 };
     },
   });
+
+  const invoiceHistory = historyResult?.rows;
+  const historyPageCount = Math.max(1, Math.ceil((historyResult?.count || 0) / HISTORY_PAGE_SIZE));
 
   useEffect(() => {
     // Consider connected if token exists (refresh token is valid for 100 days)
@@ -1155,6 +1161,13 @@ export default function InvoicesPage() {
                     </div>
                   </div>
                 ))}
+                <div className="flex items-center justify-between pt-2 text-sm">
+                  <span className="text-muted-foreground">Page {historyPage} of {historyPageCount} · {historyResult?.count || 0} invoices</span>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="outline" disabled={historyPage <= 1} onClick={() => setHistoryPage(historyPage - 1)}>Previous</Button>
+                    <Button size="sm" variant="outline" disabled={historyPage >= historyPageCount} onClick={() => setHistoryPage(historyPage + 1)}>Next</Button>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
