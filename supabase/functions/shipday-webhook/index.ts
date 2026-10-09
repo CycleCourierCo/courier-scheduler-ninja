@@ -186,9 +186,13 @@ serve(async (req) => {
       if (isPickup) {
         newStatus = "driver_to_collection";
         statusDescription = "Driver is on the way to collect the bike";
-      } else {
+      } else if ((dbOrder as any).order_collected === true || dbOrder.status === "collected") {
         newStatus = "driver_to_delivery";
         statusDescription = "Driver is on the way to deliver the bike";
+      } else {
+        // Delivery started before the bike was actually collected (e.g. the
+        // collection failed). Keep the current status — never imply collection.
+        statusDescription = "Delivery job started before collection - status unchanged";
       }
     } else if (event === "ORDER_COMPLETED") {
       // Verify against Shipday before treating this as a real completion.

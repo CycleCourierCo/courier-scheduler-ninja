@@ -284,6 +284,12 @@ serve(async (req) => {
         sStatus === "ACCEPTED_AND_STARTED"
       ) {
         event = "ORDER_ONTHEWAY";
+        const reallyCollected = dbOrder.order_collected === true || dbOrder.status === "collected";
+        if (!isPickup && !reallyCollected) {
+          // Delivery started before collection — don't imply the bike was collected.
+          skippedUnknownStatus++;
+          continue;
+        }
         newStatus = isPickup ? "driver_to_collection" : "driver_to_delivery";
         description = isPickup
           ? "Driver is on the way to collect the bike"
