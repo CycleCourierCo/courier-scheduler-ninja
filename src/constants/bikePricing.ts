@@ -43,6 +43,9 @@ export const BIKE_TYPE_BY_ID: Record<number, string> = {
   20: 'Non-Electric - Gravel Bike',
 };
 
+// Master list of bookable product names — the booking dropdowns, API and bulk upload all use these.
+export const BOOKING_BIKE_TYPES: string[] = Object.values(BIKE_TYPE_BY_ID);
+
 // Reverse mapping: bike type name to numeric ID
 export const BIKE_TYPE_ID_BY_NAME: Record<string, number> = Object.fromEntries(
   Object.entries(BIKE_TYPE_BY_ID).map(([id, name]) => [name, Number(id)])
