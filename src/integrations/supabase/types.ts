@@ -612,6 +612,44 @@ export type Database = {
         }
         Relationships: []
       }
+      cancelled_invoice_reviews: {
+        Row: {
+          created_at: string
+          id: string
+          note: string | null
+          order_id: string
+          quickbooks_invoice_id: string
+          resolved_at: string
+          resolved_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          order_id: string
+          quickbooks_invoice_id: string
+          resolved_at?: string
+          resolved_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          order_id?: string
+          quickbooks_invoice_id?: string
+          resolved_at?: string
+          resolved_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cancelled_invoice_reviews_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       claim_evidence_files: {
         Row: {
           claim_id: string
@@ -3807,6 +3845,8 @@ export type Database = {
           box_my_bike_invoice_url: string | null
           box_my_bike_status: string | null
           box_tracking_url: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           collection_code: string | null
           collection_confirmation_sent_at: string | null
           collection_driver_name: string | null
@@ -3935,6 +3975,8 @@ export type Database = {
           box_my_bike_invoice_url?: string | null
           box_my_bike_status?: string | null
           box_tracking_url?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           collection_code?: string | null
           collection_confirmation_sent_at?: string | null
           collection_driver_name?: string | null
@@ -4063,6 +4105,8 @@ export type Database = {
           box_my_bike_invoice_url?: string | null
           box_my_bike_status?: string | null
           box_tracking_url?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           collection_code?: string | null
           collection_confirmation_sent_at?: string | null
           collection_driver_name?: string | null
@@ -6619,6 +6663,24 @@ export type Database = {
       }
       can_manage_review: { Args: { _cycle_id: string }; Returns: boolean }
       can_view_review: { Args: { _cycle_id: string }; Returns: boolean }
+      cancelled_invoiced_orders: {
+        Args: never
+        Returns: {
+          cancelled_at: string
+          customer_name: string
+          invoice_date: string
+          order_created_at: string
+          order_id: string
+          quickbooks_invoice_id: string
+          quickbooks_invoice_number: string
+          quickbooks_invoice_url: string
+          resolution_note: string
+          resolved_at: string
+          timing: string
+          tracking_number: string
+          transport_net_amount: number
+        }[]
+      }
       cleanup_expired_oauth: { Args: never; Returns: undefined }
       cleanup_integration_call_logs: { Args: never; Returns: undefined }
       create_stock_from_storage_order: {
