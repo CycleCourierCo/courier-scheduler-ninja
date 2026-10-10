@@ -1,8 +1,11 @@
-// Must come first: polyfills Promise.withResolvers for older Safari before pdfjs loads.
+// Must come first: polyfills browser features older Safari lacks before pdfjs loads.
 import "@/lib/pdfPolyfill";
-import * as pdfjs from "pdfjs-dist";
+// The legacy build bundles polyfills for recent JS built-ins (Math.sumPrecise,
+// Map.getOrInsertComputed, Promise.try, …) in both the main thread and the worker,
+// so drivers and admins on older iPhones can still read fuel invoices.
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 // Vite resolves this to a hashed asset URL so the worker loads without a CDN.
-import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import workerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 import { buildLinesFromItems, type PdfTextItem } from "@/lib/pdfLines";
 import { readFileAsArrayBuffer } from "@/lib/pdfPolyfill";
 
