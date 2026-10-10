@@ -21,7 +21,7 @@ export const toReadingSpace = (transform: number[]): { x: number; y: number } =>
 
 /** Extracts layout-preserving text from a PDF file, page by page. */
 export const extractPdfText = async (file: File | ArrayBuffer): Promise<string> => {
-  const data = file instanceof ArrayBuffer ? file : await file.arrayBuffer();
+  const data = file instanceof ArrayBuffer ? file : await readFileAsArrayBuffer(file);
   const pdf = await pdfjs.getDocument({ data: new Uint8Array(data) }).promise;
   const pages: string[] = [];
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {
