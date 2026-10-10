@@ -1,7 +1,10 @@
+// Must come first: polyfills Promise.withResolvers for older Safari before pdfjs loads.
+import "@/lib/pdfPolyfill";
 import * as pdfjs from "pdfjs-dist";
 // Vite resolves this to a hashed asset URL so the worker loads without a CDN.
 import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 import { buildLinesFromItems, type PdfTextItem } from "@/lib/pdfLines";
+import { readFileAsArrayBuffer } from "@/lib/pdfPolyfill";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
