@@ -367,6 +367,13 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
                             {money(item.netSpend)}
                             {item.suggestion ? ` · looks like ${item.suggestion.reg}` : ""}
                           </p>
+                          <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+                            {item.fillDetails.map((fill) => (
+                              <li key={fill.id} className="break-words">
+                                {format(parseISO(fill.date), "dd MMM yyyy")} · {fill.siteName || "Site not recorded"}
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                         <div className="flex items-center gap-2">
                           <Select
