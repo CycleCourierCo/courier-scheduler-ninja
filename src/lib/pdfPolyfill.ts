@@ -4,8 +4,18 @@
  * polyfills exist when the library's module code first runs.
  */
 
-if (typeof Promise.withResolvers !== "function") {
-  Promise.withResolvers = function withResolvers<T>() {
+interface PromiseWithResolvers {
+  withResolvers<T>(): {
+    promise: Promise<T>;
+    resolve: (value: T | PromiseLike<T>) => void;
+    reject: (reason?: unknown) => void;
+  };
+}
+
+const PromiseCtor = Promise as unknown as PromiseWithResolvers;
+
+if (typeof PromiseCtor.withResolvers !== "function") {
+  PromiseCtor.withResolvers = function withResolvers<T>() {
     let resolve!: (value: T | PromiseLike<T>) => void;
     let reject!: (reason?: unknown) => void;
     const promise = new Promise<T>((res, rej) => {
