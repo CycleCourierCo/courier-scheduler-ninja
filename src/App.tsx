@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/react";
 import { Suspense, lazy, useEffect } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -216,7 +216,8 @@ function App() {
                   <BulkAvailabilityPage />
                 </ProtectedRoute>
               } />
-              <Route path="/driver-timeslips" element={
+              <Route path="/driver-timeslips" element={<Navigate to="/timeslips" replace />} />
+              <Route path="/timeslips" element={
                 <ProtectedRoute>
                   <DriverTimeslips />
                 </ProtectedRoute>
