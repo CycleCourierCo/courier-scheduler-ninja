@@ -339,9 +339,13 @@ const LoadingUnloadingPage = () => {
         if (stockErr) toast.error("Bay saved, but couldn't add the bike to Warehouse Stock");
         else toast.success("Added to Warehouse Stock");
       }
-      // Refresh data from database to ensure UI reflects the saved state
-      await fetchData();
-      
+      // Update just this order on screen — no full page reload
+      applyStorageUpdate(orderId, {
+        storage_locations: allocationsForDb,
+        held_by_driver_name: null,
+        held_by_driver_at: null,
+      });
+
       const bikeQuantity = order.bikeQuantity || 1;
       const updatedCount = newAllocations.length;
       
@@ -390,9 +394,9 @@ const LoadingUnloadingPage = () => {
         return;
       }
 
-      // Refresh data from database to ensure UI reflects the saved state
-      await fetchData();
-      
+      // Update just this order on screen — no full page reload
+      applyStorageUpdate(allocationToRemove.orderId, updateData);
+
       toast.success('Bike loaded onto van and removed from storage');
     } catch (error) {
       console.error('Error removing storage location:', error);
