@@ -3111,6 +3111,7 @@ export type Database = {
           clock_in_lng: number | null
           clock_in_photo_url: string | null
           clock_out_at: string | null
+          clock_out_explanation: string | null
           clock_out_lat: number | null
           clock_out_lng: number | null
           clock_out_photo_url: string | null
@@ -3135,6 +3136,7 @@ export type Database = {
           clock_in_lng?: number | null
           clock_in_photo_url?: string | null
           clock_out_at?: string | null
+          clock_out_explanation?: string | null
           clock_out_lat?: number | null
           clock_out_lng?: number | null
           clock_out_photo_url?: string | null
@@ -3159,6 +3161,7 @@ export type Database = {
           clock_in_lng?: number | null
           clock_in_photo_url?: string | null
           clock_out_at?: string | null
+          clock_out_explanation?: string | null
           clock_out_lat?: number | null
           clock_out_lng?: number | null
           clock_out_photo_url?: string | null
