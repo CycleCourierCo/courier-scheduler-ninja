@@ -21,6 +21,7 @@ export interface MechanicTimeslip {
   total_pay: number;
   status: 'open' | 'closed' | 'approved' | 'rejected';
   admin_notes: string | null;
+  clock_out_explanation: string | null;
   approved_by: string | null;
   approved_at: string | null;
   created_at: string;
@@ -166,6 +167,7 @@ export async function clockOut(params: {
   photo: Blob;
   lat: number | null;
   lng: number | null;
+  explanation?: string | null;
 }): Promise<MechanicTimeslip> {
   const path = await uploadPhoto(params.driverId, params.slipId, 'out', params.photo);
   const { data, error } = await supabase
@@ -177,6 +179,7 @@ export async function clockOut(params: {
       clock_out_lng: params.lng,
       status: 'closed',
       location_missing: params.lat === null || params.lng === null,
+      clock_out_explanation: params.explanation ?? null,
     })
     .eq('id', params.slipId)
     .select()
