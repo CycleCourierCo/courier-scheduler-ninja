@@ -163,6 +163,30 @@ const MechanicTimeslipsTab: React.FC = () => {
       }),
   });
 
+  // Work done per slip, indexed by "driverId:date".
+  const { data: workBySlip } = useQuery({
+    queryKey: ['mechanic-work-admin', (slips || []).map((s) => `${s.driver_id}:${s.date}`).join('|')],
+    queryFn: async () => {
+      const rows = slips || [];
+      const datesByDriver = new Map<string, Set<string>>();
+      rows.forEach((s) => {
+        if (!datesByDriver.has(s.driver_id)) datesByDriver.set(s.driver_id, new Set());
+        datesByDriver.get(s.driver_id)!.add(s.date);
+      });
+      const out: Record<string, DayWork> = {};
+      await Promise.all(
+        Array.from(datesByDriver.entries()).map(async ([driverId, dates]) => {
+          const byDate = await getMechanicWorkByDate(driverId, Array.from(dates));
+          Object.entries(byDate).forEach(([date, work]) => {
+            out[`${driverId}:${date}`] = work;
+          });
+        })
+      );
+      return out;
+    },
+    enabled: !!slips && slips.length > 0,
+  });
+
   const applyPreset = (preset: 'this_week' | 'last_week' | 'this_month') => {
     const today = todayStr();
     if (preset === 'this_week') {
