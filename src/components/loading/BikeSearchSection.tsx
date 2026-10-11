@@ -282,6 +282,14 @@ export const BikeSearchSection = ({
                             <Truck className="h-3 w-3 mr-1" /> In {normaliseDriverName(order.held_by_driver_name)} van – failed delivery
                           </Badge>
                         )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs ml-auto shrink-0"
+                          onClick={() => handlePrintLabel(order)}
+                        >
+                          <Printer className="h-3 w-3 mr-1" /> Label
+                        </Button>
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {order.bikeBrand} {order.bikeModel}
