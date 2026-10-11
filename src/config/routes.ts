@@ -62,6 +62,8 @@ export const APP_ROUTES: AppRoute[] = [
     defaultRoles: [] },
   { key: "trunk-runs", path: "/trunk-runs", label: "Trunk Runs", section: "Operations", icon: Truck,
     defaultRoles: ["route_planner"] },
+  { key: "ireland", path: "/ireland", label: "Ireland", section: "Operations", icon: Package2,
+    defaultRoles: ["mechanic", "loader", ...CUSTOMERS] },
   { key: "drivers-rota", path: "/drivers-rota", label: "Drivers Rota", section: "Operations", icon: CalendarOff,
     defaultRoles: ["route_planner"] },
   { key: "bulk-availability", path: "/bulk-availability", label: "Bulk Availability", section: "Operations", icon: Clock,

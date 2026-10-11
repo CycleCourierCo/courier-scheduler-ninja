@@ -29,8 +29,6 @@ import { useOrderTaskSummaries } from "@/hooks/useOrderTaskSummaries";
 import TaskDialog from "@/components/tasks/TaskDialog";
 import TaskDetailDrawer from "@/components/tasks/TaskDetailDrawer";
 
-import FoamMyBikeSection from "@/components/boxmybike/FoamMyBikeSection";
-import InboundNiSection from "@/components/boxmybike/InboundNiSection";
 import OrderSearchBar from "@/components/boxmybike/OrderSearchBar";
 
 import { filterOrdersBySearch } from "@/utils/orderSearch";
@@ -478,7 +476,6 @@ const BoxMyBikePage: React.FC = () => {
     );
   };
 
-  const [section, setSection] = React.useState<"box" | "foam" | "inbound-ni">("box");
 
   return (
     <Layout>
@@ -492,19 +489,7 @@ const BoxMyBikePage: React.FC = () => {
         </p>
         </div>
 
-        <Tabs value={section} onValueChange={(v) => setSection(v as "box" | "foam" | "inbound-ni")} className="mb-6">
-          <TabsList>
-            <TabsTrigger value="box">Box My Bike</TabsTrigger>
-            <TabsTrigger value="foam">Foam My Bike (NI)</TabsTrigger>
-            <TabsTrigger value="inbound-ni">Inbound NI</TabsTrigger>
-          </TabsList>
-        </Tabs>
-
-        {section === "foam" ? (
-          <FoamMyBikeSection isStaff={isStaff} userId={user?.id} />
-        ) : section === "inbound-ni" ? (
-          <InboundNiSection isStaff={isStaff} />
-        ) : isLoading ? (
+        {isLoading ? (
 
           <div className="text-sm text-muted-foreground">Loading…</div>
         ) : isStaff ? (
