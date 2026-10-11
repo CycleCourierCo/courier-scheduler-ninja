@@ -8,3 +8,4 @@
 - Order cancellation time/user is stamped by a database trigger on orders.status; the cancelled-but-invoiced audit reads it with order_invoice_links, so every cancel path is covered.
 
 - Bulk van loading goes through the load_orders_onto_van database function in one call — avoids per-bike saves and page reloads that lock the Loading page.
+- Staff-visible pages must be added to the hardcoded ADMIN_MENU_SECTIONS list in Layout.tsx as well as the route/permissions config — the admin menu does not read the permissions matrix, so a page can be reachable yet absent from the menu.
