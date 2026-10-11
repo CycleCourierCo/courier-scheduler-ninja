@@ -187,14 +187,16 @@ const MechanicClock: React.FC = () => {
   });
 
   const outMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (explanationText: string | null) => {
       if (!user?.id || !openSlip) throw new Error('No open slip');
       const photo = await requestPhoto();
       const loc = await requestLocation();
-      return clockOut({ slipId: openSlip.id, driverId: user.id, photo, lat: loc.lat, lng: loc.lng });
+      return clockOut({ slipId: openSlip.id, driverId: user.id, photo, lat: loc.lat, lng: loc.lng, explanation: explanationText });
     },
     onSuccess: () => {
       toast.success('Clocked out');
+      setExplanationOpen(false);
+      setExplanation('');
       qc.invalidateQueries({ queryKey: ['mechanic-open-slip'] });
       qc.invalidateQueries({ queryKey: ['mechanic-slip-history'] });
     },
@@ -206,9 +208,30 @@ const MechanicClock: React.FC = () => {
     setBusy(true);
     inMutation.mutate();
   };
+
+  const clockOutNeedsExplanation = (): boolean => {
+    if (!openSlip) return false;
+    const elapsedMinutes = (Date.now() - new Date(openSlip.clock_in_at).getTime()) / 60000;
+    const workMinutes = workByDate?.[openSlip.date]?.totalMinutes ?? 0;
+    return elapsedMinutes - workMinutes > EXPLANATION_THRESHOLD_MINUTES;
+  };
+
   const handleClockOut = () => {
+    if (clockOutNeedsExplanation()) {
+      setExplanationOpen(true);
+      return;
+    }
     setBusy(true);
-    outMutation.mutate();
+    outMutation.mutate(null);
+  };
+
+  const submitExplanationAndClockOut = () => {
+    if (!explanation.trim()) {
+      toast.error('Please add a short explanation before clocking out');
+      return;
+    }
+    setBusy(true);
+    outMutation.mutate(explanation.trim());
   };
 
   return (
