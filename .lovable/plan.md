@@ -1,24 +1,28 @@
-# Fix: dealer bulk availability shows nothing for some accounts
+# Show each mechanic's daily work on their timeslip page
 
-## What's wrong
+## What you'll see
 
-eBike Exchange has two logins:
+On the Mechanic Clock page (where a mechanic sees their own timeslips), each day's timeslip will also list the work they did that day:
 
-- `contact@ebikeexchange.co.uk` — 27 orders are waiting for this email to confirm delivery availability. Last signed in 23 Sep.
-- Chris's account — profile email `Chris@newportebikeexchange.co.uk`, but the actual sign-in email is `chris@newportcyclingrepairs.co.uk`. 1 order waits on the profile email.
+- **Inspections completed** — bikes they inspected that day, showing the bike name and order tracking number.
+- **Repairs completed** — each repair they marked as done that day, showing the repair description and the bike/order it belongs to.
+- A short summary line per day, e.g. "2 inspections, 3 repairs".
+- Days with no recorded work simply show "No work recorded" — nothing breaks.
 
-The Bulk Availability page matches orders against the **sign-in email only**. So:
+This is read-only; nothing about clocking in/out, pay, or approvals changes.
 
-- If Chris signs in (as `chris@newportcyclingrepairs.co.uk`), the page matches that email against orders — finds nothing, shows "No orders pending availability confirmation", even though 28 orders are waiting across the company's two emails.
-- The 27 orders under `contact@ebikeexchange.co.uk` only appear when signed in with that exact login.
+## How it works (technical)
 
-## The fix
+- Page: `src/pages/MechanicClock.tsx`, history list from `listMyMechanicTimeslips` (last 60 slips).
+- New service function in `src/services/mechanicTimeslipService.ts` (or a small new `mechanicWorkService.ts`):
+  - Fetch `bicycle_inspections` where `inspected_by_id = user.id` and `inspected_at` falls within the date range covered by the loaded timeslips — select `inspected_at, bike_brand, bike_model, order_id`.
+  - Fetch `inspection_issues` where `resolved_by_id = user.id` and `resolved_at` in the same range — select `resolved_at, issue_description, order_id`.
+  - Group both by calendar date (Europe/London) and attach to each timeslip by its `date`.
+- Render inside each history card: a "Work done" section listing items with time (HH:mm), bike name, and tracking number (looked up from the orders already available, or a light `orders` select of `id, tracking_number` for the involved order ids).
+- RLS: mechanics already read their own inspections/issues; queries are scoped to the signed-in user's id, so no policy changes needed. No database migration required.
 
-1. **Broaden the matching in `get_my_pending_availability_orders`** (database migration): match orders against both the account's sign-in email (`auth.users.email`) **and** the profile email (`profiles.email`) for the signed-in user. Chris would then see orders addressed to either of his emails.
-2. **No change to the 27 orders** — they are correctly addressed to the business inbox `contact@ebikeexchange.co.uk`. The dealer should sign in with that account to confirm them (I'll tell you this so you can pass it on).
+## Not included
 
-## Technical details
-
-- Migration: `CREATE OR REPLACE FUNCTION public.get_my_pending_availability_orders()` — select both emails into variables, and change the `WHERE` clauses to `lower(o.sender->>'email') IN (SELECT lower(unnest(v_emails)))` (same for receiver). Keeps SECURITY DEFINER, STABLE, same return shape — no app code changes needed.
-- No RLS or grant changes; function already exists with correct permissions.
-- Verified data: 27 pending receiver orders for `contact@ebikeexchange.co.uk`, 1 for `chris@newportebikeexchange.co.uk`, 0 for `chris@newportcyclingrepairs.co.uk`.
+- No changes to pay calculation or approval flow.
+- No admin view changes (admins already have MechanicTimeslipsTab; can be added later if wanted).
+- Cleaning/degrease checklist steps are not listed (only inspections and repairs); can be added later.
