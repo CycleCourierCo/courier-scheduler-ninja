@@ -75,16 +75,19 @@ const MyTasksPanel: React.FC<MyTasksPanelProps> = ({
   const loading = filter === "done" ? loadingDone : loadingActive;
   const scrollable = visible.length > maxVisible;
 
-  // Size the window to exactly `maxVisible` rows, using the real height of the
-  // first row so it stays correct on phones (stacked rows) and desktop (inline).
+  // Size the window to exactly `maxVisible` whole rows, using the real height of
+  // those rows so it stays correct on phones (stacked rows) and desktop (inline)
+  // and never slices a task in half.
   useLayoutEffect(() => {
     const el = listRef.current;
-    const firstRow = el?.firstElementChild as HTMLElement | null;
-    if (!el || !firstRow || !scrollable) {
+    const rows = el ? (Array.from(el.children) as HTMLElement[]) : [];
+    if (!el || !scrollable || rows.length === 0) {
       setMaxHeight(undefined);
       return;
     }
-    setMaxHeight(maxVisible * firstRow.offsetHeight + (maxVisible - 1) * ROW_GAP);
+    const shown = rows.slice(0, maxVisible);
+    const height = shown.reduce((sum, row) => sum + row.offsetHeight, 0) + (shown.length - 1) * ROW_GAP;
+    if (height > 0) setMaxHeight(height);
   }, [visible, maxVisible, scrollable, filter, loading]);
 
   return (
