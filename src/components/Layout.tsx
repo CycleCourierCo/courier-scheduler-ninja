@@ -67,7 +67,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
     items: [
       { to: "/equipment", label: "Equipment", icon: Boxes },
       { to: "/vehicles", label: "Vehicles", icon: Car },
-      { to: "/driver-timeslips", label: "Driver Timeslips", icon: Clock },
+      { to: "/driver-timeslips", label: "Timeslips", icon: Clock },
       { to: "/fuel-finder", label: "Fuel Finder", icon: Fuel },
       { to: "/claims", label: "Damage Claims", icon: ShieldAlert },
       { to: "/my-holidays", label: "My Holidays", icon: CalendarOff },
@@ -260,7 +260,7 @@ const Layout: React.FC<LayoutProps> = ({
                         </Link>}
                       {isTimeslipAdmin && !isAdmin && <Link to="/driver-timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Clock className="mr-2 h-4 w-4" />
-                          Driver Timeslips
+                          Timeslips
                         </Link>}
                       <Button variant="ghost" onClick={() => {
                         signOut();
@@ -380,7 +380,7 @@ const Layout: React.FC<LayoutProps> = ({
                   {isTimeslipAdmin && !isAdmin && <DropdownMenuItem asChild>
                       <Link to="/driver-timeslips" className="cursor-pointer flex w-full items-center">
                         <Clock className="mr-2 h-4 w-4" />
-                        <span>Driver Timeslips</span>
+                        <span>Timeslips</span>
                       </Link>
                     </DropdownMenuItem>}
                   
