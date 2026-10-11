@@ -67,7 +67,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
     items: [
       { to: "/equipment", label: "Equipment", icon: Boxes },
       { to: "/vehicles", label: "Vehicles", icon: Car },
-      { to: "/driver-timeslips", label: "Timeslips", icon: Clock },
+      { to: "/timeslips", label: "Timeslips", icon: Clock },
       { to: "/fuel-finder", label: "Fuel Finder", icon: Fuel },
       { to: "/claims", label: "Damage Claims", icon: ShieldAlert },
       { to: "/my-holidays", label: "My Holidays", icon: CalendarOff },
@@ -245,7 +245,7 @@ const Layout: React.FC<LayoutProps> = ({
                           </Link>
                         </>}
                       {isDriver && <>
-                          <Link to="/driver-timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Link to="/timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                             <Clock className="mr-2 h-4 w-4" />
                             My Timeslips
                           </Link>
@@ -258,7 +258,7 @@ const Layout: React.FC<LayoutProps> = ({
                           <Wrench className="mr-2 h-4 w-4" />
                           Bicycle Inspections
                         </Link>}
-                      {isTimeslipAdmin && !isAdmin && <Link to="/driver-timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                      {isTimeslipAdmin && !isAdmin && <Link to="/timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
                           <Clock className="mr-2 h-4 w-4" />
                           Timeslips
                         </Link>}
@@ -335,7 +335,7 @@ const Layout: React.FC<LayoutProps> = ({
                   
                   {isDriver && <>
                     <DropdownMenuItem asChild>
-                      <Link to="/driver-timeslips" className="cursor-pointer flex w-full items-center">
+                      <Link to="/timeslips" className="cursor-pointer flex w-full items-center">
                         <Clock className="mr-2 h-4 w-4" />
                         <span>My Timeslips</span>
                       </Link>
@@ -378,7 +378,7 @@ const Layout: React.FC<LayoutProps> = ({
                     </DropdownMenuItem>}
 
                   {isTimeslipAdmin && !isAdmin && <DropdownMenuItem asChild>
-                      <Link to="/driver-timeslips" className="cursor-pointer flex w-full items-center">
+                      <Link to="/timeslips" className="cursor-pointer flex w-full items-center">
                         <Clock className="mr-2 h-4 w-4" />
                         <span>Timeslips</span>
                       </Link>

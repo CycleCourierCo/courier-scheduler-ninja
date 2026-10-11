@@ -88,7 +88,7 @@ export const APP_ROUTES: AppRoute[] = [
     defaultRoles: ["loader", "fleet_manager"] },
   { key: "vehicles", path: "/vehicles", label: "Vehicles", section: "Fleet", icon: Car,
     defaultRoles: ["fleet_manager"] },
-  { key: "driver-timeslips", path: "/driver-timeslips", label: "Timeslips", section: "Fleet", icon: Clock,
+  { key: "driver-timeslips", path: "/timeslips", label: "Timeslips", section: "Fleet", icon: Clock,
     defaultRoles: ["driver", "timeslip_admin"] },
   { key: "my-holidays", path: "/my-holidays", label: "My Holidays", section: "Fleet", icon: CalendarOff,
     defaultRoles: ["driver"] },
