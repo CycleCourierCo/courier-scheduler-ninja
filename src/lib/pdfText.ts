@@ -1,7 +1,13 @@
-import * as pdfjs from "pdfjs-dist";
+// Must come first: polyfills browser features older Safari lacks before pdfjs loads.
+import "@/lib/pdfPolyfill";
+// The legacy build bundles polyfills for recent JS built-ins (Math.sumPrecise,
+// Map.getOrInsertComputed, Promise.try, …) in both the main thread and the worker,
+// so drivers and admins on older iPhones can still read fuel invoices.
+import * as pdfjs from "pdfjs-dist/legacy/build/pdf.mjs";
 // Vite resolves this to a hashed asset URL so the worker loads without a CDN.
-import workerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import workerUrl from "pdfjs-dist/legacy/build/pdf.worker.min.mjs?url";
 import { buildLinesFromItems, type PdfTextItem } from "@/lib/pdfLines";
+import { readFileAsArrayBuffer } from "@/lib/pdfPolyfill";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -18,7 +24,7 @@ export const toReadingSpace = (transform: number[]): { x: number; y: number } =>
 
 /** Extracts layout-preserving text from a PDF file, page by page. */
 export const extractPdfText = async (file: File | ArrayBuffer): Promise<string> => {
-  const data = file instanceof ArrayBuffer ? file : await file.arrayBuffer();
+  const data = file instanceof ArrayBuffer ? file : await readFileAsArrayBuffer(file);
   const pdf = await pdfjs.getDocument({ data: new Uint8Array(data) }).promise;
   const pages: string[] = [];
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber++) {

@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogD
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Plus, Pencil, Archive, RotateCcw, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import ProductConsistencyReport from "@/components/products/ProductConsistencyReport";
 
 type Product = {
   id: string; syncToken: string; name: string; type: string; description: string; price: number; active: boolean;
@@ -128,6 +129,7 @@ export default function QuickBooksProducts() {
               </div>}
           </CardContent>
         </Card>
+        <ProductConsistencyReport qbItems={products.data} />
       </div>
 
       <Dialog open={!!form} onOpenChange={(o) => !o && setForm(null)}>

@@ -21,6 +21,7 @@ export interface MechanicTimeslip {
   total_pay: number;
   status: 'open' | 'closed' | 'approved' | 'rejected';
   admin_notes: string | null;
+  clock_out_explanation: string | null;
   approved_by: string | null;
   approved_at: string | null;
   created_at: string;
@@ -113,6 +114,7 @@ export async function listMyMechanicTimeslips(driverId: string): Promise<Mechani
 export async function listAllMechanicTimeslips(filters?: {
   driverId?: string;
   status?: string;
+  statusIn?: string[];
   dateFrom?: string;
   dateTo?: string;
 }): Promise<MechanicTimeslip[]> {
@@ -121,12 +123,42 @@ export async function listAllMechanicTimeslips(filters?: {
     .select('*, driver:profiles!mechanic_timeslips_driver_id_fkey(id,name,email,hourly_rate,workshop_hourly_rate)')
     .order('clock_in_at', { ascending: false });
   if (filters?.driverId) q = q.eq('driver_id', filters.driverId);
-  if (filters?.status && filters.status !== 'all') q = q.eq('status', filters.status);
+  if (filters?.statusIn && filters.statusIn.length) q = q.in('status', filters.statusIn);
+  else if (filters?.status && filters.status !== 'all') q = q.eq('status', filters.status);
   if (filters?.dateFrom) q = q.gte('date', filters.dateFrom);
   if (filters?.dateTo) q = q.lte('date', filters.dateTo);
   const { data, error } = await q;
   if (error) throw error;
   return (data || []) as any;
+}
+
+export interface MechanicTimeslipGroup {
+  key: string;
+  driver_id: string;
+  date: string;
+  slips: MechanicTimeslip[]; // ordered by clock_in_at ascending
+}
+
+/**
+ * Group a mechanic's slips by person + calendar date so multiple clock in/out
+ * sessions on the same day display as a single card. Records stay separate in
+ * the database; this is display-only grouping.
+ */
+export function groupMechanicTimeslipsByDay(slips: MechanicTimeslip[]): MechanicTimeslipGroup[] {
+  const byDay = new Map<string, MechanicTimeslip[]>();
+  slips.forEach((s) => {
+    const key = `${s.driver_id}:${s.date}`;
+    if (!byDay.has(key)) byDay.set(key, []);
+    byDay.get(key)!.push(s);
+  });
+  return Array.from(byDay.entries()).map(([key, groupSlips]) => ({
+    key,
+    driver_id: groupSlips[0].driver_id,
+    date: groupSlips[0].date,
+    slips: [...groupSlips].sort(
+      (a, b) => new Date(a.clock_in_at).getTime() - new Date(b.clock_in_at).getTime()
+    ),
+  }));
 }
 
 export async function clockIn(params: {
@@ -166,6 +198,7 @@ export async function clockOut(params: {
   photo: Blob;
   lat: number | null;
   lng: number | null;
+  explanation?: string | null;
 }): Promise<MechanicTimeslip> {
   const path = await uploadPhoto(params.driverId, params.slipId, 'out', params.photo);
   const { data, error } = await supabase
@@ -177,6 +210,7 @@ export async function clockOut(params: {
       clock_out_lng: params.lng,
       status: 'closed',
       location_missing: params.lat === null || params.lng === null,
+      clock_out_explanation: params.explanation ?? null,
     })
     .eq('id', params.slipId)
     .select()

@@ -1,0 +1,1 @@
+ALTER TABLE public.mechanic_timeslips ADD COLUMN IF NOT EXISTS clock_out_explanation text;

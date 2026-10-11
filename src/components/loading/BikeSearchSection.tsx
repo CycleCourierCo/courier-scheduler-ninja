@@ -4,7 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, X, MapPin, Truck, Package, PackageMinus, ArrowRight } from "lucide-react";
+import { Search, X, MapPin, Truck, Package, PackageMinus, ArrowRight, Printer } from "lucide-react";
+import { generateSingleOrderLabel } from "@/utils/labelUtils";
 import { Order } from "@/types/order";
 import { StorageAllocation } from "@/pages/LoadingUnloadingPage";
 import { toast } from "sonner";
@@ -112,6 +113,15 @@ export const BikeSearchSection = ({
     if (storageAllocations.some((a) => a.orderId === order.id)) return "storage";
     if (order.held_by_driver_name) return "held";
     return "pending";
+  };
+
+  const handlePrintLabel = async (order: Order) => {
+    try {
+      await generateSingleOrderLabel(order);
+    } catch (error) {
+      console.error("Label generation failed:", error);
+      toast.error("Could not print label for this bike");
+    }
   };
 
   const setInput = (key: string, field: "bay" | "position", value: string) => {
@@ -272,6 +282,14 @@ export const BikeSearchSection = ({
                             <Truck className="h-3 w-3 mr-1" /> In {normaliseDriverName(order.held_by_driver_name)} van – failed delivery
                           </Badge>
                         )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 px-2 text-xs ml-auto shrink-0"
+                          onClick={() => handlePrintLabel(order)}
+                        >
+                          <Printer className="h-3 w-3 mr-1" /> Label
+                        </Button>
                       </div>
                       <p className="text-xs text-muted-foreground">
                         {order.bikeBrand} {order.bikeModel}

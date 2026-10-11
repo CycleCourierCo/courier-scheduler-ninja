@@ -13,8 +13,8 @@ export const pricingData = [
   { type: "Longtail Cargo Bikes", price: 130 },
   { type: "Stationary Bikes", price: 70 },
   { type: "Tandem Bikes", price: 110 },
-  { type: "Recumbent", price: 130 },
-  { type: "Small Trike", price: 150 },
+  { type: "Recumbent", price: 100 },
+  { type: "Small Trike", price: 125 },
   { type: "Large Trike", price: 180 },
   { type: "Double Seat/Platform/Cargo Trikes", price: 225 },
 ];
@@ -43,13 +43,16 @@ export const BIKE_TYPE_BY_ID: Record<number, string> = {
   20: 'Non-Electric - Gravel Bike',
 };
 
+// Master list of bookable product names — the booking dropdowns, API and bulk upload all use these.
+export const BOOKING_BIKE_TYPES: string[] = Object.values(BIKE_TYPE_BY_ID);
+
 // Reverse mapping: bike type name to numeric ID
 export const BIKE_TYPE_ID_BY_NAME: Record<string, number> = Object.fromEntries(
   Object.entries(BIKE_TYPE_BY_ID).map(([id, name]) => [name, Number(id)])
 );
 
 // Maps order bike_type values to their full delivery price
-const bikeTypePriceMap: Record<string, number> = {
+export const bikeTypePriceMap: Record<string, number> = {
   // Exact matches from order bike_type values
   "Boxed Kids Bikes": 35,
   "Wheelset/Frameset": 35,
@@ -75,15 +78,15 @@ const bikeTypePriceMap: Record<string, number> = {
   "Electric Bike - Over 50kg": 99,
   "Longtail Cargo Bike": 130,
   "Longtail Cargo Bikes": 130,
-  "Recumbent": 130,
-  "Small Trike": 150,
+  "Recumbent": 100,
+  "Small Trike": 125,
   "Large Trike": 180,
   "Cargo Bike": 225,
   "Double Seat/Platform/Cargo Trikes": 225,
   "Wheels/Frame Boxed Or Unboxed": 35,
   "Non-Electric - Hybrid Bike": 60,
   "Non-Electric - Gravel Bike": 60,
-  "Trike": 150,
+  "Trike": 125,
 };
 
 /**

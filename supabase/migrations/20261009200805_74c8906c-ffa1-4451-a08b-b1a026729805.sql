@@ -1,0 +1,1 @@
+ALTER FUNCTION public.cancelled_invoiced_orders() SECURITY INVOKER;

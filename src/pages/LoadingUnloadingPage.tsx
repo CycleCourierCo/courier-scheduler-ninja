@@ -172,6 +172,25 @@ const LoadingUnloadingPage = () => {
     fetchData();
   }, []);
 
+  // Updates one order on screen after a bay change, without a full page
+  // reload — keeps scroll position and open sections in place.
+  const applyStorageUpdate = (orderId: string, patch: Record<string, any>) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? ({ ...o, ...patch } as any) : o));
+    setStorageAllocations(prev => {
+      const kept = prev.filter(a => a.orderId !== orderId);
+      const locs = patch.storage_locations;
+      if (!locs) return kept;
+      const arr = Array.isArray(locs) ? locs : [locs];
+      return [
+        ...kept,
+        ...arr.map((a: any) => ({
+          ...a,
+          allocatedAt: a.allocatedAt instanceof Date ? a.allocatedAt : new Date(a.allocatedAt),
+        })),
+      ];
+    });
+  };
+
   // Fetch driver and loader profiles for the selectors
   useEffect(() => {
     const fetchProfiles = async () => {
@@ -320,9 +339,13 @@ const LoadingUnloadingPage = () => {
         if (stockErr) toast.error("Bay saved, but couldn't add the bike to Warehouse Stock");
         else toast.success("Added to Warehouse Stock");
       }
-      // Refresh data from database to ensure UI reflects the saved state
-      await fetchData();
-      
+      // Update just this order on screen — no full page reload
+      applyStorageUpdate(orderId, {
+        storage_locations: allocationsForDb,
+        held_by_driver_name: null,
+        held_by_driver_at: null,
+      });
+
       const bikeQuantity = order.bikeQuantity || 1;
       const updatedCount = newAllocations.length;
       
@@ -371,9 +394,9 @@ const LoadingUnloadingPage = () => {
         return;
       }
 
-      // Refresh data from database to ensure UI reflects the saved state
-      await fetchData();
-      
+      // Update just this order on screen — no full page reload
+      applyStorageUpdate(allocationToRemove.orderId, updateData);
+
       toast.success('Bike loaded onto van and removed from storage');
     } catch (error) {
       console.error('Error removing storage location:', error);
@@ -408,7 +431,9 @@ const LoadingUnloadingPage = () => {
         return;
       }
 
-      await fetchData();
+      applyStorageUpdate(allocationToClear.orderId, {
+        storage_locations: updatedAllocations.length > 0 ? updatedAllocations : null,
+      });
       toast.success(`Removed from Bay ${allocationToClear.bay}${allocationToClear.position}`);
     } catch (error) {
       console.error('Error clearing bay position:', error);
@@ -416,49 +441,43 @@ const LoadingUnloadingPage = () => {
     }
   };
 
-  const handleRemoveAllBikesFromOrder = async (orderId: string) => {
-    // Find all allocations for this order
-    const orderAllocations = storageAllocations.filter(a => a.orderId === orderId);
-    
-    const order = orders.find(o => o.id === orderId);
-    if (!order) return;
-
+  // Loads many orders onto the van in a single server call, with an
+  // optimistic local update and one refresh at the end.
+  const loadOrdersOntoVan = async (orderIds: string[]): Promise<number> => {
+    const ids = Array.from(new Set(orderIds));
+    if (ids.length === 0) return 0;
+    const nowIso = new Date().toISOString();
+    const previous = orders;
+    setOrders(prev => prev.map(o => ids.includes(o.id)
+      ? ({ ...o, loaded_onto_van: true, loaded_onto_van_at: new Date(nowIso), storage_locations: undefined } as any)
+      : o));
     try {
-      // Always mark as loaded onto van, regardless of storage allocation status
-      const updateData = {
-        loaded_onto_van: true,
-        loaded_onto_van_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        // Loaded again, so any "held after failed delivery" marker no longer applies
-        held_by_driver_name: null,
-        held_by_driver_at: null,
-        // Only clear storage locations if there are any
-        ...(orderAllocations.length > 0 && { storage_locations: null })
-      };
-
-      const { error } = await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('id', orderId);
-
-      if (error) {
-        console.error('Error updating order for van loading:', error);
-        toast.error('Failed to load bikes onto van');
-        return;
-      }
-
-      // Refresh data from database to ensure UI reflects the saved state
-      await fetchData();
-      
-      if (orderAllocations.length > 0) {
-        toast.success(`${orderAllocations.length} bike(s) loaded onto van and removed from storage`);
-      } else {
-        toast.success(`Bike(s) loaded onto van`);
-      }
+      const { data, error } = await (supabase as any).rpc('load_orders_onto_van', { p_order_ids: ids });
+      if (error) throw error;
+      const loaded: string[] = data || [];
+      fetchData();
+      return loaded.length;
     } catch (error) {
       console.error('Error loading bikes onto van:', error);
-      toast.error('Failed to load bikes onto van');
+      setOrders(previous);
+      toast.error('Failed to load bikes onto van — nothing was saved');
+      throw error;
     }
+  };
+
+  const handleRemoveAllBikesFromOrder = async (orderId: string) => {
+    try {
+      const n = await loadOrdersOntoVan([orderId]);
+      if (n > 0) toast.success('Bike(s) loaded onto van');
+      else toast.warning('This job is cancelled or delivered, so it was not loaded');
+    } catch { /* toast already shown */ }
+  };
+
+  const handleLoadManyOntoVan = async (orderIds: string[]) => {
+    try {
+      const n = await loadOrdersOntoVan(orderIds);
+      toast.success(`Loaded ${n} bike(s) onto van`);
+    } catch { /* toast already shown */ }
   };
 
   const handleUnloadFromVan = async (orderId: string) => {
@@ -527,9 +546,9 @@ const LoadingUnloadingPage = () => {
         return;
       }
 
-      // Refresh data from database to ensure UI reflects the saved state
-      await fetchData();
-      
+      // Update just this order on screen — no full page reload
+      applyStorageUpdate(allocationToUpdate.orderId, { storage_locations: updatedAllocations });
+
       toast.success(`Bike moved to bay ${newBay}${newPosition}`);
     } catch (error) {
       console.error('Error updating storage location:', error);
@@ -1008,17 +1027,12 @@ const LoadingUnloadingPage = () => {
                                      return;
                                    }
                                    try {
-                                     for (const b of toLoad) {
-                                       await handleRemoveAllBikesFromOrder(b.id);
-                                     }
+                                     const n = await loadOrdersOntoVan(toLoad.map(b => b.id));
                                      toast.success(
-                                       `Loaded ${toLoad.length} bike(s) onto van` +
-                                       (skipped > 0 ? ` (skipped ${skipped} with no driver assigned)` : '')
+                                       `Loaded ${n} bike(s) onto van` +
+                                       (skipped > 0 ? ` (skipped ${skipped}: no driver assigned)` : '')
                                      );
-                                   } catch (e) {
-                                     console.error('Load all error:', e);
-                                     toast.error('Failed to load some bikes');
-                                   }
+                                   } catch { /* toast already shown */ }
                                  }}
                                >
                                  <Truck className="h-4 w-4 mr-1" /> Load All onto Van
@@ -1380,7 +1394,7 @@ const LoadingUnloadingPage = () => {
           onOpenChange={setShowRemoveBikesDialog}
           bikesForDelivery={bikesForDelivery}
           storageAllocations={storageAllocations}
-          onRemoveAllBikesFromOrder={handleRemoveAllBikesFromOrder}
+          onLoadOrders={handleLoadManyOntoVan}
         />
 
         {/* Driver Phone Numbers Dialog */}

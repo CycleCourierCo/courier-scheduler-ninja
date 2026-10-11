@@ -475,7 +475,7 @@ const handler = async (req: Request): Promise<Response> => {
         ` : ''}
         
         <hr />
-        <p><small>View all timeslips in your <a href="https://cyclecourier.lovable.app/driver-timeslips">dashboard</a></small></p>
+        <p><small>View all timeslips in your <a href="https://booking.cyclecourierco.com/timeslips">dashboard</a></small></p>
       `;
 
       await resend.emails.send({

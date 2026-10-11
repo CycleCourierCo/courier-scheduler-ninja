@@ -1119,6 +1119,18 @@ const OrderDetail = () => {
       
       // Handle cancellation with Shipday deletion and email notifications
       if (newStatus === 'cancelled') {
+        // Warn when this job has already been billed so staff issue a credit note.
+        const { data: links } = await supabase
+          .from('order_invoice_links' as any)
+          .select('quickbooks_invoice_number, invoice_date')
+          .eq('order_id', id);
+        if (links && links.length > 0) {
+          const list = (links as any[]).map((l) => `#${l.quickbooks_invoice_number || '?'}${l.invoice_date ? ` (${l.invoice_date})` : ''}`).join(', ');
+          const ok = window.confirm(
+            `This job has already been invoiced on invoice ${list}.\n\nIf you cancel it, issue a credit note in QuickBooks so the customer isn't charged. Cancel anyway?`
+          );
+          if (!ok) return;
+        }
         // Server-side cancel: deletes every Shipday leg, clears the ids and
         // stamps a cancellation marker so the backfill can't re-create jobs.
         let result = await cancelOrderWithShipday(id);

@@ -10,6 +10,7 @@ import { Plug, Copy, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import PartnerAppWebhookEditor from "@/components/partner/PartnerAppWebhookEditor";
 
 interface PartnerApp {
   id: string;
@@ -21,6 +22,11 @@ interface PartnerApp {
   redirect_uris: string[];
   is_active: boolean;
   created_at: string;
+  webhook_url: string | null;
+  webhook_events: string[] | null;
+  webhook_secret_prefix: string | null;
+  webhook_last_status: string | null;
+  webhook_last_triggered_at: string | null;
 }
 
 interface NewCredentials {
@@ -42,8 +48,8 @@ const PartnerAppsPage: React.FC = () => {
   const load = async () => {
     const { data, error } = await supabase
       .from("oauth_clients")
-      .select("id, client_id, secret_prefix, name, logo_url, contact_email, redirect_uris, is_active, created_at")
-      .order("created_at", { ascending: false });
+      .select("id, client_id, secret_prefix, name, logo_url, contact_email, redirect_uris, is_active, created_at, webhook_url, webhook_events, webhook_secret_prefix, webhook_last_status, webhook_last_triggered_at")
+      .order("created_at", { ascending: false }) as any;
     if (error) {
       toast.error("Could not load partner apps");
     } else {
@@ -243,6 +249,17 @@ const PartnerAppsPage: React.FC = () => {
                     Added {format(new Date(app.created_at), "d MMM yyyy")}
                     {app.contact_email ? ` · ${app.contact_email}` : ""}
                   </p>
+                  {app.is_active && (
+                    <PartnerAppWebhookEditor
+                      clientUuid={app.id}
+                      webhookUrl={app.webhook_url}
+                      events={app.webhook_events}
+                      secretPrefix={app.webhook_secret_prefix}
+                      lastStatus={app.webhook_last_status}
+                      lastTriggeredAt={app.webhook_last_triggered_at}
+                      onSaved={load}
+                    />
+                  )}
                 </div>
               ))
             )}

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePickerField } from "@/components/DatePickerField";
 import {
   ABSENCE_LABELS, AbsenceRequest, AbsenceType, computeAllowance, createRequest, errorText,
   fmtDay, getMyRequests, londonToday, notifyAbsence, updateRequest,
@@ -109,8 +110,8 @@ const DriverHolidayRequests = () => {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-2"><Label>First day off</Label><Input type="date" value={start} min={today} onChange={(e) => { setStart(e.target.value); if (e.target.value > end) setEnd(e.target.value); }} /></div>
-              <div className="space-y-2"><Label>Last day off</Label><Input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} /></div>
+              <div className="space-y-2"><Label>First day off</Label><DatePickerField value={start} min={today} onChange={(v) => { setStart(v); if (v > end) setEnd(v); }} ariaLabel="First day off" /></div>
+              <div className="space-y-2"><Label>Last day off</Label><DatePickerField value={end} min={start} onChange={(v) => setEnd(v)} ariaLabel="Last day off" /></div>
             </div>
             <div className="space-y-2">
               <Label>Note <span className="text-xs text-muted-foreground">(Visible to admins only)</span></Label>

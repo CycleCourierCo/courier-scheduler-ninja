@@ -1,6 +1,6 @@
 import * as Sentry from "@sentry/react";
 import { Suspense, lazy, useEffect } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -66,6 +66,7 @@ const EquipmentPage = lazy(() => import("./pages/EquipmentPage"));
 const ClaimsList = lazy(() => import("./pages/ClaimsList"));
 const NewClaim = lazy(() => import("./pages/NewClaim"));
 const ClaimDetail = lazy(() => import("./pages/ClaimDetail"));
+const IrelandPage = lazy(() => import("./pages/IrelandPage"));
 const BoxMyBikePage = lazy(() => import("./pages/BoxMyBikePage"));
 const BuildMyBikePage = lazy(() => import("./pages/BuildMyBikePage"));
 const CustomerServiceInbox = lazy(() => import("./pages/CustomerServiceInbox"));
@@ -215,7 +216,8 @@ function App() {
                   <BulkAvailabilityPage />
                 </ProtectedRoute>
               } />
-              <Route path="/driver-timeslips" element={
+              <Route path="/driver-timeslips" element={<Navigate to="/timeslips" replace />} />
+              <Route path="/timeslips" element={
                 <ProtectedRoute>
                   <DriverTimeslips />
                 </ProtectedRoute>
@@ -249,6 +251,11 @@ function App() {
               <Route path="/bicycle-inspections" element={
                 <ProtectedRoute>
                   <BicycleInspections />
+                </ProtectedRoute>
+              } />
+              <Route path="/ireland" element={
+                <ProtectedRoute>
+                  <IrelandPage />
                 </ProtectedRoute>
               } />
               <Route path="/box-my-bike" element={

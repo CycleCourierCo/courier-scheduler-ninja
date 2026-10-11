@@ -429,6 +429,11 @@ export interface FuelAnalysis {
     fills: number;
     litres: number;
     netSpend: number;
+    fillDetails: Array<{
+      id: string;
+      date: string;
+      siteName: string | null;
+    }>;
     suggestion: { reg: string; vehicleId: string; distance: number } | null;
   }>;
 }
@@ -518,6 +523,13 @@ export function analyseFuel(
           fills: rows.length,
           litres: round(litres),
           netSpend: round(netSpend),
+          fillDetails: rows
+            .map((row) => ({
+              id: row.id,
+              date: row.trx_date,
+              siteName: row.site_name,
+            }))
+            .sort((a, b) => a.date.localeCompare(b.date)),
           suggestion:
             suggestionMatch && suggestedVehicle
               ? {

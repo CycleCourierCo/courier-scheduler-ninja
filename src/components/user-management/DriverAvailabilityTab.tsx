@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePickerField } from "@/components/DatePickerField";
 import {
   DEFAULT_WORKING_DAYS, WEEKDAYS, computeAllowance, deleteOverride, errorText, fmtDay, getOverrides,
   getWeeklyAvailability, londonToday, addDays, saveLeaveSettings, saveWeeklyAvailability, upsertOverride,
@@ -130,7 +131,7 @@ export const DriverAvailabilityTab = ({ userId }: Props) => {
       <section className="space-y-2 border-t pt-4">
         <h3 className="font-semibold">One-off changes</h3>
         <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr_1fr]">
-          <Input type="date" value={ov.date} onChange={(e) => setOv({ ...ov, date: e.target.value })} />
+          <DatePickerField value={ov.date} onChange={(v) => setOv({ ...ov, date: v })} ariaLabel="Override date" />
           <label className="flex items-center gap-2 text-sm"><Switch checked={ov.is_available} onCheckedChange={(v) => setOv({ ...ov, is_available: v })} />Working</label>
           <Input type="time" value={ov.start_time} disabled={!ov.is_available} onChange={(e) => setOv({ ...ov, start_time: e.target.value })} />
           <Input type="time" value={ov.end_time} disabled={!ov.is_available} onChange={(e) => setOv({ ...ov, end_time: e.target.value })} />

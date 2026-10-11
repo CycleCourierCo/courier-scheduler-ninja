@@ -612,6 +612,44 @@ export type Database = {
         }
         Relationships: []
       }
+      cancelled_invoice_reviews: {
+        Row: {
+          created_at: string
+          id: string
+          note: string | null
+          order_id: string
+          quickbooks_invoice_id: string
+          resolved_at: string
+          resolved_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          order_id: string
+          quickbooks_invoice_id: string
+          resolved_at?: string
+          resolved_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          order_id?: string
+          quickbooks_invoice_id?: string
+          resolved_at?: string
+          resolved_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cancelled_invoice_reviews_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       claim_evidence_files: {
         Row: {
           claim_id: string
@@ -2303,6 +2341,50 @@ export type Database = {
           },
         ]
       }
+      inspection_chases: {
+        Row: {
+          automatic: boolean
+          created_at: string
+          days_in_stage: number | null
+          id: string
+          order_id: string
+          sent_by_id: string | null
+          sent_by_name: string | null
+          sent_to: string | null
+          stage: string
+        }
+        Insert: {
+          automatic?: boolean
+          created_at?: string
+          days_in_stage?: number | null
+          id?: string
+          order_id: string
+          sent_by_id?: string | null
+          sent_by_name?: string | null
+          sent_to?: string | null
+          stage: string
+        }
+        Update: {
+          automatic?: boolean
+          created_at?: string
+          days_in_stage?: number | null
+          id?: string
+          order_id?: string
+          sent_by_id?: string | null
+          sent_by_name?: string | null
+          sent_to?: string | null
+          stage?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspection_chases_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inspection_comments: {
         Row: {
           author_id: string
@@ -3029,6 +3111,7 @@ export type Database = {
           clock_in_lng: number | null
           clock_in_photo_url: string | null
           clock_out_at: string | null
+          clock_out_explanation: string | null
           clock_out_lat: number | null
           clock_out_lng: number | null
           clock_out_photo_url: string | null
@@ -3053,6 +3136,7 @@ export type Database = {
           clock_in_lng?: number | null
           clock_in_photo_url?: string | null
           clock_out_at?: string | null
+          clock_out_explanation?: string | null
           clock_out_lat?: number | null
           clock_out_lng?: number | null
           clock_out_photo_url?: string | null
@@ -3077,6 +3161,7 @@ export type Database = {
           clock_in_lng?: number | null
           clock_in_photo_url?: string | null
           clock_out_at?: string | null
+          clock_out_explanation?: string | null
           clock_out_lat?: number | null
           clock_out_lng?: number | null
           clock_out_photo_url?: string | null
@@ -3293,6 +3378,13 @@ export type Database = {
           redirect_uris: string[]
           secret_prefix: string
           updated_at: string
+          webhook_events: string[]
+          webhook_last_error: string | null
+          webhook_last_status: string | null
+          webhook_last_triggered_at: string | null
+          webhook_secret_hash: string | null
+          webhook_secret_prefix: string | null
+          webhook_url: string | null
         }
         Insert: {
           client_id: string
@@ -3307,6 +3399,13 @@ export type Database = {
           redirect_uris?: string[]
           secret_prefix: string
           updated_at?: string
+          webhook_events?: string[]
+          webhook_last_error?: string | null
+          webhook_last_status?: string | null
+          webhook_last_triggered_at?: string | null
+          webhook_secret_hash?: string | null
+          webhook_secret_prefix?: string | null
+          webhook_url?: string | null
         }
         Update: {
           client_id?: string
@@ -3321,6 +3420,13 @@ export type Database = {
           redirect_uris?: string[]
           secret_prefix?: string
           updated_at?: string
+          webhook_events?: string[]
+          webhook_last_error?: string | null
+          webhook_last_status?: string | null
+          webhook_last_triggered_at?: string | null
+          webhook_secret_hash?: string | null
+          webhook_secret_prefix?: string | null
+          webhook_url?: string | null
         }
         Relationships: []
       }
@@ -3763,6 +3869,8 @@ export type Database = {
           box_my_bike_invoice_url: string | null
           box_my_bike_status: string | null
           box_tracking_url: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           collection_code: string | null
           collection_confirmation_sent_at: string | null
           collection_driver_name: string | null
@@ -3891,6 +3999,8 @@ export type Database = {
           box_my_bike_invoice_url?: string | null
           box_my_bike_status?: string | null
           box_tracking_url?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           collection_code?: string | null
           collection_confirmation_sent_at?: string | null
           collection_driver_name?: string | null
@@ -4019,6 +4129,8 @@ export type Database = {
           box_my_bike_invoice_url?: string | null
           box_my_bike_status?: string | null
           box_tracking_url?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           collection_code?: string | null
           collection_confirmation_sent_at?: string | null
           collection_driver_name?: string | null
@@ -6132,6 +6244,7 @@ export type Database = {
           delivery_duration_ms: number | null
           event_type: string
           id: string
+          oauth_client_id: string | null
           order_id: string | null
           payload: Json
           response_body: string | null
@@ -6145,6 +6258,7 @@ export type Database = {
           delivery_duration_ms?: number | null
           event_type: string
           id?: string
+          oauth_client_id?: string | null
           order_id?: string | null
           payload: Json
           response_body?: string | null
@@ -6158,6 +6272,7 @@ export type Database = {
           delivery_duration_ms?: number | null
           event_type?: string
           id?: string
+          oauth_client_id?: string | null
           order_id?: string | null
           payload?: Json
           response_body?: string | null
@@ -6166,6 +6281,13 @@ export type Database = {
           webhook_config_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "webhook_delivery_logs_oauth_client_id_fkey"
+            columns: ["oauth_client_id"]
+            isOneToOne: false
+            referencedRelation: "oauth_clients"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "webhook_delivery_logs_order_id_fkey"
             columns: ["order_id"]
@@ -6296,6 +6418,10 @@ export type Database = {
           id: number
           inspection_standard_minutes: number
           min_charge_gbp: number
+          overdue_inspection_days: number
+          overdue_parts_ordered_days: number
+          overdue_parts_unordered_days: number
+          overdue_repair_days: number
           redate_mode: string
           updated_at: string
           updated_by: string | null
@@ -6310,6 +6436,10 @@ export type Database = {
           id?: number
           inspection_standard_minutes?: number
           min_charge_gbp?: number
+          overdue_inspection_days?: number
+          overdue_parts_ordered_days?: number
+          overdue_parts_unordered_days?: number
+          overdue_repair_days?: number
           redate_mode?: string
           updated_at?: string
           updated_by?: string | null
@@ -6324,6 +6454,10 @@ export type Database = {
           id?: number
           inspection_standard_minutes?: number
           min_charge_gbp?: number
+          overdue_inspection_days?: number
+          overdue_parts_ordered_days?: number
+          overdue_parts_unordered_days?: number
+          overdue_repair_days?: number
           redate_mode?: string
           updated_at?: string
           updated_by?: string | null
@@ -6547,6 +6681,15 @@ export type Database = {
       }
       admin_revoke_api_key: { Args: { key_id: string }; Returns: boolean }
       admin_revoke_webhook: { Args: { p_config_id: string }; Returns: boolean }
+      admin_set_oauth_client_webhook: {
+        Args: {
+          p_client_uuid: string
+          p_events: string[]
+          p_regenerate_secret?: boolean
+          p_webhook_url: string
+        }
+        Returns: string
+      }
       admin_update_account_status: {
         Args: { status: string; user_id: string }
         Returns: boolean
@@ -6563,6 +6706,26 @@ export type Database = {
       }
       can_manage_review: { Args: { _cycle_id: string }; Returns: boolean }
       can_view_review: { Args: { _cycle_id: string }; Returns: boolean }
+      cancelled_invoiced_orders: {
+        Args: never
+        Returns: {
+          cancelled_at: string
+          customer_name: string
+          had_failed_collection: boolean
+          invoice_date: string
+          last_failed_collection_at: string
+          order_created_at: string
+          order_id: string
+          quickbooks_invoice_id: string
+          quickbooks_invoice_number: string
+          quickbooks_invoice_url: string
+          resolution_note: string
+          resolved_at: string
+          timing: string
+          tracking_number: string
+          transport_net_amount: number
+        }[]
+      }
       cleanup_expired_oauth: { Args: never; Returns: undefined }
       cleanup_integration_call_logs: { Args: never; Returns: undefined }
       create_stock_from_storage_order: {
@@ -6881,6 +7044,7 @@ export type Database = {
       invoke_refresh_vehicles: { Args: never; Returns: undefined }
       invoke_send_order_updates: { Args: never; Returns: undefined }
       invoke_weekly_invoice_batch: { Args: never; Returns: undefined }
+      invoke_workshop_overdue_digest: { Args: never; Returns: undefined }
       is_account_approved: { Args: { user_id: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       is_admin_or_sales: { Args: never; Returns: boolean }
@@ -6903,6 +7067,10 @@ export type Database = {
           is_active: boolean
           name: string
         }[]
+      }
+      load_orders_onto_van: {
+        Args: { p_order_ids: string[] }
+        Returns: string[]
       }
       longtransactionsenabled: { Args: never; Returns: boolean }
       my_profile_guard: {

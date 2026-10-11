@@ -54,7 +54,40 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!webhookConfigs || webhookConfigs.length === 0) {
+    // Partner apps the customer has connected through sign-in (OAuth) also receive updates
+    const targets: Array<{ kind: 'config' | 'oauth'; id: string; endpoint_url: string; vaultKey: string }> = [];
+    const seenUrls = new Set<string>();
+    for (const c of webhookConfigs || []) {
+      const key = String(c.endpoint_url).trim().toLowerCase();
+      if (seenUrls.has(key)) continue;
+      seenUrls.add(key);
+      targets.push({ kind: 'config', id: c.id, endpoint_url: c.endpoint_url, vaultKey: `webhook_secret_${c.id}` });
+    }
+
+    const { data: grants, error: grantErr } = await supabase
+      .from('oauth_access_grants')
+      .select('client_uuid')
+      .eq('user_id', order.user_id)
+      .is('revoked_at', null);
+    if (grantErr) console.error('Error fetching partner app connections:', grantErr.message);
+    const clientIds = [...new Set((grants || []).map((g: any) => g.client_uuid).filter(Boolean))];
+    if (clientIds.length) {
+      const { data: clients } = await supabase
+        .from('oauth_clients')
+        .select('id, webhook_url, webhook_events, is_active')
+        .in('id', clientIds)
+        .eq('is_active', true)
+        .not('webhook_url', 'is', null);
+      for (const cl of clients || []) {
+        if (!Array.isArray(cl.webhook_events) || !cl.webhook_events.includes(event_type)) continue;
+        const key = String(cl.webhook_url).trim().toLowerCase();
+        if (seenUrls.has(key)) continue;
+        seenUrls.add(key);
+        targets.push({ kind: 'oauth', id: cl.id, endpoint_url: cl.webhook_url, vaultKey: `oauth_webhook_secret_${cl.id}` });
+      }
+    }
+
+    if (targets.length === 0) {
       console.log('No active webhooks found for this event');
       return new Response(JSON.stringify({ message: 'No webhooks to trigger' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -96,11 +129,11 @@ Deno.serve(async (req) => {
       eventPayload.data.box_delivered_by_3p_at = order.box_delivered_by_3p_at ?? null;
     }
 
-    console.log(`Sending webhooks to ${webhookConfigs.length} endpoints`);
+    console.log(`Sending webhooks to ${targets.length} endpoints`);
 
     // Send webhooks to all configured endpoints
     const results = await Promise.all(
-      webhookConfigs.map(async (config) => {
+      targets.map(async (config) => {
         const maxRetries = 3;
         let attempt = 0;
         let success = false;
@@ -114,7 +147,7 @@ Deno.serve(async (req) => {
 
           try {
             // Retrieve plaintext secret from Vault using RPC function
-            const vaultKey = `webhook_secret_${config.id}`;
+            const vaultKey = config.vaultKey;
             const { data: webhookSecret, error: vaultError } = await supabase
               .rpc('get_vault_secret', { secret_name: vaultKey });
 
@@ -174,7 +207,8 @@ Deno.serve(async (req) => {
 
         // Log delivery attempt
         await supabase.from('webhook_delivery_logs').insert({
-          webhook_config_id: config.id,
+          webhook_config_id: config.kind === 'config' ? config.id : null,
+          oauth_client_id: config.kind === 'oauth' ? config.id : null,
           order_id: order.id,
           event_type,
           payload: eventPayload,
@@ -186,16 +220,27 @@ Deno.serve(async (req) => {
         });
 
         // Update webhook config
-        await supabase
-          .from('webhook_configurations')
-          .update({
-            last_triggered_at: new Date().toISOString(),
-            last_delivery_status: success ? 'success' : 'failed',
-            last_error_message: success ? null : responseBody.substring(0, 500),
-          })
-          .eq('id', config.id);
+        if (config.kind === 'config') {
+          await supabase
+            .from('webhook_configurations')
+            .update({
+              last_triggered_at: new Date().toISOString(),
+              last_delivery_status: success ? 'success' : 'failed',
+              last_error_message: success ? null : responseBody.substring(0, 500),
+            })
+            .eq('id', config.id);
+        } else {
+          await supabase
+            .from('oauth_clients')
+            .update({
+              webhook_last_triggered_at: new Date().toISOString(),
+              webhook_last_status: success ? 'success' : 'failed',
+              webhook_last_error: success ? null : responseBody.substring(0, 500),
+            })
+            .eq('id', config.id);
+        }
 
-        return { config_id: config.id, success, attempts: attempt };
+        return { target: config.kind, config_id: config.id, success, attempts: attempt };
       })
     );
 

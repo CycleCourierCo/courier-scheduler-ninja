@@ -141,7 +141,7 @@ Claims are **not** customer-raiseable — damage claims are staff-only (§4).
 | `/storage-bays` | Storage Bays | admin | Order / bay / slots / status table; add / edit bay dialog |
 | `/equipment` | Equipment | loader, fleet manager, admin | Items / Groups tabs; search; items table (equipment, serial, status, location, condition, next check); groups table (name, category, total, available, out, in repair, checks); assign, movement and maintenance dialogs |
 | `/vehicles` | Vehicles | fleet manager, admin | Vehicles / Insurance tabs; registration and make search; table of registration, vehicle, status, purchased, tax, MOT, miles driven, auto-pay, last refreshed; mark-as-sold dialog with mileage; maintenance intervals and logs |
-| `/driver-timeslips` | Driver Timeslips | driver, timeslip admin, admin | Draft / Approved / All / Mechanic tabs; timeslip cards with route map preview; create, edit, generate and bulk-assign-vehicle dialogs; driver management |
+| `/timeslips` | Driver Timeslips | driver, timeslip admin, admin | Draft / Approved / All / Mechanic tabs; timeslip cards with route map preview; create, edit, generate and bulk-assign-vehicle dialogs; driver management |
 | `/fuel-finder` | Fuel Finder | driver, admin | Fuel-card settings (name, pence-per-litre), two-location postcode/address comparison, cached station results with cheapest-option badges, anomaly flags |
 | `/claims`, `/claims/new`, `/claims/:id` | Damage Claims | CS, admin | List with search and table (claim ID, booking ref, customer, bike, damage type, opened, status, settlement £). New claim: linked order search, damage report, evidence checklist, internal notes. Detail: Details / Evidence / Assessment / Settlement / Notes tabs, timeline, upload, files, note thread, status history |
 | `/inbox`, `/inbox/:id` | Customer Service Inbox | CS, admin | All / Mine / Unassigned tabs; search; conversation list, message thread, composer (email via Resend, WhatsApp via SendZen), context panel, conversation tasks |
@@ -210,7 +210,7 @@ Drivers are **not** given an in-app run/stop workflow. What exists:
 
 | Screen | Purpose |
 |---|---|
-| `/driver-timeslips` | The driver's own timeslips: date, route, stops, mileage, hours, vehicle, map preview; draft vs approved |
+| `/timeslips` | The driver's own timeslips: date, route, stops, mileage, hours, vehicle, map preview; draft vs approved |
 | `/fuel-finder` | Cheapest-fuel comparison between two locations using the daily station cache and the driver's fuel-card price |
 | `/tasks` | Tasks assigned to them |
 | `/knowledge` | SOPs |

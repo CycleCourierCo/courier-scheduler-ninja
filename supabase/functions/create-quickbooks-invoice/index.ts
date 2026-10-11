@@ -583,10 +583,16 @@ const handler = async (req: Request): Promise<Response> => {
     if (orderIdsForFlags.length > 0) {
       const { data: flagRows, error: flagError } = await supabase
         .from('orders')
-        .select('id, use_large_bike_rate, needs_inspection, inspection_type')
+        .select('id, status, tracking_number, use_large_bike_rate, needs_inspection, inspection_type')
         .in('id', orderIdsForFlags);
       if (flagError) {
         throw new Error(`Could not read big-bike rate flags for these jobs: ${flagError.message}`);
+      }
+      const cancelledRows = (flagRows || []).filter((r: any) => r.status === 'cancelled');
+      if (cancelledRows.length > 0) {
+        throw new Error(
+          `Cancelled jobs can't be invoiced: ${cancelledRows.map((r: any) => r.tracking_number || r.id).join(', ')}. Remove them and try again.`
+        );
       }
       for (const row of flagRows || []) {
         if (row.use_large_bike_rate) largeRateOrderIds.add(row.id);
