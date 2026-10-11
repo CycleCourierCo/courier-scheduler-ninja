@@ -115,6 +115,15 @@ export const BikeSearchSection = ({
     return "pending";
   };
 
+  const handlePrintLabel = async (order: Order) => {
+    try {
+      await generateSingleOrderLabel(order);
+    } catch (error) {
+      console.error("Label generation failed:", error);
+      toast.error("Could not print label for this bike");
+    }
+  };
+
   const setInput = (key: string, field: "bay" | "position", value: string) => {
     setAllocInputs((prev) => ({
       ...prev,
