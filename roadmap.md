@@ -19,3 +19,4 @@
 - [x] Revenue check table relabelled: "Invoiced (jobs on this page)" / "All transport invoiced in QuickBooks" + note explaining the gap
 - [x] Analytics: predicted end-of-period dashed lines on Inspections Booked vs Completed, Orders Created, and Orders Completed charts
 - [x] Workshop chasing: overdue limits, parts ordered/arrived, overdue filter, chase button, daily digest + mechanic lists (Mon–Fri)
+- [x] Dashboard task list: scrolls, sized to four whole tasks (phone and desktop)
