@@ -1369,7 +1369,7 @@ const LoadingUnloadingPage = () => {
           onOpenChange={setShowRemoveBikesDialog}
           bikesForDelivery={bikesForDelivery}
           storageAllocations={storageAllocations}
-          onRemoveAllBikesFromOrder={handleRemoveAllBikesFromOrder}
+          onLoadOrders={handleLoadManyOntoVan}
         />
 
         {/* Driver Phone Numbers Dialog */}
