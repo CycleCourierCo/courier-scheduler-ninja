@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
+// WorkDoneSection renders each day's recorded work under a timeslip.
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Layout from '@/components/Layout';
 import DashboardHeader from '@/components/DashboardHeader';
