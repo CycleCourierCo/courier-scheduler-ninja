@@ -369,7 +369,7 @@ const VehicleManagement = () => {
           </TabsContent>
 
           <TabsContent value="insurance">
-            <InsuranceTab vehicles={vehicles} />
+            <InsuranceTab vehicles={inUseVehicles} />
           </TabsContent>
         </Tabs>
 
