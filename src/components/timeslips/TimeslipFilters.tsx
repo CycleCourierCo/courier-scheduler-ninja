@@ -41,10 +41,20 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
   const [noVehicle, setNoVehicle] = useState(false);
   const [showInactive, setShowInactive] = useState(false);
 
-  // Fetch all drivers
+  // Fetch all drivers and mechanics (both have timeslips on this page)
   const { data: drivers } = useQuery({
-    queryKey: ['role-users', 'driver', showInactive],
-    queryFn: () => listUsersByRole('driver', { includeInactive: showInactive }),
+    queryKey: ['role-users', 'driver', 'mechanic', showInactive],
+    queryFn: async () => {
+      const [driverList, mechanicList] = await Promise.all([
+        listUsersByRole('driver', { includeInactive: showInactive }),
+        listUsersByRole('mechanic', { includeInactive: showInactive }),
+      ]);
+      const byId = new Map<string, { id: string; name: string | null; email: string | null }>();
+      [...driverList, ...mechanicList].forEach((p) => byId.set(p.id, p));
+      return Array.from(byId.values()).sort((a, b) =>
+        (a.name || a.email || '').localeCompare(b.name || b.email || '')
+      );
+    },
     staleTime: 5 * 60 * 1000,
   });
 
@@ -79,10 +89,10 @@ const TimeslipFilters: React.FC<TimeslipFiltersProps> = ({ onFilterChange }) => 
           <Select value={driverId} onValueChange={setDriverId}>
             <SelectTrigger>
               <User className="h-4 w-4 mr-2 shrink-0" />
-              <SelectValue placeholder="All Drivers" />
+              <SelectValue placeholder="All People" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Drivers</SelectItem>
+              <SelectItem value="all">All People</SelectItem>
               {drivers?.map((driver) => (
                 <SelectItem key={driver.id} value={driver.id}>
                   {driver.name || driver.email || 'Unknown Driver'}
