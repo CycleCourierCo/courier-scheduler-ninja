@@ -1,0 +1,41 @@
+CREATE OR REPLACE FUNCTION public.admin_set_oauth_client_webhook(
+  p_client_uuid uuid, p_webhook_url text, p_events text[], p_regenerate_secret boolean DEFAULT false)
+RETURNS text
+LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public','vault'
+AS $$
+DECLARE
+  v_secret text; v_prefix text; v_key text; v_has boolean;
+BEGIN
+  IF NOT has_role(auth.uid(), 'admin') THEN
+    RAISE EXCEPTION 'Only admins can configure partner app webhooks';
+  END IF;
+  IF p_webhook_url IS NOT NULL AND p_webhook_url <> '' AND p_webhook_url !~* '^https://' THEN
+    RAISE EXCEPTION 'Webhook address must start with https://';
+  END IF;
+
+  SELECT webhook_secret_hash IS NOT NULL INTO v_has FROM public.oauth_clients WHERE id = p_client_uuid;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Partner app not found'; END IF;
+
+  UPDATE public.oauth_clients
+     SET webhook_url = NULLIF(trim(p_webhook_url), ''),
+         webhook_events = COALESCE(p_events, '{}'),
+         updated_at = now()
+   WHERE id = p_client_uuid;
+
+  IF NULLIF(trim(p_webhook_url), '') IS NOT NULL AND (p_regenerate_secret OR NOT v_has) THEN
+    v_prefix := 'whp_' || substring(p_client_uuid::text from 1 for 8);
+    v_secret := v_prefix || '_' || replace(gen_random_uuid()::text,'-','') || replace(gen_random_uuid()::text,'-','');
+    v_key := 'oauth_webhook_secret_' || p_client_uuid::text;
+    DELETE FROM vault.secrets WHERE name = v_key;
+    PERFORM vault.create_secret(v_secret, v_key);
+    UPDATE public.oauth_clients
+       SET webhook_secret_hash = encode(sha256(v_secret::bytea),'hex'),
+           webhook_secret_prefix = v_prefix
+     WHERE id = p_client_uuid;
+  END IF;
+
+  RETURN v_secret;
+END;
+$$;
+REVOKE ALL ON FUNCTION public.admin_set_oauth_client_webhook(uuid,text,text[],boolean) FROM public, anon;
+GRANT EXECUTE ON FUNCTION public.admin_set_oauth_client_webhook(uuid,text,text[],boolean) TO authenticated;
