@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePickerField } from "@/components/DatePickerField";
 import { DriverAvailabilityTab } from "@/components/user-management/DriverAvailabilityTab";
 import {
   ABSENCE_LABELS, AbsenceType, createRequest, errorText, fmtDay, getAllRequests, londonToday, notifyAbsence, updateRequest,
@@ -78,8 +79,8 @@ export const DriverRotaEditDialog = ({ driver, onOpenChange }: Props) => {
                     </SelectContent>
                   </Select></div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="space-y-1"><Label>First day</Label><Input type="date" value={start} onChange={(e) => { setStart(e.target.value); if (e.target.value > end) setEnd(e.target.value); }} /></div>
-                  <div className="space-y-1"><Label>Last day</Label><Input type="date" value={end} min={start} onChange={(e) => setEnd(e.target.value)} /></div>
+                  <div className="space-y-1"><Label>First day</Label><DatePickerField value={start} onChange={(v) => { setStart(v); if (v > end) setEnd(v); }} ariaLabel="First day" /></div>
+                  <div className="space-y-1"><Label>Last day</Label><DatePickerField value={end} min={start} onChange={(v) => setEnd(v)} ariaLabel="Last day" /></div>
                 </div>
                 <div className="space-y-1"><Label>Note <span className="text-xs text-muted-foreground">(admins only)</span></Label>
                   <Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></div>
