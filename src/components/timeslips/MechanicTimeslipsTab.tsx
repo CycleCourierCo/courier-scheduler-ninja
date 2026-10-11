@@ -25,6 +25,7 @@ import {
   listUsersByRole,
   MechanicTimeslip,
 } from '@/services/mechanicTimeslipService';
+import { getMechanicWorkByDate, formatMinutes, DayWork } from '@/services/mechanicWorkService';
 
 function PhotoCell({ path }: { path: string | null }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -375,6 +376,31 @@ const MechanicTimeslipsTab: React.FC = () => {
                 {s.admin_notes && (
                   <div className="text-xs text-muted-foreground break-words">Notes: {s.admin_notes}</div>
                 )}
+
+                {s.clock_out_explanation && (
+                  <div className="text-xs rounded-md border bg-amber-50 dark:bg-amber-950/30 p-2 break-words">
+                    <span className="font-medium">Clock-out explanation:</span> {s.clock_out_explanation}
+                  </div>
+                )}
+
+                {(() => {
+                  const work = workBySlip?.[`${s.driver_id}:${s.date}`];
+                  if (!work || work.items.length === 0) return null;
+                  return (
+                    <div className="text-xs rounded-md border bg-muted/30 p-2 space-y-0.5">
+                      <div className="font-medium">Work done — {formatMinutes(work.totalMinutes)} recorded</div>
+                      {work.items.map((item, i) => (
+                        <div key={i} className="flex items-baseline justify-between gap-2">
+                          <span className="min-w-0 truncate">
+                            {format(new Date(item.at), 'HH:mm')} — {item.label}
+                            {item.detail ? ` (${item.detail})` : ''}
+                          </span>
+                          <span className="shrink-0 text-muted-foreground">{formatMinutes(item.minutes)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
 
                 {/* Actions */}
                 <div className="flex flex-wrap gap-2 border-t pt-3">
