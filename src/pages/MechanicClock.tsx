@@ -296,21 +296,32 @@ const MechanicClock: React.FC = () => {
             {history && history.length > 0 ? (
               <div className="divide-y">
                 {history.map((s) => (
-                  <div key={s.id} className="py-3 flex items-center gap-3">
-                    <PhotoThumb path={s.clock_in_photo_url} />
-                    <PhotoThumb path={s.clock_out_photo_url} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium">{format(new Date(s.date), 'EEE d MMM yyyy')}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(new Date(s.clock_in_at), 'HH:mm')} –{' '}
-                        {s.clock_out_at ? format(new Date(s.clock_out_at), 'HH:mm') : 'open'}
-                        {s.clock_out_at && ` · ${Number(s.total_hours).toFixed(2)}h`}
+                  <div key={s.id} className="py-3">
+                    <div className="flex items-center gap-3">
+                      <PhotoThumb path={s.clock_in_photo_url} />
+                      <PhotoThumb path={s.clock_out_photo_url} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium">{format(new Date(s.date), 'EEE d MMM yyyy')}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {format(new Date(s.clock_in_at), 'HH:mm')} –{' '}
+                          {s.clock_out_at ? format(new Date(s.clock_out_at), 'HH:mm') : 'open'}
+                          {s.clock_out_at && ` · ${Number(s.total_hours).toFixed(2)}h`}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-semibold">£{Number(s.total_pay || 0).toFixed(2)}</div>
+                        <div className="text-xs text-muted-foreground capitalize">{s.status}</div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold">£{Number(s.total_pay || 0).toFixed(2)}</div>
-                      <div className="text-xs text-muted-foreground capitalize">{s.status}</div>
-                    </div>
+                    <WorkDoneSection
+                      work={workByDate?.[s.date]}
+                      clockedHours={s.clock_out_at ? Number(s.total_hours) : null}
+                    />
+                    {s.clock_out_explanation && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        <span className="font-medium">Clock-out note:</span> {s.clock_out_explanation}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
