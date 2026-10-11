@@ -416,49 +416,43 @@ const LoadingUnloadingPage = () => {
     }
   };
 
-  const handleRemoveAllBikesFromOrder = async (orderId: string) => {
-    // Find all allocations for this order
-    const orderAllocations = storageAllocations.filter(a => a.orderId === orderId);
-    
-    const order = orders.find(o => o.id === orderId);
-    if (!order) return;
-
+  // Loads many orders onto the van in a single server call, with an
+  // optimistic local update and one refresh at the end.
+  const loadOrdersOntoVan = async (orderIds: string[]): Promise<number> => {
+    const ids = Array.from(new Set(orderIds));
+    if (ids.length === 0) return 0;
+    const nowIso = new Date().toISOString();
+    const previous = orders;
+    setOrders(prev => prev.map(o => ids.includes(o.id)
+      ? ({ ...o, loaded_onto_van: true, loaded_onto_van_at: new Date(nowIso), storage_locations: undefined } as any)
+      : o));
     try {
-      // Always mark as loaded onto van, regardless of storage allocation status
-      const updateData = {
-        loaded_onto_van: true,
-        loaded_onto_van_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        // Loaded again, so any "held after failed delivery" marker no longer applies
-        held_by_driver_name: null,
-        held_by_driver_at: null,
-        // Only clear storage locations if there are any
-        ...(orderAllocations.length > 0 && { storage_locations: null })
-      };
-
-      const { error } = await supabase
-        .from('orders')
-        .update(updateData)
-        .eq('id', orderId);
-
-      if (error) {
-        console.error('Error updating order for van loading:', error);
-        toast.error('Failed to load bikes onto van');
-        return;
-      }
-
-      // Refresh data from database to ensure UI reflects the saved state
-      await fetchData();
-      
-      if (orderAllocations.length > 0) {
-        toast.success(`${orderAllocations.length} bike(s) loaded onto van and removed from storage`);
-      } else {
-        toast.success(`Bike(s) loaded onto van`);
-      }
+      const { data, error } = await (supabase as any).rpc('load_orders_onto_van', { p_order_ids: ids });
+      if (error) throw error;
+      const loaded: string[] = data || [];
+      fetchData();
+      return loaded.length;
     } catch (error) {
       console.error('Error loading bikes onto van:', error);
-      toast.error('Failed to load bikes onto van');
+      setOrders(previous);
+      toast.error('Failed to load bikes onto van — nothing was saved');
+      throw error;
     }
+  };
+
+  const handleRemoveAllBikesFromOrder = async (orderId: string) => {
+    try {
+      const n = await loadOrdersOntoVan([orderId]);
+      if (n > 0) toast.success('Bike(s) loaded onto van');
+      else toast.warning('This job is cancelled or delivered, so it was not loaded');
+    } catch { /* toast already shown */ }
+  };
+
+  const handleLoadManyOntoVan = async (orderIds: string[]) => {
+    try {
+      const n = await loadOrdersOntoVan(orderIds);
+      toast.success(`Loaded ${n} bike(s) onto van`);
+    } catch { /* toast already shown */ }
   };
 
   const handleUnloadFromVan = async (orderId: string) => {
@@ -1008,17 +1002,12 @@ const LoadingUnloadingPage = () => {
                                      return;
                                    }
                                    try {
-                                     for (const b of toLoad) {
-                                       await handleRemoveAllBikesFromOrder(b.id);
-                                     }
+                                     const n = await loadOrdersOntoVan(toLoad.map(b => b.id));
                                      toast.success(
-                                       `Loaded ${toLoad.length} bike(s) onto van` +
-                                       (skipped > 0 ? ` (skipped ${skipped} with no driver assigned)` : '')
+                                       `Loaded ${n} bike(s) onto van` +
+                                       (skipped > 0 ? ` (skipped ${skipped}: no driver assigned)` : '')
                                      );
-                                   } catch (e) {
-                                     console.error('Load all error:', e);
-                                     toast.error('Failed to load some bikes');
-                                   }
+                                   } catch { /* toast already shown */ }
                                  }}
                                >
                                  <Truck className="h-4 w-4 mr-1" /> Load All onto Van
