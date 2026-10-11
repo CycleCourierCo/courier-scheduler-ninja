@@ -114,6 +114,7 @@ export async function listMyMechanicTimeslips(driverId: string): Promise<Mechani
 export async function listAllMechanicTimeslips(filters?: {
   driverId?: string;
   status?: string;
+  statusIn?: string[];
   dateFrom?: string;
   dateTo?: string;
 }): Promise<MechanicTimeslip[]> {
@@ -122,7 +123,8 @@ export async function listAllMechanicTimeslips(filters?: {
     .select('*, driver:profiles!mechanic_timeslips_driver_id_fkey(id,name,email,hourly_rate,workshop_hourly_rate)')
     .order('clock_in_at', { ascending: false });
   if (filters?.driverId) q = q.eq('driver_id', filters.driverId);
-  if (filters?.status && filters.status !== 'all') q = q.eq('status', filters.status);
+  if (filters?.statusIn && filters.statusIn.length) q = q.in('status', filters.statusIn);
+  else if (filters?.status && filters.status !== 'all') q = q.eq('status', filters.status);
   if (filters?.dateFrom) q = q.gte('date', filters.dateFrom);
   if (filters?.dateTo) q = q.lte('date', filters.dateTo);
   const { data, error } = await q;
