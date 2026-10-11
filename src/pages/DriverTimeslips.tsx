@@ -417,17 +417,29 @@ const DriverTimeslips = () => {
   const deletingMechanicSlip = allMechanicSlips?.find(t => t.id === deletingMechanicId) ||
                                mechanicSlips?.find(t => t.id === deletingMechanicId);
 
-  // Count timeslips by status (from all timeslips for accurate counts)
+  // Count timeslips by status (from all timeslips for accurate counts).
+  // Mechanic slips are counted as one per person per day to match the merged cards.
+  const mechanicDayGroups = useMemo(
+    () => groupMechanicTimeslipsByDay(allMechanicSlips || []),
+    [allMechanicSlips]
+  );
   const draftCount = (allTimeslips?.filter((t) => t.status === 'draft').length || 0) +
-    (allMechanicSlips?.filter((t) => t.status === 'open' || t.status === 'closed').length || 0);
+    mechanicDayGroups.filter((g) => g.slips.some((s) => s.status === 'open' || s.status === 'closed')).length;
   const approvedCount = (allTimeslips?.filter((t) => t.status === 'approved').length || 0) +
-    (allMechanicSlips?.filter((t) => t.status === 'approved').length || 0);
-  const allCount = (allTimeslips?.length || 0) + (allMechanicSlips?.length || 0);
+    mechanicDayGroups.filter((g) => g.slips.every((s) => s.status === 'approved')).length;
+  const allCount = (allTimeslips?.length || 0) + mechanicDayGroups.length;
 
   // Calculate total pay from visible timeslips
   const totalPay = useMemo(() => {
     if (!sortedTimeslips) return 0;
-    return sortedTimeslips.reduce((sum, item) => sum + (item.slip.total_pay || 0), 0);
+    return sortedTimeslips.reduce(
+      (sum, item) =>
+        sum +
+        (item.kind === 'driver'
+          ? item.slip.total_pay || 0
+          : item.group.slips.reduce((s, slip) => s + (slip.total_pay || 0), 0)),
+      0
+    );
   }, [sortedTimeslips]);
 
   const pageLoading = isLoading || (isAdmin && isLoadingMechanic);
