@@ -172,6 +172,25 @@ const LoadingUnloadingPage = () => {
     fetchData();
   }, []);
 
+  // Updates one order on screen after a bay change, without a full page
+  // reload — keeps scroll position and open sections in place.
+  const applyStorageUpdate = (orderId: string, patch: Record<string, any>) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? ({ ...o, ...patch } as any) : o));
+    setStorageAllocations(prev => {
+      const kept = prev.filter(a => a.orderId !== orderId);
+      const locs = patch.storage_locations;
+      if (!locs) return kept;
+      const arr = Array.isArray(locs) ? locs : [locs];
+      return [
+        ...kept,
+        ...arr.map((a: any) => ({
+          ...a,
+          allocatedAt: a.allocatedAt instanceof Date ? a.allocatedAt : new Date(a.allocatedAt),
+        })),
+      ];
+    });
+  };
+
   // Fetch driver and loader profiles for the selectors
   useEffect(() => {
     const fetchProfiles = async () => {
@@ -320,9 +339,13 @@ const LoadingUnloadingPage = () => {
         if (stockErr) toast.error("Bay saved, but couldn't add the bike to Warehouse Stock");
         else toast.success("Added to Warehouse Stock");
       }
-      // Refresh data from database to ensure UI reflects the saved state
-      await fetchData();
-      
+      // Update just this order on screen — no full page reload
+      applyStorageUpdate(orderId, {
+        storage_locations: allocationsForDb,
+        held_by_driver_name: null,
+        held_by_driver_at: null,
+      });
+
       const bikeQuantity = order.bikeQuantity || 1;
       const updatedCount = newAllocations.length;
       
@@ -371,9 +394,9 @@ const LoadingUnloadingPage = () => {
         return;
       }
 
-      // Refresh data from database to ensure UI reflects the saved state
-      await fetchData();
-      
+      // Update just this order on screen — no full page reload
+      applyStorageUpdate(allocationToRemove.orderId, updateData);
+
       toast.success('Bike loaded onto van and removed from storage');
     } catch (error) {
       console.error('Error removing storage location:', error);
@@ -408,7 +431,9 @@ const LoadingUnloadingPage = () => {
         return;
       }
 
-      await fetchData();
+      applyStorageUpdate(allocationToClear.orderId, {
+        storage_locations: updatedAllocations.length > 0 ? updatedAllocations : null,
+      });
       toast.success(`Removed from Bay ${allocationToClear.bay}${allocationToClear.position}`);
     } catch (error) {
       console.error('Error clearing bay position:', error);
@@ -521,9 +546,9 @@ const LoadingUnloadingPage = () => {
         return;
       }
 
-      // Refresh data from database to ensure UI reflects the saved state
-      await fetchData();
-      
+      // Update just this order on screen — no full page reload
+      applyStorageUpdate(allocationToUpdate.orderId, { storage_locations: updatedAllocations });
+
       toast.success(`Bike moved to bay ${newBay}${newPosition}`);
     } catch (error) {
       console.error('Error updating storage location:', error);

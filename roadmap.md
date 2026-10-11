@@ -20,3 +20,4 @@
 - [x] Analytics: predicted end-of-period dashed lines on Inspections Booked vs Completed, Orders Created, and Orders Completed charts
 - [x] Workshop chasing: overdue limits, parts ordered/arrived, overdue filter, chase button, daily digest + mechanic lists (Mon–Fri)
 - [x] Dashboard task list: scrolls, sized to four whole tasks (phone and desktop)
+- [x] Bay assign/move/clear on Loading page update in place — no full page reload or scroll jump (2026-10-11)
