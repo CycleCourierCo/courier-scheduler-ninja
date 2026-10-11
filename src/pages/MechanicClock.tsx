@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Layout from '@/components/Layout';
 import DashboardHeader from '@/components/DashboardHeader';
@@ -6,9 +6,17 @@ import DashboardHeader from '@/components/DashboardHeader';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { Camera, Clock, MapPin, LogIn, LogOut } from 'lucide-react';
+import { Camera, Clock, MapPin, LogIn, LogOut, Wrench } from 'lucide-react';
 import {
   clockIn,
   clockOut,
@@ -17,6 +25,12 @@ import {
   getSignedPhotoUrl,
   MechanicTimeslip,
 } from '@/services/mechanicTimeslipService';
+import {
+  getMechanicWorkByDate,
+  formatMinutes,
+  EXPLANATION_THRESHOLD_MINUTES,
+  DayWork,
+} from '@/services/mechanicWorkService';
 import { format, formatDistanceStrict } from 'date-fns';
 
 async function requestPhoto(): Promise<Blob> {
