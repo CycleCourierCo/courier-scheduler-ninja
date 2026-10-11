@@ -14,7 +14,7 @@ interface RemoveBikesDialogProps {
   onOpenChange: (open: boolean) => void;
   bikesForDelivery: Order[];
   storageAllocations: StorageAllocation[];
-  onRemoveAllBikesFromOrder: (orderId: string) => void;
+  onLoadOrders: (orderIds: string[]) => void | Promise<void>;
 }
 
 export const RemoveBikesDialog = ({
@@ -22,7 +22,7 @@ export const RemoveBikesDialog = ({
   onOpenChange,
   bikesForDelivery,
   storageAllocations,
-  onRemoveAllBikesFromOrder,
+  onLoadOrders,
 }: RemoveBikesDialogProps) => {
   const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
 
@@ -53,18 +53,11 @@ export const RemoveBikesDialog = ({
       return;
     }
 
-    try {
-      // Load all selected orders sequentially to avoid conflicts
-      for (const orderId of selectedOrders) {
-        await onRemoveAllBikesFromOrder(orderId);
-      }
-      
-      setSelectedOrders([]);
-      onOpenChange(false);
-    } catch (error) {
-      console.error('Error loading bikes onto van:', error);
-      toast.error('Failed to load some bikes onto van');
-    }
+    const ids = selectedOrders;
+    setSelectedOrders([]);
+    onOpenChange(false);
+    // One server call for the whole selection; page stays usable
+    void onLoadOrders(ids);
   };
 
   const allSelected = bikesForDelivery.length > 0 && 

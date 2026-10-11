@@ -7025,6 +7025,10 @@ export type Database = {
           name: string
         }[]
       }
+      load_orders_onto_van: {
+        Args: { p_order_ids: string[] }
+        Returns: string[]
+      }
       longtransactionsenabled: { Args: never; Returns: boolean }
       my_profile_guard: {
         Args: never
