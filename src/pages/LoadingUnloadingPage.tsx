@@ -431,7 +431,9 @@ const LoadingUnloadingPage = () => {
         return;
       }
 
-      await fetchData();
+      applyStorageUpdate(allocationToClear.orderId, {
+        storage_locations: updatedAllocations.length > 0 ? updatedAllocations : null,
+      });
       toast.success(`Removed from Bay ${allocationToClear.bay}${allocationToClear.position}`);
     } catch (error) {
       console.error('Error clearing bay position:', error);
@@ -544,9 +546,9 @@ const LoadingUnloadingPage = () => {
         return;
       }
 
-      // Refresh data from database to ensure UI reflects the saved state
-      await fetchData();
-      
+      // Update just this order on screen — no full page reload
+      applyStorageUpdate(allocationToUpdate.orderId, { storage_locations: updatedAllocations });
+
       toast.success(`Bike moved to bay ${newBay}${newPosition}`);
     } catch (error) {
       console.error('Error updating storage location:', error);
