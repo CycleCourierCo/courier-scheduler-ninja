@@ -459,12 +459,12 @@ const DriverTimeslips = () => {
           />
         ) : (
           <MechanicTimeslipCard
-            key={`m-${item.slip.id}`}
-            slip={item.slip}
-            work={workBySlip?.[`${item.slip.driver_id}:${item.slip.date}`]}
-            actionPending={mechanicUpdateMut.isPending}
-            onApprove={(id) => mechanicUpdateMut.mutate({ id, updates: { status: 'approved' } })}
-            onReject={(id) => mechanicUpdateMut.mutate({ id, updates: { status: 'rejected' } })}
+            key={`m-${item.group.key}`}
+            slips={item.group.slips}
+            work={workBySlip?.[item.group.key]}
+            actionPending={mechanicUpdateMut.isPending || mechanicBatchMut.isPending}
+            onApprove={(ids) => mechanicBatchMut.mutate({ ids, updates: { status: 'approved' } })}
+            onReject={(ids) => mechanicBatchMut.mutate({ ids, updates: { status: 'rejected' } })}
             onEdit={handleMechanicEdit}
             onDelete={setDeletingMechanicId}
           />
