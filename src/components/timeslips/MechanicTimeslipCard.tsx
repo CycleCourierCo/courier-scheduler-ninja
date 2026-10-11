@@ -3,7 +3,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { MapPin, Check, X, Pencil, Trash2, LogIn, LogOut, Wrench } from 'lucide-react';
+import { MapPin, Check, X, Pencil, Trash2, LogIn, LogOut, Wrench, Layers } from 'lucide-react';
 import { MechanicTimeslip, getSignedPhotoUrl } from '@/services/mechanicTimeslipService';
 import { formatMinutes, DayWork } from '@/services/mechanicWorkService';
 
@@ -76,18 +76,30 @@ function statusVariant(status: MechanicTimeslip['status']) {
   return 'secondary' as const;
 }
 
+/** Overall status for a day's sessions: open wins, then mixed/closed, then the shared status. */
+function overallStatus(slips: MechanicTimeslip[]): MechanicTimeslip['status'] {
+  if (slips.some((s) => s.status === 'open')) return 'open';
+  if (slips.some((s) => s.status === 'closed')) return 'closed';
+  if (slips.every((s) => s.status === 'approved')) return 'approved';
+  if (slips.every((s) => s.status === 'rejected')) return 'rejected';
+  return 'closed';
+}
+
 interface MechanicTimeslipCardProps {
-  slip: MechanicTimeslip;
+  /** All of the mechanic's sessions for one day, ordered by clock-in time. */
+  slips: MechanicTimeslip[];
   work?: DayWork;
   actionPending?: boolean;
-  onApprove: (id: string) => void;
-  onReject: (id: string) => void;
+  /** Approve/reject every session on the card in one go. */
+  onApprove: (ids: string[]) => void;
+  onReject: (ids: string[]) => void;
+  /** Edit/delete a single session. */
   onEdit: (slip: MechanicTimeslip) => void;
   onDelete: (id: string) => void;
 }
 
 const MechanicTimeslipCard: React.FC<MechanicTimeslipCardProps> = ({
-  slip: s,
+  slips,
   work,
   actionPending,
   onApprove,
@@ -95,58 +107,97 @@ const MechanicTimeslipCard: React.FC<MechanicTimeslipCardProps> = ({
   onEdit,
   onDelete,
 }) => {
+  const first = slips[0];
+  const multi = slips.length > 1;
+  const status = overallStatus(slips);
+  const ids = slips.map((s) => s.id);
+
+  const totalHours = slips.reduce((sum, s) => sum + Number(s.total_hours || 0), 0);
+  const totalLunch = slips.reduce((sum, s) => sum + Number(s.lunch_hours || 0), 0);
+  const totalPay = slips.reduce((sum, s) => sum + Number(s.total_pay || 0), 0);
+  const rate = Number(first.hourly_rate || 0);
+
+  const notes = slips.map((s) => s.admin_notes).filter(Boolean) as string[];
+  const explanations = slips.map((s) => s.clock_out_explanation).filter(Boolean) as string[];
+
+  const allClosedOut = slips.every((s) => s.clock_out_at);
+
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4 space-y-3">
         {/* Header */}
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="font-semibold break-words">{s.driver?.name || s.driver?.email || '—'}</div>
-            <div className="text-xs text-muted-foreground">{format(new Date(s.date), 'EEE d MMM yyyy')}</div>
+            <div className="font-semibold break-words">{first.driver?.name || first.driver?.email || '—'}</div>
+            <div className="text-xs text-muted-foreground">{format(new Date(first.date), 'EEE d MMM yyyy')}</div>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
             <Badge variant="outline" className="gap-1">
               <Wrench className="h-3 w-3" /> Mechanic
             </Badge>
-            <Badge variant={statusVariant(s.status)} className="capitalize">{s.status}</Badge>
+            {multi && (
+              <Badge variant="outline" className="gap-1">
+                <Layers className="h-3 w-3" /> {slips.length} sessions
+              </Badge>
+            )}
+            <Badge variant={statusVariant(status)} className="capitalize">{status}</Badge>
           </div>
         </div>
 
-        {/* Clock blocks */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <ClockBlock kind="in" at={s.clock_in_at} path={s.clock_in_photo_url} lat={s.clock_in_lat} lng={s.clock_in_lng} />
-          <ClockBlock kind="out" at={s.clock_out_at} path={s.clock_out_photo_url} lat={s.clock_out_lat} lng={s.clock_out_lng} />
+        {/* Sessions */}
+        <div className="space-y-2">
+          {slips.map((s, i) => (
+            <div key={s.id} className="space-y-2">
+              {multi && (
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-xs font-medium text-muted-foreground">Session {i + 1}</div>
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => onEdit(s)} aria-label="Edit session">
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button size="sm" variant="ghost" className="h-7 px-2" onClick={() => onDelete(s.id)} aria-label="Delete session">
+                      <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <ClockBlock kind="in" at={s.clock_in_at} path={s.clock_in_photo_url} lat={s.clock_in_lat} lng={s.clock_in_lng} />
+                <ClockBlock kind="out" at={s.clock_out_at} path={s.clock_out_photo_url} lat={s.clock_out_lat} lng={s.clock_out_lng} />
+              </div>
+            </div>
+          ))}
         </div>
 
         {/* Summary */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 rounded-lg border p-2 text-sm">
           <div>
             <div className="text-xs text-muted-foreground">Hours</div>
-            <div className="font-semibold tabular-nums">{Number(s.total_hours || 0).toFixed(2)}h</div>
+            <div className="font-semibold tabular-nums">{totalHours.toFixed(2)}h</div>
           </div>
           <div>
             <div className="text-xs text-muted-foreground">Lunch</div>
-            <div className="font-semibold tabular-nums">{Number(s.lunch_hours || 0).toFixed(2)}h</div>
+            <div className="font-semibold tabular-nums">{totalLunch.toFixed(2)}h</div>
           </div>
           <div>
             <div className="text-xs text-muted-foreground">Rate</div>
-            <div className="font-semibold tabular-nums">£{Number(s.hourly_rate || 0).toFixed(2)}/hr</div>
+            <div className="font-semibold tabular-nums">£{rate.toFixed(2)}/hr</div>
           </div>
           <div>
             <div className="text-xs text-muted-foreground">Pay</div>
-            <div className="font-bold text-green-600 tabular-nums">£{Number(s.total_pay || 0).toFixed(2)}</div>
+            <div className="font-bold text-green-600 tabular-nums">£{totalPay.toFixed(2)}</div>
           </div>
         </div>
 
-        {s.admin_notes && (
-          <div className="text-xs text-muted-foreground break-words">Notes: {s.admin_notes}</div>
+        {notes.length > 0 && (
+          <div className="text-xs text-muted-foreground break-words">Notes: {notes.join(' · ')}</div>
         )}
 
-        {s.clock_out_explanation && (
-          <div className="text-xs rounded-md border bg-amber-50 dark:bg-amber-950/30 p-2 break-words">
-            <span className="font-medium">Clock-out explanation:</span> {s.clock_out_explanation}
+        {explanations.map((ex, i) => (
+          <div key={i} className="text-xs rounded-md border bg-amber-50 dark:bg-amber-950/30 p-2 break-words">
+            <span className="font-medium">Clock-out explanation:</span> {ex}
           </div>
-        )}
+        ))}
 
         {work && work.items.length > 0 && (
           <div className="text-xs rounded-md border bg-muted/30 p-2 space-y-0.5">
@@ -165,22 +216,26 @@ const MechanicTimeslipCard: React.FC<MechanicTimeslipCardProps> = ({
 
         {/* Actions */}
         <div className="flex flex-wrap gap-2 border-t pt-3">
-          {s.status !== 'approved' && s.clock_out_at && (
-            <Button size="sm" className="flex-1 sm:flex-none" onClick={() => onApprove(s.id)} disabled={actionPending}>
-              <Check className="h-4 w-4 mr-1" />Approve
+          {status !== 'approved' && allClosedOut && (
+            <Button size="sm" className="flex-1 sm:flex-none" onClick={() => onApprove(ids)} disabled={actionPending}>
+              <Check className="h-4 w-4 mr-1" />Approve{multi ? ` all ${slips.length}` : ''}
             </Button>
           )}
-          {s.status !== 'rejected' && (
-            <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => onReject(s.id)} disabled={actionPending}>
-              <X className="h-4 w-4 mr-1" />Reject
+          {status !== 'rejected' && (
+            <Button size="sm" variant="outline" className="flex-1 sm:flex-none" onClick={() => onReject(ids)} disabled={actionPending}>
+              <X className="h-4 w-4 mr-1" />Reject{multi ? ` all ${slips.length}` : ''}
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={() => onEdit(s)}>
-            <Pencil className="h-4 w-4 mr-1" />Edit
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => onDelete(s.id)} aria-label="Delete timeslip">
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
+          {!multi && (
+            <>
+              <Button size="sm" variant="outline" onClick={() => onEdit(first)}>
+                <Pencil className="h-4 w-4 mr-1" />Edit
+              </Button>
+              <Button size="sm" variant="ghost" onClick={() => onDelete(first.id)} aria-label="Delete timeslip">
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </>
+          )}
         </div>
       </CardContent>
     </Card>
