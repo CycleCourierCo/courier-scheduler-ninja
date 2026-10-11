@@ -1,8 +1,7 @@
 # Ireland page + mandatory clock-out explanation
 
-## 1. Clock-out explanation always required
-- On the Mechanic Clock page, tapping Clock out always opens the "Before you clock out" popup — not only when the gap is over 30 minutes.
-- The popup still shows the day's work recorded vs clocked time; the explanation box must be filled in before clock-out completes.
+## 1. Clock-out explanation (no change needed)
+- Stays as built: when clocked time is more than 30 minutes above recorded work, the explanation must be filled in before clock-out completes; under 30 minutes, no popup.
 
 ## 2. New "Ireland" page
 - New menu item "Ireland" (Operations section), same people who see Box My Bike today (staff, mechanics, loaders; customers see only their own bikes as now).
