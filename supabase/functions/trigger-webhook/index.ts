@@ -54,7 +54,40 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!webhookConfigs || webhookConfigs.length === 0) {
+    // Partner apps the customer has connected through sign-in (OAuth) also receive updates
+    const targets: Array<{ kind: 'config' | 'oauth'; id: string; endpoint_url: string; vaultKey: string }> = [];
+    const seenUrls = new Set<string>();
+    for (const c of webhookConfigs || []) {
+      const key = String(c.endpoint_url).trim().toLowerCase();
+      if (seenUrls.has(key)) continue;
+      seenUrls.add(key);
+      targets.push({ kind: 'config', id: c.id, endpoint_url: c.endpoint_url, vaultKey: `webhook_secret_${c.id}` });
+    }
+
+    const { data: grants, error: grantErr } = await supabase
+      .from('oauth_access_grants')
+      .select('client_uuid')
+      .eq('user_id', order.user_id)
+      .is('revoked_at', null);
+    if (grantErr) console.error('Error fetching partner app connections:', grantErr.message);
+    const clientIds = [...new Set((grants || []).map((g: any) => g.client_uuid).filter(Boolean))];
+    if (clientIds.length) {
+      const { data: clients } = await supabase
+        .from('oauth_clients')
+        .select('id, webhook_url, webhook_events, is_active')
+        .in('id', clientIds)
+        .eq('is_active', true)
+        .not('webhook_url', 'is', null);
+      for (const cl of clients || []) {
+        if (!Array.isArray(cl.webhook_events) || !cl.webhook_events.includes(event_type)) continue;
+        const key = String(cl.webhook_url).trim().toLowerCase();
+        if (seenUrls.has(key)) continue;
+        seenUrls.add(key);
+        targets.push({ kind: 'oauth', id: cl.id, endpoint_url: cl.webhook_url, vaultKey: `oauth_webhook_secret_${cl.id}` });
+      }
+    }
+
+    if (targets.length === 0) {
       console.log('No active webhooks found for this event');
       return new Response(JSON.stringify({ message: 'No webhooks to trigger' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
