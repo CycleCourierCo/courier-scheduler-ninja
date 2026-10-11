@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DatePickerField } from "@/components/DatePickerField";
 import {
   DEFAULT_WORKING_DAYS, WEEKDAYS, computeAllowance, deleteOverride, errorText, fmtDay, getOverrides,
   getWeeklyAvailability, londonToday, addDays, saveLeaveSettings, saveWeeklyAvailability, upsertOverride,
