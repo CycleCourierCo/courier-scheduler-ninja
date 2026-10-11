@@ -16,7 +16,9 @@ import {
   listAllMechanicTimeslips,
   updateMechanicTimeslip,
   deleteMechanicTimeslip,
+  groupMechanicTimeslipsByDay,
   MechanicTimeslip,
+  MechanicTimeslipGroup,
 } from '@/services/mechanicTimeslipService';
 import { getMechanicWorkByDate, DayWork } from '@/services/mechanicWorkService';
 import { toast } from 'sonner';
@@ -44,7 +46,7 @@ import {
 
 type MergedTimeslip =
   | { kind: 'driver'; slip: Timeslip }
-  | { kind: 'mechanic'; slip: MechanicTimeslip };
+  | { kind: 'mechanic'; group: MechanicTimeslipGroup };
 
 interface MechanicEditState {
   slip: MechanicTimeslip;
