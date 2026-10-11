@@ -96,10 +96,50 @@ function PhotoThumb({ path }: { path: string | null }) {
   );
 }
 
+function WorkDoneSection({ work, clockedHours }: { work: DayWork | undefined; clockedHours: number | null }) {
+  const items = work?.items ?? [];
+  const totalMinutes = work?.totalMinutes ?? 0;
+  const clockedMinutes = clockedHours != null ? Math.round(clockedHours * 60) : null;
+  const diff = clockedMinutes != null ? clockedMinutes - totalMinutes : null;
+  return (
+    <div className="mt-2 rounded-md border bg-muted/30 p-2 space-y-1">
+      <div className="flex items-center gap-1 text-xs font-medium">
+        <Wrench className="h-3 w-3" /> Work done
+      </div>
+      {items.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No work recorded</p>
+      ) : (
+        <ul className="space-y-0.5">
+          {items.map((item, i) => (
+            <li key={i} className="text-xs flex items-baseline justify-between gap-2">
+              <span className="min-w-0 truncate">
+                {format(new Date(item.at), 'HH:mm')} — {item.label}
+                {item.detail ? ` (${item.detail})` : ''}
+              </span>
+              <span className="shrink-0 text-muted-foreground">{formatMinutes(item.minutes)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="text-xs text-muted-foreground pt-1 border-t">
+        Work recorded: {formatMinutes(totalMinutes)}
+        {clockedMinutes != null && (
+          <>
+            {' · '}Clocked: {formatMinutes(clockedMinutes)}
+            {' · '}Difference: {formatMinutes(Math.abs(diff ?? 0))}{(diff ?? 0) > 0 ? ' over' : (diff ?? 0) < 0 ? ' under' : ''}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const MechanicClock: React.FC = () => {
   const { user, userProfile } = useAuth();
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
+  const [explanationOpen, setExplanationOpen] = useState(false);
+  const [explanation, setExplanation] = useState('');
 
   const { data: openSlip, isLoading } = useQuery({
     queryKey: ['mechanic-open-slip', user?.id],
@@ -112,6 +152,21 @@ const MechanicClock: React.FC = () => {
     queryKey: ['mechanic-slip-history', user?.id],
     queryFn: () => (user?.id ? listMyMechanicTimeslips(user.id) : Promise.resolve([])),
     enabled: !!user?.id,
+  });
+
+  const historyDates = useMemo(() => {
+    const dates = new Set<string>((history || []).map((s) => s.date));
+    if (openSlip) dates.add(openSlip.date);
+    return Array.from(dates);
+  }, [history, openSlip]);
+
+  const { data: workByDate } = useQuery({
+    queryKey: ['mechanic-work-by-date', user?.id, historyDates.join(',')],
+    queryFn: () =>
+      user?.id && historyDates.length
+        ? getMechanicWorkByDate(user.id, historyDates)
+        : Promise.resolve({} as Record<string, DayWork>),
+    enabled: !!user?.id && historyDates.length > 0,
   });
 
   const inMutation = useMutation({
