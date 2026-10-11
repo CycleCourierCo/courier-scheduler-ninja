@@ -21,3 +21,4 @@
 - [x] Workshop chasing: overdue limits, parts ordered/arrived, overdue filter, chase button, daily digest + mechanic lists (Mon–Fri)
 - [x] Dashboard task list: scrolls, sized to four whole tasks (phone and desktop)
 - [x] Bay assign/move/clear on Loading page update in place — no full page reload or scroll jump (2026-10-11)
+- [x] Mechanic Clock: each day's timeslip lists work done (inspections, repairs, Box/Foam My Bike) with standard minutes per item, totals vs clocked hours, and a required clock-out explanation when the gap exceeds 30 min; admins see the explanation and work summary on the timeslips tab

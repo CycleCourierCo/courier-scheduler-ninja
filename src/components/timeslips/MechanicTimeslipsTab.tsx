@@ -25,6 +25,7 @@ import {
   listUsersByRole,
   MechanicTimeslip,
 } from '@/services/mechanicTimeslipService';
+import { getMechanicWorkByDate, formatMinutes, DayWork } from '@/services/mechanicWorkService';
 
 function PhotoCell({ path }: { path: string | null }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -160,6 +161,30 @@ const MechanicTimeslipsTab: React.FC = () => {
         dateFrom: dateFrom || undefined,
         dateTo: dateTo || undefined,
       }),
+  });
+
+  // Work done per slip, indexed by "driverId:date".
+  const { data: workBySlip } = useQuery({
+    queryKey: ['mechanic-work-admin', (slips || []).map((s) => `${s.driver_id}:${s.date}`).join('|')],
+    queryFn: async () => {
+      const rows = slips || [];
+      const datesByDriver = new Map<string, Set<string>>();
+      rows.forEach((s) => {
+        if (!datesByDriver.has(s.driver_id)) datesByDriver.set(s.driver_id, new Set());
+        datesByDriver.get(s.driver_id)!.add(s.date);
+      });
+      const out: Record<string, DayWork> = {};
+      await Promise.all(
+        Array.from(datesByDriver.entries()).map(async ([driverId, dates]) => {
+          const byDate = await getMechanicWorkByDate(driverId, Array.from(dates));
+          Object.entries(byDate).forEach(([date, work]) => {
+            out[`${driverId}:${date}`] = work;
+          });
+        })
+      );
+      return out;
+    },
+    enabled: !!slips && slips.length > 0,
   });
 
   const applyPreset = (preset: 'this_week' | 'last_week' | 'this_month') => {
@@ -375,6 +400,31 @@ const MechanicTimeslipsTab: React.FC = () => {
                 {s.admin_notes && (
                   <div className="text-xs text-muted-foreground break-words">Notes: {s.admin_notes}</div>
                 )}
+
+                {s.clock_out_explanation && (
+                  <div className="text-xs rounded-md border bg-amber-50 dark:bg-amber-950/30 p-2 break-words">
+                    <span className="font-medium">Clock-out explanation:</span> {s.clock_out_explanation}
+                  </div>
+                )}
+
+                {(() => {
+                  const work = workBySlip?.[`${s.driver_id}:${s.date}`];
+                  if (!work || work.items.length === 0) return null;
+                  return (
+                    <div className="text-xs rounded-md border bg-muted/30 p-2 space-y-0.5">
+                      <div className="font-medium">Work done — {formatMinutes(work.totalMinutes)} recorded</div>
+                      {work.items.map((item, i) => (
+                        <div key={i} className="flex items-baseline justify-between gap-2">
+                          <span className="min-w-0 truncate">
+                            {format(new Date(item.at), 'HH:mm')} — {item.label}
+                            {item.detail ? ` (${item.detail})` : ''}
+                          </span>
+                          <span className="shrink-0 text-muted-foreground">{formatMinutes(item.minutes)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
 
                 {/* Actions */}
                 <div className="flex flex-wrap gap-2 border-t pt-3">

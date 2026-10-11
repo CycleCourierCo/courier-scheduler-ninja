@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Layout from '@/components/Layout';
 import DashboardHeader from '@/components/DashboardHeader';
@@ -6,9 +6,17 @@ import DashboardHeader from '@/components/DashboardHeader';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { Camera, Clock, MapPin, LogIn, LogOut } from 'lucide-react';
+import { Camera, Clock, MapPin, LogIn, LogOut, Wrench } from 'lucide-react';
 import {
   clockIn,
   clockOut,
@@ -17,6 +25,12 @@ import {
   getSignedPhotoUrl,
   MechanicTimeslip,
 } from '@/services/mechanicTimeslipService';
+import {
+  getMechanicWorkByDate,
+  formatMinutes,
+  EXPLANATION_THRESHOLD_MINUTES,
+  DayWork,
+} from '@/services/mechanicWorkService';
 import { format, formatDistanceStrict } from 'date-fns';
 
 async function requestPhoto(): Promise<Blob> {
@@ -82,10 +96,50 @@ function PhotoThumb({ path }: { path: string | null }) {
   );
 }
 
+function WorkDoneSection({ work, clockedHours }: { work: DayWork | undefined; clockedHours: number | null }) {
+  const items = work?.items ?? [];
+  const totalMinutes = work?.totalMinutes ?? 0;
+  const clockedMinutes = clockedHours != null ? Math.round(clockedHours * 60) : null;
+  const diff = clockedMinutes != null ? clockedMinutes - totalMinutes : null;
+  return (
+    <div className="mt-2 rounded-md border bg-muted/30 p-2 space-y-1">
+      <div className="flex items-center gap-1 text-xs font-medium">
+        <Wrench className="h-3 w-3" /> Work done
+      </div>
+      {items.length === 0 ? (
+        <p className="text-xs text-muted-foreground">No work recorded</p>
+      ) : (
+        <ul className="space-y-0.5">
+          {items.map((item, i) => (
+            <li key={i} className="text-xs flex items-baseline justify-between gap-2">
+              <span className="min-w-0 truncate">
+                {format(new Date(item.at), 'HH:mm')} — {item.label}
+                {item.detail ? ` (${item.detail})` : ''}
+              </span>
+              <span className="shrink-0 text-muted-foreground">{formatMinutes(item.minutes)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="text-xs text-muted-foreground pt-1 border-t">
+        Work recorded: {formatMinutes(totalMinutes)}
+        {clockedMinutes != null && (
+          <>
+            {' · '}Clocked: {formatMinutes(clockedMinutes)}
+            {' · '}Difference: {formatMinutes(Math.abs(diff ?? 0))}{(diff ?? 0) > 0 ? ' over' : (diff ?? 0) < 0 ? ' under' : ''}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const MechanicClock: React.FC = () => {
   const { user, userProfile } = useAuth();
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
+  const [explanationOpen, setExplanationOpen] = useState(false);
+  const [explanation, setExplanation] = useState('');
 
   const { data: openSlip, isLoading } = useQuery({
     queryKey: ['mechanic-open-slip', user?.id],
@@ -98,6 +152,21 @@ const MechanicClock: React.FC = () => {
     queryKey: ['mechanic-slip-history', user?.id],
     queryFn: () => (user?.id ? listMyMechanicTimeslips(user.id) : Promise.resolve([])),
     enabled: !!user?.id,
+  });
+
+  const historyDates = useMemo(() => {
+    const dates = new Set<string>((history || []).map((s) => s.date));
+    if (openSlip) dates.add(openSlip.date);
+    return Array.from(dates);
+  }, [history, openSlip]);
+
+  const { data: workByDate } = useQuery({
+    queryKey: ['mechanic-work-by-date', user?.id, historyDates.join(',')],
+    queryFn: () =>
+      user?.id && historyDates.length
+        ? getMechanicWorkByDate(user.id, historyDates)
+        : Promise.resolve({} as Record<string, DayWork>),
+    enabled: !!user?.id && historyDates.length > 0,
   });
 
   const inMutation = useMutation({
@@ -118,14 +187,16 @@ const MechanicClock: React.FC = () => {
   });
 
   const outMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (explanationText: string | null) => {
       if (!user?.id || !openSlip) throw new Error('No open slip');
       const photo = await requestPhoto();
       const loc = await requestLocation();
-      return clockOut({ slipId: openSlip.id, driverId: user.id, photo, lat: loc.lat, lng: loc.lng });
+      return clockOut({ slipId: openSlip.id, driverId: user.id, photo, lat: loc.lat, lng: loc.lng, explanation: explanationText });
     },
     onSuccess: () => {
       toast.success('Clocked out');
+      setExplanationOpen(false);
+      setExplanation('');
       qc.invalidateQueries({ queryKey: ['mechanic-open-slip'] });
       qc.invalidateQueries({ queryKey: ['mechanic-slip-history'] });
     },
@@ -137,9 +208,30 @@ const MechanicClock: React.FC = () => {
     setBusy(true);
     inMutation.mutate();
   };
+
+  const clockOutNeedsExplanation = (): boolean => {
+    if (!openSlip) return false;
+    const elapsedMinutes = (Date.now() - new Date(openSlip.clock_in_at).getTime()) / 60000;
+    const workMinutes = workByDate?.[openSlip.date]?.totalMinutes ?? 0;
+    return elapsedMinutes - workMinutes > EXPLANATION_THRESHOLD_MINUTES;
+  };
+
   const handleClockOut = () => {
+    if (clockOutNeedsExplanation()) {
+      setExplanationOpen(true);
+      return;
+    }
     setBusy(true);
-    outMutation.mutate();
+    outMutation.mutate(null);
+  };
+
+  const submitExplanationAndClockOut = () => {
+    if (!explanation.trim()) {
+      toast.error('Please add a short explanation before clocking out');
+      return;
+    }
+    setBusy(true);
+    outMutation.mutate(explanation.trim());
   };
 
   return (
@@ -203,21 +295,32 @@ const MechanicClock: React.FC = () => {
             {history && history.length > 0 ? (
               <div className="divide-y">
                 {history.map((s) => (
-                  <div key={s.id} className="py-3 flex items-center gap-3">
-                    <PhotoThumb path={s.clock_in_photo_url} />
-                    <PhotoThumb path={s.clock_out_photo_url} />
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium">{format(new Date(s.date), 'EEE d MMM yyyy')}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {format(new Date(s.clock_in_at), 'HH:mm')} –{' '}
-                        {s.clock_out_at ? format(new Date(s.clock_out_at), 'HH:mm') : 'open'}
-                        {s.clock_out_at && ` · ${Number(s.total_hours).toFixed(2)}h`}
+                  <div key={s.id} className="py-3">
+                    <div className="flex items-center gap-3">
+                      <PhotoThumb path={s.clock_in_photo_url} />
+                      <PhotoThumb path={s.clock_out_photo_url} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium">{format(new Date(s.date), 'EEE d MMM yyyy')}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {format(new Date(s.clock_in_at), 'HH:mm')} –{' '}
+                          {s.clock_out_at ? format(new Date(s.clock_out_at), 'HH:mm') : 'open'}
+                          {s.clock_out_at && ` · ${Number(s.total_hours).toFixed(2)}h`}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm font-semibold">£{Number(s.total_pay || 0).toFixed(2)}</div>
+                        <div className="text-xs text-muted-foreground capitalize">{s.status}</div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-sm font-semibold">£{Number(s.total_pay || 0).toFixed(2)}</div>
-                      <div className="text-xs text-muted-foreground capitalize">{s.status}</div>
-                    </div>
+                    <WorkDoneSection
+                      work={workByDate?.[s.date]}
+                      clockedHours={s.clock_out_at ? Number(s.total_hours) : null}
+                    />
+                    {s.clock_out_explanation && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        <span className="font-medium">Clock-out note:</span> {s.clock_out_explanation}
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -227,6 +330,32 @@ const MechanicClock: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={explanationOpen} onOpenChange={setExplanationOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Before you clock out</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Your clocked time is more than {EXPLANATION_THRESHOLD_MINUTES} minutes above your recorded
+            work today. Please briefly explain what else you were doing.
+          </p>
+          <Textarea
+            value={explanation}
+            onChange={(e) => setExplanation(e.target.value)}
+            placeholder="e.g. Cleaning the workshop, waiting for parts delivery, helping load vans…"
+            rows={4}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExplanationOpen(false)} disabled={busy}>
+              Cancel
+            </Button>
+            <Button onClick={submitExplanationAndClockOut} disabled={busy}>
+              {busy ? 'Uploading…' : 'Save & clock out'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };
