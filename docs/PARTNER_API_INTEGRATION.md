@@ -261,3 +261,9 @@ await saveTokens(customerId, refreshed);        // refresh_token has changed
 
 Questions, new return addresses, or a new App secret: contact Cycle Courier at
 Info@cyclecourierco.com with your App ID (never your secret).
+
+## Order update webhooks for connected apps
+
+Once a customer connects their account to your app, order updates for that customer are sent automatically to your app's webhook address — no per-customer webhook setup is needed. Cycle Courier staff set the address and events for your app and give you a signing secret (shown once).
+
+Each request is a `POST` with a JSON body (`event`, `timestamp`, `data`) and an `X-Webhook-Signature` header: the hex HMAC-SHA256 of the raw body using your signing secret. Reply with any 2xx status; failures are retried up to 3 times. Updates stop as soon as the customer disconnects your app.
