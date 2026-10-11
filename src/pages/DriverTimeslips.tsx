@@ -16,7 +16,9 @@ import {
   listAllMechanicTimeslips,
   updateMechanicTimeslip,
   deleteMechanicTimeslip,
+  groupMechanicTimeslipsByDay,
   MechanicTimeslip,
+  MechanicTimeslipGroup,
 } from '@/services/mechanicTimeslipService';
 import { getMechanicWorkByDate, DayWork } from '@/services/mechanicWorkService';
 import { toast } from 'sonner';
@@ -44,7 +46,7 @@ import {
 
 type MergedTimeslip =
   | { kind: 'driver'; slip: Timeslip }
-  | { kind: 'mechanic'; slip: MechanicTimeslip };
+  | { kind: 'mechanic'; group: MechanicTimeslipGroup };
 
 interface MechanicEditState {
   slip: MechanicTimeslip;
@@ -192,15 +194,23 @@ const DriverTimeslips = () => {
     enabled: isAdmin && !!mechanicSlips && mechanicSlips.length > 0,
   });
 
-  // Merge driver + mechanic timeslips and sort
+  // Merge driver + mechanic timeslips and sort (mechanic slips grouped by person + day)
   const sortedTimeslips = useMemo(() => {
     const merged: MergedTimeslip[] = [
       ...(timeslips || []).map((slip): MergedTimeslip => ({ kind: 'driver', slip })),
-      ...(isAdmin ? (mechanicSlips || []).map((slip): MergedTimeslip => ({ kind: 'mechanic', slip })) : []),
+      ...(isAdmin
+        ? groupMechanicTimeslipsByDay(mechanicSlips || []).map(
+            (group): MergedTimeslip => ({ kind: 'mechanic', group })
+          )
+        : []),
     ];
-    const dateOf = (m: MergedTimeslip) => new Date(m.slip.date).getTime();
-    const nameOf = (m: MergedTimeslip) => m.slip.driver?.name || '';
-    const payOf = (m: MergedTimeslip) => m.slip.total_pay || 0;
+    const dateOf = (m: MergedTimeslip) => new Date(m.kind === 'driver' ? m.slip.date : m.group.date).getTime();
+    const nameOf = (m: MergedTimeslip) =>
+      (m.kind === 'driver' ? m.slip.driver?.name : m.group.slips[0].driver?.name) || '';
+    const payOf = (m: MergedTimeslip) =>
+      m.kind === 'driver'
+        ? m.slip.total_pay || 0
+        : m.group.slips.reduce((sum, s) => sum + (s.total_pay || 0), 0);
 
     switch (filters.sortBy) {
       case 'date_asc':
@@ -309,6 +319,20 @@ const DriverTimeslips = () => {
     onError: (e: any) => toast.error(e.message || 'Update failed'),
   });
 
+  // Approve/reject every session of a mechanic's day in one go
+  const mechanicBatchMut = useMutation({
+    mutationFn: async ({ ids, updates }: { ids: string[]; updates: any }) => {
+      for (const id of ids) {
+        await updateMechanicTimeslip(id, updates);
+      }
+    },
+    onSuccess: (_d, vars) => {
+      toast.success(vars.updates.status === 'approved' ? 'Approved' : 'Rejected');
+      queryClient.invalidateQueries({ queryKey: ['mechanic-timeslips'] });
+    },
+    onError: (e: any) => toast.error(e.message || 'Update failed'),
+  });
+
   const mechanicDeleteMut = useMutation({
     mutationFn: (id: string) => deleteMechanicTimeslip(id),
     onSuccess: () => {
@@ -393,17 +417,29 @@ const DriverTimeslips = () => {
   const deletingMechanicSlip = allMechanicSlips?.find(t => t.id === deletingMechanicId) ||
                                mechanicSlips?.find(t => t.id === deletingMechanicId);
 
-  // Count timeslips by status (from all timeslips for accurate counts)
+  // Count timeslips by status (from all timeslips for accurate counts).
+  // Mechanic slips are counted as one per person per day to match the merged cards.
+  const mechanicDayGroups = useMemo(
+    () => groupMechanicTimeslipsByDay(allMechanicSlips || []),
+    [allMechanicSlips]
+  );
   const draftCount = (allTimeslips?.filter((t) => t.status === 'draft').length || 0) +
-    (allMechanicSlips?.filter((t) => t.status === 'open' || t.status === 'closed').length || 0);
+    mechanicDayGroups.filter((g) => g.slips.some((s) => s.status === 'open' || s.status === 'closed')).length;
   const approvedCount = (allTimeslips?.filter((t) => t.status === 'approved').length || 0) +
-    (allMechanicSlips?.filter((t) => t.status === 'approved').length || 0);
-  const allCount = (allTimeslips?.length || 0) + (allMechanicSlips?.length || 0);
+    mechanicDayGroups.filter((g) => g.slips.every((s) => s.status === 'approved')).length;
+  const allCount = (allTimeslips?.length || 0) + mechanicDayGroups.length;
 
   // Calculate total pay from visible timeslips
   const totalPay = useMemo(() => {
     if (!sortedTimeslips) return 0;
-    return sortedTimeslips.reduce((sum, item) => sum + (item.slip.total_pay || 0), 0);
+    return sortedTimeslips.reduce(
+      (sum, item) =>
+        sum +
+        (item.kind === 'driver'
+          ? item.slip.total_pay || 0
+          : item.group.slips.reduce((s, slip) => s + (slip.total_pay || 0), 0)),
+      0
+    );
   }, [sortedTimeslips]);
 
   const pageLoading = isLoading || (isAdmin && isLoadingMechanic);
@@ -423,12 +459,12 @@ const DriverTimeslips = () => {
           />
         ) : (
           <MechanicTimeslipCard
-            key={`m-${item.slip.id}`}
-            slip={item.slip}
-            work={workBySlip?.[`${item.slip.driver_id}:${item.slip.date}`]}
-            actionPending={mechanicUpdateMut.isPending}
-            onApprove={(id) => mechanicUpdateMut.mutate({ id, updates: { status: 'approved' } })}
-            onReject={(id) => mechanicUpdateMut.mutate({ id, updates: { status: 'rejected' } })}
+            key={`m-${item.group.key}`}
+            slips={item.group.slips}
+            work={workBySlip?.[item.group.key]}
+            actionPending={mechanicUpdateMut.isPending || mechanicBatchMut.isPending}
+            onApprove={(ids) => mechanicBatchMut.mutate({ ids, updates: { status: 'approved' } })}
+            onReject={(ids) => mechanicBatchMut.mutate({ ids, updates: { status: 'rejected' } })}
             onEdit={handleMechanicEdit}
             onDelete={setDeletingMechanicId}
           />
