@@ -1,28 +1,42 @@
-# Show each mechanic's daily work on their timeslip page
+# Mechanic Clock: show each day's work, time per job, and clock-out explanation
 
 ## What you'll see
 
-On the Mechanic Clock page (where a mechanic sees their own timeslips), each day's timeslip will also list the work they did that day:
+On the Mechanic Clock page, each day's timeslip will list the work that mechanic did that day:
 
-- **Inspections completed** — bikes they inspected that day, showing the bike name and order tracking number.
-- **Repairs completed** — each repair they marked as done that day, showing the repair description and the bike/order it belongs to.
-- A short summary line per day, e.g. "2 inspections, 3 repairs".
-- Days with no recorded work simply show "No work recorded" — nothing breaks.
+- **Inspections** — bikes inspected, with bike name and tracking number.
+- **Repairs** — each repair marked done, with description and bike/order.
+- **Box My Bike** — bikes they boxed that day.
+- **Foam My Bike** — bikes they foamed that day.
 
-This is read-only; nothing about clocking in/out, pay, or approvals changes.
+Each item shows the time it was done and how long it took:
+
+- **Repairs**: the standard time from the labour-times list for that repair (e.g. "Brake pads — 30 min").
+- **Inspections, boxing, foaming**: a standard assumed time each (e.g. inspection 45 min, box 20 min, foam 15 min — exact numbers confirmed with you before building, stored as editable constants).
+
+Each day then shows a **total**: recorded work time vs clocked hours, and the difference (e.g. "Clocked 7.5h — work recorded 5h — difference 2.5h").
+
+## Clock-out explanation
+
+- When a mechanic taps **clock out** and the difference between clocked hours and recorded work time is more than 30 minutes, a popup asks them to explain what else they were doing (free text, required — they cannot clock out without filling it in).
+- The explanation is saved on the timeslip and shown to admins/timeslip admins on the timeslips page next to that day.
+- If the difference is under 30 minutes, clock-out works as today with no popup.
 
 ## How it works (technical)
 
-- Page: `src/pages/MechanicClock.tsx`, history list from `listMyMechanicTimeslips` (last 60 slips).
-- New service function in `src/services/mechanicTimeslipService.ts` (or a small new `mechanicWorkService.ts`):
-  - Fetch `bicycle_inspections` where `inspected_by_id = user.id` and `inspected_at` falls within the date range covered by the loaded timeslips — select `inspected_at, bike_brand, bike_model, order_id`.
-  - Fetch `inspection_issues` where `resolved_by_id = user.id` and `resolved_at` in the same range — select `resolved_at, issue_description, order_id`.
-  - Group both by calendar date (Europe/London) and attach to each timeslip by its `date`.
-- Render inside each history card: a "Work done" section listing items with time (HH:mm), bike name, and tracking number (looked up from the orders already available, or a light `orders` select of `id, tracking_number` for the involved order ids).
-- RLS: mechanics already read their own inspections/issues; queries are scoped to the signed-in user's id, so no policy changes needed. No database migration required.
+- Page: `src/pages/MechanicClock.tsx`.
+- Data (all existing tables, scoped to the signed-in mechanic):
+  - `bicycle_inspections` where `inspected_by_id = user`, `inspected_at` on that date.
+  - `inspection_issues` where `resolved_by_id = user`, `resolved_at` on that date.
+  - `orders` where `box_boxed_by_id = user`, `box_boxed_at` on that date; same for `foam_foamed_by_id` / `foam_foamed_at`.
+  - Repair standard times from `labour_times` (matched by repair name; falls back to a default if no match).
+- One small database migration: add `clock_out_explanation text` (nullable) to `mechanic_timeslips`. No RLS changes — existing policies already cover the mechanic and admins.
+- Clock-out flow: after photo + location, compute the day's totals; if difference > 30 min, show the explanation dialog, then save with the explanation.
+- Admin view: `MechanicTimeslipsTab.tsx` shows the explanation (and the work summary) on each slip.
 
-## Not included
+## Notes and assumptions
 
-- No changes to pay calculation or approval flow.
-- No admin view changes (admins already have MechanicTimeslipsTab; can be added later if wanted).
-- Cleaning/degrease checklist steps are not listed (only inspections and repairs); can be added later.
+- Actual start/finish times per job are not recorded anywhere today, so "time taken" uses standard/expected minutes per task — this is an estimate, not a stopwatch. If you want true per-job timing later, mechanics would need start/finish buttons per job (separate piece of work).
+- Standard times for inspection/box/foam will be confirmed with you before building.
+- Days with no recorded work show "No work recorded" and will always trigger the explanation popup if clocked in.
+- No changes to pay calculation or approvals.
