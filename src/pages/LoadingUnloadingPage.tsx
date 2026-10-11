@@ -172,6 +172,25 @@ const LoadingUnloadingPage = () => {
     fetchData();
   }, []);
 
+  // Updates one order on screen after a bay change, without a full page
+  // reload — keeps scroll position and open sections in place.
+  const applyStorageUpdate = (orderId: string, patch: Record<string, any>) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? ({ ...o, ...patch } as any) : o));
+    setStorageAllocations(prev => {
+      const kept = prev.filter(a => a.orderId !== orderId);
+      const locs = patch.storage_locations;
+      if (!locs) return kept;
+      const arr = Array.isArray(locs) ? locs : [locs];
+      return [
+        ...kept,
+        ...arr.map((a: any) => ({
+          ...a,
+          allocatedAt: a.allocatedAt instanceof Date ? a.allocatedAt : new Date(a.allocatedAt),
+        })),
+      ];
+    });
+  };
+
   // Fetch driver and loader profiles for the selectors
   useEffect(() => {
     const fetchProfiles = async () => {
