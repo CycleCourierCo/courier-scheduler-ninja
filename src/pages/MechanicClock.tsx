@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-// WorkDoneSection renders each day's recorded work under a timeslip.
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import Layout from '@/components/Layout';
 import DashboardHeader from '@/components/DashboardHeader';
@@ -331,6 +330,32 @@ const MechanicClock: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={explanationOpen} onOpenChange={setExplanationOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Before you clock out</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Your clocked time is more than {EXPLANATION_THRESHOLD_MINUTES} minutes above your recorded
+            work today. Please briefly explain what else you were doing.
+          </p>
+          <Textarea
+            value={explanation}
+            onChange={(e) => setExplanation(e.target.value)}
+            placeholder="e.g. Cleaning the workshop, waiting for parts delivery, helping load vans…"
+            rows={4}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExplanationOpen(false)} disabled={busy}>
+              Cancel
+            </Button>
+            <Button onClick={submitExplanationAndClockOut} disabled={busy}>
+              {busy ? 'Uploading…' : 'Save & clock out'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };
