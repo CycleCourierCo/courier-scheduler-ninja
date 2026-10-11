@@ -132,6 +132,35 @@ export async function listAllMechanicTimeslips(filters?: {
   return (data || []) as any;
 }
 
+export interface MechanicTimeslipGroup {
+  key: string;
+  driver_id: string;
+  date: string;
+  slips: MechanicTimeslip[]; // ordered by clock_in_at ascending
+}
+
+/**
+ * Group a mechanic's slips by person + calendar date so multiple clock in/out
+ * sessions on the same day display as a single card. Records stay separate in
+ * the database; this is display-only grouping.
+ */
+export function groupMechanicTimeslipsByDay(slips: MechanicTimeslip[]): MechanicTimeslipGroup[] {
+  const byDay = new Map<string, MechanicTimeslip[]>();
+  slips.forEach((s) => {
+    const key = `${s.driver_id}:${s.date}`;
+    if (!byDay.has(key)) byDay.set(key, []);
+    byDay.get(key)!.push(s);
+  });
+  return Array.from(byDay.entries()).map(([key, groupSlips]) => ({
+    key,
+    driver_id: groupSlips[0].driver_id,
+    date: groupSlips[0].date,
+    slips: [...groupSlips].sort(
+      (a, b) => new Date(a.clock_in_at).getTime() - new Date(b.clock_in_at).getTime()
+    ),
+  }));
+}
+
 export async function clockIn(params: {
   driverId: string;
   hourlyRate: number;
