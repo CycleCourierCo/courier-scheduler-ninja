@@ -3378,6 +3378,13 @@ export type Database = {
           redirect_uris: string[]
           secret_prefix: string
           updated_at: string
+          webhook_events: string[]
+          webhook_last_error: string | null
+          webhook_last_status: string | null
+          webhook_last_triggered_at: string | null
+          webhook_secret_hash: string | null
+          webhook_secret_prefix: string | null
+          webhook_url: string | null
         }
         Insert: {
           client_id: string
@@ -3392,6 +3399,13 @@ export type Database = {
           redirect_uris?: string[]
           secret_prefix: string
           updated_at?: string
+          webhook_events?: string[]
+          webhook_last_error?: string | null
+          webhook_last_status?: string | null
+          webhook_last_triggered_at?: string | null
+          webhook_secret_hash?: string | null
+          webhook_secret_prefix?: string | null
+          webhook_url?: string | null
         }
         Update: {
           client_id?: string
@@ -3406,6 +3420,13 @@ export type Database = {
           redirect_uris?: string[]
           secret_prefix?: string
           updated_at?: string
+          webhook_events?: string[]
+          webhook_last_error?: string | null
+          webhook_last_status?: string | null
+          webhook_last_triggered_at?: string | null
+          webhook_secret_hash?: string | null
+          webhook_secret_prefix?: string | null
+          webhook_url?: string | null
         }
         Relationships: []
       }
@@ -6223,6 +6244,7 @@ export type Database = {
           delivery_duration_ms: number | null
           event_type: string
           id: string
+          oauth_client_id: string | null
           order_id: string | null
           payload: Json
           response_body: string | null
@@ -6236,6 +6258,7 @@ export type Database = {
           delivery_duration_ms?: number | null
           event_type: string
           id?: string
+          oauth_client_id?: string | null
           order_id?: string | null
           payload: Json
           response_body?: string | null
@@ -6249,6 +6272,7 @@ export type Database = {
           delivery_duration_ms?: number | null
           event_type?: string
           id?: string
+          oauth_client_id?: string | null
           order_id?: string | null
           payload?: Json
           response_body?: string | null
@@ -6257,6 +6281,13 @@ export type Database = {
           webhook_config_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "webhook_delivery_logs_oauth_client_id_fkey"
+            columns: ["oauth_client_id"]
+            isOneToOne: false
+            referencedRelation: "oauth_clients"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "webhook_delivery_logs_order_id_fkey"
             columns: ["order_id"]
@@ -6650,6 +6681,15 @@ export type Database = {
       }
       admin_revoke_api_key: { Args: { key_id: string }; Returns: boolean }
       admin_revoke_webhook: { Args: { p_config_id: string }; Returns: boolean }
+      admin_set_oauth_client_webhook: {
+        Args: {
+          p_client_uuid: string
+          p_events: string[]
+          p_regenerate_secret?: boolean
+          p_webhook_url: string
+        }
+        Returns: string
+      }
       admin_update_account_status: {
         Args: { status: string; user_id: string }
         Returns: boolean

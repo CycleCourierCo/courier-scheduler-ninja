@@ -9,3 +9,4 @@
 
 - Bulk van loading goes through the load_orders_onto_van database function in one call — avoids per-bike saves and page reloads that lock the Loading page.
 - Staff-visible pages must be added to the hardcoded ADMIN_MENU_SECTIONS list in Layout.tsx as well as the route/permissions config — the admin menu does not read the permissions matrix, so a page can be reachable yet absent from the menu.
+- Order webhooks fan out to customer webhook configs and to partner apps (oauth_clients.webhook_url) the customer has an active OAuth grant with, deduped by URL — a sign-in connection alone must be enough for a partner to receive updates.
