@@ -194,15 +194,23 @@ const DriverTimeslips = () => {
     enabled: isAdmin && !!mechanicSlips && mechanicSlips.length > 0,
   });
 
-  // Merge driver + mechanic timeslips and sort
+  // Merge driver + mechanic timeslips and sort (mechanic slips grouped by person + day)
   const sortedTimeslips = useMemo(() => {
     const merged: MergedTimeslip[] = [
       ...(timeslips || []).map((slip): MergedTimeslip => ({ kind: 'driver', slip })),
-      ...(isAdmin ? (mechanicSlips || []).map((slip): MergedTimeslip => ({ kind: 'mechanic', slip })) : []),
+      ...(isAdmin
+        ? groupMechanicTimeslipsByDay(mechanicSlips || []).map(
+            (group): MergedTimeslip => ({ kind: 'mechanic', group })
+          )
+        : []),
     ];
-    const dateOf = (m: MergedTimeslip) => new Date(m.slip.date).getTime();
-    const nameOf = (m: MergedTimeslip) => m.slip.driver?.name || '';
-    const payOf = (m: MergedTimeslip) => m.slip.total_pay || 0;
+    const dateOf = (m: MergedTimeslip) => new Date(m.kind === 'driver' ? m.slip.date : m.group.date).getTime();
+    const nameOf = (m: MergedTimeslip) =>
+      (m.kind === 'driver' ? m.slip.driver?.name : m.group.slips[0].driver?.name) || '';
+    const payOf = (m: MergedTimeslip) =>
+      m.kind === 'driver'
+        ? m.slip.total_pay || 0
+        : m.group.slips.reduce((sum, s) => sum + (s.total_pay || 0), 0);
 
     switch (filters.sortBy) {
       case 'date_asc':
@@ -307,6 +315,20 @@ const DriverTimeslips = () => {
       toast.success('Updated');
       queryClient.invalidateQueries({ queryKey: ['mechanic-timeslips'] });
       setEditingMechanic(null);
+    },
+    onError: (e: any) => toast.error(e.message || 'Update failed'),
+  });
+
+  // Approve/reject every session of a mechanic's day in one go
+  const mechanicBatchMut = useMutation({
+    mutationFn: async ({ ids, updates }: { ids: string[]; updates: any }) => {
+      for (const id of ids) {
+        await updateMechanicTimeslip(id, updates);
+      }
+    },
+    onSuccess: (_d, vars) => {
+      toast.success(vars.updates.status === 'approved' ? 'Approved' : 'Rejected');
+      queryClient.invalidateQueries({ queryKey: ['mechanic-timeslips'] });
     },
     onError: (e: any) => toast.error(e.message || 'Update failed'),
   });
