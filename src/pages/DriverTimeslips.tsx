@@ -2,11 +2,23 @@ import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Users, Calendar, FileText, Truck, Plus, Wrench } from 'lucide-react';
-import MechanicTimeslipsTab from '@/components/timeslips/MechanicTimeslipsTab';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Users, Calendar, FileText, Truck, Plus } from 'lucide-react';
+import MechanicTimeslipCard from '@/components/timeslips/MechanicTimeslipCard';
 import { timeslipService } from '@/services/timeslipService';
 import { Timeslip } from '@/types/timeslip';
+import {
+  listAllMechanicTimeslips,
+  updateMechanicTimeslip,
+  deleteMechanicTimeslip,
+  MechanicTimeslip,
+} from '@/services/mechanicTimeslipService';
+import { getMechanicWorkByDate, DayWork } from '@/services/mechanicWorkService';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
 import { hasRole } from '@/lib/roles';
@@ -30,14 +42,51 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
+type MergedTimeslip =
+  | { kind: 'driver'; slip: Timeslip }
+  | { kind: 'mechanic'; slip: MechanicTimeslip };
+
+interface MechanicEditState {
+  slip: MechanicTimeslip;
+  hourly_rate: number;
+  lunch_hours: number;
+  admin_notes: string;
+  status: MechanicTimeslip['status'];
+  clock_in_at: string;
+  clock_out_at: string;
+}
+
+function toLocalInput(iso: string | null): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function fromLocalInput(value: string): string | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return null;
+  return d.toISOString();
+}
+
+/** Mechanic statuses that belong on each driver-timeslip tab. */
+const mechanicStatusesForTab = (tab: string): string[] | undefined => {
+  if (tab === 'draft') return ['open', 'closed'];
+  if (tab === 'approved') return ['approved'];
+  return undefined; // 'all'
+};
+
 const DriverTimeslips = () => {
   const { userProfile } = useAuth();
   const queryClient = useQueryClient();
   const [editingTimeslip, setEditingTimeslip] = useState<Timeslip | null>(null);
+  const [editingMechanic, setEditingMechanic] = useState<MechanicEditState | null>(null);
   const [showGenerateDialog, setShowGenerateDialog] = useState(false);
   const [showBulkVehicleDialog, setShowBulkVehicleDialog] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [deletingTimeslipId, setDeletingTimeslipId] = useState<string | null>(null);
+  const [deletingMechanicId, setDeletingMechanicId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('draft');
   const [filters, setFilters] = useState<{
     driverId?: string;
@@ -53,6 +102,9 @@ const DriverTimeslips = () => {
   const isTrueAdmin = hasRole(userProfile, 'admin');
   const isAdmin = isTrueAdmin || hasRole(userProfile, 'timeslip_admin');
 
+  const dateFromStr = filters.dateFrom ? format(filters.dateFrom, 'yyyy-MM-dd') : undefined;
+  const dateToStr = filters.dateTo ? format(filters.dateTo, 'yyyy-MM-dd') : undefined;
+
   // Fetch all timeslips for accurate counts (no status filter)
   const { data: allTimeslips } = useQuery({
     queryKey: ['timeslips', 'counts', filters.driverId, filters.dateFrom, filters.dateTo, filters.noMileage, filters.noVehicle],
@@ -61,14 +113,26 @@ const DriverTimeslips = () => {
         return timeslipService.getAllTimeslips({
           status: undefined, // Get all statuses for accurate counts
           driverId: filters.driverId,
-          dateFrom: filters.dateFrom ? format(filters.dateFrom, 'yyyy-MM-dd') : undefined,
-          dateTo: filters.dateTo ? format(filters.dateTo, 'yyyy-MM-dd') : undefined,
+          dateFrom: dateFromStr,
+          dateTo: dateToStr,
           noMileage: filters.noMileage,
           noVehicle: filters.noVehicle,
         });
       }
       return [];
     },
+    enabled: isAdmin,
+  });
+
+  // All mechanic timeslips for counts (driver/date filters apply; driver-only toggles don't)
+  const { data: allMechanicSlips } = useQuery({
+    queryKey: ['mechanic-timeslips', 'counts', filters.driverId, dateFromStr, dateToStr],
+    queryFn: () =>
+      listAllMechanicTimeslips({
+        driverId: filters.driverId,
+        dateFrom: dateFromStr,
+        dateTo: dateToStr,
+      }),
     enabled: isAdmin,
   });
 
@@ -80,8 +144,8 @@ const DriverTimeslips = () => {
         return timeslipService.getAllTimeslips({
           status: activeTab === 'all' ? undefined : (activeTab as 'draft' | 'approved' | 'rejected'),
           driverId: filters.driverId,
-          dateFrom: filters.dateFrom ? format(filters.dateFrom, 'yyyy-MM-dd') : undefined,
-          dateTo: filters.dateTo ? format(filters.dateTo, 'yyyy-MM-dd') : undefined,
+          dateFrom: dateFromStr,
+          dateTo: dateToStr,
           noMileage: filters.noMileage,
           noVehicle: filters.noVehicle,
         });
@@ -91,24 +155,66 @@ const DriverTimeslips = () => {
     },
   });
 
-  // Sort timeslips based on sortBy filter
+  // Mechanic timeslips for the active tab
+  const { data: mechanicSlips, isLoading: isLoadingMechanic } = useQuery({
+    queryKey: ['mechanic-timeslips', activeTab, filters.driverId, dateFromStr, dateToStr],
+    queryFn: () =>
+      listAllMechanicTimeslips({
+        statusIn: mechanicStatusesForTab(activeTab),
+        driverId: filters.driverId,
+        dateFrom: dateFromStr,
+        dateTo: dateToStr,
+      }),
+    enabled: isAdmin,
+  });
+
+  // Work done per mechanic slip, indexed by "driverId:date".
+  const { data: workBySlip } = useQuery({
+    queryKey: ['mechanic-work-admin', (mechanicSlips || []).map((s) => `${s.driver_id}:${s.date}`).join('|')],
+    queryFn: async () => {
+      const rows = mechanicSlips || [];
+      const datesByDriver = new Map<string, Set<string>>();
+      rows.forEach((s) => {
+        if (!datesByDriver.has(s.driver_id)) datesByDriver.set(s.driver_id, new Set());
+        datesByDriver.get(s.driver_id)!.add(s.date);
+      });
+      const out: Record<string, DayWork> = {};
+      await Promise.all(
+        Array.from(datesByDriver.entries()).map(async ([driverId, dates]) => {
+          const byDate = await getMechanicWorkByDate(driverId, Array.from(dates));
+          Object.entries(byDate).forEach(([date, work]) => {
+            out[`${driverId}:${date}`] = work;
+          });
+        })
+      );
+      return out;
+    },
+    enabled: isAdmin && !!mechanicSlips && mechanicSlips.length > 0,
+  });
+
+  // Merge driver + mechanic timeslips and sort
   const sortedTimeslips = useMemo(() => {
-    if (!timeslips) return [];
-    const sorted = [...timeslips];
+    const merged: MergedTimeslip[] = [
+      ...(timeslips || []).map((slip): MergedTimeslip => ({ kind: 'driver', slip })),
+      ...(isAdmin ? (mechanicSlips || []).map((slip): MergedTimeslip => ({ kind: 'mechanic', slip })) : []),
+    ];
+    const dateOf = (m: MergedTimeslip) => new Date(m.slip.date).getTime();
+    const nameOf = (m: MergedTimeslip) => m.slip.driver?.name || '';
+    const payOf = (m: MergedTimeslip) => m.slip.total_pay || 0;
 
     switch (filters.sortBy) {
       case 'date_asc':
-        return sorted.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+        return merged.sort((a, b) => dateOf(a) - dateOf(b));
       case 'driver_name':
-        return sorted.sort((a, b) => (a.driver?.name || '').localeCompare(b.driver?.name || ''));
+        return merged.sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
       case 'total_pay_desc':
-        return sorted.sort((a, b) => (b.total_pay || 0) - (a.total_pay || 0));
+        return merged.sort((a, b) => payOf(b) - payOf(a));
       case 'total_pay_asc':
-        return sorted.sort((a, b) => (a.total_pay || 0) - (b.total_pay || 0));
+        return merged.sort((a, b) => payOf(a) - payOf(b));
       default: // date_desc
-        return sorted.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        return merged.sort((a, b) => dateOf(b) - dateOf(a));
     }
-  }, [timeslips, filters.sortBy]);
+  }, [timeslips, mechanicSlips, isAdmin, filters.sortBy]);
 
   // Generate timeslips mutation
   const generateMutation = useMutation({
@@ -116,7 +222,7 @@ const DriverTimeslips = () => {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['timeslips'] });
       setShowGenerateDialog(false);
-      
+
       if (data.count === 0) {
         toast.info("No completed orders found in Shipday for this date");
       } else {
@@ -192,6 +298,27 @@ const DriverTimeslips = () => {
     },
   });
 
+  // Mechanic timeslip mutations
+  const mechanicUpdateMut = useMutation({
+    mutationFn: ({ id, updates }: { id: string; updates: any }) => updateMechanicTimeslip(id, updates),
+    onSuccess: () => {
+      toast.success('Updated');
+      queryClient.invalidateQueries({ queryKey: ['mechanic-timeslips'] });
+      setEditingMechanic(null);
+    },
+    onError: (e: any) => toast.error(e.message || 'Update failed'),
+  });
+
+  const mechanicDeleteMut = useMutation({
+    mutationFn: (id: string) => deleteMechanicTimeslip(id),
+    onSuccess: () => {
+      toast.success('Deleted');
+      queryClient.invalidateQueries({ queryKey: ['mechanic-timeslips'] });
+      setDeletingMechanicId(null);
+    },
+    onError: (e: any) => toast.error(e.message || 'Delete failed'),
+  });
+
   const handleGenerate = (date: Date) => {
     generateMutation.mutate(date);
   };
@@ -224,19 +351,91 @@ const DriverTimeslips = () => {
     }
   };
 
-  const deletingTimeslip = allTimeslips?.find(t => t.id === deletingTimeslipId) || 
+  const handleMechanicEdit = (slip: MechanicTimeslip) => {
+    setEditingMechanic({
+      slip,
+      hourly_rate: Number(slip.hourly_rate),
+      lunch_hours: Number(slip.lunch_hours),
+      admin_notes: slip.admin_notes || '',
+      status: slip.status,
+      clock_in_at: toLocalInput(slip.clock_in_at),
+      clock_out_at: toLocalInput(slip.clock_out_at),
+    });
+  };
+
+  const saveMechanicEdit = () => {
+    if (!editingMechanic) return;
+    const clockIn = fromLocalInput(editingMechanic.clock_in_at);
+    if (!clockIn) {
+      toast.error('Clock in time is required');
+      return;
+    }
+    const clockOut = fromLocalInput(editingMechanic.clock_out_at);
+    if (clockOut && new Date(clockOut) <= new Date(clockIn)) {
+      toast.error('Clock out must be after clock in');
+      return;
+    }
+    mechanicUpdateMut.mutate({
+      id: editingMechanic.slip.id,
+      updates: {
+        hourly_rate: editingMechanic.hourly_rate,
+        lunch_hours: editingMechanic.lunch_hours,
+        admin_notes: editingMechanic.admin_notes || null,
+        status: editingMechanic.status,
+        clock_in_at: clockIn,
+        clock_out_at: clockOut,
+      },
+    });
+  };
+
+  const deletingTimeslip = allTimeslips?.find(t => t.id === deletingTimeslipId) ||
                            timeslips?.find(t => t.id === deletingTimeslipId);
+  const deletingMechanicSlip = allMechanicSlips?.find(t => t.id === deletingMechanicId) ||
+                               mechanicSlips?.find(t => t.id === deletingMechanicId);
 
   // Count timeslips by status (from all timeslips for accurate counts)
-  const draftCount = allTimeslips?.filter((t) => t.status === 'draft').length || 0;
-  const approvedCount = allTimeslips?.filter((t) => t.status === 'approved').length || 0;
-  const allCount = allTimeslips?.length || 0;
+  const draftCount = (allTimeslips?.filter((t) => t.status === 'draft').length || 0) +
+    (allMechanicSlips?.filter((t) => t.status === 'open' || t.status === 'closed').length || 0);
+  const approvedCount = (allTimeslips?.filter((t) => t.status === 'approved').length || 0) +
+    (allMechanicSlips?.filter((t) => t.status === 'approved').length || 0);
+  const allCount = (allTimeslips?.length || 0) + (allMechanicSlips?.length || 0);
 
   // Calculate total pay from visible timeslips
   const totalPay = useMemo(() => {
     if (!sortedTimeslips) return 0;
-    return sortedTimeslips.reduce((sum, timeslip) => sum + (timeslip.total_pay || 0), 0);
+    return sortedTimeslips.reduce((sum, item) => sum + (item.slip.total_pay || 0), 0);
   }, [sortedTimeslips]);
+
+  const pageLoading = isLoading || (isAdmin && isLoadingMechanic);
+
+  const renderGrid = (items: MergedTimeslip[]) => (
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      {items.map((item) =>
+        item.kind === 'driver' ? (
+          <TimeslipCard
+            key={`d-${item.slip.id}`}
+            timeslip={item.slip}
+            isAdmin={isAdmin}
+            onEdit={handleEdit}
+            onApprove={handleApprove}
+            onReject={handleReject}
+            onDelete={handleDelete}
+          />
+        ) : (
+          <MechanicTimeslipCard
+            key={`m-${item.slip.id}`}
+            slip={item.slip}
+            work={workBySlip?.[`${item.slip.driver_id}:${item.slip.date}`]}
+            actionPending={mechanicUpdateMut.isPending}
+            onApprove={(id) => mechanicUpdateMut.mutate({ id, updates: { status: 'approved' } })}
+            onReject={(id) => mechanicUpdateMut.mutate({ id, updates: { status: 'rejected' } })}
+            onEdit={handleMechanicEdit}
+            onDelete={setDeletingMechanicId}
+          />
+        )
+      )}
+    </div>
+  );
 
   return (
     <Layout>
@@ -244,11 +443,11 @@ const DriverTimeslips = () => {
         <DashboardHeader>
           <div>
             <h1 className="text-3xl font-bold tracking-tight">
-              {isAdmin ? 'Driver Timeslips' : 'My Timeslips'}
+              {isAdmin ? 'Timeslips' : 'My Timeslips'}
             </h1>
             <p className="text-muted-foreground">
               {isAdmin
-                ? 'Manage driver timeslips and payments'
+                ? 'Manage timeslips and payments'
                 : 'View your approved timeslips'}
             </p>
           </div>
@@ -304,56 +503,32 @@ const DriverTimeslips = () => {
                   Approved ({approvedCount})
                 </TabsTrigger>
                 <TabsTrigger value="all">All ({allCount})</TabsTrigger>
-                <TabsTrigger value="mechanic">
-                  <Wrench className="h-4 w-4 mr-2" />
-                  Mechanic Timeslips
-                </TabsTrigger>
               </TabsList>
             </div>
 
-
-            {activeTab === 'mechanic' ? (
-              <TabsContent value="mechanic" className="space-y-4">
-                <MechanicTimeslipsTab />
-              </TabsContent>
-            ) : (
-              <TabsContent value={activeTab} className="space-y-4">
-                {isLoading ? (
-                  <Card>
-                    <CardContent className="p-6">
-                      <p className="text-center text-muted-foreground">Loading timeslips...</p>
-                    </CardContent>
-                  </Card>
-                ) : sortedTimeslips && sortedTimeslips.length > 0 ? (
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {sortedTimeslips.map((timeslip) => (
-                      <TimeslipCard
-                        key={timeslip.id}
-                        timeslip={timeslip}
-                        isAdmin={isAdmin}
-                        onEdit={handleEdit}
-                        onApprove={handleApprove}
-                        onReject={handleReject}
-                        
-                        onDelete={handleDelete}
-                      />
-                    ))}
-                  </div>
-                ) : (
-                  <Card>
-                    <CardContent className="p-6">
-                      <p className="text-center text-muted-foreground">
-                        No timeslips found. Generate timeslips for a specific date to get started.
-                      </p>
-                    </CardContent>
-                  </Card>
-                )}
-              </TabsContent>
-            )}
+            <TabsContent value={activeTab} className="space-y-4">
+              {pageLoading ? (
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-center text-muted-foreground">Loading timeslips...</p>
+                  </CardContent>
+                </Card>
+              ) : sortedTimeslips && sortedTimeslips.length > 0 ? (
+                renderGrid(sortedTimeslips)
+              ) : (
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-center text-muted-foreground">
+                      No timeslips found. Generate timeslips for a specific date to get started.
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+            </TabsContent>
           </Tabs>
         ) : (
           <div>
-            {isLoading ? (
+            {pageLoading ? (
               <Card>
                 <CardContent className="p-6">
                   <p className="text-center text-muted-foreground">Loading timeslips...</p>
@@ -361,13 +536,15 @@ const DriverTimeslips = () => {
               </Card>
             ) : sortedTimeslips && sortedTimeslips.length > 0 ? (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {sortedTimeslips.map((timeslip) => (
-                  <TimeslipCard
-                    key={timeslip.id}
-                    timeslip={timeslip}
-                    isAdmin={false}
-                  />
-                ))}
+                {sortedTimeslips.map((item) =>
+                  item.kind === 'driver' ? (
+                    <TimeslipCard
+                      key={`d-${item.slip.id}`}
+                      timeslip={item.slip}
+                      isAdmin={false}
+                    />
+                  ) : null
+                )}
               </div>
             ) : (
               <Card>
@@ -431,6 +608,80 @@ const DriverTimeslips = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Mechanic edit dialog */}
+      <Dialog open={!!editingMechanic} onOpenChange={(o) => !o && setEditingMechanic(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Edit mechanic timeslip</DialogTitle></DialogHeader>
+          {editingMechanic && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <Label>Clock in</Label>
+                  <Input type="datetime-local" value={editingMechanic.clock_in_at}
+                    onChange={(e) => setEditingMechanic({ ...editingMechanic, clock_in_at: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Clock out</Label>
+                  <Input type="datetime-local" value={editingMechanic.clock_out_at}
+                    onChange={(e) => setEditingMechanic({ ...editingMechanic, clock_out_at: e.target.value })} />
+                  <p className="text-xs text-muted-foreground mt-1">Clear to reopen the shift.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Hourly rate (£)</Label>
+                  <Input type="number" step="0.25" value={editingMechanic.hourly_rate}
+                    onChange={(e) => setEditingMechanic({ ...editingMechanic, hourly_rate: parseFloat(e.target.value) || 0 })} />
+                </div>
+                <div>
+                  <Label>Lunch hours</Label>
+                  <Input type="number" step="0.25" value={editingMechanic.lunch_hours}
+                    onChange={(e) => setEditingMechanic({ ...editingMechanic, lunch_hours: parseFloat(e.target.value) || 0 })} />
+                </div>
+              </div>
+              <div>
+                <Label>Status</Label>
+                <Select value={editingMechanic.status} onValueChange={(v) => setEditingMechanic({ ...editingMechanic, status: v as any })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="open">Open</SelectItem>
+                    <SelectItem value="closed">Closed</SelectItem>
+                    <SelectItem value="approved">Approved</SelectItem>
+                    <SelectItem value="rejected">Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Admin notes</Label>
+                <Textarea rows={3} value={editingMechanic.admin_notes}
+                  onChange={(e) => setEditingMechanic({ ...editingMechanic, admin_notes: e.target.value })} />
+              </div>
+            </div>
+          )}
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setEditingMechanic(null)}>Cancel</Button>
+            <Button onClick={saveMechanicEdit} disabled={mechanicUpdateMut.isPending}>Save</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Mechanic delete dialog */}
+      <Dialog open={!!deletingMechanicId} onOpenChange={(o) => !o && setDeletingMechanicId(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Delete timeslip?</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Delete the mechanic timeslip for{' '}
+            <strong>{deletingMechanicSlip?.driver?.name || deletingMechanicSlip?.driver?.email || 'Unknown'}</strong> on{' '}
+            <strong>{deletingMechanicSlip ? format(new Date(deletingMechanicSlip.date), 'MMMM d, yyyy') : ''}</strong>?
+            This cannot be undone.
+          </p>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setDeletingMechanicId(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => deletingMechanicId && mechanicDeleteMut.mutate(deletingMechanicId)} disabled={mechanicDeleteMut.isPending}>Delete</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };
