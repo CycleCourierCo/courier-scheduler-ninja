@@ -1,26 +1,23 @@
-# Publish the new privacy policy
+# Put the collection badge next to the customer availability badge
 
-Replace the short 2025 privacy policy page with the new full UK GDPR policy the user supplied, after fixing the mismatches between what the policy says and what the app actually does.
-
-## Fixes to the policy text before publishing
-
-1. **Cookies/analytics** — the app uses PostHog analytics, so "We do not use analytics, advertising or tracking cookies" is inaccurate. Options: (a) soften the wording to name PostHog as an analytics provider with a consent/opt-out note, or (b) disable PostHog cookie persistence so the statement stays true. Recommend (a).
-2. **Providers list** — add Sentry (error tracking, US) and the AI route-planning provider (Gemini) to section 6 so the recipient list matches reality.
-3. **Registered office** — policy says Izabella House, 24–26 Regent Place, B1 3NJ; the app's email footers say 30 Wake Green Road, B13 9PB. Confirm which is current and make both match. [CONFIRM with user]
-4. **Retention promises** — the policy commits to deleting proof-of-delivery photos after 2 years, CCTV after 30 days, health notes after job completion, etc. No automated deletion exists today. Either implement deletion jobs (bigger piece of work, separate plan) or keep the policy as the stated standard and track the gap openly. Recommend publishing the policy as-is and scheduling the retention work separately.
+On the Get Timeslots popup, a delivery stop currently shows its collection badge ("Not Collected", "Collected", "Collected earlier", "Collection after delivery!") several badges further along the row, after the job-age and availability-dates-left badges. Moving it to sit immediately after the availability badge puts the two things you check together — is the customer available, and is the bike actually collected.
 
 ## Changes
 
-- `src/pages/PrivacyPolicyPage.tsx`: replace the current content with the new policy (all 20 sections), keeping the existing page layout and card styling. Update "Last updated" to 12 Oct 2026.
-- `src/lib/posthog.ts`: check cookie/storage persistence config; align with whichever cookie wording is chosen.
-- No database, email or footer changes except the registered-office fix once confirmed.
+Badge order on each stop becomes:
 
-## Verification
+```text
+before:  Delivery · bikes · Customer Available · Booked 4 days ago · 2 dates left · Not Collected · ferry · inspection · hours
+after:   Delivery · bikes · Customer Available · Not Collected · Booked 4 days ago · 2 dates left · ferry · inspection · hours
+```
 
-- View `/privacy-policy` in the preview and confirm all sections render correctly on desktop and mobile widths.
-- Confirm no other page links to policy sections that no longer exist.
+- Applies to both layouts of the popup: single stops and grouped "Multiple stops" rows.
+- Applies to every collection badge text, not just "Not Collected" — so "Collected", "Collecting on Route", "Collected earlier (Wed 2 Sep)" and the warnings all move with it.
+- Nothing else changes: same badge wording, colours, icons and tooltips; no change to what gets sent to customers, Shipday or invoices.
 
-## Open questions
+## Technical notes
 
-- Which registered office address is current?
-- Keep PostHog analytics (name it in the policy) or strip it back to essential-only?
+- Single file: `src/components/scheduling/RouteBuilder.tsx`.
+- Grouped stops: move the `collectionBadge && (...)` block (currently lines 845-850) up to directly after the availability badge block (ends line 819).
+- Single stops: move the `job.type === 'delivery' && (() => getCollectionStatusBadge(...))()` block (currently lines 982-999) up to directly after the availability badge block (ends line 953).
+- The badge values are already computed at those points, so this is a pure JSX reorder — no logic, database or edge function changes.
