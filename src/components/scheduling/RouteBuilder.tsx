@@ -1875,7 +1875,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
   // Report route jobs up so the page map can highlight them
   useEffect(() => {
-    onSelectedJobsChange?.(selectedJobs.map(j => ({ orderId: j.orderId, type: j.type })));
+    onSelectedJobsChange?.(selectedJobs
+      .filter(j => j.type === 'pickup' || j.type === 'delivery')
+      .map(j => ({ orderId: j.orderId, type: j.type as 'pickup' | 'delivery' })));
   }, [selectedJobs, onSelectedJobsChange]);
 
   // Apply add/remove commands coming from the page map (pin clicks / lasso)
