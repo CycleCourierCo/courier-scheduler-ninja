@@ -6,8 +6,8 @@
 2. Pressing it shows a confirm box: "Send the dates reminder to X customers?" It covers **every** order matching the current filters, not just the visible page.
 3. Each customer gets the approved WhatsApp template **dates_chaser**, with their own availability link in the {{1}} slot:
    - Sender missing → the sender gets their collection-dates link.
-   - Receiver missing → the receiver gets their delivery-dates link.
-   - Either → whichever side is missing (both if both are).
+   - Receiver missing → the receiver gets their delivery-dates link, **only if the sender has already set their dates**. Orders still waiting on the sender are skipped and counted as "waiting on sender".
+   - Either → the sender is chased if missing; the receiver only if the sender's dates are set.
 4. While sending, the button shows "Sending…" and can't be pressed again. When done, a message says how many were sent, and how many were skipped (no phone number, test account) or failed.
 5. Same-side reminders aren't repeated to the same order within 24 hours, so double-pressing on two screens won't spam customers.
 
