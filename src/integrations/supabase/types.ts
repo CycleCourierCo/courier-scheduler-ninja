@@ -1523,6 +1523,44 @@ export type Database = {
         }
         Relationships: []
       }
+      date_chase_log: {
+        Row: {
+          error: string | null
+          id: string
+          order_id: string
+          sent_at: string
+          sent_by: string | null
+          side: string
+          status: string
+        }
+        Insert: {
+          error?: string | null
+          id?: string
+          order_id: string
+          sent_at?: string
+          sent_by?: string | null
+          side: string
+          status: string
+        }
+        Update: {
+          error?: string | null
+          id?: string
+          order_id?: string
+          sent_at?: string
+          sent_by?: string | null
+          side?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "date_chase_log_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       difficult_areas: {
         Row: {
           active: boolean
