@@ -75,7 +75,7 @@ export const UnavailableDatesEditor = ({ driverId, invalidateRota }: Props) => {
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="border rounded-md p-2 bg-background">
+        <div className="border rounded-md p-1 bg-background overflow-hidden">
           <Calendar
             mode="multiple"
             selected={selected}
@@ -83,7 +83,8 @@ export const UnavailableDatesEditor = ({ driverId, invalidateRota }: Props) => {
             disabled={(date) => toKey(date) < today || existing.has(toKey(date))}
             modifiers={{ unavailable: overrides.map((o) => new Date(o.date + "T00:00:00")) }}
             modifiersClassNames={{ unavailable: "bg-destructive/20 text-destructive font-semibold" }}
-            className="p-3 pointer-events-auto"
+            className="p-1 pointer-events-auto mx-auto"
+            classNames={{ day: "h-8 w-8 p-0 font-normal aria-selected:opacity-100" }}
           />
         </div>
         <div className="space-y-3">
