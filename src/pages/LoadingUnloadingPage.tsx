@@ -17,7 +17,7 @@ import { getOrders, getOrdersForLoading, getOrdersByScheduledDate } from "@/serv
 import { Order } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Truck, Printer, CalendarIcon, Package, Send } from "lucide-react";
+import { Truck, Printer, CalendarIcon, Package, Send, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import jsPDF from 'jspdf';
@@ -66,6 +66,7 @@ const LoadingUnloadingPage = () => {
   const [isLoadingDatePickerOpen, setIsLoadingDatePickerOpen] = useState(false);
   const [isLoadingListDialogOpen, setIsLoadingListDialogOpen] = useState(false);
   const [showDriverPhoneDialog, setShowDriverPhoneDialog] = useState(false);
+  const [isSendingLoadingList, setIsSendingLoadingList] = useState(false);
   const [driversForLoading, setDriversForLoading] = useState<string[]>([]);
   const [driverPhoneNumbers, setDriverPhoneNumbers] = useState<Record<string, string>>({});
   const [driverEmails, setDriverEmails] = useState<Record<string, string>>({});
@@ -807,7 +808,8 @@ const LoadingUnloadingPage = () => {
   };
 
   const handleSendWithDriverNumbers = async () => {
-    if (!selectedLoadingDate) return;
+    if (!selectedLoadingDate || isSendingLoadingList) return;
+    setIsSendingLoadingList(true);
 
     try {
       const bikesForDate = getBikesNeedingLoading(selectedLoadingDate);
@@ -887,6 +889,8 @@ const LoadingUnloadingPage = () => {
     } catch (error) {
       console.error('Error sending loading list:', error);
       toast.error('Failed to send loading list');
+    } finally {
+      setIsSendingLoadingList(false);
     }
   };
 
@@ -1037,9 +1041,10 @@ const LoadingUnloadingPage = () => {
                                >
                                  <Truck className="h-4 w-4 mr-1" /> Load All onto Van
                                </Button>
-                               <Button
+                                <Button
                                  size="sm"
                                  variant="outline"
+                                 disabled={isSendingLoadingList}
                                  onClick={handleSendLoadingList}
                                >
                                  📱 Send Loading List
@@ -1398,7 +1403,13 @@ const LoadingUnloadingPage = () => {
         />
 
         {/* Driver Phone Numbers Dialog */}
-        <Dialog open={showDriverPhoneDialog} onOpenChange={setShowDriverPhoneDialog}>
+        <Dialog
+          open={showDriverPhoneDialog}
+          onOpenChange={(open) => {
+            if (!open && isSendingLoadingList) return;
+            setShowDriverPhoneDialog(open);
+          }}
+        >
           <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Send Loading List</DialogTitle>
@@ -1514,11 +1525,18 @@ const LoadingUnloadingPage = () => {
               ))}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowDriverPhoneDialog(false)}>
+              <Button variant="outline" disabled={isSendingLoadingList} onClick={() => setShowDriverPhoneDialog(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleSendWithDriverNumbers}>
-                Send Loading List
+              <Button onClick={handleSendWithDriverNumbers} disabled={isSendingLoadingList}>
+                {isSendingLoadingList ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending…
+                  </>
+                ) : (
+                  "Send Loading List"
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
