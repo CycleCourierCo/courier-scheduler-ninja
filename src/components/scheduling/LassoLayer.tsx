@@ -4,67 +4,74 @@ import L from 'leaflet';
 
 interface LassoLayerProps {
   active: boolean;
+  points: L.LatLng[];
+  onPointsChange: (points: L.LatLng[]) => void;
   onComplete: (polygon: L.LatLng[]) => void;
 }
 
-/** Freehand lasso: drag a loop on the map; returns the drawn polygon. */
-const LassoLayer = ({ active, onComplete }: LassoLayerProps) => {
-  const map = useMap();
-  const cbRef = useRef(onComplete);
-  cbRef.current = onComplete;
+const LINE: L.PolylineOptions = { color: 'hsl(217 91% 60%)', weight: 2, dashArray: '4 4' };
 
+/** Point-to-point lasso: click to add corners; close by clicking the first point or double-clicking. */
+const LassoLayer = ({ active, points, onPointsChange, onComplete }: LassoLayerProps) => {
+  const map = useMap();
+  const ptsRef = useRef(points);
+  ptsRef.current = points;
+  const cbRef = useRef({ onPointsChange, onComplete });
+  cbRef.current = { onPointsChange, onComplete };
+  const layerRef = useRef<L.LayerGroup | null>(null);
+  const previewRef = useRef<L.Polyline | null>(null);
+
+  // Map interaction
   useEffect(() => {
     if (!active) return;
-    const container = map.getContainer();
-    map.dragging.disable();
+    const c = map.getContainer();
     map.doubleClickZoom.disable();
-    container.style.cursor = 'crosshair';
-    container.style.touchAction = 'none';
-
-    let path: L.LatLng[] = [];
-    let line: L.Polyline | null = null;
-    let drawing = false;
-
-    const toLatLng = (e: PointerEvent) => {
-      const rect = container.getBoundingClientRect();
-      return map.containerPointToLatLng(L.point(e.clientX - rect.left, e.clientY - rect.top));
+    c.style.cursor = 'crosshair';
+    const close = (pts: L.LatLng[]) => {
+      if (pts.length >= 3) cbRef.current.onComplete(pts);
+      cbRef.current.onPointsChange([]);
     };
-    const down = (e: PointerEvent) => {
-      if ((e.target as HTMLElement).closest('.leaflet-control')) return;
-      drawing = true;
-      path = [toLatLng(e)];
-      line = L.polyline(path, { color: 'hsl(217 91% 60%)', weight: 2, dashArray: '4 4' }).addTo(map);
-      container.setPointerCapture?.(e.pointerId);
-      e.preventDefault();
+    const click = (e: L.LeafletMouseEvent) => {
+      const pts = ptsRef.current;
+      if (pts.length >= 3 && map.latLngToContainerPoint(pts[0]).distanceTo(e.containerPoint) < 12) return close(pts);
+      cbRef.current.onPointsChange([...pts, e.latlng]);
     };
-    const move = (e: PointerEvent) => {
-      if (!drawing || !line) return;
-      path.push(toLatLng(e));
-      line.setLatLngs(path);
+    const dbl = () => close(ptsRef.current);
+    const move = (e: L.LeafletMouseEvent) => {
+      const pts = ptsRef.current;
+      if (!pts.length) { previewRef.current?.remove(); previewRef.current = null; return; }
+      const seg = [pts[pts.length - 1], e.latlng];
+      if (previewRef.current) previewRef.current.setLatLngs(seg);
+      else previewRef.current = L.polyline(seg, { ...LINE, opacity: 0.5, interactive: false }).addTo(map);
     };
-    const up = () => {
-      if (!drawing) return;
-      drawing = false;
-      line?.remove();
-      line = null;
-      if (path.length >= 3) cbRef.current(path);
-      path = [];
-    };
-
-    container.addEventListener('pointerdown', down);
-    container.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up);
+    map.on('click', click);
+    map.on('dblclick', dbl);
+    map.on('mousemove', move);
     return () => {
-      container.removeEventListener('pointerdown', down);
-      container.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      line?.remove();
-      map.dragging.enable();
+      map.off('click', click);
+      map.off('dblclick', dbl);
+      map.off('mousemove', move);
+      previewRef.current?.remove();
+      previewRef.current = null;
       map.doubleClickZoom.enable();
-      container.style.cursor = '';
-      container.style.touchAction = '';
+      c.style.cursor = '';
     };
   }, [active, map]);
+
+  // Draw current points
+  useEffect(() => {
+    layerRef.current?.remove();
+    layerRef.current = null;
+    if (!points.length) { previewRef.current?.remove(); previewRef.current = null; }
+    if (!active || !points.length) return;
+    const g = L.layerGroup().addTo(map);
+    L.polyline(points, { ...LINE, interactive: false }).addTo(g);
+    points.forEach((p, i) =>
+      L.circleMarker(p, { radius: i === 0 ? 6 : 4, color: LINE.color, fillOpacity: 1, interactive: false }).addTo(g)
+    );
+    layerRef.current = g;
+    return () => { g.remove(); };
+  }, [points, active, map]);
 
   return null;
 };
