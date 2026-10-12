@@ -1041,9 +1041,10 @@ const LoadingUnloadingPage = () => {
                                >
                                  <Truck className="h-4 w-4 mr-1" /> Load All onto Van
                                </Button>
-                               <Button
+                                <Button
                                  size="sm"
                                  variant="outline"
+                                 disabled={isSendingLoadingList}
                                  onClick={handleSendLoadingList}
                                >
                                  📱 Send Loading List
@@ -1524,11 +1525,18 @@ const LoadingUnloadingPage = () => {
               ))}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowDriverPhoneDialog(false)}>
+              <Button variant="outline" disabled={isSendingLoadingList} onClick={() => setShowDriverPhoneDialog(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleSendWithDriverNumbers}>
-                Send Loading List
+              <Button onClick={handleSendWithDriverNumbers} disabled={isSendingLoadingList}>
+                {isSendingLoadingList ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending…
+                  </>
+                ) : (
+                  "Send Loading List"
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>
