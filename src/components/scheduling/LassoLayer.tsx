@@ -42,7 +42,7 @@ const LassoLayer = ({ active, points, onPointsChange, onComplete }: LassoLayerPr
       if (!pts.length) { previewRef.current?.remove(); previewRef.current = null; return; }
       const seg = [pts[pts.length - 1], e.latlng];
       if (previewRef.current) previewRef.current.setLatLngs(seg);
-      else previewRef.current = L.polyline(seg, { ...LINE, opacity: 0.5 }).addTo(map);
+      else previewRef.current = L.polyline(seg, { ...LINE, opacity: 0.5, interactive: false }).addTo(map);
     };
     map.on('click', click);
     map.on('dblclick', dbl);
@@ -65,9 +65,9 @@ const LassoLayer = ({ active, points, onPointsChange, onComplete }: LassoLayerPr
     if (!points.length) { previewRef.current?.remove(); previewRef.current = null; }
     if (!active || !points.length) return;
     const g = L.layerGroup().addTo(map);
-    L.polyline(points, LINE).addTo(g);
+    L.polyline(points, { ...LINE, interactive: false }).addTo(g);
     points.forEach((p, i) =>
-      L.circleMarker(p, { radius: i === 0 ? 6 : 4, color: LINE.color, fillOpacity: 1 }).addTo(g)
+      L.circleMarker(p, { radius: i === 0 ? 6 : 4, color: LINE.color, fillOpacity: 1, interactive: false }).addTo(g)
     );
     layerRef.current = g;
     return () => { g.remove(); };
