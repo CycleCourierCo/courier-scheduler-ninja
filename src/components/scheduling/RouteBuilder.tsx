@@ -817,6 +817,12 @@ const JobItem: React.FC<JobItemProps> = ({
                                 {availabilityBadge.text}
                               </Badge>
                             )}
+                            {collectionBadge && (
+                              <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
+                                {collectionBadge.icon}
+                                {collectionBadge.text}
+                              </Badge>
+                            )}
                             {/* Job Age Badge */}
                             {(() => {
                               const ageBadge = getJobAgeBadge(groupedJob.orderData?.created_at);
@@ -842,12 +848,6 @@ const JobItem: React.FC<JobItemProps> = ({
                                 </Badge>
                               ) : null;
                             })()}
-                            {collectionBadge && (
-                              <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
-                                {collectionBadge.icon}
-                                {collectionBadge.text}
-                              </Badge>
-                            )}
                             {/* Northern Ireland ferry status (inbound deliveries + ferry hand-off collections) */}
                             {(groupedJob.type === 'delivery' || isFerryLeg(groupedJob.orderData, 'pickup')) && (() => {
                               const niBadge = getNiInboundBadge(groupedJob.orderData, groupedJob.type === 'pickup' ? 'pickup' : 'delivery');
@@ -952,6 +952,25 @@ const JobItem: React.FC<JobItemProps> = ({
                         ) : null;
                       })()}
 
+                      {/* Collection Status Badge (only for deliveries) */}
+                      {job.type === 'delivery' && (() => {
+                        const collectionBadge = getCollectionStatusBadge(
+                          job.orderData?.collection_confirmation_sent_at,
+                          job.orderId,
+                          job.order,
+                          allJobs,
+                          job.orderData?.scheduled_pickup_date,
+                          job.orderData?.order_collected,
+                          selectedDate
+                        );
+                        return collectionBadge ? (
+                          <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
+                            {collectionBadge.icon}
+                            {collectionBadge.text}
+                          </Badge>
+                        ) : null;
+                      })()}
+
                       {/* Job Age Badge */}
                       {(() => {
                         const ageBadge = getJobAgeBadge(job.orderData?.created_at);
@@ -979,24 +998,6 @@ const JobItem: React.FC<JobItemProps> = ({
                         ) : null;
                       })()}
                       
-                      {/* Collection Status Badge (only for deliveries) */}
-                      {job.type === 'delivery' && (() => {
-                        const collectionBadge = getCollectionStatusBadge(
-                          job.orderData?.collection_confirmation_sent_at,
-                          job.orderId,
-                          job.order,
-                          allJobs,
-                          job.orderData?.scheduled_pickup_date,
-                          job.orderData?.order_collected,
-                          selectedDate
-                        );
-                        return collectionBadge ? (
-                          <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
-                            {collectionBadge.icon}
-                            {collectionBadge.text}
-                          </Badge>
-                        ) : null;
-                      })()}
 
                       {/* Northern Ireland ferry status (inbound deliveries + ferry hand-off collections) */}
                       {(job.type === 'delivery' || isFerryLeg(job.orderData, 'pickup')) && (() => {
