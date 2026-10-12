@@ -1591,6 +1591,21 @@ export type Database = {
         }
         Relationships: []
       }
+      divergent_webhook_events: {
+        Row: {
+          received_at: string
+          webhook_id: string
+        }
+        Insert: {
+          received_at?: string
+          webhook_id: string
+        }
+        Update: {
+          received_at?: string
+          webhook_id?: string
+        }
+        Relationships: []
+      }
       driver_absence_requests: {
         Row: {
           cancel_requested: boolean
@@ -5128,6 +5143,45 @@ export type Database = {
           lon?: number | null
           name?: string
           postcode?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sms_messages: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          order_id: string | null
+          provider_id: string | null
+          recipient_masked: string | null
+          side: string | null
+          status: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          order_id?: string | null
+          provider_id?: string | null
+          recipient_masked?: string | null
+          side?: string | null
+          status?: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          order_id?: string | null
+          provider_id?: string | null
+          recipient_masked?: string | null
+          side?: string | null
+          status?: string
+          type?: string
           updated_at?: string
         }
         Relationships: []
