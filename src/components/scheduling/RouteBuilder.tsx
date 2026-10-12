@@ -1894,7 +1894,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       const removed = selectedJobs.length - next.length;
       if (removed === 0) { toast.info('None of those jobs are in the route'); return; }
       setSelectedJobs(next);
-      if (next.length > 0) calculateTimeslots(next);
+
       toast.success(`Removed ${removed} job${removed === 1 ? '' : 's'} from route`);
       return;
     }
@@ -1927,7 +1927,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       return;
     }
     setSelectedJobs(next);
-    calculateTimeslots(next);
+
     const extra = [already && `${already} already in route`, skipped && `${skipped} without location`].filter(Boolean).join(', ');
     toast.success(`Added ${added} job${added === 1 ? '' : 's'} to route${extra ? ` (${extra})` : ''}`);
     // eslint-disable-next-line react-hooks/exhaustive-deps
