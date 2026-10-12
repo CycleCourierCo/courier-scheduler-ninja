@@ -70,7 +70,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
       { to: "/timeslips", label: "Timeslips", icon: Clock },
       { to: "/fuel-finder", label: "Fuel Finder", icon: Fuel },
       { to: "/claims", label: "Damage Claims", icon: ShieldAlert },
-      { to: "/my-holidays", label: "My Holidays", icon: CalendarOff },
+      { to: "/my-holidays", label: "My Availability", icon: CalendarOff },
     ],
   },
   {

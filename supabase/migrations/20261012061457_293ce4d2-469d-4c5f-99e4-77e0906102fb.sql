@@ -1,0 +1,1 @@
+CREATE POLICY "dao driver write own" ON public.driver_availability_overrides FOR ALL TO authenticated USING (driver_id = (SELECT auth.uid())) WITH CHECK (driver_id = (SELECT auth.uid()));
