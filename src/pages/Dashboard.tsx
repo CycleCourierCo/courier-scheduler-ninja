@@ -206,7 +206,7 @@ const Dashboard: React.FC = () => {
         data.recentlyChased && `${data.recentlyChased} chased in last 24h`,
         data.testAccount && `${data.testAccount} test account`,
       ].filter(Boolean).join(', ');
-      toast.success(`Sent ${data.sent} reminder(s)${data.failed ? `, ${data.failed} failed` : ''}${skipped ? `. Skipped: ${skipped}` : ''}`);
+      toast.success(`Sent ${data.sent} reminder(s)${data.failed ? `, ${data.failed} failed` : ''}. Texts: ${data.smsSent ?? 0} sent${data.smsFailed ? `, ${data.smsFailed} failed` : ''}${skipped ? `. Skipped: ${skipped}` : ''}`);
       setIsChaseOpen(false);
     } catch (e) {
       console.error('chase-missing-dates failed:', e);

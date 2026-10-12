@@ -11,6 +11,7 @@ import {
 } from "../_shared/northernIreland.ts";
 import { requireOpsAuth, createAuthErrorResponse } from "../_shared/auth.ts";
 import { trackResend, trackedFetch } from "../_shared/integrationLog.ts";
+import { sendSms, fitSms } from "../_shared/divergentSms.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -798,7 +799,27 @@ serve(async (req: Request): Promise<Response> => {
       }
     }
 
-    // Run Shipday + Email in the background (not user-facing)
+    // Timeslot SMS alongside WhatsApp (skipped for review and test accounts)
+    const sendTimeslotSms = async () => {
+      if (type === "review" || !deliveryTime || !scheduledDate) return;
+      if (order.user_id) {
+        const { data: prof } = await supabase.from("profiles").select("is_test_account").eq("id", order.user_id).maybeSingle();
+        if (prof?.is_test_account) return;
+      }
+      const d = new Date(scheduledDate);
+      const day = new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+        .toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+      const leg = type === "grouped_timeslot" ? "collection/delivery" : type === "collection_timeslots" ? "collection" : "delivery";
+      const link = order.tracking_number ? `https://cyclecourierco.com/tracking/${order.tracking_number}` : undefined;
+      await sendSms(supabase, {
+        phone: contact.phone,
+        content: fitSms(`Cycle Courier Co: your bike ${leg} is booked for ${day}, ${deliveryTime}-${calculateEndTime(deliveryTime)}.${link ? " Track:" : ""}`, link),
+        orderId: order.id, type, side: recipientType,
+        idempotencyKey: `${order.id}-${type}-${recipientType}-${scheduledDate}-${deliveryTime}`,
+      });
+    };
+
+    // Run Shipday + Email + SMS in the background (not user-facing)
     EdgeRuntime.waitUntil(
       Promise.allSettled([
         // Shipday update (skip for review)
@@ -810,6 +831,8 @@ serve(async (req: Request): Promise<Response> => {
         type !== "review"
           ? sendEmail(order, contact, recipientType, type, deliveryTime, scheduledDate, collectionJobList, deliveryJobList, relatedDeliveryOrders)
           : Promise.resolve(),
+
+        sendTimeslotSms(),
       ]).then((results) => {
         console.log("Background operations complete:", results.map(r => r.status));
       })

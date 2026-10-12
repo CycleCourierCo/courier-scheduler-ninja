@@ -1,6 +1,7 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
+import { sendSms, fitSms } from "../_shared/divergentSms.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -85,7 +86,7 @@ Deno.serve(async (req) => {
       (data || []).forEach((r: any) => recent.add(`${r.order_id}:${r.side}`));
     }
 
-    const counts = { sent: 0, failed: 0, noPhone: 0, testAccount: 0, recentlyChased: 0, waitingOnSender: 0 };
+    const counts = { sent: 0, failed: 0, smsSent: 0, smsFailed: 0, noPhone: 0, testAccount: 0, recentlyChased: 0, waitingOnSender: 0 };
     const jobs: { order: any; side: "sender" | "receiver"; phone: string }[] = [];
 
     for (const o of orders) {
@@ -137,6 +138,14 @@ Deno.serve(async (req) => {
       }
       if (status === "sent") counts.sent++; else counts.failed++;
       await admin.from("date_chase_log").insert({ order_id: j.order.id, side: j.side, status, error: err, sent_by: user.id });
+      const leg = j.side === "sender" ? "collection" : "delivery";
+      const sms = await sendSms(admin, {
+        phone: j.phone,
+        content: fitSms(`Cycle Courier Co: please enter 7 dates you're available for your bike ${leg} so we can book it:`, link),
+        orderId: j.order.id, type: "dates_chaser", side: j.side,
+        idempotencyKey: `${j.order.id}-dates-${j.side}-${new Date().toISOString().slice(0, 10)}`,
+      });
+      if (sms.ok) counts.smsSent++; else counts.smsFailed++;
     };
 
     for (let i = 0; i < jobs.length; i += 10) await Promise.all(jobs.slice(i, i + 10).map(send));
