@@ -1402,7 +1402,13 @@ const LoadingUnloadingPage = () => {
         />
 
         {/* Driver Phone Numbers Dialog */}
-        <Dialog open={showDriverPhoneDialog} onOpenChange={setShowDriverPhoneDialog}>
+        <Dialog
+          open={showDriverPhoneDialog}
+          onOpenChange={(open) => {
+            if (!open && isSendingLoadingList) return;
+            setShowDriverPhoneDialog(open);
+          }}
+        >
           <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Send Loading List</DialogTitle>
