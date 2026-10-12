@@ -10,7 +10,7 @@ import JobAgeHeatMap from "@/components/scheduling/JobAgeHeatMap";
 import ViableJobsHeatMap from "@/components/scheduling/ViableJobsHeatMap";
 import DriverHoursMileagePanel from "@/components/scheduling/DriverHoursMileagePanel";
 
-import RouteBuilder from "@/components/scheduling/RouteBuilder";
+import RouteBuilder, { MapJobCommand } from "@/components/scheduling/RouteBuilder";
 import GenerateRoutesDialog from "@/components/scheduling/generate/GenerateRoutesDialog";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -69,6 +69,11 @@ const JobScheduling = () => {
   const [shipdayPickupAddresses, setShipdayPickupAddresses] = useState<ShipdayPickupAddresses>({});
   const [isVerifyingShipday, setIsVerifyingShipday] = useState(false);
   const shipdayVerificationRun = useRef(0);
+  const [routeJobKeys, setRouteJobKeys] = useState<Set<string>>(new Set());
+  const [mapJobCommand, setMapJobCommand] = useState<MapJobCommand | null>(null);
+  const handleRouteJobsChange = useCallback((jobs: { orderId: string; type: string }[]) => {
+    setRouteJobKeys(new Set(jobs.map(j => `${j.orderId}-${j.type}`)));
+  }, []);
   
   
   // Lifted filter state from RouteBuilder
@@ -314,6 +319,9 @@ const JobScheduling = () => {
                   showClusters={showClusters}
                   jobTypeFilter={jobTypeFilter}
                   onClusterChange={setClusters}
+                  routeJobKeys={routeJobKeys}
+                  onAddJobs={(jobs) => setMapJobCommand({ id: Date.now(), action: 'add', jobs })}
+                  onRemoveJobs={(jobs) => setMapJobCommand({ id: Date.now(), action: 'remove', jobs })}
                 />
               )}
               {mapView === 'age' && (
@@ -355,6 +363,8 @@ const JobScheduling = () => {
                 isVerifyingShipday={isVerifyingShipday}
                 onVerifyVisibleShipday={verifyShipdayIds}
                 onReVerifyShipday={() => orders && verifyShipdayOrders(orders)}
+                onSelectedJobsChange={handleRouteJobsChange}
+                mapJobCommand={mapJobCommand}
               />
             </div>
           </>
