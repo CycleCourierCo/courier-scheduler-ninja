@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { useMap, useMapEvents, Polyline, CircleMarker } from 'react-leaflet';
+import { useEffect, useRef } from 'react';
+import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 
 interface LassoLayerProps {
@@ -9,56 +9,71 @@ interface LassoLayerProps {
   onComplete: (polygon: L.LatLng[]) => void;
 }
 
-const LINE = { color: 'hsl(217 91% 60%)', weight: 2, dashArray: '4 4' };
+const LINE: L.PolylineOptions = { color: 'hsl(217 91% 60%)', weight: 2, dashArray: '4 4' };
 
 /** Point-to-point lasso: click to add corners; close by clicking the first point or double-clicking. */
 const LassoLayer = ({ active, points, onPointsChange, onComplete }: LassoLayerProps) => {
   const map = useMap();
-  const [hover, setHover] = useState<L.LatLng | null>(null);
   const ptsRef = useRef(points);
   ptsRef.current = points;
+  const cbRef = useRef({ onPointsChange, onComplete });
+  cbRef.current = { onPointsChange, onComplete };
+  const layerRef = useRef<L.LayerGroup | null>(null);
+  const previewRef = useRef<L.Polyline | null>(null);
 
+  // Map interaction
   useEffect(() => {
-    if (!active) { setHover(null); return; }
+    if (!active) return;
     const c = map.getContainer();
     map.doubleClickZoom.disable();
     c.style.cursor = 'crosshair';
-    return () => { map.doubleClickZoom.enable(); c.style.cursor = ''; };
+    const close = (pts: L.LatLng[]) => {
+      if (pts.length >= 3) cbRef.current.onComplete(pts);
+      cbRef.current.onPointsChange([]);
+    };
+    const click = (e: L.LeafletMouseEvent) => {
+      const pts = ptsRef.current;
+      if (pts.length >= 3 && map.latLngToContainerPoint(pts[0]).distanceTo(e.containerPoint) < 12) return close(pts);
+      cbRef.current.onPointsChange([...pts, e.latlng]);
+    };
+    const dbl = () => close(ptsRef.current);
+    const move = (e: L.LeafletMouseEvent) => {
+      const pts = ptsRef.current;
+      if (!pts.length) { previewRef.current?.remove(); previewRef.current = null; return; }
+      const seg = [pts[pts.length - 1], e.latlng];
+      if (previewRef.current) previewRef.current.setLatLngs(seg);
+      else previewRef.current = L.polyline(seg, { ...LINE, opacity: 0.5 }).addTo(map);
+    };
+    map.on('click', click);
+    map.on('dblclick', dbl);
+    map.on('mousemove', move);
+    return () => {
+      map.off('click', click);
+      map.off('dblclick', dbl);
+      map.off('mousemove', move);
+      previewRef.current?.remove();
+      previewRef.current = null;
+      map.doubleClickZoom.enable();
+      c.style.cursor = '';
+    };
   }, [active, map]);
 
-  const close = (pts: L.LatLng[]) => {
-    if (pts.length >= 3) onComplete(pts);
-    onPointsChange([]);
-  };
+  // Draw current points
+  useEffect(() => {
+    layerRef.current?.remove();
+    layerRef.current = null;
+    if (!points.length) { previewRef.current?.remove(); previewRef.current = null; }
+    if (!active || !points.length) return;
+    const g = L.layerGroup().addTo(map);
+    L.polyline(points, LINE).addTo(g);
+    points.forEach((p, i) =>
+      L.circleMarker(p, { radius: i === 0 ? 6 : 4, color: LINE.color, fillOpacity: 1 }).addTo(g)
+    );
+    layerRef.current = g;
+    return () => { g.remove(); };
+  }, [points, active, map]);
 
-  useMapEvents({
-    click(e) {
-      if (!active) return;
-      const pts = ptsRef.current;
-      if (pts.length >= 3) {
-        const first = map.latLngToContainerPoint(pts[0]);
-        if (first.distanceTo(e.containerPoint) < 12) return close(pts);
-      }
-      onPointsChange([...pts, e.latlng]);
-    },
-    dblclick() {
-      if (active) close(ptsRef.current);
-    },
-    mousemove(e) {
-      if (active && ptsRef.current.length) setHover(e.latlng);
-    },
-  });
-
-  if (!active || points.length === 0) return null;
-  return (
-    <>
-      <Polyline positions={points} pathOptions={LINE} />
-      {hover && <Polyline positions={[points[points.length - 1], hover]} pathOptions={{ ...LINE, opacity: 0.5 }} />}
-      {points.map((p, i) => (
-        <CircleMarker key={i} center={p} radius={i === 0 ? 6 : 4} pathOptions={{ color: LINE.color, fillOpacity: 1 }} />
-      ))}
-    </>
-  );
+  return null;
 };
 
 export const pointInPolygon = (lat: number, lon: number, poly: L.LatLng[]) => {
