@@ -12,7 +12,8 @@ import OrderListContainer from "@/components/OrderListContainer";
 import DashboardHeader from "@/components/DashboardHeader";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ChevronLeft, ChevronRight, Printer } from "lucide-react";
+import { ChevronLeft, ChevronRight, Printer, Loader2, MessageCircle } from "lucide-react";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { format } from "date-fns";
@@ -31,6 +32,8 @@ const Dashboard: React.FC = () => {
   const [isLabelsDialogOpen, setIsLabelsDialogOpen] = useState(false);
   const [selectedLabelDate, setSelectedLabelDate] = useState<Date | undefined>(undefined);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isChaseOpen, setIsChaseOpen] = useState(false);
+  const [isChasing, setIsChasing] = useState(false);
   const [filters, setFilters] = useState({
     status: [] as string[],
     search: "",
@@ -176,6 +179,43 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const handleChase = async () => {
+    if (!filters.missingDates || isChasing) return;
+    setIsChasing(true);
+    try {
+      const dateToEnd = filters.dateTo ? new Date(filters.dateTo) : undefined;
+      dateToEnd?.setHours(23, 59, 59, 999);
+      const { data, error } = await supabase.functions.invoke('chase-missing-dates', {
+        body: {
+          missingDates: filters.missingDates,
+          search: filters.search || undefined,
+          status: filters.status.length ? filters.status : undefined,
+          bikeType: filters.bikeType.length ? filters.bikeType : undefined,
+          customerId: filters.customerId,
+          dateFrom: filters.dateFrom?.toISOString(),
+          dateTo: dateToEnd?.toISOString(),
+        },
+      });
+      if (error) {
+        const details = error instanceof FunctionsHttpError ? await error.context.text() : error.message;
+        throw new Error(details);
+      }
+      const skipped = [
+        data.waitingOnSender && `${data.waitingOnSender} waiting on sender`,
+        data.noPhone && `${data.noPhone} no phone`,
+        data.recentlyChased && `${data.recentlyChased} chased in last 24h`,
+        data.testAccount && `${data.testAccount} test account`,
+      ].filter(Boolean).join(', ');
+      toast.success(`Sent ${data.sent} reminder(s)${data.failed ? `, ${data.failed} failed` : ''}${skipped ? `. Skipped: ${skipped}` : ''}`);
+      setIsChaseOpen(false);
+    } catch (e) {
+      console.error('chase-missing-dates failed:', e);
+      toast.error('Failed to send reminders');
+    } finally {
+      setIsChasing(false);
+    }
+  };
+
   if (userRole === null) {
     return (
       <Layout>
@@ -231,6 +271,35 @@ const Dashboard: React.FC = () => {
           initialFilters={filters}
           userRole={userRole}
         />
+
+        {isStaff && filters.missingDates && (
+          <div className="flex justify-end">
+            <Button onClick={() => setIsChaseOpen(true)} disabled={isChasing}>
+              {isChasing ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <MessageCircle className="h-4 w-4 mr-2" />}
+              {isChasing ? "Sending…" : "Chase customers for dates"}
+            </Button>
+          </div>
+        )}
+
+        <Dialog open={isChaseOpen} onOpenChange={(o) => !isChasing && setIsChaseOpen(o)}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Chase customers for dates</DialogTitle>
+            </DialogHeader>
+            <p className="text-sm text-muted-foreground">
+              Send the WhatsApp dates reminder for all {totalCount} matching order(s)?
+              {filters.missingDates !== 'sender' && " Receivers are only chased once the sender has set their dates."}
+              {" "}Anyone chased in the last 24 hours is skipped.
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" disabled={isChasing} onClick={() => setIsChaseOpen(false)}>Cancel</Button>
+              <Button disabled={isChasing} onClick={handleChase}>
+                {isChasing && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {isChasing ? "Sending…" : "Send reminders"}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
 
         <OrderListContainer
           orders={orders}
