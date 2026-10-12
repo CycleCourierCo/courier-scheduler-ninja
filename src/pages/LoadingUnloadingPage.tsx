@@ -808,7 +808,8 @@ const LoadingUnloadingPage = () => {
   };
 
   const handleSendWithDriverNumbers = async () => {
-    if (!selectedLoadingDate) return;
+    if (!selectedLoadingDate || isSendingLoadingList) return;
+    setIsSendingLoadingList(true);
 
     try {
       const bikesForDate = getBikesNeedingLoading(selectedLoadingDate);
@@ -888,6 +889,8 @@ const LoadingUnloadingPage = () => {
     } catch (error) {
       console.error('Error sending loading list:', error);
       toast.error('Failed to send loading list');
+    } finally {
+      setIsSendingLoadingList(false);
     }
   };
 
