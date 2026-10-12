@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -107,6 +107,14 @@ interface RouteBuilderProps {
   isVerifyingShipday?: boolean;
   onVerifyVisibleShipday?: (shipdayIds: string[]) => void;
   onReVerifyShipday?: () => void;
+  onSelectedJobsChange?: (jobs: { orderId: string; type: 'pickup' | 'delivery' }[]) => void;
+  mapJobCommand?: MapJobCommand | null;
+}
+
+export interface MapJobCommand {
+  id: number;
+  action: 'add' | 'remove';
+  jobs: { orderId: string; type: 'pickup' | 'delivery' }[];
 }
 
 // Safe mapping to normalize job type for edge function
@@ -817,6 +825,12 @@ const JobItem: React.FC<JobItemProps> = ({
                                 {availabilityBadge.text}
                               </Badge>
                             )}
+                            {collectionBadge && (
+                              <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
+                                {collectionBadge.icon}
+                                {collectionBadge.text}
+                              </Badge>
+                            )}
                             {/* Job Age Badge */}
                             {(() => {
                               const ageBadge = getJobAgeBadge(groupedJob.orderData?.created_at);
@@ -842,12 +856,6 @@ const JobItem: React.FC<JobItemProps> = ({
                                 </Badge>
                               ) : null;
                             })()}
-                            {collectionBadge && (
-                              <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
-                                {collectionBadge.icon}
-                                {collectionBadge.text}
-                              </Badge>
-                            )}
                             {/* Northern Ireland ferry status (inbound deliveries + ferry hand-off collections) */}
                             {(groupedJob.type === 'delivery' || isFerryLeg(groupedJob.orderData, 'pickup')) && (() => {
                               const niBadge = getNiInboundBadge(groupedJob.orderData, groupedJob.type === 'pickup' ? 'pickup' : 'delivery');
@@ -952,6 +960,25 @@ const JobItem: React.FC<JobItemProps> = ({
                         ) : null;
                       })()}
 
+                      {/* Collection Status Badge (only for deliveries) */}
+                      {job.type === 'delivery' && (() => {
+                        const collectionBadge = getCollectionStatusBadge(
+                          job.orderData?.collection_confirmation_sent_at,
+                          job.orderId,
+                          job.order,
+                          allJobs,
+                          job.orderData?.scheduled_pickup_date,
+                          job.orderData?.order_collected,
+                          selectedDate
+                        );
+                        return collectionBadge ? (
+                          <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
+                            {collectionBadge.icon}
+                            {collectionBadge.text}
+                          </Badge>
+                        ) : null;
+                      })()}
+
                       {/* Job Age Badge */}
                       {(() => {
                         const ageBadge = getJobAgeBadge(job.orderData?.created_at);
@@ -979,24 +1006,6 @@ const JobItem: React.FC<JobItemProps> = ({
                         ) : null;
                       })()}
                       
-                      {/* Collection Status Badge (only for deliveries) */}
-                      {job.type === 'delivery' && (() => {
-                        const collectionBadge = getCollectionStatusBadge(
-                          job.orderData?.collection_confirmation_sent_at,
-                          job.orderId,
-                          job.order,
-                          allJobs,
-                          job.orderData?.scheduled_pickup_date,
-                          job.orderData?.order_collected,
-                          selectedDate
-                        );
-                        return collectionBadge ? (
-                          <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
-                            {collectionBadge.icon}
-                            {collectionBadge.text}
-                          </Badge>
-                        ) : null;
-                      })()}
 
                       {/* Northern Ireland ferry status (inbound deliveries + ferry hand-off collections) */}
                       {(job.type === 'delivery' || isFerryLeg(job.orderData, 'pickup')) && (() => {
@@ -1249,7 +1258,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   shipdayPickupAddresses = {},
   isVerifyingShipday = false,
   onVerifyVisibleShipday,
-  onReVerifyShipday
+  onReVerifyShipday,
+  onSelectedJobsChange,
+  mapJobCommand
 }) => {
   const [isMobile, setIsMobile] = useState<boolean | undefined>(undefined);
   const [selectedJobs, setSelectedJobs] = useState<SelectedJob[]>([]);
@@ -1861,6 +1872,66 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     setSelectedJobs(next);
     calculateTimeslots(next);
   };
+
+  // Report route jobs up so the page map can highlight them
+  useEffect(() => {
+    onSelectedJobsChange?.(selectedJobs
+      .filter(j => j.type === 'pickup' || j.type === 'delivery')
+      .map(j => ({ orderId: j.orderId, type: j.type as 'pickup' | 'delivery' })));
+  }, [selectedJobs, onSelectedJobsChange]);
+
+  // Apply add/remove commands coming from the page map (pin clicks / lasso)
+  const lastMapCommandId = useRef<number | null>(null);
+  useEffect(() => {
+    if (!mapJobCommand || lastMapCommandId.current === mapJobCommand.id) return;
+    lastMapCommandId.current = mapJobCommand.id;
+    const key = (o: string, t: string) => `${o}-${t}`;
+    if (mapJobCommand.action === 'remove') {
+      const drop = new Set(mapJobCommand.jobs.map(j => key(j.orderId, j.type)));
+      const next = selectedJobs
+        .filter(j => !drop.has(key(j.orderId, j.type)))
+        .map((j, i) => ({ ...j, order: i + 1 }));
+      const removed = selectedJobs.length - next.length;
+      if (removed === 0) { toast.info('None of those jobs are in the route'); return; }
+      setSelectedJobs(next);
+
+      toast.success(`Removed ${removed} job${removed === 1 ? '' : 's'} from route`);
+      return;
+    }
+    const existing = new Set(selectedJobs.map(j => key(j.orderId, j.type)));
+    const next = [...selectedJobs];
+    let added = 0, already = 0, skipped = 0;
+    for (const cmd of mapJobCommand.jobs) {
+      if (existing.has(key(cmd.orderId, cmd.type))) { already++; continue; }
+      const order = orderList.find(o => o.id === cmd.orderId);
+      const contact: any = order ? getLegContact(order, cmd.type) : null;
+      const lat = contact?.lat ?? contact?.address?.lat;
+      const lon = contact?.lon ?? contact?.address?.lon;
+      if (!order || !lat || !lon) { skipped++; continue; }
+      next.push({
+        orderId: order.id,
+        type: cmd.type,
+        address: formatAddress(contact.address),
+        contactName: contact.name,
+        orderData: order,
+        phoneNumber: contact.phone,
+        order: next.length + 1,
+        lat,
+        lon,
+      });
+      existing.add(key(cmd.orderId, cmd.type));
+      added++;
+    }
+    if (added === 0) {
+      toast.info(already ? 'Already in the route' : 'No jobs could be added');
+      return;
+    }
+    setSelectedJobs(next);
+
+    const extra = [already && `${already} already in route`, skipped && `${skipped} without location`].filter(Boolean).join(', ');
+    toast.success(`Added ${added} job${added === 1 ? '' : 's'} to route${extra ? ` (${extra})` : ''}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapJobCommand]);
 
   // CSV Upload handlers
   const handleCsvFileSelect = (content: string) => {

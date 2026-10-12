@@ -8,6 +8,13 @@ import { DEPOT_LOCATION } from '@/constants/depot';
 import { getLegContact } from '@/utils/niDelivery';
 import 'leaflet/dist/leaflet.css';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import LassoLayer, { pointInPolygon } from './LassoLayer';
+import { Lasso, Plus, Minus, X } from 'lucide-react';
+
+export type MapRouteJob = { orderId: string; type: 'pickup' | 'delivery' };
+const toRouteType = (t: 'collection' | 'delivery'): 'pickup' | 'delivery' => t === 'collection' ? 'pickup' : 'delivery';
+const routeKey = (orderId: string, t: 'collection' | 'delivery') => `${orderId}-${toRouteType(t)}`;
 
 // Fix Leaflet icon issues
 const fixLeafletIcon = () => {
@@ -24,6 +31,9 @@ interface ClusterMapProps {
   showClusters?: boolean;
   jobTypeFilter?: 'all' | 'collection' | 'delivery';
   onClusterChange?: (clusters: Cluster[]) => void;
+  routeJobKeys?: Set<string>;
+  onAddJobs?: (jobs: MapRouteJob[]) => void;
+  onRemoveJobs?: (jobs: MapRouteJob[]) => void;
 }
 
 // Determine which jobs are needed based on order status
@@ -109,9 +119,25 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
   orders = [], 
   showClusters = true,
   jobTypeFilter = 'all',
-  onClusterChange 
+  onClusterChange,
+  routeJobKeys,
+  onAddJobs,
+  onRemoveJobs
 }) => {
   const mapRef = React.useRef<L.Map | null>(null);
+  const [lassoOn, setLassoOn] = React.useState(false);
+  const [lassoPts, setLassoPts] = React.useState<L.LatLng[]>([]);
+  const completeLasso = (poly: L.LatLng[]) => setLassoed(points.filter(p => pointInPolygon(p.lat, p.lon, poly)));
+  const [lassoed, setLassoed] = React.useState<ClusterPoint[]>([]);
+  const canEdit = !!(onAddJobs && onRemoveJobs);
+  const inRoute = (p: ClusterPoint) => !!routeJobKeys?.has(routeKey(p.orderId, p.type));
+  const iconFor = (color: string, p: ClusterPoint) => inRoute(p) ? colouredMarkerIcon('blue') : createColoredIcon(color, p.type === 'collection');
+  const asJobs = (ps: ClusterPoint[]): MapRouteJob[] => ps.map(p => ({ orderId: p.orderId, type: toRouteType(p.type) }));
+  const routeButton = (p: ClusterPoint) => canEdit && (
+    inRoute(p)
+      ? <Button size="sm" variant="outline" className="mt-2 h-7 w-full" onClick={() => { onRemoveJobs!(asJobs([p])); mapRef.current?.closePopup(); }}><Minus className="h-3 w-3 mr-1" />Remove from route</Button>
+      : <Button size="sm" className="mt-2 h-7 w-full" onClick={() => { onAddJobs!(asJobs([p])); mapRef.current?.closePopup(); }}><Plus className="h-3 w-3 mr-1" />Add to route</Button>
+  );
   
   useEffect(() => {
     fixLeafletIcon();
@@ -219,6 +245,29 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
         </div>
       )}
       
+      {canEdit && (
+        <div className="flex flex-wrap items-center gap-2">
+          <Button size="sm" variant={lassoOn ? 'default' : 'outline'} onClick={() => { setLassoOn(v => !v); setLassoed([]); setLassoPts([]); }}>
+            <Lasso className="h-4 w-4 mr-1" />{lassoOn ? 'Lasso on — click to add points' : 'Lasso'}
+          </Button>
+          {lassoOn && lassoPts.length > 0 && (
+            <>
+              <Button size="sm" disabled={lassoPts.length < 3} onClick={() => { completeLasso(lassoPts); setLassoPts([]); }}>Finish shape</Button>
+              <Button size="sm" variant="outline" onClick={() => setLassoPts(p => p.slice(0, -1))}>Undo point</Button>
+              <Button size="sm" variant="ghost" onClick={() => setLassoPts([])}>Cancel</Button>
+            </>
+          )}
+          {lassoed.length > 0 && (
+            <>
+              <span className="text-sm font-medium">{lassoed.length} job{lassoed.length === 1 ? '' : 's'} selected</span>
+              <Button size="sm" onClick={() => { onAddJobs!(asJobs(lassoed)); setLassoed([]); }}><Plus className="h-4 w-4 mr-1" />Add to route</Button>
+              <Button size="sm" variant="outline" onClick={() => { onRemoveJobs!(asJobs(lassoed)); setLassoed([]); }}><Minus className="h-4 w-4 mr-1" />Remove from route</Button>
+              <Button size="sm" variant="ghost" onClick={() => setLassoed([])}><X className="h-4 w-4 mr-1" />Clear</Button>
+            </>
+          )}
+          <span className="text-xs text-muted-foreground ml-auto">Blue pins are already in the route</span>
+        </div>
+      )}
       <div className="h-[400px] w-full rounded-lg overflow-hidden border border-border" id="cluster-map-container">
         <MapContainer 
           center={[center.lat, center.lng]} 
@@ -292,7 +341,7 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
               <Marker
                 key={point.id}
                 position={[point.lat, point.lon]}
-                icon={createColoredIcon(cluster.color, point.type === 'collection')}
+                icon={iconFor(cluster.color, point)}
               >
               <Popup>
                 <div className="p-2">
@@ -315,6 +364,7 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
                   <p className="text-xs mt-1" style={{ color: cluster.color }}>
                     Cluster: {getClusterName(cluster)}
                   </p>
+                  {routeButton(point)}
                 </div>
               </Popup>
               </Marker>
@@ -326,7 +376,7 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
             <Marker
               key={point.id}
               position={[point.lat, point.lon]}
-              icon={createColoredIcon('#3b82f6', point.type === 'collection')}
+              icon={iconFor('#3b82f6', point)}
             >
             <Popup>
               <div className="p-2">
@@ -346,10 +396,12 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
                     #{point.trackingNumber}
                   </a>
                 )}
+                {routeButton(point)}
               </div>
             </Popup>
             </Marker>
           ))}
+          <LassoLayer active={lassoOn} points={lassoPts} onPointsChange={setLassoPts} onComplete={completeLasso} />
         </MapContainer>
       </div>
     </div>
