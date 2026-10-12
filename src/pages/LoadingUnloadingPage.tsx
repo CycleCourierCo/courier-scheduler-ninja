@@ -17,7 +17,7 @@ import { getOrders, getOrdersForLoading, getOrdersByScheduledDate } from "@/serv
 import { Order } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Truck, Printer, CalendarIcon, Package, Send } from "lucide-react";
+import { Truck, Printer, CalendarIcon, Package, Send, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import jsPDF from 'jspdf';
@@ -66,6 +66,7 @@ const LoadingUnloadingPage = () => {
   const [isLoadingDatePickerOpen, setIsLoadingDatePickerOpen] = useState(false);
   const [isLoadingListDialogOpen, setIsLoadingListDialogOpen] = useState(false);
   const [showDriverPhoneDialog, setShowDriverPhoneDialog] = useState(false);
+  const [isSendingLoadingList, setIsSendingLoadingList] = useState(false);
   const [driversForLoading, setDriversForLoading] = useState<string[]>([]);
   const [driverPhoneNumbers, setDriverPhoneNumbers] = useState<Record<string, string>>({});
   const [driverEmails, setDriverEmails] = useState<Record<string, string>>({});
