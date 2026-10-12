@@ -126,6 +126,8 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
 }) => {
   const mapRef = React.useRef<L.Map | null>(null);
   const [lassoOn, setLassoOn] = React.useState(false);
+  const [lassoPts, setLassoPts] = React.useState<L.LatLng[]>([]);
+  const completeLasso = (poly: L.LatLng[]) => setLassoed(points.filter(p => pointInPolygon(p.lat, p.lon, poly)));
   const [lassoed, setLassoed] = React.useState<ClusterPoint[]>([]);
   const canEdit = !!(onAddJobs && onRemoveJobs);
   const inRoute = (p: ClusterPoint) => !!routeJobKeys?.has(routeKey(p.orderId, p.type));
@@ -245,9 +247,16 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
       
       {canEdit && (
         <div className="flex flex-wrap items-center gap-2">
-          <Button size="sm" variant={lassoOn ? 'default' : 'outline'} onClick={() => { setLassoOn(v => !v); setLassoed([]); }}>
-            <Lasso className="h-4 w-4 mr-1" />{lassoOn ? 'Lasso on — drag around pins' : 'Lasso'}
+          <Button size="sm" variant={lassoOn ? 'default' : 'outline'} onClick={() => { setLassoOn(v => !v); setLassoed([]); setLassoPts([]); }}>
+            <Lasso className="h-4 w-4 mr-1" />{lassoOn ? 'Lasso on — click to add points' : 'Lasso'}
           </Button>
+          {lassoOn && lassoPts.length > 0 && (
+            <>
+              <Button size="sm" disabled={lassoPts.length < 3} onClick={() => { completeLasso(lassoPts); setLassoPts([]); }}>Finish shape</Button>
+              <Button size="sm" variant="outline" onClick={() => setLassoPts(p => p.slice(0, -1))}>Undo point</Button>
+              <Button size="sm" variant="ghost" onClick={() => setLassoPts([])}>Cancel</Button>
+            </>
+          )}
           {lassoed.length > 0 && (
             <>
               <span className="text-sm font-medium">{lassoed.length} job{lassoed.length === 1 ? '' : 's'} selected</span>
@@ -392,7 +401,7 @@ const ClusterMap: React.FC<ClusterMapProps> = ({
             </Popup>
             </Marker>
           ))}
-          <LassoLayer active={lassoOn} onComplete={(poly) => setLassoed(points.filter(p => pointInPolygon(p.lat, p.lon, poly)))} />
+          <LassoLayer active={lassoOn} points={lassoPts} onPointsChange={setLassoPts} onComplete={completeLasso} />
         </MapContainer>
       </div>
     </div>
