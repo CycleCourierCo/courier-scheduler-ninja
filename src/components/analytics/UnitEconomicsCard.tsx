@@ -151,7 +151,7 @@ const UnitEconomicsCard = ({ dayData, weekData, monthData, yearData, costPerMile
         </Tabs>
         <div className="mt-4 space-y-1 text-xs text-muted-foreground">
           {!!draftCount && (
-            <p>{draftCount} draft timeslip{draftCount === 1 ? "" : "s"} this year not included until approved.</p>
+            <p>Includes {draftCount} draft timeslip{draftCount === 1 ? "" : "s"} this year — figures may change once approved.</p>
           )}
           {costMode === "actual" ? (
             <>
