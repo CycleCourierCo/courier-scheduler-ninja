@@ -579,6 +579,135 @@ const BikeCountBadge: React.FC<BikeCountBadgeProps> = ({ orderData, bikeCount, v
   );
 };
 
+interface AvailabilityDatesPopoverProps {
+  jobType: 'pickup' | 'delivery' | 'break';
+  selectedDate?: Date;
+  pickupDates?: string[] | null;
+  deliveryDates?: string[] | null;
+  badge: React.ReactNode;
+}
+
+// Sorted, de-duplicated yyyy-MM-dd list of the dates the customer gave for a leg.
+const normaliseAvailabilityDateStrings = (dates?: string[] | null): string[] => {
+  const strs = (dates || [])
+    .map((d) => {
+      const parsed = new Date(d);
+      return isNaN(parsed.getTime()) ? null : format(parsed, 'yyyy-MM-dd');
+    })
+    .filter((d): d is string => !!d);
+  return [...new Set(strs)].sort();
+};
+
+// Hover (or tap on a phone) the availability badge to see the dates the customer chose.
+const AvailabilityDatesPopover: React.FC<AvailabilityDatesPopoverProps> = ({
+  jobType,
+  selectedDate,
+  pickupDates,
+  deliveryDates,
+  badge,
+}) => {
+  const isMobile = useIsMobile();
+  const [open, setOpen] = useState(false);
+  const [pinned, setPinned] = useState(false);
+
+  const dateStrs = normaliseAvailabilityDateStrings(
+    jobType === 'pickup' ? pickupDates : deliveryDates
+  );
+
+  // Nothing to list until the customer has given dates — leave the badge alone.
+  if (dateStrs.length === 0) return <>{badge}</>;
+
+  const plannedStr = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : null;
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const remaining = dateStrs.filter((d) => d >= todayStr).length;
+
+  const details = (
+    <div className="space-y-1">
+      <div className="font-medium text-xs">
+        {jobType === 'pickup' ? 'Collection dates' : 'Delivery dates'}
+      </div>
+      <ul className="space-y-0.5 text-xs">
+        {dateStrs.map((d) => {
+          const isPlanned = d === plannedStr;
+          const isPast = d < todayStr && !isPlanned;
+          return (
+            <li key={d} className="flex items-center gap-1.5">
+              <span className="flex w-3 shrink-0 justify-center">
+                {isPlanned && <Check className="h-3 w-3 text-green-600" />}
+              </span>
+              <span
+                className={cn(
+                  'font-medium',
+                  isPast && 'text-muted-foreground line-through',
+                  isPlanned && 'text-green-700 dark:text-green-300'
+                )}
+              >
+                {format(new Date(d), 'EEE d MMM')}
+              </span>
+              {isPast && <span className="text-[10px] text-muted-foreground">(past)</span>}
+              {isPlanned && <span className="text-[10px] text-muted-foreground">this day</span>}
+            </li>
+          );
+        })}
+      </ul>
+      <div className="pt-1 text-[10px] text-muted-foreground">
+        {dateStrs.length} {dateStrs.length === 1 ? 'date' : 'dates'} · {remaining} still ahead
+      </div>
+      {!isMobile && (
+        <div className="text-[10px] text-muted-foreground">
+          {pinned ? 'Click the badge again to unpin' : 'Click to keep this open'}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setPinned(false);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label="Show the dates the customer chose"
+          className="inline-flex"
+          onMouseEnter={isMobile ? undefined : () => setOpen(true)}
+          onMouseLeave={isMobile ? undefined : () => { if (!pinned) setOpen(false); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (isMobile) {
+              setOpen((o) => !o);
+              return;
+            }
+            if (pinned) {
+              setPinned(false);
+              setOpen(false);
+            } else {
+              setPinned(true);
+              setOpen(true);
+            }
+          }}
+        >
+          {badge}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        side="top"
+        align="start"
+        className="w-auto max-w-[16rem] p-2 z-[60]"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        onMouseEnter={isMobile ? undefined : () => setOpen(true)}
+        onMouseLeave={isMobile ? undefined : () => { if (!pinned) setOpen(false); }}
+      >
+        {details}
+      </PopoverContent>
+    </Popover>
+  );
+};
+
 // One-tap copy button for an address, with a brief "Copied" tick.
 const CopyAddressButton: React.FC<{ text: string }> = ({ text }) => {
   const [copied, setCopied] = useState(false);
@@ -821,9 +950,17 @@ const JobItem: React.FC<JobItemProps> = ({
                           {/* Badges row */}
                           <div className="flex gap-1 flex-wrap">
                             {availabilityBadge && (
-                              <Badge className={`text-xs px-1.5 py-0 ${availabilityBadge.color}`}>
-                                {availabilityBadge.text}
-                              </Badge>
+                              <AvailabilityDatesPopover
+                                jobType={groupedJob.type}
+                                selectedDate={selectedDate}
+                                pickupDates={groupedJob.orderData?.pickup_date}
+                                deliveryDates={groupedJob.orderData?.delivery_date}
+                                badge={
+                                  <Badge className={`text-xs px-1.5 py-0 ${availabilityBadge.color}`}>
+                                    {availabilityBadge.text}
+                                  </Badge>
+                                }
+                              />
                             )}
                             {collectionBadge && (
                               <Badge className={`text-xs px-1.5 py-0 flex items-center gap-1 ${collectionBadge.color}`}>
@@ -954,9 +1091,17 @@ const JobItem: React.FC<JobItemProps> = ({
                           job.orderData?.delivery_date
                         );
                         return availabilityBadge ? (
-                          <Badge className={`text-xs px-1.5 py-0 ${availabilityBadge.color}`}>
-                            {availabilityBadge.text}
-                          </Badge>
+                          <AvailabilityDatesPopover
+                            jobType={job.type}
+                            selectedDate={selectedDate}
+                            pickupDates={job.orderData?.pickup_date}
+                            deliveryDates={job.orderData?.delivery_date}
+                            badge={
+                              <Badge className={`text-xs px-1.5 py-0 ${availabilityBadge.color}`}>
+                                {availabilityBadge.text}
+                              </Badge>
+                            }
+                          />
                         ) : null;
                       })()}
 
