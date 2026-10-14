@@ -86,8 +86,8 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
     setSaving(true);
     try {
       const newEmail = formData.email?.trim().toLowerCase();
-      const oldEmail = user.email?.trim().toLowerCase();
-      if (newEmail && newEmail !== oldEmail) {
+      // Always sync: the shown email can differ from the real sign-in email.
+      if (newEmail) {
         const { data, error } = await supabase.functions.invoke('update-user-email', {
           body: { userId: user.id, email: newEmail },
         });
