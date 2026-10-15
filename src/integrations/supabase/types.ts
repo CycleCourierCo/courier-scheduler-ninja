@@ -650,6 +650,106 @@ export type Database = {
           },
         ]
       }
+      caz_charges: {
+        Row: {
+          charge: number
+          created_at: string
+          date: string
+          dedupe_key: string
+          driver_id: string | null
+          exempt: boolean
+          id: string
+          paid_at: string | null
+          paid_by: string | null
+          timeslip_id: string | null
+          vehicle_id: string | null
+          zone_slug: string
+        }
+        Insert: {
+          charge?: number
+          created_at?: string
+          date: string
+          dedupe_key: string
+          driver_id?: string | null
+          exempt?: boolean
+          id?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          timeslip_id?: string | null
+          vehicle_id?: string | null
+          zone_slug: string
+        }
+        Update: {
+          charge?: number
+          created_at?: string
+          date?: string
+          dedupe_key?: string
+          driver_id?: string | null
+          exempt?: boolean
+          id?: string
+          paid_at?: string | null
+          paid_by?: string | null
+          timeslip_id?: string | null
+          vehicle_id?: string | null
+          zone_slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caz_charges_timeslip_id_fkey"
+            columns: ["timeslip_id"]
+            isOneToOne: false
+            referencedRelation: "timeslips"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caz_charges_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caz_charges_zone_slug_fkey"
+            columns: ["zone_slug"]
+            isOneToOne: false
+            referencedRelation: "clean_air_zones"
+            referencedColumns: ["slug"]
+          },
+        ]
+      }
+      caz_vehicle_exemptions: {
+        Row: {
+          created_at: string
+          vehicle_id: string
+          zone_slug: string
+        }
+        Insert: {
+          created_at?: string
+          vehicle_id: string
+          zone_slug: string
+        }
+        Update: {
+          created_at?: string
+          vehicle_id?: string
+          zone_slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caz_vehicle_exemptions_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "caz_vehicle_exemptions_zone_slug_fkey"
+            columns: ["zone_slug"]
+            isOneToOne: false
+            referencedRelation: "clean_air_zones"
+            referencedColumns: ["slug"]
+          },
+        ]
+      }
       claim_evidence_files: {
         Row: {
           claim_id: string
@@ -911,6 +1011,30 @@ export type Database = {
           title_transferred?: boolean | null
           updated_at?: string
           within_timeframe?: boolean | null
+        }
+        Relationships: []
+      }
+      clean_air_zones: {
+        Row: {
+          daily_charge: number
+          name: string
+          pay_url: string | null
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          daily_charge?: number
+          name: string
+          pay_url?: string | null
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          daily_charge?: number
+          name?: string
+          pay_url?: string | null
+          slug?: string
+          updated_at?: string
         }
         Relationships: []
       }
@@ -7119,6 +7243,7 @@ export type Database = {
       }
       invoice_check_cutoff: { Args: never; Returns: string }
       invoke_backfill_shipday_jobs: { Args: never; Returns: undefined }
+      invoke_caz_daily_check: { Args: never; Returns: undefined }
       invoke_cs_resend_fetch: { Args: never; Returns: undefined }
       invoke_expire_availability: { Args: never; Returns: undefined }
       invoke_ferry_partner_notification: {
