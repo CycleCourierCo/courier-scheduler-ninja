@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { MapContainer, TileLayer, GeoJSON, Tooltip } from "react-leaflet";
+import { MapContainer, TileLayer, GeoJSON } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { addDays, format, startOfWeek } from "date-fns";
 import { ChevronLeft, ChevronRight, Download, RefreshCw, ExternalLink, Loader2 } from "lucide-react";
@@ -213,9 +213,8 @@ const CleanAirZonesPage = () => {
                 <MapContainer center={[52.8, -1.9]} zoom={6} style={{ height: 420 }} scrollWheelZoom>
                   <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" attribution="&copy; OpenStreetMap" />
                   {geo.map((g) => (
-                    <GeoJSON key={g.slug} data={g.data} style={{ color: "hsl(var(--primary))", weight: 2, fillOpacity: 0.25 }}>
-                      <Tooltip sticky>{g.name}</Tooltip>
-                    </GeoJSON>
+                    <GeoJSON key={g.slug} data={g.data} style={() => ({ color: "hsl(var(--primary))", weight: 2, fillOpacity: 0.25 })}
+                      onEachFeature={(_f: any, layer: any) => layer.bindTooltip(g.name, { sticky: true })} />
                   ))}
                 </MapContainer>
               </CardContent>
