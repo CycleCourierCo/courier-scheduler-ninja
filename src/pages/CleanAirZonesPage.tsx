@@ -19,6 +19,8 @@ import { toast } from "sonner";
 const db = supabase as any;
 const ymd = (d: Date) => format(d, "yyyy-MM-dd");
 const zoneName = (slug: string) => CLEAN_AIR_ZONES.find((z) => z.slug === slug)?.name ?? slug;
+// Vans that are no longer on the fleet aren't listed for exemptions.
+const UNLISTED_VAN_STATUSES = new Set(["sold", "written_off"]);
 
 const CleanAirZonesPage = () => {
   const qc = useQueryClient();
@@ -108,7 +110,11 @@ const CleanAirZonesPage = () => {
     qc.invalidateQueries({ queryKey: ["caz-vehicles"] });
   };
   const allSlugs = CLEAN_AIR_ZONES.map((z) => z.slug);
-  const allVanIds = (vehiclesQ.data?.vehicles || []).map((v: any) => v.id);
+  const listedVans = useMemo(
+    () => (vehiclesQ.data?.vehicles || []).filter((v: any) => !UNLISTED_VAN_STATUSES.has(v.status)),
+    [vehiclesQ.data],
+  );
+  const allVanIds = listedVans.map((v: any) => v.id);
   const isAll = (vIds: string[], slugs: string[]) =>
     vIds.length > 0 && vIds.every((v) => slugs.every((s) => vehiclesQ.data?.exempt.has(`${v}:${s}`)));
 
@@ -266,7 +272,7 @@ const CleanAirZonesPage = () => {
               <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <CardTitle className="text-base">Compliant vans</CardTitle>
-                  <CardDescription>Tick a zone where a van isn't charged. Its trips still show, as "Exempt".</CardDescription>
+                  <CardDescription>Tick a zone where a van isn't charged. Its trips still show, as "Exempt". Sold and written-off vans aren't listed.</CardDescription>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => setExemptBulk(allVanIds, allSlugs, !isAll(allVanIds, allSlugs))}>
                   {isAll(allVanIds, allSlugs) ? "Untick all" : "Tick all"}
@@ -290,7 +296,7 @@ const CleanAirZonesPage = () => {
                     })}
                   </TableRow></TableHeader>
                   <TableBody>
-                    {(vehiclesQ.data?.vehicles || []).map((v: any) => {
+                    {listedVans.map((v: any) => {
                       const rowAll = isAll([v.id], allSlugs);
                       return (
                       <TableRow key={v.id}>
