@@ -1698,6 +1698,21 @@ const OrderDetail = () => {
                 </div>
               </div>
 
+              {editDatesSide && id && (
+                <EditAvailabilityDialog
+                  open={!!editDatesSide}
+                  onOpenChange={(o) => { if (!o) setEditDatesSide(null); }}
+                  orderId={id}
+                  side={editDatesSide}
+                  currentDates={editDatesSide === 'sender' ? order.pickupDate : order.deliveryDate}
+                  currentStatus={order.status}
+                  onSaved={async () => {
+                    const updated = await getOrderById(id);
+                    if (updated) setOrder(updated);
+                  }}
+                />
+              )}
+
               <SchedulingButtons
                 orderId={id as string}
                 onSchedulePickup={handleSchedulePickup}
