@@ -44,7 +44,7 @@ Deno.serve(async (req) => {
     for (let from = 0; ; from += 1000) {
       let q = admin
         .from("orders")
-        .select("id, user_id, sender, receiver, pickup_date, delivery_date")
+        .select("id, user_id, sender, receiver, pickup_date, delivery_date, needs_inspection")
         .not("status", "in", "(delivered,cancelled)");
       if (f.missingDates === "sender") q = q.or("pickup_date.is.null,pickup_date.eq.{}");
       else if (f.missingDates === "receiver") q = q.or("delivery_date.is.null,delivery_date.eq.{}");
@@ -86,7 +86,22 @@ Deno.serve(async (req) => {
       (data || []).forEach((r: any) => recent.add(`${r.order_id}:${r.side}`));
     }
 
-    const counts = { sent: 0, failed: 0, smsSent: 0, smsFailed: 0, noPhone: 0, testAccount: 0, recentlyChased: 0, waitingOnSender: 0 };
+    // Workshop gate: receivers aren't chased until every inspection is complete.
+    const inspIds = orders.filter((o) => o.needs_inspection === true).map((o) => o.id);
+    const inspByOrder = new Map<string, string[]>();
+    for (let i = 0; i < inspIds.length; i += 200) {
+      const { data, error } = await admin.from("bicycle_inspections").select("order_id, status")
+        .in("order_id", inspIds.slice(i, i + 200));
+      if (error) throw error;
+      (data || []).forEach((r: any) => inspByOrder.set(r.order_id, [...(inspByOrder.get(r.order_id) || []), r.status]));
+    }
+    const workshopPending = (o: any) => {
+      if (o.needs_inspection !== true) return false;
+      const s = inspByOrder.get(o.id) || [];
+      return s.length === 0 || !s.every((x) => x === "repaired" || x === "ship_as_is");
+    };
+
+    const counts = { sent: 0, failed: 0, smsSent: 0, smsFailed: 0, noPhone: 0, testAccount: 0, recentlyChased: 0, waitingOnSender: 0, awaitingWorkshop: 0 };
     const jobs: { order: any; side: "sender" | "receiver"; phone: string }[] = [];
 
     for (const o of orders) {
@@ -96,6 +111,7 @@ Deno.serve(async (req) => {
       if (f.missingDates !== "receiver" && senderMissing) sides.push("sender");
       if (f.missingDates !== "sender" && receiverMissing) {
         if (senderMissing) counts.waitingOnSender++;
+        else if (workshopPending(o)) counts.awaitingWorkshop++;
         else sides.push("receiver");
       }
       for (const side of sides) {
