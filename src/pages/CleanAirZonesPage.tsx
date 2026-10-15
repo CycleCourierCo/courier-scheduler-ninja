@@ -296,7 +296,7 @@ const CleanAirZonesPage = () => {
                     })}
                   </TableRow></TableHeader>
                   <TableBody>
-                    {(vehiclesQ.data?.vehicles || []).map((v: any) => {
+                    {listedVans.map((v: any) => {
                       const rowAll = isAll([v.id], allSlugs);
                       return (
                       <TableRow key={v.id}>
