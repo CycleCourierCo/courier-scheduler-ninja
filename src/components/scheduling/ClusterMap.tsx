@@ -39,23 +39,15 @@ interface ClusterMapProps {
 // Determine which jobs are needed based on order status
 const getJobsForOrder = (order: OrderData): ('collection' | 'delivery')[] => {
   const status = order.status;
-  const isCollected = order.order_collected === true;
-  
   if (['delivered', 'cancelled'].includes(status)) return [];
-  if (['collected', 'driver_to_delivery', 'delivery_scheduled'].includes(status)) {
-    return ['delivery'];
-  }
-  if (status === 'collection_scheduled') {
-    // Hide collection marker if already collected
-    return isCollected ? [] : ['collection'];
-  }
-  
-  // For other statuses, hide collection if already collected
+  const collectionDone =
+    order.order_collected === true ||
+    !!order.scheduled_pickup_date ||
+    ['collected', 'driver_to_delivery', 'delivery_scheduled'].includes(status);
+  const deliveryDone = !!order.scheduled_delivery_date || order.is_box_my_bike === true;
   const jobs: ('collection' | 'delivery')[] = [];
-  if (!isCollected) {
-    jobs.push('collection');
-  }
-  jobs.push('delivery');
+  if (!collectionDone) jobs.push('collection');
+  if (!deliveryDone) jobs.push('delivery');
   return jobs;
 };
 

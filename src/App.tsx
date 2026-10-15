@@ -67,6 +67,7 @@ const ClaimsList = lazy(() => import("./pages/ClaimsList"));
 const NewClaim = lazy(() => import("./pages/NewClaim"));
 const ClaimDetail = lazy(() => import("./pages/ClaimDetail"));
 const IrelandPage = lazy(() => import("./pages/IrelandPage"));
+const CleanAirZonesPage = lazy(() => import("./pages/CleanAirZonesPage"));
 const BoxMyBikePage = lazy(() => import("./pages/BoxMyBikePage"));
 const BuildMyBikePage = lazy(() => import("./pages/BuildMyBikePage"));
 const CustomerServiceInbox = lazy(() => import("./pages/CustomerServiceInbox"));
@@ -251,6 +252,11 @@ function App() {
               <Route path="/bicycle-inspections" element={
                 <ProtectedRoute>
                   <BicycleInspections />
+                </ProtectedRoute>
+              } />
+              <Route path="/clean-air-zones" element={
+                <ProtectedRoute>
+                  <CleanAirZonesPage />
                 </ProtectedRoute>
               } />
               <Route path="/ireland" element={

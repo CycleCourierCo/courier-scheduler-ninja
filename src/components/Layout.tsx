@@ -48,6 +48,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
       { to: "/storage-bays", label: "Storage Bays", icon: Warehouse },
       { to: "/trunk-runs", label: "Trunk Runs", icon: Truck },
       { to: "/ireland", label: "Ireland", icon: Package2 },
+      { to: "/clean-air-zones", label: "Clean Air Zones", icon: Truck },
       { to: "/bulk-availability", label: "Bulk Availability", icon: Clock },
       { to: "/my-stock", label: "My Stock", icon: Warehouse },
     ],

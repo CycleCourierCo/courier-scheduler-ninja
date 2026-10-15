@@ -49,7 +49,7 @@ export interface MonthlyProfitabilityData {
   profit: number;
 }
 
-// Only approved timeslips count towards profitability; drafts lack final mileage/pay.
+// Approved and draft timeslips both count towards profitability (user request).
 const fetchApprovedTimeslips = async (startDate: string, endDate: string): Promise<Timeslip[]> => {
   const PAGE = 1000;
   const all: Timeslip[] = [];
@@ -57,7 +57,7 @@ const fetchApprovedTimeslips = async (startDate: string, endDate: string): Promi
     const { data, error } = await supabase
       .from('timeslips')
       .select(`*, driver:profiles!timeslips_driver_id_fkey(*)`)
-      .eq('status', 'approved')
+      .in('status', ['approved', 'draft'])
       .gte('date', startDate)
       .lte('date', endDate)
       .order('date', { ascending: true })

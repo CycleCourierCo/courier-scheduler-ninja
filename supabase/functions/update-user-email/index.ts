@@ -39,6 +39,12 @@ Deno.serve(async (req) => {
     if (!userId) return json({ error: 'userId is required' }, 400);
     if (!EMAIL_RE.test(email)) return json({ error: 'A valid email address is required' }, 400);
 
+    const { data: target } = await supabaseAdmin.auth.admin.getUserById(userId);
+    if (target?.user?.email?.toLowerCase() === email) {
+      await supabaseAdmin.from('profiles').update({ email }).eq('id', userId);
+      return json({ success: true, unchanged: true });
+    }
+
     // Reject if another auth user already has this email
     const { data: existing } = await supabaseAdmin
       .from('profiles')
