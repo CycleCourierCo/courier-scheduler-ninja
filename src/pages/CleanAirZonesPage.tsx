@@ -110,7 +110,11 @@ const CleanAirZonesPage = () => {
     qc.invalidateQueries({ queryKey: ["caz-vehicles"] });
   };
   const allSlugs = CLEAN_AIR_ZONES.map((z) => z.slug);
-  const allVanIds = (vehiclesQ.data?.vehicles || []).map((v: any) => v.id);
+  const listedVans = useMemo(
+    () => (vehiclesQ.data?.vehicles || []).filter((v: any) => !UNLISTED_VAN_STATUSES.has(v.status)),
+    [vehiclesQ.data],
+  );
+  const allVanIds = listedVans.map((v: any) => v.id);
   const isAll = (vIds: string[], slugs: string[]) =>
     vIds.length > 0 && vIds.every((v) => slugs.every((s) => vehiclesQ.data?.exempt.has(`${v}:${s}`)));
 
