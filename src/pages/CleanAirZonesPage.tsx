@@ -93,6 +93,25 @@ const CleanAirZonesPage = () => {
     qc.invalidateQueries({ queryKey: ["caz-vehicles"] });
   };
 
+  // Bulk set exemptions for a set of vans × zones in one go
+  const setExemptBulk = async (vehicleIds: string[], slugs: string[], on: boolean) => {
+    if (!vehicleIds.length || !slugs.length) return;
+    const exempt = vehiclesQ.data?.exempt ?? new Set<string>();
+    let error: any = null;
+    if (on) {
+      const rows = vehicleIds.flatMap((v) => slugs.filter((s) => !exempt.has(`${v}:${s}`)).map((s) => ({ vehicle_id: v, zone_slug: s })));
+      if (rows.length) ({ error } = await db.from("caz_vehicle_exemptions").insert(rows));
+    } else {
+      ({ error } = await db.from("caz_vehicle_exemptions").delete().in("vehicle_id", vehicleIds).in("zone_slug", slugs));
+    }
+    if (error) return toast.error("Couldn't update");
+    qc.invalidateQueries({ queryKey: ["caz-vehicles"] });
+  };
+  const allSlugs = CLEAN_AIR_ZONES.map((z) => z.slug);
+  const allVanIds = (vehiclesQ.data?.vehicles || []).map((v: any) => v.id);
+  const isAll = (vIds: string[], slugs: string[]) =>
+    vIds.length > 0 && vIds.every((v) => slugs.every((s) => vehiclesQ.data?.exempt.has(`${v}:${s}`)));
+
   const runCheck = async () => {
     setChecking(true);
     try {
@@ -244,26 +263,46 @@ const CleanAirZonesPage = () => {
 
           <TabsContent value="vans">
             <Card>
-              <CardHeader>
-                <CardTitle className="text-base">Compliant vans</CardTitle>
-                <CardDescription>Tick a zone where a van isn't charged. Its trips still show, as "Exempt".</CardDescription>
+              <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle className="text-base">Compliant vans</CardTitle>
+                  <CardDescription>Tick a zone where a van isn't charged. Its trips still show, as "Exempt".</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => setExemptBulk(allVanIds, allSlugs, !isAll(allVanIds, allSlugs))}>
+                  {isAll(allVanIds, allSlugs) ? "Untick all" : "Tick all"}
+                </Button>
               </CardHeader>
               <CardContent className="overflow-x-auto">
                 <Table>
                   <TableHeader><TableRow>
                     <TableHead>Van</TableHead>
-                    {CLEAN_AIR_ZONES.map((z) => <TableHead key={z.slug} className="text-center whitespace-nowrap">{z.name.split(" (")[0]}</TableHead>)}
+                    <TableHead className="text-center whitespace-nowrap">All zones</TableHead>
+                    {CLEAN_AIR_ZONES.map((z) => {
+                      const all = isAll(allVanIds, [z.slug]);
+                      return (
+                        <TableHead key={z.slug} className="text-center whitespace-nowrap">
+                          <div className="flex flex-col items-center gap-1 py-1">
+                            <span>{z.name.split(" (")[0]}</span>
+                            <Checkbox aria-label={`Tick all vans for ${z.name}`} checked={all} onCheckedChange={() => setExemptBulk(allVanIds, [z.slug], !all)} />
+                          </div>
+                        </TableHead>
+                      );
+                    })}
                   </TableRow></TableHeader>
                   <TableBody>
-                    {(vehiclesQ.data?.vehicles || []).map((v: any) => (
+                    {(vehiclesQ.data?.vehicles || []).map((v: any) => {
+                      const rowAll = isAll([v.id], allSlugs);
+                      return (
                       <TableRow key={v.id}>
                         <TableCell className="whitespace-nowrap font-medium">{v.registration}{v.make ? ` · ${v.make}` : ""}</TableCell>
+                        <TableCell className="text-center"><Checkbox aria-label={`All zones for ${v.registration}`} checked={rowAll} onCheckedChange={() => setExemptBulk([v.id], allSlugs, !rowAll)} /></TableCell>
                         {CLEAN_AIR_ZONES.map((z) => {
                           const on = vehiclesQ.data!.exempt.has(`${v.id}:${z.slug}`);
                           return <TableCell key={z.slug} className="text-center"><Checkbox checked={on} onCheckedChange={() => toggleExempt(v.id, z.slug, !on)} /></TableCell>;
                         })}
                       </TableRow>
-                    ))}
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </CardContent>
