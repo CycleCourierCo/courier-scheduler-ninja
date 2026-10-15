@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import OrderHeader from "@/components/order-detail/OrderHeader";
 import DateSelection from "@/components/order-detail/DateSelection";
 import EmailDeliveryStatus from "@/components/order-detail/EmailDeliveryStatus";
+import EditAvailabilityDialog from "@/components/order-detail/EditAvailabilityDialog";
 import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
 import ItemDetails from "@/components/order-detail/ItemDetails";
 import { StorageLocation } from "@/components/order-detail/StorageLocation";
@@ -728,6 +729,8 @@ const OrderDetail = () => {
       setIsSubmitting(false);
     }
   };
+
+  const [editDatesSide, setEditDatesSide] = useState<'sender' | 'receiver' | null>(null);
 
   const handleResetSenderAvailability = async () => {
     if (!id) return;
@@ -1581,6 +1584,11 @@ const OrderDetail = () => {
                     </div>
                   )}
                   {isAdminOrRoutePlanner && (
+                    <Button onClick={() => setEditDatesSide('sender')} variant="outline" size="sm" className="w-full">
+                      Edit Sender Dates
+                    </Button>
+                  )}
+                  {isAdminOrRoutePlanner && (
                     <Button 
                       onClick={handleResetSenderAvailability}
                       variant="outline"
@@ -1645,6 +1653,11 @@ const OrderDetail = () => {
                     <div className="bg-muted/50 p-3 rounded-md">
                       <p className="text-muted-foreground">No receiver availability provided</p>
                     </div>
+                  )}
+                  {isAdminOrRoutePlanner && (
+                    <Button onClick={() => setEditDatesSide('receiver')} variant="outline" size="sm" className="w-full">
+                      Edit Receiver Dates
+                    </Button>
                   )}
                   {isAdminOrRoutePlanner && (
                     <Button 
