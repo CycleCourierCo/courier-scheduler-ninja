@@ -272,7 +272,7 @@ const CleanAirZonesPage = () => {
               <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <CardTitle className="text-base">Compliant vans</CardTitle>
-                  <CardDescription>Tick a zone where a van isn't charged. Its trips still show, as "Exempt".</CardDescription>
+                  <CardDescription>Tick a zone where a van isn't charged. Its trips still show, as "Exempt". Sold and written-off vans aren't listed.</CardDescription>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => setExemptBulk(allVanIds, allSlugs, !isAll(allVanIds, allSlugs))}>
                   {isAll(allVanIds, allSlugs) ? "Untick all" : "Tick all"}
