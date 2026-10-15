@@ -129,6 +129,14 @@ Deno.serve(async (req) => {
       if (!data || data.length < 1000) break;
     }
 
+    // Fall back to the driver's default van when the timeslip has none.
+    const driverIds = [...new Set(slips.filter((t) => !t.vehicle_id).map((t) => t.driver_id))];
+    if (driverIds.length) {
+      const { data: profs } = await admin.from('profiles').select('id, default_vehicle_id').in('id', driverIds);
+      const def = new Map((profs || []).map((p: any) => [p.id, p.default_vehicle_id]));
+      for (const t of slips) if (!t.vehicle_id) t.vehicle_id = def.get(t.driver_id) || null;
+    }
+
     let checked = 0, failed = 0;
     const rows: any[] = [];
     for (let i = 0; i < slips.length; i += 5) {
@@ -153,6 +161,12 @@ Deno.serve(async (req) => {
     }
     // One charge per van (or driver without van) per zone per day.
     const unique = [...new Map(rows.map((r) => [r.dedupe_key, r])).values()];
+    // Replace earlier unpaid "no van" rows now that a van is known.
+    for (const r of unique.filter((r) => r.vehicle_id)) {
+      await admin.from('caz_charges').delete()
+        .eq('date', date).eq('driver_id', r.driver_id).eq('zone_slug', r.zone_slug)
+        .is('vehicle_id', null).is('paid_at', null);
+    }
     if (unique.length) {
       const { error } = await admin.from('caz_charges').upsert(unique, { onConflict: 'dedupe_key', ignoreDuplicates: true });
       if (error) throw error;
