@@ -122,7 +122,7 @@ Deno.serve(async (req) => {
             type: "template",
             template: {
               name: "dates_chaser",
-              lang_code: "en_GB",
+              lang_code: "en",
               components: [{ type: "body", parameters: [{ type: "text", text: link }] }],
             },
           }),
