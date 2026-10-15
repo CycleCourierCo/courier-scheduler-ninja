@@ -56,7 +56,10 @@ const CleanAirZonesPage = () => {
   });
 
   const vehicleReg = (id: string | null) => vehiclesQ.data?.vehicles.find((v: any) => v.id === id)?.registration || "—";
-  const charges = chargesQ.data || [];
+  // Hide trips by vans that are exempt for that zone (now or when recorded).
+  const charges = useMemo(() => (chargesQ.data || []).filter((c: any) =>
+    !c.exempt && !(c.vehicle_id && vehiclesQ.data?.exempt.has(`${c.vehicle_id}:${c.zone_slug}`))
+  ), [chargesQ.data, vehiclesQ.data]);
   const totals = useMemo(() => {
     const byZone = new Map<string, number>(), byDriver = new Map<string, number>();
     let unpaid = 0;
