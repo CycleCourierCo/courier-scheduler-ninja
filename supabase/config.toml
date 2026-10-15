@@ -165,3 +165,6 @@ verify_jwt = false
 # Divergent signs webhooks with RFC 9421 HMAC, checked in code.
 [functions.divergent-webhook]
 verify_jwt = false
+
+[functions.caz-daily-check]
+verify_jwt = false
