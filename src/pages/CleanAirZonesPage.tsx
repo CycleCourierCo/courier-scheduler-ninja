@@ -19,6 +19,8 @@ import { toast } from "sonner";
 const db = supabase as any;
 const ymd = (d: Date) => format(d, "yyyy-MM-dd");
 const zoneName = (slug: string) => CLEAN_AIR_ZONES.find((z) => z.slug === slug)?.name ?? slug;
+// Vans that are no longer on the fleet aren't listed for exemptions.
+const UNLISTED_VAN_STATUSES = new Set(["sold", "written_off"]);
 
 const CleanAirZonesPage = () => {
   const qc = useQueryClient();
