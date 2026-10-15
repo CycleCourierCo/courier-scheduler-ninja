@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import OrderHeader from "@/components/order-detail/OrderHeader";
 import DateSelection from "@/components/order-detail/DateSelection";
 import EmailDeliveryStatus from "@/components/order-detail/EmailDeliveryStatus";
+import EditAvailabilityDialog from "@/components/order-detail/EditAvailabilityDialog";
 import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
 import ItemDetails from "@/components/order-detail/ItemDetails";
 import { StorageLocation } from "@/components/order-detail/StorageLocation";
@@ -728,6 +729,8 @@ const OrderDetail = () => {
       setIsSubmitting(false);
     }
   };
+
+  const [editDatesSide, setEditDatesSide] = useState<'sender' | 'receiver' | null>(null);
 
   const handleResetSenderAvailability = async () => {
     if (!id) return;
@@ -1581,6 +1584,11 @@ const OrderDetail = () => {
                     </div>
                   )}
                   {isAdminOrRoutePlanner && (
+                    <Button onClick={() => setEditDatesSide('sender')} variant="outline" size="sm" className="w-full">
+                      Edit Sender Dates
+                    </Button>
+                  )}
+                  {isAdminOrRoutePlanner && (
                     <Button 
                       onClick={handleResetSenderAvailability}
                       variant="outline"
@@ -1647,6 +1655,11 @@ const OrderDetail = () => {
                     </div>
                   )}
                   {isAdminOrRoutePlanner && (
+                    <Button onClick={() => setEditDatesSide('receiver')} variant="outline" size="sm" className="w-full">
+                      Edit Receiver Dates
+                    </Button>
+                  )}
+                  {isAdminOrRoutePlanner && (
                     <Button 
                       onClick={handleResetReceiverAvailability}
                       variant="outline"
@@ -1684,6 +1697,21 @@ const OrderDetail = () => {
                   )}
                 </div>
               </div>
+
+              {editDatesSide && id && (
+                <EditAvailabilityDialog
+                  open={!!editDatesSide}
+                  onOpenChange={(o) => { if (!o) setEditDatesSide(null); }}
+                  orderId={id}
+                  side={editDatesSide}
+                  currentDates={editDatesSide === 'sender' ? order.pickupDate : order.deliveryDate}
+                  currentStatus={order.status}
+                  onSaved={async () => {
+                    const updated = await getOrderById(id);
+                    if (updated) setOrder(updated);
+                  }}
+                />
+              )}
 
               <SchedulingButtons
                 orderId={id as string}
