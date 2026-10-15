@@ -93,6 +93,25 @@ const CleanAirZonesPage = () => {
     qc.invalidateQueries({ queryKey: ["caz-vehicles"] });
   };
 
+  // Bulk set exemptions for a set of vans × zones in one go
+  const setExemptBulk = async (vehicleIds: string[], slugs: string[], on: boolean) => {
+    if (!vehicleIds.length || !slugs.length) return;
+    const exempt = vehiclesQ.data?.exempt ?? new Set<string>();
+    let error: any = null;
+    if (on) {
+      const rows = vehicleIds.flatMap((v) => slugs.filter((s) => !exempt.has(`${v}:${s}`)).map((s) => ({ vehicle_id: v, zone_slug: s })));
+      if (rows.length) ({ error } = await db.from("caz_vehicle_exemptions").insert(rows));
+    } else {
+      ({ error } = await db.from("caz_vehicle_exemptions").delete().in("vehicle_id", vehicleIds).in("zone_slug", slugs));
+    }
+    if (error) return toast.error("Couldn't update");
+    qc.invalidateQueries({ queryKey: ["caz-vehicles"] });
+  };
+  const allSlugs = CLEAN_AIR_ZONES.map((z) => z.slug);
+  const allVanIds = (vehiclesQ.data?.vehicles || []).map((v: any) => v.id);
+  const isAll = (vIds: string[], slugs: string[]) =>
+    vIds.length > 0 && vIds.every((v) => slugs.every((s) => vehiclesQ.data?.exempt.has(`${v}:${s}`)));
+
   const runCheck = async () => {
     setChecking(true);
     try {
