@@ -7,8 +7,10 @@ Order CCC754670985137MARCT1 (Marcus is the sender) has his collection pin saved 
 - There is a safety check that compares the result with the postcode and uses the postcode instead if they're far apart. But it only steps in when the gap is more than 15 km. This one was about 14 km, so the wrong spot was kept.
 - His older orders (where he's the receiver, typed "London, SW12 8BG") have the right location.
 
+His account profile is already correct (10 Blandfield Road, SW12 8BG, Balham), so it doesn't need changing. The wrong spot is in one of his saved address-book entries ("Greater London, sw128bg"), which was used for this order. Two other saved entries also have a typo postcode (SW12 8BQ instead of SW12 8BG).
+
 ## Fix
-1. Correct the saved location on this order to the SW12 8BG postcode position, so the Get Timeslots map shows it in the right place straight away.
+1. Correct the saved location on this order to the SW12 8BG postcode position, so the Get Timeslots map shows it in the right place straight away. Also correct the wrong address-book entry, and fix the SW12 8BQ typo on the two other entries.
 2. Make the postcode check stricter. A full UK postcode covers only a few streets, so if a lookup lands more than about 2 km from its postcode, use the postcode position instead. This stops the same problem happening on future orders with messy addresses.
 3. Check for other open orders with the same issue (pin far from its own postcode) and correct those too, then tell you how many were fixed.
 
