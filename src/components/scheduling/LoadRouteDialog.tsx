@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FolderOpen, Search, Trash2, Download, AlertTriangle } from "lucide-react";
+import { FolderOpen, Search, Trash2, Download, AlertTriangle, ExternalLink } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -250,6 +251,22 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
             />
           </div>
 
+          {filteredRoutes.length > 0 && (
+            <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+              <Checkbox
+                checked={filteredRoutes.every(r => selectedIds.has(r.id))}
+                onCheckedChange={(v) =>
+                  setSelectedIds(prev => {
+                    const next = new Set(prev);
+                    filteredRoutes.forEach(r => (v ? next.add(r.id) : next.delete(r.id)));
+                    return next;
+                  })
+                }
+              />
+              Select all shown
+            </label>
+          )}
+
           <ScrollArea className="h-[300px] pr-4">
             {isLoading ? (
               <div className="flex items-center justify-center h-32 text-muted-foreground">
@@ -274,6 +291,12 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
                       className="p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex items-start justify-between gap-2">
+                        <Checkbox
+                          className="mt-1"
+                          checked={selectedIds.has(route.id)}
+                          onCheckedChange={() => toggleSelected(route.id)}
+                          aria-label={`Select ${route.name}`}
+                        />
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium truncate">{route.name}</h4>
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -349,7 +372,13 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
           </ScrollArea>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gap-2">
+          {selectedIds.size > 0 && (
+            <Button onClick={handleOpenSelected}>
+              <ExternalLink className="h-4 w-4 mr-1" />
+              Open selected in new tabs ({selectedIds.size})
+            </Button>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
