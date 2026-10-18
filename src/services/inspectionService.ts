@@ -295,6 +295,13 @@ export const reconcileInspectionStatuses = async (
         if (outstandingApproved.length > 0) return postApprovalStatus();
         if (declinedNotOffered.length > 0) return 'repairs_declined';
         if (declinedOffered.length > 0) return 'pending_receiver_approval';
+        // Account and buyer both declined every repair: a mechanic still
+        // finishes the bike, so it goes to the repair queue, not ship as-is.
+        if (
+          hasOnwardStep &&
+          approved.length === 0 &&
+          issues.some(i => i.status === 'declined' && !!i.receiver_declined_at)
+        ) return 'awaiting_repair';
         return terminalStatus();
       };
 
