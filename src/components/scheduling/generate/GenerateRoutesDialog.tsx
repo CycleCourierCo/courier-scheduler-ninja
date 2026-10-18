@@ -384,16 +384,10 @@ const GenerateRoutesDialog: React.FC = () => {
       ]);
       setVans(vanRows);
       setWorkingDays(days);
-      const defaults = nextWorkingDays(days, 5);
-      setDates(defaults);
-      const [off, lockedList] = await Promise.all([
-        fetchVanUnavailability(defaults).catch(() => new Set<string>()),
-        fetchLockedRoutes(defaults).catch(() => [] as LockedDayRoute[]),
-      ]);
-      // A van with a locked route that day starts unticked, so it isn't given a second route.
-      for (const r of lockedList) if (r.van_id) off.add(`${r.van_id}:${r.route_date}`);
-      setLockedRoutes(lockedList);
-      setGrid(gridFor(defaults, vanRows.map((v) => v.id), off));
+      // No days are pre-picked: the planner chooses them.
+      setDates([]);
+      setLockedRoutes([]);
+      setGrid({});
       fetchDifficultAreas().then(setAreas).catch(() => setAreas([]));
       fetchLapsedLegs().then(setLapsedLegs).catch(() => setLapsedLegs([]));
     })();
@@ -408,8 +402,15 @@ const GenerateRoutesDialog: React.FC = () => {
     if (adding && !grid[date]) {
       const all = vans.map((v) => v.id);
       setGrid((g) => ({ ...g, [date]: all }));
-      fetchVanUnavailability([date])
-        .then((off) => setGrid((g) => ({ ...g, ...gridFor([date], all, off) })))
+      Promise.all([
+        fetchVanUnavailability([date]).catch(() => new Set<string>()),
+        fetchLockedRoutes([date]).catch(() => [] as LockedDayRoute[]),
+      ])
+        .then(([off, locked]) => {
+          // A van with a locked route that day starts unticked, so it isn't given a second route.
+          for (const r of locked) if (r.van_id) off.add(`${r.van_id}:${r.route_date}`);
+          setGrid((g) => ({ ...g, ...gridFor([date], all, off) }));
+        })
         .catch(() => null);
     }
   };
