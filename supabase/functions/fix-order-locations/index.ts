@@ -2,9 +2,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "../_shared/cors.ts";
 import { requireAdminOrCronAuth, createAuthErrorResponse } from "../_shared/auth.ts";
 
-// Moves open jobs' map pins to their postcode when the pin is > 15 km away
+// Moves open jobs' map pins to their postcode when the pin is > 2 km away
 // (street lookups sometimes pick a same-named town elsewhere).
-const MAX_KM = 15;
+const MAX_KM = 2;
 
 function km(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
   const t = (x: number) => (x * Math.PI) / 180;
