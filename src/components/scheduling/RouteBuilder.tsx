@@ -24,7 +24,7 @@ import MultiCSVUploadButton, { UploadedFile } from './MultiCSVUploadButton';
 import RouteComparisonDialog from './RouteComparisonDialog';
 import CSVMatchReviewDialog from './CSVMatchReviewDialog';
 import SaveRouteDialog from './SaveRouteDialog';
-import LoadRouteDialog from './LoadRouteDialog';
+import LoadRouteDialog, { rehydrateSavedJobs } from './LoadRouteDialog';
 import BulkRouteMessageDialog from './BulkRouteMessageDialog';
 import SplitRouteDialog from './SplitRouteDialog';
 import { MessageSquare, Briefcase, Home, UserRound, ArrowLeftRight } from 'lucide-react';
@@ -2319,6 +2319,31 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       }
     }
   }, [initialJobs, orderList]);
+
+  // Load a saved route from ?savedRoute=<id> (opened from "Open selected in new tabs")
+  const savedRouteLoadedRef = useRef(false);
+  React.useEffect(() => {
+    if (savedRouteLoadedRef.current || !orderList.length) return;
+    const routeId = new URLSearchParams(window.location.search).get('savedRoute');
+    if (!routeId) return;
+    savedRouteLoadedRef.current = true;
+    (async () => {
+      const { data, error } = await supabase
+        .from('saved_routes')
+        .select('*')
+        .eq('id', routeId)
+        .maybeSingle();
+      if (error || !data) {
+        toast.error("Couldn't open that saved route");
+        return;
+      }
+      const jobs = rehydrateSavedJobs((data.job_data as any) || [], orderList);
+      const stale = jobs.filter(j => j.type !== 'break' && !j.orderData).length;
+      if (stale > 0) toast.warning(`${stale} job(s) in this route are no longer available`);
+      handleLoadSavedRoute(jobs as SelectedJob[], data.start_time, data.starting_bikes, data.id, data.name);
+      toast.success(`Route "${data.name}" loaded`);
+    })();
+  }, [orderList]);
 
   const reorderJobs = (dragIndex: number, hoverIndex: number) => {
     const reorderedJobs = [...selectedJobs];

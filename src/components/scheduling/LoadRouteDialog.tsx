@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { FolderOpen, Search, Trash2, Download, AlertTriangle } from "lucide-react";
+import { FolderOpen, Search, Trash2, Download, AlertTriangle, ExternalLink } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
@@ -55,6 +56,26 @@ interface LoadedJob {
   orderData?: OrderData;
 }
 
+// Re-hydrate orderData from current orders and re-derive stop details from
+// the live order so stale snapshots don't keep old coordinates/contacts.
+export const rehydrateSavedJobs = (jobData: SavedJobData[], orders: OrderData[]): LoadedJob[] =>
+  (jobData || []).map(savedJob => {
+    const order = orders.find(o => o.id === savedJob.orderId);
+    if (!order || savedJob.type === 'break') {
+      return { ...savedJob, orderData: order };
+    }
+    const leg = getLegContact(order, savedJob.type);
+    return {
+      ...savedJob,
+      address: leg.address ? formatLegAddress(leg.address) : savedJob.address,
+      contactName: leg.name || savedJob.contactName,
+      phoneNumber: leg.phone || savedJob.phoneNumber,
+      lat: leg.lat ?? savedJob.lat,
+      lon: leg.lon ?? savedJob.lon,
+      orderData: order
+    };
+  });
+
 interface LoadRouteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -75,6 +96,7 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (open) {
@@ -123,27 +145,31 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
     }
   };
 
-  const handleLoadRoute = (route: SavedRoute) => {
-    // Re-hydrate orderData from current orders, and re-derive the stop details
-    // from the live order so stale snapshots (e.g. a job flagged Northern
-    // Ireland after the route was saved) don't keep old coordinates/contacts.
-    const loadedJobs: LoadedJob[] = route.job_data.map(savedJob => {
-      const order = orders.find(o => o.id === savedJob.orderId);
-      if (!order || savedJob.type === 'break') {
-        return { ...savedJob, orderData: order };
-      }
-
-      const leg = getLegContact(order, savedJob.type);
-      return {
-        ...savedJob,
-        address: leg.address ? formatLegAddress(leg.address) : savedJob.address,
-        contactName: leg.name || savedJob.contactName,
-        phoneNumber: leg.phone || savedJob.phoneNumber,
-        lat: leg.lat ?? savedJob.lat,
-        lon: leg.lon ?? savedJob.lon,
-        orderData: order
-      };
+  const toggleSelected = (id: string) =>
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
     });
+
+  const handleOpenSelected = () => {
+    let blocked = 0;
+    savedRoutes
+      .filter(r => selectedIds.has(r.id))
+      .forEach(r => {
+        const w = window.open(`/scheduling?savedRoute=${encodeURIComponent(r.id)}`, '_blank');
+        if (!w) blocked++;
+      });
+    if (blocked > 0) {
+      toast.warning(`${blocked} tab(s) were blocked. Allow pop-ups for this site and try again.`);
+    } else {
+      setSelectedIds(new Set());
+    }
+  };
+
+  const handleLoadRoute = (route: SavedRoute) => {
+    const loadedJobs = rehydrateSavedJobs(route.job_data, orders);
+
 
 
     // Check for stale jobs (jobs that no longer exist in orders)
@@ -225,6 +251,22 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
             />
           </div>
 
+          {filteredRoutes.length > 0 && (
+            <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+              <Checkbox
+                checked={filteredRoutes.every(r => selectedIds.has(r.id))}
+                onCheckedChange={(v) =>
+                  setSelectedIds(prev => {
+                    const next = new Set(prev);
+                    filteredRoutes.forEach(r => (v ? next.add(r.id) : next.delete(r.id)));
+                    return next;
+                  })
+                }
+              />
+              Select all shown
+            </label>
+          )}
+
           <ScrollArea className="h-[300px] pr-4">
             {isLoading ? (
               <div className="flex items-center justify-center h-32 text-muted-foreground">
@@ -249,6 +291,12 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
                       className="p-3 border rounded-lg hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex items-start justify-between gap-2">
+                        <Checkbox
+                          className="mt-1"
+                          checked={selectedIds.has(route.id)}
+                          onCheckedChange={() => toggleSelected(route.id)}
+                          aria-label={`Select ${route.name}`}
+                        />
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium truncate">{route.name}</h4>
                           <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -324,7 +372,13 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
           </ScrollArea>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="gap-2">
+          {selectedIds.size > 0 && (
+            <Button onClick={handleOpenSelected}>
+              <ExternalLink className="h-4 w-4 mr-1" />
+              Open selected in new tabs ({selectedIds.size})
+            </Button>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Close
           </Button>
