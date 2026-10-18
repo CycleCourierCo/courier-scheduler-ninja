@@ -402,8 +402,15 @@ const GenerateRoutesDialog: React.FC = () => {
     if (adding && !grid[date]) {
       const all = vans.map((v) => v.id);
       setGrid((g) => ({ ...g, [date]: all }));
-      fetchVanUnavailability([date])
-        .then((off) => setGrid((g) => ({ ...g, ...gridFor([date], all, off) })))
+      Promise.all([
+        fetchVanUnavailability([date]).catch(() => new Set<string>()),
+        fetchLockedRoutes([date]).catch(() => [] as LockedDayRoute[]),
+      ])
+        .then(([off, locked]) => {
+          // A van with a locked route that day starts unticked, so it isn't given a second route.
+          for (const r of locked) if (r.van_id) off.add(`${r.van_id}:${r.route_date}`);
+          setGrid((g) => ({ ...g, ...gridFor([date], all, off) }));
+        })
         .catch(() => null);
     }
   };
