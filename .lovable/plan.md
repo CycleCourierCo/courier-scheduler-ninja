@@ -10,8 +10,10 @@
 The tracking page shows "Repairs approved" as soon as **any** repair is approved. It ignores whether some are still waiting for an answer. So both screens show the same records in different ways. Nothing has been lost.
 
 ## Fix
-- Tracking shows "Repairs partly approved – awaiting your decision on the rest" while any repair is still undecided. It shows "Repairs approved" only when every repair has an answer.
+- There is no "partly approved" message. Tracking shows "Repairs approved" only when every repair has an answer **and** the bike has moved to **Awaiting parts** or **Awaiting repair** (or a later stage such as Repaired).
+- Until then, including this order, tracking stays on the inspection step (awaiting the customer's decision).
 - No data changes. The 3 undecided repairs can be chased with the existing approval link.
 
 ## Technical details
-- `src/utils/journeyStages.ts` line 47: `summary.repairs_approved_at` is set when the first repair is approved. Add a pending-count check so "approved" only shows when no repairs are still pending.
+- `src/utils/journeyStages.ts` line 47: stop using `summary.repairs_approved_at` alone. Treat repairs as approved only when the inspection status is `awaiting_parts`, `awaiting_repair`, `in_repair`, `cleaning` or `repaired`.
+- Check that the tracking summary includes the inspection status. If it doesn't, add it to the public tracking data.
