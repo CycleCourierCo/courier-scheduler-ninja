@@ -496,7 +496,7 @@ serve(async (req) => {
         EdgeRuntime.waitUntil((async () => {
           for (const wait of [45000, 90000]) {
             await new Promise((r) => setTimeout(r, wait));
-            const proof = await fetchShipdayProof(apiKey, sid);
+            const proof = await fetchShipdayProof(apiKey, orderNumber, sid);
             if (proof && await saveShipdayProof(supabase, oid, sid, leg, proof)) {
               console.log(`Retrieved missing proof from Shipday for ${sid}`);
               return;

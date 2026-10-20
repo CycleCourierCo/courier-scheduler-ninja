@@ -32,17 +32,24 @@ export const extractProof = (body: unknown): ShipdayProof => {
   return { podUrls: [...pods], signatureUrl };
 };
 
-export const fetchShipdayProof = async (apiKey: string, shipdayId: string): Promise<ShipdayProof | null> => {
+/** Shipday's GET /orders/{x} looks up by order NUMBER (e.g. CCC...-PICKUP), not id. */
+export const fetchShipdayProof = async (apiKey: string, orderNumber: string, shipdayId?: string): Promise<ShipdayProof | null> => {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), 8000);
   try {
-    const res = await fetch(`https://api.shipday.com/orders/${shipdayId}`, {
+    const res = await fetch(`https://api.shipday.com/orders/${encodeURIComponent(orderNumber)}`, {
       headers: { Authorization: `Basic ${apiKey}`, "Content-Type": "application/json" },
       signal: controller.signal,
     });
     if (!res.ok) return null;
     const j = await res.json();
-    return extractProof(Array.isArray(j) ? j[0] : j);
+    const list: any[] = Array.isArray(j) ? j : [j];
+    const o = list.find((x) => shipdayId && String(x?.orderId) === String(shipdayId)) || list[list.length - 1];
+    if (!o) return { podUrls: [], signatureUrl: null };
+    const pod = o.proofOfDelivery || {};
+    const imgs = Array.isArray(pod.imageUrls) ? pod.imageUrls.filter((u: unknown) => typeof u === "string" && u) : [];
+    if (imgs.length || pod.signaturePath) return { podUrls: imgs, signatureUrl: pod.signaturePath || null };
+    return extractProof(o);
   } catch {
     return null;
   } finally {
