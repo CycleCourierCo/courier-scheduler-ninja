@@ -3,7 +3,7 @@ import { fetchShipdayProof, saveShipdayProof } from "../_shared/shipdayProof.ts"
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-cron-secret",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 const json = (b: unknown, status = 200) =>
@@ -19,8 +19,12 @@ Deno.serve(async (req) => {
 
   // Admin only (or service role).
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
-  const cronSecret = Deno.env.get("CRON_SECRET");
-  const cronOk = !!cronSecret && req.headers.get("x-cron-secret") === cronSecret;
+  const given = req.headers.get("x-cron-secret");
+  let cronOk = false;
+  if (given) {
+    const { data: expected } = await supabase.rpc("get_cron_secret");
+    cronOk = !!expected && given === expected;
+  }
   if (token !== serviceKey && !cronOk) {
     const { data: u } = await supabase.auth.getUser(token);
     if (!u?.user) return json({ error: "Unauthorized" }, 401);
