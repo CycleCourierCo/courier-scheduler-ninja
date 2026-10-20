@@ -108,6 +108,12 @@ serve(async (req) => {
     }
 
     const { orderId, jobType, forceNorthernIreland, replace } = body;
+    // Planner's home/work choice from the route builder (same shape as send-sendzen-whatsapp)
+    const addressOverride = body?.addressOverride && typeof body.addressOverride === 'object' ? body.addressOverride : null;
+    const ovAddress = addressOverride?.source === 'work' && typeof addressOverride.address === 'string' && addressOverride.address.trim()
+      ? addressOverride.address.trim().slice(0, 300) : null;
+    const ovNeighbour = typeof addressOverride?.neighbourNumber === 'string' ? addressOverride.neighbourNumber.slice(0, 50) : null;
+    const ovNotes = [ovAddress ? `WORK ADDRESS: ${ovAddress}` : '', ovNeighbour ? `If no answer, try neighbour at ${ovNeighbour}` : ''].filter(Boolean).join(' | ');
     const shouldReplace = replace === true;
 
     if (!orderId) {
@@ -284,7 +290,7 @@ serve(async (req) => {
       customerName: isInboundNI ? CITY_AIR_EXPRESS.name : sender.name,
       customerPhoneNumber: isInboundNI ? CITY_AIR_EXPRESS.phone : sender.phone,
       customerEmail: (isInboundNI ? CITY_AIR_EXPRESS.email : sender.email) || undefined,
-      customerAddress: senderAddress,
+      customerAddress: (!isInboundNI && jobType === 'pickup' && ovAddress) || senderAddress,
       restaurantName: "Cycle Courier Co.",
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
       orderType: "PICKUP",
@@ -292,7 +298,7 @@ serve(async (req) => {
       expectedDeliveryTime: pickupWindow.end,  // End of 3-hour window
       expectedPickupDate: expectedPickupDateFormatted,
       expectedDeliveryDate: expectedPickupDateFormatted,
-      deliveryInstruction: pickupInstructions
+      deliveryInstruction: [jobType === 'pickup' && !isInboundNI ? ovNotes : '', pickupInstructions].filter(Boolean).join(' | ')
     };
 
     // Create delivery order with correct timeslot window
@@ -301,7 +307,7 @@ serve(async (req) => {
       customerName: isOutboundNI ? CITY_AIR_EXPRESS.name : receiver.name,
       customerPhoneNumber: isOutboundNI ? CITY_AIR_EXPRESS.phone : receiver.phone,
       customerEmail: (isOutboundNI ? CITY_AIR_EXPRESS.email : receiver.email) || undefined,
-      customerAddress: receiverAddress,
+      customerAddress: (!isOutboundNI && jobType === 'delivery' && ovAddress) || receiverAddress,
 
       restaurantName: "Cycle Courier Co.",
       restaurantAddress: "Lawden road, birmingham, b100ad, united kingdom",
@@ -309,7 +315,7 @@ serve(async (req) => {
       expectedPickupTime: deliveryWindow.start,  // Start of 3-hour window
       expectedDeliveryTime: deliveryWindow.end,  // End of 3-hour window
       expectedDeliveryDate: expectedDeliveryDateFormatted,
-      deliveryInstruction: deliveryInstructions
+      deliveryInstruction: [jobType === 'delivery' && !isOutboundNI ? ovNotes : '', deliveryInstructions].filter(Boolean).join(' | ')
     };
 
     const authHeader = `Basic ${shipdayApiKey}`;
