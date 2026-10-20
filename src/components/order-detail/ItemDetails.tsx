@@ -18,6 +18,8 @@ import { BIKE_TYPE_BY_ID } from "@/constants/bikePricing";
 const BIKE_TYPE_OPTIONS = Object.values(BIKE_TYPE_BY_ID);
 import { updateOrderBikes } from "@/services/orderService";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { getGroupedBikes } from "@/utils/bikeSummary";
 import { hasAnyRole } from "@/lib/roles";
@@ -49,9 +51,15 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
     }];
   }, [order]);
   const [editBikes, setEditBikes] = useState(computeBikesFromOrder);
+  const [isEbay, setIsEbay] = useState(!!order.isEbayOrder);
+  const [collectionCode, setCollectionCode] = useState(order.collectionCode || "");
+  const [orderRef, setOrderRef] = useState(order.customerOrderNumber || "");
 
   const openEdit = () => {
     setEditBikes(computeBikesFromOrder());
+    setIsEbay(!!order.isEbayOrder || !!order.collectionCode);
+    setCollectionCode(order.collectionCode || "");
+    setOrderRef(order.customerOrderNumber || "");
     setEditOpen(true);
   };
 
@@ -59,9 +67,23 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
     if (!order.id) return;
     setSavingBikes(true);
     const ok = await updateOrderBikes(order.id, editBikes);
+    const extrasChanged =
+      isEbay !== !!order.isEbayOrder ||
+      collectionCode.trim() !== (order.collectionCode || "") ||
+      orderRef.trim() !== (order.customerOrderNumber || "");
+    let extrasOk = true;
+    if (ok && extrasChanged) {
+      const { error } = await (supabase as any).rpc("cs_update_order_item_extras", {
+        p_order_id: order.id,
+        p_is_ebay: isEbay,
+        p_collection_code: collectionCode,
+        p_customer_order_number: orderRef,
+      });
+      extrasOk = !error;
+    }
     setSavingBikes(false);
-    if (!ok) {
-      toast.error("Failed to update bikes");
+    if (!ok || !extrasOk) {
+      toast.error(!ok ? "Failed to update bikes" : "Failed to update eBay / order details");
       return;
     }
     toast.success("Bikes updated");
@@ -277,6 +299,22 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
                 Add bike
               </Button>
             )}
+            <div className="border rounded-md p-3 space-y-3">
+              <div className="space-y-1">
+                <Label htmlFor="order-ref">Customer order number</Label>
+                <Input id="order-ref" value={orderRef} maxLength={100} onChange={(e) => setOrderRef(e.target.value)} />
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="is-ebay">eBay order</Label>
+                <Switch id="is-ebay" checked={isEbay} onCheckedChange={setIsEbay} />
+              </div>
+              {isEbay && (
+                <div className="space-y-1">
+                  <Label htmlFor="ebay-code">eBay collection code</Label>
+                  <Input id="ebay-code" value={collectionCode} maxLength={100} placeholder="Enter eBay collection code" onChange={(e) => setCollectionCode(e.target.value)} />
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditOpen(false)} disabled={savingBikes}>
