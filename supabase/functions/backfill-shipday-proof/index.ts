@@ -36,8 +36,16 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { /* defaults */ }
   const probe = (body as any).probe_id;
   if (probe) {
-    const p = await fetchShipdayProof(apiKey, String(probe).slice(0, 20));
-    return json({ photos: p?.podUrls.length ?? null, signature: !!p?.signatureUrl });
+    const res = await fetch(`https://api.shipday.com/orders/${String(probe).slice(0, 20)}`, { headers: { Authorization: `Basic ${apiKey}` } });
+    const j = await res.json().catch(() => null);
+    const paths: string[] = [];
+    const walk = (n: any, k: string) => {
+      if (n && typeof n === "object") { for (const [kk, v] of Object.entries(n)) walk(v, `${k}.${kk}`); return; }
+      if (typeof n === "string" && /^https?:/.test(n)) paths.push(k);
+    };
+    walk(j, "");
+    const o = Array.isArray(j) ? j[0] : j;
+    return json({ http: res.status, isArray: Array.isArray(j), len: Array.isArray(j) ? j.length : null, urlKeys: paths, topKeys: o ? Object.keys(o) : null });
   }
   const days = Math.min(Math.max(Number(body.days) || 30, 1), 90);
   const limit = Math.min(Math.max(Number(body.limit) || 100, 1), 300);
