@@ -34,6 +34,11 @@ Deno.serve(async (req) => {
 
   let body: { tracking_number?: string; days?: number; limit?: number } = {};
   try { body = await req.json(); } catch { /* defaults */ }
+  const probe = (body as any).probe_id;
+  if (probe) {
+    const p = await fetchShipdayProof(apiKey, String(probe).slice(0, 20));
+    return json({ photos: p?.podUrls.length ?? null, signature: !!p?.signatureUrl });
+  }
   const days = Math.min(Math.max(Number(body.days) || 30, 1), 90);
   const limit = Math.min(Math.max(Number(body.limit) || 100, 1), 300);
 
