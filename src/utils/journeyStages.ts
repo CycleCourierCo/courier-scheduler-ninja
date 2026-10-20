@@ -44,6 +44,8 @@ export function buildJourneyStops(order: Order): JourneyStop[] {
       icon: "inspected",
     });
     const repaired = !!summary?.repairs_completed_at || order.inspection_status === "repaired";
+    // repairs_approved_at is only returned once every repair is answered and
+    // the bike has moved to Awaiting parts / Awaiting repair or beyond.
     const hadRepairs = repaired || !!summary?.repairs_approved_at || order.inspection_status === "in_repair";
     if (hadRepairs) {
       stops.push({
