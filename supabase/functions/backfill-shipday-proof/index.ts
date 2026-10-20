@@ -72,7 +72,7 @@ Deno.serve(async (req) => {
       const has = updates.some((u) => u?.leg === leg && ((u.podUrls?.length ?? 0) > 0 || u.signatureUrl));
       if (has) continue;
       checked++;
-      const proof = await fetchShipdayProof(apiKey, String(sid));
+      const proof = await fetchShipdayProof(apiKey, `${o.tracking_number}-${leg === "pickup" ? "PICKUP" : "DELIVERY"}`, String(sid));
       if (!proof) { results.push({ tracking_number: o.tracking_number, leg, result: "shipday_error" }); continue; }
       const saved = await saveShipdayProof(supabase, o.id, String(sid), leg, proof);
       results.push({ tracking_number: o.tracking_number, leg, result: saved ? "saved" : "none_in_shipday" });
