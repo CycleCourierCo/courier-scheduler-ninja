@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { /* defaults */ }
   const probe = (body as any).probe_id;
   if (probe) {
-    const res = await fetch(`https://api.shipday.com/orders/${String(probe).slice(0, 20)}`, { headers: { Authorization: `Basic ${apiKey}` } });
+    const res = await fetch(`https://api.shipday.com/orders/${encodeURIComponent(String(probe).slice(0, 60))}`, { headers: { Authorization: `Basic ${apiKey}` } });
     const j = await res.json().catch(() => null);
     const paths: string[] = [];
     const walk = (n: any, k: string) => {
