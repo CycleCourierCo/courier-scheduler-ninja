@@ -6957,6 +6957,15 @@ export type Database = {
         Args: { p_bikes: Json; p_order_id: string }
         Returns: boolean
       }
+      cs_update_order_item_extras: {
+        Args: {
+          p_collection_code: string
+          p_customer_order_number: string
+          p_is_ebay: boolean
+          p_order_id: string
+        }
+        Returns: boolean
+      }
       difficult_areas_geojson: {
         Args: never
         Returns: {
