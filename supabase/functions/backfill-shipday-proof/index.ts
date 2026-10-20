@@ -19,7 +19,9 @@ Deno.serve(async (req) => {
 
   // Admin only (or service role).
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
-  if (token !== serviceKey) {
+  const cronSecret = Deno.env.get("CRON_SECRET");
+  const cronOk = !!cronSecret && req.headers.get("x-cron-secret") === cronSecret;
+  if (token !== serviceKey && !cronOk) {
     const { data: u } = await supabase.auth.getUser(token);
     if (!u?.user) return json({ error: "Unauthorized" }, 401);
     const { data: p } = await supabase.from("profiles").select("role").eq("id", u.user.id).single();
