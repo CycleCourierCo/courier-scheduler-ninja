@@ -47,8 +47,31 @@ serve(async (req) => {
 
     const body = await req.json();
     const { conversation_id, body_text, body_html, template } = body || {};
-    if (!conversation_id || (!body_text && !template)) {
+    const rawAttachments = Array.isArray(body?.attachments) ? body.attachments : [];
+    if (!conversation_id || (!body_text && !template && rawAttachments.length === 0)) {
       return new Response(JSON.stringify({ error: 'conversation_id + body_text required' }), { status: 400, headers: corsHeaders });
+    }
+    if (rawAttachments.length > 10) {
+      return new Response(JSON.stringify({ error: 'Up to 10 attachments allowed' }), { status: 400, headers: corsHeaders });
+    }
+    // Files are uploaded by staff into cs-attachments/<conversation_id>/...; sign them for the provider and the thread.
+    const attachments: { url: string; filename: string; content_type: string; size: number; path: string }[] = [];
+    for (const a of rawAttachments) {
+      const path = String(a?.path || '');
+      if (!path.startsWith(`${conversation_id}/`) || path.includes('..')) {
+        return new Response(JSON.stringify({ error: 'invalid attachment' }), { status: 400, headers: corsHeaders });
+      }
+      const { data: signed, error: signErr } = await admin.storage.from('cs-attachments').createSignedUrl(path, 60 * 60 * 24 * 365);
+      if (signErr || !signed?.signedUrl) {
+        return new Response(JSON.stringify({ error: 'attachment not found' }), { status: 400, headers: corsHeaders });
+      }
+      attachments.push({
+        url: signed.signedUrl,
+        path,
+        filename: String(a?.filename || path.split('/').pop() || 'file').slice(0, 200),
+        content_type: String(a?.content_type || 'application/octet-stream').slice(0, 100),
+        size: Number(a?.size) || 0,
+      });
     }
 
     const { data: conv, error: convErr } = await admin
@@ -93,7 +116,8 @@ serve(async (req) => {
           to: [conv.contact.handle],
           subject,
           html,
-          text: body_text,
+          text: body_text || ' ',
+          ...(attachments.length ? { attachments: attachments.map((a) => ({ filename: a.filename, path: a.url })) } : {}),
           headers,
           tags: [
             { name: 'cs_conversation_id', value: conversation_id },
