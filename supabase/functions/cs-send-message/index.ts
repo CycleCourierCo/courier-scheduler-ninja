@@ -136,30 +136,43 @@ serve(async (req) => {
       const fromNumber = '441217980767';
       const phone = conv.contact.handle.replace(/[^\d]/g, '');
 
-      const payload: any = template
-        ? {
-            to: phone, from: fromNumber, type: 'template',
-            template: {
-              name: template.name, lang_code: 'en_GB',
-              components: template.params
-                ? [{ type: 'body', parameters: Object.entries(template.params).map(([k, v]) => ({ type: 'text', text: String(v), parameter_name: k })) }]
-                : [],
-            },
-          }
-        : { to: phone, from: fromNumber, type: 'text', text: { body: body_text } };
+      const payloads: any[] = [];
+      if (template) {
+        payloads.push({
+          to: phone, from: fromNumber, type: 'template',
+          template: {
+            name: template.name, lang_code: 'en_GB',
+            components: template.params
+              ? [{ type: 'body', parameters: Object.entries(template.params).map(([k, v]) => ({ type: 'text', text: String(v), parameter_name: k })) }]
+              : [],
+          },
+        });
+      } else if (body_text) {
+        payloads.push({ to: phone, from: fromNumber, type: 'text', text: { body: body_text } });
+      }
+      // WhatsApp sends each file as its own media message.
+      for (const a of attachments) {
+        const kind = a.content_type.startsWith('image/') ? 'image' : 'document';
+        payloads.push({
+          to: phone, from: fromNumber, type: kind,
+          [kind]: kind === 'image' ? { link: a.url } : { link: a.url, filename: a.filename },
+        });
+      }
 
       try {
-        const res = await trackedFetch("whatsapp", "cs reply", 'https://api.sendzen.io/v1/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SENDZEN_API_KEY}` },
-          body: JSON.stringify(payload),
-        });
-        const respText = await res.text();
-        if (!res.ok) {
-          status = 'failed';
-          errorMsg = respText.slice(0, 500);
-        } else {
-          try { externalId = JSON.parse(respText)?.id || JSON.parse(respText)?.message_id || null; } catch { /* ignore */ }
+        for (const payload of payloads) {
+          const res = await trackedFetch("whatsapp", "cs reply", 'https://api.sendzen.io/v1/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SENDZEN_API_KEY}` },
+            body: JSON.stringify(payload),
+          });
+          const respText = await res.text();
+          if (!res.ok) {
+            status = 'failed';
+            errorMsg = respText.slice(0, 500);
+            break;
+          }
+          try { externalId = externalId || JSON.parse(respText)?.id || JSON.parse(respText)?.message_id || null; } catch { /* ignore */ }
         }
       } catch (e: any) {
         status = 'failed';
@@ -175,6 +188,7 @@ serve(async (req) => {
       author_id: userId,
       body_text: body_text || null,
       body_html: body_html || null,
+      attachments: attachments.map(({ url, filename, content_type, size }) => ({ url, filename, content_type, size })),
       external_id: externalId,
       provider_message_id: externalId,
       delivery_status: status === 'sent' ? 'sent' : 'failed',
@@ -187,7 +201,7 @@ serve(async (req) => {
     if (status === 'sent') {
       await admin.from('cs_conversations').update({
         last_message_at: new Date().toISOString(),
-        last_message_preview: (body_text || '').slice(0, 140),
+        last_message_preview: (body_text || (attachments.length ? `📎 ${attachments.map((a) => a.filename).join(', ')}` : '')).slice(0, 140),
         status: 'pending',
         // Replying reopens a closed ticket, so the next close emails the customer again.
         closed_at: null,
