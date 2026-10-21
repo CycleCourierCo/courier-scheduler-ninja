@@ -47,8 +47,31 @@ serve(async (req) => {
 
     const body = await req.json();
     const { conversation_id, body_text, body_html, template } = body || {};
-    if (!conversation_id || (!body_text && !template)) {
+    const rawAttachments = Array.isArray(body?.attachments) ? body.attachments : [];
+    if (!conversation_id || (!body_text && !template && rawAttachments.length === 0)) {
       return new Response(JSON.stringify({ error: 'conversation_id + body_text required' }), { status: 400, headers: corsHeaders });
+    }
+    if (rawAttachments.length > 10) {
+      return new Response(JSON.stringify({ error: 'Up to 10 attachments allowed' }), { status: 400, headers: corsHeaders });
+    }
+    // Files are uploaded by staff into cs-attachments/<conversation_id>/...; sign them for the provider and the thread.
+    const attachments: { url: string; filename: string; content_type: string; size: number; path: string }[] = [];
+    for (const a of rawAttachments) {
+      const path = String(a?.path || '');
+      if (!path.startsWith(`${conversation_id}/`) || path.includes('..')) {
+        return new Response(JSON.stringify({ error: 'invalid attachment' }), { status: 400, headers: corsHeaders });
+      }
+      const { data: signed, error: signErr } = await admin.storage.from('cs-attachments').createSignedUrl(path, 60 * 60 * 24 * 365);
+      if (signErr || !signed?.signedUrl) {
+        return new Response(JSON.stringify({ error: 'attachment not found' }), { status: 400, headers: corsHeaders });
+      }
+      attachments.push({
+        url: signed.signedUrl,
+        path,
+        filename: String(a?.filename || path.split('/').pop() || 'file').slice(0, 200),
+        content_type: String(a?.content_type || 'application/octet-stream').slice(0, 100),
+        size: Number(a?.size) || 0,
+      });
     }
 
     const { data: conv, error: convErr } = await admin
@@ -93,7 +116,8 @@ serve(async (req) => {
           to: [conv.contact.handle],
           subject,
           html,
-          text: body_text,
+          text: body_text || ' ',
+          ...(attachments.length ? { attachments: attachments.map((a) => ({ filename: a.filename, path: a.url })) } : {}),
           headers,
           tags: [
             { name: 'cs_conversation_id', value: conversation_id },
@@ -112,30 +136,43 @@ serve(async (req) => {
       const fromNumber = '441217980767';
       const phone = conv.contact.handle.replace(/[^\d]/g, '');
 
-      const payload: any = template
-        ? {
-            to: phone, from: fromNumber, type: 'template',
-            template: {
-              name: template.name, lang_code: 'en_GB',
-              components: template.params
-                ? [{ type: 'body', parameters: Object.entries(template.params).map(([k, v]) => ({ type: 'text', text: String(v), parameter_name: k })) }]
-                : [],
-            },
-          }
-        : { to: phone, from: fromNumber, type: 'text', text: { body: body_text } };
+      const payloads: any[] = [];
+      if (template) {
+        payloads.push({
+          to: phone, from: fromNumber, type: 'template',
+          template: {
+            name: template.name, lang_code: 'en_GB',
+            components: template.params
+              ? [{ type: 'body', parameters: Object.entries(template.params).map(([k, v]) => ({ type: 'text', text: String(v), parameter_name: k })) }]
+              : [],
+          },
+        });
+      } else if (body_text) {
+        payloads.push({ to: phone, from: fromNumber, type: 'text', text: { body: body_text } });
+      }
+      // WhatsApp sends each file as its own media message.
+      for (const a of attachments) {
+        const kind = a.content_type.startsWith('image/') ? 'image' : 'document';
+        payloads.push({
+          to: phone, from: fromNumber, type: kind,
+          [kind]: kind === 'image' ? { link: a.url } : { link: a.url, filename: a.filename },
+        });
+      }
 
       try {
-        const res = await trackedFetch("whatsapp", "cs reply", 'https://api.sendzen.io/v1/messages', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SENDZEN_API_KEY}` },
-          body: JSON.stringify(payload),
-        });
-        const respText = await res.text();
-        if (!res.ok) {
-          status = 'failed';
-          errorMsg = respText.slice(0, 500);
-        } else {
-          try { externalId = JSON.parse(respText)?.id || JSON.parse(respText)?.message_id || null; } catch { /* ignore */ }
+        for (const payload of payloads) {
+          const res = await trackedFetch("whatsapp", "cs reply", 'https://api.sendzen.io/v1/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SENDZEN_API_KEY}` },
+            body: JSON.stringify(payload),
+          });
+          const respText = await res.text();
+          if (!res.ok) {
+            status = 'failed';
+            errorMsg = respText.slice(0, 500);
+            break;
+          }
+          try { externalId = externalId || JSON.parse(respText)?.id || JSON.parse(respText)?.message_id || null; } catch { /* ignore */ }
         }
       } catch (e: any) {
         status = 'failed';
@@ -151,6 +188,7 @@ serve(async (req) => {
       author_id: userId,
       body_text: body_text || null,
       body_html: body_html || null,
+      attachments: attachments.map(({ url, filename, content_type, size }) => ({ url, filename, content_type, size })),
       external_id: externalId,
       provider_message_id: externalId,
       delivery_status: status === 'sent' ? 'sent' : 'failed',
@@ -163,7 +201,7 @@ serve(async (req) => {
     if (status === 'sent') {
       await admin.from('cs_conversations').update({
         last_message_at: new Date().toISOString(),
-        last_message_preview: (body_text || '').slice(0, 140),
+        last_message_preview: (body_text || (attachments.length ? `📎 ${attachments.map((a) => a.filename).join(', ')}` : '')).slice(0, 140),
         status: 'pending',
         // Replying reopens a closed ticket, so the next close emails the customer again.
         closed_at: null,
