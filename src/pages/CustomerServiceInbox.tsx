@@ -38,7 +38,7 @@ const CustomerServiceInbox: React.FC = () => {
   const [suppressAutoSelect, setSuppressAutoSelect] = useState(false);
   const [showContext, setShowContext] = useState(true);
   const [mobileContextOpen, setMobileContextOpen] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
   const inboxRef = useRef<HTMLDivElement>(null);
 
   // Measure the real header/banner height rather than stacking fixed-height rows.

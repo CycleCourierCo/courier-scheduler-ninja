@@ -69,6 +69,17 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
     setText(filled);
   };
 
+  // Auto-prefill the best suggestion once per customer message, only into an empty reply box.
+  const autoFilledFor = React.useRef<string | null>(null);
+  useEffect(() => {
+    const key = lastInbound?.id ?? null;
+    if (!key || isNote || suggestions.length === 0) return;
+    if (autoFilledFor.current === key) return;
+    autoFilledFor.current = key;
+    if (!text.trim()) insert(suggestions[0]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastInbound?.id, suggestions, isNote]);
+
   const send = async () => {
     const body = text.trim();
     if (!body || isClosed) return;

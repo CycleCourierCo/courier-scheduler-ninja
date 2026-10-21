@@ -25,7 +25,7 @@ const ConversationHeader: React.FC<Props> = ({ conversation, onDismiss }) => {
   const due = describeDue(conversation.next_response_due_at);
   const [closing, setClosing] = useState(false);
   const [confirming, setConfirming] = useState(false);
-  const [controlsOpen, setControlsOpen] = useState(false);
+  const [controlsOpen, setControlsOpen] = useState(true);
   const isClosed = conversation.status === 'closed';
   const isEmail = conversation.channel === 'email';
   const confirmationSent = !!conversation.ack_sent_at;
