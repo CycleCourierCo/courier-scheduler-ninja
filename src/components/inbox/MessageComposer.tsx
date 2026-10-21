@@ -93,7 +93,7 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
 
   if (isClosed) {
     return (
-      <div className="border-t p-3 bg-background">
+      <div className="border-t p-3 bg-background shrink-0">
         <div className="text-xs text-muted-foreground bg-muted border rounded p-3 text-center">
           This ticket is closed. Reopen it to reply or add a note.
         </div>
@@ -102,7 +102,7 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
   }
 
   return (
-    <div className="border-t p-3 space-y-2 bg-background">
+    <div className="border-t p-2 lg:p-3 space-y-2 bg-background shrink-0 max-h-[45dvh] overflow-y-auto">
       {outsideWaWindow && !isNote && (
         <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
           The WhatsApp 24h reply window is closed. Free-form messages may be rejected — use an approved WhatsApp template, or send an internal note.
@@ -139,7 +139,7 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
         onKeyDown={(e) => {
           if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send();
         }}
-        className={isNote ? "bg-yellow-50 border-yellow-200" : ""}
+        className={`min-h-[60px] h-[60px] lg:h-auto max-h-[20dvh] ${isNote ? "bg-yellow-50 border-yellow-200" : ""}`}
       />
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
