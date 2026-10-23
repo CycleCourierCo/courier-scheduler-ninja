@@ -1689,6 +1689,34 @@ export const createInspectionServiceInvoice = async (
   return data;
 };
 
+export type EnableInspectionResult = {
+  enabled: boolean;
+  deferred?: boolean;
+  awaitingServiceDecision?: boolean;
+  alreadyInvoiced?: boolean;
+  invoiceNumber?: string;
+  invoiceUrl?: string;
+  error?: string;
+};
+
+/** Staff (admin / customer service) add an inspection; invoices now only if transport is already invoiced. */
+export const enableInspectionWithInvoicing = async (
+  orderId: string,
+  inspectionType: InspectionType
+): Promise<EnableInspectionResult> => {
+  const { data, error } = await supabase.functions.invoke('create-inspection-service-invoice', {
+    body: { orderId, mode: 'enable', inspectionType },
+  });
+  if (error) {
+    let body: any = null;
+    try { body = await (error as any).context?.json?.(); } catch { /* ignore */ }
+    if (body?.enabled) return { enabled: true, error: body.error };
+    throw new Error(body?.error || error.message);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data as EnableInspectionResult;
+};
+
 export type CleaningTaskKey = 'frame' | 'drivetrain';
 
 export const setInspectionCleaningTask = async (

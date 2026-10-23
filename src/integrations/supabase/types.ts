@@ -188,6 +188,9 @@ export type Database = {
           report_generated_at: string | null
           report_url: string | null
           service_decision: string
+          service_invoice_id: string | null
+          service_invoice_number: string | null
+          service_invoiced_at: string | null
           service_price_gbp: number | null
           status: string
           updated_at: string
@@ -250,6 +253,9 @@ export type Database = {
           report_generated_at?: string | null
           report_url?: string | null
           service_decision?: string
+          service_invoice_id?: string | null
+          service_invoice_number?: string | null
+          service_invoiced_at?: string | null
           service_price_gbp?: number | null
           status?: string
           updated_at?: string
@@ -312,6 +318,9 @@ export type Database = {
           report_generated_at?: string | null
           report_url?: string | null
           service_decision?: string
+          service_invoice_id?: string | null
+          service_invoice_number?: string | null
+          service_invoiced_at?: string | null
           service_price_gbp?: number | null
           status?: string
           updated_at?: string

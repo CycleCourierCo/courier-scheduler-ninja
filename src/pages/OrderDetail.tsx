@@ -1819,10 +1819,10 @@ const OrderDetail = () => {
 
             </div>
 
-            {isAdmin && (
+            {canViewInvoices && (
               <>
                 <Separator className="my-6" />
-                <OrderServicesPanel order={order as any} onRefresh={handleRefreshOrder} />
+                <OrderServicesPanel order={order as any} onRefresh={handleRefreshOrder} inspectionOnly={!isAdmin} />
               </>
             )}
             
