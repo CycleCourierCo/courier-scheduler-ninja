@@ -49,7 +49,7 @@ function wrapAnnouncementEmail(content: string, subject: string): string {
   const bodyHtml = normaliseBody(content);
   const safeSubject = escapeHtml(subject || "");
   return `<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${safeSubject}</title></head>
-<body data-ccc-email-shell="1" style="margin:0;padding:0;background:${BRAND.bg};font-family:Overpass,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${BRAND.text};">
+<body data-ccc-email-shell="1" style="margin:0;padding:0;background:${BRAND.bg};font-family:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${BRAND.text};">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${BRAND.bg};"><tr><td align="center" style="padding:24px 12px;">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:6px;overflow:hidden;border:1px solid ${BRAND.border};">
 <tr><td style="background:${BRAND.primary};padding:20px 32px;" align="left"><img src="${EMAIL_LOGO_URL}" alt="${BRAND.name}" width="260" height="52" style="width:260px;max-width:100%;height:auto;display:block;border:0;outline:none;"></td></tr>

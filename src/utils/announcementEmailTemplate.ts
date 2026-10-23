@@ -73,7 +73,7 @@ export function wrapAnnouncementEmail(content: string, subject: string): string 
 <meta name="x-apple-disable-message-reformatting">
 <title>${safeSubject}</title>
 </head>
-<body data-ccc-email-shell="1" style="margin:0;padding:0;background:${BRAND.bg};font-family:Overpass,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${BRAND.text};">
+<body data-ccc-email-shell="1" style="margin:0;padding:0;background:${BRAND.bg};font-family:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${BRAND.text};">
   <span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;mso-hide:all;">${safeSubject}</span>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${BRAND.bg};">
     <tr>
