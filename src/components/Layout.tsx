@@ -12,6 +12,11 @@ import BrandLogo from "./BrandLogo";
 import { hasRole, getRoles } from "@/lib/roles";
 import { useRoutePermissions } from "@/hooks/useRoutePermissions";
 import { PendingAbsenceBadge } from "./user-management/PendingAbsenceBadge";
+const FLOOR_SCREEN_PATHS = [
+  "/loading", "/box-my-bike", "/build-my-bike", "/storage-bays", "/warehouse-stock",
+  "/mechanic-clock", "/bicycle-inspections", "/driver-timeslips", "/timeslips", "/fuel-finder",
+];
+
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -117,6 +122,9 @@ const MenuGroup = ({ children }: { children: React.ReactNode }) => <>{children}<
 const Layout: React.FC<LayoutProps> = ({
   children
 }) => {
+  const { pathname } = useLocation();
+  // Workshop, warehouse and driver-used screens get 48px controls.
+  const isFloorScreen = FLOOR_SCREEN_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   const {
     user,
     signOut,
