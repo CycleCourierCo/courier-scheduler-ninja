@@ -396,7 +396,6 @@ export default function InvoicesPage() {
       return;
     }
 
-    const eligibleCustomers = customers?.filter(c => c.accounts_email) || [];
     setIsCreatingAllInvoices(true);
     setBatchProgress({ current: 0, total: 0 });
     try {
@@ -665,7 +664,7 @@ export default function InvoicesPage() {
             >
               <FileText className="mr-2 h-4 w-4" />
               {isCreatingAllInvoices 
-                ? `Creating... ${batchProgress.current}/${batchProgress.total}` 
+                ? (batchProgress.total ? `Creating... ${batchProgress.current}/${batchProgress.total}` : "Running on server…") 
                 : "Create All Invoices"}
             </Button>
 
