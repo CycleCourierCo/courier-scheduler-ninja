@@ -1,0 +1,2 @@
+CREATE POLICY "dwa route planner write" ON public.driver_weekly_availability FOR ALL TO authenticated USING (public.has_role((SELECT auth.uid()), 'route_planner'::user_role)) WITH CHECK (public.has_role((SELECT auth.uid()), 'route_planner'::user_role));
+CREATE POLICY "dao route planner write" ON public.driver_availability_overrides FOR ALL TO authenticated USING (public.has_role((SELECT auth.uid()), 'route_planner'::user_role)) WITH CHECK (public.has_role((SELECT auth.uid()), 'route_planner'::user_role));
