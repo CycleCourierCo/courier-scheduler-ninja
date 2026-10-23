@@ -14,7 +14,7 @@ import {
   getWeeklyAvailability, londonToday, addDays, saveLeaveSettings, saveWeeklyAvailability, upsertOverride,
 } from "@/services/driverRotaService";
 
-interface Props { userId: string }
+interface Props { userId: string; hideLeaveSettings?: boolean }
 
 type Row = { weekday: number; is_available: boolean; start_time: string; end_time: string };
 
