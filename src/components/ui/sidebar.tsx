@@ -125,7 +125,7 @@ export function Sidebar({
         <div className="flex flex-1 flex-col overflow-y-auto pb-4 pt-5">
           <div className="flex justify-center">
             <Link to="/" onClick={isMobile ? onCloseSidebar : undefined}>
-              {isSidebarOpen ? <BrandLogo className="h-10 w-52" /> : <BrandLogo compact />}
+              <BrandLogo compact />
             </Link>
           </div>
 

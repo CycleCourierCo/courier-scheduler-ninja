@@ -35,7 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import horizontalLogo from "@/assets/brand/lockup-horizontal.png.asset.json";
+import horizontalLogo from "@/assets/brand/logo-sage.png.asset.json";
 import { publicBrandAssetUrl } from "@/lib/brandAssets";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { notify } from "@/lib/notify";
