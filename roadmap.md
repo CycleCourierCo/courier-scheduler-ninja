@@ -47,4 +47,4 @@
 
 - [x] Availability follow-up emails moved to server (availability-followups)
 - [x] Review other browser loops: announcements + Create All Invoices moved to server; WhatsApp sender locked to staff; bulk upload warns before closing; user mgmt, fuel upload, route generation already fine
-- [ ] Shopify website orders: auto-fulfil with tracking link via client-credentials token (waiting on client ID/secret)
+- [x] Shopify website orders: auto-fulfil with tracking link (client-credentials token)
