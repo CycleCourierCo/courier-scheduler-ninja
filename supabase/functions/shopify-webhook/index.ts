@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { trackedFetch, logInboundWebhook } from "../_shared/integrationLog.ts";
-import { fulfilShopifyOrder } from "./fulfil.ts";
+import { fulfilShopifyOrder, listUnfulfilledOrderIds } from "./fulfil.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -150,12 +150,31 @@ const handler = async (req: Request): Promise<Response> => {
     // Get the request body
     // One-off backfill: service-role only. Fulfils the latest N Shopify orders (already-fulfilled ones are skipped).
     if (req.headers.get('x-backfill-fulfil') && (req.headers.get('Authorization') === `Bearer ${supabaseServiceKey}` || (!!Deno.env.get('CRON_SECRET') && req.headers.get('x-cron-secret') === Deno.env.get('CRON_SECRET')))) {
-      const limit = Math.min(Number(req.headers.get('x-backfill-fulfil')) || 10, 50);
-      const { data: rows } = await supabase.from('orders').select('shopify_order_id, tracking_number, customer_order_number')
-        .not('shopify_order_id', 'is', null).not('tracking_number', 'is', null)
-        .order('created_at', { ascending: false }).limit(limit);
-      const results = [];
-      for (const r of rows || []) {
+      const mode = req.headers.get('x-backfill-fulfil')!;
+      let rows: any[] = [];
+      const results: any[] = [];
+      if (mode === 'unfulfilled') {
+        // Every open, unfulfilled Shopify order that has a booking here (max 60 per call; re-run for more).
+        const { ids, error } = await listUnfulfilledOrderIds();
+        if (error) results.push({ error });
+        const idList = ids.map((o) => o.id);
+        for (let i = 0; i < idList.length; i += 200) {
+          const { data } = await supabase.from('orders').select('shopify_order_id, tracking_number, customer_order_number')
+            .in('shopify_order_id', idList.slice(i, i + 200)).not('tracking_number', 'is', null);
+          rows.push(...(data || []));
+        }
+        const booked = new Set(rows.map((r) => r.shopify_order_id));
+        for (const o of ids) if (!booked.has(o.id)) results.push({ order: o.name, result: 'no booking here' });
+        results.unshift({ unfulfilled_in_shopify: ids.length, with_booking: rows.length });
+        rows = rows.slice(0, 60);
+      } else {
+        const limit = Math.min(Number(mode) || 10, 50);
+        const { data } = await supabase.from('orders').select('shopify_order_id, tracking_number, customer_order_number')
+          .not('shopify_order_id', 'is', null).not('tracking_number', 'is', null)
+          .order('created_at', { ascending: false }).limit(limit);
+        rows = data || [];
+      }
+      for (const r of rows) {
         let result: string;
         try { result = await fulfilShopifyOrder(r.shopify_order_id, r.tracking_number); }
         catch (e) { result = `error: ${e instanceof Error ? e.message : 'unknown'}`; }
