@@ -44,3 +44,6 @@
 - [ ] Batch 6 long tail
 - [ ] Held-bike / failed-attempt flag in order list, order detail, Route Builder cards, Loading & Storage
 - [ ] Waiting on Abdullah: Shopify theme owner, final sign-off, go-live date
+
+- [x] Availability follow-up emails moved to server (availability-followups)
+- [ ] Review other browser loops: bulk upload, inspections, invoices, announcements, user management, fuel upload, route generation
