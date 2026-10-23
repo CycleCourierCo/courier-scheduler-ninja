@@ -147,6 +147,22 @@ const handler = async (req: Request): Promise<Response> => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Get the request body
+    // One-off backfill: service-role only. Fulfils the latest N Shopify orders (already-fulfilled ones are skipped).
+    if (req.headers.get('x-backfill-fulfil') && (req.headers.get('Authorization') === `Bearer ${supabaseServiceKey}` || (!!Deno.env.get('CRON_SECRET') && req.headers.get('x-cron-secret') === Deno.env.get('CRON_SECRET')))) {
+      const limit = Math.min(Number(req.headers.get('x-backfill-fulfil')) || 10, 50);
+      const { data: rows } = await supabase.from('orders').select('shopify_order_id, tracking_number, customer_order_number')
+        .not('shopify_order_id', 'is', null).not('tracking_number', 'is', null)
+        .order('created_at', { ascending: false }).limit(limit);
+      const results = [];
+      for (const r of rows || []) {
+        let result: string;
+        try { result = await fulfilShopifyOrder(r.shopify_order_id, r.tracking_number); }
+        catch (e) { result = `error: ${e instanceof Error ? e.message : 'unknown'}`; }
+        results.push({ order: r.customer_order_number, tracking: r.tracking_number, result });
+      }
+      return new Response(JSON.stringify({ results }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+    }
+
     const body = await req.text();
     const signature = req.headers.get('x-shopify-hmac-sha256');
     const topic = req.headers.get('x-shopify-topic');
