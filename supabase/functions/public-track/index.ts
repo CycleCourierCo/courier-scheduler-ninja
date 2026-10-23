@@ -52,11 +52,12 @@ Deno.serve(async (req) => {
     let raw: Record<string, unknown> = {};
     if (req.method === "GET") {
       const u = new URL(req.url);
-      raw = { tracking: u.searchParams.get("tracking") ?? "", postcode: u.searchParams.get("postcode") ?? undefined };
+      raw = { tracking: u.searchParams.get("tracking") ?? u.searchParams.get("ref") ?? "", postcode: u.searchParams.get("postcode") ?? undefined };
     } else {
       raw = await req.json().catch(() => ({}));
     }
-    const parsed = Input.safeParse(raw);
+    // Retail themes use `ref`; preserve `tracking` for existing API callers.
+    const parsed = Input.safeParse({ ...raw, tracking: raw?.tracking ?? raw?.ref });
     if (!parsed.success) return json({ found: false, error: "Tracking number not found" }, 404);
     const { tracking, postcode } = parsed.data;
 
