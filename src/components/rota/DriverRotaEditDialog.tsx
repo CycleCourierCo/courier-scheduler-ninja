@@ -1,3 +1,4 @@
+import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,6 +12,8 @@ interface Props {
 
 export const DriverRotaEditDialog = ({ driver, onOpenChange }: Props) => {
   const qc = useQueryClient();
+  const { userProfile } = useAuth() as any;
+  const isAdmin = userProfile?.role === "admin" || (userProfile?.roles || []).includes("admin");
 
   return (
     <Dialog open={!!driver} onOpenChange={(o) => { if (!o) qc.invalidateQueries({ queryKey: ["rota"] }); onOpenChange(o); }}>
@@ -22,7 +25,7 @@ export const DriverRotaEditDialog = ({ driver, onOpenChange }: Props) => {
               <TabsTrigger value="weekly">Weekly availability</TabsTrigger>
               <TabsTrigger value="unavailable">Unavailable dates</TabsTrigger>
             </TabsList>
-            <TabsContent value="weekly"><DriverAvailabilityTab userId={driver.id} /></TabsContent>
+            <TabsContent value="weekly"><DriverAvailabilityTab userId={driver.id} hideLeaveSettings={!isAdmin} /></TabsContent>
             <TabsContent value="unavailable">
               <UnavailableDatesEditor driverId={driver.id} invalidateRota />
             </TabsContent>
