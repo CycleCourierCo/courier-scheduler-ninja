@@ -24,6 +24,24 @@ async function getAccessToken(domain: string): Promise<string | null> {
   return cached.token;
 }
 
+// Lists IDs of unfulfilled (paid, open) orders in the retail store, following pagination.
+export async function listUnfulfilledOrderIds(): Promise<{ ids: { id: string; name: string }[]; error?: string }> {
+  const domain = Deno.env.get("SHOPIFY_STORE_DOMAIN")?.trim().replace(/^https?:\/\//, "").replace(/\/$/, "");
+  if (!domain) return { ids: [], error: "no domain" };
+  const token = await getAccessToken(domain);
+  if (!token) return { ids: [], error: "no token" };
+  const ids: { id: string; name: string }[] = [];
+  let url = `https://${domain}/admin/api/2024-10/orders.json?status=open&fulfillment_status=unfulfilled&limit=250&fields=id,name`;
+  for (let page = 0; page < 20 && url; page++) {
+    const res = await fetch(url, { headers: { "X-Shopify-Access-Token": token } });
+    if (!res.ok) return { ids, error: `orders ${res.status}` };
+    for (const o of (await res.json()).orders ?? []) ids.push({ id: String(o.id), name: o.name });
+    const next = (res.headers.get("link") || "").split(",").find((s) => s.includes('rel="next"'));
+    url = next?.match(/<([^>]+)>/)?.[1] ?? "";
+  }
+  return { ids };
+}
+
 export async function fulfilShopifyOrder(shopifyOrderId: string, trackingNumber: string): Promise<string> {
   const domain = Deno.env.get("SHOPIFY_STORE_DOMAIN")?.trim().replace(/^https?:\/\//, "").replace(/\/$/, "");
   if (!domain) return "skipped: SHOPIFY_STORE_DOMAIN not configured";
