@@ -123,7 +123,7 @@ const CustomerOrderDetail = () => {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
         </div>
       </Layout>
     );
@@ -282,7 +282,7 @@ const CustomerOrderDetail = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
-                  <Calendar className="text-courier-600" />
+                  <Calendar className="text-primary" />
                   <h3 className="font-semibold">Scheduled Pickup Date</h3>
                 </div>
                 
@@ -306,7 +306,7 @@ const CustomerOrderDetail = () => {
                 )}
                 
                 <div className="flex items-center space-x-2">
-                  <Calendar className="text-courier-600" />
+                  <Calendar className="text-primary" />
                   <h3 className="font-semibold">Scheduled Delivery Date</h3>
                 </div>
                 
@@ -364,13 +364,13 @@ const CustomerOrderDetail = () => {
                     )}
 
                     {order.isBikeSwap && (
-                      <p className="text-courier-600 font-medium mt-2">This is a bike swap</p>
+                      <p className="text-primary font-medium mt-2">This is a bike swap</p>
                     )}
                     {order.needsPaymentOnCollection && (
-                      <p className="text-courier-600 font-medium">Payment required on collection</p>
+                      <p className="text-primary font-medium">Payment required on collection</p>
                     )}
                     {order.needsInspection && (
-                      <p className="text-amber-600 font-medium mt-2 flex items-center gap-2">
+                      <p className="text-status-waiting font-medium mt-2 flex items-center gap-2">
                         <Wrench className="h-4 w-4" />
                         {order.inspectionType === 'inspection_only' ? 'Bike will be inspected' : 'Bike will be inspected and serviced'}
                       </p>
@@ -407,7 +407,7 @@ const CustomerOrderDetail = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
-                  <User className="text-courier-600" />
+                  <User className="text-primary" />
                   <h3 className="font-semibold text-lg">Sender Information</h3>
                 </div>
                 <div className="space-y-3 rounded-md border bg-muted p-4">
@@ -436,7 +436,7 @@ const CustomerOrderDetail = () => {
               
               <div className="space-y-4">
                 <div className="flex items-center space-x-2">
-                  <User className="text-courier-600" />
+                  <User className="text-primary" />
                   <h3 className="font-semibold text-lg">Receiver Information</h3>
                 </div>
                 <div className="space-y-3 rounded-md border bg-muted p-4">

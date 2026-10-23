@@ -1462,7 +1462,7 @@ const BicycleInspections = () => {
       case "awaiting_pricing":
         return { variant: "warning" as const, label: "Awaiting Pricing" };
       case "issues_found":
-        return { variant: "destructive" as const, label: "Issues Found" };
+        return { variant: "waiting" as const, label: "Issues Found" };
       case "repairs_declined":
         return { variant: "destructive" as const, label: "Repairs Declined" };
       case "pending_receiver_approval":
@@ -1471,15 +1471,15 @@ const BicycleInspections = () => {
         return { variant: "warning" as const, label: "Awaiting Parts" };
       case "awaiting_repair":
       case "in_repair":
-        return { variant: "warning" as const, label: "Awaiting Repair" };
+        return { variant: "inspection" as const, label: "Awaiting Repair" };
       case "cleaning":
-        return { variant: "warning" as const, label: "Cleaning" };
+        return { variant: "inspection" as const, label: "Cleaning" };
       case "repaired":
-        return { variant: "success" as const, label: "Repaired" };
+        return { variant: "done" as const, label: "Repaired" };
       case "ship_as_is":
-        return { variant: "warning" as const, label: "Ship As-Is" };
+        return { variant: "inspection" as const, label: "Ship as-is — repairs declined" };
       default:
-        return { variant: "secondary" as const, label: "Awaiting Inspection" };
+        return { variant: "inspection" as const, label: "Awaiting Inspection" };
     }
   };
 

@@ -204,7 +204,7 @@ export default function InsuranceTab({ vehicles }: Props) {
                       <TableCell className="text-sm">
                         <span className={
                           expired ? "text-destructive font-medium"
-                          : expiringSoon ? "text-amber-600 dark:text-amber-400 font-medium"
+                          : expiringSoon ? "text-status-waiting dark:text-status-waiting font-medium"
                           : ""
                         }>{p.end_date}</span>
                       </TableCell>

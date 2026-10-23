@@ -124,7 +124,7 @@ const DriverLicenceTab: React.FC<DriverLicenceTabProps> = ({ userId, formData, o
     days === null ? null : days < 0 ? (
       <Badge variant="destructive">Expired</Badge>
     ) : days <= 60 ? (
-      <Badge className="bg-amber-500 text-amber-950 hover:bg-amber-500">Expires in {days} day{days === 1 ? "" : "s"}</Badge>
+      <Badge className="bg-status-waiting text-status-waiting-foreground hover:bg-status-waiting">Expires in {days} day{days === 1 ? "" : "s"}</Badge>
     ) : null;
 
   return (

@@ -736,10 +736,10 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
           <p>We hope you enjoyed our service. Your feedback is important to us - it helps us improve!</p>
           <p>Please consider leaving us a review:</p>
           <div style="margin: 20px 0;">
-            <a href="${reviewLinks.trustpilot}" style="display:inline-block;background:#ffffff;color:#0B5FB0;border:1px solid #0B5FB0;padding:11px 20px;text-decoration:none;border-radius:4px;font-weight:600;margin:4px 8px 4px 0;">
+            <a href="${reviewLinks.trustpilot}" style="display:inline-block;background:#ffffff;color:#4D6863;border:1px solid #4D6863;padding:11px 20px;text-decoration:none;border-radius:4px;font-weight:600;margin:4px 8px 4px 0;">
               Review us on Trustpilot
             </a>
-            <a href="${reviewLinks.facebook}" style="display:inline-block;background:#ffffff;color:#0B5FB0;border:1px solid #0B5FB0;padding:11px 20px;text-decoration:none;border-radius:4px;font-weight:600;margin:4px 8px 4px 0;">
+            <a href="${reviewLinks.facebook}" style="display:inline-block;background:#ffffff;color:#4D6863;border:1px solid #4D6863;padding:11px 20px;text-decoration:none;border-radius:4px;font-weight:600;margin:4px 8px 4px 0;">
               Review us on Facebook
             </a>
           </div>
@@ -793,10 +793,10 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
           <p>We hope you enjoyed our service. Your feedback is important to us - it helps us improve!</p>
           <p>Please consider leaving us a review:</p>
           <div style="margin: 20px 0;">
-            <a href="${reviewLinks.trustpilot}" style="display:inline-block;background:#ffffff;color:#0B5FB0;border:1px solid #0B5FB0;padding:11px 20px;text-decoration:none;border-radius:4px;font-weight:600;margin:4px 8px 4px 0;">
+            <a href="${reviewLinks.trustpilot}" style="display:inline-block;background:#ffffff;color:#4D6863;border:1px solid #4D6863;padding:11px 20px;text-decoration:none;border-radius:4px;font-weight:600;margin:4px 8px 4px 0;">
               Review us on Trustpilot
             </a>
-            <a href="${reviewLinks.facebook}" style="display:inline-block;background:#ffffff;color:#0B5FB0;border:1px solid #0B5FB0;padding:11px 20px;text-decoration:none;border-radius:4px;font-weight:600;margin:4px 8px 4px 0;">
+            <a href="${reviewLinks.facebook}" style="display:inline-block;background:#ffffff;color:#4D6863;border:1px solid #4D6863;padding:11px 20px;text-decoration:none;border-radius:4px;font-weight:600;margin:4px 8px 4px 0;">
               Review us on Facebook
             </a>
           </div>

@@ -83,7 +83,7 @@ const RouteComparisonDialog: React.FC<RouteComparisonDialogProps> = ({
                       {totalIssues(analysis) > 0 && (
                         <div className="flex items-center gap-1">
                           <span className="text-muted-foreground">Issues:</span>
-                          <span className="font-medium text-amber-600">{totalIssues(analysis)}</span>
+                          <span className="font-medium text-status-waiting">{totalIssues(analysis)}</span>
                         </div>
                       )}
                     </div>
@@ -112,13 +112,13 @@ const RouteComparisonDialog: React.FC<RouteComparisonDialogProps> = ({
                             </Badge>
                           )}
                           {analysis.issues.collectionWrongDate > 0 && (
-                            <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                            <Badge variant="outline" className="text-xs bg-status-waiting/10 text-status-waiting border-status-waiting/40">
                               <AlertCircle className="h-3 w-3 mr-1" />
                               {analysis.issues.collectionWrongDate} collection wrong date
                             </Badge>
                           )}
                           {analysis.issues.deliveryWrongDate > 0 && (
-                            <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                            <Badge variant="outline" className="text-xs bg-status-waiting/10 text-status-waiting border-status-waiting/40">
                               <AlertCircle className="h-3 w-3 mr-1" />
                               {analysis.issues.deliveryWrongDate} delivery wrong date
                             </Badge>

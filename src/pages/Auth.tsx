@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import Layout from "@/components/Layout";
+import BrandLogo from "@/components/BrandLogo";
 import { toast } from "sonner";
 import LoginForm from "@/components/auth/LoginForm";
 import RegisterForm from "@/components/auth/RegisterForm";
@@ -102,6 +103,7 @@ const Auth = () => {
   return (
     <Layout>
       <div className="container mx-auto max-w-[420px] px-4 py-10">
+        <BrandLogo className="mx-auto mb-6 h-40 w-40" />
         <Card>
           <CardHeader>
             <ChevronAlert className="mb-4">

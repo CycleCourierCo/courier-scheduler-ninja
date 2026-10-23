@@ -26,9 +26,9 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
 
 
   const statusColors = {
-    draft: 'bg-yellow-500',
-    approved: 'bg-green-500',
-    rejected: 'bg-red-500'
+    draft: 'border-transparent bg-status-waiting text-status-waiting-foreground',
+    approved: 'border-transparent bg-status-done text-primary-foreground',
+    rejected: 'border-transparent bg-status-failed text-primary-foreground'
   };
 
   return (

@@ -38,23 +38,23 @@ const AltLocationDetails: React.FC<AltLocationDetailsProps> = ({ type, alt }) =>
   const legacyWindows = describeWindows(alt.work_windows);
 
   return (
-    <div className="rounded-md border border-amber-200 bg-amber-50 p-4 space-y-3">
+    <div className="rounded-md border border-status-waiting/40 bg-status-waiting/10 p-4 space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <p className="font-medium text-amber-900">{label}</p>
+        <p className="font-medium text-status-waiting">{label}</p>
         {hasWork && (
-          <Badge variant="outline" className="border-amber-400 text-amber-900">
+          <Badge variant="outline" className="border-status-waiting/40 text-status-waiting">
             Work address
           </Badge>
         )}
         {neighbour && (
-          <Badge variant="outline" className="border-amber-400 text-amber-900">
+          <Badge variant="outline" className="border-status-waiting/40 text-status-waiting">
             Neighbour
           </Badge>
         )}
       </div>
 
       {hasWork && (
-        <div className="flex items-start gap-2 text-sm text-amber-900">
+        <div className="flex items-start gap-2 text-sm text-status-waiting">
           <Briefcase className="h-4 w-4 mt-0.5 shrink-0" />
           <div className="space-y-1">
             <p className="font-medium">{verb} from work address:</p>
@@ -70,14 +70,14 @@ const AltLocationDetails: React.FC<AltLocationDetailsProps> = ({ type, alt }) =>
             ) : legacyWindows ? (
               <p>{legacyWindows}</p>
             ) : (
-              <p className="text-amber-800">No times given — check with the customer.</p>
+              <p className="text-status-waiting">No times given — check with the customer.</p>
             )}
           </div>
         </div>
       )}
 
       {neighbour && (
-        <div className="flex items-start gap-2 text-sm text-amber-900">
+        <div className="flex items-start gap-2 text-sm text-status-waiting">
           <Users className="h-4 w-4 mt-0.5 shrink-0" />
           <p>
             Can be left with the neighbour at number <span className="font-medium">{neighbour}</span>.

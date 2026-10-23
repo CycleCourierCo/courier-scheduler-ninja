@@ -125,7 +125,7 @@ export function Sidebar({
         <div className="flex flex-1 flex-col overflow-y-auto pb-4 pt-5">
           <div className="flex justify-center">
             <Link to="/" onClick={isMobile ? onCloseSidebar : undefined}>
-              {isSidebarOpen ? <BrandLogo className="h-10 w-52" /> : <BrandLogo compact />}
+              <BrandLogo compact />
             </Link>
           </div>
 
@@ -139,7 +139,7 @@ export function Sidebar({
                   className={cn(
                     "group flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
                     pathname === link.href
-                      ? "bg-courier-500 text-white"
+                      ? "bg-primary text-white"
                       : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
                   )}
                 >

@@ -81,7 +81,7 @@ const SchedulingCard: React.FC<SchedulingCardProps> = ({ group, onSchedule }) =>
       <CardHeader className="pb-2">
         <CardTitle className="text-lg flex items-center justify-between">
           <div className="flex items-center">
-            <span className={`mr-2 w-3 h-3 rounded-full ${group.isOptimal ? 'bg-green-500' : 'bg-yellow-500'}`}></span>
+            <span className={`mr-2 w-3 h-3 rounded-full ${group.isOptimal ? 'bg-green-500' : 'bg-status-waiting'}`}></span>
             <span>{isPickup ? 'Collection' : 'Delivery'}</span>
           </div>
           <div className="flex items-center gap-2">

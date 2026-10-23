@@ -44,9 +44,9 @@ const statusVariant = (status: EquipmentUnitStatus) => {
     case "available":
       return "bg-emerald-600 hover:bg-emerald-600 text-white";
     case "assigned":
-      return "bg-courier-600 hover:bg-courier-600 text-white";
+      return "bg-primary hover:bg-primary text-white";
     case "in_repair":
-      return "bg-amber-600 hover:bg-amber-600 text-white";
+      return "bg-status-waiting hover:bg-status-waiting text-status-waiting-foreground";
     default:
       return "";
   }
@@ -262,10 +262,10 @@ const EquipmentPage: React.FC = () => {
         </div>
 
         {dueUnits.length > 0 && (
-          <Card className="border-amber-500/50">
+          <Card className="border-status-waiting/40">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base">
-                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertTriangle className="h-4 w-4 text-status-waiting" />
                 {dueUnits.length} item{dueUnits.length === 1 ? "" : "s"} due a check
               </CardTitle>
             </CardHeader>
@@ -381,7 +381,7 @@ const EquipmentPage: React.FC = () => {
                                 <span
                                   className={
                                     u.next_maintenance_due <= todayStr
-                                      ? "text-amber-600 font-medium"
+                                      ? "text-status-waiting font-medium"
                                       : ""
                                   }
                                 >
@@ -446,7 +446,7 @@ const EquipmentPage: React.FC = () => {
                               <span
                                 className={
                                   u.next_maintenance_due <= todayStr
-                                    ? "text-amber-600 font-medium"
+                                    ? "text-status-waiting font-medium"
                                     : ""
                                 }
                               >

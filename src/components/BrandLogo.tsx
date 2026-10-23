@@ -1,29 +1,38 @@
 import { cn } from "@/lib/utils";
-import horizontalLogo from "@/assets/brand/lockup-horizontal.png.asset.json";
-import reversedHorizontalLogo from "@/assets/brand/lockup-horizontal-reversed.png.asset.json";
-import solidLogo from "@/assets/brand/c-solid-blue.png.asset.json";
+import sageLogo from "@/assets/brand/logo-sage.png.asset.json";
+import creamLogo from "@/assets/brand/logo-cream.png.asset.json";
+import cloudMark from "@/assets/brand/icon-128.png.asset.json";
 import { publicBrandAssetUrl } from "@/lib/brandAssets";
 
 type BrandLogoProps = {
   className?: string;
+  /** The cloud mark alone (36px). Use wherever the full logo would be under 140px wide. */
   compact?: boolean;
+  /** Kept for older callers; the hand lettering is never set in type. */
   showMobileWordmark?: boolean;
+  /** Always use the sage artwork, e.g. on customer pages that never render dark. */
+  lightOnly?: boolean;
 };
 
-export default function BrandLogo({ className, compact = false, showMobileWordmark = false }: BrandLogoProps) {
+export default function BrandLogo({ className, compact = false, lightOnly = false }: BrandLogoProps) {
   if (compact) {
     return (
-      <span className={cn("flex min-w-0 items-center gap-2", className)}>
-        <img src={publicBrandAssetUrl(solidLogo.url)} alt="" className="h-8 w-8 shrink-0" />
-        {showMobileWordmark && <span className="truncate text-xs font-extrabold sm:text-sm">CYCLE COURIER CO.</span>}
+      <span className={cn("flex items-center", className)}>
+        <img src={publicBrandAssetUrl(cloudMark.url)} alt="Cycle Courier Co." width={36} height={36} className="h-9 w-9 shrink-0" />
       </span>
     );
   }
 
   return (
-    <span className={cn("block", className)}>
-      <img src={publicBrandAssetUrl(horizontalLogo.url)} alt="Cycle Courier Co." className="h-full w-full object-contain object-left dark:hidden" />
-      <img src={publicBrandAssetUrl(reversedHorizontalLogo.url)} alt="Cycle Courier Co." className="hidden h-full w-full object-contain object-left dark:block" />
+    <span className={cn("block min-w-[140px]", className)}>
+      <img
+        src={publicBrandAssetUrl(sageLogo.url)}
+        alt="Cycle Courier Co."
+        className={cn("h-full w-full object-contain object-left", !lightOnly && "dark:hidden")}
+      />
+      {!lightOnly && (
+        <img src={publicBrandAssetUrl(creamLogo.url)} alt="Cycle Courier Co." className="hidden h-full w-full object-contain object-left dark:block" />
+      )}
     </span>
   );
 }

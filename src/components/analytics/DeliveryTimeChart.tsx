@@ -51,7 +51,7 @@ const DeliveryTimeChart = ({ data }: DeliveryTimeChartProps) => {
             <p className="text-sm text-muted-foreground">SLA (&le;4 days)</p>
             <p className={`text-2xl font-bold ${
               data.deliverySLA >= 90 ? 'text-primary' : 
-              data.deliverySLA >= 75 ? 'text-yellow-600' : 
+              data.deliverySLA >= 75 ? 'text-status-waiting' : 
               'text-destructive'
             }`}>
               {data.deliverySLA.toFixed(0)}%

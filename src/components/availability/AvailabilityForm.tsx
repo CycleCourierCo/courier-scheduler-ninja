@@ -143,9 +143,9 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
           {bufferNotice && (
-            <Alert className="border-amber-500/50 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-500/40">
-              <Wrench className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              <AlertDescription className="text-amber-900 dark:text-amber-100">
+            <Alert className="border-status-waiting/40 bg-status-waiting/10 dark:bg-status-waiting/20 dark:border-status-waiting/40">
+              <Wrench className="h-4 w-4 text-status-waiting dark:text-status-waiting" />
+              <AlertDescription className="text-status-waiting dark:text-status-waiting">
                 {bufferNotice}
               </AlertDescription>
             </Alert>

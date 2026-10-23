@@ -307,7 +307,7 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
                               {stats.collections}C / {stats.deliveries}D
                             </span>
                             {!viability.allMatched && (
-                              <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                              <Badge variant="outline" className="text-xs bg-status-waiting/10 text-status-waiting border-status-waiting/40">
                                 <AlertTriangle className="h-3 w-3 mr-1" />
                                 {viability.matchedCount}/{viability.totalJobs} available
                               </Badge>

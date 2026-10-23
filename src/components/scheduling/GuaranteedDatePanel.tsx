@@ -77,7 +77,7 @@ const GuaranteedDatePanel = ({ orders, selectedKeys, onToggleJob }: GuaranteedDa
 
   const urgency = (daysLeft: number) => {
     if (daysLeft <= 0) return "border-red-500/60 bg-red-50 dark:bg-red-950/30";
-    if (daysLeft <= 2) return "border-amber-500/60 bg-amber-50 dark:bg-amber-950/30";
+    if (daysLeft <= 2) return "border-status-waiting/40 bg-status-waiting/10 dark:bg-status-waiting/20";
     return "border-border bg-muted/30";
   };
 
@@ -125,12 +125,11 @@ const GuaranteedDatePanel = ({ orders, selectedKeys, onToggleJob }: GuaranteedDa
                   </Badge>
                   <Badge
                     className={cn(
-                      "text-white",
                       row.daysLeft <= 0
-                        ? "bg-red-600 hover:bg-red-600"
+                        ? "bg-status-failed text-primary-foreground hover:bg-status-failed"
                         : row.daysLeft <= 2
-                        ? "bg-amber-600 hover:bg-amber-600"
-                        : "bg-green-600 hover:bg-green-600"
+                        ? "bg-status-waiting text-status-waiting-foreground hover:bg-status-waiting"
+                        : "bg-status-done text-primary-foreground hover:bg-status-done"
                     )}
                   >
                     {formatDay(row.guaranteedDate)} · {daysLabel(row.daysLeft)}

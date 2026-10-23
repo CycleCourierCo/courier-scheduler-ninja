@@ -6,128 +6,122 @@
 
 @layer base {
   :root {
-    --background: 207 24% 96%;
-    --foreground: 213 14% 10%;
+    --background: 60 19% 94%;
+    --foreground: 158 12% 13%;
     --card: 0 0% 100%;
-    --card-foreground: 213 14% 10%;
+    --card-foreground: 158 12% 13%;
     --popover: 0 0% 100%;
-    --popover-foreground: 213 14% 10%;
-    --primary: 209 88% 37%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 209 56% 93%;
-    --secondary-foreground: 213 14% 10%;
-    --muted: 210 17% 93%;
-    --muted-foreground: 213 10% 40%;
-    --accent: 209 56% 93%;
-    --accent-foreground: 213 14% 10%;
-    --destructive: 0 61% 47%;
+    --popover-foreground: 158 12% 13%;
+    --primary: 169 15% 35%;
+    --primary-foreground: 60 50% 96%;
+    --secondary: 160 14% 92%;
+    --secondary-foreground: 158 12% 13%;
+    --muted: 150 20% 96%;
+    --muted-foreground: 160 6% 39%;
+    --accent: 160 14% 92%;
+    --accent-foreground: 158 12% 13%;
+    --destructive: 4 56% 45%;
     --destructive-foreground: 0 0% 100%;
-    --warning: 33 92% 42%;
-    --warning-foreground: 0 0% 100%;
-    --success: 152 58% 32%;
+    --border: 60 11% 85%;
+    --input: 60 11% 85%;
+    --ring: 169 15% 35%;
+    --radius: 0.625rem;
+
+    --sage-deep: 169 16% 27%;
+    --cream: 60 50% 96%;
+
+    --status-neutral: 137 3% 41%;
+    --status-waiting: 38 100% 30%;
+    --status-waiting-foreground: 0 0% 100%;
+    --status-booked: 211 51% 37%;
+    --status-transit: 266 34% 44%;
+    --status-done: 145 46% 31%;
+    --status-failed: 4 56% 45%;
+    --status-ni: 228 38% 40%;
+    --status-trunk: 187 63% 29%;
+    --status-inspection: 205 56% 40%;
+
+    --urgent-ok: var(--status-done);
+    --urgent-soon: var(--status-waiting);
+    --urgent-now: var(--status-failed);
+
+    /* Shorthand aliases kept so older screens follow the palette. */
+    --warning: var(--status-waiting);
+    --warning-foreground: var(--status-waiting-foreground);
+    --success: var(--status-done);
     --success-foreground: 0 0% 100%;
-    --border: 210 18% 87%;
-    --input: 210 18% 87%;
-    --ring: 209 88% 37%;
-
-    --daylight: 207 24% 96%;
-    --surface: 0 0% 100%;
-    --surface-high: 210 17% 93%;
-    --tarmac: 213 14% 10%;
-    --tarmac-soft: 213 10% 40%;
-    --edge: 210 18% 87%;
-    --route: 209 88% 37%;
-    --route-tint: 209 56% 93%;
-    --chevron: 45 100% 48%;
-
-    --status-neutral: 211 9% 46%;
-    --status-waiting: 45 100% 48%;
-    --status-booked: 209 88% 37%;
-    --status-transit: 255 46% 53%;
-    --status-done: 148 60% 30%;
-    --status-failed: 0 61% 47%;
-    --status-ni: 231 48% 48%;
-    --status-trunk: 187 80% 30%;
-    --status-inspection: 204 68% 51%;
-    --urgent-ok: 148 60% 30%;
-    --urgent-soon: 45 100% 48%;
-    --urgent-now: 0 61% 47%;
+    --daylight: var(--background);
+    --surface: var(--card);
+    --surface-high: var(--muted);
+    --tarmac: var(--foreground);
+    --tarmac-soft: var(--muted-foreground);
+    --edge: var(--border);
+    --route: var(--primary);
+    --route-tint: var(--secondary);
 
     --segment-1: 209 88% 37%;
-    --segment-2: 18 91% 40%;
-    --segment-3: 187 80% 30%;
-    --segment-4: 255 46% 53%;
-    --segment-5: 39 40% 39%;
-    --segment-6: 323 73% 40%;
-    --segment-7: 72 33% 27%;
+    --segment-2: 17 88% 40%;
+    --segment-3: 188 82% 22%;
+    --segment-4: 255 47% 53%;
+    --segment-5: 38 40% 39%;
+    --segment-6: 322 73% 40%;
+    --segment-7: 57 61% 23%;
     --segment-8: 358 66% 36%;
 
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 213 14% 10%;
-    --sidebar-primary: 209 88% 37%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 209 56% 93%;
-    --sidebar-accent-foreground: 213 14% 10%;
-    --sidebar-border: 210 18% 87%;
-    --sidebar-ring: 209 88% 37%;
-    --shadow-card: 0 1px 0 hsl(var(--edge));
-    --radius: 0.375rem;
+    --sidebar-background: 60 19% 94%;
+    --sidebar-foreground: 158 12% 13%;
+    --sidebar-primary: 169 15% 35%;
+    --sidebar-primary-foreground: 60 50% 96%;
+    --sidebar-accent: 160 14% 92%;
+    --sidebar-accent-foreground: 158 12% 13%;
+    --sidebar-border: 60 11% 85%;
+    --sidebar-ring: 169 15% 35%;
+    --shadow-card: 0 1px 0 hsl(var(--border));
   }
 
   .dark {
-    --background: 210 20% 8%;
-    --foreground: 210 22% 93%;
-    --card: 213 18% 12%;
-    --card-foreground: 210 22% 93%;
-    --popover: 213 18% 12%;
-    --popover-foreground: 210 22% 93%;
-    --primary: 209 77% 60%;
-    --primary-foreground: 210 49% 8%;
-    --secondary: 208 48% 16%;
-    --secondary-foreground: 210 22% 93%;
-    --muted: 213 20% 17%;
-    --muted-foreground: 211 11% 63%;
-    --accent: 208 48% 16%;
-    --accent-foreground: 210 22% 93%;
-    --destructive: 2 84% 66%;
-    --destructive-foreground: 210 49% 8%;
-    --warning: 36 90% 60%;
-    --warning-foreground: 210 49% 8%;
-    --success: 152 45% 52%;
-    --success-foreground: 210 49% 8%;
-    --border: 211 15% 20%;
-    --input: 211 15% 20%;
-    --ring: 209 77% 60%;
+    --background: 160 14% 8%;
+    --foreground: 144 14% 93%;
+    --card: 160 15% 12%;
+    --card-foreground: 144 14% 93%;
+    --popover: 160 15% 12%;
+    --popover-foreground: 144 14% 93%;
+    --primary: 168 19% 63%;
+    --primary-foreground: 160 14% 8%;
+    --secondary: 145 14% 16%;
+    --secondary-foreground: 144 14% 93%;
+    --muted: 145 14% 16%;
+    --muted-foreground: 160 6% 63%;
+    --accent: 165 20% 16%;
+    --accent-foreground: 144 14% 93%;
+    --destructive: 4 68% 67%;
+    --destructive-foreground: 160 14% 8%;
+    --border: 162 13% 20%;
+    --input: 162 13% 20%;
+    --ring: 168 19% 63%;
 
-    --daylight: 210 20% 8%;
-    --surface: 213 18% 12%;
-    --surface-high: 213 20% 17%;
-    --tarmac: 210 22% 93%;
-    --tarmac-soft: 211 11% 63%;
-    --edge: 211 15% 20%;
-    --route: 209 77% 60%;
-    --route-tint: 208 48% 16%;
-    --chevron: 45 100% 58%;
-    --status-neutral: 210 12% 68%;
-    --status-waiting: 45 100% 58%;
-    --status-booked: 209 77% 60%;
-    --status-transit: 255 70% 72%;
-    --status-done: 148 55% 55%;
-    --status-failed: 2 84% 66%;
-    --status-ni: 231 78% 72%;
-    --status-trunk: 187 63% 55%;
-    --status-inspection: 204 81% 65%;
-    --urgent-ok: 148 55% 55%;
-    --urgent-soon: 45 100% 58%;
-    --urgent-now: 2 84% 66%;
-    --sidebar-background: 213 18% 12%;
-    --sidebar-foreground: 210 22% 93%;
-    --sidebar-primary: 209 77% 60%;
-    --sidebar-primary-foreground: 210 49% 8%;
-    --sidebar-accent: 208 48% 16%;
-    --sidebar-accent-foreground: 210 22% 93%;
-    --sidebar-border: 211 15% 20%;
-    --sidebar-ring: 209 77% 60%;
+    --sage-deep: 168 21% 72%;
+
+    --status-neutral: 150 4% 56%;
+    --status-waiting: 39 68% 51%;
+    --status-waiting-foreground: 158 12% 13%;
+    --status-booked: 211 60% 66%;
+    --status-transit: 264 41% 69%;
+    --status-done: 146 34% 53%;
+    --status-failed: 4 65% 67%;
+    --status-ni: 231 46% 69%;
+    --status-trunk: 187 42% 53%;
+    --status-inspection: 206 57% 64%;
+    --success-foreground: 160 14% 8%;
+
+    --sidebar-background: 160 14% 8%;
+    --sidebar-foreground: 144 14% 93%;
+    --sidebar-primary: 168 19% 63%;
+    --sidebar-primary-foreground: 160 14% 8%;
+    --sidebar-accent: 145 14% 16%;
+    --sidebar-accent-foreground: 144 14% 93%;
+    --sidebar-border: 162 13% 20%;
+    --sidebar-ring: 168 19% 63%;
   }
 
   * { @apply border-border; }
@@ -145,10 +139,10 @@
     -webkit-tap-highlight-color: transparent;
   }
   :focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
-  ::selection { background: hsl(var(--route-tint)); color: hsl(var(--tarmac)); }
+  ::selection { background: hsl(var(--secondary)); color: hsl(var(--foreground)); }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: hsl(var(--muted)); }
-  ::-webkit-scrollbar-thumb { background: hsl(var(--tarmac-soft)); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.5); border-radius: 4px; }
 }
 
 @layer components {
@@ -161,17 +155,15 @@
     content: "";
     position: absolute;
     inset: 0 0 auto;
-    height: 6px;
-    background: repeating-linear-gradient(135deg, hsl(var(--chevron)) 0 10px, hsl(var(--tarmac)) 10px 20px);
+    height: 4px;
+    background: hsl(var(--primary));
   }
   .doorstep-page { @apply min-h-screen bg-background text-[17px] text-foreground; color-scheme: light; }
-  .doorstep-page, .doorstep-page * { --background: 207 24% 96%; --foreground: 213 14% 10%; --card: 0 0% 100%; --card-foreground: 213 14% 10%; --muted: 210 17% 93%; --muted-foreground: 213 10% 40%; --border: 210 18% 87%; --primary: 209 88% 37%; --primary-foreground: 0 0% 100%; }
+  .doorstep-page, .doorstep-page * { --background: 60 19% 94%; --foreground: 158 12% 13%; --card: 0 0% 100%; --card-foreground: 158 12% 13%; --popover: 0 0% 100%; --popover-foreground: 158 12% 13%; --muted: 150 20% 96%; --muted-foreground: 160 6% 39%; --secondary: 160 14% 92%; --secondary-foreground: 158 12% 13%; --accent: 160 14% 92%; --accent-foreground: 158 12% 13%; --border: 60 11% 85%; --input: 60 11% 85%; --primary: 169 15% 35%; --primary-foreground: 60 50% 96%; --ring: 169 15% 35%; --destructive: 4 56% 45%; --destructive-foreground: 0 0% 100%; --status-neutral: 137 3% 41%; --status-waiting: 38 100% 30%; --status-waiting-foreground: 0 0% 100%; --status-booked: 211 51% 37%; --status-transit: 266 34% 44%; --status-done: 145 46% 31%; --status-failed: 4 56% 45%; --status-ni: 228 38% 40%; --status-trunk: 187 63% 29%; --status-inspection: 205 56% 40%; }
   .data-text { @apply font-mono font-semibold tabular-nums; }
   .doorstep-data { @apply font-mono text-[22px] font-bold leading-snug tabular-nums; }
   .office-density { @apply text-[12.5px] leading-[1.35]; }
   .floor-density { @apply text-[17px]; }
-  .journey-line { animation: route-draw 400ms ease-out both; }
-  .journey-van { animation: van-slide 350ms ease-in-out both; }
   .route-map-marker {
     box-sizing: border-box;
     display: flex;
@@ -193,27 +185,28 @@
     @apply flex h-5 w-12 items-center justify-center rounded border-2 border-primary-foreground bg-foreground px-1.5 text-[11px] font-semibold text-background shadow-sm;
   }
 
-  /* Legacy hooks remain flat while old screens migrate to semantic classes. */
-  .glass { @apply border-b border-border bg-card; }
-  .text-gradient { color: hsl(var(--primary)); }
-  .hover-lift, .btn-shine, .float, .glow { transform: none; box-shadow: none; }
+  /* Workshop, warehouse, public and driver screens: 48px controls. */
+  .floor-controls button.h-10, .doorstep-page button.h-10 { height: 3rem; }
+  .floor-controls button.h-10.w-10, .doorstep-page button.h-10.w-10 { width: 3rem; }
 }
 
-@keyframes route-draw { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
-@keyframes van-slide { from { transform: translateX(-8px); opacity: .65; } to { transform: translateX(0); opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
 
 @media print {
-  :root, .dark { --background: 0 0% 100%; --foreground: 213 14% 10%; --card: 0 0% 100%; --card-foreground: 213 14% 10%; --border: 210 18% 75%; color-scheme: light; }
-  body { background: white !important; color: black !important; font-family: Overpass, sans-serif; }
+  :root, .dark { --background: 0 0% 100%; --foreground: 158 12% 13%; --card: 0 0% 100%; --card-foreground: 158 12% 13%; --border: 60 11% 75%; color-scheme: light; }
+  body { background: white !important; color: black !important; font-family: "Hanken Grotesk", sans-serif; }
   header, footer, nav, [data-print-hidden="true"] { display: none !important; }
 }
 
-.leaflet-container { z-index: 1; width: 100% !important; height: 100% !important; position: relative !important; background: hsl(var(--daylight)); font-family: Overpass, sans-serif; }
+.leaflet-container { z-index: 1; width: 100% !important; height: 100% !important; position: relative !important; background: hsl(var(--daylight)); font-family: "Hanken Grotesk", sans-serif; }
 .leaflet-popup-content-wrapper { border: 1px solid hsl(var(--edge)); border-radius: var(--radius); background: hsl(var(--surface)); color: hsl(var(--tarmac)); box-shadow: var(--shadow-card); }
 .leaflet-popup-content { margin: 0; min-width: 200px; }
 #map-container .leaflet-container { width: 100%; height: 100%; position: relative !important; overflow: hidden; border-radius: var(--radius); }
 #map-container { position: relative; overflow: hidden; }
+.leaflet-popup-tip { background: hsl(var(--card)); }
+.leaflet-bar a, .leaflet-control-zoom a { background: hsl(var(--card)); color: hsl(var(--foreground)); border-color: hsl(var(--border)); }
+.leaflet-control-attribution { background: hsl(var(--card) / 0.85) !important; color: hsl(var(--muted-foreground)); }
+.leaflet-control-attribution a { color: hsl(var(--primary)); }

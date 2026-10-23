@@ -194,7 +194,7 @@ const MechanicTimeslipCard: React.FC<MechanicTimeslipCardProps> = ({
         )}
 
         {explanations.map((ex, i) => (
-          <div key={i} className="text-xs rounded-md border bg-amber-50 dark:bg-amber-950/30 p-2 break-words">
+          <div key={i} className="text-xs rounded-md border bg-status-waiting/10 dark:bg-status-waiting/20 p-2 break-words">
             <span className="font-medium">Clock-out explanation:</span> {ex}
           </div>
         ))}

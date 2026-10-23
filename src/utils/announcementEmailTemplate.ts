@@ -15,15 +15,15 @@ const BRAND = {
   email: "info@cyclecourierco.com",
   phone: "+44 121 798 0767",
   website: "https://booking.cyclecourierco.com",
-  primary: "#0B61B1", // motorway blue (portal primary)
-  primaryDark: "#084C8B",
-  text: "#16191D",
-  muted: "#5C6570",
-  border: "#D8DEE4",
-  bg: "#EDF1F4",
+  primary: "#4D6863", // sage (portal primary)
+  primaryDark: "#3A514C",
+  text: "#1C2421",
+  muted: "#5E6A66",
+  border: "#DEDED6",
+  bg: "#F2F2EC",
 };
 
-const EMAIL_LOGO_URL = "https://courier-scheduler-ninja.lovable.app/__l5e/assets-v1/51b80c2a-5208-455f-87d8-ac99bb81b6b7/lockup-horizontal-reversed.png";
+const EMAIL_LOGO_URL = "https://courier-scheduler-ninja.lovable.app/__l5e/assets-v1/a9a6ee55-3d4c-4c56-8a80-9b4fd6660285/logo-cream.png";
 
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -73,7 +73,7 @@ export function wrapAnnouncementEmail(content: string, subject: string): string 
 <meta name="x-apple-disable-message-reformatting">
 <title>${safeSubject}</title>
 </head>
-<body data-ccc-email-shell="1" style="margin:0;padding:0;background:${BRAND.bg};font-family:Overpass,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${BRAND.text};">
+<body data-ccc-email-shell="1" style="margin:0;padding:0;background:${BRAND.bg};font-family:'Hanken Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:${BRAND.text};">
   <span style="display:none!important;visibility:hidden;opacity:0;height:0;width:0;overflow:hidden;mso-hide:all;">${safeSubject}</span>
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${BRAND.bg};">
     <tr>
@@ -81,10 +81,10 @@ export function wrapAnnouncementEmail(content: string, subject: string): string 
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:6px;overflow:hidden;border:1px solid ${BRAND.border};">
           <!-- Header -->
           <tr>
-            <td style="background:${BRAND.primary};padding:24px 32px;">
+            <td bgcolor="${BRAND.primary}" style="background-color:${BRAND.primary};background:${BRAND.primary};padding:24px 32px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td><img src="${EMAIL_LOGO_URL}" alt="Cycle Courier Co." width="260" height="52" style="width:260px;max-width:100%;height:auto;display:block;border:0;outline:none;text-decoration:none;"></td>
+                  <td><img src="${EMAIL_LOGO_URL}" alt="Cycle Courier Co." width="140" height="140" style="width:140px;height:140px;color:#F8F8EE;font-size:18px;font-weight:700;display:block;border:0;outline:none;text-decoration:none;"></td>
                 </tr>
               </table>
             </td>

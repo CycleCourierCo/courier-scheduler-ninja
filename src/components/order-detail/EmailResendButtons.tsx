@@ -35,7 +35,7 @@ const EmailResendButtons: React.FC<EmailResendButtonsProps> = ({
         >
           {isResendingSender ? (
             <div className="flex items-center space-x-1">
-              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-courier-600"></div>
+              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary"></div>
               <span>Sending...</span>
             </div>
           ) : (
@@ -55,7 +55,7 @@ const EmailResendButtons: React.FC<EmailResendButtonsProps> = ({
         >
           {isResendingReceiver ? (
             <div className="flex items-center space-x-1">
-              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-courier-600"></div>
+              <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary"></div>
               <span>Sending...</span>
             </div>
           ) : (

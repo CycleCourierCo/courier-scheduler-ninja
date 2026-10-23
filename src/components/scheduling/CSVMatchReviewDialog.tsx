@@ -190,7 +190,7 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
       case 'fuzzy':
         return <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300">Fuzzy</Badge>;
       case 'address':
-        return <Badge className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300">Address</Badge>;
+        return <Badge className="bg-status-waiting/10 text-status-waiting dark:bg-status-waiting/20 dark:text-status-waiting">Address</Badge>;
       default:
         return <Badge variant="destructive">No Match</Badge>;
     }

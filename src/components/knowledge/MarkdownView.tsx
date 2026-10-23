@@ -36,7 +36,7 @@ const MarkdownView = ({ content, className }: Props) => {
               href={href}
               target={href?.startsWith("http") ? "_blank" : undefined}
               rel="noreferrer"
-              className="text-courier-600 underline break-all"
+              className="text-primary underline break-all"
             >
               {children}
             </a>

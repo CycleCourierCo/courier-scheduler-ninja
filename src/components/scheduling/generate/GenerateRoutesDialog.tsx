@@ -799,7 +799,7 @@ const GenerateRoutesDialog: React.FC = () => {
               </div>
             )}
             {(result.skipped?.length ?? 0) > 0 && (
-              <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-sm text-amber-700 dark:text-amber-400">
+              <div className="rounded-md border border-status-waiting/40 bg-status-waiting/10 p-2 text-sm text-status-waiting dark:text-status-waiting">
                 Plan incomplete — skipped: {result.skipped!.join("; ")}. Generate again to finish.
               </div>
             )}

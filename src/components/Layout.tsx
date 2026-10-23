@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarClock, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, PoundSterling, Megaphone, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare, BookOpen, Store, ClipboardCheck, Lock, Boxes, KanbanSquare, Plug } from "lucide-react";
 import NoticeBanner from "./NoticeBanner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -12,6 +12,11 @@ import BrandLogo from "./BrandLogo";
 import { hasRole, getRoles } from "@/lib/roles";
 import { useRoutePermissions } from "@/hooks/useRoutePermissions";
 import { PendingAbsenceBadge } from "./user-management/PendingAbsenceBadge";
+const FLOOR_SCREEN_PATHS = [
+  "/loading", "/box-my-bike", "/build-my-bike", "/storage-bays", "/warehouse-stock",
+  "/mechanic-clock", "/bicycle-inspections", "/driver-timeslips", "/timeslips", "/fuel-finder",
+];
+
 interface LayoutProps {
   children: React.ReactNode;
 }
@@ -117,6 +122,9 @@ const MenuGroup = ({ children }: { children: React.ReactNode }) => <>{children}<
 const Layout: React.FC<LayoutProps> = ({
   children
 }) => {
+  const { pathname } = useLocation();
+  // Workshop, warehouse and driver-used screens get 48px controls.
+  const isFloorScreen = FLOOR_SCREEN_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
   const {
     user,
     signOut,
@@ -182,8 +190,7 @@ const Layout: React.FC<LayoutProps> = ({
       <header className="sticky top-0 z-50 border-b bg-card">
         <div className="container mx-auto flex min-h-16 items-center justify-between px-4 py-2">
           <Link to="/" className="min-w-0" aria-label="Cycle Courier Co. home">
-            <BrandLogo compact showMobileWordmark className="md:hidden" />
-            <BrandLogo className="hidden h-10 w-52 md:block" />
+            <BrandLogo compact />
           </Link>
           
           <nav className="hidden items-center gap-5 text-sm font-semibold md:flex">
@@ -212,7 +219,7 @@ const Layout: React.FC<LayoutProps> = ({
                   
                   {user && <>
                       <DropdownMenuSeparator className="my-2" />
-                      {!isAdmin && <Link to="/profile" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                      {!isAdmin && <Link to="/profile" onClick={closeSheet} className="flex items-center text-foreground hover:text-primary transition-colors">
                         <User className="mr-2 h-4 w-4" />
                         Your Profile
                       </Link>}
@@ -222,7 +229,7 @@ const Layout: React.FC<LayoutProps> = ({
                             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">
                               {section.label}
                             </p>
-                            {section.items.map(item => <Link key={item.to} to={item.to} onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            {section.items.map(item => <Link key={item.to} to={item.to} onClick={closeSheet} className="flex items-center text-foreground hover:text-primary transition-colors">
                               <item.icon className="mr-2 h-4 w-4" />
                               {item.label}
                               {item.to === "/users" && <PendingAbsenceBadge />}
@@ -230,36 +237,36 @@ const Layout: React.FC<LayoutProps> = ({
                           </div>)}
                         </>}
                       {isRoutePlanner && !isAdmin && <>
-                        <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                        <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-primary transition-colors">
                           <Calendar className="mr-2 h-4 w-4" />
                           Job Scheduling
                         </Link>
                       </>}
                       {isSales && !isAdmin && <>
-                          <Link to="/account-approvals" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Link to="/account-approvals" onClick={closeSheet} className="flex items-center text-foreground hover:text-primary transition-colors">
                             <Shield className="mr-2 h-4 w-4" />
                             Account Approvals
                           </Link>
-                          <Link to="/invoices" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Link to="/invoices" onClick={closeSheet} className="flex items-center text-foreground hover:text-primary transition-colors">
                             <FileText className="mr-2 h-4 w-4" />
                             Invoices
                           </Link>
                         </>}
                       {isDriver && <>
-                          <Link to="/timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Link to="/timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-primary transition-colors">
                             <Clock className="mr-2 h-4 w-4" />
                             My Timeslips
                           </Link>
-                          <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-primary transition-colors">
                             <Fuel className="mr-2 h-4 w-4" />
                             Fuel Finder
                           </Link>
                         </>}
-                      {isMechanic && !isAdmin && !isB2B && <Link to="/bicycle-inspections" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                      {isMechanic && !isAdmin && !isB2B && <Link to="/bicycle-inspections" onClick={closeSheet} className="flex items-center text-foreground hover:text-primary transition-colors">
                           <Wrench className="mr-2 h-4 w-4" />
                           Bicycle Inspections
                         </Link>}
-                      {isTimeslipAdmin && !isAdmin && <Link to="/timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                      {isTimeslipAdmin && !isAdmin && <Link to="/timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-primary transition-colors">
                           <Clock className="mr-2 h-4 w-4" />
                           Timeslips
                         </Link>}
@@ -395,14 +402,14 @@ const Layout: React.FC<LayoutProps> = ({
           </div>
         </div>
       </header>
-      <main className="flex flex-1 flex-col">
+      <main className={`flex flex-1 flex-col${isFloorScreen ? " floor-controls" : ""}`}>
         {children}
       </main>
       <footer className="border-t bg-background py-10 text-muted-foreground">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-1 gap-8 md:grid-cols-3">
             <div className="space-y-4">
-              <BrandLogo className="mb-4 h-12 w-60 max-w-full" />
+              <BrandLogo className="mb-4 h-36 w-36" />
               
               <div className="mt-6 space-y-2">
                 <p className="text-sm opacity-90">Cycorco Ltd T/A Cycle Courier Co.</p>

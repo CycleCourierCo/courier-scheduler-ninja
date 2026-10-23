@@ -35,7 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import horizontalLogo from "@/assets/brand/lockup-horizontal.png.asset.json";
+import horizontalLogo from "@/assets/brand/logo-sage.png.asset.json";
 import { publicBrandAssetUrl } from "@/lib/brandAssets";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { notify } from "@/lib/notify";
@@ -58,11 +58,11 @@ import {
 } from "@/services/trunkRunService";
 
 const STATUS_STYLES: Record<string, string> = {
-  planned: "bg-amber-500",
-  loaded: "bg-blue-500",
-  departed: "bg-indigo-500",
-  arrived: "bg-green-600",
-  cancelled: "bg-red-500",
+  planned: "bg-status-waiting text-status-waiting-foreground",
+  loaded: "bg-status-booked text-primary-foreground",
+  departed: "bg-status-trunk text-primary-foreground",
+  arrived: "bg-status-done text-primary-foreground",
+  cancelled: "bg-status-failed text-primary-foreground",
 };
 
 const directionLabel = (d: TrunkDirection) =>
@@ -195,7 +195,7 @@ const TrunkRunsPage: React.FC = () => {
       })
       .join("");
     const html = `<!doctype html><html><head><title>Trunk manifest</title>
-      <style>body{font-family:Overpass,Arial,sans-serif;padding:24px;color:#16191D}.brand{width:260px;height:auto;display:block;margin-bottom:24px}table{width:100%;border-collapse:collapse;margin-top:16px}
+      <style>body{font-family:"Hanken Grotesk",Arial,sans-serif;padding:24px;color:#1C2421}.brand{width:160px;height:auto;display:block;margin-bottom:24px}table{width:100%;border-collapse:collapse;margin-top:16px}
       th,td{border:1px solid #D9DFE5;padding:6px 8px;font-size:12px;text-align:left}th{background:#F2F5F7}h1{font-size:18px}</style></head>
       <body><img class="brand" src="${publicBrandAssetUrl(horizontalLogo.url)}" alt="Cycle Courier Co."><h1>Trunk manifest — ${directionLabel(run.direction)}</h1>
       <p>${format(new Date(run.run_date), "EEEE d MMMM yyyy")} · ${items.length} bikes · ${formatSpaces(items.reduce((t, i) => t + Number(i.spaces), 0))} van spaces</p>
@@ -281,7 +281,7 @@ const TrunkRunsPage: React.FC = () => {
         </div>
 
         {recommendation && (
-          <Card className="mb-6 border-amber-500/50 bg-amber-500/5">
+          <Card className="mb-6 border-status-waiting/40 bg-status-waiting/5">
             <CardContent className="py-3 text-sm">
               <span className="font-medium">Suggestion: </span>
               {recommendation.reason}
@@ -375,7 +375,7 @@ const TrunkRunsPage: React.FC = () => {
                 <Card key={run.id}>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base flex flex-wrap items-center gap-2">
-                      <Badge className={`${STATUS_STYLES[run.status] ?? "bg-gray-500"} text-white`}>
+                      <Badge className={`${STATUS_STYLES[run.status] ?? "bg-status-neutral text-primary-foreground"}`}>
                         {run.status}
                       </Badge>
                       <span>{format(new Date(run.run_date), "EEE d MMM yyyy")}</span>
