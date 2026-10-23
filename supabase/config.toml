@@ -1,5 +1,8 @@
 project_id = "axigtrmaxhetyfzjjdve"
 
+[functions.availability-followups]
+verify_jwt = false
+
 [functions.public-inspection-approval]
 verify_jwt = false
 

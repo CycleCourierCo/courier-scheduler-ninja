@@ -559,7 +559,7 @@ const UserManagement: React.FC = () => {
                             return (
                               <span
                                 title={expired ? "Driving licence has expired" : "Driving licence documents missing"}
-                                className={`inline-block h-2 w-2 rounded-full ${expired ? 'bg-destructive' : 'bg-amber-500'}`}
+                                className={`inline-block h-2 w-2 rounded-full ${expired ? 'bg-destructive' : 'bg-status-waiting'}`}
                               />
                             );
                           })()}

@@ -362,7 +362,7 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
 
         <Button 
           type="submit" 
-          className="w-full bg-courier-600 hover:bg-courier-700" 
+          className="w-full bg-primary hover:bg-primary" 
           disabled={isLoading || localLoading}
         >
           {isLoading || localLoading ? "Creating Account..." : "Create Account"}

@@ -534,7 +534,7 @@ const FuelInvoiceAnalysisSection: React.FC = () => {
                 <div key={anomaly.key} className="rounded-md border p-3 flex gap-3">
                   <AlertTriangle
                     className={`h-4 w-4 mt-0.5 shrink-0 ${
-                      anomaly.severity === "high" ? "text-destructive" : "text-amber-500"
+                      anomaly.severity === "high" ? "text-destructive" : "text-status-waiting"
                     }`}
                   />
                   <div className="min-w-0 flex-1">
@@ -759,7 +759,7 @@ const StatTile: React.FC<{
 }> = ({ label, value, icon, tone = "default" }) => (
   <div
     className={`rounded-md border p-3 ${
-      tone === "warning" ? "border-amber-500/50 bg-amber-500/5" : "bg-muted/30"
+      tone === "warning" ? "border-status-waiting/40 bg-status-waiting/5" : "bg-muted/30"
     }`}
   >
     <p className="text-xs text-muted-foreground flex items-center gap-1">

@@ -80,6 +80,22 @@ const filterInvalidDates = (dates: Date[], holidayDates: string[], allowedFriday
   });
 };
 
+/**
+ * Hand the follow-up emails (dates confirmed, receiver availability, NI ferry
+ * booking) to the server in one request, so closing the page can't lose them.
+ */
+const triggerAvailabilityFollowups = async (orderId: string, side: "sender" | "receiver") => {
+  try {
+    const { error } = await supabase.functions.invoke("availability-followups", {
+      body: { orderId, side, baseUrl: window.location.origin },
+    });
+    if (error) console.error("Availability follow-ups failed:", error);
+  } catch (e) {
+    console.error("Availability follow-ups failed:", e);
+  }
+};
+
+
 export const confirmSenderAvailability = async (orderId: string, dateStrings: string[]): Promise<boolean> => {
   try {
     console.log("Confirming sender availability for order:", orderId);
@@ -238,30 +254,7 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
     }
 
     const order = mapDbOrderToOrderType(rpcData);
-    const needsInspection = order.needsInspection === true;
-
-    try {
-      await sendSenderDatesConfirmedEmail(orderId, dateStrings);
-    } catch (confirmError) {
-      console.error("Error sending sender dates confirmed email:", confirmError);
-    }
-    
-    if (!needsInspection) {
-      try {
-        await resendReceiverAvailabilityEmail(orderId);
-      } catch (emailError) {
-        console.error("Error sending receiver availability email:", emailError);
-      }
-    }
-
-    // Inbound Northern Ireland: now that we know the collection day, book it in
-    // with the ferry partner. Idempotent via ferry_partner_notified_at.
-    if (isInboundNi(order)) {
-      void supabase.functions
-        .invoke("send-ferry-partner-notification", { body: { orderId } })
-        .catch((e) => console.warn("Ferry partner notification failed", e));
-    }
-
+    await triggerAvailabilityFollowups(orderId, "sender");
     return order;
   } catch (error) {
     console.error("Unexpected error in updateSenderAvailability:", error);
@@ -314,12 +307,7 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
       return null;
     }
 
-    try {
-      await sendReceiverDatesConfirmedEmail(orderId, dateStrings);
-    } catch (confirmError) {
-      console.error("Error sending receiver dates confirmed email:", confirmError);
-    }
-
+    await triggerAvailabilityFollowups(orderId, "receiver");
     return mapDbOrderToOrderType(rpcData);
 
   } catch (error) {

@@ -251,7 +251,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
     <div className="space-y-4">
       <div className="grid min-w-0 gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <User className="text-courier-600 shrink-0" />
+          <User className="text-primary shrink-0" />
           <h3 className="min-w-0 break-words text-lg font-semibold">
             {type === "sender" ? "Sender" : "Receiver"} Information
           </h3>

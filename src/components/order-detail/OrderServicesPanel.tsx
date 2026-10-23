@@ -302,7 +302,7 @@ const OrderServicesPanel: React.FC<OrderServicesPanelProps> = ({ order, onRefres
             "Box My Bike",
             <>
               {isBoxMyBike ? (
-                <Badge className="bg-courier-600 hover:bg-courier-600">On</Badge>
+                <Badge className="bg-primary hover:bg-primary">On</Badge>
               ) : (
                 <Badge variant="outline">Not set</Badge>
               )}

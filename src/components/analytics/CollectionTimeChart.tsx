@@ -40,7 +40,7 @@ const CollectionTimeChart = ({ data }: CollectionTimeChartProps) => {
             <p className="text-sm text-muted-foreground">SLA (&le;4 days)</p>
             <p className={`text-2xl font-bold ${
               data.collectionSLA >= 90 ? 'text-primary' : 
-              data.collectionSLA >= 75 ? 'text-yellow-600' : 
+              data.collectionSLA >= 75 ? 'text-status-waiting' : 
               'text-destructive'
             }`}>
               {data.collectionSLA.toFixed(0)}%

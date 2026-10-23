@@ -396,342 +396,40 @@ export default function InvoicesPage() {
       return;
     }
 
-    const eligibleCustomers = customers?.filter(c => c.accounts_email) || [];
-    const customersWithoutEmail = customers?.filter(c => !c.accounts_email) || [];
-    
-    if (eligibleCustomers.length === 0) {
-      notify.error("No Eligible Customers", { description: "No customers with accounts email found." });
-      return;
-    }
-
     setIsCreatingAllInvoices(true);
-    setBatchProgress({ current: 0, total: eligibleCustomers.length });
-
-    const successfulInvoices: any[] = [];
-    const failedInvoices: any[] = [];
-    const allOrdersData: any[] = [];
-    const skippedCustomers: any[] = [];
-    const allMissingProducts: { product: string; customerName: string }[] = [];
-
-    // Bounded parallel runner — 3 customers in flight at a time. QuickBooks throttles
-    // aggressively (HTTP 429) at higher concurrency; 3 is a stable sweet spot.
-    const CONCURRENCY = 3;
-    let completed = 0;
-    let cursor = 0;
-
-    const processCustomer = async (customer: typeof eligibleCustomers[number]) => {
-      try {
-        const { data: customerOrders, error: ordersError } = await supabase
-          .from("orders")
-          .select("*")
-          .eq("user_id", customer.id)
-          .gte("created_at", startDate.toISOString())
-          .lte("created_at", endDate.toISOString())
-          .neq("status", "cancelled");
-
-        if (ordersError) throw ordersError;
-
-        const { data: storage, error: storageError } = await supabase.functions.invoke('create-quickbooks-invoice', {
-          body: { customerId: customer.id, startDate: startDate.toISOString(), endDate: endDate.toISOString(), previewStorage: true },
-        });
-        if (storageError) throw storageError;
-
-        if ((!customerOrders || customerOrders.length === 0) && !storage?.storageCount) {
-          skippedCustomers.push({
-            customerName: customer.name,
-            customerEmail: customer.accounts_email || customer.email,
-            reason: 'No orders or storage charges due',
-            orderCount: 0,
-          });
-          return;
-        }
-
-        allOrdersData.push(...(customerOrders || []));
-
-        const { data, error } = await supabase.functions.invoke("create-quickbooks-invoice", {
-          body: {
-            customerId: customer.id,
-            customerEmail: customer.accounts_email,
-            customerName: customer.name,
-            startDate: startDate.toISOString(),
-            endDate: endDate.toISOString(),
-            orders: customerOrders || [],
-          },
-        });
-
-        if (error) {
-          // supabase-js wraps non-2xx in FunctionsHttpError; the actual JSON body
-          // (with our `error` field) lives on error.context (a Response).
-          let bodyMsg: string | undefined;
-          try {
-            const ctx: any = (error as any)?.context;
-            if (ctx && typeof ctx.json === 'function') {
-              const parsed = await ctx.json();
-              if (parsed?.error) bodyMsg = String(parsed.error);
-            }
-          } catch { /* ignore */ }
-          throw new Error(bodyMsg || error.message);
-        }
-
-        if (data?.missingProducts && Array.isArray(data.missingProducts)) {
-          for (const product of data.missingProducts) {
-            allMissingProducts.push({ product, customerName: customer.name });
-          }
-        }
-
-        successfulInvoices.push({
-          customerName: customer.name,
-          customerEmail: customer.accounts_email,
-          orderCount: customerOrders?.length || 0,
-          bikeCount: data?.stats?.bikeCount || customerOrders?.length || 0,
-          storageCount: data?.stats?.storageCount || 0,
-          skippedBikes: data?.stats?.skippedBikes || 0,
-          invoiceNumber: data?.stats?.invoiceNumber || data?.invoice_number,
-          missingProducts: data?.missingProducts || [],
-        });
-      } catch (error: any) {
-        const errorMsg = error?.message || String(error);
-        console.error(`Error creating invoice for ${customer.name}:`, error);
-        failedInvoices.push({
-          customerName: customer.name,
-          customerEmail: customer.accounts_email || customer.email,
-          error: errorMsg,
-        });
-
-        // Persist failure so it's visible after the batch (toasts disappear).
-        try {
-          const { data: { user } } = await supabase.auth.getUser();
-          await supabase.from('invoice_history').insert({
-            user_id: user?.id ?? customer.id,
-            customer_id: customer.id,
-            customer_name: customer.name,
-            customer_email: customer.accounts_email || customer.email,
-            start_date: startDate.toISOString(),
-            end_date: endDate.toISOString(),
-            order_count: 0,
-            total_amount: 0,
-            status: 'failed',
-            error_message: errorMsg,
-          });
-        } catch (logErr) {
-          console.error('Failed to log invoice failure:', logErr);
-        }
-      }
-    };
-
-    const runWorker = async () => {
-      while (true) {
-        const i = cursor++;
-        if (i >= eligibleCustomers.length) return;
-        await processCustomer(eligibleCustomers[i]);
-        completed++;
-        setBatchProgress({ current: completed, total: eligibleCustomers.length });
-      }
-    };
-
-    await Promise.all(
-      Array.from({ length: Math.min(CONCURRENCY, eligibleCustomers.length) }, runWorker)
-    );
-
-    // Add customers without accounts_email to skipped list (parallel too).
-    await Promise.all(customersWithoutEmail.map(async (customer) => {
-      const { data: customerOrders } = await supabase
-        .from("orders")
-        .select("id")
-        .eq("user_id", customer.id)
-        .gte("created_at", startDate.toISOString())
-        .lte("created_at", endDate.toISOString())
-        .neq("status", "cancelled");
-
-      skippedCustomers.push({
-        customerName: customer.name,
-        customerEmail: customer.email || 'No email',
-        reason: 'Missing accounts email',
-        orderCount: customerOrders?.length || 0,
-      });
-    }));
-
-    // Calculate statistics
-    const deliveredOrders = allOrdersData.filter(o => o.status === 'delivered');
-    const collectedOrders = allOrdersData.filter(o => o.sender_confirmed_at || o.status === 'collected' || o.status === 'in_transit' || o.status === 'delivered');
-    
-    const deliveryTimes = deliveredOrders
-      .filter(o => o.created_at && o.tracking_events?.shipday?.updates)
-      .map(o => {
-        const createdAt = new Date(o.created_at);
-        const deliveredEvent = o.tracking_events.shipday.updates?.find((u: any) => u.event === 'ORDER_COMPLETED');
-        const collectedEvent = o.tracking_events.shipday.updates?.find((u: any) => u.event === 'ORDER_POD_UPLOAD');
-        
-        if (deliveredEvent) {
-          const deliveredAt = new Date(deliveredEvent.timestamp);
-          const creationToDelivery = (deliveredAt.getTime() - createdAt.getTime()) / (1000 * 60 * 60); // hours
-          
-          let collectionToDelivery = 0;
-          if (collectedEvent) {
-            const collectedAt = new Date(collectedEvent.timestamp);
-            collectionToDelivery = (deliveredAt.getTime() - collectedAt.getTime()) / (1000 * 60 * 60);
-          }
-          
-          return {
-            creationToDelivery,
-            collectionToDelivery: collectedEvent ? collectionToDelivery : null,
-          };
-        }
-        return null;
-      })
-
-      .filter(t => t !== null);
-
-    const avgCreationToDelivery = deliveryTimes.length > 0
-      ? deliveryTimes.reduce((sum, t) => sum + t.creationToDelivery, 0) / deliveryTimes.length
-      : 0;
-
-    const avgCollectionToDelivery = deliveryTimes.filter(t => t.collectionToDelivery !== null).length > 0
-      ? deliveryTimes
-          .filter(t => t.collectionToDelivery !== null)
-          .reduce((sum, t) => sum + t.collectionToDelivery!, 0) / 
-          deliveryTimes.filter(t => t.collectionToDelivery !== null).length
-      : 0;
-
-    // Calculate missing products summary
-    const uniqueMissingProducts = [...new Set(allMissingProducts.map(mp => mp.product))];
-    const getCustomersWithMissingProduct = (product: string) => {
-      const customers = allMissingProducts
-        .filter(mp => mp.product === product)
-        .map(mp => mp.customerName);
-      return [...new Set(customers)].join(', ');
-    };
-    
-    // Calculate total bikes and skipped bikes
-    const totalBikesInvoiced = successfulInvoices.reduce((sum, inv) => sum + (inv.bikeCount || 0), 0);
-    const totalBikesSkipped = successfulInvoices.reduce((sum, inv) => sum + (inv.skippedBikes || 0), 0);
-
-    // Send email report
-    try {
-      await supabase.functions.invoke("send-email", {
-        body: {
-          to: "info@cyclecourierco.com",
-          subject: `Invoice Batch Report - ${format(startDate, "MMM d")} to ${format(endDate, "MMM d, yyyy")}`,
-          html: `
-            <h2>Invoice Batch Creation Report</h2>
-            <p><strong>Date Range:</strong> ${format(startDate, "PPP")} to ${format(endDate, "PPP")}</p>
-            
-            <h3>Summary</h3>
-            <ul>
-              <li>Successful Invoices: ${successfulInvoices.length}</li>
-              <li>Failed Invoices: ${failedInvoices.length}</li>
-              <li>Skipped Customers: ${skippedCustomers.length}</li>
-              <li>Total Customers Processed: ${eligibleCustomers.length}</li>
-            </ul>
-
-            <h3>Order & Bike Statistics</h3>
-            <ul>
-              <li>Total Orders Included in Invoices: ${allOrdersData.length}</li>
-              <li>Total Bikes Invoiced: ${totalBikesInvoiced}</li>
-              <li>Warehouse storage periods invoiced: ${successfulInvoices.reduce((sum, inv) => sum + (inv.storageCount || 0), 0)} (£${(successfulInvoices.reduce((sum, inv) => sum + (inv.storageCount || 0), 0) * 40).toFixed(2)} including VAT)</li>
-              ${totalBikesSkipped > 0 ? `<li style="color: #dc2626;">Bikes Skipped (Missing Products): ${totalBikesSkipped}</li>` : ''}
-              <li>Total Orders from Skipped Customers: ${skippedCustomers.reduce((sum, c) => sum + c.orderCount, 0)}</li>
-              <li>Delivered Orders: ${deliveredOrders.length}</li>
-              <li>Collected Orders: ${collectedOrders.length}</li>
-              <li>Average Creation to Delivery: ${avgCreationToDelivery.toFixed(1)} hours</li>
-              <li>Average Collection to Delivery: ${avgCollectionToDelivery.toFixed(1)} hours</li>
-            </ul>
-
-            ${uniqueMissingProducts.length > 0 ? `
-              <h3 style="color: #dc2626;">⚠️ Missing QuickBooks Products (Bike Types)</h3>
-              <p>The following bike types could not be matched to QuickBooks products and were excluded from invoices:</p>
-              <table border="1" cellpadding="8" cellspacing="0" style="background-color: #fee2e2;">
-                <tr>
-                  <th>Bike Type</th>
-                  <th>Affected Customers</th>
-                </tr>
-                ${uniqueMissingProducts.map(product => `
-                  <tr>
-                    <td>${product}</td>
-                    <td>${getCustomersWithMissingProduct(product)}</td>
-                  </tr>
-                `).join('')}
-              </table>
-              <p><strong>Action Required:</strong> Create these products in QuickBooks with the naming format:<br>
-              "Collection and Delivery within England and Wales - [Bike Type]"</p>
-            ` : '<p style="color: #16a34a;">✓ All bike types matched to QuickBooks products</p>'}
-
-            <h3>Successful Invoices</h3>
-            ${successfulInvoices.length > 0 ? `
-              <table border="1" cellpadding="8" cellspacing="0">
-                <tr>
-                  <th>Customer</th>
-                  <th>Email</th>
-                  <th>Orders</th>
-                  <th>Bikes</th>
-                  <th>Storage months</th>
-                  <th>Invoice #</th>
-                </tr>
-                ${successfulInvoices.map(inv => `
-                  <tr>
-                    <td>${inv.customerName}</td>
-                    <td>${inv.customerEmail}</td>
-                    <td>${inv.orderCount}</td>
-                    <td>${inv.bikeCount}${inv.skippedBikes > 0 ? ` <span style="color: #dc2626;">(${inv.skippedBikes} skipped)</span>` : ''}</td>
-                    <td>${inv.storageCount || 0}</td>
-                    <td>${inv.invoiceNumber || 'N/A'}</td>
-                  </tr>
-                `).join('')}
-              </table>
-            ` : '<p>No successful invoices</p>'}
-
-            <h3>Failed Invoices</h3>
-            ${failedInvoices.length > 0 ? `
-              <table border="1" cellpadding="8" cellspacing="0">
-                <tr>
-                  <th>Customer</th>
-                  <th>Email</th>
-                  <th>Error</th>
-                </tr>
-                ${failedInvoices.map(inv => `
-                  <tr>
-                    <td>${inv.customerName}</td>
-                    <td>${inv.customerEmail}</td>
-                    <td>${inv.error}</td>
-                  </tr>
-                `).join('')}
-              </table>
-            ` : '<p>No failed invoices</p>'}
-
-            <h3>Skipped Customers</h3>
-            ${skippedCustomers.length > 0 ? `
-              <table border="1" cellpadding="8" cellspacing="0" style="background-color: #fff3cd;">
-                <tr>
-                  <th>Customer</th>
-                  <th>Email</th>
-                  <th>Orders in Range</th>
-                  <th>Reason</th>
-                </tr>
-                ${skippedCustomers.map(cust => `
-                  <tr>
-                    <td>${cust.customerName}</td>
-                    <td>${cust.customerEmail}</td>
-                    <td>${cust.orderCount}</td>
-                    <td>${cust.reason}</td>
-                  </tr>
-                `).join('')}
-              </table>
-              <p><strong>Note:</strong> These customers were excluded from invoice creation. To include them, add an accounts email address in User Management.</p>
-            ` : '<p>No customers were skipped</p>'}
-          `,
-        },
-      });
-
-      console.log("Report email sent successfully");
-    } catch (emailError) {
-      console.error("Failed to send report email:", emailError);
-    }
-
-    setIsCreatingAllInvoices(false);
     setBatchProgress({ current: 0, total: 0 });
-    refetchHistory();
-
-    notify.success("Batch Complete", { description: `Created ${successfulInvoices.length} invoices. ${failedInvoices.length} failed. Report sent to info@cyclecourierco.com` });
+    try {
+      // The whole batch runs on the server, so closing this page can't stop it halfway.
+      const { data, error } = await supabase.functions.invoke("weekly-invoice-batch", {
+        body: { startDate: startDate.toISOString(), endDate: endDate.toISOString() },
+      });
+      if (error || !data?.logId) throw error || new Error("Could not start the invoice run");
+      notify.success("Invoice run started", { description: "It carries on even if you close this page. A report goes to info@cyclecourierco.com when it finishes." });
+      const logId = data.logId as string;
+      const started = Date.now();
+      while (Date.now() - started < 30 * 60_000) {
+        await new Promise((r) => setTimeout(r, 4000));
+        const { data: run } = await supabase
+          .from("weekly_invoice_batch_logs")
+          .select("status, eligible_count, successful_count, failed_count, skipped_count, error_message")
+          .eq("id", logId)
+          .maybeSingle();
+        if (!run) continue;
+        const done = (run.successful_count || 0) + (run.failed_count || 0) + (run.skipped_count || 0);
+        setBatchProgress({ current: done, total: run.eligible_count || 0 });
+        if (run.status !== "running") {
+          if (run.status === "failed") notify.error("Invoice run failed", { description: run.error_message || "See the report email" });
+          else notify.success("Batch Complete", { description: `Created ${run.successful_count} invoices. ${run.failed_count} failed. ${run.skipped_count} skipped. Report sent to info@cyclecourierco.com` });
+          break;
+        }
+      }
+    } catch (err: any) {
+      notify.error("Couldn't start invoice run", { description: err?.message || "Please try again" });
+    } finally {
+      setIsCreatingAllInvoices(false);
+      setBatchProgress({ current: 0, total: 0 });
+      refetchHistory();
+    }
   };
 
   return (
@@ -777,7 +475,7 @@ export default function InvoicesPage() {
         )}
 
         {unlinkedSummary && unlinkedSummary.unlinked_count > 0 && (
-          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+          <div className="rounded-md border border-status-waiting/40 bg-status-waiting/10 px-3 py-2 text-sm">
             <span className="font-medium">
               {unlinkedSummary.unlinked_count.toLocaleString()} delivered {unlinkedSummary.unlinked_count === 1 ? "order has" : "orders have"} no linked invoice
             </span>
@@ -966,7 +664,7 @@ export default function InvoicesPage() {
             >
               <FileText className="mr-2 h-4 w-4" />
               {isCreatingAllInvoices 
-                ? `Creating... ${batchProgress.current}/${batchProgress.total}` 
+                ? (batchProgress.total ? `Creating... ${batchProgress.current}/${batchProgress.total}` : "Running on server…") 
                 : "Create All Invoices"}
             </Button>
 

@@ -80,7 +80,7 @@ const ArticleView = ({ article, onEdit, onChanged, onDeleted }: Props) => {
               <a
                 key={i}
                 href={l.href}
-                className="flex items-center gap-2 break-all text-sm text-courier-600 underline"
+                className="flex items-center gap-2 break-all text-sm text-primary underline"
               >
                 <ExternalLink className="h-3.5 w-3.5 shrink-0" /> {l.label}
               </a>

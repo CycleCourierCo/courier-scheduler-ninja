@@ -1270,7 +1270,7 @@ const OrderDetail = () => {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-courier-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
         </div>
       </Layout>
     );
@@ -1450,7 +1450,7 @@ const OrderDetail = () => {
               Last Updated: {safeFormat(order.updatedAt, "PPP 'at' p")}
             </CardDescription>
             {order.returnedToSellerAt && (
-              <CardDescription className="text-amber-600">
+              <CardDescription className="text-status-waiting">
                 Customer declined all repairs — bike returned to seller on{" "}
                 {safeFormat(order.returnedToSellerAt, "PPP")}
               </CardDescription>
@@ -1593,7 +1593,7 @@ const OrderDetail = () => {
                       onClick={handleResetSenderAvailability}
                       variant="outline"
                       size="sm"
-                      className="w-full border-amber-500 text-amber-700 hover:bg-amber-50 dark:border-amber-400 dark:text-amber-400 dark:hover:bg-amber-950"
+                      className="w-full border-status-waiting/40 text-status-waiting hover:bg-status-waiting/10 dark:border-status-waiting/40 dark:text-status-waiting dark:hover:bg-status-waiting/20"
                       disabled={isSubmitting || !order.pickupDate || !Array.isArray(order.pickupDate) || order.pickupDate.length === 0}
                     >
                       Reset Sender Availability
@@ -1664,7 +1664,7 @@ const OrderDetail = () => {
                       onClick={handleResetReceiverAvailability}
                       variant="outline"
                       size="sm"
-                      className="w-full border-amber-500 text-amber-700 hover:bg-amber-50 dark:border-amber-400 dark:text-amber-400 dark:hover:bg-amber-950"
+                      className="w-full border-status-waiting/40 text-status-waiting hover:bg-status-waiting/10 dark:border-status-waiting/40 dark:text-status-waiting dark:hover:bg-status-waiting/20"
                       disabled={isSubmitting || !order.deliveryDate || !Array.isArray(order.deliveryDate) || order.deliveryDate.length === 0}
                     >
                       Reset Receiver Availability

@@ -616,11 +616,11 @@ const FuelFinderPage: React.FC = () => {
 
         {/* Needs refresh warning */}
         {searchTriggered && !isLoading && needsRefresh && (
-          <Card className="mb-6 border-amber-500/50 bg-amber-500/5">
+          <Card className="mb-6 border-status-waiting/40 bg-status-waiting/5">
             <CardContent className="py-4 flex items-center gap-3">
-              <Database className="h-5 w-5 text-amber-600" />
+              <Database className="h-5 w-5 text-status-waiting" />
               <div>
-                <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                <p className="text-sm font-medium text-status-waiting dark:text-status-waiting">
                   No cached station data available
                 </p>
                 <p className="text-xs text-muted-foreground">

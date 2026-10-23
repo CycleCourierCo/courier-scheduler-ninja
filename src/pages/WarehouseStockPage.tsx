@@ -31,7 +31,7 @@ import { COMPONENT_CATEGORIES } from "@/constants/bikeComponents";
 
 const statusColors: Record<string, string> = {
   stored: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
-  reserved: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+  reserved: "bg-status-waiting/10 text-status-waiting dark:bg-status-waiting/20 dark:text-status-waiting",
   dispatched: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   returned: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
 };
@@ -238,7 +238,7 @@ const WarehouseStockPage: React.FC = () => {
           </Card>
           <Card>
             <CardContent className="pt-4 pb-4">
-              <div className="text-2xl font-bold text-yellow-600">{reservedCount}</div>
+              <div className="text-2xl font-bold text-status-waiting">{reservedCount}</div>
               <div className="text-xs text-muted-foreground">Reserved</div>
             </CardContent>
           </Card>

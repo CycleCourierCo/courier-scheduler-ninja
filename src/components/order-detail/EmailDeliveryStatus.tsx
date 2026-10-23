@@ -31,7 +31,7 @@ const RANK: Record<string, number> = {
 
 const STYLES: Record<string, { label: string; className: string; Icon: React.ComponentType<any> }> = {
   sent: { label: "Sent", className: "bg-slate-100 text-slate-700 border-slate-200", Icon: Mail },
-  delivery_delayed: { label: "Delayed", className: "bg-amber-100 text-amber-800 border-amber-200", Icon: Clock },
+  delivery_delayed: { label: "Delayed", className: "bg-status-waiting/10 text-status-waiting border-status-waiting/40", Icon: Clock },
   delivered: { label: "Delivered", className: "bg-emerald-100 text-emerald-800 border-emerald-200", Icon: MailCheck },
   opened: { label: "Opened", className: "bg-blue-100 text-blue-800 border-blue-200", Icon: MailOpen },
   clicked: { label: "Clicked", className: "bg-indigo-100 text-indigo-800 border-indigo-200", Icon: MousePointerClick },

@@ -93,7 +93,7 @@ const OrderHeader: React.FC<OrderHeaderProps> = ({
           </Select>
 
           {statusUpdating && (
-            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-courier-600"></div>
+            <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-primary"></div>
           )}
 
           {!orderCollected && onMarkCollected && status !== 'cancelled' && (

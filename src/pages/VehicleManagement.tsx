@@ -56,7 +56,7 @@ const ExpiryCell = ({ status, date, label }: { status: string | null; date: stri
   const cls = isExpired(date)
     ? "text-destructive font-medium"
     : isSoon(date)
-    ? "text-amber-600 dark:text-amber-400 font-medium"
+    ? "text-status-waiting dark:text-status-waiting font-medium"
     : "text-foreground";
   return (
     <div className="min-w-0 text-xs">

@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/react";
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useCallback, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Upload, Download, FileSpreadsheet, CheckCircle2, XCircle, AlertCircle, AlertTriangle } from "lucide-react";
@@ -34,6 +34,14 @@ const BulkOrderUpload: React.FC = () => {
   const [results, setResults] = useState<BulkCreateResult[]>([]);
   const [progress, setProgress] = useState(0);
   const [isDragOver, setIsDragOver] = useState(false);
+
+  // Orders are created one by one; warn before the page is closed mid-upload.
+  useEffect(() => {
+    if (!isSubmitting) return;
+    const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); e.returnValue = ""; };
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [isSubmitting]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const profileMissing = validateProfileForSender(userProfile);

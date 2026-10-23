@@ -2,8 +2,8 @@ import jsPDF from 'jspdf';
 import { format } from "date-fns";
 import type { Order } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
-import thermalHeader from "@/assets/brand/thermal-header-203dpi.png.asset.json";
-import thermalCompactHeader from "@/assets/brand/thermal-header-compact-203dpi.png.asset.json";
+import thermalHeader from "@/assets/brand/mark-1bit-128.png.asset.json";
+import thermalCompactHeader from "@/assets/brand/mark-1bit-64.png.asset.json";
 import repairIcon from "@/assets/labels/label-icon-repair.png.asset.json";
 import boxIcon from "@/assets/labels/label-icon-box.png.asset.json";
 import { publicBrandAssetUrl } from "@/lib/brandAssets";
@@ -16,8 +16,16 @@ const LINE_HEIGHT = 15;
 const ICON_SIZE = 24;
 const INDICATOR_GAP = 12;
 const INDICATOR_HEIGHT = ICON_SIZE + 14;
-const HEADER_HEIGHT = LABEL_WIDTH * 252 / 812;
-const COMPACT_HEADER_HEIGHT = LABEL_WIDTH * 144 / 812;
+// The 1-bit cloud mark is placed at 100% (one image pixel per printer dot at
+// 203 dpi). Scaling would resample it and reintroduce greys.
+const PRINTER_DPI = 203;
+const MARK_FULL_PX = 128;
+const MARK_COMPACT_PX = 64;
+const MARK_FULL_PT = MARK_FULL_PX * 72 / PRINTER_DPI;
+const MARK_COMPACT_PT = MARK_COMPACT_PX * 72 / PRINTER_DPI;
+const MARK_TOP = 10;
+const HEADER_HEIGHT = MARK_TOP + MARK_FULL_PT;
+const COMPACT_HEADER_HEIGHT = MARK_TOP + MARK_COMPACT_PT;
 
 type ThermalArtwork = {
   full: Uint8Array;
@@ -193,8 +201,9 @@ export const renderLabelPage = (
   if (headerHeight + 8 + bodyHeight > LABEL_HEIGHT - MARGIN) {
     throw new Error(`Label details for ${order.trackingNumber || order.id} are too long to fit safely on a 4 × 6 label.`);
   }
-  pdf.addImage(useCompact ? artwork.compact : artwork.full, 'PNG', 0, 0,
-    LABEL_WIDTH, headerHeight, useCompact ? 'thermal-compact-203' : 'thermal-full-203', 'NONE');
+  const markSize = useCompact ? MARK_COMPACT_PT : MARK_FULL_PT;
+  pdf.addImage(useCompact ? artwork.compact : artwork.full, 'PNG', MARGIN, MARK_TOP,
+    markSize, markSize, useCompact ? 'thermal-mark-64' : 'thermal-mark-128', 'NONE');
   let y = headerHeight + 20;
   const textLines = (lines: string[], size = BODY_SIZE, height = LINE_HEIGHT) => {
     pdf.setFontSize(size);

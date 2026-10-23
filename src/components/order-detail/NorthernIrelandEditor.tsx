@@ -505,7 +505,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
           <p className="text-sm text-muted-foreground">
             This order is not flagged as a Northern Ireland order.
             {looksNI && (
-              <span className="block mt-1 text-amber-600 font-medium">
+              <span className="block mt-1 text-status-waiting font-medium">
                 The {looksInbound ? "collection" : "delivery"} address looks like Northern Ireland.
               </span>
             )}
@@ -556,7 +556,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
                       </p>
                     )}
                     {(deliveryScheduled || deliveryDriver) && (
-                      <p className="text-amber-600 font-medium">
+                      <p className="text-status-waiting font-medium">
                         Warning: this delivery is already
                         {deliveryScheduled ? " scheduled" : ""}
                         {deliveryScheduled && deliveryDriver ? " and" : ""}

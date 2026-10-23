@@ -27,7 +27,7 @@ const TaskNotificationBell: React.FC<Props> = ({ variant = "icon", onNavigate })
   };
 
   const trigger = variant === "row" ? (
-    <button className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+    <button className="flex items-center text-foreground hover:text-primary transition-colors">
       <Bell className="mr-2 h-4 w-4" />
       <span>Notifications</span>
       {unseenCount > 0 && (

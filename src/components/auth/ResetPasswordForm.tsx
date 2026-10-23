@@ -43,8 +43,8 @@ const ResetPasswordForm = ({ onSubmit, isLoading, onBack }: ResetPasswordFormPro
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-center mb-4">
-        <div className="bg-courier-50 p-3 rounded-full">
-          <KeyRound className="h-6 w-6 text-courier-600" />
+        <div className="bg-secondary p-3 rounded-full">
+          <KeyRound className="h-6 w-6 text-primary" />
         </div>
       </div>
       <h3 className="text-lg font-medium text-center">Reset Your Password</h3>
@@ -84,7 +84,7 @@ const ResetPasswordForm = ({ onSubmit, isLoading, onBack }: ResetPasswordFormPro
 
           <Button 
             type="submit" 
-            className="w-full bg-courier-600 hover:bg-courier-700" 
+            className="w-full bg-primary hover:bg-primary" 
             disabled={isLoading}
           >
             {isLoading ? "Updating Password..." : "Update Password"}

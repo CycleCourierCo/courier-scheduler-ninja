@@ -88,7 +88,7 @@ const MessageThread: React.FC<Props> = ({ messages }) => {
             key={m.id}
             className={cn(
               "max-w-[92%] lg:max-w-[75%] rounded-lg px-4 py-3 text-sm leading-relaxed",
-              isNote && "bg-yellow-50 border border-yellow-200 text-yellow-900 self-center max-w-full w-full",
+              isNote && "bg-status-waiting/10 border border-status-waiting/40 text-status-waiting self-center max-w-full w-full",
               isInbound && !isNote && "bg-muted self-start",
               !isInbound && !isNote && "bg-primary text-primary-foreground self-end",
             )}
