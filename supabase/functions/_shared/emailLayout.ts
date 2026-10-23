@@ -39,7 +39,7 @@ export const EMAIL_BRAND = {
 /** Status tokens — mirror ccc-design.md §2. Yellow only when a human must act. */
 export const EMAIL_STATUS = {
   neutral: { bg: "#656C67", text: "#FFFFFF" },
-  waiting: { bg: "#F5B800", text: "#1C2421" },
+  waiting: { bg: "#9A6200", text: "#FFFFFF" },
   booked: { bg: "#2F5E8F", text: "#FFFFFF" },
   transit: { bg: "#6B4A96", text: "#FFFFFF" },
   done: { bg: "#2A7349", text: "#FFFFFF" },
