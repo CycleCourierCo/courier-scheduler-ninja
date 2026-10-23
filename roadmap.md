@@ -33,3 +33,4 @@
 - [ ] Phase 2: tests for inspection invoicing, chaser rules, repairs-declined, Clean Air Zone charges
 - [ ] Phase 3: real-use checklist (needs staff to try each change signed in)
 - [ ] Phase 4: scheduled-job failure alerts, privacy policy fixes; SMS waits on Divergent approval
+- [x] TRACKING_SPEC.md for Shopify tracking page + extend public-track
