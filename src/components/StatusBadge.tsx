@@ -16,11 +16,11 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
       case "sender_availability_pending":
         return { label: "Sender Confirmation Pending", variant: "waiting" as const };
       case "sender_availability_confirmed":
-        return { label: "Sender Confirmed", variant: "booked" as const };
+        return { label: "Sender Confirmed", variant: "neutral" as const };
       case "receiver_availability_pending":
         return { label: "Receiver Confirmation Pending", variant: "waiting" as const };
       case "receiver_availability_confirmed":
-        return { label: "Receiver Confirmed", variant: "booked" as const };
+        return { label: "Receiver Confirmed", variant: "neutral" as const };
       case "scheduled_dates_pending":
       case "pending_approval":
         return { label: "Scheduled Dates Pending", variant: "waiting" as const };
@@ -45,25 +45,25 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ status }) => {
       case "awaiting_depot":
         return { label: "Awaiting delivery to depot", variant: "waiting" as const };
       case "in_depot_awaiting_boxing":
-        return { label: "In depot, awaiting boxing", variant: "inspection" as const };
+        return { label: "In depot, awaiting boxing", variant: "waiting" as const };
       case "boxed_awaiting_label":
-        return { label: "Boxed, awaiting label", variant: "ni" as const };
+        return { label: "Boxed, awaiting label", variant: "waiting" as const };
       case "awaiting_3p_collection":
         return { label: "Awaiting 3rd-party collection", variant: "waiting" as const };
       case "collected_by_3p":
-        return { label: "Collected by 3rd-party courier", variant: "done" as const };
+        return { label: "Collected by 3rd-party courier", variant: "transit" as const };
       case "delivered_by_3p":
         return { label: "Delivered by 3rd-party courier", variant: "done" as const };
       case "delivered_to_ferry":
         return { label: "Delivered to ferry — awaiting transport across the Irish Sea", variant: "ni" as const };
       case "awaiting_trunk_to_scotland":
-        return { label: "At depot — awaiting transport to Scotland", variant: "waiting" as const };
+        return { label: "At depot — awaiting transport to Scotland", variant: "trunk" as const };
       case "in_transit_to_scotland":
         return { label: "In transit to our Scotland depot", variant: "trunk" as const };
       case "at_scotland_depot":
         return { label: "At our Scotland depot", variant: "trunk" as const };
       case "awaiting_trunk_to_depot":
-        return { label: "At Scotland depot — awaiting transport south", variant: "waiting" as const };
+        return { label: "At Scotland depot — awaiting transport south", variant: "trunk" as const };
       case "in_transit_to_depot":
         return { label: "In transit to our main depot", variant: "trunk" as const };
 
