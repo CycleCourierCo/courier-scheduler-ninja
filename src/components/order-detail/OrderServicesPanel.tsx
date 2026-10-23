@@ -34,7 +34,7 @@ import NorthernIrelandEditor from "./NorthernIrelandEditor";
 import GuaranteedDeliveryCard from "./GuaranteedDeliveryCard";
 import LargeBikeRateToggle from "./LargeBikeRateToggle";
 import {
-  enableInspectionForOrder,
+  enableInspectionWithInvoicing,
   disableInspectionForOrder,
   createInspectionServiceInvoice,
 } from "@/services/inspectionService";
