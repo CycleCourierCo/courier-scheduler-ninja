@@ -123,9 +123,9 @@ export function Sidebar({
         )}
       >
         <div className="flex flex-1 flex-col overflow-y-auto pb-4 pt-5">
-          <div className="flex justify-center">
+          <div className={cn("flex", isSidebarOpen ? "justify-start px-4" : "justify-center")}>
             <Link to="/" onClick={isMobile ? onCloseSidebar : undefined}>
-              <BrandLogo compact />
+              <BrandLogo compact withWordmark={isSidebarOpen} />
             </Link>
           </div>
 
