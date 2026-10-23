@@ -17,11 +17,11 @@ const STATUS_LABEL: Record<VehicleStatus, string> = {
 
 const STATUS_CLASS: Record<VehicleStatus, string> = {
   purchased: "bg-blue-500/15 text-blue-700 dark:text-blue-300 border-blue-500/30",
-  in_prep: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
+  in_prep: "bg-status-waiting/15 text-status-waiting dark:text-status-waiting border-status-waiting/40",
   in_use: "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border-emerald-500/30",
   in_service: "bg-sky-500/15 text-sky-700 dark:text-sky-300 border-sky-500/30",
   in_repair: "bg-orange-500/15 text-orange-700 dark:text-orange-300 border-orange-500/30",
-  mot_due: "bg-yellow-500/15 text-yellow-700 dark:text-yellow-300 border-yellow-500/30",
+  mot_due: "bg-status-waiting/15 text-status-waiting dark:text-status-waiting border-status-waiting/40",
   reserved: "bg-teal-500/15 text-teal-700 dark:text-teal-300 border-teal-500/30",
   sold: "bg-muted text-muted-foreground border-border",
   off_road: "bg-destructive/15 text-destructive border-destructive/30",

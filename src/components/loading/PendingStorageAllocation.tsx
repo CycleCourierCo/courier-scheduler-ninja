@@ -256,7 +256,7 @@ export const PendingStorageAllocation = ({
                             <Badge className={`text-xs flex items-center gap-1 ${
                               isComplete 
                                 ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
+                                : 'bg-status-waiting/10 text-status-waiting dark:bg-status-waiting/20 dark:text-status-waiting'
                             }`}>
                               <Wrench className="h-3 w-3" />
                               {isComplete ? 'Inspection Done' : 'Inspection Pending'}
@@ -374,7 +374,7 @@ export const PendingStorageAllocation = ({
                               <Badge className={`text-xs flex items-center gap-1 ${
                                 isComplete 
                                   ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                                  : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
+                                  : 'bg-status-waiting/10 text-status-waiting dark:bg-status-waiting/20 dark:text-status-waiting'
                               }`}>
                                 <Wrench className="h-3 w-3" />
                                 {isComplete ? 'Inspection Done' : 'Inspection Pending'}

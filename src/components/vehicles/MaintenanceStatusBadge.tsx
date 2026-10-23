@@ -24,7 +24,7 @@ const MaintenanceStatusBadge = ({ item }: { item: DueItem }) => {
     item.status === "red"
       ? "bg-destructive text-destructive-foreground hover:bg-destructive"
       : item.status === "amber"
-      ? "bg-amber-500 text-white hover:bg-amber-500"
+      ? "bg-status-waiting text-status-waiting-foreground hover:bg-status-waiting"
       : item.status === "ok"
       ? "bg-emerald-600 text-white hover:bg-emerald-600"
       : "bg-muted text-muted-foreground hover:bg-muted";

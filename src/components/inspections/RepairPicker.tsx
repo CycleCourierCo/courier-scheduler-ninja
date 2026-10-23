@@ -127,7 +127,7 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
             </label>
           )}
           {!bikeType && (
-            <p className="text-xs text-amber-600">No bike category set — showing all repairs.</p>
+            <p className="text-xs text-status-waiting">No bike category set — showing all repairs.</p>
           )}
         </div>
         <div

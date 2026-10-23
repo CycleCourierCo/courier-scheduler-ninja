@@ -209,7 +209,7 @@ export const EditVehicleDialog = ({ vehicle, open, onOpenChange, onSaved }: Prop
           </div>
 
           {isSold && (
-            <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-3">
+            <div className="rounded-lg border border-status-waiting/40 bg-status-waiting/5 p-3 space-y-3">
               <div className="text-sm font-medium">Sold details (required)</div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">

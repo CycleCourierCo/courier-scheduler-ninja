@@ -58,7 +58,7 @@ import {
 } from "@/services/trunkRunService";
 
 const STATUS_STYLES: Record<string, string> = {
-  planned: "bg-amber-500",
+  planned: "bg-status-waiting",
   loaded: "bg-blue-500",
   departed: "bg-indigo-500",
   arrived: "bg-green-600",
@@ -281,7 +281,7 @@ const TrunkRunsPage: React.FC = () => {
         </div>
 
         {recommendation && (
-          <Card className="mb-6 border-amber-500/50 bg-amber-500/5">
+          <Card className="mb-6 border-status-waiting/40 bg-status-waiting/5">
             <CardContent className="py-3 text-sm">
               <span className="font-medium">Suggestion: </span>
               {recommendation.reason}

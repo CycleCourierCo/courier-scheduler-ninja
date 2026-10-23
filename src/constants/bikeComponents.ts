@@ -98,7 +98,7 @@ export const BUILD_STAGE_LABELS: Record<BuildStage, string> = BUILD_STAGES.reduc
 
 export const BUILD_STAGE_COLORS: Record<BuildStage, string> = {
   awaiting_build: "bg-muted text-muted-foreground",
-  awaiting_parts: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
+  awaiting_parts: "bg-status-waiting/10 text-status-waiting dark:bg-status-waiting/20 dark:text-status-waiting",
   picking_parts: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
   in_workshop: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200",
   bike_built: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",

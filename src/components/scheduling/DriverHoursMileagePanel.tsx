@@ -111,7 +111,7 @@ const DriverHoursMileagePanel: React.FC = () => {
       <TooltipProvider delayDuration={100}>
         <Tooltip>
           <TooltipTrigger asChild>
-            <span className="ml-0.5 cursor-help text-amber-500">*</span>
+            <span className="ml-0.5 cursor-help text-status-waiting">*</span>
           </TooltipTrigger>
           <TooltipContent side="top" className="text-xs">
             {count} day{count === 1 ? "" : "s"} with no mileage recorded

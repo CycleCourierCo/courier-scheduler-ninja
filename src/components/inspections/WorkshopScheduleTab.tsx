@@ -38,7 +38,7 @@ const kindMeta: Record<WorkshopJob["kind"], { label: string; icon: JSX.Element; 
 
 const ageBadge = (days: number) => {
   if (days >= 14) return "bg-destructive text-destructive-foreground";
-  if (days >= 7) return "bg-amber-500 text-white";
+  if (days >= 7) return "bg-status-waiting text-status-waiting-foreground";
   return "bg-muted text-muted-foreground";
 };
 
@@ -73,7 +73,7 @@ const JobCard = ({ job }: { job: WorkshopJob }) => {
             <span className="text-purple-600 dark:text-purple-300 text-[10px]">+clean</span>
           )}
           {job.awaitingPart && (
-            <span className="text-amber-600 dark:text-amber-300 text-[10px] truncate max-w-[100px]">
+            <span className="text-status-waiting dark:text-status-waiting text-[10px] truncate max-w-[100px]">
               {job.awaitingPart}
             </span>
           )}

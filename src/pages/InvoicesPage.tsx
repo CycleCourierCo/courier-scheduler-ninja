@@ -777,7 +777,7 @@ export default function InvoicesPage() {
         )}
 
         {unlinkedSummary && unlinkedSummary.unlinked_count > 0 && (
-          <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm">
+          <div className="rounded-md border border-status-waiting/40 bg-status-waiting/10 px-3 py-2 text-sm">
             <span className="font-medium">
               {unlinkedSummary.unlinked_count.toLocaleString()} delivered {unlinkedSummary.unlinked_count === 1 ? "order has" : "orders have"} no linked invoice
             </span>

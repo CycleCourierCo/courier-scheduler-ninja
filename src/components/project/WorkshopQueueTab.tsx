@@ -28,7 +28,7 @@ interface Props {
 
 const waitBadge = (days: number) => {
   if (days >= 7) return "bg-destructive text-destructive-foreground";
-  if (days >= 3) return "bg-amber-500 text-white";
+  if (days >= 3) return "bg-status-waiting text-status-waiting-foreground";
   return "bg-muted text-muted-foreground";
 };
 

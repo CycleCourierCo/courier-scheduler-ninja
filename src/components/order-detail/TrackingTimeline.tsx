@@ -398,7 +398,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
           events.push({
             title: "Inspection Complete — Issues Found",
             date: inspectedAt,
-            icon: <AlertCircle className="h-4 w-4 text-amber-600" />,
+            icon: <AlertCircle className="h-4 w-4 text-status-waiting" />,
             description: "Issues identified during inspection — awaiting customer approval",
             link: reportUrl,
             linkLabel: "View inspection report (PDF)",

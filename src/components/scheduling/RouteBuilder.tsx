@@ -201,7 +201,7 @@ const getAvailabilityBadge = (
   {
     return {
       text: 'Not Customer Date',
-      color: 'bg-yellow-100 dark:bg-yellow-900 text-yellow-700 dark:text-yellow-300'
+      color: 'bg-status-waiting/10 dark:bg-status-waiting/20 text-status-waiting dark:text-status-waiting'
     };
   }
 };
@@ -237,14 +237,14 @@ const getAvailabilityDaysLeftBadge = (
       text: `1 availability date left (${lastLabel})`,
       color: lastDateStr === routeDateStr
         ? 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
-        : 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300',
+        : 'bg-status-waiting/10 dark:bg-status-waiting/20 text-status-waiting dark:text-status-waiting',
       icon: <Calendar className="h-3 w-3" />
     };
   }
   return {
     text: `${remaining} availability dates left`,
     color: remaining === 2
-      ? 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300'
+      ? 'bg-status-waiting/10 dark:bg-status-waiting/20 text-status-waiting dark:text-status-waiting'
       : 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
     icon: <Calendar className="h-3 w-3" />
   };
@@ -260,7 +260,7 @@ const getJobAgeBadge = (
   const color = days >= 7
     ? 'bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-300'
     : days >= 3
-    ? 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300'
+    ? 'bg-status-waiting/10 dark:bg-status-waiting/20 text-status-waiting dark:text-status-waiting'
     : 'bg-muted text-muted-foreground';
   return { text, color, icon: <Clock className="h-3 w-3" /> };
 };
@@ -299,7 +299,7 @@ const getNiInboundBadge = (
     }
     return {
       text: `Not collected from ferry partner${crossedLabel}`,
-      color: 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300',
+      color: 'bg-status-waiting/10 dark:bg-status-waiting/20 text-status-waiting dark:text-status-waiting',
       icon
     };
   }
@@ -433,7 +433,7 @@ const getOpeningHoursBadge = (
   if (timeMinutes < startMinutes || timeMinutes > endMinutes) {
     return {
       text: `⚠️ Outside Hours (${dayData.start}-${dayData.end})`,
-      color: 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300'
+      color: 'bg-status-waiting/10 dark:bg-status-waiting/20 text-status-waiting dark:text-status-waiting'
     };
   }
 
@@ -463,7 +463,7 @@ const getInspectionStatusBadge = (
   // Show pending badge for all other cases (pending, issues_found, in_repair, or no record)
   return {
     text: 'Inspection Pending',
-    color: 'bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300',
+    color: 'bg-status-waiting/10 dark:bg-status-waiting/20 text-status-waiting dark:text-status-waiting',
     icon: <Wrench className="h-3 w-3" />
   };
 };
@@ -1215,7 +1215,7 @@ const JobItem: React.FC<JobItemProps> = ({
                         </Badge>
                       )}
                       {(job as any).neighbourNumber && (
-                        <Badge className="text-xs px-1.5 py-0 bg-amber-100 text-amber-800 flex items-center gap-1">
+                        <Badge className="text-xs px-1.5 py-0 bg-status-waiting/10 text-status-waiting flex items-center gap-1">
                           <UserRound className="h-3 w-3 shrink-0" />
                           Leave with neighbour: {(job as any).neighbourNumber}
                         </Badge>
@@ -4205,7 +4205,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                               Collected
                             </Badge>
                           ) : (
-                            <Badge className="text-xs bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300">
+                            <Badge className="text-xs bg-status-waiting/10 text-status-waiting dark:bg-status-waiting/20 dark:text-status-waiting">
                               Awaiting Collection
                             </Badge>
                           )
@@ -4217,7 +4217,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                             <Badge className={`text-xs flex items-center gap-1 ${
                               isInspectionComplete 
                                 ? 'bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300'
-                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
+                                : 'bg-status-waiting/10 text-status-waiting dark:bg-status-waiting/20 dark:text-status-waiting'
                             }`}>
                               <Wrench className="h-3 w-3" />
                               {isInspectionComplete ? 'Inspection Done' : 'Inspection Pending'}
@@ -4252,7 +4252,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                           const tone = days >= 7
                             ? 'bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300'
                             : days >= 3
-                            ? 'bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300'
+                            ? 'bg-status-waiting/10 text-status-waiting dark:bg-status-waiting/20 dark:text-status-waiting'
                             : 'bg-muted text-muted-foreground';
                           return (
                             <Badge className={`text-xs ml-auto shrink-0 flex items-center gap-1 ${tone}`}>

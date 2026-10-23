@@ -40,7 +40,7 @@ const StorageLevelsChart = ({ orders, range, granularity }: Props) => {
   const TrendIcon = data.netChange > 0 ? ArrowUp : data.netChange < 0 ? ArrowDown : Minus;
   const trendColor =
     data.netChange > 0
-      ? "text-amber-600"
+      ? "text-status-waiting"
       : data.netChange < 0
       ? "text-emerald-600"
       : "text-muted-foreground";

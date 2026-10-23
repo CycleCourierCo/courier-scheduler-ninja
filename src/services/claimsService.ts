@@ -27,8 +27,8 @@ export type ClaimDamageType =
 
 export const CLAIM_STATUSES: { value: ClaimStatus; label: string; tone: string }[] = [
   { value: "opened", label: "Opened", tone: "bg-blue-500 text-white" },
-  { value: "info_requested", label: "Information Requested", tone: "bg-amber-500 text-white" },
-  { value: "info_provided", label: "Information Provided", tone: "bg-amber-600 text-white" },
+  { value: "info_requested", label: "Information Requested", tone: "bg-status-waiting text-status-waiting-foreground" },
+  { value: "info_provided", label: "Information Provided", tone: "bg-status-waiting text-status-waiting-foreground" },
   { value: "assessment", label: "Assessment", tone: "bg-purple-500 text-white" },
   { value: "settlement_proposed", label: "Settlement Proposed", tone: "bg-teal-500 text-white" },
   { value: "negotiation", label: "Negotiation", tone: "bg-orange-500 text-white" },
@@ -37,7 +37,7 @@ export const CLAIM_STATUSES: { value: ClaimStatus; label: string; tone: string }
   { value: "rejected", label: "Rejected", tone: "bg-red-500 text-white" },
   // Legacy
   { value: "open", label: "Opened", tone: "bg-blue-500 text-white" },
-  { value: "awaiting_info", label: "Information Requested", tone: "bg-amber-500 text-white" },
+  { value: "awaiting_info", label: "Information Requested", tone: "bg-status-waiting text-status-waiting-foreground" },
   { value: "under_review", label: "Assessment", tone: "bg-purple-500 text-white" },
   { value: "offer_made", label: "Settlement Proposed", tone: "bg-teal-500 text-white" },
   { value: "settled", label: "Settlement Agreed", tone: "bg-green-500 text-white" },

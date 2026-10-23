@@ -370,7 +370,7 @@ const CustomerOrderDetail = () => {
                       <p className="text-primary font-medium">Payment required on collection</p>
                     )}
                     {order.needsInspection && (
-                      <p className="text-amber-600 font-medium mt-2 flex items-center gap-2">
+                      <p className="text-status-waiting font-medium mt-2 flex items-center gap-2">
                         <Wrench className="h-4 w-4" />
                         {order.inspectionType === 'inspection_only' ? 'Bike will be inspected' : 'Bike will be inspected and serviced'}
                       </p>
