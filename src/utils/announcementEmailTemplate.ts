@@ -19,8 +19,8 @@ const BRAND = {
   primaryDark: "#3A514C",
   text: "#1C2421",
   muted: "#5E6A66",
-  border: "#D8DEE4",
-  bg: "#EDF1F4",
+  border: "#DEDED6",
+  bg: "#F2F2EC",
 };
 
 const EMAIL_LOGO_URL = "https://courier-scheduler-ninja.lovable.app/__l5e/assets-v1/a9a6ee55-3d4c-4c56-8a80-9b4fd6660285/logo-cream.png";
