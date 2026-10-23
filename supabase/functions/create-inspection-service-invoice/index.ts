@@ -88,6 +88,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let enabledDone = false;
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -150,6 +151,7 @@ const handler = async (req: Request): Promise<Response> => {
           .insert({ order_id: orderId, status: 'pending', inspection_type: requestedType, service_decision: decision });
         if (insErr) throw new Error('Could not create the inspection');
       }
+      enabledDone = true;
       // Not invoiced yet → the weekly run will include the service line.
       const { count } = await supabase
         .from('order_invoice_links')
@@ -354,7 +356,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error('Error creating inspection service invoice:', error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Failed to create inspection service invoice' }),
+      JSON.stringify({ error: error.message || 'Failed to create inspection service invoice', enabled: enabledDone }),
       { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
   }
