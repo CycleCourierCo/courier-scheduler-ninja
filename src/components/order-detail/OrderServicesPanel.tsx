@@ -49,6 +49,8 @@ import {
 interface OrderServicesPanelProps {
   order: Order & Record<string, any>;
   onRefresh: () => Promise<void> | void;
+  /** Customer service sees only the workshop inspection row. */
+  inspectionOnly?: boolean;
 }
 
 const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRefresh }) => {
@@ -242,7 +244,7 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
   );
 };
 
-const OrderServicesPanel: React.FC<OrderServicesPanelProps> = ({ order, onRefresh }) => {
+const OrderServicesPanel: React.FC<OrderServicesPanelProps> = ({ order, onRefresh, inspectionOnly }) => {
   const refresh = async () => {
     await onRefresh();
   };
@@ -269,7 +271,7 @@ const OrderServicesPanel: React.FC<OrderServicesPanelProps> = ({ order, onRefres
     title: string,
     badges: React.ReactNode,
     content: React.ReactNode
-  ) => (
+  ) => (inspectionOnly && value !== "inspection") ? null : (
     <AccordionItem value={value}>
       <AccordionTrigger className="py-3 hover:no-underline">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 pr-2 text-left">
