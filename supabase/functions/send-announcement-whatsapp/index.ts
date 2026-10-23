@@ -1,5 +1,23 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { trackedFetch } from "../_shared/integrationLog.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+
+// Only the server (service role) or signed-in admins / route planners may send.
+async function isAllowed(req: Request): Promise<boolean> {
+  const auth = req.headers.get("Authorization");
+  if (!auth?.startsWith("Bearer ")) return false;
+  const token = auth.slice(7);
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  if (token === serviceKey) return true;
+  const admin = createClient(Deno.env.get("SUPABASE_URL")!, serviceKey);
+  const { data: { user } } = await admin.auth.getUser(token);
+  if (!user) return false;
+  for (const role of ["admin", "route_planner"]) {
+    const { data } = await admin.rpc("has_role", { _user_id: user.id, _role: role });
+    if (data === true) return true;
+  }
+  return false;
+}
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,6 +34,10 @@ function normalizePhone(phone: string): string {
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
+  }
+
+  if (!(await isAllowed(req))) {
+    return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
   try {

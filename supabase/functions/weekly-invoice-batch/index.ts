@@ -580,9 +580,8 @@ Deno.serve(async (req: Request): Promise<Response> => {
       const token = authHeader.slice(7);
       const { data: { user } } = await supabase.auth.getUser(token);
       if (user) {
-        const { data: profile } = await supabase
-          .from('profiles').select('role').eq('id', user.id).single();
-        if (profile?.role === 'admin') {
+        const { data: isAdmin } = await supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' });
+        if (isAdmin === true) {
           authorized = true;
           triggeredBy = `admin:${user.email ?? user.id}`;
         }
