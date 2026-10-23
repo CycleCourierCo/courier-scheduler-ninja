@@ -33,7 +33,8 @@ const DriversRota = () => {
   const [weekStart, setWeekStart] = useState(weekStartSunday(today));
   const [depot, setDepot] = useState("all");
   const { userProfile } = useAuth();
-  const isAdmin = userProfile?.role === "admin" || (userProfile?.roles || []).includes("admin");
+  const isAdmin = userProfile?.role === "admin" || (userProfile?.roles || []).includes("admin")
+    || userProfile?.role === "route_planner" || (userProfile?.roles || []).includes("route_planner");
   const [editing, setEditing] = useState<{ id: string; name?: string | null; email?: string | null } | null>(null);
   const nameCell = (drv: { id: string; name?: string | null; email?: string | null }, cls = "") => (
     <span className={cn("flex items-center gap-1", cls)}>

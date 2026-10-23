@@ -68,7 +68,8 @@ const SystemLine: React.FC<{ message: CsMessage }> = ({ message }) => {
 const MessageThread: React.FC<Props> = ({ messages }) => {
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const scroller = endRef.current?.parentElement?.parentElement;
+    if (scroller) scroller.scrollTop = scroller.scrollHeight;
   }, [messages.length]);
 
   if (!messages.length) {
@@ -76,7 +77,7 @@ const MessageThread: React.FC<Props> = ({ messages }) => {
   }
 
   return (
-    <div className="flex flex-col gap-4 p-5">
+    <div className="flex flex-col gap-4 p-3 lg:p-5 break-words [overflow-wrap:anywhere] [&_img]:max-w-full">
       {messages.map((m) => {
         if (m.system_event) return <SystemLine key={m.id} message={m} />;
 

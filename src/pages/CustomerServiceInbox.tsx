@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
@@ -19,7 +19,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useCsQueues, useCsStaff } from "@/hooks/useCsQueues";
 import { CS_PRIORITIES, type CsPriority } from "@/types/customerService";
 import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Inbox, Mail, MessageCircle, PanelRight, RefreshCw, Settings, SlidersHorizontal } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp, Inbox, Mail, MessageCircle, PanelRight, RefreshCw, Settings, SlidersHorizontal } from "lucide-react";
 
 const CustomerServiceInbox: React.FC = () => {
   const navigate = useNavigate();
@@ -38,7 +38,30 @@ const CustomerServiceInbox: React.FC = () => {
   const [suppressAutoSelect, setSuppressAutoSelect] = useState(false);
   const [showContext, setShowContext] = useState(true);
   const [mobileContextOpen, setMobileContextOpen] = useState(false);
-  const [showFilters, setShowFilters] = useState(false);
+  const [showFilters, setShowFilters] = useState(true);
+  const inboxRef = useRef<HTMLDivElement>(null);
+
+  // Measure the real header/banner height rather than stacking fixed-height rows.
+  useEffect(() => {
+    const element = inboxRef.current;
+    if (!element) return;
+    const resize = () => {
+      const viewport = window.visualViewport;
+      const bottom = (viewport?.height ?? window.innerHeight) + (viewport?.offsetTop ?? 0);
+      element.style.height = `${Math.max(0, bottom - element.getBoundingClientRect().top)}px`;
+    };
+    const observer = new ResizeObserver(resize);
+    const header = document.querySelector('header');
+    if (header) observer.observe(header);
+    resize();
+    window.addEventListener('resize', resize);
+    window.visualViewport?.addEventListener('resize', resize);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', resize);
+      window.visualViewport?.removeEventListener('resize', resize);
+    };
+  }, []);
 
   const clearSelection = () => {
     setSuppressAutoSelect(true);
@@ -103,7 +126,7 @@ const CustomerServiceInbox: React.FC = () => {
 
   // Auto-select first conversation on mount/desktop
   useEffect(() => {
-    if (!suppressAutoSelect && !conversationId && conversations.length) {
+    if (window.matchMedia('(min-width: 1024px)').matches && !suppressAutoSelect && !conversationId && conversations.length) {
       navigate(`/inbox/${conversations[0].id}`, { replace: true });
     }
   }, [conversationId, conversations, navigate, suppressAutoSelect]);
@@ -117,8 +140,13 @@ const CustomerServiceInbox: React.FC = () => {
 
   return (
     <Layout>
-      <div className="w-full px-2 md:px-4 py-2 flex-1 flex flex-col min-h-0">
-        <div className="flex items-center flex-wrap gap-2 mb-2">
+      <div ref={inboxRef} className="w-full px-2 md:px-4 py-2 flex flex-col min-h-0 overflow-hidden">
+        <div className="flex shrink-0 items-center flex-wrap gap-2 mb-2">
+          {conversationId && (
+            <Button variant="ghost" size="sm" className="h-8 lg:hidden" onClick={clearSelection}>
+              <ArrowLeft className="h-4 w-4 mr-1" />Tickets
+            </Button>
+          )}
           <Inbox className="h-4 w-4 text-primary" />
           <h1 className="text-base font-semibold">Customer Service Inbox</h1>
           {totalOverdue > 0 && (
@@ -130,7 +158,7 @@ const CustomerServiceInbox: React.FC = () => {
             <Button
               variant={showContext ? 'secondary' : 'outline'}
               size="sm"
-              className="h-8 hidden md:inline-flex"
+              className="h-8 hidden lg:inline-flex"
               onClick={() => setShowContext(s => !s)}
               title="Show or hide the contact and order panel"
             >
@@ -139,7 +167,7 @@ const CustomerServiceInbox: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              className="h-8 md:hidden"
+              className="h-8 lg:hidden"
               onClick={() => setMobileContextOpen(true)}
               title="Show contact, linked orders and tasks"
               disabled={!conversation}
@@ -165,11 +193,11 @@ const CustomerServiceInbox: React.FC = () => {
         </div>
 
         {/* Queue tabs with live counts */}
-        <div className="flex gap-1 flex-wrap mb-2">
+        <div className={`gap-1 shrink-0 overflow-x-auto mb-2 ${conversationId ? 'hidden lg:flex' : 'flex'}`}>
             <Button
               variant={queueId === 'all' ? 'default' : 'outline'}
               size="sm"
-              className="h-7 px-2 text-xs"
+              className="h-7 px-2 text-xs shrink-0"
               onClick={() => setQueueId('all')}
             >
               All queues
@@ -181,7 +209,7 @@ const CustomerServiceInbox: React.FC = () => {
                   key={q.id}
                   variant={queueId === q.id ? 'default' : 'outline'}
                   size="sm"
-                  className="h-7 px-2 text-xs gap-1"
+                  className="h-7 px-2 text-xs gap-1 shrink-0"
                   onClick={() => setQueueId(q.id)}
                 >
                   {q.name}
@@ -195,14 +223,14 @@ const CustomerServiceInbox: React.FC = () => {
         </div>
 
         <div
-          className={`grid grid-cols-1 gap-2 h-[calc(100dvh-148px)] min-h-[720px] ${
+          className={`grid grid-cols-1 grid-rows-[minmax(0,1fr)] gap-2 flex-1 min-h-0 ${
             showContext
-              ? 'md:grid-cols-[240px_minmax(0,1fr)_260px] xl:grid-cols-[280px_minmax(0,1fr)_320px]'
-              : 'md:grid-cols-[280px_minmax(0,1fr)]'
+              ? 'lg:grid-cols-[240px_minmax(0,1fr)_260px] xl:grid-cols-[280px_minmax(0,1fr)_320px]'
+              : 'lg:grid-cols-[280px_minmax(0,1fr)]'
           }`}
         >
           {/* LEFT — list + filters */}
-          <div className="border rounded-md flex flex-col bg-card overflow-hidden min-h-0">
+          <div className={`border rounded-md flex-col bg-card overflow-hidden min-h-0 min-w-0 ${conversationId ? 'hidden lg:flex' : 'flex'}`}>
               <div className="p-2 border-b space-y-2">
                 <div className="flex gap-1">
                   <Input
@@ -287,12 +315,12 @@ const CustomerServiceInbox: React.FC = () => {
           </div>
 
           {/* MIDDLE — thread */}
-          <div className="border rounded-md flex flex-col bg-card overflow-hidden min-h-0">
+          <div className={`border rounded-md flex-col bg-card overflow-hidden min-h-0 min-w-0 ${conversationId ? 'flex' : 'hidden lg:flex'}`}>
             {conversation ? (
               <>
                 <ConversationHeader conversation={conversation} onDismiss={clearSelection} />
-                <div className="flex-1 min-h-0 overflow-y-auto">
-                  <MessageThread messages={messages} />
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain" aria-label="Message history">
+                  <MessageThread key={conversation.id} messages={messages} />
                 </div>
                 <MessageComposer conversation={conversation} messages={messages} />
               </>
@@ -305,7 +333,7 @@ const CustomerServiceInbox: React.FC = () => {
 
           {/* RIGHT — context */}
           {showContext && (
-            <div className="border rounded-md bg-card overflow-y-auto hidden md:block min-h-0">
+            <div className="border rounded-md bg-card overflow-y-auto hidden lg:block min-h-0 min-w-0">
               {conversation && <ContextPanel conversation={conversation} />}
             </div>
           )}

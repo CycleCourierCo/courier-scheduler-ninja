@@ -146,12 +146,13 @@ export const createShipdayOrder = async (
   orderId: string,
   jobType?: 'pickup' | 'delivery',
   forceNorthernIreland?: boolean,
-  replace?: boolean
+  replace?: boolean,
+  addressOverride?: { source?: 'home' | 'work'; address?: string; neighbourNumber?: string | null } | null
 ) => {
   try {
     // Call the Supabase Edge Function
     const { data, error } = await supabase.functions.invoke("create-shipday-order", {
-      body: { orderId, jobType, forceNorthernIreland, replace }
+      body: { orderId, jobType, forceNorthernIreland, replace, addressOverride: addressOverride || undefined }
     });
 
 

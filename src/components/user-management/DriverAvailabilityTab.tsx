@@ -14,11 +14,11 @@ import {
   getWeeklyAvailability, londonToday, addDays, saveLeaveSettings, saveWeeklyAvailability, upsertOverride,
 } from "@/services/driverRotaService";
 
-interface Props { userId: string }
+interface Props { userId: string; hideLeaveSettings?: boolean }
 
 type Row = { weekday: number; is_available: boolean; start_time: string; end_time: string };
 
-export const DriverAvailabilityTab = ({ userId }: Props) => {
+export const DriverAvailabilityTab = ({ userId, hideLeaveSettings }: Props) => {
   const qc = useQueryClient();
   const today = londonToday();
   const [rows, setRows] = useState<Row[]>([]);
@@ -72,7 +72,7 @@ export const DriverAvailabilityTab = ({ userId }: Props) => {
     setSaving(true);
     try {
       await saveWeeklyAvailability(userId, rows.map((r) => ({ ...r, start_time: r.start_time || null, end_time: r.end_time || null })));
-      await saveLeaveSettings(userId, {
+      if (!hideLeaveSettings) await saveLeaveSettings(userId, {
         annual_leave_days: leave.annual_leave_days, leave_year_start: leave.leave_year_start,
         depot_id: leave.depot_id === "none" ? null : leave.depot_id,
       });
@@ -111,7 +111,7 @@ export const DriverAvailabilityTab = ({ userId }: Props) => {
         ))}
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-3">
+      {!hideLeaveSettings && <section className="grid gap-3 sm:grid-cols-3">
         <div className="space-y-1"><Label>Annual leave (days)</Label>
           <Input type="number" min={0} step={0.5} value={leave.annual_leave_days} onChange={(e) => setLeave({ ...leave, annual_leave_days: Number(e.target.value) })} /></div>
         <div className="space-y-1"><Label>Leave year starts (MM-DD)</Label>
@@ -125,7 +125,7 @@ export const DriverAvailabilityTab = ({ userId }: Props) => {
             </SelectContent>
           </Select></div>
         {allowance && <p className="text-sm text-muted-foreground sm:col-span-3">This leave year: {allowance.used} used, {allowance.remaining} remaining{allowance.pending ? `, ${allowance.pending} pending` : ""}.</p>}
-      </section>
+      </section>}
       <Button onClick={save} disabled={saving}>{saving ? "Saving…" : "Save availability"}</Button>
 
       <section className="space-y-2 border-t pt-4">

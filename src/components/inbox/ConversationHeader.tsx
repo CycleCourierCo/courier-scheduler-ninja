@@ -5,7 +5,7 @@ import type { CsConversation, CsConversationStatus, CsPriority } from "@/types/c
 import { CS_PRIORITIES } from "@/types/customerService";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
-import { Mail, MessageCircle, Clock, CheckCircle2, Loader2, Send, AlertTriangle, X } from "lucide-react";
+import { Mail, MessageCircle, Clock, CheckCircle2, Loader2, Send, AlertTriangle, X, SlidersHorizontal } from "lucide-react";
 import { useCsQueues, useCsStaff } from "@/hooks/useCsQueues";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,7 @@ const ConversationHeader: React.FC<Props> = ({ conversation, onDismiss }) => {
   const due = describeDue(conversation.next_response_due_at);
   const [closing, setClosing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [controlsOpen, setControlsOpen] = useState(true);
   const isClosed = conversation.status === 'closed';
   const isEmail = conversation.channel === 'email';
   const confirmationSent = !!conversation.ack_sent_at;
@@ -79,8 +80,8 @@ const ConversationHeader: React.FC<Props> = ({ conversation, onDismiss }) => {
   };
 
   return (
-    <div className="border-b px-4 py-3 bg-background space-y-2">
-      <div className="flex items-center gap-3">
+    <div className="border-b px-3 py-2 lg:px-4 lg:py-3 bg-background space-y-2 shrink-0">
+      <div className="flex items-center flex-wrap gap-2">
         <Icon className={cn("h-4 w-4", conversation.channel === 'email' ? "text-primary" : "text-success")} />
         <div className="flex-1 min-w-0">
           <div className="font-medium truncate">
@@ -113,9 +114,12 @@ const ConversationHeader: React.FC<Props> = ({ conversation, onDismiss }) => {
             <X className="h-4 w-4" />
           </Button>
         )}
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 lg:hidden" onClick={() => setControlsOpen(o => !o)} aria-label="Ticket controls" aria-expanded={controlsOpen} title="Ticket controls">
+          <SlidersHorizontal className="h-4 w-4" />
+        </Button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className={`flex-wrap gap-2 max-h-[30dvh] overflow-y-auto lg:max-h-none ${controlsOpen ? 'flex' : 'hidden lg:flex'}`}>
         <Select
           value={conversation.queue_id || ''}
           onValueChange={(v) => patch({ queue_id: v }, 'Queue updated')}

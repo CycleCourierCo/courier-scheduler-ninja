@@ -30,14 +30,14 @@ export async function lookupPostcode(postcode: string): Promise<GeocodingResult 
 
 /**
  * Street-level lookups can pick the wrong town (e.g. "Newport" Essex vs Shropshire).
- * If the address contains a postcode and the result is >15 km from it, trust the postcode.
+ * If the address contains a postcode and the result is >2 km from it, trust the postcode.
  */
 async function checkAgainstPostcode(addressString: string, result: GeocodingResult | null): Promise<GeocodingResult | null> {
   const m = addressString.match(UK_POSTCODE_RE);
   if (!m) return result;
   const pc = await lookupPostcode(`${m[1]}${m[2]}`);
   if (!pc) return result;
-  if (!result || distanceKm(result, pc) > 15) return pc;
+  if (!result || distanceKm(result, pc) > 2) return pc;
   return result;
 }
 

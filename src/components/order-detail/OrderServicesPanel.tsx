@@ -34,7 +34,7 @@ import NorthernIrelandEditor from "./NorthernIrelandEditor";
 import GuaranteedDeliveryCard from "./GuaranteedDeliveryCard";
 import LargeBikeRateToggle from "./LargeBikeRateToggle";
 import {
-  enableInspectionForOrder,
+  enableInspectionWithInvoicing,
   disableInspectionForOrder,
   createInspectionServiceInvoice,
 } from "@/services/inspectionService";
@@ -49,6 +49,8 @@ import {
 interface OrderServicesPanelProps {
   order: Order & Record<string, any>;
   onRefresh: () => Promise<void> | void;
+  /** Customer service sees only the workshop inspection row. */
+  inspectionOnly?: boolean;
 }
 
 const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRefresh }) => {
@@ -106,12 +108,26 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
     if (!order.id) return;
     try {
       setIsEnabling(true);
-      await enableInspectionForOrder(order.id, inspectionType);
+      const result = await enableInspectionWithInvoicing(order.id, inspectionType);
       await onRefresh();
-      toast.success("Inspection enabled for this order");
-    } catch (error) {
+      if (result.error) {
+        toast.error(`Inspection added, but the invoice couldn't be raised: ${result.error}. Use Create Inspection Invoice once fixed.`);
+      } else if (result.deferred) {
+        toast.success("Inspection added — it will be on the next weekly invoice");
+      } else if (result.awaitingServiceDecision) {
+        toast.success("Inspection added — the service is invoiced if the customer accepts it");
+      } else if (result.alreadyInvoiced) {
+        toast.success(`Inspection added — already invoiced on ${result.invoiceNumber}`);
+      } else {
+        toast.success(`Inspection added — invoice ${result.invoiceNumber} created`, {
+          action: result.invoiceUrl
+            ? { label: "Open", onClick: () => window.open(result.invoiceUrl, "_blank") }
+            : undefined,
+        });
+      }
+    } catch (error: any) {
       console.error("Error enabling inspection:", error);
-      toast.error("Failed to enable inspection");
+      toast.error(error?.message || "Failed to enable inspection");
     } finally {
       setIsEnabling(false);
     }
@@ -228,7 +244,7 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
   );
 };
 
-const OrderServicesPanel: React.FC<OrderServicesPanelProps> = ({ order, onRefresh }) => {
+const OrderServicesPanel: React.FC<OrderServicesPanelProps> = ({ order, onRefresh, inspectionOnly }) => {
   const refresh = async () => {
     await onRefresh();
   };
@@ -255,7 +271,7 @@ const OrderServicesPanel: React.FC<OrderServicesPanelProps> = ({ order, onRefres
     title: string,
     badges: React.ReactNode,
     content: React.ReactNode
-  ) => (
+  ) => (inspectionOnly && value !== "inspection") ? null : (
     <AccordionItem value={value}>
       <AccordionTrigger className="py-3 hover:no-underline">
         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 pr-2 text-left">

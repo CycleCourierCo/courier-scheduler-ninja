@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { initSentry, captureException } from "../_shared/sentry.ts";
 import { niDirectionOf, isFerryLeg } from "../_shared/northernIreland.ts";
 import { logInboundWebhook } from "../_shared/integrationLog.ts";
+import { fetchShipdayProof, saveShipdayProof } from "../_shared/shipdayProof.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -482,6 +483,28 @@ serve(async (req) => {
     }
 
     trackingEvents.shipday = shipdayEvents;
+
+    // Completion arrived without proof: ask Shipday again shortly after, since
+    // photos/signatures are sometimes attached after the job is completed.
+    if (event === "ORDER_COMPLETED" && shipdayOrderId && (!Array.isArray(podUrls) || podUrls.length === 0) && !signatureUrl) {
+      const apiKey = Deno.env.get("SHIPDAY_API_KEY");
+      if (apiKey) {
+        const leg = isPickup ? "pickup" : "delivery";
+        const sid = String(shipdayOrderId);
+        const oid = dbOrder.id;
+        // @ts-ignore EdgeRuntime is provided by Supabase
+        EdgeRuntime.waitUntil((async () => {
+          for (const wait of [45000, 90000]) {
+            await new Promise((r) => setTimeout(r, wait));
+            const proof = await fetchShipdayProof(apiKey, orderNumber, sid);
+            if (proof && await saveShipdayProof(supabase, oid, sid, leg, proof)) {
+              console.log(`Retrieved missing proof from Shipday for ${sid}`);
+              return;
+            }
+          }
+        })());
+      }
+    }
 
     // Build update object with status and tracking events
     const updateData: Record<string, unknown> = {

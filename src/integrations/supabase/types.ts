@@ -188,6 +188,9 @@ export type Database = {
           report_generated_at: string | null
           report_url: string | null
           service_decision: string
+          service_invoice_id: string | null
+          service_invoice_number: string | null
+          service_invoiced_at: string | null
           service_price_gbp: number | null
           status: string
           updated_at: string
@@ -250,6 +253,9 @@ export type Database = {
           report_generated_at?: string | null
           report_url?: string | null
           service_decision?: string
+          service_invoice_id?: string | null
+          service_invoice_number?: string | null
+          service_invoiced_at?: string | null
           service_price_gbp?: number | null
           status?: string
           updated_at?: string
@@ -312,6 +318,9 @@ export type Database = {
           report_generated_at?: string | null
           report_url?: string | null
           service_decision?: string
+          service_invoice_id?: string | null
+          service_invoice_number?: string | null
+          service_invoiced_at?: string | null
           service_price_gbp?: number | null
           status?: string
           updated_at?: string
@@ -6955,6 +6964,15 @@ export type Database = {
       cs_pick_queue_assignee: { Args: { p_queue_id: string }; Returns: string }
       cs_update_order_bikes: {
         Args: { p_bikes: Json; p_order_id: string }
+        Returns: boolean
+      }
+      cs_update_order_item_extras: {
+        Args: {
+          p_collection_code: string
+          p_customer_order_number: string
+          p_is_ebay: boolean
+          p_order_id: string
+        }
         Returns: boolean
       }
       difficult_areas_geojson: {

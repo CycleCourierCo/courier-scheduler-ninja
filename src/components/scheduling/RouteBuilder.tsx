@@ -3746,7 +3746,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     const key = `${orderId}-${jobType}`;
     setSyncingShipdayIds(prev => new Set(prev).add(key));
     try {
-      await createShipdayOrder(orderId, jobType);
+      const routeJob = selectedJobs.find((j: any) => j.orderId === orderId && j.type === jobType);
+      const ov = routeJob ? buildAddressOverrides([routeJob])[0] : undefined;
+      await createShipdayOrder(orderId, jobType, undefined, undefined, ov ? { source: ov.source as any, address: ov.address, neighbourNumber: ov.neighbourNumber } : null);
       toast.success(`${jobType === 'pickup' ? 'Collection' : 'Delivery'} added to Shipday`);
       onReVerifyShipday?.();
     } catch (err: any) {
@@ -3832,7 +3834,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
       for (const job of jobsToAdd) {
         try {
-          await createShipdayOrder(job.orderId, job.type);
+          const ov = buildAddressOverrides([job])[0];
+          await createShipdayOrder(job.orderId, job.type, undefined, undefined, ov ? { source: ov.source as any, address: ov.address, neighbourNumber: ov.neighbourNumber } : null);
           success++;
         } catch (err) {
           console.error('Failed to add route job to Shipday', job, err);

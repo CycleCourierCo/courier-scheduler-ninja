@@ -88,6 +88,7 @@ const handler = async (req: Request): Promise<Response> => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  let enabledDone = false;
   try {
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
@@ -101,18 +102,67 @@ const handler = async (req: Request): Promise<Response> => {
     const { data: { user }, error: userError } = await supabase.auth.getUser(token);
     if (userError || !user) throw new Error('Unauthorized');
 
+    const { data: roleRows } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id);
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single();
+    const roles = new Set<string>([...(roleRows || []).map((r: any) => r.role), profile?.role].filter(Boolean));
+    if (!roles.has('admin') && !roles.has('cs_agent')) throw new Error('Admin or customer service access required');
 
-    if (profile?.role !== 'admin') throw new Error('Admin access required');
+    const body = await req.json();
+    const orderId = body?.orderId;
+    const mode = body?.mode === 'enable' ? 'enable' : 'invoice';
+    const requestedType = body?.inspectionType;
+    if (!orderId || typeof orderId !== 'string') throw new Error('orderId is required');
 
-    const { orderId } = await req.json();
-    if (!orderId) throw new Error('orderId is required');
+    const json = (payload: unknown) => new Response(JSON.stringify(payload), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', ...corsHeaders },
+    });
 
-    console.log('Creating retrospective inspection & service invoice for order:', orderId);
+    if (mode === 'enable') {
+      if (requestedType !== 'inspection_only' && requestedType !== 'inspection_and_service') {
+        throw new Error('Choose inspection only or inspection and service');
+      }
+      const { error: updErr } = await supabase
+        .from('orders')
+        .update({ needs_inspection: true, inspection_type: requestedType })
+        .eq('id', orderId);
+      if (updErr) throw new Error('Could not update the order');
+      const decision = requestedType === 'inspection_only' ? 'pending' : 'accepted';
+      const { data: existing } = await supabase
+        .from('bicycle_inspections')
+        .select('id')
+        .eq('order_id', orderId)
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (existing) {
+        await supabase.from('bicycle_inspections')
+          .update({ inspection_type: requestedType, service_decision: decision })
+          .eq('id', existing.id);
+      } else {
+        const { error: insErr } = await supabase.from('bicycle_inspections')
+          .insert({ order_id: orderId, status: 'pending', inspection_type: requestedType, service_decision: decision });
+        if (insErr) throw new Error('Could not create the inspection');
+      }
+      enabledDone = true;
+      // Not invoiced yet → the weekly run will include the service line.
+      const { count } = await supabase
+        .from('order_invoice_links')
+        .select('id', { count: 'exact', head: true })
+        .eq('order_id', orderId);
+      if (!count) return json({ enabled: true, deferred: true });
+      if (requestedType === 'inspection_only') return json({ enabled: true, awaitingServiceDecision: true });
+      // Fall through to raise the retrospective invoice now.
+    }
+
+    console.log('Creating retrospective inspection & service invoice for order');
 
     const { data: order, error: orderError } = await supabase
       .from('orders')
@@ -122,17 +172,19 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (orderError || !order) throw new Error('Order not found');
     if (!order.needs_inspection) throw new Error('Order does not have inspection enabled');
-    if (order.inspection_type === 'inspection_only') {
-      const { data: inspection } = await supabase
-        .from('bicycle_inspections')
-        .select('service_decision')
-        .eq('order_id', orderId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (inspection?.service_decision !== 'accepted') {
-        throw new Error('The customer has not accepted the service');
-      }
+    const { data: currentInspection } = await supabase
+      .from('bicycle_inspections')
+      .select('id, service_decision, service_invoice_number')
+      .eq('order_id', orderId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (currentInspection?.service_invoice_number) {
+      if (mode === 'enable') return json({ enabled: true, alreadyInvoiced: true, invoiceNumber: currentInspection.service_invoice_number });
+      throw new Error(`An inspection invoice already exists: ${currentInspection.service_invoice_number}`);
+    }
+    if (order.inspection_type === 'inspection_only' && currentInspection?.service_decision !== 'accepted') {
+      throw new Error('The customer has not accepted the service');
     }
 
     const { data: customerProfile, error: custError } = await supabase
@@ -280,8 +332,17 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log('Retrospective inspection & service invoice created:', invoiceNumber);
 
+    if (currentInspection?.id) {
+      await supabase.from('bicycle_inspections').update({
+        service_invoice_id: invoiceId,
+        service_invoice_number: invoiceNumber,
+        service_invoiced_at: new Date().toISOString(),
+      }).eq('id', currentInspection.id);
+    }
+
     return new Response(JSON.stringify({
       success: true,
+      enabled: mode === 'enable',
       invoiceNumber,
       invoiceId,
       invoiceUrl,
@@ -295,7 +356,7 @@ const handler = async (req: Request): Promise<Response> => {
   } catch (error: any) {
     console.error('Error creating inspection service invoice:', error);
     return new Response(
-      JSON.stringify({ error: error.message || 'Failed to create inspection service invoice' }),
+      JSON.stringify({ error: error.message || 'Failed to create inspection service invoice', enabled: enabledDone }),
       { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
     );
   }

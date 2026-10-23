@@ -24,3 +24,4 @@
 - [x] Mechanic Clock: each day's timeslip lists work done (inspections, repairs, Box/Foam My Bike) with standard minutes per item, totals vs clocked hours, and a required clock-out explanation when the gap exceeds 30 min; admins see the explanation and work summary on the timeslips tab
 - [x] Ireland page added to the admin menu (Operations, after Trunk Runs) — it was only reachable by mechanics, loaders and dealers before (2026-10-11)
 - [x] Timeslips page: renamed from "Driver Timeslips" to "Timeslips" (menu, route label, page title); mechanic timeslips merged into the Draft/Approved/All lists (open+closed count as draft) with a Mechanic badge, photos, GPS, work summary and approve/reject/edit/delete — the separate Mechanic tab is removed; person filter now lists drivers and mechanics
+- [x] Edit bike: allow editing eBay collection code and related eBay fields

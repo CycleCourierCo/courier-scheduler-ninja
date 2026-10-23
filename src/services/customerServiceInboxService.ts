@@ -143,12 +143,31 @@ export const addNote = async (conversationId: string, body: string, authorId: st
   if (error) throw error;
 };
 
+export interface OutboundAttachment {
+  path: string;
+  filename: string;
+  content_type: string;
+  size: number;
+}
+
 export interface SendMessagePayload {
   conversationId: string;
   bodyText: string;
   bodyHtml?: string;
   template?: { name: string; params?: Record<string, string> };
+  attachments?: OutboundAttachment[];
 }
+
+/** Upload a reply attachment into the private inbox bucket, scoped to the ticket. */
+export const uploadReplyAttachment = async (conversationId: string, file: File): Promise<OutboundAttachment> => {
+  const safe = file.name.normalize('NFKD').replace(/[^A-Za-z0-9._-]+/g, '-').slice(-80) || 'file';
+  const path = `${conversationId}/${crypto.randomUUID()}-${safe}`;
+  const { error } = await supabase.storage.from('cs-attachments').upload(path, file, {
+    contentType: file.type || 'application/octet-stream',
+  });
+  if (error) throw error;
+  return { path, filename: file.name, content_type: file.type || 'application/octet-stream', size: file.size };
+};
 
 export const sendMessage = async (payload: SendMessagePayload) => {
   const { data, error } = await supabase.functions.invoke('cs-send-message', {
@@ -157,6 +176,7 @@ export const sendMessage = async (payload: SendMessagePayload) => {
       body_text: payload.bodyText,
       body_html: payload.bodyHtml,
       template: payload.template,
+      attachments: payload.attachments,
     },
   });
   if (error) throw error;
