@@ -21,4 +21,4 @@
  Test Files  1 passed (1)
       Tests  7 passed (7)
    Start at  17:20:20
-   Duration  1.52s (transform 71ms, setup 0ms, collect 52ms, tests 6ms, environment 0ms, prepare 523ms)), files named *.test.ts next to the code — one test per business rule.
+- Tests run with vitest (`npx vitest run`), files named *.test.ts next to the code — one test per business rule.
