@@ -125,12 +125,11 @@ const GuaranteedDatePanel = ({ orders, selectedKeys, onToggleJob }: GuaranteedDa
                   </Badge>
                   <Badge
                     className={cn(
-                      "text-white",
                       row.daysLeft <= 0
-                        ? "bg-red-600 hover:bg-red-600"
+                        ? "bg-status-failed text-primary-foreground hover:bg-status-failed"
                         : row.daysLeft <= 2
-                        ? "bg-status-waiting hover:bg-status-waiting"
-                        : "bg-green-600 hover:bg-green-600"
+                        ? "bg-status-waiting text-status-waiting-foreground hover:bg-status-waiting"
+                        : "bg-status-done text-primary-foreground hover:bg-status-done"
                     )}
                   >
                     {formatDay(row.guaranteedDate)} · {daysLabel(row.daysLeft)}

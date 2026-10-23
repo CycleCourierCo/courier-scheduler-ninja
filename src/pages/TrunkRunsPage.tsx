@@ -58,11 +58,11 @@ import {
 } from "@/services/trunkRunService";
 
 const STATUS_STYLES: Record<string, string> = {
-  planned: "bg-status-waiting",
-  loaded: "bg-blue-500",
-  departed: "bg-indigo-500",
-  arrived: "bg-green-600",
-  cancelled: "bg-red-500",
+  planned: "bg-status-waiting text-status-waiting-foreground",
+  loaded: "bg-status-booked text-primary-foreground",
+  departed: "bg-status-trunk text-primary-foreground",
+  arrived: "bg-status-done text-primary-foreground",
+  cancelled: "bg-status-failed text-primary-foreground",
 };
 
 const directionLabel = (d: TrunkDirection) =>
@@ -375,7 +375,7 @@ const TrunkRunsPage: React.FC = () => {
                 <Card key={run.id}>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-base flex flex-wrap items-center gap-2">
-                      <Badge className={`${STATUS_STYLES[run.status] ?? "bg-gray-500"} text-white`}>
+                      <Badge className={`${STATUS_STYLES[run.status] ?? "bg-status-neutral text-primary-foreground"}`}>
                         {run.status}
                       </Badge>
                       <span>{format(new Date(run.run_date), "EEE d MMM yyyy")}</span>
