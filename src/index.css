@@ -188,7 +188,8 @@
   }
 
   /* Workshop, warehouse, public and driver screens: 48px controls. */
-  .floor-controls button:not([data-size="sm"]), .doorstep-page button:not([data-size="sm"]) { min-height: 3rem; }
+  .floor-controls button.h-10, .doorstep-page button.h-10 { height: 3rem; }
+  .floor-controls button.h-10.w-10, .doorstep-page button.h-10.w-10 { width: 3rem; }
 }
 
 @keyframes route-draw { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
