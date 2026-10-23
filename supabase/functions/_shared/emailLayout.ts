@@ -20,33 +20,33 @@ export const EMAIL_BRAND = {
   phone: "+44 121 798 0767",
   website: "https://booking.cyclecourierco.com",
   // Portal tokens, mirrored exactly (ccc-email-design.md §1).
-  primary: "#0B5FB0",
-  primaryDark: "#084C8B",
-  primaryText: "#FFFFFF",
-  text: "#16191D",
-  muted: "#5B6470",
-  border: "#D9DFE5",
-  panel: "#F2F5F7",
-  page: "#EDF1F4",
+  primary: "#4D6863",
+  primaryDark: "#3A514C",
+  primaryText: "#F8F8EE",
+  text: "#1C2421",
+  muted: "#5E6A66",
+  border: "#DEDED6",
+  panel: "#F3F7F5",
+  page: "#F2F2EC",
   surface: "#FFFFFF",
-  routeTint: "#E3EEF8",
-  radius: "6px",
+  routeTint: "#E6EDEA",
+  radius: "10px",
   font:
-    "Overpass,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif",
-  mono: "'Overpass Mono',ui-monospace,SFMono-Regular,Consolas,'Courier New',monospace",
+    "'Hanken Grotesk',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif",
+  mono: "'DM Mono',ui-monospace,SFMono-Regular,Consolas,'Courier New',monospace",
 } as const;
 
 /** Status tokens — mirror ccc-design.md §2. Yellow only when a human must act. */
 export const EMAIL_STATUS = {
-  neutral: { bg: "#6B7580", text: "#FFFFFF" },
-  waiting: { bg: "#F5B800", text: "#16191D" },
-  booked: { bg: "#0B5FB0", text: "#FFFFFF" },
-  transit: { bg: "#6B4FBF", text: "#FFFFFF" },
-  done: { bg: "#1E7A46", text: "#FFFFFF" },
-  failed: { bg: "#C22F2E", text: "#FFFFFF" },
-  ni: { bg: "#3F51B5", text: "#FFFFFF" },
-  trunk: { bg: "#0E7C8C", text: "#FFFFFF" },
-  inspection: { bg: "#2B8CD8", text: "#FFFFFF" },
+  neutral: { bg: "#656C67", text: "#FFFFFF" },
+  waiting: { bg: "#F5B800", text: "#1C2421" },
+  booked: { bg: "#2F5E8F", text: "#FFFFFF" },
+  transit: { bg: "#6B4A96", text: "#FFFFFF" },
+  done: { bg: "#2A7349", text: "#FFFFFF" },
+  failed: { bg: "#B23A32", text: "#FFFFFF" },
+  ni: { bg: "#3F4E8C", text: "#FFFFFF" },
+  trunk: { bg: "#1C6F7A", text: "#FFFFFF" },
+  inspection: { bg: "#2C6E9E", text: "#FFFFFF" },
 } as const;
 
 export type EmailStatusToken = keyof typeof EMAIL_STATUS;
@@ -72,7 +72,7 @@ export const stagesForOrder = (order: any): readonly string[] => {
   return STRIP_BRANCHES.standard;
 };
 
-const EMAIL_LOGO_URL = "https://courier-scheduler-ninja.lovable.app/__l5e/assets-v1/51b80c2a-5208-455f-87d8-ac99bb81b6b7/lockup-horizontal-reversed.png";
+const EMAIL_LOGO_URL = "https://courier-scheduler-ninja.lovable.app/__l5e/assets-v1/a9a6ee55-3d4c-4c56-8a80-9b4fd6660285/logo-cream.png";
 
 /** Index of the first matching stage label, else a fallback. */
 export const stageIndex = (stages: readonly string[], labels: string[], fallback: number): number => {
@@ -164,10 +164,10 @@ export function emailShell(bodyHtml: string, options: EmailShellOptions = {}): s
       <td align="center" style="padding:24px 12px;">
         <table role="presentation" width="${width}" cellpadding="0" cellspacing="0" border="0" style="max-width:${width}px;width:100%;background:${B.surface};border:1px solid ${B.border};border-radius:${B.radius};overflow:hidden;">
           <tr>
-            <td style="background:${B.primary};padding:20px 24px;">
+            <td bgcolor="${B.primary}" style="background-color:${B.primary};background:${B.primary};padding:16px 24px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                   <td align="left"><img src="${EMAIL_LOGO_URL}" alt="${B.name}" width="240" height="48" style="width:240px;max-width:100%;height:auto;display:block;border:0;outline:none;text-decoration:none;"></td>
+                   <td align="left"><img src="${EMAIL_LOGO_URL}" alt="${B.name}" width="140" height="140" style="width:140px;height:140px;display:block;border:0;outline:none;text-decoration:none;color:${B.primaryText};font-family:${B.font};font-size:18px;font-weight:700;line-height:140px;"></td>
                   ${
                     eyebrow
                       ? `<td align="right" style="font-size:12px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:${B.primaryText};opacity:0.7;">${escapeHtml(eyebrow)}</td>`
@@ -179,7 +179,7 @@ export function emailShell(bodyHtml: string, options: EmailShellOptions = {}): s
           </tr>
           ${
             chevron
-              ? `<tr><td style="height:6px;line-height:6px;font-size:0;background:#F5B800;">&nbsp;</td></tr>`
+              ? `<tr><td style="height:6px;line-height:6px;font-size:0;background:${B.primaryDark};">&nbsp;</td></tr>`
               : ""
           }
           <tr>
@@ -481,8 +481,8 @@ export const emailUI = {
   /** §3.6 — bulletproof primary button with Outlook VML fallback. */
   button: (href: string, label: string) =>
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:22px 0;"><tr><td align="center" bgcolor="${EMAIL_BRAND.primary}" style="border-radius:4px;">
-      <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${href}" style="height:44px;v-text-anchor:middle;width:220px;" fillcolor="${EMAIL_BRAND.primary}" stroke="f"><center style="color:#FFFFFF;font-family:Arial,sans-serif;font-size:16px;font-weight:600;">${escapeHtml(label)}</center></v:roundrect><![endif]-->
-      <!--[if !mso]><!--><a href="${href}" style="display:inline-block;background:${EMAIL_BRAND.primary};color:#FFFFFF;font-family:${EMAIL_BRAND.font};font-weight:600;font-size:16px;padding:14px 28px;border-radius:4px;text-decoration:none;min-height:44px;line-height:1.2;">${escapeHtml(label)}</a><!--<![endif]-->
+      <!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${href}" style="height:44px;v-text-anchor:middle;width:220px;" fillcolor="${EMAIL_BRAND.primary}" stroke="f"><center style="color:${EMAIL_BRAND.primaryText};font-family:Arial,sans-serif;font-size:16px;font-weight:600;">${escapeHtml(label)}</center></v:roundrect><![endif]-->
+      <!--[if !mso]><!--><a href="${href}" style="display:inline-block;background:${EMAIL_BRAND.primary};color:${EMAIL_BRAND.primaryText};font-family:${EMAIL_BRAND.font};font-weight:600;font-size:16px;padding:14px 28px;border-radius:4px;text-decoration:none;min-height:44px;line-height:1.2;">${escapeHtml(label)}</a><!--<![endif]-->
     </td></tr></table>`,
 
   /** §3.6 — secondary button (review links on the delivered email). */
