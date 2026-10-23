@@ -15,15 +15,15 @@ const BRAND = {
   email: "info@cyclecourierco.com",
   phone: "+44 121 798 0767",
   website: "https://booking.cyclecourierco.com",
-  primary: "#0B61B1", // motorway blue (portal primary)
-  primaryDark: "#084C8B",
-  text: "#16191D",
-  muted: "#5C6570",
+  primary: "#4D6863", // sage (portal primary)
+  primaryDark: "#3A514C",
+  text: "#1C2421",
+  muted: "#5E6A66",
   border: "#D8DEE4",
   bg: "#EDF1F4",
 };
 
-const EMAIL_LOGO_URL = "https://courier-scheduler-ninja.lovable.app/__l5e/assets-v1/51b80c2a-5208-455f-87d8-ac99bb81b6b7/lockup-horizontal-reversed.png";
+const EMAIL_LOGO_URL = "https://courier-scheduler-ninja.lovable.app/__l5e/assets-v1/a9a6ee55-3d4c-4c56-8a80-9b4fd6660285/logo-cream.png";
 
 const escapeHtml = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -81,10 +81,10 @@ export function wrapAnnouncementEmail(content: string, subject: string): string 
         <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:6px;overflow:hidden;border:1px solid ${BRAND.border};">
           <!-- Header -->
           <tr>
-            <td style="background:${BRAND.primary};padding:24px 32px;">
+            <td bgcolor="${BRAND.primary}" style="background-color:${BRAND.primary};background:${BRAND.primary};padding:24px 32px;">
               <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
                 <tr>
-                  <td><img src="${EMAIL_LOGO_URL}" alt="Cycle Courier Co." width="260" height="52" style="width:260px;max-width:100%;height:auto;display:block;border:0;outline:none;text-decoration:none;"></td>
+                  <td><img src="${EMAIL_LOGO_URL}" alt="Cycle Courier Co." width="140" height="140" style="width:140px;height:140px;color:#F8F8EE;font-size:18px;font-weight:700;display:block;border:0;outline:none;text-decoration:none;"></td>
                 </tr>
               </table>
             </td>
