@@ -190,7 +190,7 @@ const Layout: React.FC<LayoutProps> = ({
       <header className="sticky top-0 z-50 border-b bg-card">
         <div className="container mx-auto flex min-h-16 items-center justify-between px-4 py-2">
           <Link to="/" className="min-w-0" aria-label="Cycle Courier Co. home">
-            <BrandLogo compact />
+            <BrandLogo compact withWordmark />
           </Link>
           
           <nav className="hidden items-center gap-5 text-sm font-semibold md:flex">
