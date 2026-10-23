@@ -283,36 +283,24 @@ const AnnouncementEmailsPage: React.FC = () => {
     if (recipients.length === 0) { toast.error("Please select at least one recipient"); return; }
 
     setIsSendingEmail(true);
-    setEmailProgress({ sent: 0, total: recipients.length });
-    let successCount = 0;
-    let failCount = 0;
-
-    await Sentry.startSpan(
-      { op: "email.send_announcement", name: "Send Announcement Emails" },
-      async (span) => {
-        span.setAttribute("recipient_count", recipients.length);
-        for (let i = 0; i < recipients.length; i++) {
-          const recipient = recipients[i];
-          try {
-            const brandedHtml = wrapAnnouncementEmail(htmlBody, subject);
-            const { error } = await supabase.functions.invoke("send-email", {
-              body: { to: recipient.email, subject, html: brandedHtml, text: buildPlainText(htmlBody) },
-            });
-            if (error) throw error;
-            successCount++;
-          } catch (err) {
-            failCount++;
-            Sentry.captureException(err);
-          }
-          setEmailProgress({ sent: i + 1, total: recipients.length });
-          if (i < recipients.length - 1) await new Promise((r) => setTimeout(r, 300));
-        }
-      }
-    );
-
-    setIsSendingEmail(false);
-    if (failCount === 0) toast.success(`Successfully sent ${successCount} email(s)`);
-    else toast.warning(`Sent ${successCount}, failed ${failCount} email(s)`);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-announcement-batch", {
+        body: {
+          channel: "email",
+          recipients: recipients.map((r) => r.email),
+          subject,
+          html: wrapAnnouncementEmail(htmlBody, subject),
+          text: buildPlainText(htmlBody),
+        },
+      });
+      if (error) throw error;
+      toast.success(`Sending ${data?.count ?? recipients.length} email(s) in the background — you can close this page`);
+    } catch (err) {
+      Sentry.captureException(err);
+      toast.error("Couldn't start sending the emails");
+    } finally {
+      setIsSendingEmail(false);
+    }
   };
 
   const handleSendWhatsApp = async () => {
@@ -324,49 +312,26 @@ const AnnouncementEmailsPage: React.FC = () => {
     if (recipientsWithPhone.length === 0) { toast.error("No selected recipients have phone numbers"); return; }
 
     setIsSendingWhatsApp(true);
-    setWhatsappProgress({ sent: 0, total: recipientsWithPhone.length });
-    let successCount = 0;
-    let failCount = 0;
-
-    await Sentry.startSpan(
-      { op: "whatsapp.send_announcement", name: "Send Announcement WhatsApp" },
-      async (span) => {
-        span.setAttribute("recipient_count", recipientsWithPhone.length);
-        span.setAttribute("mode", whatsappMode);
-        for (let i = 0; i < recipientsWithPhone.length; i++) {
-          const recipient = recipientsWithPhone[i];
-          try {
-            const bodyPayload: Record<string, unknown> = { phone: recipient.phone };
-
-            if (whatsappMode === "text") {
-              bodyPayload.message = whatsappMessage.trim();
-            } else {
-              bodyPayload.templateName = selectedTemplateName;
-              bodyPayload.langCode = selectedTemplate?.language || "en";
-              bodyPayload.parameters = selectedTemplateParams.map((idx) => ({
-                parameter_name: idx,
-                text: templateParams[idx] || "N/A",
-              }));
-            }
-
-            const { error } = await supabase.functions.invoke("send-announcement-whatsapp", {
-              body: bodyPayload,
-            });
-            if (error) throw error;
-            successCount++;
-          } catch (err) {
-            failCount++;
-            Sentry.captureException(err);
-          }
-          setWhatsappProgress({ sent: i + 1, total: recipientsWithPhone.length });
-          if (i < recipientsWithPhone.length - 1) await new Promise((r) => setTimeout(r, 500));
-        }
+    try {
+      const body: Record<string, unknown> = {
+        channel: "whatsapp",
+        recipients: recipientsWithPhone.map((r) => r.phone),
+      };
+      if (whatsappMode === "text") body.message = whatsappMessage.trim();
+      else {
+        body.templateName = selectedTemplateName;
+        body.langCode = selectedTemplate?.language || "en";
+        body.parameters = selectedTemplateParams.map((idx) => ({ parameter_name: idx, text: templateParams[idx] || "N/A" }));
       }
-    );
-
-    setIsSendingWhatsApp(false);
-    if (failCount === 0) toast.success(`Successfully sent ${successCount} WhatsApp message(s)`);
-    else toast.warning(`Sent ${successCount}, failed ${failCount} WhatsApp message(s)`);
+      const { data, error } = await supabase.functions.invoke("send-announcement-batch", { body });
+      if (error) throw error;
+      toast.success(`Sending ${data?.count ?? recipientsWithPhone.length} WhatsApp message(s) in the background — you can close this page`);
+    } catch (err) {
+      Sentry.captureException(err);
+      toast.error("Couldn't start sending the WhatsApp messages");
+    } finally {
+      setIsSendingWhatsApp(false);
+    }
   };
 
   const handleScheduleEmail = async () => {
