@@ -502,3 +502,12 @@ For API support, documentation updates, or to request an API key:
 - Email: api-support@cyclecourier.com
 - Documentation: https://docs.cyclecourier.com
 - Status Page: https://status.cyclecourier.com
+
+## Public tracking lookup (retail site)
+
+`GET https://api.cyclecourierco.com/functions/v1/public-track?tracking=CCC754...`
+or `POST` with `{"tracking": "CCC754...", "postcode": "SW12 8BG"}` (postcode optional; unlocks proof-of-delivery images for the matching side).
+
+No API key needed. Browser calls are allowed from cyclecourierco.com, www.cyclecourierco.com and booking.cyclecourierco.com.
+
+Response: `{ found, postcode_verified, rate_limited, order: { tracking_number, status, bikes[], pickup/delivery dates and timeslots, order_collected, order_delivered, inspection_summary, events[] } }`. Unknown or malformed numbers return 404 `{ found: false }`. No names, contact details or addresses are returned.
