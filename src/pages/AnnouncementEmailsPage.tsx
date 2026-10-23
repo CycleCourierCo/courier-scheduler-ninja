@@ -102,14 +102,12 @@ const AnnouncementEmailsPage: React.FC = () => {
   const [htmlBody, setHtmlBody] = useState("");
   const [showPreview, setShowPreview] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
-  const [emailProgress, setEmailProgress] = useState({ sent: 0, total: 0 });
   // WhatsApp state
   const [whatsappMode, setWhatsappMode] = useState<"text" | "template">("text");
   const [whatsappMessage, setWhatsappMessage] = useState("");
   const [selectedTemplateName, setSelectedTemplateName] = useState("");
   const [templateParams, setTemplateParams] = useState<Record<string, string>>({});
   const [isSendingWhatsApp, setIsSendingWhatsApp] = useState(false);
-  const [whatsappProgress, setWhatsappProgress] = useState({ sent: 0, total: 0 });
   // Schedule dialog state
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [scheduledDateTime, setScheduledDateTime] = useState("");
@@ -693,17 +691,17 @@ const AnnouncementEmailsPage: React.FC = () => {
         {/* Progress bars */}
         {isSendingEmail && (
           <div className="mb-4 space-y-2">
-            <Progress value={(emailProgress.sent / emailProgress.total) * 100} />
+            <Progress value={100} className="animate-pulse" />
             <p className="text-sm text-muted-foreground text-center">
-              Sending emails {emailProgress.sent} / {emailProgress.total}...
+              Starting send on the server…
             </p>
           </div>
         )}
         {isSendingWhatsApp && (
           <div className="mb-4 space-y-2">
-            <Progress value={(whatsappProgress.sent / whatsappProgress.total) * 100} />
+            <Progress value={100} className="animate-pulse" />
             <p className="text-sm text-muted-foreground text-center">
-              Sending WhatsApp {whatsappProgress.sent} / {whatsappProgress.total}...
+              Starting send on the server…
             </p>
           </div>
         )}
