@@ -34,3 +34,13 @@
 - [ ] Phase 3: real-use checklist (needs staff to try each change signed in)
 - [ ] Phase 4: scheduled-job failure alerts, privacy policy fixes; SMS waits on Divergent approval
 - [x] TRACKING_SPEC.md for Shopify tracking page + extend public-track
+
+## Retheme (sage/cream)
+- [x] Batch 1 core: tokens light+dark, fonts, badges, buttons, amber, logo/icons, map pins, emails, label mark
+- [ ] Batch 2 scheduling: RouteBuilder, GuaranteedDatePanel, CSV dialogs, RouteComparison, TrunkRuns
+- [ ] Batch 3 customer-facing: TrackingPage, OrderDetail, TrackingTimeline, tokenised pages (+ Shopify CSS version)
+- [ ] Batch 4 workshop/warehouse
+- [ ] Batch 5 admin/money
+- [ ] Batch 6 long tail
+- [ ] Held-bike / failed-attempt flag in order list, order detail, Route Builder cards, Loading & Storage
+- [ ] Waiting on Abdullah: Shopify theme owner, final sign-off, go-live date
