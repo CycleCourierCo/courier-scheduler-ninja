@@ -164,8 +164,6 @@
   .doorstep-data { @apply font-mono text-[22px] font-bold leading-snug tabular-nums; }
   .office-density { @apply text-[12.5px] leading-[1.35]; }
   .floor-density { @apply text-[17px]; }
-  .journey-line { animation: route-draw 400ms ease-out both; }
-  .journey-van { animation: van-slide 350ms ease-in-out both; }
   .route-map-marker {
     box-sizing: border-box;
     display: flex;
@@ -192,8 +190,6 @@
   .floor-controls button.h-10.w-10, .doorstep-page button.h-10.w-10 { width: 3rem; }
 }
 
-@keyframes route-draw { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0); } }
-@keyframes van-slide { from { transform: translateX(-8px); opacity: .65; } to { transform: translateX(0); opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }

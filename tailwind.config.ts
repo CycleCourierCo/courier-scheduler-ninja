@@ -27,8 +27,8 @@ export default {
 		},
 		extend: {
 			fontFamily: {
-				sans: ['Overpass', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-				mono: ['"Overpass Mono"', 'ui-monospace', 'monospace'],
+				sans: ['"Hanken Grotesk"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+				mono: ['"DM Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
 			},
 			colors: {
 				border: 'hsl(var(--border))',
@@ -85,10 +85,11 @@ export default {
 				status: {
 					neutral: 'hsl(var(--status-neutral))', waiting: 'hsl(var(--status-waiting))', booked: 'hsl(var(--status-booked))',
 					transit: 'hsl(var(--status-transit))', done: 'hsl(var(--status-done))', failed: 'hsl(var(--status-failed))',
-					ni: 'hsl(var(--status-ni))', trunk: 'hsl(var(--status-trunk))', inspection: 'hsl(var(--status-inspection))',
+					'waiting-foreground': 'hsl(var(--status-waiting-foreground))', ni: 'hsl(var(--status-ni))', trunk: 'hsl(var(--status-trunk))', inspection: 'hsl(var(--status-inspection))',
 				},
+				cream: 'hsl(var(--cream))',
+				'sage-deep': 'hsl(var(--sage-deep))',
 				segment: { 1: 'hsl(var(--segment-1))', 2: 'hsl(var(--segment-2))', 3: 'hsl(var(--segment-3))', 4: 'hsl(var(--segment-4))', 5: 'hsl(var(--segment-5))', 6: 'hsl(var(--segment-6))', 7: 'hsl(var(--segment-7))', 8: 'hsl(var(--segment-8))' },
-				courier: { 50: 'hsl(var(--route-tint))', 100: 'hsl(var(--route-tint))', 200: 'hsl(var(--route-tint))', 300: 'hsl(var(--route))', 400: 'hsl(var(--route))', 500: 'hsl(var(--route))', 600: 'hsl(var(--route))', 700: 'hsl(var(--route))', 800: 'hsl(var(--tarmac))', 900: 'hsl(var(--tarmac))', 950: 'hsl(var(--tarmac))' }
 			},
 			boxShadow: {
 				'card': 'var(--shadow-card)'
@@ -96,9 +97,7 @@ export default {
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out',
-				'fade-in': 'fade-in 0.15s ease-out',
-				'route-draw': 'route-draw 0.4s ease-out',
-				'van-slide': 'van-slide 0.35s ease-in-out'
+				'fade-in': 'fade-in 0.15s ease-out'
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
@@ -125,9 +124,7 @@ export default {
 				'fade-in': {
 					'0%': { opacity: '0' },
 					'100%': { opacity: '1' }
-				},
-				'route-draw': { from: { clipPath: 'inset(0 100% 0 0)' }, to: { clipPath: 'inset(0)' } },
-				'van-slide': { from: { transform: 'translateX(-8px)', opacity: '0.65' }, to: { transform: 'translateX(0)', opacity: '1' } }
+				}
 			}
 		}
 	},
