@@ -355,6 +355,13 @@ const handler = async (req: Request): Promise<Response> => {
     
     if (existingOrder) {
       console.log('Order already exists for Shopify order:', shopifyOrderId);
+      if (existingOrder.tracking_number) {
+        try {
+          console.log('Shopify fulfilment:', await fulfilShopifyOrder(shopifyOrderId, existingOrder.tracking_number));
+        } catch (e) {
+          console.error('Shopify fulfilment error:', e instanceof Error ? e.message : 'unknown');
+        }
+      }
       return new Response(JSON.stringify({ 
         success: true,
         message: 'Order already processed',
@@ -441,6 +448,15 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       console.log('Order created successfully via Orders API:', responseData);
+
+      const newTracking = responseData?.trackingNumber || responseData?.tracking_number || responseData?.order?.tracking_number;
+      if (newTracking) {
+        try {
+          console.log('Shopify fulfilment:', await fulfilShopifyOrder(shopifyOrderId, newTracking));
+        } catch (e) {
+          console.error('Shopify fulfilment error:', e instanceof Error ? e.message : 'unknown');
+        }
+      }
 
       return new Response(JSON.stringify({ 
         success: true, 
