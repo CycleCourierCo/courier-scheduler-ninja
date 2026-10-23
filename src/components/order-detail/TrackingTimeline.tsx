@@ -142,7 +142,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
     events.push({
       title: "Order Created",
       date: order.createdAt,
-      icon: <Package className="h-4 w-4 text-courier-600" />,
+      icon: <Package className="h-4 w-4 text-primary" />,
       description: order.trackingNumber ? 
         `Order created with tracking number: ${order.trackingNumber}` : 
         "Order created successfully"
@@ -153,7 +153,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
       events.push({
         title: "Collection Availability Received",
         date: order.senderConfirmedAt,
-        icon: <ClipboardEdit className="h-4 w-4 text-courier-600" />,
+        icon: <ClipboardEdit className="h-4 w-4 text-primary" />,
         description: "Thank you. You've submitted your preferred collection dates. We'll confirm your actual collection date shortly."
       });
     }
@@ -162,7 +162,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
       events.push({
         title: "Delivery Availability Received",
         date: order.receiverConfirmedAt,
-        icon: <ClipboardEdit className="h-4 w-4 text-courier-600" />,
+        icon: <ClipboardEdit className="h-4 w-4 text-primary" />,
         description: "Thank you. You've submitted your preferred delivery dates. We'll confirm your actual delivery date shortly."
       });
     }
@@ -171,7 +171,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
       events.push({
         title: "Transport Scheduled",
         date: order.scheduledAt,
-        icon: <Calendar className="h-4 w-4 text-courier-600" />,
+        icon: <Calendar className="h-4 w-4 text-primary" />,
         description: "Transport manager has scheduled pickup and delivery"
       });
     }
@@ -285,30 +285,30 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
           console.log(`Update orderId: ${update.orderId}, leg: ${legHint}, isPickup: ${isPickup}, isDelivery: ${isDelivery}`);
           
           let title = "";
-          let icon = <Truck className="h-4 w-4 text-courier-600" />;
+          let icon = <Truck className="h-4 w-4 text-primary" />;
           let description = update.description || "";
           
           // Determine the event title and icon based on the event type
           if (update.event === "ORDER_ONTHEWAY") {
             if (isPickup) {
               title = "Driver En Route to Collection";
-              icon = <Map className="h-4 w-4 text-courier-600" />;
+              icon = <Map className="h-4 w-4 text-primary" />;
               if (!description) description = "Driver is on the way to collect the bike";
             } else if (isDelivery) {
               title = "Driver En Route to Delivery";
-              icon = <Truck className="h-4 w-4 text-courier-600" />;
+              icon = <Truck className="h-4 w-4 text-primary" />;
               if (!description) description = "Driver is on the way to deliver the bike";
             }
           } else if (update.event === "ORDER_COMPLETED") {
             if (isPickup) {
               title = "Bike Collected";
-              icon = <Check className="h-4 w-4 text-courier-600" />;
+              icon = <Check className="h-4 w-4 text-primary" />;
               if (!description) description = "Driver has collected the bike";
             } else if (isDelivery) {
               if (isNorthernIrelandOrder) {
                 // NI deliveries end at the ferry port, not at the customer.
                 title = "Arrived at ferry port";
-                icon = <Ship className="h-4 w-4 text-courier-600" />;
+                icon = <Ship className="h-4 w-4 text-primary" />;
                 description =
                   "Bike has reached the ferry port and is travelling onward by ferry to Northern Ireland";
               } else {
@@ -378,7 +378,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
           events.push({
             title: "Awaiting Inspection",
             date: baseDate,
-            icon: <Wrench className="h-4 w-4 text-courier-600" />,
+            icon: <Wrench className="h-4 w-4 text-primary" />,
             description: "Bike is awaiting mechanic inspection"
           });
         }
@@ -408,7 +408,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
             events.push({
               title: "Repairs Approved",
               date: summary.repairs_approved_at,
-              icon: <Wrench className="h-4 w-4 text-courier-600" />,
+              icon: <Wrench className="h-4 w-4 text-primary" />,
               description: "Customer has approved the recommended repairs"
             });
           }
@@ -417,7 +417,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
             events.push({
               title: "Awaiting Parts",
               date: summary.awaiting_parts_at,
-              icon: <Clock className="h-4 w-4 text-courier-600" />,
+              icon: <Clock className="h-4 w-4 text-primary" />,
               description: "Ordering parts required for the approved repairs"
             });
           }
@@ -426,7 +426,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
             events.push({
               title: "Parts Arrived — Awaiting Repair",
               date: summary.awaiting_repair_at,
-              icon: <Wrench className="h-4 w-4 text-courier-600" />,
+              icon: <Wrench className="h-4 w-4 text-primary" />,
               description: "All parts have arrived — repairs are about to start"
             });
           }
@@ -435,7 +435,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
             events.push({
               title: "Repairs Declined — Proceeding to Delivery",
               date: summary.repairs_declined_at,
-              icon: <Truck className="h-4 w-4 text-courier-600" />,
+              icon: <Truck className="h-4 w-4 text-primary" />,
               description: "Customer has declined the recommended repairs"
             });
           }
@@ -458,9 +458,9 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
     if ((order as any).isBoxMyBike) {
       const trackingUrl: string | null = (order as any).boxTrackingUrl || null;
       const bmb: Array<[any, string, string, JSX.Element, string | null]> = [
-        [(order as any).boxInDepotAt, "In depot, awaiting boxing", "Bike has arrived at the depot and is queued for boxing", <Package className="h-4 w-4 text-courier-600" />, null],
-        [(order as any).boxBoxedAt, "Boxed, awaiting label", "Bike has been boxed and is awaiting a shipping label", <Box className="h-4 w-4 text-courier-600" />, null],
-        [(order as any).boxLabelPrintedAt, "Awaiting 3rd-party collection", "Label printed — awaiting 3rd-party courier collection", <Clock className="h-4 w-4 text-courier-600" />, trackingUrl],
+        [(order as any).boxInDepotAt, "In depot, awaiting boxing", "Bike has arrived at the depot and is queued for boxing", <Package className="h-4 w-4 text-primary" />, null],
+        [(order as any).boxBoxedAt, "Boxed, awaiting label", "Bike has been boxed and is awaiting a shipping label", <Box className="h-4 w-4 text-primary" />, null],
+        [(order as any).boxLabelPrintedAt, "Awaiting 3rd-party collection", "Label printed — awaiting 3rd-party courier collection", <Clock className="h-4 w-4 text-primary" />, trackingUrl],
         [(order as any).boxCollectedBy3pAt, "Collected by 3rd-party courier", "Bike has been handed to the 3rd-party courier", <Truck className="h-4 w-4 text-green-600" />, trackingUrl],
         [(order as any).boxDeliveredBy3pAt, "Delivered by 3rd-party courier", "Bike has been delivered by the 3rd-party courier", <CheckCircle className="h-4 w-4 text-green-600" />, trackingUrl],
       ];
@@ -482,7 +482,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
         events.push({
           title: "Protective foam packing applied",
           date: foamedAt,
-          icon: <Snowflake className="h-4 w-4 text-courier-600" />,
+          icon: <Snowflake className="h-4 w-4 text-primary" />,
           description: "Bike has been foam-packed ready for the ferry crossing",
         } as any);
       }
@@ -491,7 +491,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
         events.push({
           title: "Arrived at ferry port",
           date: ferryAt,
-          icon: <Ship className="h-4 w-4 text-courier-600" />,
+          icon: <Ship className="h-4 w-4 text-primary" />,
           description: "Bike has reached the ferry port and is travelling onward by ferry to Northern Ireland",
         } as any);
       }
@@ -529,7 +529,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
         events.push({
           title: "Collected in Northern Ireland",
           date: collectedAt,
-          icon: <Truck className="h-4 w-4 text-courier-600" />,
+          icon: <Truck className="h-4 w-4 text-primary" />,
           description: bfs
             ? `Bike collected by the ferry partner (BFS ${bfs})`
             : "Bike collected in Northern Ireland by the ferry partner",
@@ -566,7 +566,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
           events.push({
             title: "Driver En Route to Collection",
             date: order.updatedAt,
-            icon: <Map className="h-4 w-4 text-courier-600" />,
+            icon: <Map className="h-4 w-4 text-primary" />,
             description: "Driver is on the way to collect the bike"
           });
         }
@@ -576,7 +576,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
           events.push({
             title: "Bike Collected",
             date: order.updatedAt,
-            icon: <Check className="h-4 w-4 text-courier-600" />,
+            icon: <Check className="h-4 w-4 text-primary" />,
             description: "Bike has been collected from sender"
           });
         }
@@ -585,7 +585,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
           events.push({
             title: "Driver En Route to Delivery",
             date: order.updatedAt,
-            icon: <Truck className="h-4 w-4 text-courier-600" />,
+            icon: <Truck className="h-4 w-4 text-primary" />,
             description: "Driver is on the way to deliver the bike"
           });
         }
@@ -607,7 +607,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
         events.push({
           title: "Awaiting Collection Dates",
           date: order.updatedAt || order.createdAt,
-          icon: <Clock className="h-4 w-4 text-courier-600" />,
+          icon: <Clock className="h-4 w-4 text-primary" />,
           description: "Waiting for sender to confirm availability dates"
         });
       }
@@ -616,7 +616,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
         events.push({
           title: "Awaiting Delivery Dates",
           date: order.updatedAt || order.createdAt,
-          icon: <Clock className="h-4 w-4 text-courier-600" />,
+          icon: <Clock className="h-4 w-4 text-primary" />,
           description: "Waiting for receiver to confirm availability dates"
         });
       }
@@ -625,7 +625,7 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
         events.push({
           title: "Scheduling in Progress",
           date: order.updatedAt || order.createdAt,
-          icon: <Calendar className="h-4 w-4 text-courier-600" />,
+          icon: <Calendar className="h-4 w-4 text-primary" />,
           description: "Transport team is scheduling your pickup and delivery"
         });
       }

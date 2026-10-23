@@ -139,7 +139,7 @@ export function Sidebar({
                   className={cn(
                     "group flex items-center rounded-md px-3 py-2 text-sm font-medium transition-colors",
                     pathname === link.href
-                      ? "bg-courier-500 text-white"
+                      ? "bg-primary text-white"
                       : "text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
                   )}
                 >

@@ -212,7 +212,7 @@ const Layout: React.FC<LayoutProps> = ({
                   
                   {user && <>
                       <DropdownMenuSeparator className="my-2" />
-                      {!isAdmin && <Link to="/profile" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                      {!isAdmin && <Link to="/profile" onClick={closeSheet} className="flex items-center text-foreground hover:text-primary transition-colors">
                         <User className="mr-2 h-4 w-4" />
                         Your Profile
                       </Link>}
@@ -222,7 +222,7 @@ const Layout: React.FC<LayoutProps> = ({
                             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground pt-2">
                               {section.label}
                             </p>
-                            {section.items.map(item => <Link key={item.to} to={item.to} onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                            {section.items.map(item => <Link key={item.to} to={item.to} onClick={closeSheet} className="flex items-center text-foreground hover:text-primary transition-colors">
                               <item.icon className="mr-2 h-4 w-4" />
                               {item.label}
                               {item.to === "/users" && <PendingAbsenceBadge />}
@@ -230,36 +230,36 @@ const Layout: React.FC<LayoutProps> = ({
                           </div>)}
                         </>}
                       {isRoutePlanner && !isAdmin && <>
-                        <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                        <Link to="/scheduling" onClick={closeSheet} className="flex items-center text-foreground hover:text-primary transition-colors">
                           <Calendar className="mr-2 h-4 w-4" />
                           Job Scheduling
                         </Link>
                       </>}
                       {isSales && !isAdmin && <>
-                          <Link to="/account-approvals" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Link to="/account-approvals" onClick={closeSheet} className="flex items-center text-foreground hover:text-primary transition-colors">
                             <Shield className="mr-2 h-4 w-4" />
                             Account Approvals
                           </Link>
-                          <Link to="/invoices" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Link to="/invoices" onClick={closeSheet} className="flex items-center text-foreground hover:text-primary transition-colors">
                             <FileText className="mr-2 h-4 w-4" />
                             Invoices
                           </Link>
                         </>}
                       {isDriver && <>
-                          <Link to="/timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Link to="/timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-primary transition-colors">
                             <Clock className="mr-2 h-4 w-4" />
                             My Timeslips
                           </Link>
-                          <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                          <Link to="/fuel-finder" onClick={closeSheet} className="flex items-center text-foreground hover:text-primary transition-colors">
                             <Fuel className="mr-2 h-4 w-4" />
                             Fuel Finder
                           </Link>
                         </>}
-                      {isMechanic && !isAdmin && !isB2B && <Link to="/bicycle-inspections" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                      {isMechanic && !isAdmin && !isB2B && <Link to="/bicycle-inspections" onClick={closeSheet} className="flex items-center text-foreground hover:text-primary transition-colors">
                           <Wrench className="mr-2 h-4 w-4" />
                           Bicycle Inspections
                         </Link>}
-                      {isTimeslipAdmin && !isAdmin && <Link to="/timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-courier-500 transition-colors">
+                      {isTimeslipAdmin && !isAdmin && <Link to="/timeslips" onClick={closeSheet} className="flex items-center text-foreground hover:text-primary transition-colors">
                           <Clock className="mr-2 h-4 w-4" />
                           Timeslips
                         </Link>}

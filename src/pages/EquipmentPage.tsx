@@ -44,7 +44,7 @@ const statusVariant = (status: EquipmentUnitStatus) => {
     case "available":
       return "bg-emerald-600 hover:bg-emerald-600 text-white";
     case "assigned":
-      return "bg-courier-600 hover:bg-courier-600 text-white";
+      return "bg-primary hover:bg-primary text-white";
     case "in_repair":
       return "bg-amber-600 hover:bg-amber-600 text-white";
     default:

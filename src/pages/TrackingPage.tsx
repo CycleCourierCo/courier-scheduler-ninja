@@ -164,7 +164,7 @@ const TrackingPage = () => {
                   {(order.scheduledPickupDate || (order.scheduledDeliveryDate && !isOutboundNi(order))) && (
                     <div className="border-t pt-4 min-w-0">
                       <h3 className="text-sm font-medium mb-3 flex items-center">
-                        <Calendar className="mr-2 h-4 w-4 text-courier-500 shrink-0" />
+                        <Calendar className="mr-2 h-4 w-4 text-primary shrink-0" />
                         Scheduled Dates
                       </h3>
                    <div className="space-y-4 min-w-0">

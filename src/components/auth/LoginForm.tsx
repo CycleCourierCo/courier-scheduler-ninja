@@ -112,7 +112,7 @@ const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
 
         <Button 
           type="submit" 
-          className="w-full bg-courier-600 hover:bg-courier-700" 
+          className="w-full bg-primary hover:bg-primary" 
           disabled={localLoading || authLoading}
         >
           {localLoading || authLoading ? "Signing in..." : "Sign in"}
@@ -121,7 +121,7 @@ const LoginForm = ({ onForgotPassword }: LoginFormProps) => {
         <div className="text-center mt-2">
           <button
             onClick={handleForgotPassword}
-            className="text-sm text-courier-600 hover:text-courier-700 hover:underline"
+            className="text-sm text-primary hover:text-primary hover:underline"
             disabled={forgotPasswordIsLoading}
           >
             {forgotPasswordIsLoading ? "Sending..." : "Forgot your password?"}

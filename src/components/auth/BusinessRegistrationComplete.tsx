@@ -18,7 +18,7 @@ const BusinessRegistrationComplete = ({ onReturnToLogin }: BusinessRegistrationC
       </div>
       <Button 
         onClick={onReturnToLogin} 
-        className="bg-courier-600 hover:bg-courier-700"
+        className="bg-primary hover:bg-primary"
       >
         Return to Login
       </Button>

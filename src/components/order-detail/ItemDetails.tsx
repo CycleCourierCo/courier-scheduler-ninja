@@ -100,7 +100,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
     <div className="space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div className="flex items-center space-x-2 min-w-0 flex-1">
-          <Package className="text-courier-600 shrink-0" />
+          <Package className="text-primary shrink-0" />
           <h3 className="font-semibold break-words">Item Details</h3>
         </div>
 
@@ -145,14 +145,14 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
           </div>
         )}
         {order.isEbayOrder && !order.collectionCode && (
-          <p className="text-courier-600 font-medium mt-2">eBay order (no collection code provided)</p>
+          <p className="text-primary font-medium mt-2">eBay order (no collection code provided)</p>
         )}
 
         {order.isBikeSwap && (
-          <p className="text-courier-600 font-medium mt-2">This is a bike swap</p>
+          <p className="text-primary font-medium mt-2">This is a bike swap</p>
         )}
         {order.needsPaymentOnCollection && (
-          <p className="text-courier-600 font-medium">Payment required on collection</p>
+          <p className="text-primary font-medium">Payment required on collection</p>
         )}
         {order.needsInspection && (
           <div className="flex items-center gap-2 text-amber-600 font-medium mt-2">
@@ -161,7 +161,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
           </div>
         )}
         {order.isBoxMyBike && (
-          <div className="flex items-center gap-2 text-courier-600 font-medium mt-2">
+          <div className="flex items-center gap-2 text-primary font-medium mt-2">
             <Box className="h-4 w-4" />
             Box My Bike order
           </div>
@@ -171,7 +171,7 @@ const ItemDetails: React.FC<ItemDetailsProps> = ({ order, onRefresh }) => {
       {order.deliveryInstructions && (
         <div className="mt-4">
           <div className="flex items-center space-x-2 mb-2">
-            <FileText className="text-courier-600" />
+            <FileText className="text-primary" />
             <h3 className="font-semibold">Delivery Instructions</h3>
           </div>
           <div className="bg-muted p-3 rounded-md">
