@@ -58,7 +58,7 @@ const STATUS_LABELS: Record<string, string> = {
 // Removes driver names from Shipday descriptions ("Driver Abdul Hadi assigned…").
 const scrubDriver = (s: unknown): string | null => {
   if (typeof s !== "string") return null;
-  return s.replace(/^Driver\s+(?!is\b|has\b)[A-Z][\w'’-]*(?:\s+[A-Z][\w'’-]*)*\s+(?=has\b|assigned\b|is\b|accepted\b)/, "Driver ");
+  return s.replace(/^Driver\s+(?!(?:is|has)\b).+?\s+(?=(?:has|assigned|is|accepted)\b)/i, "Driver ");
 };
 
 const cleanEvents = (events: any) => {

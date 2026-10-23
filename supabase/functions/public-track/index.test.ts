@@ -8,7 +8,7 @@ describe('public-track reference compatibility', () => {
   const lookup = async (method: string, query: string, body?: unknown) => {
     let handler: ((req: Request) => Promise<Response>) | undefined;
     const rpc = async (_name: string, args: Record<string, unknown>) => ({
-      data: args.p_identifier === tracking ? { tracking_number: tracking, status: 'delivered', order_delivered: true, scheduled_pickup_date: '2026-10-20T10:00:00+00:00', tracking_events: { shipday: { updates: [{ leg: 'pickup', event: 'ORDER_ASSIGNED', timestamp: 't', description: 'Driver Abdul Hadi assigned for collection' }, { leg: 'pickup', event: 'ORDER_ACCEPTED_AND_STARTED', timestamp: 't', description: 'Driver Abdul Hadi has accepted and started collection' }] } } } : null,
+      data: args.p_identifier === tracking ? { tracking_number: tracking, status: 'delivered', order_delivered: true, scheduled_pickup_date: '2026-10-20T10:00:00+00:00', tracking_events: { shipday: { updates: [{ leg: 'pickup', event: 'ORDER_ASSIGNED', timestamp: 't', description: 'Driver Abdul Hadi assigned for collection' }, { leg: 'pickup', event: 'ORDER_ACCEPTED_AND_STARTED', timestamp: 't', description: 'Driver Azi - Temp has accepted and started collection' }] } } } : null,
       error: null,
     });
     const { z } = await import('zod');
