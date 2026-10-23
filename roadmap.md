@@ -46,4 +46,4 @@
 - [ ] Waiting on Abdullah: Shopify theme owner, final sign-off, go-live date
 
 - [x] Availability follow-up emails moved to server (availability-followups)
-- [ ] Review other browser loops: bulk upload, inspections, invoices, announcements, user management, fuel upload, route generation
+- [x] Review other browser loops: announcements + Create All Invoices moved to server; WhatsApp sender locked to staff; bulk upload warns before closing; user mgmt, fuel upload, route generation already fine
