@@ -13,3 +13,4 @@
 - Staff-visible pages must be added to the hardcoded ADMIN_MENU_SECTIONS list in Layout.tsx as well as the route/permissions config — the admin menu does not read the permissions matrix, so a page can be reachable yet absent from the menu.
 - Order webhooks fan out to customer webhook configs and to partner apps (oauth_clients.webhook_url) the customer has an active OAuth grant with, deduped by URL — a sign-in connection alone must be enough for a partner to receive updates.
 - Customer SMS goes through supabase/functions/_shared/divergentSms.ts (Divergent Connect), sent alongside WhatsApp and logged in sms_messages; delivery/replies arrive at divergent-webhook — one helper keeps sender, length limit and logging consistent.
+- Tests run with vitest (`npx vitest run`), files named *.test.ts next to the code — one test per business rule.

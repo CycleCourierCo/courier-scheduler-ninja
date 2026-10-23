@@ -168,3 +168,7 @@ verify_jwt = false
 
 [functions.caz-daily-check]
 verify_jwt = false
+
+# Public tracking lookup for cyclecourierco.com.
+[functions.public-track]
+verify_jwt = false

@@ -25,3 +25,11 @@
 - [x] Ireland page added to the admin menu (Operations, after Trunk Runs) — it was only reachable by mechanics, loaders and dealers before (2026-10-11)
 - [x] Timeslips page: renamed from "Driver Timeslips" to "Timeslips" (menu, route label, page title); mechanic timeslips merged into the Draft/Approved/All lists (open+closed count as draft) with a Mechanic badge, photos, GPS, work summary and approve/reject/edit/delete — the separate Mechanic tab is removed; person filter now lists drivers and mechanics
 - [x] Edit bike: allow editing eBay collection code and related eBay fields
+
+## Production readiness (plan 2026-10-23)
+- [x] Automated test setup + bike price tests (7 passing)
+- [x] Fuel cards / fuel card settings limited to staff
+- [ ] Phase 1: review ~135 background actions, signed incoming messages, profiles.role removal, Geoapify proxy + key rotation, upload checks, rescan
+- [ ] Phase 2: tests for inspection invoicing, chaser rules, repairs-declined, Clean Air Zone charges
+- [ ] Phase 3: real-use checklist (needs staff to try each change signed in)
+- [ ] Phase 4: scheduled-job failure alerts, privacy policy fixes; SMS waits on Divergent approval
