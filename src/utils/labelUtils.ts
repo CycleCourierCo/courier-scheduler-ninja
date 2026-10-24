@@ -200,8 +200,8 @@ export const renderLabelPage = (
 
   // Measure the entire body before choosing artwork; never shrink text to fit.
   const bodyHeight = 20 + trackingHeight
-    + (senderLines.length ? 15 + senderLines.length * LINE_HEIGHT + 10 : 0)
-    + 15 + receiverLines.length * LINE_HEIGHT + 12
+    + (senderLines.length ? 15 + senderLines.length * LINE_HEIGHT + 18 : 0)
+    + 15 + receiverLines.length * LINE_HEIGHT + 20
     + 15 + (itemLines.length + typeLines.length + codeLines.length) * LINE_HEIGHT
     + (hasIndicators ? INDICATOR_HEIGHT : 0);
   const useCompact = HEADER_HEIGHT + 8 + bodyHeight > LABEL_HEIGHT - MARGIN;
@@ -236,8 +236,9 @@ export const renderLabelPage = (
   };
   pdf.setFontSize(BODY_SIZE);
   const trackingTop = y;
-  const qrX = labelWidth - MARGIN - qrSize;
-  const qrY = trackingTop - 10;
+  const printerDot = 72 / PRINTER_DPI;
+  const qrX = Math.round((labelWidth - MARGIN - qrSize) / printerDot) * printerDot;
+  const qrY = Math.round((trackingTop - 10) / printerDot) * printerDot;
   // Four-module white quiet zone, with every module exactly three printer dots.
   pdf.setFillColor('0');
   for (let row = 0; row < qr.getModuleCount(); row++) {
@@ -256,13 +257,13 @@ export const renderLabelPage = (
   if (senderLines.length) {
     pdf.setFontSize(BODY_SIZE);
     pdf.text('FROM:', MARGIN, y); y += LINE_HEIGHT;
-    textLines(senderLines); y += 10;
-    divider(y - 6);
+    textLines(senderLines); y += 18;
+    divider(y - 14);
   }
   pdf.setFontSize(BODY_SIZE);
   pdf.text('TO:', MARGIN, y); y += LINE_HEIGHT;
-  textLines(receiverLines); y += 12;
-  divider(y - 6);
+  textLines(receiverLines); y += 20;
+  divider(y - 14);
   pdf.text('ITEM:', MARGIN, y); y += LINE_HEIGHT;
   textLines(itemLines);
   textLines(typeLines);
