@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Retain company name, service wording, website and phone with the new thermal-label mark; two PDFs visually checked with no overlap or clipping
+
 - [x] Replace label branding and layout with supplied thermal artwork
 - [x] Verify sample single, multi-bike, long-address, compact-header and driver-separated PDFs; one-bit 203 dpi confirmed
 - [x] Restore inspection, Box My Bike and Northern Ireland indicators on thermal labels
