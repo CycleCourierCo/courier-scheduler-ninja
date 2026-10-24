@@ -14,7 +14,7 @@ export async function loadTemplate(admin: any, key: string): Promise<TemplateRow
   try {
     const { data } = await admin
       .from("email_templates")
-      .select("key, enabled, locked, is_custom, subject, preheader, blocks, recipients, cc, bcc")
+      .select("key, enabled, locked, is_custom, subject, preheader, blocks, recipients, cc, bcc, wording_mode")
       .eq("key", key)
       .maybeSingle();
     cache.set(key, { at: Date.now(), row: data ?? null });
