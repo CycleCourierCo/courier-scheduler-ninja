@@ -1999,6 +1999,7 @@ export type Database = {
           trigger_label: string | null
           updated_at: string
           updated_by: string | null
+          wording_mode: string
         }
         Insert: {
           audience?: string
@@ -2023,6 +2024,7 @@ export type Database = {
           trigger_label?: string | null
           updated_at?: string
           updated_by?: string | null
+          wording_mode?: string
         }
         Update: {
           audience?: string
@@ -2047,6 +2049,7 @@ export type Database = {
           trigger_label?: string | null
           updated_at?: string
           updated_by?: string | null
+          wording_mode?: string
         }
         Relationships: []
       }
