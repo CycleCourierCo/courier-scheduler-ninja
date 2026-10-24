@@ -6,6 +6,7 @@ import { requireAuth, createAuthErrorResponse } from "../_shared/auth.ts";
 import { expectationsHtml, expectationsText, expectationsForOrder } from "../_shared/deliveryExpectations.ts";
 import { trackResend } from "../_shared/integrationLog.ts";
 import { emailUI, stagesForOrder, stageIndex } from "../_shared/emailLayout.ts";
+import { loadTemplate, isSendAllowed, cleanAddresses, hasCustomBody, varsFromOrder, fillVars, renderBlocks } from "../_shared/emailTemplates.ts";
 
 /** Pill + strip map block injected under the greeting of a status email. */
 const journeyBlock = (order: any, pillToken: string, pillLabel: string, labels: string[], fallback: number): string => {
@@ -444,6 +445,53 @@ The Cycle Courier Co. Team
       }
     }
     
+    // Email Centre overrides: admins can switch an email off, add copies, or
+    // replace the subject/wording. Any failure keeps the built-in email.
+    let extraCc: string[] = [];
+    let extraBcc: string[] = [];
+    const templateKey = reqData.meta?.action === 'customer_update' && reqData.meta?.stage
+      ? `update.${reqData.meta.stage}`
+      : (typeof reqData.emailType === 'string' && reqData.emailType ? `type.${reqData.emailType}` : null);
+    if (templateKey && !reqData.skipTemplate) {
+      try {
+        const tplAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        const tpl = await loadTemplate(tplAdmin, templateKey);
+        if (!isSendAllowed(tpl)) {
+          return new Response(
+            JSON.stringify({ success: true, skipped: true, reason: 'disabled_in_email_centre' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+        if (tpl) {
+          extraCc = cleanAddresses(tpl.cc);
+          extraBcc = cleanAddresses(tpl.bcc);
+          const oid = reqData.meta?.orderId || reqData.orderId;
+          if (tpl.subject?.trim() || hasCustomBody(tpl.blocks)) {
+            let fullOrder: any = null;
+            if (oid) {
+              const { data } = await tplAdmin.from('orders')
+                .select('tracking_number, sender, receiver, bikes, bike_brand, bike_model, scheduled_pickup_date, scheduled_delivery_date')
+                .eq('id', oid).maybeSingle();
+              fullOrder = data;
+            }
+            const vars = varsFromOrder(fullOrder, reqData.name);
+            if (tpl.subject?.trim()) emailOptions.subject = fillVars(tpl.subject, vars, false);
+            if (hasCustomBody(tpl.blocks)) {
+              // Availability emails keep their secret link button even when reworded.
+              const keepLink = (reqData.emailType === 'sender' || reqData.emailType === 'receiver') && reqData.orderId
+                ? emailUI.button(`${reqData.baseUrl || ''}/${reqData.emailType}-availability/${reqData.orderId}`, 'Choose your dates')
+                : '';
+              const r = renderBlocks(tpl.blocks!, vars, { subject: emailOptions.subject, preheader: tpl.preheader, extraHtml: keepLink });
+              emailOptions.html = r.html;
+              emailOptions.text = r.text;
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Email Centre override failed; sending built-in email', { templateKey });
+      }
+    }
+
     console.log(`Sending email from: ${from} to: ${reqData.to}`);
     console.log(`Email subject: ${emailOptions.subject}`);
 
@@ -451,6 +499,8 @@ The Cycle Courier Co. Team
     try {
       // Tag availability emails so the Resend webhook can correlate delivery events.
       const sendPayload: any = { ...emailOptions, reply_to: "Info@cyclecourierco.com" };
+      if (extraCc.length) sendPayload.cc = extraCc;
+      if (extraBcc.length) sendPayload.bcc = extraBcc;
       if (Object.keys(shellOptions).length > 0) {
         sendPayload.cccShell = shellOptions;
       }
