@@ -52,7 +52,7 @@ serve(async (req) => {
       const targets: { email: string; name: string }[] = [];
       if (recips.includes("sender") && o.sender?.email) targets.push({ email: o.sender.email, name: o.sender.name || "" });
       if (recips.includes("receiver") && o.receiver?.email) targets.push({ email: o.receiver.email, name: o.receiver.name || "" });
-      for (const e of cleanAddresses(t.cc)) targets.push({ email: e, name: "" });
+      for (const e of cleanAddresses([...(t.cc || []), ...(t.bcc || [])])) targets.push({ email: e, name: "" });
       const unique = [...new Map(targets.map((x) => [x.email.toLowerCase(), x])).values()];
       if (!unique.length) { skipped++; await finish("skipped", "no recipients"); continue; }
 
