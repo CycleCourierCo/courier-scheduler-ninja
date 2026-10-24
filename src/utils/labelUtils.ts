@@ -239,7 +239,7 @@ export const renderLabelPage = (
   const qrX = labelWidth - MARGIN - qrSize;
   const qrY = trackingTop - 10;
   // Four-module white quiet zone, with every module exactly three printer dots.
-  pdf.setFillColor(0);
+  pdf.setFillColor('0');
   for (let row = 0; row < qr.getModuleCount(); row++) {
     for (let col = 0; col < qr.getModuleCount(); col++) {
       if (qr.isDark(row, col)) {
