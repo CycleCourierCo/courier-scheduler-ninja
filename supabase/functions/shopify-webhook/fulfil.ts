@@ -3,6 +3,16 @@ export function retailTrackingUrl(trackingNumber: string): string {
   return `https://cyclecourierco.com/pages/track?ref=${encodeURIComponent(trackingNumber)}`;
 }
 
+// Retries when Shopify rate-limits (429), honouring Retry-After.
+async function shopifyFetch(url: string, init?: RequestInit): Promise<Response> {
+  for (let i = 0; ; i++) {
+    const res = await fetch(url, init);
+    if (res.status !== 429 || i >= 6) return res;
+    const wait = Number(res.headers.get("retry-after")) || 2;
+    await new Promise((r) => setTimeout(r, wait * 1000 + i * 500));
+  }
+}
+
 // Short-lived Admin API token via the client credentials grant (cached until near expiry).
 let cached: { token: string; expiresAt: number } | null = null;
 async function getAccessToken(domain: string): Promise<string | null> {
@@ -48,13 +58,13 @@ export async function fulfilShopifyOrder(shopifyOrderId: string, trackingNumber:
   const token = await getAccessToken(domain);
   if (!token) return "skipped: could not get Shopify access token";
   const headers = { "X-Shopify-Access-Token": token, "Content-Type": "application/json" };
-  const foRes = await fetch(`https://${domain}/admin/api/2024-10/orders/${shopifyOrderId}/fulfillment_orders.json`, { headers });
+  const foRes = await shopifyFetch(`https://${domain}/admin/api/2024-10/orders/${shopifyOrderId}/fulfillment_orders.json`, { headers });
   if (!foRes.ok) return `failed: fulfillment_orders ${foRes.status}`;
   const fos = ((await foRes.json()).fulfillment_orders || []).filter(
     (fo: any) => fo.status === "open" || fo.status === "in_progress",
   );
   if (fos.length === 0) return "skipped: already fulfilled";
-  const res = await fetch(`https://${domain}/admin/api/2024-10/fulfillments.json`, {
+  const res = await shopifyFetch(`https://${domain}/admin/api/2024-10/fulfillments.json`, {
     method: "POST",
     headers,
     body: JSON.stringify({
