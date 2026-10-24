@@ -24,8 +24,8 @@ const MARK_COMPACT_PX = 64;
 const MARK_FULL_PT = MARK_FULL_PX * 72 / PRINTER_DPI;
 const MARK_COMPACT_PT = MARK_COMPACT_PX * 72 / PRINTER_DPI;
 const MARK_TOP = 10;
-const HEADER_HEIGHT = MARK_TOP + MARK_FULL_PT;
-const COMPACT_HEADER_HEIGHT = MARK_TOP + MARK_COMPACT_PT;
+const HEADER_HEIGHT = MARK_TOP + Math.max(MARK_FULL_PT, 34) + 60;
+const COMPACT_HEADER_HEIGHT = MARK_TOP + Math.max(MARK_COMPACT_PT, 34) + 60;
 
 type ThermalArtwork = {
   full: Uint8Array;
@@ -204,6 +204,21 @@ export const renderLabelPage = (
   const markSize = useCompact ? MARK_COMPACT_PT : MARK_FULL_PT;
   pdf.addImage(useCompact ? artwork.compact : artwork.full, 'PNG', MARGIN, MARK_TOP,
     markSize, markSize, useCompact ? 'thermal-mark-64' : 'thermal-mark-128', 'NONE');
+  // Draw wording as crisp PDF text, keeping the original mark at printer-dot size.
+  const brandX = MARGIN + markSize + 10;
+  pdf.setFontSize(14);
+  pdf.text('CYCLE COURIER CO.', brandX, MARK_TOP + 22);
+  let brandY = MARK_TOP + Math.max(markSize, 34) + 12;
+  pdf.setFontSize(10);
+  for (const line of [
+    'BOXED & UNBOXED BIKE DELIVERY',
+    'ENGLAND · WALES · NORTHERN IRELAND',
+    'INSPECTION & REPAIRS',
+  ]) {
+    pdf.text(line, MARGIN, brandY);
+    brandY += 12;
+  }
+  pdf.text('Cyclecourierco.com · +44 121 798 0767', MARGIN, brandY + 2);
   let y = headerHeight + 20;
   const textLines = (lines: string[], size = BODY_SIZE, height = LINE_HEIGHT) => {
     pdf.setFontSize(size);
