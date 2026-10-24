@@ -69,7 +69,7 @@ export async function fulfilShopifyOrder(shopifyOrderId: string, trackingNumber:
     headers,
     body: JSON.stringify({
       fulfillment: {
-        notify_customer: false,
+        notify_customer: true,
         tracking_info: { number: trackingNumber, company: "Cycle Courier Co.", url: retailTrackingUrl(trackingNumber) },
         line_items_by_fulfillment_order: fos.map((fo: any) => ({ fulfillment_order_id: fo.id })),
       },
