@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { History, Mail, Plus, RotateCcw, Send } from "lucide-react";
 import Layout from "@/components/Layout";
@@ -23,6 +23,7 @@ interface Tpl {
   trigger_key: string | null; trigger_label: string | null; delay_minutes: number;
   recipients: string[]; cc: string[]; bcc: string[]; enabled: boolean; locked: boolean; is_custom: boolean;
   subject: string | null; preheader: string | null; blocks: Blocks | null; tested_at: string | null; wording_mode?: string;
+  sample_subject?: string | null; sample_html?: string | null; sample_at?: string | null;
   updated_at: string; updated_by: string | null;
 }
 
@@ -65,7 +66,7 @@ export default function EmailCentre() {
   const [edit, setEdit] = useState<Partial<Tpl> | null>(null);
 
   const load = async () => {
-    const { data, error } = await db.from("email_templates").select("*").order("category").order("name");
+    const { data, error } = await db.from("email_templates").select("id, key, name, category, audience, description, trigger_key, trigger_label, delay_minutes, recipients, cc, bcc, enabled, locked, is_custom, subject, preheader, blocks, tested_at, updated_at, updated_by, wording_mode, sample_subject, sample_at").order("category").order("name");
     if (error) toast.error("Couldn't load emails");
     setRows(data || []);
   };
@@ -149,9 +150,40 @@ function Editor({ tpl, userId, onClose, onSaved }: { tpl: Partial<Tpl>; userId?:
   const [busy, setBusy] = useState(false);
   const [versions, setVersions] = useState<any[] | null>(null);
   const [focus, setFocus] = useState<string>("p0");
+  const [sample, setSample] = useState<{ html: string | null; subject: string | null; at: string | null } | null>(null);
+  const timer = useRef<number | null>(null);
+
+  // Load the latest real copy of this email.
+  useEffect(() => {
+    if (!tpl.id) { setSample({ html: null, subject: null, at: null }); return; }
+    db.from("email_templates").select("sample_html, sample_subject, sample_at").eq("id", tpl.id).maybeSingle()
+      .then(({ data }: any) => setSample({ html: data?.sample_html ?? null, subject: data?.sample_subject ?? null, at: data?.sample_at ?? null }));
+  }, [tpl.id]);
   const b = t.blocks as Blocks;
   const setB = (patch: Partial<Blocks>) => setT({ ...t, blocks: { ...b, ...patch } });
   const builtIn = !t.is_custom;
+
+  // Live preview: re-render shortly after typing stops.
+  useEffect(() => {
+    if (!hasWording(b)) { setPreviewHtml(null); return; }
+    if (timer.current) window.clearTimeout(timer.current);
+    timer.current = window.setTimeout(async () => {
+      const { data } = await supabase.functions.invoke("email-template-preview", { body: { mode: "preview", template: { id: t.id, subject: t.subject || sample?.subject, preheader: t.preheader, blocks: t.blocks } } });
+      if (data?.html) setPreviewHtml(data.html);
+    }, 500);
+    return () => { if (timer.current) window.clearTimeout(timer.current); };
+  }, [t.subject, t.preheader, JSON.stringify(t.blocks), sample?.subject]);
+
+  const copyCurrentWording = () => {
+    if (!sample?.html) return;
+    const doc = new DOMParser().parseFromString(sample.html, "text/html");
+    const card = doc.querySelector("h1")?.closest("td") || doc.body;
+    const headline = card.querySelector("h1")?.textContent?.trim() || "";
+    const paragraphs = Array.from(card.querySelectorAll("p")).map((p) => p.textContent?.trim() || "")
+      .filter((x) => x && !/Cycorco|Company no|VAT|Wake Green|^Info@/i.test(x)).slice(0, 8);
+    setB({ headline, paragraphs: paragraphs.length ? paragraphs : [""] });
+    toast.message("Current wording copied in", { description: "Swap any customer names, dates or tracking numbers for the detail buttons before saving." });
+  };
 
   const insertVar = (v: string) => {
     const tag = `{{${v}}}`;
@@ -217,9 +249,10 @@ function Editor({ tpl, userId, onClose, onSaved }: { tpl: Partial<Tpl>; userId?:
 
   return (
     <Sheet open onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-3xl">
+      <SheetContent className="w-full overflow-y-auto sm:max-w-6xl">
         <SheetHeader><SheetTitle>{t.id ? t.name : "New email"}</SheetTitle></SheetHeader>
-        <div className="mt-4 space-y-5">
+        <div className="mt-4 grid gap-6 lg:grid-cols-2">
+        <div className="space-y-5">
           {builtIn && (
             <p className="rounded-md border bg-muted p-3 text-sm text-muted-foreground">
               {t.wording_mode === "intro"
@@ -268,7 +301,7 @@ function Editor({ tpl, userId, onClose, onSaved }: { tpl: Partial<Tpl>; userId?:
             <Label>Insert a detail</Label>
             <div className="flex flex-wrap gap-1">{TEMPLATE_VARIABLES.map((v) => <Button key={v} type="button" size="sm" variant="outline" onClick={() => insertVar(v)}>{v.replace(/_/g, " ")}</Button>)}</div>
           </div>}
-          <div><Label>Subject</Label><Input value={t.subject || ""} onFocus={() => setFocus("subject")} onChange={(e) => setT({ ...t, subject: e.target.value })} placeholder={builtIn ? "Leave empty to keep the original" : ""} /></div>
+          <div><Label>Subject</Label><Input value={t.subject || ""} onFocus={() => setFocus("subject")} onChange={(e) => setT({ ...t, subject: e.target.value })} placeholder={sample?.subject ? `Current: ${sample.subject}` : builtIn ? "Leave empty to keep the original" : ""} /></div>
           <div><Label>Inbox preview line</Label><Input value={t.preheader || ""} onChange={(e) => setT({ ...t, preheader: e.target.value })} /></div>
           <div><Label>Headline</Label><Input value={b.headline || ""} onFocus={() => setFocus("headline")} onChange={(e) => setB({ headline: e.target.value })} /></div>
           {(b.paragraphs || [""]).map((p, i) => (
@@ -284,7 +317,7 @@ function Editor({ tpl, userId, onClose, onSaved }: { tpl: Partial<Tpl>; userId?:
           <div><Label>Closing note</Label><Textarea rows={2} value={b.closing || ""} onChange={(e) => setB({ closing: e.target.value })} /></div></>}
 
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" disabled={busy || !hasWording(b)} onClick={() => call("preview")}>Preview</Button>
+            {builtIn && sample?.html && t.wording_mode !== "intro" && <Button variant="outline" onClick={copyCurrentWording}>Start from current wording</Button>}
             <Button variant="outline" disabled={busy || !hasWording(b)} onClick={() => call("test")}><Send className="mr-2 h-4 w-4" />Send test to me</Button>
             {t.id && builtIn && <Button variant="outline" onClick={reset}><RotateCcw className="mr-2 h-4 w-4" />Reset to original</Button>}
             {t.id && <Button variant="ghost" onClick={loadVersions}><History className="mr-2 h-4 w-4" />History</Button>}
@@ -303,15 +336,24 @@ function Editor({ tpl, userId, onClose, onSaved }: { tpl: Partial<Tpl>; userId?:
             </div>
           )}
 
-          {previewHtml && (
-            <div className="space-y-2">
-              <div className="flex gap-2">
-                <Button size="sm" variant={phone ? "outline" : "default"} onClick={() => setPhone(false)}>Desktop</Button>
-                <Button size="sm" variant={phone ? "default" : "outline"} onClick={() => setPhone(true)}>Phone</Button>
-              </div>
-              <iframe title="Email preview" sandbox="" srcDoc={previewHtml} className="h-[640px] rounded-md border bg-background" style={{ width: phone ? 360 : "100%" }} />
+        </div>
+        <div className="space-y-2 lg:sticky lg:top-0 lg:self-start">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm font-medium">{previewHtml ? "Preview with your changes" : "Current email"}</span>
+            {!previewHtml && sample?.at && <span className="text-xs text-muted-foreground">last sent {new Date(sample.at).toLocaleString("en-GB")}</span>}
+            <div className="ml-auto flex gap-1">
+              <Button size="sm" variant={phone ? "outline" : "default"} onClick={() => setPhone(false)}>Desktop</Button>
+              <Button size="sm" variant={phone ? "default" : "outline"} onClick={() => setPhone(true)}>Phone</Button>
+            </div>
+          </div>
+          {previewHtml || sample?.html ? (
+            <iframe title="Email preview" sandbox="" srcDoc={previewHtml || sample?.html || ""} className="mx-auto block h-[720px] rounded-md border bg-background" style={{ width: phone ? 360 : "100%" }} />
+          ) : (
+            <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
+              {sample === null ? "Loading…" : t.is_custom ? "Write a headline or paragraph to see the preview." : "Not sent yet since previews were switched on. The preview will appear here after the next one goes out. You can still write new wording and preview it."}
             </div>
           )}
+        </div>
         </div>
       </SheetContent>
     </Sheet>
