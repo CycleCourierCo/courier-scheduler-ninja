@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Add thermal-label section dividers and tracking QR; sample PDF visually checked and QR decoded at 203 dpi (signed-in destinations deferred by request)
+
 - [x] Retain company name, service wording, website and phone with the new thermal-label mark; two PDFs visually checked with no overlap or clipping
 
 - [x] Replace label branding and layout with supplied thermal artwork

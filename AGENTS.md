@@ -1,5 +1,7 @@
 # Project architecture
 
+- Thermal-label QR codes use a stable public tracking URL and vector modules at three 203-dpi dots with a four-module quiet zone; future signed-in destinations should be resolved at the destination so existing labels remain usable.
+
 - Below laptop width the inbox shows either tickets or the route-selected conversation, with details in a sheet and collapsible ticket controls; its height is measured below the site header so only message history scrolls and the reply box remains visible.
 
 - Public inspection decisions go through the `public-inspection-approval` Edge Function; privileged database approval helpers remain service-role-only to prevent direct browser execution.
