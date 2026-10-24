@@ -22,7 +22,7 @@ interface Tpl {
   id: string; key: string; name: string; category: string; audience: string; description: string | null;
   trigger_key: string | null; trigger_label: string | null; delay_minutes: number;
   recipients: string[]; cc: string[]; bcc: string[]; enabled: boolean; locked: boolean; is_custom: boolean;
-  subject: string | null; preheader: string | null; blocks: Blocks | null; tested_at: string | null;
+  subject: string | null; preheader: string | null; blocks: Blocks | null; tested_at: string | null; wording_mode?: string;
   updated_at: string; updated_by: string | null;
 }
 
@@ -222,7 +222,9 @@ function Editor({ tpl, userId, onClose, onSaved }: { tpl: Partial<Tpl>; userId?:
         <div className="mt-4 space-y-5">
           {builtIn && (
             <p className="rounded-md border bg-muted p-3 text-sm text-muted-foreground">
-              Leave the wording empty to keep the original email. Anything you write here replaces it.
+              {t.wording_mode === "intro"
+                ? "Anything you write here is added above the original email, which keeps its own details (amounts, links, report tables). Leave it empty to send the original unchanged."
+                : "Leave the wording empty to keep the original email. Anything you write here replaces it."}
               {t.locked && " This email is always sent; you can change its wording but not switch it off."}
             </p>
           )}
@@ -262,10 +264,10 @@ function Editor({ tpl, userId, onClose, onSaved }: { tpl: Partial<Tpl>; userId?:
             <div><Label>Hidden copies (BCC)</Label><Input value={(t.bcc || []).join(", ")} onChange={(e) => setT({ ...t, bcc: splitList(e.target.value) })} /></div>
           </div>
 
-          <div className="space-y-1">
+          {!(t.key?.startsWith("op.") || t.key?.startsWith("internal.")) && <div className="space-y-1">
             <Label>Insert a detail</Label>
             <div className="flex flex-wrap gap-1">{TEMPLATE_VARIABLES.map((v) => <Button key={v} type="button" size="sm" variant="outline" onClick={() => insertVar(v)}>{v.replace(/_/g, " ")}</Button>)}</div>
-          </div>
+          </div>}
           <div><Label>Subject</Label><Input value={t.subject || ""} onFocus={() => setFocus("subject")} onChange={(e) => setT({ ...t, subject: e.target.value })} placeholder={builtIn ? "Leave empty to keep the original" : ""} /></div>
           <div><Label>Inbox preview line</Label><Input value={t.preheader || ""} onChange={(e) => setT({ ...t, preheader: e.target.value })} /></div>
           <div><Label>Headline</Label><Input value={b.headline || ""} onFocus={() => setFocus("headline")} onChange={(e) => setB({ headline: e.target.value })} /></div>
@@ -275,11 +277,11 @@ function Editor({ tpl, userId, onClose, onSaved }: { tpl: Partial<Tpl>; userId?:
             </div>
           ))}
           <Button type="button" variant="outline" size="sm" onClick={() => setB({ paragraphs: [...(b.paragraphs || []), ""] })}><Plus className="mr-1 h-4 w-4" />Add paragraph</Button>
-          <div className="grid gap-3 sm:grid-cols-2">
+          {t.wording_mode !== "intro" && <><div className="grid gap-3 sm:grid-cols-2">
             <div><Label>Button label</Label><Input value={b.buttonLabel || ""} onChange={(e) => setB({ buttonLabel: e.target.value })} /></div>
             <div><Label>Button link</Label><Input placeholder="{{tracking_link}}" value={b.buttonUrl || ""} onChange={(e) => setB({ buttonUrl: e.target.value })} /></div>
           </div>
-          <div><Label>Closing note</Label><Textarea rows={2} value={b.closing || ""} onChange={(e) => setB({ closing: e.target.value })} /></div>
+          <div><Label>Closing note</Label><Textarea rows={2} value={b.closing || ""} onChange={(e) => setB({ closing: e.target.value })} /></div></>}
 
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" disabled={busy || !hasWording(b)} onClick={() => call("preview")}>Preview</Button>
