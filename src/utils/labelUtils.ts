@@ -7,6 +7,7 @@ import thermalCompactHeader from "@/assets/brand/mark-1bit-64.png.asset.json";
 import repairIcon from "@/assets/labels/label-icon-repair.png.asset.json";
 import boxIcon from "@/assets/labels/label-icon-box.png.asset.json";
 import { publicBrandAssetUrl } from "@/lib/brandAssets";
+import { createLabelQr } from './labelQr';
 
 export const LABEL_WIDTH = 288; // 4 inches in points
 export const LABEL_HEIGHT = 432; // 6 inches in points
@@ -169,7 +170,14 @@ export const renderLabelPage = (
     pdf.setFontSize(size);
     return pdf.splitTextToSize(text, contentWidth) as string[];
   };
-  const trackingLines = wrap(order.trackingNumber || 'N/A', 16);
+  const reference = order.trackingNumber || order.id;
+  const qr = createLabelQr(reference);
+  const qrModule = 3 * 72 / PRINTER_DPI;
+  const qrSize = (qr.getModuleCount() + 8) * qrModule;
+  if (qrSize > 74) throw new Error('Tracking reference is too long for a safely printable QR code.');
+  pdf.setFontSize(16);
+  const trackingLines = pdf.splitTextToSize(order.trackingNumber || 'N/A', contentWidth - 86) as string[];
+  const trackingHeight = Math.max(20 + trackingLines.length * 20, qrSize) + 12;
   const senderLines = showSenderName && order.sender?.name ? wrap(order.sender.name, BODY_SIZE) : [];
   const address = order.receiver?.address;
   const receiverLines = [
@@ -191,7 +199,7 @@ export const renderLabelPage = (
   const hasIndicators = order.needsInspection || order.isBoxMyBike || order.isNorthernIreland;
 
   // Measure the entire body before choosing artwork; never shrink text to fit.
-  const bodyHeight = 12 + trackingLines.length * 20 + 10
+  const bodyHeight = 20 + trackingHeight
     + (senderLines.length ? 15 + senderLines.length * LINE_HEIGHT + 10 : 0)
     + 15 + receiverLines.length * LINE_HEIGHT + 12
     + 15 + (itemLines.length + typeLines.length + codeLines.length) * LINE_HEIGHT
@@ -219,24 +227,42 @@ export const renderLabelPage = (
     brandY += 12;
   }
   pdf.text('Cyclecourierco.com · +44 121 798 0767', MARGIN, brandY + 2);
+  const divider = (position: number) => pdf.line(MARGIN, position, labelWidth - MARGIN, position);
+  divider(headerHeight + 6);
   let y = headerHeight + 20;
   const textLines = (lines: string[], size = BODY_SIZE, height = LINE_HEIGHT) => {
     pdf.setFontSize(size);
     lines.forEach(line => { pdf.text(line, MARGIN, y); y += height; });
   };
   pdf.setFontSize(BODY_SIZE);
+  const trackingTop = y;
+  const qrX = labelWidth - MARGIN - qrSize;
+  const qrY = trackingTop - 10;
+  // Four-module white quiet zone, with every module exactly three printer dots.
+  pdf.setFillColor(0);
+  for (let row = 0; row < qr.getModuleCount(); row++) {
+    for (let col = 0; col < qr.getModuleCount(); col++) {
+      if (qr.isDark(row, col)) {
+        pdf.rect(qrX + (col + 4) * qrModule, qrY + (row + 4) * qrModule,
+          qrModule, qrModule, 'F');
+      }
+    }
+  }
   pdf.text(`TRACKING${quantity > 1 ? ` (${bikeIndex + 1}/${quantity})` : ''}`, MARGIN, y);
   y += 20;
   textLines(trackingLines, 16, 20);
-  y += 5;
+  y = trackingTop + trackingHeight;
+  divider(y - 11);
   if (senderLines.length) {
     pdf.setFontSize(BODY_SIZE);
     pdf.text('FROM:', MARGIN, y); y += LINE_HEIGHT;
     textLines(senderLines); y += 10;
+    divider(y - 6);
   }
   pdf.setFontSize(BODY_SIZE);
   pdf.text('TO:', MARGIN, y); y += LINE_HEIGHT;
   textLines(receiverLines); y += 12;
+  divider(y - 6);
   pdf.text('ITEM:', MARGIN, y); y += LINE_HEIGHT;
   textLines(itemLines);
   textLines(typeLines);

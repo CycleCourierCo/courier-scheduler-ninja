@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Add thermal-label section dividers and tracking QR; verify rendered PDF and QR decoding (signed-in destinations deferred by request)
+
 - [x] Retain company name, service wording, website and phone with the new thermal-label mark; two PDFs visually checked with no overlap or clipping
 
 - [x] Replace label branding and layout with supplied thermal artwork
