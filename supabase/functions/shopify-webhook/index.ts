@@ -179,7 +179,7 @@ const handler = async (req: Request): Promise<Response> => {
             }
           };
           // @ts-ignore EdgeRuntime is provided by Supabase
-          EdgeRuntime.waitUntil(Promise.all(Array.from({ length: 5 }, worker)).then(() => console.log('Backfill summary:', JSON.stringify(counts))));
+          EdgeRuntime.waitUntil(Promise.all(Array.from({ length: 2 }, worker)).then(() => console.log('Backfill summary:', JSON.stringify(counts))));
           return new Response(JSON.stringify({ started: rows.length }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
         }
         rows = rows.slice(0, 60);
