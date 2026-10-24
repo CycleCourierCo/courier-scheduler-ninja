@@ -72,6 +72,19 @@ export default function EmailCentre() {
   };
   useEffect(() => { load(); }, []);
 
+  const [filling, setFilling] = useState(false);
+  const fillPreviews = async () => {
+    setFilling(true);
+    const { data, error } = await supabase.functions.invoke("email-template-backfill", { body: { pages: 30 } });
+    setFilling(false);
+    if (error || !data?.result) return toast.error("Couldn't fill previews");
+    const vals = Object.values(data.result as Record<string, string>);
+    const filled = vals.filter((v) => v === "filled").length;
+    const missing = vals.filter((v) => v !== "filled" && v !== "already had preview").length;
+    toast.success(`${filled} previews filled`, { description: missing ? `${missing} emails weren't found in recent sends; they'll fill the next time they go out.` : undefined });
+    load();
+  };
+
   const shown = useMemo(() => rows.filter((r) =>
     (aud === "all" || r.audience === aud) &&
     (!search || `${r.name} ${r.trigger_label ?? ""} ${r.subject ?? ""}`.toLowerCase().includes(search.toLowerCase()))), [rows, search, aud]);
@@ -98,7 +111,10 @@ export default function EmailCentre() {
             <h1 className="text-2xl font-bold">Email Centre</h1>
             <p className="text-sm text-muted-foreground">Every email the system sends: when, to whom and what it says.</p>
           </div>
-          <Button onClick={() => setEdit(blank())}><Plus className="mr-2 h-4 w-4" />New email</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" disabled={filling} onClick={fillPreviews}>{filling ? "Filling…" : "Fill previews from sent emails"}</Button>
+            <Button onClick={() => setEdit(blank())}><Plus className="mr-2 h-4 w-4" />New email</Button>
+          </div>
         </div>
         <div className="flex flex-wrap gap-3">
           <Input placeholder="Search emails" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
