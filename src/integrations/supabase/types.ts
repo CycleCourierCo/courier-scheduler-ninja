@@ -1523,6 +1523,54 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_email_sends: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          order_id: string
+          send_after: string
+          sent_at: string | null
+          status: string
+          template_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          order_id: string
+          send_after?: string
+          sent_at?: string | null
+          status?: string
+          template_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          order_id?: string
+          send_after?: string
+          sent_at?: string | null
+          status?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_email_sends_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_email_sends_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_shopify_order_log: {
         Row: {
           created_at: string
@@ -1892,6 +1940,113 @@ export type Database = {
           recipient?: string | null
           resend_email_id?: string | null
           side?: string | null
+        }
+        Relationships: []
+      }
+      email_template_versions: {
+        Row: {
+          created_at: string
+          edited_by: string | null
+          id: string
+          snapshot: Json
+          template_id: string
+        }
+        Insert: {
+          created_at?: string
+          edited_by?: string | null
+          id?: string
+          snapshot: Json
+          template_id: string
+        }
+        Update: {
+          created_at?: string
+          edited_by?: string | null
+          id?: string
+          snapshot?: Json
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_template_versions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_templates: {
+        Row: {
+          audience: string
+          bcc: string[]
+          blocks: Json | null
+          category: string
+          cc: string[]
+          created_at: string
+          delay_minutes: number
+          description: string | null
+          enabled: boolean
+          id: string
+          is_custom: boolean
+          key: string
+          locked: boolean
+          name: string
+          preheader: string | null
+          recipients: Json
+          subject: string | null
+          tested_at: string | null
+          trigger_key: string | null
+          trigger_label: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          audience?: string
+          bcc?: string[]
+          blocks?: Json | null
+          category?: string
+          cc?: string[]
+          created_at?: string
+          delay_minutes?: number
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          is_custom?: boolean
+          key: string
+          locked?: boolean
+          name: string
+          preheader?: string | null
+          recipients?: Json
+          subject?: string | null
+          tested_at?: string | null
+          trigger_key?: string | null
+          trigger_label?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          audience?: string
+          bcc?: string[]
+          blocks?: Json | null
+          category?: string
+          cc?: string[]
+          created_at?: string
+          delay_minutes?: number
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          is_custom?: boolean
+          key?: string
+          locked?: boolean
+          name?: string
+          preheader?: string | null
+          recipients?: Json
+          subject?: string | null
+          tested_at?: string | null
+          trigger_key?: string | null
+          trigger_label?: string | null
+          updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -7263,6 +7418,7 @@ export type Database = {
       invoke_backfill_shipday_jobs: { Args: never; Returns: undefined }
       invoke_caz_daily_check: { Args: never; Returns: undefined }
       invoke_cs_resend_fetch: { Args: never; Returns: undefined }
+      invoke_custom_email_dispatch: { Args: never; Returns: undefined }
       invoke_expire_availability: { Args: never; Returns: undefined }
       invoke_ferry_partner_notification: {
         Args: { p_order_id: string }
