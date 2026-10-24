@@ -13,7 +13,7 @@ export const LABEL_WIDTH = 288; // 4 inches in points
 export const LABEL_HEIGHT = 432; // 6 inches in points
 const MARGIN = 15;
 const BODY_SIZE = 12;
-const LINE_HEIGHT = 15;
+const LINE_HEIGHT = 14;
 const ICON_SIZE = 24;
 const INDICATOR_GAP = 12;
 // The 1-bit cloud mark is placed at 100% (one image pixel per printer dot at
@@ -24,8 +24,8 @@ const MARK_COMPACT_PX = 64;
 const MARK_FULL_PT = MARK_FULL_PX * 72 / PRINTER_DPI;
 const MARK_COMPACT_PT = MARK_COMPACT_PX * 72 / PRINTER_DPI;
 const MARK_TOP = 10;
-const HEADER_HEIGHT = MARK_TOP + Math.max(MARK_FULL_PT, 34) + 60;
-const COMPACT_HEADER_HEIGHT = MARK_TOP + Math.max(MARK_COMPACT_PT, 34) + 60;
+const HEADER_HEIGHT = MARK_TOP + Math.max(MARK_FULL_PT, 34) + 52;
+const COMPACT_HEADER_HEIGHT = MARK_TOP + Math.max(MARK_COMPACT_PT, 34) + 52;
 
 type ThermalArtwork = {
   full: Uint8Array;
@@ -175,10 +175,10 @@ export const renderLabelPage = (
   // Four-module white quiet zone on every side of the code.
   const qrModules = qr.getModuleCount() + 8;
   const qrSizeAt = (dots: number) => qrModules * dots * printerDot;
-  const QR_GAP = 12;
+  const QR_GAP = 10;
   pdf.setFontSize(16);
   const trackingLines = pdf.splitTextToSize(order.trackingNumber || 'N/A', contentWidth) as string[];
-  const trackingBlock = 20 + trackingLines.length * 20 + 20;
+  const trackingBlock = 20 + trackingLines.length * 20 + 16;
   const senderLines = showSenderName && order.sender?.name ? wrap(order.sender.name, BODY_SIZE) : [];
   const address = order.receiver?.address;
   const receiverLines = [
@@ -201,8 +201,8 @@ export const renderLabelPage = (
 
   // Measure the entire body before choosing artwork; never shrink text to fit.
   const textBlock = trackingBlock
-    + (senderLines.length ? LINE_HEIGHT + senderLines.length * LINE_HEIGHT + 30 : 0)
-    + LINE_HEIGHT + receiverLines.length * LINE_HEIGHT + 30
+    + (senderLines.length ? LINE_HEIGHT + senderLines.length * LINE_HEIGHT + 26 : 0)
+    + LINE_HEIGHT + receiverLines.length * LINE_HEIGHT + 26
     + LINE_HEIGHT + (itemLines.length + typeLines.length + codeLines.length) * LINE_HEIGHT
     + (hasIndicators ? ICON_SIZE + 10 : 0);
   // The QR code sits at the bottom: use the largest whole-dot size that fits.
@@ -250,19 +250,19 @@ export const renderLabelPage = (
   pdf.text(`TRACKING${quantity > 1 ? ` (${bikeIndex + 1}/${quantity})` : ''}`, MARGIN, y);
   y += 20;
   textLines(trackingLines, 16, 20);
-  y += 4;
+  y += 2;
   divider(y);
-  y += 16;
+  y += 14;
   if (senderLines.length) {
     pdf.setFontSize(BODY_SIZE);
     pdf.text('FROM:', MARGIN, y); y += LINE_HEIGHT;
-    textLines(senderLines); y += 14;
-    divider(y); y += 16;
+    textLines(senderLines); y += 12;
+    divider(y); y += 14;
   }
   pdf.setFontSize(BODY_SIZE);
   pdf.text('TO:', MARGIN, y); y += LINE_HEIGHT;
-  textLines(receiverLines); y += 14;
-  divider(y); y += 16;
+  textLines(receiverLines); y += 12;
+  divider(y); y += 14;
   pdf.text('ITEM:', MARGIN, y); y += LINE_HEIGHT;
   textLines(itemLines);
   textLines(typeLines);
