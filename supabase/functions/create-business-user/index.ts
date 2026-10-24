@@ -257,7 +257,7 @@ Thank you for choosing The Cycle Courier Co.
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${APPROVAL_URL}" style="background-color: #4a65d5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              <a href="${APPROVAL_URL}" style="background-color: #4D6863; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                 Review & Approve Account
               </a>
             </div>

@@ -109,7 +109,7 @@ export const sendBusinessRegistrationAdminNotification = async (
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${approvalUrl}" style="background-color: #4a65d5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              <a href="${approvalUrl}" style="background-color: #4D6863; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                 Review & Approve Account
               </a>
             </div>
@@ -219,12 +219,12 @@ export const sendOrderCreationEmailToSender = async (id: string): Promise<boolea
             <p><strong>We have sent you a separate email to arrange a collection date.</strong> Please check your inbox and confirm your availability as soon as possible.</p>
             <p>You can track your order's progress by visiting:</p>
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                 Track Your Order
               </a>
             </div>
             <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-            <p style="word-break: break-all; color: #4a65d5;">${trackingUrl}</p>
+            <p style="word-break: break-all; color: #4D6863;">${trackingUrl}</p>
             <p>Thank you for using our service.</p>
             <p>The Cycle Courier Co. Team</p>
           </div>
@@ -283,7 +283,7 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
     const niParty: any = (niInbound ? order.sender : order.receiver) || {};
     const addr = niParty.address || ({} as any);
     const niDetailsBlock = isNI ? `
-            <p style="background-color:#eef2ff; border-left:4px solid #4a65d5; padding:10px 12px; border-radius:4px;">
+            <p style="background-color:#eef2ff; border-left:4px solid #4D6863; padding:10px 12px; border-radius:4px;">
               <strong>Direction: ${niInbound ? 'NI to England' : 'England to NI'}</strong>
             </p>
             <div style="background-color: #fff4e5; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f59e0b;">
@@ -319,12 +319,12 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
             </ol>
             <p>You can track the order's progress by visiting:</p>
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                 Track This Order
               </a>
             </div>
             <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-            <p style="word-break: break-all; color: #4a65d5;">${trackingUrl}</p>
+            <p style="word-break: break-all; color: #4D6863;">${trackingUrl}</p>
             <p>Thank you for using our service.</p>
             <p>The Cycle Courier Co. Team</p>
           </div>
@@ -388,7 +388,7 @@ export const sendDeliveryConfirmationToSender = async (id: string): Promise<bool
             </div>
             <p>You can view the complete delivery details by visiting:</p>
             <div style="text-align: center; margin: 20px 0;">
-              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                 View Delivery Details
               </a>
             </div>
@@ -463,7 +463,7 @@ export const sendDeliveryConfirmationToReceiver = async (id: string): Promise<bo
             </div>
             <p>You can view the complete delivery details by visiting:</p>
             <div style="text-align: center; margin: 20px 0;">
-              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                 View Delivery Details
               </a>
             </div>
@@ -779,12 +779,12 @@ export const sendOrderCreationConfirmationToUser = async (
             <p>We will send further emails to arrange a collection date and delivery with the sender and receiver.</p>
             <p>You can track your order's progress by visiting:</p>
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                 Track Your Order
               </a>
             </div>
             <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-            <p style="word-break: break-all; color: #4a65d5;">${trackingUrl}</p>
+            <p style="word-break: break-all; color: #4D6863;">${trackingUrl}</p>
             <p>Thank you for using our service.</p>
             <p>The Cycle Courier Co. Team</p>
           </div>
@@ -1001,7 +1001,7 @@ export const sendBoxMyBikeBoxingEmailToBuyer = async (id: string): Promise<boole
             </div>
             <p>We'll email you again as soon as the courier collects it, along with their tracking link.</p>
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track This Order</a>
+              <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track This Order</a>
             </div>
           `
         ),
@@ -1039,9 +1039,9 @@ export const sendBoxMyBikeCollectedEmailToBuyer = async (id: string): Promise<bo
       ? `
         <p>You can follow the courier's progress here:</p>
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${order.boxTrackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track With The Courier</a>
+          <a href="${order.boxTrackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track With The Courier</a>
         </div>
-        <p style="word-break: break-all; color: #4a65d5;">${order.boxTrackingUrl}</p>
+        <p style="word-break: break-all; color: #4D6863;">${order.boxTrackingUrl}</p>
       `
       : `<p>As soon as we have the courier's tracking link we'll pass it on.</p>`;
 

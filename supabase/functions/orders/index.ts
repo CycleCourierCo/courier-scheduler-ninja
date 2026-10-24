@@ -611,9 +611,9 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
               </div>
               <p>We will send further emails to arrange a collection date and delivery with the sender and receiver.</p>
               <div style="text-align: center; margin: 30px 0;">
-                <a href="https://booking.cyclecourierco.com/tracking/${order.tracking_number}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track Your Order</a>
+                <a href="https://booking.cyclecourierco.com/tracking/${order.tracking_number}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track Your Order</a>
               </div>
-              <p style="word-break: break-all; color: #4a65d5;">https://booking.cyclecourierco.com/tracking/${order.tracking_number}</p>
+              <p style="word-break: break-all; color: #4D6863;">https://booking.cyclecourierco.com/tracking/${order.tracking_number}</p>
               <p>The Cycle Courier Co. Team</p>
             </div>
           `,
@@ -735,9 +735,9 @@ The Cycle Courier Co. Team`
                 <li>After both confirmations, we will schedule the pickup and delivery.</li>
               </ol>
               <div style="text-align: center; margin: 30px 0;">
-                <a href="https://booking.cyclecourierco.com/tracking/${order.tracking_number}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track This Order</a>
+                <a href="https://booking.cyclecourierco.com/tracking/${order.tracking_number}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track This Order</a>
               </div>
-              <p style="word-break: break-all; color: #4a65d5;">https://booking.cyclecourierco.com/tracking/${order.tracking_number}</p>
+              <p style="word-break: break-all; color: #4D6863;">https://booking.cyclecourierco.com/tracking/${order.tracking_number}</p>
               <p>The Cycle Courier Co. Team</p>
             </div>
           `,
