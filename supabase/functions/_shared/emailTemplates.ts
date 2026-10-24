@@ -14,7 +14,7 @@ export async function loadTemplate(admin: any, key: string): Promise<TemplateRow
   try {
     const { data } = await admin
       .from("email_templates")
-      .select("key, enabled, locked, is_custom, subject, preheader, blocks, recipients, cc, bcc")
+      .select("key, enabled, locked, is_custom, subject, preheader, blocks, recipients, cc, bcc, wording_mode")
       .eq("key", key)
       .maybeSingle();
     cache.set(key, { at: Date.now(), row: data ?? null });
@@ -78,4 +78,59 @@ export function renderBlocks(
     blocks.closing ? t(blocks.closing) : "",
   ].filter(Boolean).join("\n\n");
   return { html, text };
+}
+
+let _client: any = null;
+const serviceClient = async () => {
+  if (_client) return _client;
+  const { createClient } = await import("https://esm.sh/@supabase/supabase-js@2.41.0");
+  _client = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+  return _client;
+};
+
+/** Stable Email Centre key for an operational sender label. */
+export const opKey = (operation: string) =>
+  `op.${operation.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")}`;
+
+/**
+ * Apply Email Centre settings to an outgoing Resend payload.
+ * Returns null when the email has been switched off; otherwise the (possibly
+ * updated) payload. Any failure returns the payload untouched.
+ * "intro" wording is added above the built-in content (reports, invoices,
+ * secret-link emails keep their data); "replace" swaps the body.
+ */
+export async function applyTemplateToPayload<T extends Record<string, any>>(key: string, payload: T): Promise<T | null> {
+  try {
+    const admin = await serviceClient();
+    const { data: t } = await admin
+      .from("email_templates")
+      .select("enabled, locked, subject, preheader, blocks, cc, bcc, wording_mode")
+      .eq("key", key)
+      .maybeSingle();
+    if (!t) return payload;
+    if (!isSendAllowed(t)) return null;
+    const out: any = { ...payload };
+    const cc = cleanAddresses(t.cc), bcc = cleanAddresses(t.bcc);
+    if (cc.length) out.cc = [...(Array.isArray(out.cc) ? out.cc : out.cc ? [out.cc] : []), ...cc];
+    if (bcc.length) out.bcc = [...(Array.isArray(out.bcc) ? out.bcc : out.bcc ? [out.bcc] : []), ...bcc];
+    if (t.subject?.trim()) out.subject = fillVars(t.subject, {}, false);
+    if (hasCustomBody(t.blocks) && typeof out.html === "string") {
+      if (t.wording_mode === "replace") {
+        const r = renderBlocks(t.blocks, {}, { subject: out.subject, preheader: t.preheader });
+        out.html = r.html;
+        out.text = r.text;
+      } else {
+        const b = t.blocks as TemplateBlocks;
+        let intro = "";
+        if (b.headline) intro += emailUI.heading(fillVars(b.headline, {}, true));
+        for (const p of (b.paragraphs || []).filter((x) => x.trim())) intro += emailUI.paragraph(fillVars(p, {}, true).replace(/\n/g, "<br>"));
+        const m = out.html.match(/<body[^>]*>/i);
+        out.html = m ? out.html.replace(m[0], m[0] + intro) : intro + out.html;
+        if (typeof out.text === "string") out.text = "";
+      }
+    }
+    return out;
+  } catch {
+    return payload;
+  }
 }

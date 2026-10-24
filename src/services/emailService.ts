@@ -36,6 +36,7 @@ export const sendBusinessAccountCreationEmail = async (email: string, name: stri
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: email,
+        templateKey: "account.application_received",
         subject: "Your Business Account Application",
         text: `Hello ${name},
 
@@ -91,6 +92,7 @@ export const sendBusinessRegistrationAdminNotification = async (
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: "info@cyclecourierco.com",
+        templateKey: "internal.registration_needs_approval",
         subject: "New Business Registration Requires Approval",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -147,6 +149,7 @@ export const sendAccountApprovalEmail = async (email: string, name: string, comp
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: email,
+        templateKey: "account.approved",
         subject: "Your Business Account Has Been Approved",
         text: `${greeting}
 
@@ -206,6 +209,7 @@ export const sendOrderCreationEmailToSender = async (id: string): Promise<boolea
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: order.sender.email,
+        templateKey: "order.thank_you",
         subject: "Thank You for Your Order - The Cycle Courier Co.",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -299,6 +303,7 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: buildReceiverRecipients(order),
+        templateKey: "order.delivery_notification",
         subject: "Your Bicycle Delivery - The Cycle Courier Co.",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -377,6 +382,7 @@ export const sendDeliveryConfirmationToSender = async (id: string): Promise<bool
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: order.sender.email,
+        templateKey: "order.delivered",
         subject: "Your Bicycle Has Been Delivered - The Cycle Courier Co.",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -452,6 +458,7 @@ export const sendDeliveryConfirmationToReceiver = async (id: string): Promise<bo
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: order.receiver.email,
+        templateKey: "order.delivered",
         subject: "Your Bicycle Has Been Delivered - The Cycle Courier Co.",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -766,6 +773,7 @@ export const sendOrderCreationConfirmationToUser = async (
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: email,
+        templateKey: "order.created",
         subject: "Your Order Has Been Created - The Cycle Courier Co.",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -853,6 +861,7 @@ export const sendOrderCancellationEmails = async (orderId: string): Promise<{
         const response = await supabase.functions.invoke("send-email", {
           body: {
             to: profile.email,
+            templateKey: "order.cancelled",
             subject: `Order Cancelled - ${trackingNumber}`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -889,6 +898,7 @@ export const sendOrderCancellationEmails = async (orderId: string): Promise<{
         const response = await supabase.functions.invoke("send-email", {
           body: {
             to: order.sender.email,
+            templateKey: "order.cancelled",
             subject: `Order Cancelled - ${trackingNumber}`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -925,6 +935,7 @@ export const sendOrderCancellationEmails = async (orderId: string): Promise<{
         const response = await supabase.functions.invoke("send-email", {
           body: {
             to: order.receiver.email,
+            templateKey: "order.cancelled",
             subject: `Order Cancelled - ${trackingNumber}`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -990,6 +1001,7 @@ export const sendBoxMyBikeBoxingEmailToBuyer = async (id: string): Promise<boole
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: buyer,
+        templateKey: "box.being_boxed",
         subject: "Your bicycle is being boxed - The Cycle Courier Co.",
         html: boxBuyerEmailShell(
           `Hello ${order.boxBuyer?.name || "there"},`,
@@ -1048,6 +1060,7 @@ export const sendBoxMyBikeCollectedEmailToBuyer = async (id: string): Promise<bo
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: buyer,
+        templateKey: "box.collected_by_courier",
         subject: "Your bicycle has been collected by the courier - The Cycle Courier Co.",
         html: boxBuyerEmailShell(
           `Hello ${order.boxBuyer?.name || "there"},`,

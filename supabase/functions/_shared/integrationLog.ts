@@ -6,6 +6,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { applyEmailBrand, htmlToPlainText, EmailShellOptions } from "./emailLayout.ts";
+import { applyTemplateToPayload, opKey } from "./emailTemplates.ts";
 
 export type IntegrationProvider =
   | "shipday"
@@ -185,7 +186,17 @@ export function trackResend<T extends { emails: { send: (...args: any[]) => Prom
   const originalSend = client.emails.send.bind(client.emails);
   // Reports and operational lists are denser, so they get the wider shell.
   const wide = /report|timeslip|loading list|invoice batch/i.test(operation);
+  // These go through their own Email Centre handling (or are typed by staff).
+  const centreKey = /^(send email|email centre test|cs reply email)$/i.test(operation) ? null : opKey(operation);
   client.emails.send = async (...args: any[]) => {
+    // Email Centre: admins can switch these off, add copies or reword them.
+    if (centreKey && args[0] && typeof args[0] === "object") {
+      const key = typeof args[0].cccTemplateKey === "string" ? args[0].cccTemplateKey : centreKey;
+      delete args[0].cccTemplateKey;
+      const next = await applyTemplateToPayload(key, args[0]);
+      if (next === null) return { data: { id: "skipped-by-email-centre" }, error: null };
+      args[0] = next;
+    }
     // Every outgoing email picks up the shared design here.
     try {
       const payload = args[0];

@@ -77,6 +77,7 @@ Deno.serve(async (req) => {
     const { error: emailError } = await admin.functions.invoke('send-email', {
       body: {
         to: email.to,
+        templateKey: "ni.ferry_partner_booking",
         subject: email.subject,
         html: email.html,
         from: 'CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>',

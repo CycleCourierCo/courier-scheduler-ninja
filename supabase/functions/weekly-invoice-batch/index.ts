@@ -9,6 +9,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { trackedFetch } from "../_shared/integrationLog.ts";
 import { applyEmailBrand } from "../_shared/emailLayout.ts";
+import { applyTemplateToPayload } from "../_shared/emailTemplates.ts";
 import { eligibleStoragePeriods, londonDate } from '../_shared/warehouseStorageBilling.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
@@ -40,6 +41,8 @@ async function sendReportEmail(
   }
 
   try {
+    const tpl: any = await applyTemplateToPayload('internal.invoice_batch_report', { to: [REPORT_RECIPIENT], subject, html });
+    if (!tpl) return;
     const resp = await trackedFetch("resend", "invoice batch report", 'https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -49,9 +52,11 @@ async function sendReportEmail(
       body: JSON.stringify({
         from: REPORT_FROM,
         to: [REPORT_RECIPIENT],
+        ...(tpl.cc ? { cc: tpl.cc } : {}),
+        ...(tpl.bcc ? { bcc: tpl.bcc } : {}),
         reply_to: 'Info@cyclecourierco.com',
-        subject,
-        html: applyEmailBrand(html, { subject, eyebrow: "Internal report", wide: true }),
+        subject: tpl.subject,
+        html: applyEmailBrand(tpl.html, { subject: tpl.subject, eyebrow: "Internal report", wide: true }),
       }),
     });
 

@@ -451,7 +451,8 @@ The Cycle Courier Co. Team
     let extraBcc: string[] = [];
     const templateKey = reqData.meta?.action === 'customer_update' && reqData.meta?.stage
       ? `update.${reqData.meta.stage}`
-      : (typeof reqData.emailType === 'string' && reqData.emailType ? `type.${reqData.emailType}` : null);
+      : (typeof reqData.emailType === 'string' && reqData.emailType ? `type.${reqData.emailType}`
+        : (typeof reqData.templateKey === 'string' && /^[a-z0-9_.]{3,60}$/.test(reqData.templateKey) ? reqData.templateKey : null));
     if (templateKey && !reqData.skipTemplate) {
       try {
         const tplAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
@@ -476,7 +477,14 @@ The Cycle Courier Co. Team
             }
             const vars = varsFromOrder(fullOrder, reqData.name);
             if (tpl.subject?.trim()) emailOptions.subject = fillVars(tpl.subject, vars, false);
-            if (hasCustomBody(tpl.blocks)) {
+            if (hasCustomBody(tpl.blocks) && (tpl as any).wording_mode === 'intro' && emailOptions.html) {
+              const b: any = tpl.blocks;
+              let intro = b.headline ? emailUI.heading(fillVars(b.headline, vars, true)) : '';
+              for (const p of (b.paragraphs || []).filter((x: string) => x.trim())) intro += emailUI.paragraph(fillVars(p, vars, true).replace(/\n/g, '<br>'));
+              const m = emailOptions.html.match(/<body[^>]*>/i);
+              emailOptions.html = m ? emailOptions.html.replace(m[0], m[0] + intro) : intro + emailOptions.html;
+              emailOptions.text = '';
+            } else if (hasCustomBody(tpl.blocks)) {
               // Availability emails keep their secret link button even when reworded.
               const keepLink = (reqData.emailType === 'sender' || reqData.emailType === 'receiver') && reqData.orderId
                 ? emailUI.button(`${reqData.baseUrl || ''}/${reqData.emailType}-availability/${reqData.orderId}`, 'Choose your dates')
