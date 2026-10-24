@@ -77,7 +77,11 @@ export default function EmailCentre() {
     setFilling(true);
     const { data, error } = await supabase.functions.invoke("email-template-backfill", { body: { pages: 30 } });
     setFilling(false);
-    if (error || !data?.result) return toast.error("Couldn't fill previews");
+    if (error || !data?.result) {
+      let why = data?.error || "";
+      try { if (!why && (error as any)?.context) why = (await (error as any).context.json())?.error || ""; } catch { /* ignore */ }
+      return toast.error("Couldn't fill previews", { description: why || undefined });
+    }
     const vals = Object.values(data.result as Record<string, string>);
     const filled = vals.filter((v) => v === "filled").length;
     const missing = vals.filter((v) => v !== "filled" && v !== "already had preview").length;

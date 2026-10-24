@@ -53,9 +53,9 @@ const DEFAULT_RULES: Record<string, string> = {
 
 async function resend(path: string) {
   for (let i = 0; i < 4; i++) {
-    const r = await fetch(`https://api.resend.com${path}`, { headers: { Authorization: `Bearer ${Deno.env.get("RESEND_API_KEY")}` } });
+    const r = await fetch(`https://api.resend.com${path}`, { headers: { Authorization: `Bearer ${Deno.env.get("RESEND_RECEIVING_API_KEY") ?? Deno.env.get("RESEND_API_KEY")}` } });
     if (r.status === 429) { await sleep(1200 * (i + 1)); continue; }
-    if (!r.ok) throw new Error(`resend ${r.status}`);
+    if (!r.ok) { const t = (await r.text()).slice(0, 200); throw new Error(`Resend ${r.status}: ${t}`); }
     return await r.json();
   }
   throw new Error("resend rate limited");
@@ -113,8 +113,9 @@ serve(async (req) => {
       result[t.key] = "filled";
     }
     return json({ scanned: emails.length, result });
-  } catch (_e) {
-    console.error("email-template-backfill failed");
-    return json({ error: "Backfill failed" }, 500);
+  } catch (e) {
+    const msg = String((e as Error)?.message || e).slice(0, 300);
+    console.error("email-template-backfill failed", msg);
+    return json({ error: msg }, 500);
   }
 });
