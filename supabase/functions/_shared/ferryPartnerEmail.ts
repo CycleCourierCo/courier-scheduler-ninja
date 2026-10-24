@@ -95,7 +95,7 @@ export function buildFerryPartnerEmail(order: FerryPartnerEmailInput) {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
       <h2>${esc(heading)}</h2>
-      <p style="background-color:#eef2ff; border-left:4px solid #4a65d5; padding:10px 12px; border-radius:4px; margin:0 0 16px;">
+      <p style="background-color:#eef2ff; border-left:4px solid #4D6863; padding:10px 12px; border-radius:4px; margin:0 0 16px;">
         <strong>Direction: ${esc(directionLabel)} (${esc(directionPlain)})</strong>
       </p>
       <p>The Cycle Courier Co. has a Northern Ireland job for you.</p>
@@ -134,7 +134,7 @@ export function buildFerryPartnerEmail(order: FerryPartnerEmailInput) {
       </p>
       ${uploadUrl
         ? `<div style="margin: 24px 0;">
-             <a href="${esc(uploadUrl)}" style="background-color:#4a65d5; color:#fff; padding:12px 18px; text-decoration:none; border-radius:4px; display:inline-block; font-weight:bold;">
+             <a href="${esc(uploadUrl)}" style="background-color:#4D6863; color:#fff; padding:12px 18px; text-decoration:none; border-radius:4px; display:inline-block; font-weight:bold;">
                Upload label and BFS number
              </a>
              <p style="margin-top:8px; font-size:13px; color:#555;">

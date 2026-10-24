@@ -190,7 +190,7 @@ serve(async (req) => {
       const niInbound = reqData.niDirection === 'inbound';
       const niDirectionLabel = niInbound ? 'NI to England' : 'England to NI';
       const niBlock = niReceiver ? `
-          <p style="background-color:#eef2ff; border-left:4px solid #4a65d5; padding:10px 12px; border-radius:4px;">
+          <p style="background-color:#eef2ff; border-left:4px solid #4D6863; padding:10px 12px; border-radius:4px;">
             <strong>Direction: ${niDirectionLabel}</strong>
           </p>
           <div style="background-color: #fff4e5; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f59e0b;">
@@ -213,7 +213,7 @@ serve(async (req) => {
             ${trackingNumber ? `
               <p><strong>Tracking Number:</strong> ${trackingNumber}</p>
               <div style="text-align: center; margin-top: 15px;">
-                <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
+                <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
                   Track Order
                 </a>
               </div>
@@ -224,12 +224,12 @@ serve(async (req) => {
 
           <p>Please click the button below to confirm your availability:</p>
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${availabilityUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            <a href="${availabilityUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               Confirm Availability
             </a>
           </div>
           <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-          <p style="word-break: break-all; color: #4a65d5;">${availabilityUrl}</p>
+          <p style="word-break: break-all; color: #4D6863;">${availabilityUrl}</p>
           <p>Thank you,<br>The Cycle Courier Co. Team</p>
         </div>
       `;
@@ -295,7 +295,7 @@ The Cycle Courier Co. Team
             ${trackingNumber ? `
               <p style="margin-top: 15px;"><strong>Tracking Number:</strong> ${trackingNumber}</p>
               <div style="text-align: center; margin-top: 15px;">
-                <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
+                <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
                   Track Order
                 </a>
               </div>
@@ -379,14 +379,14 @@ The Cycle Courier Co. Team
             ${trackingNumber ? `
               <p style="margin-top: 15px;"><strong>Tracking Number:</strong> ${trackingNumber}</p>
               <div style="text-align: center; margin-top: 15px;">
-                <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
+                <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
                   Track Order
                 </a>
               </div>
             ` : ''}
           </div>
           ${reqData.niReceiver ? `
-          <p style="background-color:#eef2ff; border-left:4px solid #4a65d5; padding:10px 12px; border-radius:4px;">
+          <p style="background-color:#eef2ff; border-left:4px solid #4D6863; padding:10px 12px; border-radius:4px;">
             <strong>Direction: ${reqData.niDirection === 'inbound' ? 'NI to England' : 'England to NI'}</strong>
           </p>
           <div style="background-color: #fff4e5; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f59e0b;">
@@ -586,7 +586,7 @@ async function handleFerryConfirmation(orderId: string, resend: any): Promise<Re
         </div>
         <p>It is now awaiting transport to Northern Ireland. Once it has arrived, you will be contacted to arrange the final delivery.</p>
         <div style="text-align: center; margin: 20px 0;">
-          <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+          <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
             Track Your Bicycle
           </a>
         </div>
@@ -729,7 +729,7 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
           </div>
           <p>You can view the complete delivery details by visiting:</p>
           <div style="text-align: center; margin: 20px 0;">
-            <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               View Delivery Details
             </a>
           </div>
@@ -786,7 +786,7 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
           </div>
           <p>You can view the complete delivery details by visiting:</p>
           <div style="text-align: center; margin: 20px 0;">
-            <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               View Delivery Details
             </a>
           </div>
@@ -958,7 +958,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
           </div>
           <p>You can track your delivery at:</p>
           <div style="text-align: center; margin: 20px 0;">
-            <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               Track Your Delivery
             </a>
           </div>
@@ -1009,11 +1009,11 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
           </div>
           <p>You can track your delivery at:</p>
           <div style="text-align: center; margin: 20px 0;">
-            <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               Track Your Delivery
             </a>
           </div>
-          <div style="margin: 25px 0; padding: 15px; background-color: #f0f7ff; border-radius: 5px; border-left: 4px solid #4a65d5;">
+          <div style="margin: 25px 0; padding: 15px; background-color: #f0f7ff; border-radius: 5px; border-left: 4px solid #4D6863;">
             <p style="margin: 0 0 10px 0; font-weight: bold; color: #333;">This is what happens next:</p>
             <ol style="margin: 0; padding-left: 20px; color: #555;">
               <li style="margin-bottom: 8px;">We send you a timeslot the day before we are due to deliver</li>
@@ -1075,7 +1075,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
           </div>
           <p>You can track progress at any time:</p>
           <div style="text-align: center; margin: 20px 0;">
-            <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               Track Your Order
             </a>
           </div>
@@ -1129,7 +1129,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
             ${order.tracking_number ? `
               <p><strong>Tracking Number:</strong> ${order.tracking_number}</p>
               <div style="text-align: center; margin-top: 15px;">
-                <a href="https://booking.cyclecourierco.com/tracking/${order.tracking_number}" style="background-color: #4a65d5; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
+                <a href="https://booking.cyclecourierco.com/tracking/${order.tracking_number}" style="background-color: #4D6863; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
                   Track Order
                 </a>
               </div>
@@ -1137,12 +1137,12 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
           </div>
           <p>Please click the button below to confirm your availability:</p>
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${availabilityUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            <a href="${availabilityUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               Confirm Availability
             </a>
           </div>
           <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-          <p style="word-break: break-all; color: #4a65d5;">${availabilityUrl}</p>
+          <p style="word-break: break-all; color: #4D6863;">${availabilityUrl}</p>
           <p>Thank you,<br>The Cycle Courier Co. Team</p>
         </div>
       `;

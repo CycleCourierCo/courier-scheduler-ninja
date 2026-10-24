@@ -652,7 +652,7 @@ function buildHtml(order: any, update: Update, name: string): string {
     emailUI.stripMap(stages, stageIndex(stages, pres.labels, pres.fallback));
   const nextStep = nextStepFor(update.stageKey);
   const nextStepHtml = nextStep
-    ? `<div style="margin:20px 0;padding:14px 16px;background-color:#f0f7ff;border-radius:5px;border-left:4px solid #4a65d5;">
+    ? `<div style="margin:20px 0;padding:14px 16px;background-color:#f0f7ff;border-radius:5px;border-left:4px solid #4D6863;">
         <p style="margin:0 0 4px;font-weight:bold;color:#333;">What happens next:</p>
         <p style="margin:0;color:#555;line-height:1.6;">${nextStep}</p>
       </div>`
@@ -670,7 +670,7 @@ function buildHtml(order: any, update: Update, name: string): string {
       ${body}
       ${nextStepHtml}
       ${expectationsHtml(expectationsForOrder(order))}
-      ${trackingUrl ? `<div style="text-align:center;margin:24px 0;"><a href="${trackingUrl}" style="background-color:#4a65d5;color:#ffffff;padding:12px 20px;text-decoration:none;border-radius:5px;font-weight:bold;">Track Your Bike</a></div>` : ""}
+      ${trackingUrl ? `<div style="text-align:center;margin:24px 0;"><a href="${trackingUrl}" style="background-color:#4D6863;color:#ffffff;padding:12px 20px;text-decoration:none;border-radius:5px;font-weight:bold;">Track Your Bike</a></div>` : ""}
       <p>If anything has changed or you have a question, just reply to this email.</p>
       <p>Thank you,<br>The Cycle Courier Co. Team</p>
     </div>
