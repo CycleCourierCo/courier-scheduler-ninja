@@ -137,7 +137,7 @@ serve(async (req) => {
         break;
     }
 
-    await sendEmail(built.subject, built.html);
+    await sendEmail(built.subject, built.html, report);
     console.log(`Internal report sent: ${report}`);
 
     return new Response(JSON.stringify({ success: true, report, subject: built.subject }), {
