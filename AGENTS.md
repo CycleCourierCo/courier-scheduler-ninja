@@ -1,6 +1,6 @@
 # Project architecture
 
-- Thermal-label QR codes use a stable public tracking URL and vector modules at three 203-dpi dots with a four-module quiet zone; future signed-in destinations should be resolved at the destination so existing labels remain usable.
+- Thermal-label QR codes use a stable public tracking URL, print at the bottom-right of the label with a four-module quiet zone, and take the largest whole number of 203-dpi dots (three to five) that still fits; future signed-in destinations should be resolved at the destination so existing labels remain usable.
 
 - Below laptop width the inbox shows either tickets or the route-selected conversation, with details in a sheet and collapsible ticket controls; its height is measured below the site header so only message history scrolls and the reply box remains visible.
 
