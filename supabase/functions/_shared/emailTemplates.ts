@@ -134,3 +134,17 @@ export async function applyTemplateToPayload<T extends Record<string, any>>(key:
     return payload;
   }
 }
+
+/** Store the latest real copy of an email for the Email Centre preview. Never throws. */
+export function saveSample(key: string | null | undefined, subject: string, html: string): void {
+  if (!key || typeof html !== "string" || !html) return;
+  const job = (async () => {
+    try {
+      const admin = await serviceClient();
+      await admin.from("email_templates")
+        .update({ sample_subject: String(subject || "").slice(0, 300), sample_html: html.slice(0, 400_000), sample_at: new Date().toISOString() })
+        .eq("key", key);
+    } catch { /* preview capture must never affect sending */ }
+  })();
+  try { (globalThis as any).EdgeRuntime?.waitUntil?.(job); } catch { /* ignore */ }
+}

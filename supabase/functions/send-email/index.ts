@@ -507,6 +507,7 @@ The Cycle Courier Co. Team
     try {
       // Tag availability emails so the Resend webhook can correlate delivery events.
       const sendPayload: any = { ...emailOptions, reply_to: "Info@cyclecourierco.com" };
+      if (templateKey) sendPayload.cccSampleKey = templateKey;
       if (extraCc.length) sendPayload.cc = extraCc;
       if (extraBcc.length) sendPayload.bcc = extraBcc;
       if (Object.keys(shellOptions).length > 0) {

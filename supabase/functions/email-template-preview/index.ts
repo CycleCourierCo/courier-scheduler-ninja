@@ -5,6 +5,7 @@ import { corsHeaders } from "../_shared/cors.ts";
 import { requireAdminAuth, createAuthErrorResponse } from "../_shared/auth.ts";
 import { renderBlocks, varsFromOrder, fillVars, hasCustomBody } from "../_shared/emailTemplates.ts";
 import { trackResend } from "../_shared/integrationLog.ts";
+import { emailShell, emailUI, htmlToPlainText } from "../_shared/emailLayout.ts";
 
 const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -32,7 +33,22 @@ serve(async (req) => {
     const order = rows?.[0] || null;
     const vars = varsFromOrder(order, order?.sender?.name || "Alex");
     const subject = fillVars(subjectRaw || "(no subject)", vars, false);
-    const { html, text } = renderBlocks(blocks, vars, { subject, preheader: tpl.preheader });
+    let html: string, text: string;
+    let row: any = null;
+    if (typeof tpl.id === "string") {
+      const { data } = await admin.from("email_templates").select("wording_mode, sample_html").eq("id", tpl.id).maybeSingle();
+      row = data;
+    }
+    if (row?.wording_mode === "intro") {
+      let intro = blocks.headline ? emailUI.heading(fillVars(blocks.headline, vars, true)) : "";
+      for (const p of (blocks.paragraphs || []).filter((x: string) => x.trim())) intro += emailUI.paragraph(fillVars(p, vars, true).replace(/\n/g, "<br>"));
+      const base = row.sample_html || emailShell("", { subject });
+      const m = base.match(/<body[^>]*>/i);
+      html = m ? base.replace(m[0], m[0] + intro) : intro + base;
+      text = htmlToPlainText(html);
+    } else {
+      ({ html, text } = renderBlocks(blocks, vars, { subject, preheader: tpl.preheader }));
+    }
 
     if (mode === "preview") return json({ html, subject, trackingNumber: order?.tracking_number || null });
 

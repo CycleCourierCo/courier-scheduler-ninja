@@ -1,4 +1,4 @@
-import { applyTemplateToPayload } from "../_shared/emailTemplates.ts";
+import { applyTemplateToPayload, saveSample } from "../_shared/emailTemplates.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getWorkshopOverdue, STAGE_LABELS, DEFAULT_OVERDUE_LIMITS, type OverdueLimits } from '../_shared/workshopOverdue.ts';
 
@@ -18,6 +18,7 @@ async function sendEmail(to: string[], subject: string, html: string) {
   if (!key || !to.length) return false;
   const tpl: any = await applyTemplateToPayload('internal.workshop_overdue', { to, subject, html });
   if (!tpl) return true;
+  saveSample('internal.workshop_overdue', tpl.subject, tpl.html);
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },

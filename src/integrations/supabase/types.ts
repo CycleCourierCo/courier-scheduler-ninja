@@ -1993,6 +1993,9 @@ export type Database = {
           name: string
           preheader: string | null
           recipients: Json
+          sample_at: string | null
+          sample_html: string | null
+          sample_subject: string | null
           subject: string | null
           tested_at: string | null
           trigger_key: string | null
@@ -2018,6 +2021,9 @@ export type Database = {
           name: string
           preheader?: string | null
           recipients?: Json
+          sample_at?: string | null
+          sample_html?: string | null
+          sample_subject?: string | null
           subject?: string | null
           tested_at?: string | null
           trigger_key?: string | null
@@ -2043,6 +2049,9 @@ export type Database = {
           name?: string
           preheader?: string | null
           recipients?: Json
+          sample_at?: string | null
+          sample_html?: string | null
+          sample_subject?: string | null
           subject?: string | null
           tested_at?: string | null
           trigger_key?: string | null

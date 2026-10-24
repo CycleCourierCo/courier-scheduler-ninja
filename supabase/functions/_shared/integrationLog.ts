@@ -6,7 +6,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { applyEmailBrand, htmlToPlainText, EmailShellOptions } from "./emailLayout.ts";
-import { applyTemplateToPayload, opKey } from "./emailTemplates.ts";
+import { applyTemplateToPayload, opKey, saveSample } from "./emailTemplates.ts";
 
 export type IntegrationProvider =
   | "shipday"
@@ -190,8 +190,14 @@ export function trackResend<T extends { emails: { send: (...args: any[]) => Prom
   const centreKey = /^(send email|email centre test|cs reply email)$/i.test(operation) ? null : opKey(operation);
   client.emails.send = async (...args: any[]) => {
     // Email Centre: admins can switch these off, add copies or reword them.
+    let sampleKey: string | null = null;
+    if (args[0] && typeof args[0] === "object" && typeof args[0].cccSampleKey === "string") {
+      sampleKey = args[0].cccSampleKey;
+      delete args[0].cccSampleKey;
+    }
     if (centreKey && args[0] && typeof args[0] === "object") {
       const key = typeof args[0].cccTemplateKey === "string" ? args[0].cccTemplateKey : centreKey;
+      sampleKey = key;
       delete args[0].cccTemplateKey;
       const next = await applyTemplateToPayload(key, args[0]);
       if (next === null) return { data: { id: "skipped-by-email-centre" }, error: null };
@@ -216,6 +222,7 @@ export function trackResend<T extends { emails: { send: (...args: any[]) => Prom
           payload.text = htmlToPlainText(payload.html);
         }
       }
+      if (sampleKey && typeof args[0]?.html === "string") saveSample(sampleKey, args[0].subject, args[0].html);
     } catch (_err) {
       // Styling must never stop a send.
     }
