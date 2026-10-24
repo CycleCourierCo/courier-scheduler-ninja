@@ -599,6 +599,7 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
             await supabase.functions.invoke('send-email', {
               body: {
                 to: userEmail,
+                templateKey: "order.created",
                 subject: 'Your Order Has Been Created - The Cycle Courier Co.',
                 html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -665,6 +666,7 @@ The Cycle Courier Co. Team`
               const { error: preparationError } = await supabase.functions.invoke('send-email', {
                 body: {
                   to: body.sender.email,
+                  templateKey: "order.unboxed_preparation",
                   subject: 'How to prepare your bike for your unboxed bike collection',
                   html: `
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1f2937; line-height: 1.6;">
@@ -719,6 +721,7 @@ The Cycle Courier Co. Team`
             await supabase.functions.invoke('send-email', {
               body: {
                 to: body.receiver.email,
+                templateKey: "order.delivery_notification",
                 subject: 'Your Bicycle Delivery - The Cycle Courier Co.',
                 html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -764,6 +767,7 @@ The Cycle Courier Co. Team`
             const { error: ferryError } = await supabase.functions.invoke('send-email', {
               body: {
                 to: ferryEmail.to,
+                templateKey: "ni.ferry_partner_booking",
                 subject: ferryEmail.subject,
                 html: ferryEmail.html,
                 from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
