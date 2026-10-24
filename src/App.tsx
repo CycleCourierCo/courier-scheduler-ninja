@@ -81,6 +81,7 @@ const ReviewsPage = lazy(() => import("./pages/ReviewsPage"));
 const ReviewDetailPage = lazy(() => import("./pages/ReviewDetailPage"));
 const MyReviewsPage = lazy(() => import("./pages/MyReviewsPage"));
 const DriversRota = lazy(() => import("./pages/DriversRota"));
+const EmailCentre = lazy(() => import("./pages/EmailCentre"));
 const DriverHolidayRequests = lazy(() => import("./pages/DriverHolidayRequests"));
 
 const queryClient = new QueryClient({
@@ -408,6 +409,11 @@ function App() {
               <Route path="/admin/labour-times" element={
                 <ProtectedRoute>
                   <LabourTimesAdmin />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/email-centre" element={
+                <ProtectedRoute adminOnly>
+                  <EmailCentre />
                 </ProtectedRoute>
               } />
               <Route path="/admin/route-permissions" element={

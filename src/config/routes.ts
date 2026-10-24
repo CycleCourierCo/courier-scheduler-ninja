@@ -142,6 +142,8 @@ export const APP_ROUTES: AppRoute[] = [
     defaultRoles: ["tech"] },
   { key: "shopify-integration", path: "/shopify-integration", label: "Shopify Integration", section: "Admin", icon: Store,
     defaultRoles: ["tech"] },
+  { key: "email-centre", path: "/admin/email-centre", label: "Email Centre", section: "Comms", icon: Mail,
+    defaultRoles: [] },
   { key: "route-permissions", path: "/admin/route-permissions", label: "Route Permissions", section: "Admin", icon: Lock,
     defaultRoles: [] },
 ];
