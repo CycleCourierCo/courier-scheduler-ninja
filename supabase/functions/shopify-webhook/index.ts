@@ -166,6 +166,22 @@ const handler = async (req: Request): Promise<Response> => {
         const booked = new Set(rows.map((r) => r.shopify_order_id));
         for (const o of ids) if (!booked.has(o.id)) results.push({ order: o.name, result: 'no booking here' });
         results.unshift({ unfulfilled_in_shopify: ids.length, with_booking: rows.length });
+        if (req.headers.get('x-backfill-background') === '1') {
+          // Process everything in the background, 5 at a time; summary goes to the function log.
+          const queue = [...rows];
+          const counts: Record<string, number> = {};
+          const worker = async () => {
+            for (let r = queue.shift(); r; r = queue.shift()) {
+              let result: string;
+              try { result = await fulfilShopifyOrder(r.shopify_order_id, r.tracking_number); }
+              catch (e) { result = `error: ${e instanceof Error ? e.message : 'unknown'}`; }
+              counts[result] = (counts[result] || 0) + 1;
+            }
+          };
+          // @ts-ignore EdgeRuntime is provided by Supabase
+          EdgeRuntime.waitUntil(Promise.all(Array.from({ length: 5 }, worker)).then(() => console.log('Backfill summary:', JSON.stringify(counts))));
+          return new Response(JSON.stringify({ started: rows.length }), { headers: { 'Content-Type': 'application/json', ...corsHeaders } });
+        }
         rows = rows.slice(0, 60);
       } else {
         const limit = Math.min(Number(mode) || 10, 50);
