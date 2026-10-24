@@ -79,5 +79,3 @@ export function renderBlocks(
   ].filter(Boolean).join("\n\n");
   return { html, text };
 }
-
-export { hasCustomBody };
