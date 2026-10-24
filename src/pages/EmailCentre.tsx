@@ -174,6 +174,15 @@ function Editor({ tpl, userId, onClose, onSaved }: { tpl: Partial<Tpl>; userId?:
     return () => { if (timer.current) window.clearTimeout(timer.current); };
   }, [t.subject, t.preheader, JSON.stringify(t.blocks), sample?.subject]);
 
+  // Open built-in emails with their current wording already filled in (not saved).
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (prefilled.current || !sample?.html || !builtIn || t.wording_mode === "intro" || hasWording(b)) return;
+    prefilled.current = true;
+    copyCurrentWording();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sample?.html]);
+
   const copyCurrentWording = () => {
     if (!sample?.html) return;
     const doc = new DOMParser().parseFromString(sample.html, "text/html");
@@ -182,7 +191,7 @@ function Editor({ tpl, userId, onClose, onSaved }: { tpl: Partial<Tpl>; userId?:
     const paragraphs = Array.from(card.querySelectorAll("p")).map((p) => p.textContent?.trim() || "")
       .filter((x) => x && !/Cycorco|Company no|VAT|Wake Green|^Info@/i.test(x)).slice(0, 8);
     setB({ headline, paragraphs: paragraphs.length ? paragraphs : [""] });
-    toast.message("Current wording copied in", { description: "Swap any customer names, dates or tracking numbers for the detail buttons before saving." });
+    toast.message("Current wording filled in", { description: "Nothing changes for customers until you save. Swap any customer names, dates or tracking numbers for the detail buttons first." });
   };
 
   const insertVar = (v: string) => {
