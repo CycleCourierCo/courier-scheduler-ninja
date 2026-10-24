@@ -72,6 +72,19 @@ export default function EmailCentre() {
   };
   useEffect(() => { load(); }, []);
 
+  const [filling, setFilling] = useState(false);
+  const fillPreviews = async () => {
+    setFilling(true);
+    const { data, error } = await supabase.functions.invoke("email-template-backfill", { body: { pages: 30 } });
+    setFilling(false);
+    if (error || !data?.result) return toast.error("Couldn't fill previews");
+    const vals = Object.values(data.result as Record<string, string>);
+    const filled = vals.filter((v) => v === "filled").length;
+    const missing = vals.filter((v) => v !== "filled" && v !== "already had preview").length;
+    toast.success(`${filled} previews filled`, { description: missing ? `${missing} emails weren't found in recent sends; they'll fill the next time they go out.` : undefined });
+    load();
+  };
+
   const shown = useMemo(() => rows.filter((r) =>
     (aud === "all" || r.audience === aud) &&
     (!search || `${r.name} ${r.trigger_label ?? ""} ${r.subject ?? ""}`.toLowerCase().includes(search.toLowerCase()))), [rows, search, aud]);
@@ -98,7 +111,10 @@ export default function EmailCentre() {
             <h1 className="text-2xl font-bold">Email Centre</h1>
             <p className="text-sm text-muted-foreground">Every email the system sends: when, to whom and what it says.</p>
           </div>
-          <Button onClick={() => setEdit(blank())}><Plus className="mr-2 h-4 w-4" />New email</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" disabled={filling} onClick={fillPreviews}>{filling ? "Filling…" : "Fill previews from sent emails"}</Button>
+            <Button onClick={() => setEdit(blank())}><Plus className="mr-2 h-4 w-4" />New email</Button>
+          </div>
         </div>
         <div className="flex flex-wrap gap-3">
           <Input placeholder="Search emails" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-xs" />
@@ -174,6 +190,15 @@ function Editor({ tpl, userId, onClose, onSaved }: { tpl: Partial<Tpl>; userId?:
     return () => { if (timer.current) window.clearTimeout(timer.current); };
   }, [t.subject, t.preheader, JSON.stringify(t.blocks), sample?.subject]);
 
+  // Open built-in emails with their current wording already filled in (not saved).
+  const prefilled = useRef(false);
+  useEffect(() => {
+    if (prefilled.current || !sample?.html || !builtIn || t.wording_mode === "intro" || hasWording(b)) return;
+    prefilled.current = true;
+    copyCurrentWording();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sample?.html]);
+
   const copyCurrentWording = () => {
     if (!sample?.html) return;
     const doc = new DOMParser().parseFromString(sample.html, "text/html");
@@ -182,7 +207,7 @@ function Editor({ tpl, userId, onClose, onSaved }: { tpl: Partial<Tpl>; userId?:
     const paragraphs = Array.from(card.querySelectorAll("p")).map((p) => p.textContent?.trim() || "")
       .filter((x) => x && !/Cycorco|Company no|VAT|Wake Green|^Info@/i.test(x)).slice(0, 8);
     setB({ headline, paragraphs: paragraphs.length ? paragraphs : [""] });
-    toast.message("Current wording copied in", { description: "Swap any customer names, dates or tracking numbers for the detail buttons before saving." });
+    toast.message("Current wording filled in", { description: "Nothing changes for customers until you save. Swap any customer names, dates or tracking numbers for the detail buttons first." });
   };
 
   const insertVar = (v: string) => {
