@@ -11,6 +11,46 @@ const json = (b: unknown, status = 200) =>
   new Response(JSON.stringify(b), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+// Subject patterns taken from each sender's current subject line. Emails whose
+// subject is shared by several templates are left out; they fill on their next send.
+const DEFAULT_RULES: Record<string, string> = {
+  "account.application_received": "^Your Business Account Application",
+  "internal.registration_needs_approval": "^New Business Registration Requires",
+  "op.receiver_inspection_invoice": "^Invoice for your bike repair",
+  "internal.report_customer_updates": "^Customer updates —",
+  "internal.report_daily_ops": "^Daily ops —",
+  "internal.report_weekly_driver": "^Weekly driver report",
+  "internal.report_weekly_van": "^Weekly van report",
+  "internal.report_weekly_workshop": "^Weekly workshop report",
+  "internal.report_parts_to_order": "^Parts to order",
+  "op.task_assignment": "^New task assigned",
+  "op.timeslip_email": "Timeslip",
+  "op.return_to_seller_notification": "^Returning to seller",
+  "internal.invoice_created": "^Invoice Created:",
+  "op.route_report": "Route Report",
+  "op.driver_absence": "has been (approved|declined|rejected)$",
+  "order.created": "^Your Order Has Been Created",
+  "order.unboxed_preparation": "^How to prepare your bike",
+  "order.delivery_notification": "^Your Bicycle Delivery -",
+  "op.repair_offer": "^Optional repairs",
+  "op.receiver_repair_confirmation": "^Repairs confirmed",
+  "op.repairs_declined_notification": "^Repairs declined",
+  "op.loading_list": "Loading List",
+  "order.delivered": "Has Been Delivered",
+  "type.sender": "^Please confirm your (sender|collection) availability$",
+  "type.receiver": "^Please confirm your (receiver|delivery) availability",
+  "update.collection_delayed": "^Sorry - we missed your collection",
+  "update.delivery_delayed": "^Sorry - we missed your delivery",
+  "update.awaiting_sender_dates": "^We need your collection dates",
+  "update.awaiting_receiver_dates": "^We need your delivery dates",
+  "update.sender_dates_received": "^We're planning your collection",
+  "update.collection_scheduled": "^Your collection is booked",
+  "update.collection_scheduled_receiver": "^Collection booked for",
+  "update.sender_bike_on_way": " is on its way to ",
+  "update.delivery_scheduled": "^Your delivery is booked",
+  "update.delivery_scheduled_sender": "^Delivery booked for",
+};
+
 async function resend(path: string) {
   for (let i = 0; i < 4; i++) {
     const r = await fetch(`https://api.resend.com${path}`, { headers: { Authorization: `Bearer ${Deno.env.get("RESEND_API_KEY")}` } });
@@ -51,7 +91,7 @@ serve(async (req) => {
       return json({ scanned: emails.length, subjects: counts });
     }
 
-    const rules: Record<string, string> = body?.rules && typeof body.rules === "object" ? body.rules : {};
+    const rules: Record<string, string> = { ...DEFAULT_RULES, ...(body?.rules && typeof body.rules === "object" ? body.rules : {}) };
     const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: tpls } = await admin.from("email_templates").select("key, sample_html");
     const result: Record<string, string> = {};
