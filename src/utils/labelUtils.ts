@@ -13,10 +13,9 @@ export const LABEL_WIDTH = 288; // 4 inches in points
 export const LABEL_HEIGHT = 432; // 6 inches in points
 const MARGIN = 15;
 const BODY_SIZE = 12;
-const LINE_HEIGHT = 15;
+const LINE_HEIGHT = 13;
 const ICON_SIZE = 24;
 const INDICATOR_GAP = 12;
-const INDICATOR_HEIGHT = ICON_SIZE + 14;
 // The 1-bit cloud mark is placed at 100% (one image pixel per printer dot at
 // 203 dpi). Scaling would resample it and reintroduce greys.
 const PRINTER_DPI = 203;
@@ -25,8 +24,8 @@ const MARK_COMPACT_PX = 64;
 const MARK_FULL_PT = MARK_FULL_PX * 72 / PRINTER_DPI;
 const MARK_COMPACT_PT = MARK_COMPACT_PX * 72 / PRINTER_DPI;
 const MARK_TOP = 10;
-const HEADER_HEIGHT = MARK_TOP + Math.max(MARK_FULL_PT, 34) + 60;
-const COMPACT_HEADER_HEIGHT = MARK_TOP + Math.max(MARK_COMPACT_PT, 34) + 60;
+const HEADER_HEIGHT = MARK_TOP + Math.max(MARK_FULL_PT, 34) + 52;
+const COMPACT_HEADER_HEIGHT = MARK_TOP + Math.max(MARK_COMPACT_PT, 34) + 52;
 
 type ThermalArtwork = {
   full: Uint8Array;
@@ -172,12 +171,14 @@ export const renderLabelPage = (
   };
   const reference = order.trackingNumber || order.id;
   const qr = createLabelQr(reference);
-  const qrModule = 3 * 72 / PRINTER_DPI;
-  const qrSize = (qr.getModuleCount() + 8) * qrModule;
-  if (qrSize > 74) throw new Error('Tracking reference is too long for a safely printable QR code.');
+  const printerDot = 72 / PRINTER_DPI;
+  // Four-module white quiet zone on every side of the code.
+  const qrModules = qr.getModuleCount() + 8;
+  const qrSizeAt = (dots: number) => qrModules * dots * printerDot;
+  const QR_GAP = 8;
   pdf.setFontSize(16);
-  const trackingLines = pdf.splitTextToSize(order.trackingNumber || 'N/A', contentWidth - 86) as string[];
-  const trackingHeight = Math.max(20 + trackingLines.length * 20, qrSize) + 12;
+  const trackingLines = pdf.splitTextToSize(order.trackingNumber || 'N/A', contentWidth) as string[];
+  const trackingBlock = 20 + trackingLines.length * 20 + 16;
   const senderLines = showSenderName && order.sender?.name ? wrap(order.sender.name, BODY_SIZE) : [];
   const address = order.receiver?.address;
   const receiverLines = [
@@ -199,16 +200,27 @@ export const renderLabelPage = (
   const hasIndicators = order.needsInspection || order.isBoxMyBike || order.isNorthernIreland;
 
   // Measure the entire body before choosing artwork; never shrink text to fit.
-  const bodyHeight = 20 + trackingHeight
-    + (senderLines.length ? 15 + senderLines.length * LINE_HEIGHT + 18 : 0)
-    + 15 + receiverLines.length * LINE_HEIGHT + 20
-    + 15 + (itemLines.length + typeLines.length + codeLines.length) * LINE_HEIGHT
-    + (hasIndicators ? INDICATOR_HEIGHT : 0);
-  const useCompact = HEADER_HEIGHT + 8 + bodyHeight > LABEL_HEIGHT - MARGIN;
-  const headerHeight = useCompact ? COMPACT_HEADER_HEIGHT : HEADER_HEIGHT;
-  if (headerHeight + 8 + bodyHeight > LABEL_HEIGHT - MARGIN) {
+  const textBlock = trackingBlock
+    + (senderLines.length ? LINE_HEIGHT + senderLines.length * LINE_HEIGHT + 24 : 0)
+    + LINE_HEIGHT + receiverLines.length * LINE_HEIGHT + 24
+    + LINE_HEIGHT + (itemLines.length + typeLines.length + codeLines.length) * LINE_HEIGHT
+    + (hasIndicators ? ICON_SIZE + 8 : 0);
+  // The QR code sits at the bottom: use the largest whole-dot size that fits.
+  const fitFor = (header: number) => {
+    const available = LABEL_HEIGHT - MARGIN - (header + 8 + textBlock);
+    for (const dots of [5, 4, 3]) {
+      if (qrSizeAt(dots) + QR_GAP * 2 <= available) return { header, dots };
+    }
+    return null;
+  };
+  const fit = fitFor(HEADER_HEIGHT) ?? fitFor(COMPACT_HEADER_HEIGHT);
+  if (!fit) {
     throw new Error(`Label details for ${order.trackingNumber || order.id} are too long to fit safely on a 4 × 6 label.`);
   }
+  const useCompact = fit.header === COMPACT_HEADER_HEIGHT;
+  const headerHeight = fit.header;
+  const qrSize = qrSizeAt(fit.dots);
+  const qrModule = fit.dots * printerDot;
   const markSize = useCompact ? MARK_COMPACT_PT : MARK_FULL_PT;
   pdf.addImage(useCompact ? artwork.compact : artwork.full, 'PNG', MARGIN, MARK_TOP,
     markSize, markSize, useCompact ? 'thermal-mark-64' : 'thermal-mark-128', 'NONE');
@@ -235,41 +247,28 @@ export const renderLabelPage = (
     lines.forEach(line => { pdf.text(line, MARGIN, y); y += height; });
   };
   pdf.setFontSize(BODY_SIZE);
-  const trackingTop = y;
-  const printerDot = 72 / PRINTER_DPI;
-  const qrX = Math.round((labelWidth - MARGIN - qrSize) / printerDot) * printerDot;
-  const qrY = Math.round((trackingTop - 10) / printerDot) * printerDot;
-  // Four-module white quiet zone, with every module exactly three printer dots.
-  pdf.setFillColor('0');
-  for (let row = 0; row < qr.getModuleCount(); row++) {
-    for (let col = 0; col < qr.getModuleCount(); col++) {
-      if (qr.isDark(row, col)) {
-        pdf.rect(qrX + (col + 4) * qrModule, qrY + (row + 4) * qrModule,
-          qrModule, qrModule, 'F');
-      }
-    }
-  }
   pdf.text(`TRACKING${quantity > 1 ? ` (${bikeIndex + 1}/${quantity})` : ''}`, MARGIN, y);
   y += 20;
   textLines(trackingLines, 16, 20);
-  y = trackingTop + trackingHeight;
-  divider(y - 11);
+  y += 2;
+  divider(y);
+  y += 12;
   if (senderLines.length) {
     pdf.setFontSize(BODY_SIZE);
     pdf.text('FROM:', MARGIN, y); y += LINE_HEIGHT;
-    textLines(senderLines); y += 18;
-    divider(y - 14);
+    textLines(senderLines); y += 12;
+    divider(y); y += 12;
   }
   pdf.setFontSize(BODY_SIZE);
   pdf.text('TO:', MARGIN, y); y += LINE_HEIGHT;
-  textLines(receiverLines); y += 20;
-  divider(y - 14);
+  textLines(receiverLines); y += 12;
+  divider(y); y += 12;
   pdf.text('ITEM:', MARGIN, y); y += LINE_HEIGHT;
   textLines(itemLines);
   textLines(typeLines);
   textLines(codeLines);
   if (hasIndicators) {
-    y += 10;
+    y += 8;
     let x = MARGIN;
     const drawFallback = (label: string) => {
       pdf.setFont("helvetica", "bold");
@@ -297,4 +296,20 @@ export const renderLabelPage = (
     if (order.isBoxMyBike) drawIcon(artwork.box, 'thermal-box-icon', 'BOX');
     if (order.isNorthernIreland) drawFallback('NI');
   }
+
+  // Tracking QR at the bottom of the label, right-aligned on whole printer dots.
+  const qrX = Math.round((labelWidth - MARGIN - qrSize) / printerDot) * printerDot;
+  const qrY = Math.round((LABEL_HEIGHT - MARGIN - qrSize) / printerDot) * printerDot;
+  divider(qrY - QR_GAP);
+  pdf.setFillColor('0');
+  for (let row = 0; row < qr.getModuleCount(); row++) {
+    for (let col = 0; col < qr.getModuleCount(); col++) {
+      if (qr.isDark(row, col)) {
+        pdf.rect(qrX + (col + 4) * qrModule, qrY + (row + 4) * qrModule,
+          qrModule, qrModule, 'F');
+      }
+    }
+  }
+  pdf.setFontSize(12);
+  pdf.text('SCAN TO TRACK', qrX - 8, qrY + qrSize, { align: 'right' });
 };

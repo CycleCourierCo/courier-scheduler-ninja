@@ -2,6 +2,8 @@
 
 - [x] Add thermal-label section dividers and tracking QR; sample PDF visually checked and QR decoded at 203 dpi (signed-in destinations deferred by request)
 
+- [x] Move the tracking QR to the bottom of the label (bottom-right, "SCAN TO TRACK" beside it); five sample PDFs checked at 203 dpi — QR decodes, no overlap, and every label that fitted before still fits
+
 - [x] Retain company name, service wording, website and phone with the new thermal-label mark; two PDFs visually checked with no overlap or clipping
 
 - [x] Replace label branding and layout with supplied thermal artwork
