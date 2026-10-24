@@ -53,7 +53,7 @@ const DEFAULT_RULES: Record<string, string> = {
 
 async function resend(path: string) {
   for (let i = 0; i < 4; i++) {
-    const r = await fetch(`https://api.resend.com${path}`, { headers: { Authorization: `Bearer ${Deno.env.get("RESEND_API_KEY")}` } });
+    const r = await fetch(`https://api.resend.com${path}`, { headers: { Authorization: `Bearer ${Deno.env.get("RESEND_RECEIVING_API_KEY") ?? Deno.env.get("RESEND_API_KEY")}` } });
     if (r.status === 429) { await sleep(1200 * (i + 1)); continue; }
     if (!r.ok) { const t = (await r.text()).slice(0, 200); throw new Error(`Resend ${r.status}: ${t}`); }
     return await r.json();
