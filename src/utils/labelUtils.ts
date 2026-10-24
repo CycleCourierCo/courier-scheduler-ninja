@@ -13,7 +13,7 @@ export const LABEL_WIDTH = 288; // 4 inches in points
 export const LABEL_HEIGHT = 432; // 6 inches in points
 const MARGIN = 15;
 const BODY_SIZE = 12;
-const LINE_HEIGHT = 14;
+const LINE_HEIGHT = 13;
 const ICON_SIZE = 24;
 const INDICATOR_GAP = 12;
 // The 1-bit cloud mark is placed at 100% (one image pixel per printer dot at
@@ -175,7 +175,7 @@ export const renderLabelPage = (
   // Four-module white quiet zone on every side of the code.
   const qrModules = qr.getModuleCount() + 8;
   const qrSizeAt = (dots: number) => qrModules * dots * printerDot;
-  const QR_GAP = 10;
+  const QR_GAP = 8;
   pdf.setFontSize(16);
   const trackingLines = pdf.splitTextToSize(order.trackingNumber || 'N/A', contentWidth) as string[];
   const trackingBlock = 20 + trackingLines.length * 20 + 16;
@@ -201,10 +201,10 @@ export const renderLabelPage = (
 
   // Measure the entire body before choosing artwork; never shrink text to fit.
   const textBlock = trackingBlock
-    + (senderLines.length ? LINE_HEIGHT + senderLines.length * LINE_HEIGHT + 26 : 0)
-    + LINE_HEIGHT + receiverLines.length * LINE_HEIGHT + 26
+    + (senderLines.length ? LINE_HEIGHT + senderLines.length * LINE_HEIGHT + 24 : 0)
+    + LINE_HEIGHT + receiverLines.length * LINE_HEIGHT + 24
     + LINE_HEIGHT + (itemLines.length + typeLines.length + codeLines.length) * LINE_HEIGHT
-    + (hasIndicators ? ICON_SIZE + 10 : 0);
+    + (hasIndicators ? ICON_SIZE + 8 : 0);
   // The QR code sits at the bottom: use the largest whole-dot size that fits.
   const fitFor = (header: number) => {
     const available = LABEL_HEIGHT - MARGIN - (header + 8 + textBlock);
@@ -252,23 +252,23 @@ export const renderLabelPage = (
   textLines(trackingLines, 16, 20);
   y += 2;
   divider(y);
-  y += 14;
+  y += 12;
   if (senderLines.length) {
     pdf.setFontSize(BODY_SIZE);
     pdf.text('FROM:', MARGIN, y); y += LINE_HEIGHT;
     textLines(senderLines); y += 12;
-    divider(y); y += 14;
+    divider(y); y += 12;
   }
   pdf.setFontSize(BODY_SIZE);
   pdf.text('TO:', MARGIN, y); y += LINE_HEIGHT;
   textLines(receiverLines); y += 12;
-  divider(y); y += 14;
+  divider(y); y += 12;
   pdf.text('ITEM:', MARGIN, y); y += LINE_HEIGHT;
   textLines(itemLines);
   textLines(typeLines);
   textLines(codeLines);
   if (hasIndicators) {
-    y += 10;
+    y += 8;
     let x = MARGIN;
     const drawFallback = (label: string) => {
       pdf.setFont("helvetica", "bold");
