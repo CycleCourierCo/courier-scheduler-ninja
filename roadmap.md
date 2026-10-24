@@ -50,4 +50,4 @@
 - [x] Shopify website orders: auto-fulfil with tracking link (client-credentials token)
 
 - [x] Email Centre: page, versions, preview/test send, on/off + copies + wording for order-journey and availability emails, custom emails on status triggers
-- [ ] Email Centre: connect workshop, NI/ferry, account, billing, partner and internal emails (they still use built-in settings)
+- [x] Email Centre: workshop, NI/ferry, account, billing, partner and internal emails connected
