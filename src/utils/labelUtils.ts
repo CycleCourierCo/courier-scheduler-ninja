@@ -311,5 +311,5 @@ export const renderLabelPage = (
     }
   }
   pdf.setFontSize(12);
-  pdf.text('SCAN TO TRACK', MARGIN, qrY + qrSize);
+  pdf.text('SCAN TO TRACK', qrX - 8, qrY + qrSize, { align: 'right' });
 };
