@@ -6,6 +6,7 @@ import { requireAuth, createAuthErrorResponse } from "../_shared/auth.ts";
 import { expectationsHtml, expectationsText, expectationsForOrder } from "../_shared/deliveryExpectations.ts";
 import { trackResend } from "../_shared/integrationLog.ts";
 import { emailUI, stagesForOrder, stageIndex } from "../_shared/emailLayout.ts";
+import { loadTemplate, isSendAllowed, cleanAddresses, hasCustomBody, varsFromOrder, fillVars, renderBlocks } from "../_shared/emailTemplates.ts";
 
 /** Pill + strip map block injected under the greeting of a status email. */
 const journeyBlock = (order: any, pillToken: string, pillLabel: string, labels: string[], fallback: number): string => {
@@ -498,6 +499,8 @@ The Cycle Courier Co. Team
     try {
       // Tag availability emails so the Resend webhook can correlate delivery events.
       const sendPayload: any = { ...emailOptions, reply_to: "Info@cyclecourierco.com" };
+      if (extraCc.length) sendPayload.cc = extraCc;
+      if (extraBcc.length) sendPayload.bcc = extraBcc;
       if (Object.keys(shellOptions).length > 0) {
         sendPayload.cccShell = shellOptions;
       }
