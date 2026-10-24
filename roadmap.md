@@ -51,3 +51,6 @@
 
 - [x] Email Centre: page, versions, preview/test send, on/off + copies + wording for order-journey and availability emails, custom emails on status triggers
 - [x] Email Centre: workshop, NI/ferry, account, billing, partner and internal emails connected
+
+- [ ] Enable Lovable Shopify integration
+- [ ] Email Centre: current content + live preview in editor
