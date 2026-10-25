@@ -7,6 +7,7 @@ declare module 'react-leaflet' {
   import { ReactNode } from 'react';
 
   export interface MapContainerProps {
+    preferCanvas?: boolean;
     center: L.LatLngExpression;
     zoom: number;
     children?: ReactNode;
