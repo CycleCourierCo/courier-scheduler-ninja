@@ -12,6 +12,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { colouredMarkerIcon } from "@/lib/mapMarkers";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RouteLayers, useRouteDay } from "@/components/fleet/RouteOverlay";
+import { format } from "date-fns";
 import { isStale, liveStatus, matchVehicles, type LivePosition, type LiveStatus } from "@/lib/fleet/liveTracking";
 
 const STATUS_LABEL: Record<LiveStatus, string> = { moving: "Moving", idling: "Engine on, stopped", off: "Engine off" };
@@ -34,6 +38,12 @@ function FitAll({ points }: { points: [number, number][] }) {
 export default function LiveMap() {
   const navigate = useNavigate();
   const [focus, setFocus] = useState<[number, number] | null>(null);
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
+  const [date, setDate] = useState(today);
+  const [vanFilter, setVanFilter] = useState("all");
+  const isToday = date === today;
+  const routeDay = useRouteDay(date);
+  const shownRoutes = routeDay.analyses.filter((a) => vanFilter === "all" || a.registration === vanFilter);
 
   const positions = useQuery({
     queryKey: ["radius-positions"],
@@ -76,7 +86,15 @@ export default function LiveMap() {
               {positions.data ? `${rows.length} vans · updated ${formatDistanceToNow(new Date(positions.data.fetched_at), { addSuffix: true })}` : "Where every van is right now"}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Input type="date" value={date} max={today} onChange={(e) => e.target.value && setDate(e.target.value)} className="h-9 w-auto" aria-label="Route date" />
+            <Select value={vanFilter} onValueChange={setVanFilter}>
+              <SelectTrigger className="h-9 w-32" aria-label="Show van"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All vans</SelectItem>
+                {routeDay.analyses.map((a) => <SelectItem key={a.key} value={a.registration}>{a.registration}</SelectItem>)}
+              </SelectContent>
+            </Select>
             <Button variant="outline" size="sm" asChild><Link to="/fleet">Fleet</Link></Button>
             <Button size="sm" onClick={() => positions.refetch()} disabled={positions.isFetching}>
               {positions.isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Refresh
@@ -94,7 +112,8 @@ export default function LiveMap() {
               <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <FitAll points={points} />
               <FlyTo target={focus} />
-              {rows.map(({ position: p, vehicle }) => {
+              <RouteLayers analyses={shownRoutes} />
+              {isToday && rows.filter((r) => vanFilter === "all" || r.position.registration === vanFilter).map(({ position: p, vehicle }) => {
                 const st = liveStatus(p);
                 const stale = isStale(p.timestamp);
                 return (
@@ -116,8 +135,39 @@ export default function LiveMap() {
           </div>
 
           <div className="space-y-2 lg:max-h-[75vh] lg:overflow-y-auto">
+            {shownRoutes.length > 0 && (
+              <div className="space-y-2">
+                <h2 className="text-sm font-semibold">Routes on {format(new Date(`${date}T12:00:00`), "EEE d MMM")}</h2>
+                {shownRoutes.map((a) => {
+                  const visited = a.stops.filter((s) => s.visitedAt).length;
+                  return (
+                    <button key={a.key} onClick={() => a.stops[0] && setFocus([a.stops[0].lat, a.stops[0].lon])}
+                      className="w-full text-left rounded-md border p-2.5 hover:bg-muted" style={{ borderLeft: `4px solid ${a.colour}` }}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-mono font-semibold">{a.registration}</span>
+                        <Badge variant={visited === a.stops.length ? "default" : "secondary"}>{visited}/{a.stops.length} stops</Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground">{a.driver || "No driver"}</div>
+                      <div className="flex flex-wrap gap-1 mt-1 text-xs">
+                        {a.path.length === 0 ? <span className="text-muted-foreground">No recorded path for this day</span> : (
+                          <>
+                            <span className="text-muted-foreground">Driven {a.drivenMiles.toFixed(0)} mi{a.plannedMiles ? ` · planned ${Number(a.plannedMiles).toFixed(0)} mi` : ""}</span>
+                            {a.stretches.length > 0
+                              ? <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" />{a.stretches.length} off-route ({a.stretches.map((s) => `${format(new Date(s.start), "HH:mm")}–${format(new Date(s.end), "HH:mm")}`).join(", ")})</Badge>
+                              : <Badge variant="outline">On route</Badge>}
+                          </>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {!routeDay.isLoading && routeDay.analyses.length === 0 && <p className="text-xs text-muted-foreground">No timeslip routes for this date.</p>}
+            {isToday && <h2 className="text-sm font-semibold pt-1">Live vans</h2>}
+            {!isToday && <p className="text-xs text-muted-foreground">Live pins are hidden for past dates.</p>}
             {positions.isLoading && <p className="text-sm text-muted-foreground">Loading vans…</p>}
-            {rows.map(({ position: p, vehicle }) => {
+            {isToday && rows.filter((r) => vanFilter === "all" || r.position.registration === vanFilter).map(({ position: p, vehicle }) => {
               const st = liveStatus(p);
               const stale = isStale(p.timestamp);
               const red = vehicle && redIssues.data?.has(vehicle.id);
