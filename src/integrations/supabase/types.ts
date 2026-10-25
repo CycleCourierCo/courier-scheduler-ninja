@@ -2615,6 +2615,244 @@ export type Database = {
           },
         ]
       }
+      fleet_repair_jobs: {
+        Row: {
+          booked_for: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          defect_id: string | null
+          description: string | null
+          final_cost: number | null
+          id: string
+          interval_id: string | null
+          invoice_path: string | null
+          invoice_ref: string | null
+          labour_cost: number | null
+          odometer_mi: number | null
+          parts_cost: number | null
+          provider_id: string | null
+          quoted_cost: number | null
+          status: string
+          title: string
+          updated_at: string
+          vat: number | null
+          vehicle_id: string
+          verified_at: string | null
+          verified_by_name: string | null
+        }
+        Insert: {
+          booked_for?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          defect_id?: string | null
+          description?: string | null
+          final_cost?: number | null
+          id?: string
+          interval_id?: string | null
+          invoice_path?: string | null
+          invoice_ref?: string | null
+          labour_cost?: number | null
+          odometer_mi?: number | null
+          parts_cost?: number | null
+          provider_id?: string | null
+          quoted_cost?: number | null
+          status?: string
+          title: string
+          updated_at?: string
+          vat?: number | null
+          vehicle_id: string
+          verified_at?: string | null
+          verified_by_name?: string | null
+        }
+        Update: {
+          booked_for?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          defect_id?: string | null
+          description?: string | null
+          final_cost?: number | null
+          id?: string
+          interval_id?: string | null
+          invoice_path?: string | null
+          invoice_ref?: string | null
+          labour_cost?: number | null
+          odometer_mi?: number | null
+          parts_cost?: number | null
+          provider_id?: string | null
+          quoted_cost?: number | null
+          status?: string
+          title?: string
+          updated_at?: string
+          vat?: number | null
+          vehicle_id?: string
+          verified_at?: string | null
+          verified_by_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_repair_jobs_defect_id_fkey"
+            columns: ["defect_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_issues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_repair_jobs_interval_id_fkey"
+            columns: ["interval_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_maintenance_intervals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_repair_jobs_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_repair_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_repair_jobs_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_repair_providers: {
+        Row: {
+          active: boolean
+          address: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fleet_settings: {
+        Row: {
+          id: number
+          inspection_frequency_days: number
+          mileage_margin_mi: number
+          reminder_days: number[]
+          tread_warn_mm: number
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          inspection_frequency_days?: number
+          mileage_margin_mi?: number
+          reminder_days?: number[]
+          tread_warn_mm?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          inspection_frequency_days?: number
+          mileage_margin_mi?: number
+          reminder_days?: number[]
+          tread_warn_mm?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fleet_tyres: {
+        Row: {
+          brand: string | null
+          cost: number | null
+          created_at: string
+          fitted_date: string | null
+          fitted_odometer_mi: number | null
+          id: string
+          last_inspected_at: string | null
+          last_tread_mm: number | null
+          model: string | null
+          notes: string | null
+          position: string
+          removal_reason: string | null
+          removed_date: string | null
+          size: string | null
+          supplier: string | null
+          updated_at: string
+          vehicle_id: string
+        }
+        Insert: {
+          brand?: string | null
+          cost?: number | null
+          created_at?: string
+          fitted_date?: string | null
+          fitted_odometer_mi?: number | null
+          id?: string
+          last_inspected_at?: string | null
+          last_tread_mm?: number | null
+          model?: string | null
+          notes?: string | null
+          position: string
+          removal_reason?: string | null
+          removed_date?: string | null
+          size?: string | null
+          supplier?: string | null
+          updated_at?: string
+          vehicle_id: string
+        }
+        Update: {
+          brand?: string | null
+          cost?: number | null
+          created_at?: string
+          fitted_date?: string | null
+          fitted_odometer_mi?: number | null
+          id?: string
+          last_inspected_at?: string | null
+          last_tread_mm?: number | null
+          model?: string | null
+          notes?: string | null
+          position?: string
+          removal_reason?: string | null
+          removed_date?: string | null
+          size?: string | null
+          supplier?: string | null
+          updated_at?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_tyres_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fuel_analysis_settings: {
         Row: {
           duplicate_fill_window_hours: number
@@ -6607,6 +6845,7 @@ export type Database = {
           position:
             | Database["public"]["Enums"]["vehicle_service_position"]
             | null
+          repair_job_id: string | null
           service_date: string
           service_type: Database["public"]["Enums"]["vehicle_service_type"]
           updated_at: string
@@ -6627,6 +6866,7 @@ export type Database = {
           position?:
             | Database["public"]["Enums"]["vehicle_service_position"]
             | null
+          repair_job_id?: string | null
           service_date: string
           service_type: Database["public"]["Enums"]["vehicle_service_type"]
           updated_at?: string
@@ -6647,6 +6887,7 @@ export type Database = {
           position?:
             | Database["public"]["Enums"]["vehicle_service_position"]
             | null
+          repair_job_id?: string | null
           service_date?: string
           service_type?: Database["public"]["Enums"]["vehicle_service_type"]
           updated_at?: string
@@ -6654,6 +6895,13 @@ export type Database = {
           vendor?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "vehicle_maintenance_logs_repair_job_id_fkey"
+            columns: ["repair_job_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_repair_jobs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "vehicle_maintenance_logs_vehicle_id_fkey"
             columns: ["vehicle_id"]
@@ -6666,29 +6914,38 @@ export type Database = {
       vehicle_odometer_readings: {
         Row: {
           created_at: string
+          exception_reason: string | null
           id: string
+          is_exception: boolean
           note: string | null
           odometer_mi: number
           reading_date: string
           recorded_by: string | null
+          source: string
           vehicle_id: string
         }
         Insert: {
           created_at?: string
+          exception_reason?: string | null
           id?: string
+          is_exception?: boolean
           note?: string | null
           odometer_mi: number
           reading_date?: string
           recorded_by?: string | null
+          source?: string
           vehicle_id: string
         }
         Update: {
           created_at?: string
+          exception_reason?: string | null
           id?: string
+          is_exception?: boolean
           note?: string | null
           odometer_mi?: number
           reading_date?: string
           recorded_by?: string | null
+          source?: string
           vehicle_id?: string
         }
         Relationships: [
