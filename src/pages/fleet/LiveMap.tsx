@@ -24,7 +24,7 @@ const STATUS_PIN = { moving: "green", idling: "orange", off: "grey" } as const;
 
 function FlyTo({ target }: { target: [number, number] | null }) {
   const map = useMap();
-  useEffect(() => { if (target) map.flyTo(target, 15); }, [target, map]);
+  useEffect(() => { if (target) map.setView(target, 15); }, [target, map]);
   return null;
 }
 function FitAll({ points }: { points: [number, number][] }) {
@@ -109,8 +109,8 @@ export default function LiveMap() {
         )}
 
         <div className="grid gap-3 lg:grid-cols-[1fr_360px]">
-          <div className="relative isolate z-0 h-[45vh] lg:h-[75vh] rounded-lg overflow-hidden border [contain:strict]">
-            <MapContainer preferCanvas center={[53.5, -2.2]} zoom={6} style={{ height: "100%", width: "100%" }}>
+          <div className="relative isolate z-0 h-[45vh] lg:h-[75vh] rounded-lg overflow-hidden border [transform:translateZ(0)]">
+            <MapContainer preferCanvas zoomAnimation={false} fadeAnimation={false} markerZoomAnimation={false} center={[53.5, -2.2]} zoom={6} style={{ height: "100%", width: "100%" }}>
               <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <FitAll points={points} />
               <FlyTo target={focus} />
