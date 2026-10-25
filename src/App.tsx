@@ -20,6 +20,7 @@ import RepairOffer from "./pages/RepairOffer";
 import InspectionApproval from "./pages/InspectionApproval";
 import NiPartnerUpload from "./pages/NiPartnerUpload";
 import TrackingPage from "./pages/TrackingPage";
+const EtaPage = lazy(() => import("./pages/EtaPage"));
 import NotFound from "./pages/NotFound";
 
 // Lazy: staff/admin pages, loaded only when someone opens them.
@@ -432,6 +433,7 @@ function App() {
                   <RoutePermissionsPage />
                 </ProtectedRoute>
               } />
+              <Route path="/eta/:token" element={<EtaPage />} />
               <Route path="/tracking" element={<TrackingPage />} />
               <Route path="/tracking/:id" element={<TrackingPage />} />
               <Route path="/about" element={<AboutPage />} />

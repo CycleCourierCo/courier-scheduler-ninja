@@ -179,3 +179,6 @@ verify_jwt = false
 # Fleet alert emails; called by database triggers and cron with X-Cron-Secret.
 [functions.fleet-alerts]
 verify_jwt = false
+
+[functions.eta-link]
+verify_jwt = false
