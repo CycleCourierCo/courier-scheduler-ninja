@@ -64,12 +64,11 @@ Deno.serve(async (req) => {
     }
     const userId = userData.user.id;
 
-    const { data: isAdmin, error: roleErr } = await supabase.rpc("has_role", {
-      _user_id: userId,
-      _role: "admin",
+    const { data: isFleet, error: roleErr } = await supabase.rpc("is_fleet_staff", {
+      _uid: userId,
     });
-    if (roleErr || !isAdmin) {
-      return json({ error: "Forbidden — admin only" }, 403);
+    if (roleErr || !isFleet) {
+      return json({ error: "Forbidden — admin or fleet manager only" }, 403);
     }
 
     const body = await req.json().catch(() => ({}));
