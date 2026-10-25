@@ -15,6 +15,7 @@ import { colouredMarkerIcon } from "@/lib/mapMarkers";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RouteLayers, useRouteDay } from "@/components/fleet/RouteOverlay";
+import { SendEtaLinkDialog } from "@/components/fleet/SendEtaLinkDialog";
 import { format } from "date-fns";
 import { isStale, liveStatus, matchVehicles, type LivePosition, type LiveStatus } from "@/lib/fleet/liveTracking";
 
@@ -41,6 +42,7 @@ export default function LiveMap() {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
   const [date, setDate] = useState(today);
   const [vanFilter, setVanFilter] = useState("all");
+  const [etaReg, setEtaReg] = useState<string | null>(null);
   const isToday = date === today;
   const routeDay = useRouteDay(date);
   const shownRoutes = routeDay.analyses.filter((a) => vanFilter === "all" || a.registration === vanFilter);
@@ -126,6 +128,7 @@ export default function LiveMap() {
                         <div>{[p.street, p.town, p.post_code].filter(Boolean).join(", ")}</div>
                         {p.timestamp && <div className="text-muted-foreground">{stale ? "Last seen " : "Updated "}{formatDistanceToNow(new Date(p.timestamp * 1000), { addSuffix: true })}</div>}
                         {vehicle && <button className="text-primary underline" onClick={() => navigate(`/fleet/vehicles/${vehicle.id}`)}>Open van</button>}
+                        <button className="block text-primary underline" onClick={() => setEtaReg(p.registration)}>Send ETA link</button>
                       </div>
                     </Popup>
                   </Marker>
@@ -191,7 +194,8 @@ export default function LiveMap() {
                     {red && <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" />Red defect</Badge>}
                     {offRoad && <Badge variant="outline">{String((vehicle as any).status).replace(/_/g, " ")}</Badge>}
                     {!vehicle && <Badge variant="outline">Not in Fleet</Badge>}
-                    {vehicle && <Link to={`/fleet/vehicles/${vehicle.id}`} onClick={(e) => e.stopPropagation()} className="ml-auto text-primary underline">Open</Link>}
+                    <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); setEtaReg(p.registration); }} className="ml-auto text-primary underline">Send ETA link</span>
+                    {vehicle && <Link to={`/fleet/vehicles/${vehicle.id}`} onClick={(e) => e.stopPropagation()} className="text-primary underline">Open</Link>}
                   </div>
                 </button>
               );
@@ -202,6 +206,7 @@ export default function LiveMap() {
           </div>
         </div>
       </div>
+      <SendEtaLinkDialog registration={etaReg} onClose={() => setEtaReg(null)} />
     </Layout>
   );
 }

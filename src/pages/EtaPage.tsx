@@ -9,7 +9,7 @@ import { colouredMarkerIcon } from "@/lib/mapMarkers";
 import { routeDepotIcon } from "@/components/scheduling/RouteMapPrimitives";
 import { decodePolyline } from "@/services/routeGenerationService";
 import { tokenColour } from "@/components/fleet/RouteOverlay";
-import { BrandLogo } from "@/components/BrandLogo";
+import BrandLogo from "@/components/BrandLogo";
 
 interface EtaData {
   position: { lat: number; lon: number; at: string };
@@ -45,7 +45,7 @@ export default function EtaPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="flex items-center gap-2 border-b px-4 py-3">
-        <BrandLogo />
+        <BrandLogo withWordmark />
         <span className="font-semibold">Van ETA</span>
       </header>
       {q.isLoading && <p className="p-4 text-sm text-muted-foreground">Finding the van…</p>}
