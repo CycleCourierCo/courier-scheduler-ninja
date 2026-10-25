@@ -131,8 +131,8 @@ export default function LiveMap() {
 
         <div className="grid gap-3 lg:grid-cols-[1fr_360px]">
           {(!isMobile || view === "map") && (
-          <div ref={mapBoxRef} className="relative isolate z-0 lg:h-[75vh] rounded-lg overflow-hidden border"
-            style={isMobile ? { height: `max(280px, calc(100dvh - ${mapTop}px - 12px))` } : { height: "55vh" }}>
+          <div ref={mapBoxRef} className={`relative isolate z-0 rounded-lg overflow-hidden border ${isMobile ? "" : "h-[55vh] lg:h-[75vh]"}`}
+            style={isMobile ? { height: `max(280px, calc(100dvh - ${mapTop}px - 20px))` } : undefined}>
             <MapContainer preferCanvas zoomAnimation={false} fadeAnimation={false} markerZoomAnimation={false} center={[53.5, -2.2]} zoom={6} style={{ height: "100%", width: "100%" }}>
               <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <FitAll points={points} />
