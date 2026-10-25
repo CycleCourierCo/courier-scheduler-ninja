@@ -2758,6 +2758,41 @@ export type Database = {
         }
         Relationships: []
       }
+      fleet_route_warning_acks: {
+        Row: {
+          acknowledged_by: string
+          context: string
+          created_at: string
+          id: string
+          vehicle_id: string
+          warning_codes: string[]
+        }
+        Insert: {
+          acknowledged_by?: string
+          context: string
+          created_at?: string
+          id?: string
+          vehicle_id: string
+          warning_codes?: string[]
+        }
+        Update: {
+          acknowledged_by?: string
+          context?: string
+          created_at?: string
+          id?: string
+          vehicle_id?: string
+          warning_codes?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_route_warning_acks_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fleet_settings: {
         Row: {
           id: number
@@ -7770,6 +7805,7 @@ export type Database = {
         Returns: undefined
       }
       can_manage_review: { Args: { _cycle_id: string }; Returns: boolean }
+      can_see_fleet_warnings: { Args: { _uid: string }; Returns: boolean }
       can_view_review: { Args: { _cycle_id: string }; Returns: boolean }
       cancelled_invoiced_orders: {
         Args: never
@@ -7857,6 +7893,20 @@ export type Database = {
         | { Args: { table_name: string }; Returns: string }
       enablelongtransactions: { Args: never; Returns: string }
       equals: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      fleet_notify: {
+        Args: { p_action: string; p_id: string }
+        Returns: undefined
+      }
+      fleet_vehicle_warnings: {
+        Args: { p_vehicle_ids: string[] }
+        Returns: {
+          code: string
+          level: string
+          message: string
+          registration: string
+          vehicle_id: string
+        }[]
+      }
       geometry: { Args: { "": string }; Returns: unknown }
       geometry_above: {
         Args: { geom1: unknown; geom2: unknown }
@@ -8109,6 +8159,7 @@ export type Database = {
         Args: { p_order_id: string }
         Returns: undefined
       }
+      invoke_fleet_daily_digest: { Args: never; Returns: undefined }
       invoke_fuel_finder_refresh: { Args: never; Returns: undefined }
       invoke_generate_recurring_tasks: { Args: never; Returns: undefined }
       invoke_generate_timeslips: { Args: never; Returns: undefined }

@@ -73,6 +73,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
     items: [
       { to: "/equipment", label: "Equipment", icon: Boxes },
       { to: "/fleet", label: "Fleet Dashboard", icon: Truck },
+      { to: "/fleet/compliance", label: "Fleet Compliance", icon: Truck },
       { to: "/fleet/checklists", label: "Inspection Checklists", icon: Truck },
       { to: "/fleet/garages", label: "Garages & Fleet Settings", icon: Truck },
       { to: "/vehicles", label: "Vehicles", icon: Car },

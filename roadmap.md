@@ -67,4 +67,4 @@
 - [ ] Fleet phase 5: end-to-end and access testing
 - [x] Fleet Phase 2: inspections (5 checklists, editable), defects (Red/Amber/Green, 8 statuses, evidence to close Red, photos)
 - [x] Fleet Phase 3: mileage source/lower-reading reason, tyres, repair jobs (10 steps), garages, costs + CSV, fleet settings
-- [ ] Fleet Phase 4: route warnings, compliance page, fleet alert emails
+- [x] Fleet Phase 4: van warnings on pickers (red ack recorded), compliance page, fleet alert emails + 7am digest

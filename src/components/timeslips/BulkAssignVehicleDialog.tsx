@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import FleetVehicleWarnings from "@/components/fleet/FleetVehicleWarnings";
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Truck } from 'lucide-react';
@@ -234,6 +235,7 @@ const BulkAssignVehicleDialog: React.FC<Props> = ({ isOpen, onClose, onSuccess }
                 ))}
               </SelectContent>
             </Select>
+            <FleetVehicleWarnings vehicleIds={[vehicleId]} context="bulk_assign_vehicle" />
           </div>
 
           <div className="flex items-center justify-between rounded-md border p-3">
