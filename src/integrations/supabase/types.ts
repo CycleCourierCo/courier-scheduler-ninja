@@ -6356,6 +6356,44 @@ export type Database = {
           },
         ]
       }
+      vehicle_odometer_readings: {
+        Row: {
+          created_at: string
+          id: string
+          note: string | null
+          odometer_mi: number
+          reading_date: string
+          recorded_by: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          odometer_mi: number
+          reading_date?: string
+          recorded_by?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          note?: string | null
+          odometer_mi?: number
+          reading_date?: string
+          recorded_by?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_odometer_readings_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
           bike_spaces: number | null
