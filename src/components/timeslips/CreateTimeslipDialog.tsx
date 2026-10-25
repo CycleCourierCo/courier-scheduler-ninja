@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import FleetVehicleWarnings from "@/components/fleet/FleetVehicleWarnings";
+import SavedRoutePicker from "./SavedRoutePicker";
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Plus, X } from 'lucide-react';
@@ -46,6 +47,7 @@ export interface CreateTimeslipInput {
   van_allowance: number;
   mileage: number | null;
   vehicle_id: string | null;
+  saved_route_id: string | null;
   custom_addons: CustomAddon[];
   custom_addon_hours: number;
   admin_notes: string | null;
@@ -70,6 +72,7 @@ const defaultForm = () => ({
   van_allowance: 0,
   mileage: null as number | null,
   vehicle_id: null as string | null,
+  saved_route_id: null as string | null,
   admin_notes: '',
   custom_addons: [] as CustomAddon[],
   route_links: [] as string[],
@@ -125,7 +128,7 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
   const totalHours = form.driving_hours + stop_hours + form.lunch_hours + customAddonHours;
   const totalPay = totalHours * form.hourly_rate + form.van_allowance;
 
-  const canSubmit = !!form.driver_id && !!form.date && !submitting;
+  const canSubmit = !!form.driver_id && !!form.date && !!form.saved_route_id && !submitting;
 
   const handleAddAddon = () => {
     if (newAddon.title.trim() && newAddon.hours > 0) {
@@ -167,6 +170,7 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
       van_allowance: form.van_allowance,
       mileage: form.mileage,
       vehicle_id: form.vehicle_id,
+      saved_route_id: form.saved_route_id,
       custom_addons: form.custom_addons,
       custom_addon_hours: customAddonHours,
       admin_notes: form.admin_notes?.trim() ? form.admin_notes.trim() : null,
@@ -317,6 +321,14 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
                     mileage: e.target.value ? parseFloat(e.target.value) : null,
                   })
                 }
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <SavedRoutePicker
+                required
+                date={format(form.date, 'yyyy-MM-dd')}
+                value={form.saved_route_id}
+                onChange={(id) => setForm((f) => ({ ...f, saved_route_id: id }))}
               />
             </div>
             <div className="space-y-2">
