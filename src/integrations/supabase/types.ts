@@ -2377,6 +2377,36 @@ export type Database = {
           },
         ]
       }
+      fleet_eta_links: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          registration: string
+          sent_to_email: string | null
+          sent_to_phone: string | null
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          registration: string
+          sent_to_email?: string | null
+          sent_to_phone?: string | null
+          token?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          registration?: string
+          sent_to_email?: string | null
+          sent_to_phone?: string | null
+          token?: string
+        }
+        Relationships: []
+      }
       fleet_inspection_results: {
         Row: {
           category: string
