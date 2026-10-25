@@ -18,6 +18,8 @@ import VehicleStatusBadge from "@/components/vehicles/VehicleStatusBadge";
 import VehicleIssuesDialog from "@/components/vehicles/VehicleIssuesDialog";
 import VehicleMaintenanceDialog from "@/components/vehicles/VehicleMaintenanceDialog";
 import { dueState } from "@/lib/fleet/status";
+import InspectionsPanel from "@/components/fleet/InspectionsPanel";
+import DefectsPanel from "@/components/fleet/DefectsPanel";
 
 const db = supabase as any;
 const fmt = (d?: string | null) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—");
@@ -113,11 +115,16 @@ const VehicleProfile = () => {
         )}
 
         <Tabs defaultValue="overview" className="space-y-3">
-          <TabsList>
+          <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="inspections">Inspections</TabsTrigger>
+            <TabsTrigger value="defects">Defects ({summary.openIssues.length})</TabsTrigger>
             <TabsTrigger value="details">Fleet details</TabsTrigger>
             <TabsTrigger value="history">History ({audit.length})</TabsTrigger>
           </TabsList>
+
+          <TabsContent value="inspections"><InspectionsPanel vehicleId={id} odometer={summary.odometer} /></TabsContent>
+          <TabsContent value="defects"><DefectsPanel vehicleId={id} onChange={load} /></TabsContent>
 
           <TabsContent value="overview" className="grid gap-3 md:grid-cols-3">
             <Card className="p-3 space-y-1">
