@@ -68,3 +68,4 @@
 - [x] Fleet Phase 2: inspections (5 checklists, editable), defects (Red/Amber/Green, 8 statuses, evidence to close Red, photos)
 - [x] Fleet Phase 3: mileage source/lower-reading reason, tyres, repair jobs (10 steps), garages, costs + CSV, fleet settings
 - [x] Fleet Phase 4: van warnings on pickers (red ack recorded), compliance page, fleet alert emails + 7am digest
+- [ ] Fleet Phase 5 tests: fleet manager makes defect/repair changes; route planner only views warnings
