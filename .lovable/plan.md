@@ -10,6 +10,7 @@ The map reads timeslips, and the newest ones are from 22 Oct. Your saved routes 
 
 ## 2. Live map uses the linked saved route
 - For the chosen date, each linked saved route is drawn **along the roads**, using the same Google Maps road routing as the Route Builder map, one colour per van.
+- Every line **starts at the depot and ends back at the depot**. The depot has its own marker. Planned miles and the report include both depot legs. The depot is the driver's depot if they have one, otherwise the main depot that Route Builder uses.
 - The van and driver come from the linked timeslip, so the recorded driving path and stop checks (reached within 150 m, off-route more than 2 km for 10+ minutes) compare against the road line.
 - Saved routes not yet linked still appear as a planned line marked "No timeslip yet". This means today's 4 routes show up straight away.
 
