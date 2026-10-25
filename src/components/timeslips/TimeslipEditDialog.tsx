@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import FleetVehicleWarnings from "@/components/fleet/FleetVehicleWarnings";
+import SavedRoutePicker from "./SavedRoutePicker";
 import { useQuery } from '@tanstack/react-query';
 import { Timeslip, CustomAddon } from '@/types/timeslip';
 import { listVehicles } from '@/services/vehicleService';
@@ -45,6 +46,7 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
     van_allowance: timeslip?.van_allowance || 0,
     mileage: timeslip?.mileage || null,
     vehicle_id: timeslip?.vehicle_id || null,
+    saved_route_id: (timeslip?.saved_route_id || null) as string | null,
     status: timeslip?.status || 'draft',
     admin_notes: timeslip?.admin_notes || '',
     custom_addons: timeslip?.custom_addons || [],
@@ -70,6 +72,7 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
         van_allowance: timeslip.van_allowance,
         mileage: timeslip.mileage,
         vehicle_id: timeslip.vehicle_id || null,
+        saved_route_id: timeslip.saved_route_id || null,
         status: timeslip.status,
         admin_notes: timeslip.admin_notes || '',
         custom_addons: timeslip.custom_addons || [],
@@ -219,6 +222,14 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
               </p>
             </div>
           </div>
+
+          <SavedRoutePicker
+            date={timeslip.date}
+            value={formData.saved_route_id}
+            onChange={(id) => setFormData((f) => ({ ...f, saved_route_id: id }))}
+            timeslipId={timeslip.id}
+            orderIds={(timeslip.job_locations ?? []).map((j) => j.order_id)}
+          />
 
           <div className="space-y-2">
             <Label htmlFor="vehicle_id">Vehicle</Label>
