@@ -2615,6 +2615,24 @@ export type Database = {
           },
         ]
       }
+      fleet_integration_tokens: {
+        Row: {
+          fetched_at: string
+          provider: string
+          token: string
+        }
+        Insert: {
+          fetched_at?: string
+          provider: string
+          token: string
+        }
+        Update: {
+          fetched_at?: string
+          provider?: string
+          token?: string
+        }
+        Relationships: []
+      }
       fleet_repair_jobs: {
         Row: {
           booked_for: string | null
