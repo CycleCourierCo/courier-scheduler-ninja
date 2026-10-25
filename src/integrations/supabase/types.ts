@@ -7897,6 +7897,13 @@ export type Database = {
         Args: { p_action: string; p_id: string }
         Returns: undefined
       }
+      fleet_staff_directory: {
+        Args: never
+        Returns: {
+          id: string
+          name: string
+        }[]
+      }
       fleet_vehicle_warnings: {
         Args: { p_vehicle_ids: string[] }
         Returns: {
