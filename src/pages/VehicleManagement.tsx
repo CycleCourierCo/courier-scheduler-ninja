@@ -7,8 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Check, ChevronLeft, ChevronRight, Loader2, Pencil, RefreshCw, Trash2, Truck, Wrench } from "lucide-react";
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, Loader2, Pencil, RefreshCw, Trash2, Truck, Wrench } from "lucide-react";
 import VehicleMaintenanceDialog from "@/components/vehicles/VehicleMaintenanceDialog";
+import VehicleIssuesDialog from "@/components/vehicles/VehicleIssuesDialog";
+import { supabase } from "@/integrations/supabase/client";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import AddVehicleDialog from "@/components/vehicles/AddVehicleDialog";
@@ -79,6 +81,8 @@ const VehicleManagement = () => {
 
   const [editOpen, setEditOpen] = useState(false);
   const [maintenanceTarget, setMaintenanceTarget] = useState<Vehicle | null>(null);
+  const [issuesTarget, setIssuesTarget] = useState<Vehicle | null>(null);
+  const [openIssues, setOpenIssues] = useState<Record<string, number>>({});
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
   const [soldTarget, setSoldTarget] = useState<Vehicle | null>(null);
   const [soldDate, setSoldDate] = useState<string>(new Date().toISOString().slice(0, 10));
@@ -103,7 +107,14 @@ const VehicleManagement = () => {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  const loadIssueCounts = async () => {
+    const { data } = await (supabase as any).from("vehicle_issues").select("vehicle_id").eq("status", "open");
+    const counts: Record<string, number> = {};
+    for (const r of data ?? []) counts[r.vehicle_id] = (counts[r.vehicle_id] ?? 0) + 1;
+    setOpenIssues(counts);
+  };
+
+  useEffect(() => { load(); loadIssueCounts(); }, []);
 
   const inUseVehicles = useMemo(
     () => vehicles.filter((v) => v.status === "in_use"),
@@ -334,6 +345,12 @@ const VehicleManagement = () => {
                           <span className="shrink-0 text-xs text-muted-foreground">Sold @ {Number((v as any).sold_mileage).toLocaleString("en-GB")} mi</span>
                         )}
                         <div className="ml-auto flex shrink-0 gap-1">
+                        <Button size="icon" variant="ghost" className="relative" onClick={() => setIssuesTarget(v)} title="Raise or view issues" aria-label={`Issues for ${v.registration}`}>
+                          <AlertTriangle className={`h-4 w-4 ${openIssues[v.id] ? "text-destructive" : ""}`} />
+                          {openIssues[v.id] ? (
+                            <span className="absolute -right-0.5 -top-0.5 rounded-full bg-destructive px-1 text-[10px] font-semibold text-destructive-foreground">{openIssues[v.id]}</span>
+                          ) : null}
+                        </Button>
                         <Button size="icon" variant="ghost" onClick={() => setMaintenanceTarget(v)} title="Service and maintenance" aria-label={`Service ${v.registration}`}>
                           <Wrench className="h-4 w-4" />
                         </Button>
@@ -387,6 +404,16 @@ const VehicleManagement = () => {
             baselineMileage={(maintenanceTarget as any).odometer_baseline_mi ?? 0}
             open={!!maintenanceTarget}
             onOpenChange={(o) => { if (!o) setMaintenanceTarget(null); }}
+          />
+        )}
+
+        {issuesTarget && (
+          <VehicleIssuesDialog
+            vehicleId={issuesTarget.id}
+            vehicleReg={issuesTarget.registration}
+            open={!!issuesTarget}
+            onOpenChange={(o) => { if (!o) setIssuesTarget(null); }}
+            onChanged={loadIssueCounts}
           />
         )}
 
