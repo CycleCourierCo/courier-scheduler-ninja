@@ -26,12 +26,13 @@ export interface RouteAnalysis {
   stops: RouteStop[]; path: Sample[]; stretches: OffRouteStretch[];
   roadLine: Pt[] | null; roadUnavailable: boolean; plannedRoadMiles: number | null; plannedMinutes: number | null;
   timeslipMiles: number | null; drivenMiles: number;
+  startTime: string | null; doneStops: any[] | null; timeslipHours: number | null;
 }
 
 interface DayRow {
   timeslip_id: string | null; saved_route_id: string | null; route_name: string | null; start_time: string | null;
   planned_stops: any[] | null; registration: string | null; driver_name: string | null;
-  job_locations: any[] | null; mileage: number | null;
+  job_locations: any[] | null; mileage: number | null; total_hours: number | null;
 }
 
 /** Planned stops: the saved route if linked, otherwise the timeslip's own stops. */
@@ -121,6 +122,7 @@ export function useRouteDay(date: string) {
         roadLine: road?.line ?? null, roadUnavailable: !!roads[i]?.isError,
         plannedRoadMiles: road ? road.miles : null, plannedMinutes: road ? road.minutes : null,
         timeslipMiles: r.mileage, drivenMiles: pathMiles(path),
+        startTime: r.start_time, doneStops: r.timeslip_id ? r.job_locations ?? [] : null, timeslipHours: r.total_hours,
       };
     });
   }, [planned, roads, history.data]);
