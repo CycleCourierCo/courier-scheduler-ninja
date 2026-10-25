@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.timeslip_freeze_planned_route() FROM PUBLIC, anon, authenticated;
