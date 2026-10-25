@@ -93,7 +93,7 @@ export default function LiveMap() {
 
   return (
     <Layout>
-      <div className="container mx-auto px-3 py-4 space-y-3">
+      <div className="container mx-auto px-3 py-4 space-y-3 overflow-x-hidden">
         <div className="space-y-2">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
@@ -129,7 +129,7 @@ export default function LiveMap() {
           <Card className="border-destructive"><CardContent className="p-3 text-sm text-destructive">{(positions.error as Error).message}</CardContent></Card>
         )}
 
-        <div className="grid gap-3 lg:grid-cols-[1fr_360px]">
+        <div className="grid min-w-0 gap-3 grid-cols-1 lg:grid-cols-[minmax(0,1fr)_360px]">
           {(!isMobile || view === "map") && (
           <div ref={mapBoxRef} className={`relative isolate z-0 rounded-lg overflow-hidden border ${isMobile ? "" : "h-[55vh] lg:h-[75vh]"}`}
             style={isMobile ? { height: `max(280px, calc(100dvh - ${mapTop}px - 20px))` } : undefined}>
@@ -162,7 +162,7 @@ export default function LiveMap() {
           )}
 
           {(!isMobile || view === "list") && (
-          <div className="space-y-2 lg:max-h-[75vh] lg:overflow-y-auto">
+          <div className="min-w-0 space-y-2 lg:max-h-[75vh] lg:overflow-y-auto">
             {shownRoutes.length > 0 && (
               <div className="space-y-2">
                 <div>
@@ -172,17 +172,17 @@ export default function LiveMap() {
                 {shownRoutes.map((a) => {
                   const visited = a.stops.filter((s) => s.visitedAt).length;
                   return (
-                    <button key={a.key} onClick={() => a.stops[0] && focusOn([a.stops[0].lat, a.stops[0].lon])}
-                      className="w-full text-left rounded-md border p-2.5 hover:bg-muted" style={{ borderLeft: `4px solid ${a.colour}` }}>
+                    <div key={a.key} role="button" tabIndex={0} onClick={() => a.stops[0] && focusOn([a.stops[0].lat, a.stops[0].lon])}
+                      className="block w-full min-w-0 overflow-hidden text-left rounded-md border p-2.5 cursor-pointer hover:bg-muted" style={{ borderLeft: `4px solid ${a.colour}` }}>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="flex min-w-0 items-center gap-1.5">
-                          <span className="font-mono font-semibold truncate">{a.timeslipId ? a.registration : `Route ${(a.name ?? "").replace(/^\d{4}-\d{2}-\d{2}\s*[—-]\s*/, "") || "—"}`}</span>
-                          {!a.timeslipId && <Badge variant="outline" className="shrink-0 text-[10px]">No timeslip linked</Badge>}
-                        </span>
+                        <span className="min-w-0 font-semibold truncate">{a.timeslipId ? a.registration : `Route ${(a.name ?? "").replace(/^\d{4}-\d{2}-\d{2}\s*[—-]\s*/, "") || "—"}`}</span>
                         <Badge className="shrink-0" variant={visited === a.stops.length ? "default" : "secondary"}>{visited}/{a.stops.length} stops</Badge>
                       </div>
-                      <div className="text-xs text-muted-foreground truncate">{a.timeslipId ? `${a.driver || "No driver"}${a.name ? ` · ${a.name}` : ""}` : "Link it on a timeslip to see the van"}</div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                        {!a.timeslipId && <Badge variant="outline" className="shrink-0 text-[10px]">No timeslip linked</Badge>}
+                        <span className="min-w-0 truncate">{a.timeslipId ? `${a.driver || "No driver"}${a.name ? ` · ${a.name}` : ""}` : "Link it on a timeslip"}</span>
+                      </div>
+                      <div className="text-xs text-muted-foreground truncate">
                         {a.plannedRoadMiles != null ? `Planned ${a.plannedRoadMiles.toFixed(0)} mi by road (depot to depot)` : a.roadUnavailable ? "Road line unavailable — showing straight lines" : "Loading road route…"}
                       </div>
                       <div className="flex flex-wrap gap-1 mt-1 text-xs">
@@ -190,12 +190,12 @@ export default function LiveMap() {
                           <>
                             <span className="text-muted-foreground">Driven {a.drivenMiles.toFixed(0)} mi</span>
                             {a.stretches.length > 0
-                              ? <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" />{a.stretches.length} off-route ({a.stretches.map((s) => `${format(new Date(s.start), "HH:mm")}–${format(new Date(s.end), "HH:mm")}`).join(", ")})</Badge>
+                              ? <Badge variant="destructive" className="gap-1 max-w-full whitespace-normal"><AlertTriangle className="h-3 w-3 shrink-0" />{a.stretches.length} off-route ({a.stretches.map((s) => `${format(new Date(s.start), "HH:mm")}–${format(new Date(s.end), "HH:mm")}`).join(", ")})</Badge>
                               : <Badge variant="outline">On route</Badge>}
                           </>
                         )}
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
                 <Link to={`/fleet/route-report?date=${date}`} className="block text-sm text-primary underline">Planned vs completed report</Link>
@@ -211,11 +211,11 @@ export default function LiveMap() {
               const red = vehicle && redIssues.data?.has(vehicle.id);
               const offRoad = vehicle && (vehicle as any).status && (vehicle as any).status !== "active" && (vehicle as any).status !== "operational";
               return (
-                <button key={p.id} onClick={() => focusOn([p.lat, p.lon])}
-                  className={`w-full text-left rounded-md border p-2.5 hover:bg-muted ${stale ? "opacity-60" : ""}`}>
+                <div key={p.id} role="button" tabIndex={0} onClick={() => focusOn([p.lat, p.lon])}
+                  className={`block w-full min-w-0 overflow-hidden text-left rounded-md border p-2.5 cursor-pointer hover:bg-muted ${stale ? "opacity-60" : ""}`}>
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono font-semibold">{p.registration}</span>
-                    <Badge variant={st === "moving" ? "default" : st === "idling" ? "secondary" : "outline"}>
+                    <span className="min-w-0 truncate font-mono font-semibold">{p.registration}</span>
+                    <Badge className="shrink-0" variant={st === "moving" ? "default" : st === "idling" ? "secondary" : "outline"}>
                       {st === "moving" ? `${p.speed} mph` : STATUS_LABEL[st]}
                     </Badge>
                   </div>
@@ -228,7 +228,7 @@ export default function LiveMap() {
                     <span role="button" tabIndex={0} onClick={(e) => { e.stopPropagation(); setEtaReg(p.registration); }} className="ml-auto text-primary underline">Send ETA link</span>
                     {vehicle && <Link to={`/fleet/vehicles/${vehicle.id}`} onClick={(e) => e.stopPropagation()} className="text-primary underline">Open</Link>}
                   </div>
-                </button>
+                </div>
               );
             })}
             {unmatched.length > 0 && (
