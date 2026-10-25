@@ -101,6 +101,7 @@ export function useRouteDay(date: string) {
     })),
   });
 
+  const roadsKey = roads.map((q) => `${q.status}:${q.dataUpdatedAt}`).join("|");
   const analyses = useMemo<RouteAnalysis[]>(() => {
     const byReg = new Map<string, Sample[]>();
     for (const h of history.data ?? []) {
@@ -125,7 +126,8 @@ export function useRouteDay(date: string) {
         startTime: r.start_time, doneStops: r.timeslip_id ? r.job_locations ?? [] : null, timeslipHours: r.total_hours,
       };
     });
-  }, [planned, roads, history.data]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planned, roadsKey, history.data]);
 
   return { analyses, isLoading: routes.isLoading || history.isLoading, error: routes.error || history.error };
 }
