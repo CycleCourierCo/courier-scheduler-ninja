@@ -60,3 +60,8 @@
 
 - [x] Enable Lovable Shopify integration (existing store connected)
 - [x] Email Centre: current content + live preview in editor (fills as each email next sends)
+- [x] Fleet phase 1: dashboard (/fleet), vehicle profile, new fleet fields, status audit log
+- [ ] Fleet phase 2: inspections + defect register (awaiting user review of phase 1)
+- [ ] Fleet phase 3: maintenance planner, tyres, repairs, providers, costs
+- [ ] Fleet phase 4: route-assignment warnings, compliance page, reminder emails
+- [ ] Fleet phase 5: end-to-end and access testing
