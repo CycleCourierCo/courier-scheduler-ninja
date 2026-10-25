@@ -29,7 +29,7 @@ export function repairCost(j: { final_cost?: number | null; labour_cost?: number
   return Number(j.quoted_cost ?? 0);
 }
 
-export interface CostLine { date: string; kind: "Repair" | "Service"; description: string; cost: number }
+export interface CostLine { date: string; kind: "Repair" | "Service" | "Recovery"; description: string; cost: number }
 
 /**
  * Cost summary from repair jobs and service history. A service record created from
@@ -39,8 +39,14 @@ export interface CostLine { date: string; kind: "Repair" | "Service"; descriptio
 export function fleetCostLines(
   repairs: { id: string; title: string; status: string; created_at: string; completed_at?: string | null; final_cost?: number | null; labour_cost?: number | null; parts_cost?: number | null; vat?: number | null; quoted_cost?: number | null }[],
   services: { service_date: string; service_type: string; custom_name?: string | null; cost: number | null; repair_job_id?: string | null }[],
+  breakdowns: { title: string; status: string; breakdown_at?: string | null; created_at: string; recovery_cost?: number | null }[] = [],
 ): CostLine[] {
   const lines: CostLine[] = [];
+  // Recovery/tow cost of a breakdown is separate from the repair job that fixes it.
+  for (const b of breakdowns) {
+    if (b.status === "cancelled" || !b.recovery_cost) continue;
+    lines.push({ date: (b.breakdown_at ?? b.created_at).slice(0, 10), kind: "Recovery", description: b.title, cost: Number(b.recovery_cost) });
+  }
   for (const r of repairs) {
     if (r.status === "cancelled") continue;
     const c = repairCost(r);

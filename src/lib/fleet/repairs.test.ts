@@ -30,3 +30,14 @@ describe("repair workflow", () => {
     expect(isRepairOutstanding("verified")).toBe(false);
   });
 });
+
+import { fleetCostLines as fcl } from "./repairs";
+describe("breakdown recovery cost", () => {
+  it("counts recovery cost separately and skips cancelled breakdowns", () => {
+    const l = fcl([], [], [
+      { title: "Breakdown – clutch", status: "open", breakdown_at: "2026-10-20T09:00:00Z", created_at: "2026-10-20T09:00:00Z", recovery_cost: 180 },
+      { title: "Breakdown – false alarm", status: "cancelled", created_at: "2026-10-21T09:00:00Z", recovery_cost: 90 },
+    ]);
+    expect(l).toEqual([{ date: "2026-10-20", kind: "Recovery", description: "Breakdown – clutch", cost: 180 }]);
+  });
+});
