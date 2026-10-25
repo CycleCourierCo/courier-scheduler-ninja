@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import { formatDistanceToNow } from "date-fns";
 import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
@@ -98,8 +98,7 @@ export default function LiveMap() {
                 const st = liveStatus(p);
                 const stale = isStale(p.timestamp);
                 return (
-                  <Marker key={p.id} position={[p.lat, p.lon]} icon={colouredMarkerIcon(STATUS_PIN[st])} opacity={stale ? 0.45 : 1}>
-                    <Tooltip permanent direction="top" offset={[0, -36]}>{p.registration}{vehicle && redIssues.data?.has(vehicle.id) ? " ⚠" : ""}</Tooltip>
+                  <Marker key={p.id} position={[p.lat, p.lon]} icon={colouredMarkerIcon(stale ? "grey" : STATUS_PIN[st])}>
                     <Popup>
                       <div className="space-y-1 text-sm">
                         <div className="font-semibold">{p.registration}</div>
