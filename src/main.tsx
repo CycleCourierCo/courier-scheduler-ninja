@@ -64,6 +64,17 @@ const RELEASE_RESET_ID = "2026-09-19-brand-refresh";
 const RELEASE_RESET_KEY = `ccc-release-reset:${RELEASE_RESET_ID}`;
 const RELEASE_RESET_PARAM = "ccc-release";
 
+// Missing chunk/CSS after a publish: reload once instead of a broken screen.
+window.addEventListener("vite:preloadError", (event) => {
+  try {
+    if (sessionStorage.getItem("ccc-chunk-retry")) return;
+    sessionStorage.setItem("ccc-chunk-retry", "1");
+    event.preventDefault();
+    window.location.reload();
+  } catch { /* storage blocked: let the error surface */ }
+});
+window.addEventListener("load", () => setTimeout(() => { try { sessionStorage.removeItem("ccc-chunk-retry"); } catch { /* ignore */ } }, 10_000));
+
 const renderApp = () => {
   const root = document.getElementById("root");
   if (!root) return;
