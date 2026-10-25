@@ -80,9 +80,9 @@ Deno.serve(async (req) => {
     const cron = req.headers.get("X-Cron-Secret");
     if (cron) {
       if (cron !== Deno.env.get("CRON_SECRET")) return json({ error: "Unauthorized" }, 401);
-      const t = await newAccessToken();
       let body: any = {};
       try { body = await req.json(); } catch { /* none */ }
+      const t = body?.action === "record" ? await accessToken() : await newAccessToken();
       if (body?.action === "record") {
         const r = await fetchPositions(t);
         if (!r.ok) return json({ ok: false, status: r.status });
