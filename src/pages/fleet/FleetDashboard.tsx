@@ -111,6 +111,7 @@ const FleetDashboard = () => {
           <Truck className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold">Fleet dashboard</h1>
           <div className="flex w-full gap-2 sm:ml-auto sm:w-auto [&>*]:flex-1 sm:[&>*]:flex-none">
+            <Button size="sm" variant="outline" asChild><Link to="/fleet/live">Live map</Link></Button>
             <Button size="sm" variant="outline" asChild><Link to="/fleet/compliance">Compliance</Link></Button>
             <AddVehicleDialog onCreated={reload} />
           </div>
