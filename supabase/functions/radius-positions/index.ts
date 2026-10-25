@@ -82,8 +82,14 @@ Deno.serve(async (req) => {
 
     let res = await fetchPositions(await accessToken());
     if (res.status === 401 || res.status === 403) res = await fetchPositions(await accessToken(true));
-    if (res.status === 401 || res.status === 403) return json({ error: "radius_auth", message: "Radius connection needs a new token" }, 502);
-    if (!res.ok) return json({ error: "radius_error", message: `Radius returned ${res.status}` }, 502);
+    if (!res.ok) {
+      const text = await res.text();
+      let reason = "";
+      try { const j = JSON.parse(text); reason = String(j?.detail ?? j?.message ?? j?.error ?? "").slice(0, 160); } catch { reason = text.replace(/<[^>]*>/g, " ").trim().slice(0, 160); }
+      console.error("radius positions rejected", res.status, reason);
+      const hint = res.status === 401 ? "Radius didn't accept the sign-in" : res.status === 403 ? "Radius says this account can't see that customer's vans (check the customer ID)" : res.status === 404 ? "Radius couldn't find that customer ID" : "Radius returned an error";
+      return json({ error: "radius_error", status: res.status, message: `${hint} (code ${res.status})${reason ? `: ${reason}` : ""}` }, 502);
+    }
 
     const raw = await res.json();
     const devices = (Array.isArray(raw?.devices) ? raw.devices : [])
