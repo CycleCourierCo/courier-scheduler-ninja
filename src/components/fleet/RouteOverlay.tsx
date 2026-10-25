@@ -47,7 +47,7 @@ function plannedStops(r: DayRow) {
 }
 
 /** Road route depot → stops → depot via Google (chunked), cached for the day. */
-async function fetchRoadLine(stops: Pt[]) {
+export async function fetchRoadLine(stops: Pt[]) {
   const line: Pt[] = []; let distance = 0, duration = 0;
   let origin = DEPOT;
   for (let i = 0; i < stops.length; i += MAX_STOPS_PER_REQUEST) {
