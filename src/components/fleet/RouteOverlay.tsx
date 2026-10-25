@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { Fragment, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Polyline, CircleMarker, Popup } from "react-leaflet";
 import { format } from "date-fns";
@@ -77,7 +77,7 @@ export function RouteLayers({ analyses }: { analyses: RouteAnalysis[] }) {
   return (
     <>
       {analyses.map((a) => (
-        <span key={a.key}>
+        <Fragment key={a.key}>
           <Polyline positions={a.stops.map((s) => [s.lat, s.lon])} pathOptions={{ color: a.colour, weight: 3, dashArray: "6 6", opacity: 0.8 }} />
           {a.path.length > 1 && <Polyline positions={a.path.map((s) => [s.lat, s.lon])} pathOptions={{ color: a.colour, weight: 4, opacity: 0.9 }} />}
           {a.stretches.map((st, i) => (
@@ -96,7 +96,7 @@ export function RouteLayers({ analyses }: { analyses: RouteAnalysis[] }) {
               </Popup>
             </CircleMarker>
           ))}
-        </span>
+        </Fragment>
       ))}
     </>
   );
