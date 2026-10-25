@@ -2377,6 +2377,244 @@ export type Database = {
           },
         ]
       }
+      fleet_inspection_results: {
+        Row: {
+          category: string
+          created_at: string
+          defect_id: string | null
+          id: string
+          inspection_id: string
+          is_tyre: boolean
+          label: string
+          reason: string | null
+          result: string
+          sort_order: number
+          template_item_id: string | null
+          tread_fl: number | null
+          tread_fr: number | null
+          tread_rl: number | null
+          tread_rr: number | null
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          defect_id?: string | null
+          id?: string
+          inspection_id: string
+          is_tyre?: boolean
+          label: string
+          reason?: string | null
+          result?: string
+          sort_order?: number
+          template_item_id?: string | null
+          tread_fl?: number | null
+          tread_fr?: number | null
+          tread_rl?: number | null
+          tread_rr?: number | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          defect_id?: string | null
+          id?: string
+          inspection_id?: string
+          is_tyre?: boolean
+          label?: string
+          reason?: string | null
+          result?: string
+          sort_order?: number
+          template_item_id?: string | null
+          tread_fl?: number | null
+          tread_fr?: number | null
+          tread_rl?: number | null
+          tread_rr?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_inspection_results_defect_id_fkey"
+            columns: ["defect_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_issues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_inspection_results_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_inspections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_inspection_results_template_item_id_fkey"
+            columns: ["template_item_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_inspection_template_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_inspection_template_items: {
+        Row: {
+          active: boolean
+          category: string
+          created_at: string
+          id: string
+          is_tyre: boolean
+          label: string
+          sort_order: number
+          template_id: string
+        }
+        Insert: {
+          active?: boolean
+          category: string
+          created_at?: string
+          id?: string
+          is_tyre?: boolean
+          label: string
+          sort_order?: number
+          template_id: string
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          id?: string
+          is_tyre?: boolean
+          label?: string
+          sort_order?: number
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_inspection_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_inspection_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_inspection_templates: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          inspection_type: string
+          name: string
+          requires_competent_inspector: boolean
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          inspection_type: string
+          name: string
+          requires_competent_inspector?: boolean
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          inspection_type?: string
+          name?: string
+          requires_competent_inspector?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fleet_inspections: {
+        Row: {
+          correction_reason: string | null
+          created_at: string
+          created_by: string | null
+          finalised_at: string | null
+          finalised_by: string | null
+          id: string
+          inspected_at: string
+          inspection_type: string
+          inspector_name: string | null
+          inspector_organisation: string | null
+          notes: string | null
+          odometer_mi: number | null
+          overall_result: string | null
+          status: string
+          supersedes_id: string | null
+          template_id: string | null
+          updated_at: string
+          vehicle_id: string
+        }
+        Insert: {
+          correction_reason?: string | null
+          created_at?: string
+          created_by?: string | null
+          finalised_at?: string | null
+          finalised_by?: string | null
+          id?: string
+          inspected_at?: string
+          inspection_type: string
+          inspector_name?: string | null
+          inspector_organisation?: string | null
+          notes?: string | null
+          odometer_mi?: number | null
+          overall_result?: string | null
+          status?: string
+          supersedes_id?: string | null
+          template_id?: string | null
+          updated_at?: string
+          vehicle_id: string
+        }
+        Update: {
+          correction_reason?: string | null
+          created_at?: string
+          created_by?: string | null
+          finalised_at?: string | null
+          finalised_by?: string | null
+          id?: string
+          inspected_at?: string
+          inspection_type?: string
+          inspector_name?: string | null
+          inspector_organisation?: string | null
+          notes?: string | null
+          odometer_mi?: number | null
+          overall_result?: string | null
+          status?: string
+          supersedes_id?: string | null
+          template_id?: string | null
+          updated_at?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_inspections_supersedes_id_fkey"
+            columns: ["supersedes_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_inspections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_inspections_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_inspection_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_inspections_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fuel_analysis_settings: {
         Row: {
           duplicate_fill_window_hours: number
@@ -6225,9 +6463,14 @@ export type Database = {
       }
       vehicle_issues: {
         Row: {
+          assigned_to: string | null
+          attachments: Json
+          category: string | null
           created_at: string
           description: string | null
           id: string
+          inspection_id: string | null
+          rectification_evidence: string | null
           reported_by: string | null
           resolution_note: string | null
           resolved_at: string | null
@@ -6237,11 +6480,18 @@ export type Database = {
           title: string
           updated_at: string
           vehicle_id: string
+          verified_at: string | null
+          verified_by_name: string | null
         }
         Insert: {
+          assigned_to?: string | null
+          attachments?: Json
+          category?: string | null
           created_at?: string
           description?: string | null
           id?: string
+          inspection_id?: string | null
+          rectification_evidence?: string | null
           reported_by?: string | null
           resolution_note?: string | null
           resolved_at?: string | null
@@ -6251,11 +6501,18 @@ export type Database = {
           title: string
           updated_at?: string
           vehicle_id: string
+          verified_at?: string | null
+          verified_by_name?: string | null
         }
         Update: {
+          assigned_to?: string | null
+          attachments?: Json
+          category?: string | null
           created_at?: string
           description?: string | null
           id?: string
+          inspection_id?: string | null
+          rectification_evidence?: string | null
           reported_by?: string | null
           resolution_note?: string | null
           resolved_at?: string | null
@@ -6265,8 +6522,17 @@ export type Database = {
           title?: string
           updated_at?: string
           vehicle_id?: string
+          verified_at?: string | null
+          verified_by_name?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "vehicle_issues_inspection_fk"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_inspections"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "vehicle_issues_vehicle_id_fkey"
             columns: ["vehicle_id"]

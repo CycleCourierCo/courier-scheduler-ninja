@@ -40,7 +40,7 @@ export async function loadFleetOverview(): Promise<{ rows: FleetVehicleSummary[]
     pageAll<MaintenanceLog>((a, b) => db.from("vehicle_maintenance_logs").select("*").range(a, b)),
     pageAll<MaintenanceInterval>((a, b) => db.from("vehicle_maintenance_intervals").select("*").range(a, b)),
     pageAll<any>((a, b) => db.from("vehicle_odometer_readings").select("vehicle_id, reading_date, odometer_mi, created_at").range(a, b)),
-    pageAll<FleetIssue>((a, b) => db.from("vehicle_issues").select("id, vehicle_id, title, description, severity, status, created_at").eq("status", "open").range(a, b)),
+    pageAll<FleetIssue>((a, b) => db.from("vehicle_issues").select("id, vehicle_id, title, description, severity, status, created_at").not("status", "in", "(resolved,cancelled)").range(a, b)),
     pageAll<any>((a, b) => db.from("timeslips").select("vehicle_id, date, mileage").eq("status", "approved").not("vehicle_id", "is", null).range(a, b)),
     db.from("fleet_audit_log").select("*").order("created_at", { ascending: false }).limit(15).then((r: any) => r.data ?? []),
   ]);
