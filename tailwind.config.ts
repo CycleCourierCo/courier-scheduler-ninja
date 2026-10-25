@@ -89,6 +89,7 @@ export default {
 				},
 				cream: 'hsl(var(--cream))',
 				'sage-deep': 'hsl(var(--sage-deep))',
+				highlight: { DEFAULT: 'hsl(var(--highlight))', foreground: 'hsl(var(--highlight-foreground))' },
 				segment: { 1: 'hsl(var(--segment-1))', 2: 'hsl(var(--segment-2))', 3: 'hsl(var(--segment-3))', 4: 'hsl(var(--segment-4))', 5: 'hsl(var(--segment-5))', 6: 'hsl(var(--segment-6))', 7: 'hsl(var(--segment-7))', 8: 'hsl(var(--segment-8))' },
 			},
 			boxShadow: {

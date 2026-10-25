@@ -17,15 +17,15 @@
     --secondary: 160 14% 92%;
     --secondary-foreground: 158 12% 13%;
     --muted: 150 20% 96%;
-    --muted-foreground: 160 6% 39%;
+    --muted-foreground: 162 6% 38%;
     --accent: 160 14% 92%;
     --accent-foreground: 158 12% 13%;
-    --destructive: 4 56% 45%;
+    --destructive: 1 62% 47%;
     --destructive-foreground: 0 0% 100%;
     --border: 60 11% 85%;
     --input: 60 11% 85%;
     --ring: 169 15% 35%;
-    --radius: 0.625rem;
+    --radius: 0.5rem;
 
     --sage-deep: 169 16% 27%;
     --cream: 60 50% 96%;
@@ -33,10 +33,12 @@
     --status-neutral: 137 3% 41%;
     --status-waiting: 38 100% 30%;
     --status-waiting-foreground: 0 0% 100%;
+    --highlight: 45 100% 48%;
+    --highlight-foreground: 158 12% 13%;
     --status-booked: 211 51% 37%;
     --status-transit: 266 34% 44%;
     --status-done: 145 46% 31%;
-    --status-failed: 4 56% 45%;
+    --status-failed: 1 62% 47%;
     --status-ni: 228 38% 40%;
     --status-trunk: 187 63% 29%;
     --status-inspection: 205 56% 40%;
@@ -160,6 +162,10 @@
   }
   .doorstep-page { @apply min-h-screen bg-background text-[17px] text-foreground; color-scheme: light; }
   .doorstep-page, .doorstep-page * { --background: 60 19% 94%; --foreground: 158 12% 13%; --card: 0 0% 100%; --card-foreground: 158 12% 13%; --popover: 0 0% 100%; --popover-foreground: 158 12% 13%; --muted: 150 20% 96%; --muted-foreground: 160 6% 39%; --secondary: 160 14% 92%; --secondary-foreground: 158 12% 13%; --accent: 160 14% 92%; --accent-foreground: 158 12% 13%; --border: 60 11% 85%; --input: 60 11% 85%; --primary: 169 15% 35%; --primary-foreground: 60 50% 96%; --ring: 169 15% 35%; --destructive: 4 56% 45%; --destructive-foreground: 0 0% 100%; --status-neutral: 137 3% 41%; --status-waiting: 38 100% 30%; --status-waiting-foreground: 0 0% 100%; --status-booked: 211 51% 37%; --status-transit: 266 34% 44%; --status-done: 145 46% 31%; --status-failed: 4 56% 45%; --status-ni: 228 38% 40%; --status-trunk: 187 63% 29%; --status-inspection: 205 56% 40%; }
+  /* Website-style type and buttons for customer-facing pages. */
+  .eyebrow { @apply text-xs font-bold uppercase tracking-[0.16em] text-muted-foreground; }
+  .doorstep-page h1, .doorstep-page h2 { font-weight: 800; letter-spacing: -0.015em; }
+  .doorstep-page button.h-10, .doorstep-page a.h-10 { border-radius: 6px; }
   .data-text { @apply font-mono font-semibold tabular-nums; }
   .doorstep-data { @apply font-mono text-[22px] font-bold leading-snug tabular-nums; }
   .office-density { @apply text-[12.5px] leading-[1.35]; }

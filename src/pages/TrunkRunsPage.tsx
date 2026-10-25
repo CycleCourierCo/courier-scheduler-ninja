@@ -195,7 +195,7 @@ const TrunkRunsPage: React.FC = () => {
       })
       .join("");
     const html = `<!doctype html><html><head><title>Trunk manifest</title>
-      <style>body{font-family:"Hanken Grotesk",Arial,sans-serif;padding:24px;color:#1C2421}.brand{width:160px;height:auto;display:block;margin-bottom:24px}table{width:100%;border-collapse:collapse;margin-top:16px}
+      <style>body{font-family:"Overpass",Arial,sans-serif;padding:24px;color:#1C2421}.brand{width:160px;height:auto;display:block;margin-bottom:24px}table{width:100%;border-collapse:collapse;margin-top:16px}
       th,td{border:1px solid #D9DFE5;padding:6px 8px;font-size:12px;text-align:left}th{background:#F2F5F7}h1{font-size:18px}</style></head>
       <body><img class="brand" src="${publicBrandAssetUrl(horizontalLogo.url)}" alt="Cycle Courier Co."><h1>Trunk manifest — ${directionLabel(run.direction)}</h1>
       <p>${format(new Date(run.run_date), "EEEE d MMMM yyyy")} · ${items.length} bikes · ${formatSpaces(items.reduce((t, i) => t + Number(i.spaces), 0))} van spaces</p>
