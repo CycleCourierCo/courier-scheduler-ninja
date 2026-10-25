@@ -197,11 +197,11 @@
 
 @media print {
   :root, .dark { --background: 0 0% 100%; --foreground: 158 12% 13%; --card: 0 0% 100%; --card-foreground: 158 12% 13%; --border: 60 11% 75%; color-scheme: light; }
-  body { background: white !important; color: black !important; font-family: "Hanken Grotesk", sans-serif; }
+  body { background: white !important; color: black !important; font-family: "Overpass", sans-serif; }
   header, footer, nav, [data-print-hidden="true"] { display: none !important; }
 }
 
-.leaflet-container { z-index: 1; width: 100% !important; height: 100% !important; position: relative !important; background: hsl(var(--daylight)); font-family: "Hanken Grotesk", sans-serif; }
+.leaflet-container { z-index: 1; width: 100% !important; height: 100% !important; position: relative !important; background: hsl(var(--daylight)); font-family: "Overpass", sans-serif; }
 .leaflet-popup-content-wrapper { border: 1px solid hsl(var(--edge)); border-radius: var(--radius); background: hsl(var(--surface)); color: hsl(var(--tarmac)); box-shadow: var(--shadow-card); }
 .leaflet-popup-content { margin: 0; min-width: 200px; }
 #map-container .leaflet-container { width: 100%; height: 100%; position: relative !important; overflow: hidden; border-radius: var(--radius); }

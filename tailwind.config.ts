@@ -27,8 +27,8 @@ export default {
 		},
 		extend: {
 			fontFamily: {
-				sans: ['"Hanken Grotesk"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
-				mono: ['"DM Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+				sans: ['"Overpass"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+				mono: ['"Overpass Mono"', 'ui-monospace', 'SFMono-Regular', 'monospace'],
 			},
 			colors: {
 				border: 'hsl(var(--border))',
