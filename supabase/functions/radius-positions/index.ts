@@ -38,12 +38,37 @@ async function accessToken(force = false): Promise<string> {
   return newAccessToken();
 }
 
-async function fetchPositions(token: string) {
-  const customer = encodeURIComponent(Deno.env.get("RADIUS_CUSTOMER_ID") ?? "");
-  return fetch(`${BASE}/api/mobile/kinesis/device-live-positions/?customer=${customer}&useUTC`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-  });
+let custCache: { at: number; ids: string[]; info: { name: string; product: string }[] } | null = null;
+class NoTelematicsError extends Error {}
+
+async function telematicsCustomers(token: string, force = false) {
+  if (!force && custCache && Date.now() - custCache.at < 3600_000) return custCache;
+  const r = await fetch(`${BASE}/vapi/v1/accounts/users/customers`, { headers: { Authorization: `Bearer ${token}` } });
+  if (r.status === 401) throw new RadiusAuthError("customers 401");
+  if (!r.ok) throw new Error(`customers ${r.status}`);
+  const j = (await r.json()) ?? {};
+  const all = Object.entries(j as Record<string, any>);
+  const tele = all.filter(([, c]) => /telematics/i.test(String(c?.product ?? "")));
+  const saved = Deno.env.get("RADIUS_CUSTOMER_ID")?.trim();
+  const ids = saved && tele.some(([k]) => k === saved) ? [saved] : tele.map(([k]) => k);
+  custCache = { at: Date.now(), ids, info: all.map(([, c]) => ({ name: String(c?.name ?? ""), product: String(c?.product ?? "") })) };
+  return custCache;
+}
+
+/** Fetch positions for every Telematics customer; returns a Response-like object. */
+async function fetchPositions(token: string, force = false): Promise<{ ok: boolean; status: number; text: () => Promise<string>; json: () => Promise<any> }> {
+  const { ids } = await telematicsCustomers(token, force);
+  if (!ids.length) throw new NoTelematicsError();
+  const results = await Promise.all(ids.map((id) =>
+    fetch(`${BASE}/api/mobile/kinesis/device-live-positions/?customer=${encodeURIComponent(id)}&useUTC`, {
+      method: "POST", headers: { Authorization: `Bearer ${token}` },
+    })));
+  const bad = results.find((r) => !r.ok);
+  if (bad) return bad;
+  const seen = new Map<number, any>();
+  for (const r of results) for (const d of ((await r.json())?.devices ?? [])) seen.set(d.id, d);
+  const merged = { devices: [...seen.values()] };
+  return { ok: true, status: 200, text: async () => JSON.stringify(merged), json: async () => merged };
 }
 
 const normReg = (r: unknown) => String(r ?? "").toUpperCase().replace(/\s+/g, "");
@@ -63,7 +88,7 @@ Deno.serve(async (req) => {
         const text = await r.text();
         let detail: unknown = null;
         try { const j = JSON.parse(text); detail = j?.detail ?? j?.message ?? j?.error ?? (Array.isArray(j?.devices) ? `devices: ${j.devices.length}` : Object.keys(j ?? {})); } catch { detail = text.slice(0, 200); }
-        return json({ ok: r.ok, status: r.status, detail });
+        return json({ ok: r.ok, status: r.status, detail, customers: custCache?.info ?? [] });
       }
       return json({ ok: true });
     }
@@ -81,7 +106,7 @@ Deno.serve(async (req) => {
     if (cache && Date.now() - cache.at < 20_000) return json(cache.body);
 
     let res = await fetchPositions(await accessToken());
-    if (res.status === 401 || res.status === 403) res = await fetchPositions(await accessToken(true));
+    if (res.status === 401 || res.status === 403) res = await fetchPositions(await accessToken(true), true);
     if (!res.ok) {
       const text = await res.text();
       let reason = "";
@@ -112,6 +137,7 @@ Deno.serve(async (req) => {
     cache = { at: Date.now(), body };
     return json(body);
   } catch (e) {
+    if (e instanceof NoTelematicsError) return json({ error: "radius_no_telematics", message: "This Radius token isn't for Telematics. Create a Telematics refresh token in the Radius portal.", customers: custCache?.info ?? [] }, 502);
     if (e instanceof RadiusAuthError) return json({ error: "radius_auth", message: "Radius connection needs a new token" }, 502);
     console.error("radius-positions failed", e instanceof Error ? e.name : "unknown");
     return json({ error: "internal" }, 500);
