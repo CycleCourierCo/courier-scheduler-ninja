@@ -6424,11 +6424,13 @@ export type Database = {
           job_locations: Json | null
           lunch_hours: number
           mileage: number | null
+          planned_snapshot: Json | null
           quickbooks_bill_created_at: string | null
           quickbooks_bill_id: string | null
           quickbooks_bill_number: string | null
           quickbooks_bill_url: string | null
           route_links: string[] | null
+          saved_route_id: string | null
           status: string
           stop_hours: number
           total_hours: number | null
@@ -6454,11 +6456,13 @@ export type Database = {
           job_locations?: Json | null
           lunch_hours?: number
           mileage?: number | null
+          planned_snapshot?: Json | null
           quickbooks_bill_created_at?: string | null
           quickbooks_bill_id?: string | null
           quickbooks_bill_number?: string | null
           quickbooks_bill_url?: string | null
           route_links?: string[] | null
+          saved_route_id?: string | null
           status: string
           stop_hours?: number
           total_hours?: number | null
@@ -6484,11 +6488,13 @@ export type Database = {
           job_locations?: Json | null
           lunch_hours?: number
           mileage?: number | null
+          planned_snapshot?: Json | null
           quickbooks_bill_created_at?: string | null
           quickbooks_bill_id?: string | null
           quickbooks_bill_number?: string | null
           quickbooks_bill_url?: string | null
           route_links?: string[] | null
+          saved_route_id?: string | null
           status?: string
           stop_hours?: number
           total_hours?: number | null
@@ -6505,6 +6511,13 @@ export type Database = {
             columns: ["driver_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timeslips_saved_route_id_fkey"
+            columns: ["saved_route_id"]
+            isOneToOne: false
+            referencedRelation: "saved_routes"
             referencedColumns: ["id"]
           },
           {
@@ -7975,8 +7988,14 @@ export type Database = {
           driver_name: string
           job_locations: Json
           mileage: number
+          planned_stops: Json
           registration: string
+          route_name: string
+          saved_route_id: string
+          start_time: string
           timeslip_id: string
+          total_hours: number
+          total_stops: number
           vehicle_id: string
         }[]
       }
