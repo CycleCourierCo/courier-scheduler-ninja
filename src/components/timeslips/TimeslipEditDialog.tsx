@@ -227,6 +227,7 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
             date={timeslip.date}
             value={formData.saved_route_id}
             onChange={(id) => setFormData((f) => ({ ...f, saved_route_id: id }))}
+                onPlanned={(p) => setFormData((f) => ({ ...f, driving_hours: p.drivingHours, mileage: p.miles }))}
             timeslipId={timeslip.id}
             orderIds={(timeslip.job_locations ?? []).map((j) => j.order_id)}
           />

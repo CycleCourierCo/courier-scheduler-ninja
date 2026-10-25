@@ -329,6 +329,7 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
                 date={format(form.date, 'yyyy-MM-dd')}
                 value={form.saved_route_id}
                 onChange={(id) => setForm((f) => ({ ...f, saved_route_id: id }))}
+                onPlanned={(p) => setForm((f) => ({ ...f, driving_hours: p.drivingHours, mileage: p.miles }))}
               />
             </div>
             <div className="space-y-2">

@@ -1,4 +1,5 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { fetchRoadLine } from "@/components/fleet/RouteOverlay";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Label } from "@/components/ui/label";
@@ -13,10 +14,12 @@ interface Props {
   /** Order ids on the timeslip, used to suggest the matching saved route. */
   orderIds?: string[];
   required?: boolean;
+  /** Called with road driving hours (excl. stops) and miles, depot to depot, when a route is picked. */
+  onPlanned?: (p: { drivingHours: number; miles: number }) => void;
 }
 
 /** Pick which saved route (from Route Builder) this timeslip ran. */
-export default function SavedRoutePicker({ date, value, onChange, timeslipId, orderIds = [], required }: Props) {
+export default function SavedRoutePicker({ date, value, onChange, timeslipId, orderIds = [], required, onPlanned }: Props) {
   const { data } = useQuery({
     queryKey: ["saved-routes-for-date", date],
     enabled: !!date,
@@ -40,15 +43,31 @@ export default function SavedRoutePicker({ date, value, onChange, timeslipId, or
     [orderIds, options],
   );
 
+  const [planning, setPlanning] = useState<"idle" | "loading" | "failed">("idle");
+  const pick = async (id: string | null) => {
+    onChange(id);
+    const route = id ? (data?.routes ?? []).find((r) => r.id === id) : null;
+    if (!route || !onPlanned) return;
+    const stops = ((route.job_data as any[]) ?? []).filter((s) => s?.lat != null && s?.lon != null)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)).map((s) => ({ lat: Number(s.lat), lon: Number(s.lon) }));
+    if (!stops.length) return;
+    setPlanning("loading");
+    try {
+      const r = await fetchRoadLine(stops);
+      onPlanned({ drivingHours: Math.round((r.minutes / 60) * 4) / 4, miles: Math.round(r.miles) });
+      setPlanning("idle");
+    } catch { setPlanning("failed"); }
+  };
+
   useEffect(() => {
-    if (!value && suggested) onChange(suggested);
+    if (!value && suggested) void pick(suggested);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [suggested]);
 
   return (
     <div className="space-y-2">
       <Label>Saved route{required ? " *" : ""}</Label>
-      <Select value={value ?? "none"} onValueChange={(v) => onChange(v === "none" ? null : v)}>
+      <Select value={value ?? "none"} onValueChange={(v) => void pick(v === "none" ? null : v)}>
         <SelectTrigger><SelectValue placeholder="Pick the planned route" /></SelectTrigger>
         <SelectContent>
           {!required && <SelectItem value="none">No saved route</SelectItem>}
@@ -62,6 +81,8 @@ export default function SavedRoutePicker({ date, value, onChange, timeslipId, or
           })}
         </SelectContent>
       </Select>
+      {planning === "loading" && <p className="text-xs text-muted-foreground">Working out driving time and miles…</p>}
+      {planning === "failed" && <p className="text-xs text-destructive">Couldn't work out driving time and miles — enter them by hand.</p>}
       {options.length === 0 && <p className="text-xs text-muted-foreground">No unused saved routes for this date.</p>}
     </div>
   );
