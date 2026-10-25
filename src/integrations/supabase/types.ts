@@ -6738,11 +6738,18 @@ export type Database = {
         Row: {
           assigned_to: string | null
           attachments: Json
+          breakdown_at: string | null
+          breakdown_driver: string | null
+          breakdown_location: string | null
+          breakdown_route: string | null
           category: string | null
           created_at: string
           description: string | null
           id: string
           inspection_id: string | null
+          is_breakdown: boolean
+          recovery_cost: number | null
+          recovery_provider: string | null
           rectification_evidence: string | null
           reported_by: string | null
           resolution_note: string | null
@@ -6759,11 +6766,18 @@ export type Database = {
         Insert: {
           assigned_to?: string | null
           attachments?: Json
+          breakdown_at?: string | null
+          breakdown_driver?: string | null
+          breakdown_location?: string | null
+          breakdown_route?: string | null
           category?: string | null
           created_at?: string
           description?: string | null
           id?: string
           inspection_id?: string | null
+          is_breakdown?: boolean
+          recovery_cost?: number | null
+          recovery_provider?: string | null
           rectification_evidence?: string | null
           reported_by?: string | null
           resolution_note?: string | null
@@ -6780,11 +6794,18 @@ export type Database = {
         Update: {
           assigned_to?: string | null
           attachments?: Json
+          breakdown_at?: string | null
+          breakdown_driver?: string | null
+          breakdown_location?: string | null
+          breakdown_route?: string | null
           category?: string | null
           created_at?: string
           description?: string | null
           id?: string
           inspection_id?: string | null
+          is_breakdown?: boolean
+          recovery_cost?: number | null
+          recovery_provider?: string | null
           rectification_evidence?: string | null
           reported_by?: string | null
           resolution_note?: string | null
