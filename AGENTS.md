@@ -20,3 +20,4 @@
 - Larger 48px controls are applied by Layout's FLOOR_SCREEN_PATHS (floor-controls class) and the doorstep-page shell, not per button — add new workshop/driver routes to that list.
 - Customer-facing follow-ups after a browser action (e.g. availability confirmation emails, NI ferry booking) are sent by an Edge Function in the background, not chained in the browser — closing the page must not lose them.
 - Admin-editable email settings live in email_templates and are applied inside send-email by template key (update.<stage> / type.<emailType>); a missing or broken template always falls back to the built-in email so customers never get a blank message.
+- Van odometer = newest manual reading (vehicle_odometer_readings) plus approved timeslip miles dated after it, else purchase baseline plus all timeslip miles (src/lib/odometer.ts) — manual readings correct drift without rewriting timeslips.
