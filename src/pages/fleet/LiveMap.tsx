@@ -129,6 +129,7 @@ export default function LiveMap() {
                         {p.timestamp && <div className="text-muted-foreground">{stale ? "Last seen " : "Updated "}{formatDistanceToNow(new Date(p.timestamp * 1000), { addSuffix: true })}</div>}
                         {vehicle && <button className="text-primary underline" onClick={() => navigate(`/fleet/vehicles/${vehicle.id}`)}>Open van</button>}
                         <button className="block text-primary underline" onClick={() => setEtaReg(p.registration)}>Send ETA link</button>
+                        <button className="block text-primary underline" onClick={() => setEtaReg(p.registration)}>Send ETA link</button>
                       </div>
                     </Popup>
                   </Marker>
