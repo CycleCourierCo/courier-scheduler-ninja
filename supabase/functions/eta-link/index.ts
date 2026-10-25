@@ -2,7 +2,7 @@
 // road route back to the depot, miles and ETA. Public "view" reads by token.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { Resend } from "https://esm.sh/resend@2.0.0";
-import { emailShell } from "../_shared/emailLayout.ts";
+import { emailShell, EMAIL_BRAND } from "../_shared/emailLayout.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
       const rk = Deno.env.get("RESEND_API_KEY");
       if (rk) {
         const html = emailShell(`<p>${greet.replace(/</g, "&lt;")}here's the live location of our van and its estimated arrival back at the depot.</p>
-<p><a href="${url}" style="display:inline-block;padding:12px 20px;background:#4D6863;color:#ffffff;border-radius:6px;text-decoration:none">View van location &amp; ETA</a></p>
+<p><a href="${url}" style="display:inline-block;padding:12px 20px;background:${EMAIL_BRAND.primary};color:${EMAIL_BRAND.primaryText};border-radius:6px;text-decoration:none">View van location &amp; ETA</a></p>
 <p>The link works for 12 hours.</p>`);
         const r = await new Resend(rk).emails.send({
           from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>", reply_to: "Info@cyclecourierco.com",
