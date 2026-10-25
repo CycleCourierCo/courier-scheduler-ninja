@@ -117,6 +117,7 @@ export const timeslipService = {
     custom_addon_hours: number;
     admin_notes: string | null;
     route_links?: string[];
+    saved_route_id?: string | null;
   }) {
     const { data: { user } } = await supabase.auth.getUser();
     const payload: any = {

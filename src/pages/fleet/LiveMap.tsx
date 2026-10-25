@@ -147,11 +147,14 @@ export default function LiveMap() {
                         <span className="font-mono font-semibold">{a.registration}</span>
                         <Badge variant={visited === a.stops.length ? "default" : "secondary"}>{visited}/{a.stops.length} stops</Badge>
                       </div>
-                      <div className="text-xs text-muted-foreground">{a.driver || "No driver"}</div>
+                      <div className="text-xs text-muted-foreground truncate">{a.driver || "No driver"}{a.name ? ` · ${a.name}` : ""}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {a.plannedRoadMiles != null ? `Planned ${a.plannedRoadMiles.toFixed(0)} mi by road (depot to depot)` : a.roadUnavailable ? "Road line unavailable — showing straight lines" : "Loading road route…"}
+                      </div>
                       <div className="flex flex-wrap gap-1 mt-1 text-xs">
                         {a.path.length === 0 ? <span className="text-muted-foreground">No recorded path for this day</span> : (
                           <>
-                            <span className="text-muted-foreground">Driven {a.drivenMiles.toFixed(0)} mi{a.plannedMiles ? ` · planned ${Number(a.plannedMiles).toFixed(0)} mi` : ""}</span>
+                            <span className="text-muted-foreground">Driven {a.drivenMiles.toFixed(0)} mi</span>
                             {a.stretches.length > 0
                               ? <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" />{a.stretches.length} off-route ({a.stretches.map((s) => `${format(new Date(s.start), "HH:mm")}–${format(new Date(s.end), "HH:mm")}`).join(", ")})</Badge>
                               : <Badge variant="outline">On route</Badge>}
@@ -161,9 +164,10 @@ export default function LiveMap() {
                     </button>
                   );
                 })}
+                <Link to={`/fleet/route-report?date=${date}`} className="block text-sm text-primary underline">Planned vs completed report</Link>
               </div>
             )}
-            {!routeDay.isLoading && routeDay.analyses.length === 0 && <p className="text-xs text-muted-foreground">No timeslip routes for this date.</p>}
+            {!routeDay.isLoading && routeDay.analyses.length === 0 && <p className="text-xs text-muted-foreground">No saved routes for this date.</p>}
             {isToday && <h2 className="text-sm font-semibold pt-1">Live vans</h2>}
             {!isToday && <p className="text-xs text-muted-foreground">Live pins are hidden for past dates.</p>}
             {positions.isLoading && <p className="text-sm text-muted-foreground">Loading vans…</p>}
