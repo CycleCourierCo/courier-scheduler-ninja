@@ -109,8 +109,8 @@ export default function LiveMap() {
         )}
 
         <div className="grid gap-3 lg:grid-cols-[1fr_360px]">
-          <div className="h-[55vh] lg:h-[75vh] rounded-lg overflow-hidden border">
-            <MapContainer center={[53.5, -2.2]} zoom={6} style={{ height: "100%", width: "100%" }}>
+          <div className="relative isolate z-0 h-[45vh] lg:h-[75vh] rounded-lg overflow-hidden border [contain:strict]">
+            <MapContainer preferCanvas center={[53.5, -2.2]} zoom={6} style={{ height: "100%", width: "100%" }}>
               <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <FitAll points={points} />
               <FlyTo target={focus} />
@@ -128,7 +128,6 @@ export default function LiveMap() {
                         <div>{[p.street, p.town, p.post_code].filter(Boolean).join(", ")}</div>
                         {p.timestamp && <div className="text-muted-foreground">{stale ? "Last seen " : "Updated "}{formatDistanceToNow(new Date(p.timestamp * 1000), { addSuffix: true })}</div>}
                         {vehicle && <button className="text-primary underline" onClick={() => navigate(`/fleet/vehicles/${vehicle.id}`)}>Open van</button>}
-                        <button className="block text-primary underline" onClick={() => setEtaReg(p.registration)}>Send ETA link</button>
                         <button className="block text-primary underline" onClick={() => setEtaReg(p.registration)}>Send ETA link</button>
                       </div>
                     </Popup>
