@@ -39,5 +39,8 @@ declare module 'react-leaflet' {
   export const Marker: React.FC<MarkerProps>;
   export const Popup: React.FC<{children?: ReactNode}>;
   export const GeoJSON: React.FC<GeoJSONProps>;
+  export const Polyline: React.FC<{ positions: L.LatLngExpression[]; pathOptions?: L.PathOptions; children?: ReactNode }>;
+  export const CircleMarker: React.FC<{ center: L.LatLngExpression; radius?: number; pathOptions?: L.PathOptions; children?: ReactNode }>;
+  export const Tooltip: React.FC<{ children?: ReactNode; permanent?: boolean; direction?: L.Direction; offset?: L.PointExpression }>;
   export function useMap(): L.Map;
 }
