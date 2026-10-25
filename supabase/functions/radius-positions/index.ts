@@ -83,6 +83,22 @@ Deno.serve(async (req) => {
       const t = await newAccessToken();
       let body: any = {};
       try { body = await req.json(); } catch { /* none */ }
+      if (body?.action === "record") {
+        const r = await fetchPositions(t);
+        if (!r.ok) return json({ ok: false, status: r.status });
+        const devs = ((await r.json())?.devices ?? []).filter((d: any) => !d?.private && d?.lat != null && d?.lon != null);
+        const db = admin();
+        const { data: vans } = await db.from("vehicles").select("id, registration");
+        const byReg = new Map((vans ?? []).map((v: any) => [normReg(v.registration), v.id]));
+        const rows = devs.map((d: any) => ({
+          registration: normReg(d.vehicle_registration), vehicle_id: byReg.get(normReg(d.vehicle_registration)) ?? null,
+          lat: Number(d.lat), lon: Number(d.lon), speed: Math.round(Number(d.speed ?? 0)),
+          ignition: d.ignition === "Y" || d.ignition === true,
+          recorded_at: d.timestamp ? new Date(Number(d.timestamp) * 1000).toISOString() : new Date().toISOString(),
+        }));
+        if (rows.length) await db.from("fleet_position_history").insert(rows);
+        return json({ ok: true, recorded: rows.length });
+      }
       if (body?.action === "diagnose") {
         const r = await fetchPositions(t);
         const text = await r.text();
