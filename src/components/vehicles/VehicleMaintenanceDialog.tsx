@@ -90,7 +90,7 @@ const VehicleMaintenanceDialog = ({ vehicleId, vehicleReg, baselineMileage, open
     if (!readingMiles || !Number.isFinite(miles) || miles < 0) return toast.error("Enter the mileage shown on the dashboard");
     setSavingReading(true);
     try {
-      await addOdometerReading({ vehicle_id: vehicleId, reading_date: readingDate, odometer_mi: Math.round(miles), note: readingNote.trim() || null });
+      await addOdometerReading({ vehicle_id: vehicleId, reading_date: readingDate, odometer_mi: Math.round(miles), note: readingNote.trim() || null, exception_reason: readingNote.trim() || null });
       toast.success("Mileage saved");
       setReadingMiles(""); setReadingNote("");
       load();
@@ -279,7 +279,7 @@ const VehicleMaintenanceDialog = ({ vehicleId, vehicleReg, baselineMileage, open
                     <Input id="odo-miles" type="number" inputMode="numeric" min={0} value={readingMiles} onChange={(e) => setReadingMiles(e.target.value)} placeholder={String(currentMi)} />
                   </div>
                   <div className="space-y-1">
-                    <Label htmlFor="odo-note">Note (optional)</Label>
+                    <Label htmlFor="odo-note">Note (needed if lower than the last reading)</Label>
                     <Input id="odo-note" value={readingNote} onChange={(e) => setReadingNote(e.target.value)} placeholder="e.g. Monthly check" />
                   </div>
                   <Button onClick={saveReading} disabled={savingReading}>

@@ -20,6 +20,9 @@ import VehicleMaintenanceDialog from "@/components/vehicles/VehicleMaintenanceDi
 import { dueState } from "@/lib/fleet/status";
 import InspectionsPanel from "@/components/fleet/InspectionsPanel";
 import DefectsPanel from "@/components/fleet/DefectsPanel";
+import RepairsPanel from "@/components/fleet/RepairsPanel";
+import TyresPanel from "@/components/fleet/TyresPanel";
+import CostsPanel from "@/components/fleet/CostsPanel";
 
 const db = supabase as any;
 const fmt = (d?: string | null) => (d ? new Date(d).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }) : "—");
@@ -119,12 +122,18 @@ const VehicleProfile = () => {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="inspections">Inspections</TabsTrigger>
             <TabsTrigger value="defects">Defects ({summary.openIssues.length})</TabsTrigger>
+            <TabsTrigger value="repairs">Repairs ({summary.openRepairs.length})</TabsTrigger>
+            <TabsTrigger value="tyres">Tyres</TabsTrigger>
+            <TabsTrigger value="costs">Costs</TabsTrigger>
             <TabsTrigger value="details">Fleet details</TabsTrigger>
             <TabsTrigger value="history">History ({audit.length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="inspections"><InspectionsPanel vehicleId={id} odometer={summary.odometer} /></TabsContent>
           <TabsContent value="defects"><DefectsPanel vehicleId={id} onChange={load} /></TabsContent>
+          <TabsContent value="repairs"><RepairsPanel vehicleId={id} onChange={load} /></TabsContent>
+          <TabsContent value="tyres"><TyresPanel vehicleId={id} /></TabsContent>
+          <TabsContent value="costs"><CostsPanel vehicleId={id} reg={v.registration} /></TabsContent>
 
           <TabsContent value="overview" className="grid gap-3 md:grid-cols-3">
             <Card className="p-3 space-y-1">

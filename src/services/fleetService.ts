@@ -20,6 +20,8 @@ export interface FleetVehicleSummary {
   due: DueItem[];
   openIssues: FleetIssue[];
   insuranceEnd: string | null;
+  openRepairs: { id: string; title: string; status: string }[];
+  lowTyres: { position: string; last_tread_mm: number }[];
 }
 
 async function pageAll<T>(build: (from: number, to: number) => any): Promise<T[]> {
@@ -34,7 +36,7 @@ async function pageAll<T>(build: (from: number, to: number) => any): Promise<T[]
 }
 
 export async function loadFleetOverview(): Promise<{ rows: FleetVehicleSummary[]; recent: FleetAuditRow[]; policies: InsurancePolicy[] }> {
-  const [vehicles, policies, logs, intervals, readings, issues, slips, recent] = await Promise.all([
+  const [vehicles, policies, logs, intervals, readings, issues, slips, recent, repairs, tyres, settings] = await Promise.all([
     listVehicles(),
     listPolicies().catch(() => [] as InsurancePolicy[]),
     pageAll<MaintenanceLog>((a, b) => db.from("vehicle_maintenance_logs").select("*").range(a, b)),
@@ -43,7 +45,11 @@ export async function loadFleetOverview(): Promise<{ rows: FleetVehicleSummary[]
     pageAll<FleetIssue>((a, b) => db.from("vehicle_issues").select("id, vehicle_id, title, description, severity, status, created_at").not("status", "in", "(resolved,cancelled)").range(a, b)),
     pageAll<any>((a, b) => db.from("timeslips").select("vehicle_id, date, mileage").eq("status", "approved").not("vehicle_id", "is", null).range(a, b)),
     db.from("fleet_audit_log").select("*").order("created_at", { ascending: false }).limit(15).then((r: any) => r.data ?? []),
+    pageAll<any>((a, b) => db.from("fleet_repair_jobs").select("id, vehicle_id, title, status").not("status", "in", "(verified,closed,cancelled)").range(a, b)),
+    pageAll<any>((a, b) => db.from("fleet_tyres").select("vehicle_id, position, last_tread_mm").is("removed_date", null).not("last_tread_mm", "is", null).range(a, b)),
+    db.from("fleet_settings").select("tread_warn_mm").eq("id", 1).maybeSingle().then((r: any) => r.data),
   ]);
+  const warnMm = Number(settings?.tread_warn_mm ?? 3);
 
   const by = <T extends { vehicle_id: string }>(arr: T[], id: string) => arr.filter((x) => x.vehicle_id === id);
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
@@ -52,7 +58,8 @@ export async function loadFleetOverview(): Promise<{ rows: FleetVehicleSummary[]
     const odo = effectiveOdometer((v as any).odometer_baseline_mi ?? 0, by(slips, v.id), by(readings, v.id));
     const due = computeNextDue(by(logs, v.id), by(intervals, v.id), { baselineMileage: odo.base, timeslipMileage: odo.sinceMiles });
     const current = policies.filter((p) => p.vehicle_id === v.id && p.start_date <= today).sort((a, b) => b.end_date.localeCompare(a.end_date))[0];
-    return { vehicle: v, odometer: odo.total, due, openIssues: by(issues, v.id), insuranceEnd: current?.end_date ?? null };
+    return { vehicle: v, odometer: odo.total, due, openIssues: by(issues, v.id), insuranceEnd: current?.end_date ?? null,
+      openRepairs: by(repairs, v.id), lowTyres: by(tyres, v.id).filter((t: any) => Number(t.last_tread_mm) <= warnMm) };
   });
   return { rows, recent, policies };
 }
@@ -69,6 +76,13 @@ export const AUDIT_TABLE_LABEL: Record<string, string> = {
   vehicle_odometer_readings: "Mileage",
   vehicle_maintenance_logs: "Service",
   vehicle_maintenance_intervals: "Service schedule",
+  fleet_inspections: "Inspection",
+  fleet_inspection_results: "Inspection check",
+  fleet_inspection_templates: "Checklist",
+  fleet_inspection_template_items: "Checklist item",
+  fleet_repair_jobs: "Repair job",
+  fleet_repair_providers: "Garage",
+  fleet_tyres: "Tyre",
 };
 
 export function describeAudit(r: FleetAuditRow): string {

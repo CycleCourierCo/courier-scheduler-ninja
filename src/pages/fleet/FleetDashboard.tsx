@@ -10,7 +10,7 @@ import { loadFleetOverview, describeAudit, type FleetAuditRow, type FleetVehicle
 import { dueState, fleetStatusGroup, FLEET_GROUP_LABEL, type FleetStatusGroup } from "@/lib/fleet/status";
 import VehicleStatusBadge from "@/components/vehicles/VehicleStatusBadge";
 
-type Filter = "all" | "operational" | "under_repair" | "out_of_service" | "critical" | "issues" | "service_soon" | "service_overdue" | "mot_soon" | "inspection_due" | "inspection_overdue" | "actions";
+type Filter = "all" | "operational" | "under_repair" | "out_of_service" | "critical" | "issues" | "service_soon" | "service_overdue" | "mot_soon" | "inspection_due" | "inspection_overdue" | "actions" | "repairs" | "verify" | "tyres";
 
 const Stat = ({ label, value, tone, active, onClick }: { label: string; value: number; tone?: "bad" | "warn"; active: boolean; onClick: () => void }) => (
   <button type="button" onClick={onClick} className={`text-left rounded-lg border p-3 transition-colors hover:bg-muted ${active ? "ring-2 ring-primary" : ""}`}>
@@ -48,7 +48,10 @@ const FleetDashboard = () => {
     mot_soon: (r) => ["overdue", "due_soon"].includes(dueState(r.vehicle.mot_expiry_date, 30)),
     inspection_due: (r) => dueState((r.vehicle as any).next_inspection_due, 7) === "due_soon",
     inspection_overdue: (r) => dueState((r.vehicle as any).next_inspection_due, 7) === "overdue",
-    actions: (r) => r.openIssues.length > 0 || r.due.some((d) => d.status === "red" || d.status === "amber") || fleetStatusGroup(r.vehicle.status) === "maintenance_required",
+    repairs: (r) => r.openRepairs.length > 0,
+    verify: (r) => r.openRepairs.some((j) => j.status === "completed" || j.status === "invoiced"),
+    tyres: (r) => r.lowTyres.length > 0,
+    actions: (r) => r.openIssues.length > 0 || r.openRepairs.length > 0 || r.lowTyres.length > 0 || r.due.some((d) => d.status === "red" || d.status === "amber") || fleetStatusGroup(r.vehicle.status) === "maintenance_required",
   };
   const count = (f: Filter) => active.filter(tests[f]).length;
 
@@ -102,6 +105,9 @@ const FleetDashboard = () => {
               <Stat label="Service due soon" value={count("service_soon")} tone="warn" active={filter === "service_soon"} onClick={() => toggle("service_soon")} />
               <Stat label="Service overdue" value={count("service_overdue")} tone="bad" active={filter === "service_overdue"} onClick={() => toggle("service_overdue")} />
               <Stat label="MOT within 30 days" value={count("mot_soon")} tone="warn" active={filter === "mot_soon"} onClick={() => toggle("mot_soon")} />
+              <Stat label="Repairs outstanding" value={count("repairs")} tone="warn" active={filter === "repairs"} onClick={() => toggle("repairs")} />
+              <Stat label="Repairs awaiting verification" value={count("verify")} tone="warn" active={filter === "verify"} onClick={() => toggle("verify")} />
+              <Stat label="Vans with low tyres" value={count("tyres")} tone="bad" active={filter === "tyres"} onClick={() => toggle("tyres")} />
               <Stat label="Vans with open actions" value={count("actions")} tone="warn" active={filter === "actions"} onClick={() => toggle("actions")} />
             </div>
 
