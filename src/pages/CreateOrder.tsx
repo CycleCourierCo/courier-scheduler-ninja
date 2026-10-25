@@ -594,7 +594,15 @@ const CreateOrder = () => {
               </div>
             )}
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
+              <form onKeyDown={(e) => {
+                // Phone keyboard Enter/Go must never submit the booking or jump steps.
+                const t = e.target as HTMLElement;
+                if (e.key === "Enter" && t.tagName === "INPUT") {
+                  e.preventDefault();
+                  const fields = Array.from(e.currentTarget.querySelectorAll<HTMLElement>("input:not([type=hidden]):not([disabled]), textarea, button[role=combobox]")).filter((el) => el.offsetParent !== null);
+                  fields[fields.indexOf(t) + 1]?.focus();
+                }
+              }} onSubmit={form.handleSubmit(onSubmit, (errors) => {
                 // Handle validation errors with user feedback
                 console.log("Form validation errors:", errors);
                 

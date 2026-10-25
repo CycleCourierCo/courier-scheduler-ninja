@@ -110,7 +110,7 @@ const FleetDashboard = () => {
         <div className="flex flex-wrap items-center gap-2">
           <Truck className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold">Fleet dashboard</h1>
-          <div className="flex w-full gap-2 sm:ml-auto sm:w-auto [&>*]:flex-1 sm:[&>*]:flex-none">
+          <div className="grid w-full grid-cols-3 gap-2 sm:ml-auto sm:flex sm:w-auto [&>*]:min-w-0 [&>*]:px-2 [&>*]:text-xs sm:[&>*]:text-sm">
             <Button size="sm" variant="outline" asChild><Link to="/fleet/live">Live map</Link></Button>
             <Button size="sm" variant="outline" asChild><Link to="/fleet/compliance">Compliance</Link></Button>
             <AddVehicleDialog onCreated={reload} />

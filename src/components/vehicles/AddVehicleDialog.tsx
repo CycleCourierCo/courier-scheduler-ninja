@@ -138,8 +138,8 @@ export const AddVehicleDialog = ({ onCreated }: Props) => {
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) reset(); }}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" /> Add Vehicle
+        <Button size="sm">
+          <Plus className="h-4 w-4 shrink-0" /> <span className="truncate">Add van</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
