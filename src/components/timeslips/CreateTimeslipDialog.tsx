@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import FleetVehicleWarnings from "@/components/fleet/FleetVehicleWarnings";
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Calendar as CalendarIcon, Plus, X } from 'lucide-react';
@@ -339,6 +340,7 @@ const CreateTimeslipDialog: React.FC<Props> = ({ isOpen, onClose, onCreate, subm
                   ))}
                 </SelectContent>
               </Select>
+              <FleetVehicleWarnings vehicleIds={[form.vehicle_id]} context="timeslip_create" />
             </div>
           </div>
 

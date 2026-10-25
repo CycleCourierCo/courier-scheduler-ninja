@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import FleetVehicleWarnings from "@/components/fleet/FleetVehicleWarnings";
 import { useQuery } from '@tanstack/react-query';
 import { Timeslip, CustomAddon } from '@/types/timeslip';
 import { listVehicles } from '@/services/vehicleService';
@@ -240,6 +241,7 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
                 ))}
               </SelectContent>
             </Select>
+            <FleetVehicleWarnings vehicleIds={[formData.vehicle_id]} context="timeslip_edit" />
             <p className="text-xs text-muted-foreground">
               Which van the driver used (for mileage tracking).
             </p>
