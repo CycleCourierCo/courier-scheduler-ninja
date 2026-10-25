@@ -23,7 +23,7 @@ const _UnusedStat = ({ label, value, tone, active, onClick }: { label: string; v
 );
 
 const STATUS_SEGMENTS = [
-  { key: "operational", label: "Operational", bar: "bg-status-delivered" },
+  { key: "operational", label: "Operational", bar: "bg-status-done" },
   { key: "under_repair", label: "Under repair", bar: "bg-status-waiting" },
   { key: "out_of_service", label: "Out of service", bar: "bg-destructive" },
 ] as const;
