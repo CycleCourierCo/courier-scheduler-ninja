@@ -9,13 +9,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { AlertTriangle, ChevronLeft, Loader2, Wrench } from "lucide-react";
+import { ChevronLeft, Loader2, Pencil, RefreshCw, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { VEHICLE_STATUS_OPTIONS, type Vehicle } from "@/services/vehicleService";
 import { loadFleetOverview, loadVehicleAudit, describeAudit, type FleetAuditRow, type FleetVehicleSummary } from "@/services/fleetService";
 import VehicleStatusBadge from "@/components/vehicles/VehicleStatusBadge";
-import VehicleIssuesDialog from "@/components/vehicles/VehicleIssuesDialog";
+import EditVehicleDialog from "@/components/vehicles/EditVehicleDialog";
+import InsuranceTab from "@/components/vehicles/InsuranceTab";
+import { lookupVehicleFromDVLA, updateVehicle } from "@/services/vehicleService";
 import VehicleMaintenanceDialog from "@/components/vehicles/VehicleMaintenanceDialog";
 import { dueState } from "@/lib/fleet/status";
 import InspectionsPanel from "@/components/fleet/InspectionsPanel";
@@ -45,7 +47,21 @@ const VehicleProfile = () => {
   const [form, setForm] = useState<Partial<Vehicle>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [issuesOpen, setIssuesOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [tab, setTab] = useState("overview");
+
+  const refreshDvla = async () => {
+    if (!summary) return;
+    setRefreshing(true);
+    try {
+      const r: any = await lookupVehicleFromDVLA(summary.vehicle.registration);
+      const keys = ["make","colour","fuel_type","year_of_manufacture","engine_capacity","co2_emissions","tax_status","tax_due_date","mot_status","mot_expiry_date","date_of_last_v5c_issued","marked_for_export","type_approval","wheelplan","revenue_weight","euro_status","real_driving_emissions","ves_raw"];
+      await updateVehicle(summary.vehicle.id, { ...Object.fromEntries(keys.map((k) => [k, r[k]])), last_refreshed_at: new Date().toISOString() } as never);
+      toast.success("DVLA details refreshed"); load();
+    } catch (e) { toast.error(`Couldn't refresh DVLA details — ${(e as Error).message}`); }
+    finally { setRefreshing(false); }
+  };
   const [maintOpen, setMaintOpen] = useState(false);
 
   const load = async () => {
@@ -106,7 +122,8 @@ const VehicleProfile = () => {
           <VehicleStatusBadge status={v.status} />
           <span className="text-sm text-muted-foreground">{[v.make, v.model, v.year_of_manufacture].filter(Boolean).join(" · ")}</span>
           <div className="ml-auto flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setIssuesOpen(true)}><AlertTriangle className="h-4 w-4 mr-2" />Issues ({summary.openIssues.length})</Button>
+            <Button variant="outline" size="sm" onClick={refreshDvla} disabled={refreshing}><RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />DVLA</Button>
+            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4 mr-2" />Edit van</Button>
             <Button variant="outline" size="sm" onClick={() => setMaintOpen(true)}><Wrench className="h-4 w-4 mr-2" />Service & mileage</Button>
           </div>
         </div>
@@ -117,7 +134,7 @@ const VehicleProfile = () => {
           </Card>
         )}
 
-        <Tabs defaultValue="overview" className="space-y-3">
+        <Tabs value={tab} onValueChange={setTab} className="space-y-3">
           <TabsList className="flex-wrap h-auto">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="inspections">Inspections</TabsTrigger>
@@ -125,6 +142,7 @@ const VehicleProfile = () => {
             <TabsTrigger value="repairs">Repairs ({summary.openRepairs.length})</TabsTrigger>
             <TabsTrigger value="tyres">Tyres</TabsTrigger>
             <TabsTrigger value="costs">Costs</TabsTrigger>
+            <TabsTrigger value="insurance">Insurance</TabsTrigger>
             <TabsTrigger value="details">Fleet details</TabsTrigger>
             <TabsTrigger value="history">History ({audit.length})</TabsTrigger>
           </TabsList>
@@ -133,6 +151,7 @@ const VehicleProfile = () => {
           <TabsContent value="defects"><DefectsPanel vehicleId={id} onChange={load} /></TabsContent>
           <TabsContent value="repairs"><RepairsPanel vehicleId={id} onChange={load} /></TabsContent>
           <TabsContent value="tyres"><TyresPanel vehicleId={id} /></TabsContent>
+          <TabsContent value="insurance"><InsuranceTab vehicles={[summary.vehicle]} /></TabsContent>
           <TabsContent value="costs"><CostsPanel vehicleId={id} reg={v.registration} /></TabsContent>
 
           <TabsContent value="overview" className="grid gap-3 md:grid-cols-3">
@@ -155,7 +174,7 @@ const VehicleProfile = () => {
               ))}
             </Card>
             <Card className="p-3 space-y-1">
-              <h2 className="font-semibold mb-1">Open issues</h2>
+              <button type="button" className="font-semibold mb-1 hover:underline" onClick={() => setTab("defects")}>Open defects</button>
               {summary.openIssues.length === 0 ? <p className="text-sm text-muted-foreground">None.</p> : summary.openIssues.map((i) => (
                 <div key={i.id} className="flex justify-between gap-2 text-sm">
                   <span className="truncate">{i.title}</span>
@@ -216,7 +235,7 @@ const VehicleProfile = () => {
           </TabsContent>
         </Tabs>
 
-        <VehicleIssuesDialog vehicleId={id} vehicleReg={v.registration} open={issuesOpen} onOpenChange={(o) => { setIssuesOpen(o); if (!o) load(); }} />
+        <EditVehicleDialog vehicle={summary.vehicle} open={editOpen} onOpenChange={setEditOpen} onSaved={load} />
         {maintOpen && (
           <VehicleMaintenanceDialog vehicleId={id} vehicleReg={v.registration} baselineMileage={v.odometer_baseline_mi ?? 0} open={maintOpen} onOpenChange={(o) => { setMaintOpen(o); if (!o) load(); }} />
         )}

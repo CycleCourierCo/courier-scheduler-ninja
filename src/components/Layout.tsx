@@ -76,7 +76,6 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
       { to: "/fleet/compliance", label: "Fleet Compliance", icon: Truck },
       { to: "/fleet/checklists", label: "Inspection Checklists", icon: Truck },
       { to: "/fleet/garages", label: "Garages & Fleet Settings", icon: Truck },
-      { to: "/vehicles", label: "Vehicles", icon: Car },
       { to: "/timeslips", label: "Timeslips", icon: Clock },
       { to: "/fuel-finder", label: "Fuel Finder", icon: Fuel },
       { to: "/claims", label: "Damage Claims", icon: ShieldAlert },

@@ -97,8 +97,5 @@ export async function openFleetFile(path: string) {
 }
 
 export async function listFleetStaff(): Promise<{ id: string; name: string | null }[]> {
-  const { data } = await db.from("user_roles").select("user_id").in("role", ["admin", "fleet_manager"]);
-  const ids = [...new Set((data ?? []).map((r: any) => r.user_id))];
-  if (!ids.length) return [];
-  return must(await db.from("profiles").select("id, name").in("id", ids).order("name"));
+  return must(await db.rpc("fleet_staff_directory"));
 }

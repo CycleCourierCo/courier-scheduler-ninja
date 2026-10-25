@@ -61,7 +61,6 @@ const TrunkRunsPage = lazy(() => import("./pages/TrunkRunsPage"));
 const MyStockPage = lazy(() => import("./pages/MyStockPage"));
 const ShopifyIntegrationPage = lazy(() => import("./pages/ShopifyIntegrationPage"));
 const FuelFinderPage = lazy(() => import("./pages/FuelFinderPage"));
-const VehicleManagement = lazy(() => import("./pages/VehicleManagement"));
 const FleetDashboard = lazy(() => import("./pages/fleet/FleetDashboard"));
 const VehicleProfile = lazy(() => import("./pages/fleet/VehicleProfile"));
 const InspectionForm = lazy(() => import("./pages/fleet/InspectionForm"));
@@ -398,11 +397,7 @@ function App() {
               <Route path="/fleet/checklists" element={<ProtectedRoute><InspectionChecklists /></ProtectedRoute>} />
               <Route path="/fleet/garages" element={<ProtectedRoute><FleetGarages /></ProtectedRoute>} />
               <Route path="/fleet/compliance" element={<ProtectedRoute><FleetCompliance /></ProtectedRoute>} />
-              <Route path="/vehicles" element={
-                <ProtectedRoute adminOnly={true}>
-                  <VehicleManagement />
-                </ProtectedRoute>
-              } />
+              <Route path="/vehicles" element={<Navigate to="/fleet" replace />} />
               <Route path="/claims" element={
                 <ProtectedRoute adminOnly={true}>
                   <ClaimsList />
