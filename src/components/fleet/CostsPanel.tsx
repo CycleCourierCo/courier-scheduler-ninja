@@ -12,8 +12,9 @@ const money = (n: number) => n.toLocaleString("en-GB", { style: "currency", curr
 export default function CostsPanel({ vehicleId, reg }: { vehicleId: string; reg: string }) {
   const [lines, setLines] = useState<CostLine[]>([]);
   useEffect(() => {
-    Promise.all([listRepairs(vehicleId), (supabase as any).from("vehicle_maintenance_logs").select("service_date, service_type, custom_name, cost, repair_job_id").eq("vehicle_id", vehicleId)])
-      .then(([r, s]) => setLines(fleetCostLines(r, s.data ?? [])))
+    Promise.all([listRepairs(vehicleId), (supabase as any).from("vehicle_maintenance_logs").select("service_date, service_type, custom_name, cost, repair_job_id").eq("vehicle_id", vehicleId),
+      (supabase as any).from("vehicle_issues").select("title, status, breakdown_at, created_at, recovery_cost").eq("vehicle_id", vehicleId).not("recovery_cost", "is", null)])
+      .then(([r, s, b]) => setLines(fleetCostLines(r, s.data ?? [], b.data ?? [])))
       .catch((e) => toast.error(e.message));
   }, [vehicleId]);
 
@@ -34,7 +35,7 @@ export default function CostsPanel({ vehicleId, reg }: { vehicleId: string; reg:
         <div><div className="text-xs text-muted-foreground">This year</div><div className="text-xl font-bold">{money(ytd)}</div></div>
         <Button size="sm" variant="outline" className="ml-auto" onClick={exportCsv} disabled={!lines.length}><Download className="h-4 w-4 mr-1" />CSV</Button>
       </div>
-      <p className="text-xs text-muted-foreground">From repair jobs and service history. A service logged from a repair job is counted once.</p>
+      <p className="text-xs text-muted-foreground">From repair jobs, breakdown recovery and service history. A service logged from a repair job is counted once.</p>
       {lines.length === 0 ? <p className="text-sm text-muted-foreground">No costs recorded.</p> : (
         <ul className="divide-y text-sm">{lines.map((l, i) => (
           <li key={i} className="flex justify-between gap-2 py-1.5"><span className="truncate">{l.date} · {l.kind} · {l.description}</span><span className="shrink-0">{money(l.cost)}</span></li>

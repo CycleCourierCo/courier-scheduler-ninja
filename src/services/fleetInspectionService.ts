@@ -23,6 +23,8 @@ export interface Defect {
   category: string | null; assigned_to: string | null; inspection_id: string | null; rectification_evidence: string | null;
   verified_by_name: string | null; verified_at: string | null; attachments: { path: string; name: string }[];
   resolution_note: string | null; resolved_at: string | null; created_at: string;
+  is_breakdown?: boolean; breakdown_at?: string | null; breakdown_location?: string | null; breakdown_driver?: string | null;
+  breakdown_route?: string | null; recovery_provider?: string | null; recovery_cost?: number | null;
 }
 
 const must = <T,>({ data, error }: { data: T; error: any }) => { if (error) throw new Error(error.message); return data; };
