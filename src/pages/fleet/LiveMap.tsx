@@ -46,7 +46,7 @@ export default function LiveMap() {
   const [etaReg, setEtaReg] = useState<string | null>(null);
   const isToday = date === today;
   const isMobile = useIsMobile();
-  const [view, setView] = useState<"map" | "list">("map");
+  const [view, setView] = useState<"map" | "list">(() => (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches ? "list" : "map"));
   const mapBoxRef = useRef<HTMLDivElement>(null);
   const [mapTop, setMapTop] = useState(0);
   useLayoutEffect(() => {
