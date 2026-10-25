@@ -48,10 +48,10 @@ async function telematicsCustomers(token: string, force = false) {
   if (!r.ok) throw new Error(`customers ${r.status}`);
   const j = (await r.json()) ?? {};
   const all = Object.entries(j as Record<string, any>);
-  const tele = all.filter(([, c]) => /telematics/i.test(String(c?.product ?? "")));
+  const tele = all.filter(([, c]) => /telematics|kinesis/i.test(JSON.stringify(c?.product ?? "")));
   const saved = Deno.env.get("RADIUS_CUSTOMER_ID")?.trim();
   const ids = saved && tele.some(([k]) => k === saved) ? [saved] : tele.map(([k]) => k);
-  custCache = { at: Date.now(), ids, info: all.map(([, c]) => ({ name: String(c?.name ?? ""), product: String(c?.product ?? "") })) };
+  custCache = { at: Date.now(), ids, info: all.map(([, c]) => ({ name: String(c?.name ?? ""), product: JSON.stringify(c?.product ?? "").slice(0, 200) })) };
   return custCache;
 }
 
