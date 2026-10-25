@@ -401,6 +401,7 @@ function App() {
               <Route path="/fleet/garages" element={<ProtectedRoute><FleetGarages /></ProtectedRoute>} />
               <Route path="/fleet/compliance" element={<ProtectedRoute><FleetCompliance /></ProtectedRoute>} />
               <Route path="/fleet/live" element={<ProtectedRoute><FleetLiveMap /></ProtectedRoute>} />
+              {import.meta.env.DEV && <Route path="/__dev/livemap" element={<FleetLiveMap />} />}
               <Route path="/fleet/route-report" element={<ProtectedRoute><FleetRouteReport /></ProtectedRoute>} />
               <Route path="/vehicles" element={<Navigate to="/fleet" replace />} />
               <Route path="/claims" element={
