@@ -167,7 +167,7 @@ export async function listOdometerReadings(vehicleId: string): Promise<OdometerR
   return data ?? [];
 }
 
-export async function addOdometerReading(input: { vehicle_id: string; reading_date: string; odometer_mi: number; note?: string | null }) {
+export async function addOdometerReading(input: { vehicle_id: string; reading_date: string; odometer_mi: number; note?: string | null; exception_reason?: string | null }) {
   const { error } = await (supabase as any).from("vehicle_odometer_readings").insert(input);
   if (error) throw error;
 }
