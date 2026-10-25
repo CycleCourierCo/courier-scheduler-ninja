@@ -1,18 +1,37 @@
-# Live map: show saved routes, drawn along the roads
+# Saved routes → timeslips, road lines on the live map, planned vs completed report
 
 ## Why today's routes don't show
-The map currently reads route sheets (timeslips), and the newest ones are for 22 Oct. Your saved routes from Load Route are kept separately. The date is part of the route name ("2026-10-26 — 8ba36398"). There are **4 saved routes for today (25 Oct)** and 5 for tomorrow. None of them record which van ran them.
+The map reads timeslips, and the newest ones are from 22 Oct. Your saved routes (from Load Route) are stored separately. Their date is only in the name ("2026-10-26 — 8ba36398"), and they don't say which van or driver ran them. There are 4 saved routes for today.
 
-## What changes
-1. **Read saved routes for the chosen date.** The map picks up every saved route whose name starts with that date and shows its stops in order (pickup/delivery, address, estimated time).
-2. **Draw them along the roads.** Each route goes to the same Google Maps road routing the Route Builder map already uses, starting from the depot at the saved start time. The route is drawn as a road line, one colour per route. Results are cached so refreshing doesn't pay for Google again. If Google fails, the stops still show with a "road line unavailable" note.
-3. **Link a route to a van.** Saved routes don't say which van ran them, so each route in the list gets a "Van" dropdown. The app suggests a van from that day's timeslip when one matches the same jobs. Once a route is linked to a van, the existing checks run against the road line: stops reached within 150 m, and off-route for more than 2 km for 10+ minutes. Routes with no van show the planned line only.
-4. **Timeslips still count.** If a date has timeslips but no saved routes, those still show, also drawn along the roads.
-5. **Empty state:** "No saved routes for this date."
+## 1. Link each timeslip to a saved route
+- Creating or editing a timeslip gets a required **Saved route** dropdown. It lists saved routes for the timeslip's date and hides ones already used by another timeslip.
+- The app suggests a match when a saved route has the same jobs as the timeslip.
+- Older timeslips without a link still work and are labelled "No saved route".
+
+## 2. Live map uses the linked saved route
+- For the chosen date, each linked saved route is drawn **along the roads**, using the same Google Maps road routing as the Route Builder map, one colour per van.
+- The van and driver come from the linked timeslip, so the recorded driving path and stop checks (reached within 150 m, off-route more than 2 km for 10+ minutes) compare against the road line.
+- Saved routes not yet linked still appear as a planned line marked "No timeslip yet". This means today's 4 routes show up straight away.
+
+## 3. Planned vs completed report
+A new **Route report** page (Fleet / Scheduling), opened per day or from a timeslip:
+
+| | Planned (saved route) | Completed (timeslip) |
+|---|---|---|
+| Stops | count, collections/deliveries | stops done, missed, extra |
+| Order of stops | planned sequence | actual sequence (from tracking when available) |
+| Times | start time, estimated time per stop | actual arrival per stop, lateness |
+| Miles | planned road miles | timeslip miles (+ tracked miles) |
+| Hours | planned duration | timeslip hours |
+
+- Each stop row shows whether it was done, missed or added, its planned time, its actual time, and the difference.
+- Day summary across all vans, plus a CSV download.
+- Actual arrival times need tracking for that day. Before tracking existed, the report uses only timeslip data.
 
 ## Technical details
-- New security-definer RPC `fleet_saved_routes_day(p_date)` (fleet staff only) returning id, name, start_time and job_data where `name LIKE p_date || '%'`. Also returns the suggested vehicle_id from the timeslip whose job orderIds overlap most.
-- New table `fleet_saved_route_vehicles(saved_route_id, vehicle_id, set_by, set_at)` storing the van link, with fleet-staff RLS. This keeps saved_routes itself unchanged.
-- `RouteOverlay.tsx`: `useRoadPaths` calls the `route-path` function (Routes API via the gateway, sign-in required) in chunks of 25 or fewer stops and decodes the polyline with the decoder from `TimeslotRouteMap`. Cached with React Query keyed by route id + stop hash.
-- `routeDeviation.ts`: `distanceToRoute`/`pathMiles` use the road polyline when available. Add a test that a point on the road line is not off-route.
-- Google Maps costs: about one call per route per day. Rendering itself has no cost because the map stays on Leaflet.
+- Migration: add `timeslips.saved_route_id uuid references saved_routes(id) on delete set null`, with a unique partial index so one saved route maps to one timeslip. Store a frozen planned summary on the timeslip (`planned_snapshot jsonb`: stops, start_time, planned miles/duration) when linked, so later edits to the saved route don't change the report.
+- RPC `fleet_route_day(date)` extended to return the saved routes for the date (name prefix) LEFT JOINed to the timeslips, vehicle and driver. Staff-only, security definer.
+- `RouteOverlay.tsx`: `useRoadPaths` calls the `route-path` function in chunks of 25 or fewer stops, decodes the polyline (reusing the decoder from `TimeslotRouteMap`), and caches with React Query by route id + stop hash. If routing fails it falls back to straight lines with a note.
+- `routeDeviation.ts` measures against the road polyline. New `src/lib/fleet/routeReport.ts` compares planned and completed stops by orderId+type. Tests cover matched/missed/extra stops, lateness, and miles difference.
+- Timeslip form validation requires the saved route on new timeslips. AGENTS.md rule: planned-vs-actual reads the frozen snapshot on the timeslip.
+- Google cost: about one routing call per route per day (cached).
