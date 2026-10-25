@@ -61,11 +61,12 @@
 - [x] Enable Lovable Shopify integration (existing store connected)
 - [x] Email Centre: current content + live preview in editor (fills as each email next sends)
 - [x] Fleet phase 1: dashboard (/fleet), vehicle profile, new fleet fields, status audit log
-- [ ] Fleet phase 2: inspections + defect register (awaiting user review of phase 1)
-- [ ] Fleet phase 3: maintenance planner, tyres, repairs, providers, costs
-- [ ] Fleet phase 4: route-assignment warnings, compliance page, reminder emails
-- [ ] Fleet phase 5: end-to-end and access testing
+- [x] Fleet phase 2: inspections + defect register (awaiting user review of phase 1)
+- [x] Fleet phase 3: maintenance planner, tyres, repairs, providers, costs
+- [x] Fleet phase 4: route-assignment warnings, compliance page, reminder emails
+- [x] Fleet phase 5: end-to-end and access testing
 - [x] Fleet Phase 2: inspections (5 checklists, editable), defects (Red/Amber/Green, 8 statuses, evidence to close Red, photos)
 - [x] Fleet Phase 3: mileage source/lower-reading reason, tyres, repair jobs (10 steps), garages, costs + CSV, fleet settings
 - [x] Fleet Phase 4: van warnings on pickers (red ack recorded), compliance page, fleet alert emails + 7am digest
 - [x] Fleet Phase 5: tested warnings (fleet manager), red-defect close rule, access blocks, real daily list sent; route planners removed from fleet warnings
+- [x] Old Vehicles page folded into Fleet (Add van, DVLA refresh, edit, insurance tab + chart); dashboard redesigned for phones
