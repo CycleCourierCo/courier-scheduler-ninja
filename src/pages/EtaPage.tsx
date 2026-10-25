@@ -45,7 +45,7 @@ export default function EtaPage() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <header className="flex items-center gap-2 border-b px-4 py-3">
-        <BrandLogo withWordmark />
+        <BrandLogo compact withWordmark />
         <span className="font-semibold">Van ETA</span>
       </header>
       {q.isLoading && <p className="p-4 text-sm text-muted-foreground">Finding the van…</p>}
