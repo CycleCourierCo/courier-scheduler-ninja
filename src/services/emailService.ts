@@ -36,6 +36,7 @@ export const sendBusinessAccountCreationEmail = async (email: string, name: stri
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: email,
+        templateKey: "account.application_received",
         subject: "Your Business Account Application",
         text: `Hello ${name},
 
@@ -91,6 +92,7 @@ export const sendBusinessRegistrationAdminNotification = async (
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: "info@cyclecourierco.com",
+        templateKey: "internal.registration_needs_approval",
         subject: "New Business Registration Requires Approval",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -109,7 +111,7 @@ export const sendBusinessRegistrationAdminNotification = async (
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${approvalUrl}" style="background-color: #4a65d5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              <a href="${approvalUrl}" style="background-color: #4D6863; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                 Review & Approve Account
               </a>
             </div>
@@ -147,6 +149,7 @@ export const sendAccountApprovalEmail = async (email: string, name: string, comp
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: email,
+        templateKey: "account.approved",
         subject: "Your Business Account Has Been Approved",
         text: `${greeting}
 
@@ -206,6 +209,7 @@ export const sendOrderCreationEmailToSender = async (id: string): Promise<boolea
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: order.sender.email,
+        templateKey: "order.thank_you",
         subject: "Thank You for Your Order - The Cycle Courier Co.",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -219,12 +223,12 @@ export const sendOrderCreationEmailToSender = async (id: string): Promise<boolea
             <p><strong>We have sent you a separate email to arrange a collection date.</strong> Please check your inbox and confirm your availability as soon as possible.</p>
             <p>You can track your order's progress by visiting:</p>
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                 Track Your Order
               </a>
             </div>
             <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-            <p style="word-break: break-all; color: #4a65d5;">${trackingUrl}</p>
+            <p style="word-break: break-all; color: #4D6863;">${trackingUrl}</p>
             <p>Thank you for using our service.</p>
             <p>The Cycle Courier Co. Team</p>
           </div>
@@ -283,7 +287,7 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
     const niParty: any = (niInbound ? order.sender : order.receiver) || {};
     const addr = niParty.address || ({} as any);
     const niDetailsBlock = isNI ? `
-            <p style="background-color:#eef2ff; border-left:4px solid #4a65d5; padding:10px 12px; border-radius:4px;">
+            <p style="background-color:#eef2ff; border-left:4px solid #4D6863; padding:10px 12px; border-radius:4px;">
               <strong>Direction: ${niInbound ? 'NI to England' : 'England to NI'}</strong>
             </p>
             <div style="background-color: #fff4e5; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f59e0b;">
@@ -299,6 +303,7 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: buildReceiverRecipients(order),
+        templateKey: "order.delivery_notification",
         subject: "Your Bicycle Delivery - The Cycle Courier Co.",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -319,12 +324,12 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
             </ol>
             <p>You can track the order's progress by visiting:</p>
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                 Track This Order
               </a>
             </div>
             <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-            <p style="word-break: break-all; color: #4a65d5;">${trackingUrl}</p>
+            <p style="word-break: break-all; color: #4D6863;">${trackingUrl}</p>
             <p>Thank you for using our service.</p>
             <p>The Cycle Courier Co. Team</p>
           </div>
@@ -377,6 +382,7 @@ export const sendDeliveryConfirmationToSender = async (id: string): Promise<bool
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: order.sender.email,
+        templateKey: "order.delivered",
         subject: "Your Bicycle Has Been Delivered - The Cycle Courier Co.",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -388,7 +394,7 @@ export const sendDeliveryConfirmationToSender = async (id: string): Promise<bool
             </div>
             <p>You can view the complete delivery details by visiting:</p>
             <div style="text-align: center; margin: 20px 0;">
-              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                 View Delivery Details
               </a>
             </div>
@@ -452,6 +458,7 @@ export const sendDeliveryConfirmationToReceiver = async (id: string): Promise<bo
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: order.receiver.email,
+        templateKey: "order.delivered",
         subject: "Your Bicycle Has Been Delivered - The Cycle Courier Co.",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -463,7 +470,7 @@ export const sendDeliveryConfirmationToReceiver = async (id: string): Promise<bo
             </div>
             <p>You can view the complete delivery details by visiting:</p>
             <div style="text-align: center; margin: 20px 0;">
-              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                 View Delivery Details
               </a>
             </div>
@@ -766,6 +773,7 @@ export const sendOrderCreationConfirmationToUser = async (
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: email,
+        templateKey: "order.created",
         subject: "Your Order Has Been Created - The Cycle Courier Co.",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -779,12 +787,12 @@ export const sendOrderCreationConfirmationToUser = async (
             <p>We will send further emails to arrange a collection date and delivery with the sender and receiver.</p>
             <p>You can track your order's progress by visiting:</p>
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+              <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
                 Track Your Order
               </a>
             </div>
             <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-            <p style="word-break: break-all; color: #4a65d5;">${trackingUrl}</p>
+            <p style="word-break: break-all; color: #4D6863;">${trackingUrl}</p>
             <p>Thank you for using our service.</p>
             <p>The Cycle Courier Co. Team</p>
           </div>
@@ -853,6 +861,7 @@ export const sendOrderCancellationEmails = async (orderId: string): Promise<{
         const response = await supabase.functions.invoke("send-email", {
           body: {
             to: profile.email,
+            templateKey: "order.cancelled",
             subject: `Order Cancelled - ${trackingNumber}`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -889,6 +898,7 @@ export const sendOrderCancellationEmails = async (orderId: string): Promise<{
         const response = await supabase.functions.invoke("send-email", {
           body: {
             to: order.sender.email,
+            templateKey: "order.cancelled",
             subject: `Order Cancelled - ${trackingNumber}`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -925,6 +935,7 @@ export const sendOrderCancellationEmails = async (orderId: string): Promise<{
         const response = await supabase.functions.invoke("send-email", {
           body: {
             to: order.receiver.email,
+            templateKey: "order.cancelled",
             subject: `Order Cancelled - ${trackingNumber}`,
             html: `
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -990,6 +1001,7 @@ export const sendBoxMyBikeBoxingEmailToBuyer = async (id: string): Promise<boole
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: buyer,
+        templateKey: "box.being_boxed",
         subject: "Your bicycle is being boxed - The Cycle Courier Co.",
         html: boxBuyerEmailShell(
           `Hello ${order.boxBuyer?.name || "there"},`,
@@ -1001,7 +1013,7 @@ export const sendBoxMyBikeBoxingEmailToBuyer = async (id: string): Promise<boole
             </div>
             <p>We'll email you again as soon as the courier collects it, along with their tracking link.</p>
             <div style="text-align: center; margin: 30px 0;">
-              <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track This Order</a>
+              <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track This Order</a>
             </div>
           `
         ),
@@ -1039,15 +1051,16 @@ export const sendBoxMyBikeCollectedEmailToBuyer = async (id: string): Promise<bo
       ? `
         <p>You can follow the courier's progress here:</p>
         <div style="text-align: center; margin: 30px 0;">
-          <a href="${order.boxTrackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track With The Courier</a>
+          <a href="${order.boxTrackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track With The Courier</a>
         </div>
-        <p style="word-break: break-all; color: #4a65d5;">${order.boxTrackingUrl}</p>
+        <p style="word-break: break-all; color: #4D6863;">${order.boxTrackingUrl}</p>
       `
       : `<p>As soon as we have the courier's tracking link we'll pass it on.</p>`;
 
     const response = await supabase.functions.invoke("send-email", {
       body: {
         to: buyer,
+        templateKey: "box.collected_by_courier",
         subject: "Your bicycle has been collected by the courier - The Cycle Courier Co.",
         html: boxBuyerEmailShell(
           `Hello ${order.boxBuyer?.name || "there"},`,

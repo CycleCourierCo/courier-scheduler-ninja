@@ -6,6 +6,7 @@ import { requireAuth, createAuthErrorResponse } from "../_shared/auth.ts";
 import { expectationsHtml, expectationsText, expectationsForOrder } from "../_shared/deliveryExpectations.ts";
 import { trackResend } from "../_shared/integrationLog.ts";
 import { emailUI, stagesForOrder, stageIndex } from "../_shared/emailLayout.ts";
+import { loadTemplate, isSendAllowed, cleanAddresses, hasCustomBody, varsFromOrder, fillVars, renderBlocks } from "../_shared/emailTemplates.ts";
 
 /** Pill + strip map block injected under the greeting of a status email. */
 const journeyBlock = (order: any, pillToken: string, pillLabel: string, labels: string[], fallback: number): string => {
@@ -190,7 +191,7 @@ serve(async (req) => {
       const niInbound = reqData.niDirection === 'inbound';
       const niDirectionLabel = niInbound ? 'NI to England' : 'England to NI';
       const niBlock = niReceiver ? `
-          <p style="background-color:#eef2ff; border-left:4px solid #4a65d5; padding:10px 12px; border-radius:4px;">
+          <p style="background-color:#eef2ff; border-left:4px solid #4D6863; padding:10px 12px; border-radius:4px;">
             <strong>Direction: ${niDirectionLabel}</strong>
           </p>
           <div style="background-color: #fff4e5; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f59e0b;">
@@ -213,7 +214,7 @@ serve(async (req) => {
             ${trackingNumber ? `
               <p><strong>Tracking Number:</strong> ${trackingNumber}</p>
               <div style="text-align: center; margin-top: 15px;">
-                <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
+                <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
                   Track Order
                 </a>
               </div>
@@ -224,12 +225,12 @@ serve(async (req) => {
 
           <p>Please click the button below to confirm your availability:</p>
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${availabilityUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            <a href="${availabilityUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               Confirm Availability
             </a>
           </div>
           <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-          <p style="word-break: break-all; color: #4a65d5;">${availabilityUrl}</p>
+          <p style="word-break: break-all; color: #4D6863;">${availabilityUrl}</p>
           <p>Thank you,<br>The Cycle Courier Co. Team</p>
         </div>
       `;
@@ -295,7 +296,7 @@ The Cycle Courier Co. Team
             ${trackingNumber ? `
               <p style="margin-top: 15px;"><strong>Tracking Number:</strong> ${trackingNumber}</p>
               <div style="text-align: center; margin-top: 15px;">
-                <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
+                <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
                   Track Order
                 </a>
               </div>
@@ -379,14 +380,14 @@ The Cycle Courier Co. Team
             ${trackingNumber ? `
               <p style="margin-top: 15px;"><strong>Tracking Number:</strong> ${trackingNumber}</p>
               <div style="text-align: center; margin-top: 15px;">
-                <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
+                <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
                   Track Order
                 </a>
               </div>
             ` : ''}
           </div>
           ${reqData.niReceiver ? `
-          <p style="background-color:#eef2ff; border-left:4px solid #4a65d5; padding:10px 12px; border-radius:4px;">
+          <p style="background-color:#eef2ff; border-left:4px solid #4D6863; padding:10px 12px; border-radius:4px;">
             <strong>Direction: ${reqData.niDirection === 'inbound' ? 'NI to England' : 'England to NI'}</strong>
           </p>
           <div style="background-color: #fff4e5; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #f59e0b;">
@@ -444,6 +445,61 @@ The Cycle Courier Co. Team
       }
     }
     
+    // Email Centre overrides: admins can switch an email off, add copies, or
+    // replace the subject/wording. Any failure keeps the built-in email.
+    let extraCc: string[] = [];
+    let extraBcc: string[] = [];
+    const templateKey = reqData.meta?.action === 'customer_update' && reqData.meta?.stage
+      ? `update.${reqData.meta.stage}`
+      : (typeof reqData.emailType === 'string' && reqData.emailType ? `type.${reqData.emailType}`
+        : (typeof reqData.templateKey === 'string' && /^[a-z0-9_.]{3,60}$/.test(reqData.templateKey) ? reqData.templateKey : null));
+    if (templateKey && !reqData.skipTemplate) {
+      try {
+        const tplAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        const tpl = await loadTemplate(tplAdmin, templateKey);
+        if (!isSendAllowed(tpl)) {
+          return new Response(
+            JSON.stringify({ success: true, skipped: true, reason: 'disabled_in_email_centre' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
+        }
+        if (tpl) {
+          extraCc = cleanAddresses(tpl.cc);
+          extraBcc = cleanAddresses(tpl.bcc);
+          const oid = reqData.meta?.orderId || reqData.orderId;
+          if (tpl.subject?.trim() || hasCustomBody(tpl.blocks)) {
+            let fullOrder: any = null;
+            if (oid) {
+              const { data } = await tplAdmin.from('orders')
+                .select('tracking_number, sender, receiver, bikes, bike_brand, bike_model, scheduled_pickup_date, scheduled_delivery_date')
+                .eq('id', oid).maybeSingle();
+              fullOrder = data;
+            }
+            const vars = varsFromOrder(fullOrder, reqData.name);
+            if (tpl.subject?.trim()) emailOptions.subject = fillVars(tpl.subject, vars, false);
+            if (hasCustomBody(tpl.blocks) && (tpl as any).wording_mode === 'intro' && emailOptions.html) {
+              const b: any = tpl.blocks;
+              let intro = b.headline ? emailUI.heading(fillVars(b.headline, vars, true)) : '';
+              for (const p of (b.paragraphs || []).filter((x: string) => x.trim())) intro += emailUI.paragraph(fillVars(p, vars, true).replace(/\n/g, '<br>'));
+              const m = emailOptions.html.match(/<body[^>]*>/i);
+              emailOptions.html = m ? emailOptions.html.replace(m[0], m[0] + intro) : intro + emailOptions.html;
+              emailOptions.text = '';
+            } else if (hasCustomBody(tpl.blocks)) {
+              // Availability emails keep their secret link button even when reworded.
+              const keepLink = (reqData.emailType === 'sender' || reqData.emailType === 'receiver') && reqData.orderId
+                ? emailUI.button(`${reqData.baseUrl || ''}/${reqData.emailType}-availability/${reqData.orderId}`, 'Choose your dates')
+                : '';
+              const r = renderBlocks(tpl.blocks!, vars, { subject: emailOptions.subject, preheader: tpl.preheader, extraHtml: keepLink });
+              emailOptions.html = r.html;
+              emailOptions.text = r.text;
+            }
+          }
+        }
+      } catch (e) {
+        console.error('Email Centre override failed; sending built-in email', { templateKey });
+      }
+    }
+
     console.log(`Sending email from: ${from} to: ${reqData.to}`);
     console.log(`Email subject: ${emailOptions.subject}`);
 
@@ -451,6 +507,9 @@ The Cycle Courier Co. Team
     try {
       // Tag availability emails so the Resend webhook can correlate delivery events.
       const sendPayload: any = { ...emailOptions, reply_to: "Info@cyclecourierco.com" };
+      if (templateKey) sendPayload.cccSampleKey = templateKey;
+      if (extraCc.length) sendPayload.cc = extraCc;
+      if (extraBcc.length) sendPayload.bcc = extraBcc;
       if (Object.keys(shellOptions).length > 0) {
         sendPayload.cccShell = shellOptions;
       }
@@ -586,7 +645,7 @@ async function handleFerryConfirmation(orderId: string, resend: any): Promise<Re
         </div>
         <p>It is now awaiting transport to Northern Ireland. Once it has arrived, you will be contacted to arrange the final delivery.</p>
         <div style="text-align: center; margin: 20px 0;">
-          <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+          <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
             Track Your Bicycle
           </a>
         </div>
@@ -729,7 +788,7 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
           </div>
           <p>You can view the complete delivery details by visiting:</p>
           <div style="text-align: center; margin: 20px 0;">
-            <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               View Delivery Details
             </a>
           </div>
@@ -786,7 +845,7 @@ async function handleDeliveryConfirmation(orderId: string, resend: any): Promise
           </div>
           <p>You can view the complete delivery details by visiting:</p>
           <div style="text-align: center; margin: 20px 0;">
-            <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               View Delivery Details
             </a>
           </div>
@@ -958,7 +1017,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
           </div>
           <p>You can track your delivery at:</p>
           <div style="text-align: center; margin: 20px 0;">
-            <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               Track Your Delivery
             </a>
           </div>
@@ -1009,11 +1068,11 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
           </div>
           <p>You can track your delivery at:</p>
           <div style="text-align: center; margin: 20px 0;">
-            <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               Track Your Delivery
             </a>
           </div>
-          <div style="margin: 25px 0; padding: 15px; background-color: #f0f7ff; border-radius: 5px; border-left: 4px solid #4a65d5;">
+          <div style="margin: 25px 0; padding: 15px; background-color: #f0f7ff; border-radius: 5px; border-left: 4px solid #4D6863;">
             <p style="margin: 0 0 10px 0; font-weight: bold; color: #333;">This is what happens next:</p>
             <ol style="margin: 0; padding-left: 20px; color: #555;">
               <li style="margin-bottom: 8px;">We send you a timeslot the day before we are due to deliver</li>
@@ -1075,7 +1134,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
           </div>
           <p>You can track progress at any time:</p>
           <div style="text-align: center; margin: 20px 0;">
-            <a href="${trackingUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            <a href="${trackingUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               Track Your Order
             </a>
           </div>
@@ -1129,7 +1188,7 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
             ${order.tracking_number ? `
               <p><strong>Tracking Number:</strong> ${order.tracking_number}</p>
               <div style="text-align: center; margin-top: 15px;">
-                <a href="https://booking.cyclecourierco.com/tracking/${order.tracking_number}" style="background-color: #4a65d5; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
+                <a href="https://booking.cyclecourierco.com/tracking/${order.tracking_number}" style="background-color: #4D6863; color: white; padding: 10px 16px; text-decoration: none; border-radius: 5px;">
                   Track Order
                 </a>
               </div>
@@ -1137,12 +1196,12 @@ async function handleCollectionConfirmation(orderId: string, resend: any): Promi
           </div>
           <p>Please click the button below to confirm your availability:</p>
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${availabilityUrl}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+            <a href="${availabilityUrl}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">
               Confirm Availability
             </a>
           </div>
           <p>If the button doesn't work, you can copy and paste this link into your browser:</p>
-          <p style="word-break: break-all; color: #4a65d5;">${availabilityUrl}</p>
+          <p style="word-break: break-all; color: #4D6863;">${availabilityUrl}</p>
           <p>Thank you,<br>The Cycle Courier Co. Team</p>
         </div>
       `;

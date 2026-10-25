@@ -1,5 +1,11 @@
 # Roadmap
 
+- [x] Add thermal-label section dividers and tracking QR; sample PDF visually checked and QR decoded at 203 dpi (signed-in destinations deferred by request)
+
+- [x] Move the tracking QR to the bottom of the label (bottom-right, "SCAN TO TRACK" beside it); five sample PDFs checked at 203 dpi — QR decodes, no overlap, and every label that fitted before still fits
+
+- [x] Retain company name, service wording, website and phone with the new thermal-label mark; two PDFs visually checked with no overlap or clipping
+
 - [x] Replace label branding and layout with supplied thermal artwork
 - [x] Verify sample single, multi-bike, long-address, compact-header and driver-separated PDFs; one-bit 203 dpi confirmed
 - [x] Restore inspection, Box My Bike and Northern Ireland indicators on thermal labels
@@ -47,3 +53,20 @@
 
 - [x] Availability follow-up emails moved to server (availability-followups)
 - [x] Review other browser loops: announcements + Create All Invoices moved to server; WhatsApp sender locked to staff; bulk upload warns before closing; user mgmt, fuel upload, route generation already fine
+- [x] Shopify website orders: auto-fulfil with tracking link (client-credentials token)
+
+- [x] Email Centre: page, versions, preview/test send, on/off + copies + wording for order-journey and availability emails, custom emails on status triggers
+- [x] Email Centre: workshop, NI/ferry, account, billing, partner and internal emails connected
+
+- [x] Enable Lovable Shopify integration (existing store connected)
+- [x] Email Centre: current content + live preview in editor (fills as each email next sends)
+- [x] Fleet phase 1: dashboard (/fleet), vehicle profile, new fleet fields, status audit log
+- [x] Fleet phase 2: inspections + defect register (awaiting user review of phase 1)
+- [x] Fleet phase 3: maintenance planner, tyres, repairs, providers, costs
+- [x] Fleet phase 4: route-assignment warnings, compliance page, reminder emails
+- [x] Fleet phase 5: end-to-end and access testing
+- [x] Fleet Phase 2: inspections (5 checklists, editable), defects (Red/Amber/Green, 8 statuses, evidence to close Red, photos)
+- [x] Fleet Phase 3: mileage source/lower-reading reason, tyres, repair jobs (10 steps), garages, costs + CSV, fleet settings
+- [x] Fleet Phase 4: van warnings on pickers (red ack recorded), compliance page, fleet alert emails + 7am digest
+- [x] Fleet Phase 5: tested warnings (fleet manager), red-defect close rule, access blocks, real daily list sent; route planners removed from fleet warnings
+- [x] Old Vehicles page folded into Fleet (Add van, DVLA refresh, edit, insurance tab + chart); dashboard redesigned for phones

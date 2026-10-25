@@ -1523,6 +1523,54 @@ export type Database = {
         }
         Relationships: []
       }
+      custom_email_sends: {
+        Row: {
+          created_at: string
+          error: string | null
+          id: string
+          order_id: string
+          send_after: string
+          sent_at: string | null
+          status: string
+          template_id: string
+        }
+        Insert: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          order_id: string
+          send_after?: string
+          sent_at?: string | null
+          status?: string
+          template_id: string
+        }
+        Update: {
+          created_at?: string
+          error?: string | null
+          id?: string
+          order_id?: string
+          send_after?: string
+          sent_at?: string | null
+          status?: string
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "custom_email_sends_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "custom_email_sends_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_shopify_order_log: {
         Row: {
           created_at: string
@@ -1895,6 +1943,125 @@ export type Database = {
         }
         Relationships: []
       }
+      email_template_versions: {
+        Row: {
+          created_at: string
+          edited_by: string | null
+          id: string
+          snapshot: Json
+          template_id: string
+        }
+        Insert: {
+          created_at?: string
+          edited_by?: string | null
+          id?: string
+          snapshot: Json
+          template_id: string
+        }
+        Update: {
+          created_at?: string
+          edited_by?: string | null
+          id?: string
+          snapshot?: Json
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_template_versions_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_templates: {
+        Row: {
+          audience: string
+          bcc: string[]
+          blocks: Json | null
+          category: string
+          cc: string[]
+          created_at: string
+          delay_minutes: number
+          description: string | null
+          enabled: boolean
+          id: string
+          is_custom: boolean
+          key: string
+          locked: boolean
+          name: string
+          preheader: string | null
+          recipients: Json
+          sample_at: string | null
+          sample_html: string | null
+          sample_subject: string | null
+          subject: string | null
+          tested_at: string | null
+          trigger_key: string | null
+          trigger_label: string | null
+          updated_at: string
+          updated_by: string | null
+          wording_mode: string
+        }
+        Insert: {
+          audience?: string
+          bcc?: string[]
+          blocks?: Json | null
+          category?: string
+          cc?: string[]
+          created_at?: string
+          delay_minutes?: number
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          is_custom?: boolean
+          key: string
+          locked?: boolean
+          name: string
+          preheader?: string | null
+          recipients?: Json
+          sample_at?: string | null
+          sample_html?: string | null
+          sample_subject?: string | null
+          subject?: string | null
+          tested_at?: string | null
+          trigger_key?: string | null
+          trigger_label?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          wording_mode?: string
+        }
+        Update: {
+          audience?: string
+          bcc?: string[]
+          blocks?: Json | null
+          category?: string
+          cc?: string[]
+          created_at?: string
+          delay_minutes?: number
+          description?: string | null
+          enabled?: boolean
+          id?: string
+          is_custom?: boolean
+          key?: string
+          locked?: boolean
+          name?: string
+          preheader?: string | null
+          recipients?: Json
+          sample_at?: string | null
+          sample_html?: string | null
+          sample_subject?: string | null
+          subject?: string | null
+          tested_at?: string | null
+          trigger_key?: string | null
+          trigger_label?: string | null
+          updated_at?: string
+          updated_by?: string | null
+          wording_mode?: string
+        }
+        Relationships: []
+      }
       equipment_maintenance_logs: {
         Row: {
           cost: number | null
@@ -2162,6 +2329,639 @@ export type Database = {
           },
           {
             foreignKeyName: "equipment_units_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          changes: Json | null
+          created_at: string
+          id: string
+          record_id: string | null
+          table_name: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          changes?: Json | null
+          created_at?: string
+          id?: string
+          record_id?: string | null
+          table_name: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          changes?: Json | null
+          created_at?: string
+          id?: string
+          record_id?: string | null
+          table_name?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_audit_log_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_eta_links: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          registration: string
+          sent_to_email: string | null
+          sent_to_phone: string | null
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          registration: string
+          sent_to_email?: string | null
+          sent_to_phone?: string | null
+          token?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          registration?: string
+          sent_to_email?: string | null
+          sent_to_phone?: string | null
+          token?: string
+        }
+        Relationships: []
+      }
+      fleet_inspection_results: {
+        Row: {
+          category: string
+          created_at: string
+          defect_id: string | null
+          id: string
+          inspection_id: string
+          is_tyre: boolean
+          label: string
+          reason: string | null
+          result: string
+          sort_order: number
+          template_item_id: string | null
+          tread_fl: number | null
+          tread_fr: number | null
+          tread_rl: number | null
+          tread_rr: number | null
+          updated_at: string
+        }
+        Insert: {
+          category: string
+          created_at?: string
+          defect_id?: string | null
+          id?: string
+          inspection_id: string
+          is_tyre?: boolean
+          label: string
+          reason?: string | null
+          result?: string
+          sort_order?: number
+          template_item_id?: string | null
+          tread_fl?: number | null
+          tread_fr?: number | null
+          tread_rl?: number | null
+          tread_rr?: number | null
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          defect_id?: string | null
+          id?: string
+          inspection_id?: string
+          is_tyre?: boolean
+          label?: string
+          reason?: string | null
+          result?: string
+          sort_order?: number
+          template_item_id?: string | null
+          tread_fl?: number | null
+          tread_fr?: number | null
+          tread_rl?: number | null
+          tread_rr?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_inspection_results_defect_id_fkey"
+            columns: ["defect_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_issues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_inspection_results_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_inspections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_inspection_results_template_item_id_fkey"
+            columns: ["template_item_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_inspection_template_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_inspection_template_items: {
+        Row: {
+          active: boolean
+          category: string
+          created_at: string
+          id: string
+          is_tyre: boolean
+          label: string
+          sort_order: number
+          template_id: string
+        }
+        Insert: {
+          active?: boolean
+          category: string
+          created_at?: string
+          id?: string
+          is_tyre?: boolean
+          label: string
+          sort_order?: number
+          template_id: string
+        }
+        Update: {
+          active?: boolean
+          category?: string
+          created_at?: string
+          id?: string
+          is_tyre?: boolean
+          label?: string
+          sort_order?: number
+          template_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_inspection_template_items_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_inspection_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_inspection_templates: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          inspection_type: string
+          name: string
+          requires_competent_inspector: boolean
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          inspection_type: string
+          name: string
+          requires_competent_inspector?: boolean
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          inspection_type?: string
+          name?: string
+          requires_competent_inspector?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fleet_inspections: {
+        Row: {
+          correction_reason: string | null
+          created_at: string
+          created_by: string | null
+          finalised_at: string | null
+          finalised_by: string | null
+          id: string
+          inspected_at: string
+          inspection_type: string
+          inspector_name: string | null
+          inspector_organisation: string | null
+          notes: string | null
+          odometer_mi: number | null
+          overall_result: string | null
+          status: string
+          supersedes_id: string | null
+          template_id: string | null
+          updated_at: string
+          vehicle_id: string
+        }
+        Insert: {
+          correction_reason?: string | null
+          created_at?: string
+          created_by?: string | null
+          finalised_at?: string | null
+          finalised_by?: string | null
+          id?: string
+          inspected_at?: string
+          inspection_type: string
+          inspector_name?: string | null
+          inspector_organisation?: string | null
+          notes?: string | null
+          odometer_mi?: number | null
+          overall_result?: string | null
+          status?: string
+          supersedes_id?: string | null
+          template_id?: string | null
+          updated_at?: string
+          vehicle_id: string
+        }
+        Update: {
+          correction_reason?: string | null
+          created_at?: string
+          created_by?: string | null
+          finalised_at?: string | null
+          finalised_by?: string | null
+          id?: string
+          inspected_at?: string
+          inspection_type?: string
+          inspector_name?: string | null
+          inspector_organisation?: string | null
+          notes?: string | null
+          odometer_mi?: number | null
+          overall_result?: string | null
+          status?: string
+          supersedes_id?: string | null
+          template_id?: string | null
+          updated_at?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_inspections_supersedes_id_fkey"
+            columns: ["supersedes_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_inspections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_inspections_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_inspection_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_inspections_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_integration_tokens: {
+        Row: {
+          fetched_at: string
+          provider: string
+          token: string
+        }
+        Insert: {
+          fetched_at?: string
+          provider: string
+          token: string
+        }
+        Update: {
+          fetched_at?: string
+          provider?: string
+          token?: string
+        }
+        Relationships: []
+      }
+      fleet_position_history: {
+        Row: {
+          id: number
+          ignition: boolean | null
+          lat: number
+          lon: number
+          recorded_at: string
+          registration: string
+          speed: number | null
+          vehicle_id: string | null
+        }
+        Insert: {
+          id?: number
+          ignition?: boolean | null
+          lat: number
+          lon: number
+          recorded_at?: string
+          registration: string
+          speed?: number | null
+          vehicle_id?: string | null
+        }
+        Update: {
+          id?: number
+          ignition?: boolean | null
+          lat?: number
+          lon?: number
+          recorded_at?: string
+          registration?: string
+          speed?: number | null
+          vehicle_id?: string | null
+        }
+        Relationships: []
+      }
+      fleet_repair_jobs: {
+        Row: {
+          booked_for: string | null
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          defect_id: string | null
+          description: string | null
+          final_cost: number | null
+          id: string
+          interval_id: string | null
+          invoice_path: string | null
+          invoice_ref: string | null
+          labour_cost: number | null
+          odometer_mi: number | null
+          parts_cost: number | null
+          provider_id: string | null
+          quoted_cost: number | null
+          status: string
+          title: string
+          updated_at: string
+          vat: number | null
+          vehicle_id: string
+          verified_at: string | null
+          verified_by_name: string | null
+        }
+        Insert: {
+          booked_for?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          defect_id?: string | null
+          description?: string | null
+          final_cost?: number | null
+          id?: string
+          interval_id?: string | null
+          invoice_path?: string | null
+          invoice_ref?: string | null
+          labour_cost?: number | null
+          odometer_mi?: number | null
+          parts_cost?: number | null
+          provider_id?: string | null
+          quoted_cost?: number | null
+          status?: string
+          title: string
+          updated_at?: string
+          vat?: number | null
+          vehicle_id: string
+          verified_at?: string | null
+          verified_by_name?: string | null
+        }
+        Update: {
+          booked_for?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          defect_id?: string | null
+          description?: string | null
+          final_cost?: number | null
+          id?: string
+          interval_id?: string | null
+          invoice_path?: string | null
+          invoice_ref?: string | null
+          labour_cost?: number | null
+          odometer_mi?: number | null
+          parts_cost?: number | null
+          provider_id?: string | null
+          quoted_cost?: number | null
+          status?: string
+          title?: string
+          updated_at?: string
+          vat?: number | null
+          vehicle_id?: string
+          verified_at?: string | null
+          verified_by_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_repair_jobs_defect_id_fkey"
+            columns: ["defect_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_issues"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_repair_jobs_interval_id_fkey"
+            columns: ["interval_id"]
+            isOneToOne: false
+            referencedRelation: "vehicle_maintenance_intervals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_repair_jobs_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_repair_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fleet_repair_jobs_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_repair_providers: {
+        Row: {
+          active: boolean
+          address: string | null
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          address?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fleet_route_warning_acks: {
+        Row: {
+          acknowledged_by: string
+          context: string
+          created_at: string
+          id: string
+          vehicle_id: string
+          warning_codes: string[]
+        }
+        Insert: {
+          acknowledged_by?: string
+          context: string
+          created_at?: string
+          id?: string
+          vehicle_id: string
+          warning_codes?: string[]
+        }
+        Update: {
+          acknowledged_by?: string
+          context?: string
+          created_at?: string
+          id?: string
+          vehicle_id?: string
+          warning_codes?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_route_warning_acks_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fleet_settings: {
+        Row: {
+          id: number
+          inspection_frequency_days: number
+          mileage_margin_mi: number
+          reminder_days: number[]
+          tread_warn_mm: number
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          inspection_frequency_days?: number
+          mileage_margin_mi?: number
+          reminder_days?: number[]
+          tread_warn_mm?: number
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          inspection_frequency_days?: number
+          mileage_margin_mi?: number
+          reminder_days?: number[]
+          tread_warn_mm?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fleet_tyres: {
+        Row: {
+          brand: string | null
+          cost: number | null
+          created_at: string
+          fitted_date: string | null
+          fitted_odometer_mi: number | null
+          id: string
+          last_inspected_at: string | null
+          last_tread_mm: number | null
+          model: string | null
+          notes: string | null
+          position: string
+          removal_reason: string | null
+          removed_date: string | null
+          size: string | null
+          supplier: string | null
+          updated_at: string
+          vehicle_id: string
+        }
+        Insert: {
+          brand?: string | null
+          cost?: number | null
+          created_at?: string
+          fitted_date?: string | null
+          fitted_odometer_mi?: number | null
+          id?: string
+          last_inspected_at?: string | null
+          last_tread_mm?: number | null
+          model?: string | null
+          notes?: string | null
+          position: string
+          removal_reason?: string | null
+          removed_date?: string | null
+          size?: string | null
+          supplier?: string | null
+          updated_at?: string
+          vehicle_id: string
+        }
+        Update: {
+          brand?: string | null
+          cost?: number | null
+          created_at?: string
+          fitted_date?: string | null
+          fitted_odometer_mi?: number | null
+          id?: string
+          last_inspected_at?: string | null
+          last_tread_mm?: number | null
+          model?: string | null
+          notes?: string | null
+          position?: string
+          removal_reason?: string | null
+          removed_date?: string | null
+          size?: string | null
+          supplier?: string | null
+          updated_at?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_tyres_vehicle_id_fkey"
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
@@ -5654,11 +6454,13 @@ export type Database = {
           job_locations: Json | null
           lunch_hours: number
           mileage: number | null
+          planned_snapshot: Json | null
           quickbooks_bill_created_at: string | null
           quickbooks_bill_id: string | null
           quickbooks_bill_number: string | null
           quickbooks_bill_url: string | null
           route_links: string[] | null
+          saved_route_id: string | null
           status: string
           stop_hours: number
           total_hours: number | null
@@ -5684,11 +6486,13 @@ export type Database = {
           job_locations?: Json | null
           lunch_hours?: number
           mileage?: number | null
+          planned_snapshot?: Json | null
           quickbooks_bill_created_at?: string | null
           quickbooks_bill_id?: string | null
           quickbooks_bill_number?: string | null
           quickbooks_bill_url?: string | null
           route_links?: string[] | null
+          saved_route_id?: string | null
           status: string
           stop_hours?: number
           total_hours?: number | null
@@ -5714,11 +6518,13 @@ export type Database = {
           job_locations?: Json | null
           lunch_hours?: number
           mileage?: number | null
+          planned_snapshot?: Json | null
           quickbooks_bill_created_at?: string | null
           quickbooks_bill_id?: string | null
           quickbooks_bill_number?: string | null
           quickbooks_bill_url?: string | null
           route_links?: string[] | null
+          saved_route_id?: string | null
           status?: string
           stop_hours?: number
           total_hours?: number | null
@@ -5735,6 +6541,13 @@ export type Database = {
             columns: ["driver_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timeslips_saved_route_id_fkey"
+            columns: ["saved_route_id"]
+            isOneToOne: false
+            referencedRelation: "saved_routes"
             referencedColumns: ["id"]
           },
           {
@@ -6015,6 +6828,108 @@ export type Database = {
           },
         ]
       }
+      vehicle_issues: {
+        Row: {
+          assigned_to: string | null
+          attachments: Json
+          breakdown_at: string | null
+          breakdown_driver: string | null
+          breakdown_location: string | null
+          breakdown_route: string | null
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          inspection_id: string | null
+          is_breakdown: boolean
+          recovery_cost: number | null
+          recovery_provider: string | null
+          rectification_evidence: string | null
+          reported_by: string | null
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+          status: string
+          title: string
+          updated_at: string
+          vehicle_id: string
+          verified_at: string | null
+          verified_by_name: string | null
+        }
+        Insert: {
+          assigned_to?: string | null
+          attachments?: Json
+          breakdown_at?: string | null
+          breakdown_driver?: string | null
+          breakdown_location?: string | null
+          breakdown_route?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          inspection_id?: string | null
+          is_breakdown?: boolean
+          recovery_cost?: number | null
+          recovery_provider?: string | null
+          rectification_evidence?: string | null
+          reported_by?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          title: string
+          updated_at?: string
+          vehicle_id: string
+          verified_at?: string | null
+          verified_by_name?: string | null
+        }
+        Update: {
+          assigned_to?: string | null
+          attachments?: Json
+          breakdown_at?: string | null
+          breakdown_driver?: string | null
+          breakdown_location?: string | null
+          breakdown_route?: string | null
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          inspection_id?: string | null
+          is_breakdown?: boolean
+          recovery_cost?: number | null
+          recovery_provider?: string | null
+          rectification_evidence?: string | null
+          reported_by?: string | null
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          vehicle_id?: string
+          verified_at?: string | null
+          verified_by_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_issues_inspection_fk"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_inspections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehicle_issues_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicle_maintenance_intervals: {
         Row: {
           created_at: string
@@ -6080,6 +6995,7 @@ export type Database = {
           position:
             | Database["public"]["Enums"]["vehicle_service_position"]
             | null
+          repair_job_id: string | null
           service_date: string
           service_type: Database["public"]["Enums"]["vehicle_service_type"]
           updated_at: string
@@ -6100,6 +7016,7 @@ export type Database = {
           position?:
             | Database["public"]["Enums"]["vehicle_service_position"]
             | null
+          repair_job_id?: string | null
           service_date: string
           service_type: Database["public"]["Enums"]["vehicle_service_type"]
           updated_at?: string
@@ -6120,6 +7037,7 @@ export type Database = {
           position?:
             | Database["public"]["Enums"]["vehicle_service_position"]
             | null
+          repair_job_id?: string | null
           service_date?: string
           service_type?: Database["public"]["Enums"]["vehicle_service_type"]
           updated_at?: string
@@ -6127,6 +7045,13 @@ export type Database = {
           vendor?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "vehicle_maintenance_logs_repair_job_id_fkey"
+            columns: ["repair_job_id"]
+            isOneToOne: false
+            referencedRelation: "fleet_repair_jobs"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "vehicle_maintenance_logs_vehicle_id_fkey"
             columns: ["vehicle_id"]
@@ -6136,8 +7061,56 @@ export type Database = {
           },
         ]
       }
+      vehicle_odometer_readings: {
+        Row: {
+          created_at: string
+          exception_reason: string | null
+          id: string
+          is_exception: boolean
+          note: string | null
+          odometer_mi: number
+          reading_date: string
+          recorded_by: string | null
+          source: string
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string
+          exception_reason?: string | null
+          id?: string
+          is_exception?: boolean
+          note?: string | null
+          odometer_mi: number
+          reading_date?: string
+          recorded_by?: string | null
+          source?: string
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string
+          exception_reason?: string | null
+          id?: string
+          is_exception?: boolean
+          note?: string | null
+          odometer_mi?: number
+          reading_date?: string
+          recorded_by?: string | null
+          source?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_odometer_readings_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
+          assigned_driver_id: string | null
           bike_spaces: number | null
           clean_air_zones: boolean
           co2_emissions: number | null
@@ -6153,11 +7126,14 @@ export type Database = {
           id: string
           last_refreshed_at: string | null
           london_auto_pay: boolean
+          maintenance_notes: string | null
           make: string | null
           marked_for_export: boolean | null
           mersey_tunnel: boolean
+          model: string | null
           mot_expiry_date: string | null
           mot_status: string | null
+          next_inspection_due: string | null
           notes: string | null
           odometer_baseline_mi: number
           purchase_date: string | null
@@ -6174,11 +7150,14 @@ export type Database = {
           tyne_tunnel: boolean
           type_approval: string | null
           updated_at: string
+          vehicle_type: string | null
           ves_raw: Json | null
+          vin: string | null
           wheelplan: string | null
           year_of_manufacture: number | null
         }
         Insert: {
+          assigned_driver_id?: string | null
           bike_spaces?: number | null
           clean_air_zones?: boolean
           co2_emissions?: number | null
@@ -6194,11 +7173,14 @@ export type Database = {
           id?: string
           last_refreshed_at?: string | null
           london_auto_pay?: boolean
+          maintenance_notes?: string | null
           make?: string | null
           marked_for_export?: boolean | null
           mersey_tunnel?: boolean
+          model?: string | null
           mot_expiry_date?: string | null
           mot_status?: string | null
+          next_inspection_due?: string | null
           notes?: string | null
           odometer_baseline_mi?: number
           purchase_date?: string | null
@@ -6215,11 +7197,14 @@ export type Database = {
           tyne_tunnel?: boolean
           type_approval?: string | null
           updated_at?: string
+          vehicle_type?: string | null
           ves_raw?: Json | null
+          vin?: string | null
           wheelplan?: string | null
           year_of_manufacture?: number | null
         }
         Update: {
+          assigned_driver_id?: string | null
           bike_spaces?: number | null
           clean_air_zones?: boolean
           co2_emissions?: number | null
@@ -6235,11 +7220,14 @@ export type Database = {
           id?: string
           last_refreshed_at?: string | null
           london_auto_pay?: boolean
+          maintenance_notes?: string | null
           make?: string | null
           marked_for_export?: boolean | null
           mersey_tunnel?: boolean
+          model?: string | null
           mot_expiry_date?: string | null
           mot_status?: string | null
+          next_inspection_due?: string | null
           notes?: string | null
           odometer_baseline_mi?: number
           purchase_date?: string | null
@@ -6256,7 +7244,9 @@ export type Database = {
           tyne_tunnel?: boolean
           type_approval?: string | null
           updated_at?: string
+          vehicle_type?: string | null
           ves_raw?: Json | null
+          vin?: string | null
           wheelplan?: string | null
           year_of_manufacture?: number | null
         }
@@ -6930,6 +7920,7 @@ export type Database = {
         Returns: undefined
       }
       can_manage_review: { Args: { _cycle_id: string }; Returns: boolean }
+      can_see_fleet_warnings: { Args: { _uid: string }; Returns: boolean }
       can_view_review: { Args: { _cycle_id: string }; Returns: boolean }
       cancelled_invoiced_orders: {
         Args: never
@@ -7017,6 +8008,44 @@ export type Database = {
         | { Args: { table_name: string }; Returns: string }
       enablelongtransactions: { Args: never; Returns: string }
       equals: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      fleet_notify: {
+        Args: { p_action: string; p_id: string }
+        Returns: undefined
+      }
+      fleet_route_day: {
+        Args: { p_date: string }
+        Returns: {
+          driver_name: string
+          job_locations: Json
+          mileage: number
+          planned_stops: Json
+          registration: string
+          route_name: string
+          saved_route_id: string
+          start_time: string
+          timeslip_id: string
+          total_hours: number
+          total_stops: number
+          vehicle_id: string
+        }[]
+      }
+      fleet_staff_directory: {
+        Args: never
+        Returns: {
+          id: string
+          name: string
+        }[]
+      }
+      fleet_vehicle_warnings: {
+        Args: { p_vehicle_ids: string[] }
+        Returns: {
+          code: string
+          level: string
+          message: string
+          registration: string
+          vehicle_id: string
+        }[]
+      }
       geometry: { Args: { "": string }; Returns: unknown }
       geometry_above: {
         Args: { geom1: unknown; geom2: unknown }
@@ -7263,11 +8292,13 @@ export type Database = {
       invoke_backfill_shipday_jobs: { Args: never; Returns: undefined }
       invoke_caz_daily_check: { Args: never; Returns: undefined }
       invoke_cs_resend_fetch: { Args: never; Returns: undefined }
+      invoke_custom_email_dispatch: { Args: never; Returns: undefined }
       invoke_expire_availability: { Args: never; Returns: undefined }
       invoke_ferry_partner_notification: {
         Args: { p_order_id: string }
         Returns: undefined
       }
+      invoke_fleet_daily_digest: { Args: never; Returns: undefined }
       invoke_fuel_finder_refresh: { Args: never; Returns: undefined }
       invoke_generate_recurring_tasks: { Args: never; Returns: undefined }
       invoke_generate_timeslips: { Args: never; Returns: undefined }
@@ -7285,6 +8316,7 @@ export type Database = {
       is_admin_or_sales: { Args: never; Returns: boolean }
       is_build_staff: { Args: { _user_id: string }; Returns: boolean }
       is_current_user_admin: { Args: never; Returns: boolean }
+      is_fleet_staff: { Args: { _uid: string }; Returns: boolean }
       is_internal_staff: { Args: { _user_id: string }; Returns: boolean }
       is_review_employee_stage: {
         Args: {
@@ -8245,6 +9277,7 @@ export type Database = {
         | "awaiting_sale"
         | "written_off"
         | "reserved"
+        | "in_use_maintenance_required"
       warehouse_item_kind: "bike" | "component"
       warehouse_stock_status: "stored" | "reserved" | "dispatched" | "returned"
     }
@@ -8525,6 +9558,7 @@ export const Constants = {
         "awaiting_sale",
         "written_off",
         "reserved",
+        "in_use_maintenance_required",
       ],
       warehouse_item_kind: ["bike", "component"],
       warehouse_stock_status: ["stored", "reserved", "dispatched", "returned"],

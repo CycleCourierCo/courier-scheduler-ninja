@@ -1,5 +1,7 @@
 # Project architecture
 
+- Thermal-label QR codes use a stable public tracking URL, print at the bottom-right of the label with a four-module quiet zone, and take the largest whole number of 203-dpi dots (three to five) that still fits; future signed-in destinations should be resolved at the destination so existing labels remain usable.
+
 - Below laptop width the inbox shows either tickets or the route-selected conversation, with details in a sheet and collapsible ticket controls; its height is measured below the site header so only message history scrolls and the reply box remains visible.
 
 - Public inspection decisions go through the `public-inspection-approval` Edge Function; privileged database approval helpers remain service-role-only to prevent direct browser execution.
@@ -17,3 +19,11 @@
 - Colour comes only from the semantic tokens in src/index.css (status-*, segment-*, primary etc.); components never use raw palette utilities, and email hexes live once in _shared/emailLayout.ts mirrored by src/utils/emailBrand.ts — one source of colour keeps print, dark mode and email from drifting.
 - Larger 48px controls are applied by Layout's FLOOR_SCREEN_PATHS (floor-controls class) and the doorstep-page shell, not per button — add new workshop/driver routes to that list.
 - Customer-facing follow-ups after a browser action (e.g. availability confirmation emails, NI ferry booking) are sent by an Edge Function in the background, not chained in the browser — closing the page must not lose them.
+- Admin-editable email settings live in email_templates and are applied inside send-email by template key (update.<stage> / type.<emailType>); a missing or broken template always falls back to the built-in email so customers never get a blank message.
+- Van odometer = newest manual reading (vehicle_odometer_readings) plus approved timeslip miles dated after it, else purchase baseline plus all timeslip miles (src/lib/odometer.ts) — manual readings correct drift without rewriting timeslips.
+- Fleet module: vehicles is the only van record; every change to vehicles, vehicle_issues, odometer readings and service logs/schedules is written to fleet_audit_log by the fleet_audit_trigger (read-only to admin/fleet_manager via is_fleet_staff) — history can't be silently edited from the app.
+- Fleet inspections copy checklist items into fleet_inspection_results when started and lock once final (database trigger); corrections are new linked inspections, and defect rules (Red needs evidence + verifier to close) are enforced by a vehicle_issues trigger — so past records can't be rewritten and closure rules hold on every path.
+- Fleet costs come only from fleet_repair_jobs plus vehicle_maintenance_logs without repair_job_id (src/lib/fleet/repairs.ts) — a repair that also rolls a service schedule forward is counted once. Finalising an inspection updates tyre tread, mileage and next_inspection_due in a database trigger so dashboard figures follow real inspections.
+- Route-side van warnings come only from the fleet_vehicle_warnings security-definer function (planner roles see warning text, never defect records) via FleetVehicleWarnings; they never block or change the van, and red acknowledgements go to fleet_route_warning_acks. Fleet alert emails are queued by database triggers/cron to the fleet-alerts function (X-Cron-Secret) so every save path notifies.
+- Radius Velocity tokens live only server-side (radius-positions function + service-role fleet_integration_tokens); the browser only receives trimmed positions for fleet staff — keeps telematics credentials and driver phone data out of the client.
+- Each timeslip links to one saved route (timeslips.saved_route_id); a trigger freezes the plan into planned_snapshot, and planned-vs-completed reports read that snapshot so later edits to the saved route never rewrite history.

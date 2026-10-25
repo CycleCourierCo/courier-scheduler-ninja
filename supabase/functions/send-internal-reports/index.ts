@@ -14,6 +14,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { trackedFetch } from "../_shared/integrationLog.ts";
 import { applyEmailBrand } from "../_shared/emailLayout.ts";
+import { applyTemplateToPayload, saveSample } from "../_shared/emailTemplates.ts";
 import {
 
   addDays,
@@ -41,7 +42,11 @@ const RECIPIENTS = ["Info@cyclecourierco.com"];
 const REPORTS = ["customer-updates", "daily-ops", "parts-to-order", "weekly-driver", "weekly-van", "weekly-workshop"] as const;
 type ReportName = (typeof REPORTS)[number];
 
-const sendEmail = async (subject: string, html: string) => {
+const sendEmail = async (subject: string, html: string, report?: string) => {
+  const tpl = await applyTemplateToPayload(`internal.report_${(report || "general").replace(/-/g, "_")}`, { to: RECIPIENTS, subject, html } as any);
+  if (!tpl) return;
+  subject = tpl.subject; html = tpl.html;
+  saveSample(`internal.report_${(report || "general").replace(/-/g, "_")}`, subject, applyEmailBrand(html, { subject, eyebrow: "Internal report", wide: true }));
   const res = await trackedFetch("resend", "internal report", "https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -51,6 +56,8 @@ const sendEmail = async (subject: string, html: string) => {
     body: JSON.stringify({
       from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",
       to: RECIPIENTS,
+      ...(tpl.cc ? { cc: tpl.cc } : {}),
+      ...(tpl.bcc ? { bcc: tpl.bcc } : {}),
       reply_to: "Info@cyclecourierco.com",
       subject,
       html: applyEmailBrand(html, { subject, eyebrow: "Internal report", wide: true }),
@@ -131,7 +138,7 @@ serve(async (req) => {
         break;
     }
 
-    await sendEmail(built.subject, built.html);
+    await sendEmail(built.subject, built.html, report);
     console.log(`Internal report sent: ${report}`);
 
     return new Response(JSON.stringify({ success: true, report, subject: built.subject }), {

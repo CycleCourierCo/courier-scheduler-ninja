@@ -196,6 +196,7 @@ const AccountApprovals = () => {
         const emailResponse = await supabase.functions.invoke("send-email", {
           body: {
             to: user.email,
+            templateKey: "account.application_status",
             subject: "Your business account application status",
             text: `Hello ${user.name},\n\nWe regret to inform you that your business account application for The Cycle Courier Co. has not been approved at this time. Please contact our customer service for more information.\n\nThe Cycle Courier Co. Team`,
             from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>"

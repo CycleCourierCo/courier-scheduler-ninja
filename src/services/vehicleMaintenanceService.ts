@@ -147,6 +147,58 @@ export async function getVehicleMileage(vehicleId: string): Promise<number> {
   return total;
 }
 
+export interface OdometerReadingRow {
+  id: string;
+  vehicle_id: string;
+  reading_date: string;
+  odometer_mi: number;
+  note: string | null;
+  created_at: string;
+}
+
+export async function listOdometerReadings(vehicleId: string): Promise<OdometerReadingRow[]> {
+  const { data, error } = await (supabase as any)
+    .from("vehicle_odometer_readings")
+    .select("*")
+    .eq("vehicle_id", vehicleId)
+    .order("reading_date", { ascending: false })
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function addOdometerReading(input: { vehicle_id: string; reading_date: string; odometer_mi: number; note?: string | null; exception_reason?: string | null }) {
+  const { error } = await (supabase as any).from("vehicle_odometer_readings").insert(input);
+  if (error) throw error;
+}
+
+export async function deleteOdometerReading(id: string) {
+  const { error } = await (supabase as any).from("vehicle_odometer_readings").delete().eq("id", id);
+  if (error) throw error;
+}
+
+/** Approved timeslip miles for one vehicle with their dates (paginated). */
+export async function listVehicleTimeslipMiles(vehicleId: string): Promise<{ date: string; mileage: number | null }[]> {
+  const out: { date: string; mileage: number | null }[] = [];
+  const pageSize = 1000;
+  let from = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("timeslips")
+      .select("date, mileage")
+      .eq("status", "approved")
+      .eq("vehicle_id", vehicleId)
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    out.push(...(data as any[]));
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return out;
+}
+
+
 export interface DueItem {
   serviceType: ServiceType;
   position: ServicePosition | null;

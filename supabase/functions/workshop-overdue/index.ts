@@ -1,3 +1,4 @@
+import { applyTemplateToPayload, saveSample } from "../_shared/emailTemplates.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { getWorkshopOverdue, STAGE_LABELS, DEFAULT_OVERDUE_LIMITS, type OverdueLimits } from '../_shared/workshopOverdue.ts';
 
@@ -15,10 +16,13 @@ const esc = (s: unknown) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '
 async function sendEmail(to: string[], subject: string, html: string) {
   const key = Deno.env.get('RESEND_API_KEY');
   if (!key || !to.length) return false;
+  const tpl: any = await applyTemplateToPayload('internal.workshop_overdue', { to, subject, html });
+  if (!tpl) return true;
+  saveSample('internal.workshop_overdue', tpl.subject, tpl.html);
   const r = await fetch('https://api.resend.com/emails', {
     method: 'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ from: FROM, to, reply_to: 'Info@cyclecourierco.com', subject, html }),
+    body: JSON.stringify({ from: FROM, to, ...(tpl.cc ? { cc: tpl.cc } : {}), ...(tpl.bcc ? { bcc: tpl.bcc } : {}), reply_to: 'Info@cyclecourierco.com', subject: tpl.subject, html: tpl.html }),
   });
   return r.ok;
 }

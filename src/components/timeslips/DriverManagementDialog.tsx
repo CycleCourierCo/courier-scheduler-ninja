@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import FleetVehicleWarnings from "@/components/fleet/FleetVehicleWarnings";
 import { UserProfile } from '@/types/user';
 import {
   Dialog,
@@ -217,6 +218,7 @@ const DriverManagementDialog: React.FC<DriverManagementDialogProps> = ({
                             ))}
                           </SelectContent>
                         </Select>
+                        <FleetVehicleWarnings vehicleIds={[(editForm as any).default_vehicle_id]} context="driver_default_vehicle" />
                         <p className="text-xs text-muted-foreground mt-1">
                           Auto-assigned to new timeslips generated for this driver.
                         </p>

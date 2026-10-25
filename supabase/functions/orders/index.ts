@@ -599,6 +599,7 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
             await supabase.functions.invoke('send-email', {
               body: {
                 to: userEmail,
+                templateKey: "order.created",
                 subject: 'Your Order Has Been Created - The Cycle Courier Co.',
                 html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -611,9 +612,9 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
               </div>
               <p>We will send further emails to arrange a collection date and delivery with the sender and receiver.</p>
               <div style="text-align: center; margin: 30px 0;">
-                <a href="https://booking.cyclecourierco.com/tracking/${order.tracking_number}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track Your Order</a>
+                <a href="https://booking.cyclecourierco.com/tracking/${order.tracking_number}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track Your Order</a>
               </div>
-              <p style="word-break: break-all; color: #4a65d5;">https://booking.cyclecourierco.com/tracking/${order.tracking_number}</p>
+              <p style="word-break: break-all; color: #4D6863;">https://booking.cyclecourierco.com/tracking/${order.tracking_number}</p>
               <p>The Cycle Courier Co. Team</p>
             </div>
           `,
@@ -665,6 +666,7 @@ The Cycle Courier Co. Team`
               const { error: preparationError } = await supabase.functions.invoke('send-email', {
                 body: {
                   to: body.sender.email,
+                  templateKey: "order.unboxed_preparation",
                   subject: 'How to prepare your bike for your unboxed bike collection',
                   html: `
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #1f2937; line-height: 1.6;">
@@ -719,6 +721,7 @@ The Cycle Courier Co. Team`
             await supabase.functions.invoke('send-email', {
               body: {
                 to: body.receiver.email,
+                templateKey: "order.delivery_notification",
                 subject: 'Your Bicycle Delivery - The Cycle Courier Co.',
                 html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -735,9 +738,9 @@ The Cycle Courier Co. Team`
                 <li>After both confirmations, we will schedule the pickup and delivery.</li>
               </ol>
               <div style="text-align: center; margin: 30px 0;">
-                <a href="https://booking.cyclecourierco.com/tracking/${order.tracking_number}" style="background-color: #4a65d5; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track This Order</a>
+                <a href="https://booking.cyclecourierco.com/tracking/${order.tracking_number}" style="background-color: #4D6863; color: white; padding: 12px 20px; text-decoration: none; border-radius: 5px; font-weight: bold;">Track This Order</a>
               </div>
-              <p style="word-break: break-all; color: #4a65d5;">https://booking.cyclecourierco.com/tracking/${order.tracking_number}</p>
+              <p style="word-break: break-all; color: #4D6863;">https://booking.cyclecourierco.com/tracking/${order.tracking_number}</p>
               <p>The Cycle Courier Co. Team</p>
             </div>
           `,
@@ -764,6 +767,7 @@ The Cycle Courier Co. Team`
             const { error: ferryError } = await supabase.functions.invoke('send-email', {
               body: {
                 to: ferryEmail.to,
+                templateKey: "ni.ferry_partner_booking",
                 subject: ferryEmail.subject,
                 html: ferryEmail.html,
                 from: "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com>",

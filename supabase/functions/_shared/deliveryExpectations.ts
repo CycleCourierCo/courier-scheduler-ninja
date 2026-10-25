@@ -84,7 +84,7 @@ export function expectationsText(input: ExpectationInput): string {
 /** HTML expectations note, styled as a soft info panel. */
 export function expectationsHtml(input: ExpectationInput): string {
   return `
-    <div style="background-color:#eef4ff;border-left:4px solid #4a65d5;padding:12px 16px;border-radius:5px;margin:20px 0;">
+    <div style="background-color:#eef4ff;border-left:4px solid #4D6863;padding:12px 16px;border-radius:5px;margin:20px 0;">
       <p style="margin:0;font-size:14px;line-height:1.6;color:#1f2937;">
         <strong>Typical time frames:</strong> ${expectationsText(input)}
       </p>

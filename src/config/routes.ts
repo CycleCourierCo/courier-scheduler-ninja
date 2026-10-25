@@ -88,8 +88,8 @@ export const APP_ROUTES: AppRoute[] = [
   // Fleet
   { key: "equipment", path: "/equipment", label: "Equipment", section: "Fleet", icon: Boxes,
     defaultRoles: ["loader", "fleet_manager"] },
-  { key: "vehicles", path: "/vehicles", label: "Vehicles", section: "Fleet", icon: Car,
-    defaultRoles: ["fleet_manager"] },
+  { key: "fleet", path: "/fleet", label: "Fleet Dashboard", section: "Fleet", icon: Car,
+    prefixes: ["/fleet/"], defaultRoles: ["fleet_manager"] },
   { key: "driver-timeslips", path: "/timeslips", label: "Timeslips", section: "Fleet", icon: Clock,
     defaultRoles: ["driver", "timeslip_admin"] },
   { key: "my-holidays", path: "/my-holidays", label: "My Availability", section: "Fleet", icon: CalendarOff,
@@ -142,6 +142,8 @@ export const APP_ROUTES: AppRoute[] = [
     defaultRoles: ["tech"] },
   { key: "shopify-integration", path: "/shopify-integration", label: "Shopify Integration", section: "Admin", icon: Store,
     defaultRoles: ["tech"] },
+  { key: "email-centre", path: "/admin/email-centre", label: "Email Centre", section: "Comms", icon: Mail,
+    defaultRoles: [] },
   { key: "route-permissions", path: "/admin/route-permissions", label: "Route Permissions", section: "Admin", icon: Lock,
     defaultRoles: [] },
 ];

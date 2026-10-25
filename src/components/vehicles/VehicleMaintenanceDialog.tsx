@@ -12,7 +12,11 @@ import {
   computeNextDue,
   currentOdometer,
   deleteLog,
-  getVehicleMileage,
+  listVehicleTimeslipMiles,
+  listOdometerReadings,
+  addOdometerReading,
+  deleteOdometerReading,
+  type OdometerReadingRow,
   listIntervals,
   listLogs,
   type DueItem,
@@ -22,6 +26,9 @@ import {
 import MaintenanceStatusBadge from "./MaintenanceStatusBadge";
 import LogServiceDialog from "./LogServiceDialog";
 import MaintenanceIntervalsDialog from "./MaintenanceIntervalsDialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { effectiveOdometer } from "@/lib/odometer";
 
 interface Props {
   vehicleId: string;
@@ -40,18 +47,29 @@ const VehicleMaintenanceDialog = ({ vehicleId, vehicleReg, baselineMileage, open
   const [logOpen, setLogOpen] = useState(false);
   const [intervalsOpen, setIntervalsOpen] = useState(false);
 
+  const [readings, setReadings] = useState<OdometerReadingRow[]>([]);
+  const [odoBase, setOdoBase] = useState(baselineMileage);
+  const [readingDate, setReadingDate] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" }));
+  const [readingMiles, setReadingMiles] = useState("");
+  const [readingNote, setReadingNote] = useState("");
+  const [savingReading, setSavingReading] = useState(false);
+
   const load = async () => {
     setLoading(true);
     try {
-      const [l, iv, mi] = await Promise.all([
+      const [l, iv, slips, rd] = await Promise.all([
         listLogs(vehicleId),
         listIntervals(vehicleId),
-        getVehicleMileage(vehicleId),
+        listVehicleTimeslipMiles(vehicleId),
+        listOdometerReadings(vehicleId),
       ]);
+      const odo = effectiveOdometer(baselineMileage, slips, rd);
       setLogs(l);
       setIntervals(iv);
-      setTimeslipMiles(mi);
-      setDue(computeNextDue(l, iv, { baselineMileage, timeslipMileage: mi }));
+      setReadings(rd);
+      setOdoBase(odo.base);
+      setTimeslipMiles(odo.sinceMiles);
+      setDue(computeNextDue(l, iv, { baselineMileage: odo.base, timeslipMileage: odo.sinceMiles }));
     } catch (e) {
       toast.error(`Couldn't load maintenance details — ${(e as Error).message}`);
     } finally {
@@ -64,7 +82,29 @@ const VehicleMaintenanceDialog = ({ vehicleId, vehicleReg, baselineMileage, open
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, vehicleId]);
 
-  const currentMi = currentOdometer({ baselineMileage, timeslipMileage: timeslipMiles });
+  const currentMi = currentOdometer({ baselineMileage: odoBase, timeslipMileage: timeslipMiles });
+  const lastReading = readings[0] ?? null;
+
+  const saveReading = async () => {
+    const miles = Number(readingMiles);
+    if (!readingMiles || !Number.isFinite(miles) || miles < 0) return toast.error("Enter the mileage shown on the dashboard");
+    setSavingReading(true);
+    try {
+      await addOdometerReading({ vehicle_id: vehicleId, reading_date: readingDate, odometer_mi: Math.round(miles), note: readingNote.trim() || null, exception_reason: readingNote.trim() || null });
+      toast.success("Mileage saved");
+      setReadingMiles(""); setReadingNote("");
+      load();
+    } catch (e) {
+      toast.error(`Couldn't save mileage — ${(e as Error).message}`);
+    } finally {
+      setSavingReading(false);
+    }
+  };
+
+  const removeReading = async (id: string) => {
+    try { await deleteOdometerReading(id); load(); }
+    catch (e) { toast.error(`Couldn't delete reading — ${(e as Error).message}`); }
+  };
 
   const handleDelete = async (id: string) => {
     try {
@@ -91,7 +131,9 @@ const VehicleMaintenanceDialog = ({ vehicleId, vehicleReg, baselineMileage, open
             Current odometer:{" "}
             <span className="font-semibold">{currentMi.toLocaleString("en-GB")} mi</span>
             <span className="text-muted-foreground text-xs ml-2">
-              ({baselineMileage.toLocaleString("en-GB")} baseline + {timeslipMiles.toLocaleString("en-GB")} from timeslips)
+              {lastReading
+                ? `(${lastReading.odometer_mi.toLocaleString("en-GB")} read on ${new Date(lastReading.reading_date).toLocaleDateString("en-GB", { day: "numeric", month: "short" })} + ${timeslipMiles.toLocaleString("en-GB")} from timeslips since)`
+                : `(${baselineMileage.toLocaleString("en-GB")} baseline + ${timeslipMiles.toLocaleString("en-GB")} from timeslips)`}
             </span>
           </div>
           <div className="flex gap-2">
@@ -111,6 +153,7 @@ const VehicleMaintenanceDialog = ({ vehicleId, vehicleReg, baselineMileage, open
             <TabsList>
               <TabsTrigger value="status">Status ({due.filter(d => d.status === "red" || d.status === "amber").length})</TabsTrigger>
               <TabsTrigger value="history">History ({logs.length})</TabsTrigger>
+              <TabsTrigger value="mileage">Mileage ({readings.length})</TabsTrigger>
             </TabsList>
 
             <TabsContent value="status">
@@ -212,6 +255,56 @@ const VehicleMaintenanceDialog = ({ vehicleId, vehicleReg, baselineMileage, open
                                 </AlertDialogFooter>
                               </AlertDialogContent>
                             </AlertDialog>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="mileage" className="space-y-3">
+              <Card className="p-3 space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Record the mileage on the dashboard. The newest reading replaces the tracked figure, and only timeslip miles after that date are added on top.
+                </p>
+                <div className="grid gap-2 sm:grid-cols-[150px_150px_1fr_auto] sm:items-end">
+                  <div className="space-y-1">
+                    <Label htmlFor="odo-date">Date</Label>
+                    <Input id="odo-date" type="date" value={readingDate} onChange={(e) => setReadingDate(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="odo-miles">Mileage</Label>
+                    <Input id="odo-miles" type="number" inputMode="numeric" min={0} value={readingMiles} onChange={(e) => setReadingMiles(e.target.value)} placeholder={String(currentMi)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="odo-note">Note (needed if lower than the last reading)</Label>
+                    <Input id="odo-note" value={readingNote} onChange={(e) => setReadingNote(e.target.value)} placeholder="e.g. Monthly check" />
+                  </div>
+                  <Button onClick={saveReading} disabled={savingReading}>
+                    {savingReading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}Save reading
+                  </Button>
+                </div>
+              </Card>
+              <Card className="p-0 overflow-x-auto">
+                {readings.length === 0 ? (
+                  <p className="p-4 text-center text-sm text-muted-foreground">No manual readings yet.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow><TableHead>Date</TableHead><TableHead>Mileage</TableHead><TableHead>Note</TableHead><TableHead /></TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {readings.map((r) => (
+                        <TableRow key={r.id}>
+                          <TableCell>{new Date(r.reading_date).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}</TableCell>
+                          <TableCell className="font-medium">{r.odometer_mi.toLocaleString("en-GB")} mi</TableCell>
+                          <TableCell className="text-muted-foreground">{r.note ?? "—"}</TableCell>
+                          <TableCell className="text-right">
+                            <Button size="icon" variant="ghost" onClick={() => removeReading(r.id)} aria-label="Delete reading">
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
                           </TableCell>
                         </TableRow>
                       ))}

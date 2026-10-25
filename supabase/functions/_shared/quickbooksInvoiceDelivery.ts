@@ -152,7 +152,7 @@ export function buildInvoiceCtaHtml(publicUrl: string | null, hasPdf: boolean): 
   if (publicUrl) {
     return `
       <p style="margin: 24px 0;">
-        <a href="${publicUrl}" style="background-color: #4a65d5; color: #ffffff; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+        <a href="${publicUrl}" style="background-color: #4D6863; color: #ffffff; padding: 12px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
           View &amp; pay invoice
         </a>
       </p>

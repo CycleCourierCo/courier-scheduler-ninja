@@ -20,6 +20,7 @@ import RepairOffer from "./pages/RepairOffer";
 import InspectionApproval from "./pages/InspectionApproval";
 import NiPartnerUpload from "./pages/NiPartnerUpload";
 import TrackingPage from "./pages/TrackingPage";
+const EtaPage = lazy(() => import("./pages/EtaPage"));
 import NotFound from "./pages/NotFound";
 
 // Lazy: staff/admin pages, loaded only when someone opens them.
@@ -61,7 +62,14 @@ const TrunkRunsPage = lazy(() => import("./pages/TrunkRunsPage"));
 const MyStockPage = lazy(() => import("./pages/MyStockPage"));
 const ShopifyIntegrationPage = lazy(() => import("./pages/ShopifyIntegrationPage"));
 const FuelFinderPage = lazy(() => import("./pages/FuelFinderPage"));
-const VehicleManagement = lazy(() => import("./pages/VehicleManagement"));
+const FleetDashboard = lazy(() => import("./pages/fleet/FleetDashboard"));
+const VehicleProfile = lazy(() => import("./pages/fleet/VehicleProfile"));
+const InspectionForm = lazy(() => import("./pages/fleet/InspectionForm"));
+const InspectionChecklists = lazy(() => import("./pages/fleet/InspectionChecklists"));
+const FleetGarages = lazy(() => import("./pages/fleet/FleetGarages"));
+const FleetCompliance = lazy(() => import("./pages/fleet/FleetCompliance"));
+const FleetLiveMap = lazy(() => import("./pages/fleet/LiveMap"));
+const FleetRouteReport = lazy(() => import("./pages/fleet/RouteReport"));
 const EquipmentPage = lazy(() => import("./pages/EquipmentPage"));
 const ClaimsList = lazy(() => import("./pages/ClaimsList"));
 const NewClaim = lazy(() => import("./pages/NewClaim"));
@@ -81,6 +89,7 @@ const ReviewsPage = lazy(() => import("./pages/ReviewsPage"));
 const ReviewDetailPage = lazy(() => import("./pages/ReviewDetailPage"));
 const MyReviewsPage = lazy(() => import("./pages/MyReviewsPage"));
 const DriversRota = lazy(() => import("./pages/DriversRota"));
+const EmailCentre = lazy(() => import("./pages/EmailCentre"));
 const DriverHolidayRequests = lazy(() => import("./pages/DriverHolidayRequests"));
 
 const queryClient = new QueryClient({
@@ -385,11 +394,15 @@ function App() {
                   <EquipmentPage />
                 </ProtectedRoute>
               } />
-              <Route path="/vehicles" element={
-                <ProtectedRoute adminOnly={true}>
-                  <VehicleManagement />
-                </ProtectedRoute>
-              } />
+              <Route path="/fleet" element={<ProtectedRoute><FleetDashboard /></ProtectedRoute>} />
+              <Route path="/fleet/vehicles/:id" element={<ProtectedRoute><VehicleProfile /></ProtectedRoute>} />
+              <Route path="/fleet/inspections/:id" element={<ProtectedRoute><InspectionForm /></ProtectedRoute>} />
+              <Route path="/fleet/checklists" element={<ProtectedRoute><InspectionChecklists /></ProtectedRoute>} />
+              <Route path="/fleet/garages" element={<ProtectedRoute><FleetGarages /></ProtectedRoute>} />
+              <Route path="/fleet/compliance" element={<ProtectedRoute><FleetCompliance /></ProtectedRoute>} />
+              <Route path="/fleet/live" element={<ProtectedRoute><FleetLiveMap /></ProtectedRoute>} />
+              <Route path="/fleet/route-report" element={<ProtectedRoute><FleetRouteReport /></ProtectedRoute>} />
+              <Route path="/vehicles" element={<Navigate to="/fleet" replace />} />
               <Route path="/claims" element={
                 <ProtectedRoute adminOnly={true}>
                   <ClaimsList />
@@ -410,11 +423,17 @@ function App() {
                   <LabourTimesAdmin />
                 </ProtectedRoute>
               } />
+              <Route path="/admin/email-centre" element={
+                <ProtectedRoute adminOnly>
+                  <EmailCentre />
+                </ProtectedRoute>
+              } />
               <Route path="/admin/route-permissions" element={
                 <ProtectedRoute adminOnly>
                   <RoutePermissionsPage />
                 </ProtectedRoute>
               } />
+              <Route path="/eta/:token" element={<EtaPage />} />
               <Route path="/tracking" element={<TrackingPage />} />
               <Route path="/tracking/:id" element={<TrackingPage />} />
               <Route path="/about" element={<AboutPage />} />

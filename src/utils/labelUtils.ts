@@ -7,15 +7,15 @@ import thermalCompactHeader from "@/assets/brand/mark-1bit-64.png.asset.json";
 import repairIcon from "@/assets/labels/label-icon-repair.png.asset.json";
 import boxIcon from "@/assets/labels/label-icon-box.png.asset.json";
 import { publicBrandAssetUrl } from "@/lib/brandAssets";
+import { createLabelQr } from './labelQr';
 
 export const LABEL_WIDTH = 288; // 4 inches in points
 export const LABEL_HEIGHT = 432; // 6 inches in points
 const MARGIN = 15;
 const BODY_SIZE = 12;
-const LINE_HEIGHT = 15;
+const LINE_HEIGHT = 13;
 const ICON_SIZE = 24;
 const INDICATOR_GAP = 12;
-const INDICATOR_HEIGHT = ICON_SIZE + 14;
 // The 1-bit cloud mark is placed at 100% (one image pixel per printer dot at
 // 203 dpi). Scaling would resample it and reintroduce greys.
 const PRINTER_DPI = 203;
@@ -24,8 +24,8 @@ const MARK_COMPACT_PX = 64;
 const MARK_FULL_PT = MARK_FULL_PX * 72 / PRINTER_DPI;
 const MARK_COMPACT_PT = MARK_COMPACT_PX * 72 / PRINTER_DPI;
 const MARK_TOP = 10;
-const HEADER_HEIGHT = MARK_TOP + MARK_FULL_PT;
-const COMPACT_HEADER_HEIGHT = MARK_TOP + MARK_COMPACT_PT;
+const HEADER_HEIGHT = MARK_TOP + Math.max(MARK_FULL_PT, 34) + 52;
+const COMPACT_HEADER_HEIGHT = MARK_TOP + Math.max(MARK_COMPACT_PT, 34) + 52;
 
 type ThermalArtwork = {
   full: Uint8Array;
@@ -169,7 +169,16 @@ export const renderLabelPage = (
     pdf.setFontSize(size);
     return pdf.splitTextToSize(text, contentWidth) as string[];
   };
-  const trackingLines = wrap(order.trackingNumber || 'N/A', 16);
+  const reference = order.trackingNumber || order.id;
+  const qr = createLabelQr(reference);
+  const printerDot = 72 / PRINTER_DPI;
+  // Four-module white quiet zone on every side of the code.
+  const qrModules = qr.getModuleCount() + 8;
+  const qrSizeAt = (dots: number) => qrModules * dots * printerDot;
+  const QR_GAP = 8;
+  pdf.setFontSize(16);
+  const trackingLines = pdf.splitTextToSize(order.trackingNumber || 'N/A', contentWidth) as string[];
+  const trackingBlock = 20 + trackingLines.length * 20 + 16;
   const senderLines = showSenderName && order.sender?.name ? wrap(order.sender.name, BODY_SIZE) : [];
   const address = order.receiver?.address;
   const receiverLines = [
@@ -191,19 +200,47 @@ export const renderLabelPage = (
   const hasIndicators = order.needsInspection || order.isBoxMyBike || order.isNorthernIreland;
 
   // Measure the entire body before choosing artwork; never shrink text to fit.
-  const bodyHeight = 12 + trackingLines.length * 20 + 10
-    + (senderLines.length ? 15 + senderLines.length * LINE_HEIGHT + 10 : 0)
-    + 15 + receiverLines.length * LINE_HEIGHT + 12
-    + 15 + (itemLines.length + typeLines.length + codeLines.length) * LINE_HEIGHT
-    + (hasIndicators ? INDICATOR_HEIGHT : 0);
-  const useCompact = HEADER_HEIGHT + 8 + bodyHeight > LABEL_HEIGHT - MARGIN;
-  const headerHeight = useCompact ? COMPACT_HEADER_HEIGHT : HEADER_HEIGHT;
-  if (headerHeight + 8 + bodyHeight > LABEL_HEIGHT - MARGIN) {
+  const textBlock = trackingBlock
+    + (senderLines.length ? LINE_HEIGHT + senderLines.length * LINE_HEIGHT + 24 : 0)
+    + LINE_HEIGHT + receiverLines.length * LINE_HEIGHT + 24
+    + LINE_HEIGHT + (itemLines.length + typeLines.length + codeLines.length) * LINE_HEIGHT
+    + (hasIndicators ? ICON_SIZE + 8 : 0);
+  // The QR code sits at the bottom: use the largest whole-dot size that fits.
+  const fitFor = (header: number) => {
+    const available = LABEL_HEIGHT - MARGIN - (header + 8 + textBlock);
+    for (const dots of [5, 4, 3]) {
+      if (qrSizeAt(dots) + QR_GAP * 2 <= available) return { header, dots };
+    }
+    return null;
+  };
+  const fit = fitFor(HEADER_HEIGHT) ?? fitFor(COMPACT_HEADER_HEIGHT);
+  if (!fit) {
     throw new Error(`Label details for ${order.trackingNumber || order.id} are too long to fit safely on a 4 × 6 label.`);
   }
+  const useCompact = fit.header === COMPACT_HEADER_HEIGHT;
+  const headerHeight = fit.header;
+  const qrSize = qrSizeAt(fit.dots);
+  const qrModule = fit.dots * printerDot;
   const markSize = useCompact ? MARK_COMPACT_PT : MARK_FULL_PT;
   pdf.addImage(useCompact ? artwork.compact : artwork.full, 'PNG', MARGIN, MARK_TOP,
     markSize, markSize, useCompact ? 'thermal-mark-64' : 'thermal-mark-128', 'NONE');
+  // Draw wording as crisp PDF text, keeping the original mark at printer-dot size.
+  const brandX = MARGIN + markSize + 10;
+  pdf.setFontSize(14);
+  pdf.text('CYCLE COURIER CO.', brandX, MARK_TOP + 22);
+  let brandY = MARK_TOP + Math.max(markSize, 34) + 12;
+  pdf.setFontSize(10);
+  for (const line of [
+    'BOXED & UNBOXED BIKE DELIVERY',
+    'ENGLAND · WALES · NORTHERN IRELAND',
+    'INSPECTION & REPAIRS',
+  ]) {
+    pdf.text(line, MARGIN, brandY);
+    brandY += 12;
+  }
+  pdf.text('Cyclecourierco.com · +44 121 798 0767', MARGIN, brandY + 2);
+  const divider = (position: number) => pdf.line(MARGIN, position, labelWidth - MARGIN, position);
+  divider(headerHeight + 6);
   let y = headerHeight + 20;
   const textLines = (lines: string[], size = BODY_SIZE, height = LINE_HEIGHT) => {
     pdf.setFontSize(size);
@@ -213,21 +250,25 @@ export const renderLabelPage = (
   pdf.text(`TRACKING${quantity > 1 ? ` (${bikeIndex + 1}/${quantity})` : ''}`, MARGIN, y);
   y += 20;
   textLines(trackingLines, 16, 20);
-  y += 5;
+  y += 2;
+  divider(y);
+  y += 12;
   if (senderLines.length) {
     pdf.setFontSize(BODY_SIZE);
     pdf.text('FROM:', MARGIN, y); y += LINE_HEIGHT;
-    textLines(senderLines); y += 10;
+    textLines(senderLines); y += 12;
+    divider(y); y += 12;
   }
   pdf.setFontSize(BODY_SIZE);
   pdf.text('TO:', MARGIN, y); y += LINE_HEIGHT;
   textLines(receiverLines); y += 12;
+  divider(y); y += 12;
   pdf.text('ITEM:', MARGIN, y); y += LINE_HEIGHT;
   textLines(itemLines);
   textLines(typeLines);
   textLines(codeLines);
   if (hasIndicators) {
-    y += 10;
+    y += 8;
     let x = MARGIN;
     const drawFallback = (label: string) => {
       pdf.setFont("helvetica", "bold");
@@ -255,4 +296,20 @@ export const renderLabelPage = (
     if (order.isBoxMyBike) drawIcon(artwork.box, 'thermal-box-icon', 'BOX');
     if (order.isNorthernIreland) drawFallback('NI');
   }
+
+  // Tracking QR at the bottom of the label, right-aligned on whole printer dots.
+  const qrX = Math.round((labelWidth - MARGIN - qrSize) / printerDot) * printerDot;
+  const qrY = Math.round((LABEL_HEIGHT - MARGIN - qrSize) / printerDot) * printerDot;
+  divider(qrY - QR_GAP);
+  pdf.setFillColor('0');
+  for (let row = 0; row < qr.getModuleCount(); row++) {
+    for (let col = 0; col < qr.getModuleCount(); col++) {
+      if (qr.isDark(row, col)) {
+        pdf.rect(qrX + (col + 4) * qrModule, qrY + (row + 4) * qrModule,
+          qrModule, qrModule, 'F');
+      }
+    }
+  }
+  pdf.setFontSize(12);
+  pdf.text('SCAN TO TRACK', qrX - 8, qrY + qrSize, { align: 'right' });
 };

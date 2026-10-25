@@ -1180,6 +1180,7 @@ const handler = async (req: Request): Promise<Response> => {
         },
         body: JSON.stringify({
           to: 'info@cyclecourierco.com',
+          templateKey: "internal.invoice_created",
           subject: `Invoice Created: ${invoiceData.customerName} - ${invoiceNumber || 'Draft'}`,
           html: reportHtml
         })
