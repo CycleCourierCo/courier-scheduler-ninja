@@ -9,15 +9,37 @@ import { toast } from "sonner";
 import { loadFleetOverview, describeAudit, type FleetAuditRow, type FleetVehicleSummary } from "@/services/fleetService";
 import { dueState, fleetStatusGroup, FLEET_GROUP_LABEL, type FleetStatusGroup } from "@/lib/fleet/status";
 import VehicleStatusBadge from "@/components/vehicles/VehicleStatusBadge";
+import AddVehicleDialog from "@/components/vehicles/AddVehicleDialog";
+import InsuranceTab from "@/components/vehicles/InsuranceTab";
+import { Button } from "@/components/ui/button";
 
 type Filter = "all" | "operational" | "under_repair" | "out_of_service" | "critical" | "issues" | "service_soon" | "service_overdue" | "mot_soon" | "inspection_due" | "inspection_overdue" | "actions" | "repairs" | "verify" | "tyres";
 
-const Stat = ({ label, value, tone, active, onClick }: { label: string; value: number; tone?: "bad" | "warn"; active: boolean; onClick: () => void }) => (
+const _UnusedStat = ({ label, value, tone, active, onClick }: { label: string; value: number; tone?: "bad" | "warn"; active: boolean; onClick: () => void }) => (
   <button type="button" onClick={onClick} className={`text-left rounded-lg border p-3 transition-colors hover:bg-muted ${active ? "ring-2 ring-primary" : ""}`}>
     <div className="text-xs text-muted-foreground">{label}</div>
     <div className={`text-2xl font-bold ${value && tone === "bad" ? "text-destructive" : value && tone === "warn" ? "text-status-waiting" : ""}`}>{value}</div>
   </button>
 );
+
+const STATUS_SEGMENTS = [
+  { key: "operational", label: "Operational", bar: "bg-status-delivered" },
+  { key: "under_repair", label: "Under repair", bar: "bg-status-waiting" },
+  { key: "out_of_service", label: "Out of service", bar: "bg-destructive" },
+] as const;
+
+const ATTENTION: { key: Filter; label: string; short: string; tone: "bad" | "warn" }[] = [
+  { key: "critical", label: "Critical defects open", short: "critical defects", tone: "bad" },
+  { key: "inspection_overdue", label: "Inspections overdue", short: "overdue inspections", tone: "bad" },
+  { key: "service_overdue", label: "Service overdue", short: "overdue service", tone: "bad" },
+  { key: "tyres", label: "Vans with low tyres", short: "tyres", tone: "bad" },
+  { key: "inspection_due", label: "Inspections due in 7 days", short: "inspections due", tone: "warn" },
+  { key: "service_soon", label: "Service due soon", short: "service due", tone: "warn" },
+  { key: "mot_soon", label: "MOT within 30 days", short: "MOT", tone: "warn" },
+  { key: "issues", label: "Other defects open", short: "other defects", tone: "warn" },
+  { key: "repairs", label: "Repairs outstanding", short: "repairs", tone: "warn" },
+  { key: "verify", label: "Repairs awaiting verification", short: "verification", tone: "warn" },
+];
 
 const FleetDashboard = () => {
   const [rows, setRows] = useState<FleetVehicleSummary[]>([]);
@@ -27,6 +49,7 @@ const FleetDashboard = () => {
   const [search, setSearch] = useState("");
   const [window, setWindow] = useState(30);
 
+  const reload = () => loadFleetOverview().then((r) => { setRows(r.rows); setRecent(r.recent); }).catch(() => {});
   useEffect(() => {
     loadFleetOverview()
       .then((r) => { setRows(r.rows); setRecent(r.recent); })
@@ -87,28 +110,61 @@ const FleetDashboard = () => {
         <div className="flex items-center gap-2">
           <Truck className="h-6 w-6 text-primary" />
           <h1 className="text-2xl font-bold">Fleet dashboard</h1>
+          <div className="ml-auto flex gap-2">
+            <Button size="sm" variant="outline" asChild><Link to="/fleet/compliance">Compliance</Link></Button>
+            <AddVehicleDialog onCreated={reload} />
+          </div>
         </div>
 
         {loading ? (
           <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-              <Stat label="Total vehicles" value={active.length} active={filter === "all"} onClick={() => setFilter("all")} />
-              <Stat label="Operational" value={count("operational")} active={filter === "operational"} onClick={() => toggle("operational")} />
-              <Stat label="Under repair" value={count("under_repair")} tone="warn" active={filter === "under_repair"} onClick={() => toggle("under_repair")} />
-              <Stat label="Out of service" value={count("out_of_service")} tone="bad" active={filter === "out_of_service"} onClick={() => toggle("out_of_service")} />
-              <Stat label="Inspections due (7 days)" value={count("inspection_due")} tone="warn" active={filter === "inspection_due"} onClick={() => toggle("inspection_due")} />
-              <Stat label="Overdue inspections" value={count("inspection_overdue")} tone="bad" active={filter === "inspection_overdue"} onClick={() => toggle("inspection_overdue")} />
-              <Stat label="Critical issues open" value={count("critical")} tone="bad" active={filter === "critical"} onClick={() => toggle("critical")} />
-              <Stat label="Other issues open" value={count("issues")} tone="warn" active={filter === "issues"} onClick={() => toggle("issues")} />
-              <Stat label="Service due soon" value={count("service_soon")} tone="warn" active={filter === "service_soon"} onClick={() => toggle("service_soon")} />
-              <Stat label="Service overdue" value={count("service_overdue")} tone="bad" active={filter === "service_overdue"} onClick={() => toggle("service_overdue")} />
-              <Stat label="MOT within 30 days" value={count("mot_soon")} tone="warn" active={filter === "mot_soon"} onClick={() => toggle("mot_soon")} />
-              <Stat label="Repairs outstanding" value={count("repairs")} tone="warn" active={filter === "repairs"} onClick={() => toggle("repairs")} />
-              <Stat label="Repairs awaiting verification" value={count("verify")} tone="warn" active={filter === "verify"} onClick={() => toggle("verify")} />
-              <Stat label="Vans with low tyres" value={count("tyres")} tone="bad" active={filter === "tyres"} onClick={() => toggle("tyres")} />
-              <Stat label="Vans with open actions" value={count("actions")} tone="warn" active={filter === "actions"} onClick={() => toggle("actions")} />
+            <div className="grid gap-3 lg:grid-cols-2">
+              <Card className="p-3 space-y-2">
+                <div className="flex items-baseline justify-between">
+                  <h2 className="font-semibold">Fleet status</h2>
+                  <button type="button" onClick={() => setFilter("all")} className="text-xs text-muted-foreground hover:underline">{active.length} vans</button>
+                </div>
+                <div className="flex h-3 overflow-hidden rounded-full bg-muted">
+                  {STATUS_SEGMENTS.map((g) => {
+                    const n = count(g.key);
+                    return n ? <button key={g.key} type="button" aria-label={`${g.label}: ${n}`} onClick={() => toggle(g.key)} className={`${g.bar} ${filter === g.key ? "opacity-100" : filter === "all" ? "opacity-90" : "opacity-40"}`} style={{ flexGrow: n }} /> : null;
+                  })}
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {STATUS_SEGMENTS.map((g) => (
+                    <button key={g.key} type="button" onClick={() => toggle(g.key)} className={`rounded-md p-1.5 text-left hover:bg-muted ${filter === g.key ? "ring-2 ring-primary" : ""}`}>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className={`h-2 w-2 rounded-full ${g.bar}`} />{g.label}</div>
+                      <div className="text-xl font-bold leading-tight">{count(g.key)}</div>
+                    </button>
+                  ))}
+                </div>
+              </Card>
+
+              <Card className="p-3 space-y-1">
+                <h2 className="font-semibold mb-1">Needs attention</h2>
+                {(() => {
+                  const items = ATTENTION.map((x) => ({ ...x, n: count(x.key) }));
+                  const hot = items.filter((x) => x.n > 0).sort((p, q) => (p.tone === q.tone ? q.n - p.n : p.tone === "bad" ? -1 : 1));
+                  const clear = items.filter((x) => x.n === 0);
+                  return <>
+                    {hot.length === 0 && <p className="text-sm text-muted-foreground">Nothing needs attention.</p>}
+                    <ul className="divide-y">
+                      {hot.map((x) => (
+                        <li key={x.key}>
+                          <button type="button" onClick={() => toggle(x.key)} className={`flex w-full items-center gap-2 rounded px-1 py-2 text-left text-sm hover:bg-muted ${filter === x.key ? "bg-muted" : ""}`}>
+                            <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${x.tone === "bad" ? "bg-destructive" : "bg-status-waiting"}`} />
+                            <span className="flex-1">{x.label}</span>
+                            <span className={`font-semibold ${x.tone === "bad" ? "text-destructive" : "text-status-waiting"}`}>{x.n}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    {clear.length > 0 && <p className="pt-1 text-xs text-muted-foreground">All clear: {clear.map((x) => x.short).join(", ")}.</p>}
+                  </>;
+                })()}
+              </Card>
             </div>
 
             <div className="grid gap-4 lg:grid-cols-3">
@@ -147,13 +203,6 @@ const FleetDashboard = () => {
 
               <div className="space-y-4">
                 <Card className="p-3 space-y-2">
-                  <h2 className="font-semibold">Status overview</h2>
-                  {(Object.keys(FLEET_GROUP_LABEL) as FleetStatusGroup[]).map((g) => (
-                    <div key={g} className="flex justify-between text-sm"><span>{FLEET_GROUP_LABEL[g]}</span><span className="font-medium">{statusCounts[g] ?? 0}</span></div>
-                  ))}
-                </Card>
-
-                <Card className="p-3 space-y-2">
                   <div className="flex items-center gap-2">
                     <h2 className="font-semibold">Coming up</h2>
                     <div className="ml-auto flex gap-1">
@@ -186,6 +235,10 @@ const FleetDashboard = () => {
                 </Card>
               </div>
             </div>
+            <details className="rounded-lg border bg-card p-3">
+              <summary className="cursor-pointer font-semibold">Insurance cover</summary>
+              <div className="pt-3"><InsuranceTab vehicles={active.map((r) => r.vehicle)} /></div>
+            </details>
           </>
         )}
       </div>
