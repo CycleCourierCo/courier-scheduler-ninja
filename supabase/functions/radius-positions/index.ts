@@ -55,7 +55,16 @@ Deno.serve(async (req) => {
     const cron = req.headers.get("X-Cron-Secret");
     if (cron) {
       if (cron !== Deno.env.get("CRON_SECRET")) return json({ error: "Unauthorized" }, 401);
-      await newAccessToken();
+      const t = await newAccessToken();
+      let body: any = {};
+      try { body = await req.json(); } catch { /* none */ }
+      if (body?.action === "diagnose") {
+        const r = await fetchPositions(t);
+        const text = await r.text();
+        let detail: unknown = null;
+        try { const j = JSON.parse(text); detail = j?.detail ?? j?.message ?? j?.error ?? (Array.isArray(j?.devices) ? `devices: ${j.devices.length}` : Object.keys(j ?? {})); } catch { detail = text.slice(0, 200); }
+        return json({ ok: r.ok, status: r.status, detail });
+      }
       return json({ ok: true });
     }
 
