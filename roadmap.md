@@ -65,3 +65,6 @@
 - [ ] Fleet phase 3: maintenance planner, tyres, repairs, providers, costs
 - [ ] Fleet phase 4: route-assignment warnings, compliance page, reminder emails
 - [ ] Fleet phase 5: end-to-end and access testing
+- [x] Fleet Phase 2: inspections (5 checklists, editable), defects (Red/Amber/Green, 8 statuses, evidence to close Red, photos)
+- [ ] Fleet Phase 3: maintenance schedules, mileage source, tyres, repair jobs, garages, costs
+- [ ] Fleet Phase 4: route warnings, compliance page, fleet alert emails
