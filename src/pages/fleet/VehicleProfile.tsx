@@ -121,10 +121,10 @@ const VehicleProfile = () => {
           <h1 className="font-mono text-2xl font-bold">{v.registration}</h1>
           <VehicleStatusBadge status={v.status} />
           <span className="text-sm text-muted-foreground">{[v.make, v.model, v.year_of_manufacture].filter(Boolean).join(" · ")}</span>
-          <div className="ml-auto flex gap-2">
-            <Button variant="outline" size="sm" onClick={refreshDvla} disabled={refreshing}><RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`} />DVLA</Button>
-            <Button variant="outline" size="sm" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4 mr-2" />Edit van</Button>
-            <Button variant="outline" size="sm" onClick={() => setMaintOpen(true)}><Wrench className="h-4 w-4 mr-2" />Service & mileage</Button>
+          <div className="grid w-full grid-cols-3 gap-2 sm:ml-auto sm:flex sm:w-auto">
+            <Button variant="outline" size="sm" className="min-w-0 px-2 sm:px-3" onClick={refreshDvla} disabled={refreshing}><RefreshCw className={`h-4 w-4 shrink-0 sm:mr-2 mr-1 ${refreshing ? "animate-spin" : ""}`} /><span className="truncate">DVLA</span></Button>
+            <Button variant="outline" size="sm" className="min-w-0 px-2 sm:px-3" onClick={() => setEditOpen(true)}><Pencil className="h-4 w-4 shrink-0 sm:mr-2 mr-1" /><span className="truncate">Edit</span></Button>
+            <Button variant="outline" size="sm" className="min-w-0 px-2 sm:px-3" onClick={() => setMaintOpen(true)}><Wrench className="h-4 w-4 shrink-0 sm:mr-2 mr-1" /><span className="truncate">Service</span></Button>
           </div>
         </div>
 
@@ -135,17 +135,34 @@ const VehicleProfile = () => {
         )}
 
         <Tabs value={tab} onValueChange={setTab} className="space-y-3">
-          <TabsList className="flex-wrap h-auto">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="inspections">Inspections</TabsTrigger>
-            <TabsTrigger value="defects">Defects ({summary.openIssues.length})</TabsTrigger>
-            <TabsTrigger value="repairs">Repairs ({summary.openRepairs.length})</TabsTrigger>
-            <TabsTrigger value="tyres">Tyres</TabsTrigger>
-            <TabsTrigger value="costs">Costs</TabsTrigger>
-            <TabsTrigger value="insurance">Insurance</TabsTrigger>
-            <TabsTrigger value="details">Fleet details</TabsTrigger>
-            <TabsTrigger value="history">History ({audit.length})</TabsTrigger>
-          </TabsList>
+          {(() => {
+            const tabs = [
+              ["overview", "Overview"],
+              ["inspections", "Inspections"],
+              ["defects", `Defects (${summary.openIssues.length})`],
+              ["repairs", `Repairs (${summary.openRepairs.length})`],
+              ["tyres", "Tyres"],
+              ["costs", "Costs"],
+              ["insurance", "Insurance"],
+              ["details", "Fleet details"],
+              ["history", `History (${audit.length})`],
+            ];
+            return (
+              <>
+                <div className="sm:hidden">
+                  <Select value={tab} onValueChange={setTab}>
+                    <SelectTrigger aria-label="Section"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {tabs.map(([k, l]) => <SelectItem key={k} value={k}>{l}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <TabsList className="hidden h-auto flex-wrap justify-start sm:flex">
+                  {tabs.map(([k, l]) => <TabsTrigger key={k} value={k}>{l}</TabsTrigger>)}
+                </TabsList>
+              </>
+            );
+          })()}
 
           <TabsContent value="inspections"><InspectionsPanel vehicleId={id} odometer={summary.odometer} /></TabsContent>
           <TabsContent value="defects"><DefectsPanel vehicleId={id} onChange={load} /></TabsContent>
