@@ -8,7 +8,7 @@ import { normaliseReg } from "@/lib/fleet/liveTracking";
 import { firstVisit, offRouteStretches, pathMiles, type Pt, type Sample, type OffRouteStretch } from "@/lib/fleet/routeDeviation";
 import { DEPOT_LOCATION } from "@/constants/depot";
 import { decodePolyline } from "@/services/routeGenerationService";
-import { routeDepotIcon } from "@/lib/mapMarkers";
+import { routeDepotIcon } from "@/components/scheduling/RouteMapPrimitives";
 
 /** Read a semantic token as a usable colour string (Leaflet needs literal colours). */
 export function tokenColour(name: string): string {
