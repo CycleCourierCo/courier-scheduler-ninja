@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import Layout from "@/components/Layout";
+import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -317,7 +318,7 @@ const VehicleManagement = () => {
                     <Card key={v.id} className="min-w-0 p-3">
                       <div className="flex min-w-0 items-start justify-between gap-2 border-b pb-2">
                         <div className="min-w-0">
-                          <div className="font-mono text-base font-bold">{v.registration}</div>
+                          <Link to={`/fleet/vehicles/${v.id}`} className="font-mono text-base font-bold hover:underline">{v.registration}</Link>
                           <div className="truncate text-xs text-muted-foreground">
                             {v.make ?? "Unknown make"}{v.colour ? ` · ${v.colour}` : ""}{v.year_of_manufacture ? ` · ${v.year_of_manufacture}` : ""}
                           </div>
