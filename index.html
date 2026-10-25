@@ -4,6 +4,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Cache-Control" content="no-cache" />
+    <script>
+      // Self-repair: if the styling file failed (stale cached page after a publish), reload once bypassing cache.
+      window.addEventListener("load", function () {
+        try {
+          var ok = getComputedStyle(document.documentElement).getPropertyValue("--background").trim() !== "";
+          if (ok) { sessionStorage.removeItem("ccc-css-retry"); return; }
+          if (!sessionStorage.getItem("ccc-css-retry")) {
+            sessionStorage.setItem("ccc-css-retry", "1");
+            var u = new URL(location.href); u.searchParams.set("v", Date.now()); location.replace(u.toString());
+          } else {
+            var d = document.createElement("div");
+            d.setAttribute("style", "position:fixed;inset:0 0 auto 0;padding:16px;background:#4D6863;color:#fff;font:16px sans-serif;z-index:99999;text-align:center");
+            d.innerHTML = 'The site has just been updated. <a href="#" style="color:#fff;font-weight:bold" onclick="location.reload();return false">Please refresh</a>';
+            document.body.appendChild(d);
+          }
+        } catch (e) {}
+      });
+    </script>
     <title>Cycle Courier Co. | Specialist Bike Delivery &amp; Booking</title>
     <meta name="description" content="Book, track and manage specialist bicycle collections and deliveries across the UK and Ireland with The Cycle Courier Co." />
     <meta name="author" content="Cycle Courier Co." />
