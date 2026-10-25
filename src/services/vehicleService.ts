@@ -32,6 +32,7 @@ export const VEHICLE_STATUS_OPTIONS: { value: VehicleStatus; label: string }[] =
   { value: "purchased", label: "Purchased" },
   { value: "in_prep", label: "In Prep" },
   { value: "in_use", label: "In Use" },
+  { value: "in_use_maintenance_required", label: "In Use — Maintenance Required" },
   { value: "in_service", label: "In Service" },
   { value: "in_repair", label: "In Repair" },
   { value: "mot_due", label: "MOT Due" },

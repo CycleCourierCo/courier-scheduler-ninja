@@ -2336,6 +2336,47 @@ export type Database = {
           },
         ]
       }
+      fleet_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          changes: Json | null
+          created_at: string
+          id: string
+          record_id: string | null
+          table_name: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          changes?: Json | null
+          created_at?: string
+          id?: string
+          record_id?: string | null
+          table_name: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          changes?: Json | null
+          created_at?: string
+          id?: string
+          record_id?: string | null
+          table_name?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fleet_audit_log_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fuel_analysis_settings: {
         Row: {
           duplicate_fill_window_hours: number
@@ -6396,6 +6437,7 @@ export type Database = {
       }
       vehicles: {
         Row: {
+          assigned_driver_id: string | null
           bike_spaces: number | null
           clean_air_zones: boolean
           co2_emissions: number | null
@@ -6411,11 +6453,14 @@ export type Database = {
           id: string
           last_refreshed_at: string | null
           london_auto_pay: boolean
+          maintenance_notes: string | null
           make: string | null
           marked_for_export: boolean | null
           mersey_tunnel: boolean
+          model: string | null
           mot_expiry_date: string | null
           mot_status: string | null
+          next_inspection_due: string | null
           notes: string | null
           odometer_baseline_mi: number
           purchase_date: string | null
@@ -6432,11 +6477,14 @@ export type Database = {
           tyne_tunnel: boolean
           type_approval: string | null
           updated_at: string
+          vehicle_type: string | null
           ves_raw: Json | null
+          vin: string | null
           wheelplan: string | null
           year_of_manufacture: number | null
         }
         Insert: {
+          assigned_driver_id?: string | null
           bike_spaces?: number | null
           clean_air_zones?: boolean
           co2_emissions?: number | null
@@ -6452,11 +6500,14 @@ export type Database = {
           id?: string
           last_refreshed_at?: string | null
           london_auto_pay?: boolean
+          maintenance_notes?: string | null
           make?: string | null
           marked_for_export?: boolean | null
           mersey_tunnel?: boolean
+          model?: string | null
           mot_expiry_date?: string | null
           mot_status?: string | null
+          next_inspection_due?: string | null
           notes?: string | null
           odometer_baseline_mi?: number
           purchase_date?: string | null
@@ -6473,11 +6524,14 @@ export type Database = {
           tyne_tunnel?: boolean
           type_approval?: string | null
           updated_at?: string
+          vehicle_type?: string | null
           ves_raw?: Json | null
+          vin?: string | null
           wheelplan?: string | null
           year_of_manufacture?: number | null
         }
         Update: {
+          assigned_driver_id?: string | null
           bike_spaces?: number | null
           clean_air_zones?: boolean
           co2_emissions?: number | null
@@ -6493,11 +6547,14 @@ export type Database = {
           id?: string
           last_refreshed_at?: string | null
           london_auto_pay?: boolean
+          maintenance_notes?: string | null
           make?: string | null
           marked_for_export?: boolean | null
           mersey_tunnel?: boolean
+          model?: string | null
           mot_expiry_date?: string | null
           mot_status?: string | null
+          next_inspection_due?: string | null
           notes?: string | null
           odometer_baseline_mi?: number
           purchase_date?: string | null
@@ -6514,7 +6571,9 @@ export type Database = {
           tyne_tunnel?: boolean
           type_approval?: string | null
           updated_at?: string
+          vehicle_type?: string | null
           ves_raw?: Json | null
+          vin?: string | null
           wheelplan?: string | null
           year_of_manufacture?: number | null
         }
@@ -8505,6 +8564,7 @@ export type Database = {
         | "awaiting_sale"
         | "written_off"
         | "reserved"
+        | "in_use_maintenance_required"
       warehouse_item_kind: "bike" | "component"
       warehouse_stock_status: "stored" | "reserved" | "dispatched" | "returned"
     }
@@ -8785,6 +8845,7 @@ export const Constants = {
         "awaiting_sale",
         "written_off",
         "reserved",
+        "in_use_maintenance_required",
       ],
       warehouse_item_kind: ["bike", "component"],
       warehouse_stock_status: ["stored", "reserved", "dispatched", "returned"],
