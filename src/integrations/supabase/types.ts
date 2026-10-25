@@ -2633,6 +2633,39 @@ export type Database = {
         }
         Relationships: []
       }
+      fleet_position_history: {
+        Row: {
+          id: number
+          ignition: boolean | null
+          lat: number
+          lon: number
+          recorded_at: string
+          registration: string
+          speed: number | null
+          vehicle_id: string | null
+        }
+        Insert: {
+          id?: number
+          ignition?: boolean | null
+          lat: number
+          lon: number
+          recorded_at?: string
+          registration: string
+          speed?: number | null
+          vehicle_id?: string | null
+        }
+        Update: {
+          id?: number
+          ignition?: boolean | null
+          lat?: number
+          lon?: number
+          recorded_at?: string
+          registration?: string
+          speed?: number | null
+          vehicle_id?: string | null
+        }
+        Relationships: []
+      }
       fleet_repair_jobs: {
         Row: {
           booked_for: string | null
@@ -7935,6 +7968,17 @@ export type Database = {
       fleet_notify: {
         Args: { p_action: string; p_id: string }
         Returns: undefined
+      }
+      fleet_route_day: {
+        Args: { p_date: string }
+        Returns: {
+          driver_name: string
+          job_locations: Json
+          mileage: number
+          registration: string
+          timeslip_id: string
+          vehicle_id: string
+        }[]
       }
       fleet_staff_directory: {
         Args: never
