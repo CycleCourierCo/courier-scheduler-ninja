@@ -60,7 +60,7 @@ export default function SavedRoutePicker({ date, value, onChange, timeslipId, or
   };
 
   useEffect(() => {
-    if (!value && suggested) void pick(suggested);
+    if (!value && suggested) { if (required) void pick(suggested); else onChange(suggested); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [suggested]);
 
