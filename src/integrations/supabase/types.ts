@@ -2459,6 +2459,7 @@ export type Database = {
       }
       fleet_eta_links: {
         Row: {
+          closed_status: string | null
           created_at: string
           created_by: string | null
           expires_at: string
@@ -2471,6 +2472,7 @@ export type Database = {
           token: string
         }
         Insert: {
+          closed_status?: string | null
           created_at?: string
           created_by?: string | null
           expires_at?: string
@@ -2483,6 +2485,7 @@ export type Database = {
           token?: string
         }
         Update: {
+          closed_status?: string | null
           created_at?: string
           created_by?: string | null
           expires_at?: string

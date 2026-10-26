@@ -1,0 +1,1 @@
+ALTER TABLE public.fleet_eta_links ADD COLUMN IF NOT EXISTS closed_status text;
