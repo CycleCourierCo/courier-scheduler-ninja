@@ -6,7 +6,7 @@ import { useEffect } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import { CheckCircle2, Truck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { colouredMarkerIcon } from "@/lib/mapMarkers";
+import { colouredMarkerIcon, vanMarkerIcon } from "@/lib/mapMarkers";
 import { routeDepotIcon } from "@/components/scheduling/RouteMapPrimitives";
 import { decodePolyline } from "@/services/routeGenerationService";
 import { tokenColour } from "@/components/fleet/RouteOverlay";
@@ -22,9 +22,9 @@ interface DepotData {
 interface StopData {
   kind: "stop";
   registration: string; driver: string | null;
-  stop: { lat: number; lon: number; type: string };
+  stop: { lat: number; lon: number; type: string } | null;
   position: Pos | null;
-  done?: boolean; unavailable?: boolean;
+  done?: boolean; closed?: boolean; completed?: string; unavailable?: boolean;
   route?: { polyline: string; miles: number; minutes: number; eta: string; stopsBefore: number };
 }
 
@@ -36,6 +36,16 @@ function Fit({ pts }: { pts: [number, number][] }) {
 }
 
 function StopView({ d }: { d: StopData }) {
+  if (d.closed || !d.stop) {
+    return (
+      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 bg-background px-6 text-center">
+        <BrandLogo compact withWordmark />
+        <CheckCircle2 className="h-10 w-10 text-primary" />
+        <div className="text-xl font-bold">{d.completed ? `Your bike has been ${d.completed.toLowerCase()}` : "This stop is complete"}</div>
+        <div className="text-sm text-muted-foreground">Live tracking for this stop has ended.</div>
+      </div>
+    );
+  }
   const line = d.route ? decodePolyline(d.route.polyline) : [];
   const pts: [number, number][] = [[d.stop.lat, d.stop.lon], ...(d.position ? [[d.position.lat, d.position.lon] as [number, number]] : [])];
   const verb = d.stop.type.startsWith("del") ? "delivery" : "collection";
@@ -46,7 +56,7 @@ function StopView({ d }: { d: StopData }) {
           <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <Fit pts={line.length ? line : pts} />
           {line.length > 1 && <Polyline positions={line} pathOptions={{ color: tokenColour("--foreground"), weight: 6, opacity: 0.85 }} />}
-          {d.position && !d.done && <Marker position={[d.position.lat, d.position.lon]} icon={colouredMarkerIcon("black")} />}
+          {d.position && !d.done && <Marker position={[d.position.lat, d.position.lon]} icon={vanMarkerIcon("black")} />}
           <Marker position={[d.stop.lat, d.stop.lon]} icon={colouredMarkerIcon("green")} />
         </MapContainer>
       </div>
@@ -58,7 +68,7 @@ function StopView({ d }: { d: StopData }) {
         {d.done ? (
           <div className="flex items-center gap-3">
             <CheckCircle2 className="h-8 w-8 text-primary" />
-            <div><div className="text-xl font-bold">Your {verb} is done</div><div className="text-sm text-muted-foreground">The driver has been to your address.</div></div>
+            <div><div className="text-xl font-bold">{d.completed ? `Your bike has been ${d.completed.toLowerCase()}` : `Your ${verb} is done`}</div><div className="text-sm text-muted-foreground">{d.closed ? "Live tracking for this stop has ended." : "The driver has been to your address."}</div></div>
           </div>
         ) : d.route ? (
           <>
@@ -100,7 +110,7 @@ function DepotView({ d }: { d: DepotData }) {
           <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <Fit pts={line} />
           <Polyline positions={line} pathOptions={{ color: tokenColour("--primary"), weight: 5, opacity: 0.85 }} />
-          <Marker position={[d.position.lat, d.position.lon]} icon={colouredMarkerIcon("green")} />
+          <Marker position={[d.position.lat, d.position.lon]} icon={vanMarkerIcon("green")} />
           <Marker position={[d.depot.lat, d.depot.lon]} icon={routeDepotIcon} />
         </MapContainer>
       </div>

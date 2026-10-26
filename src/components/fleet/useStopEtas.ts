@@ -8,7 +8,7 @@ export interface RouteEtas { byStop: Map<number, StopEtaView>; unavailable: bool
 /** Live ETAs (Radius position → each unvisited stop, +15 min per earlier stop), one call per route. */
 export function useStopEtas(analyses: RouteAnalysis[], enabled: boolean) {
   const targets = analyses.map((a) => {
-    const remaining = a.stops.map((s, i) => ({ s, i })).filter(({ s }) => !s.visitedAt).slice(0, 26);
+    const remaining = a.stops.map((s, i) => ({ s, i })).filter(({ s }) => !s.visitedAt && !s.completed).slice(0, 26);
     return { a, remaining, ok: enabled && !!a.vehicleId && remaining.length > 0 };
   });
   const results = useQueries({

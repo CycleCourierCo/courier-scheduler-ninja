@@ -69,7 +69,7 @@ async function routeStops(db: any, savedRouteId: string, date: string) {
   }
   const stops = (raw ?? []).filter((s) => s?.lat != null && s?.lon != null)
     .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-    .map((s) => ({ lat: Number(s.lat), lon: Number(s.lon), type: String(s.type ?? "stop") }));
+    .map((s) => ({ lat: Number(s.lat), lon: Number(s.lon), type: String(s.type ?? "stop"), orderId: typeof s.orderId === "string" ? s.orderId : null }));
   let driverFirst: string | null = null;
   if (ts?.driver_id) {
     const { data: p } = await db.from("profiles").select("name").eq("id", ts.driver_id).maybeSingle();
@@ -91,19 +91,41 @@ async function sendWhatsApp(phone: string, text: string) {
   return r.ok;
 }
 
-async function viewStopLink(db: any, link: any) {
+/** Stop indexes whose order leg is finished (delivery → delivered, else collected). */
+async function completedStops(db: any, stops: { type: string; orderId: string | null }[]) {
+  const ids = [...new Set(stops.map((s) => s.orderId).filter((x): x is string => !!x && uuidRe.test(x)))];
+  const done = new Map<number, string>();
+  if (!ids.length) return done;
+  const { data } = await db.from("orders").select("id, order_collected, order_delivered").in("id", ids);
+  const byId = new Map((data ?? []).map((o: any) => [o.id, o]));
+  stops.forEach((s, i) => {
+    const o: any = s.orderId ? byId.get(s.orderId) : null;
+    if (!o) return;
+    if (/deliver|drop/i.test(s.type)) { if (o.order_delivered) done.set(i, "Delivered"); }
+    else if (o.order_collected) done.set(i, "Collected");
+  });
+  return done;
+}
+
+async function viewStopLink(db: any, link: any, token: string) {
   const pos = await latestPosition(db, link.registration);
   const { stops, driverFirst } = await routeStops(db, link.saved_route_id, link.route_date);
   const target = stops[link.stop_index];
   if (!target) return { status: 404, body: { error: "This stop is no longer on the route" } };
   const base = { kind: "stop", registration: link.registration, driver: driverFirst, stop: { lat: target.lat, lon: target.lon, type: target.type }, expires_at: link.expires_at };
+  const finished = await completedStops(db, stops);
+  if (finished.has(link.stop_index)) {
+    // Bike collected/delivered: close the link for good and stop sharing the van's position.
+    await db.from("fleet_eta_links").update({ expires_at: new Date().toISOString(), closed_status: finished.get(link.stop_index) }).eq("token", token);
+    return { status: 200, body: { ...base, done: true, closed: true, completed: finished.get(link.stop_index), position: null } };
+  }
   const start = new Date(`${link.route_date}T00:00:00Z`).getTime() - 3600_000;
   const { data: hist } = await db.from("fleet_position_history").select("lat, lon")
     .eq("registration", link.registration).gte("recorded_at", new Date(start).toISOString()).limit(5000);
   const path = (hist ?? []).map((h: any) => ({ lat: Number(h.lat), lon: Number(h.lon) }));
   if (wasVisited(target, path)) return { status: 200, body: { ...base, done: true, position: pos } };
   if (!pos || !isPositionFresh(pos.at, Date.now())) return { status: 200, body: { ...base, position: pos, unavailable: true } };
-  const before = stops.slice(0, link.stop_index).filter((s) => !wasVisited(s, path));
+  const before = stops.slice(0, link.stop_index).filter((s, i) => !finished.has(i) && !wasVisited(s, path));
   const route = await roadRoute(pos, [...before, target]);
   if (!route) return { status: 200, body: { ...base, position: pos, unavailable: true } };
   const eta = computeStopEtas(route.legs, Date.now()).at(-1)!;
@@ -122,11 +144,12 @@ Deno.serve(async (req) => {
       if (hit && Date.now() - hit.at < 110_000) return json(hit.body);
       const db = admin();
       const { data: link } = await db.from("fleet_eta_links")
-        .select("registration, expires_at, saved_route_id, route_date, stop_index").eq("token", token).maybeSingle();
+        .select("registration, expires_at, saved_route_id, route_date, stop_index, closed_status").eq("token", token).maybeSingle();
       if (!link) return json({ error: "Link not found" }, 404);
+      if (link.closed_status) return json({ kind: "stop", done: true, closed: true, completed: link.closed_status, position: null, registration: link.registration, driver: null, stop: null });
       if (new Date(link.expires_at).getTime() < Date.now()) return json({ error: "This link has expired" }, 410);
       if (link.saved_route_id && link.route_date && link.stop_index != null) {
-        const r = await viewStopLink(db, link);
+        const r = await viewStopLink(db, link, token);
         if (r.status === 200) viewCache.set(token, { at: Date.now(), body: r.body });
         return json(r.body, r.status);
       }
