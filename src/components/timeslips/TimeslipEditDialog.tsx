@@ -1,3 +1,4 @@
+import { calculateTimeslipPay } from '@/lib/timeslipPay';
 import React, { useState, useEffect } from 'react';
 import FleetVehicleWarnings from "@/components/fleet/FleetVehicleWarnings";
 import SavedRoutePicker from "./SavedRoutePicker";
@@ -43,6 +44,8 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
     total_stops: timeslip?.total_stops || 0,
     lunch_hours: timeslip?.lunch_hours || 1,
     hourly_rate: timeslip?.hourly_rate || 11,
+    pay_type: (timeslip?.pay_type || 'hourly') as 'hourly' | 'per_mile',
+    per_mile_rate: (timeslip?.per_mile_rate ?? null) as number | null,
     van_allowance: timeslip?.van_allowance || 0,
     mileage: timeslip?.mileage || null,
     vehicle_id: timeslip?.vehicle_id || null,
@@ -69,6 +72,8 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
         total_stops: timeslip.total_stops,
         lunch_hours: timeslip.lunch_hours,
         hourly_rate: timeslip.hourly_rate,
+        pay_type: timeslip.pay_type || 'hourly',
+        per_mile_rate: timeslip.per_mile_rate ?? null,
         van_allowance: timeslip.van_allowance,
         mileage: timeslip.mileage,
         vehicle_id: timeslip.vehicle_id || null,
@@ -129,7 +134,7 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
     return sum + hours;
   }, 0);
   const totalHours = formData.driving_hours + stop_hours + formData.lunch_hours + customAddonHours;
-  const totalPay = (totalHours * formData.hourly_rate) + formData.van_allowance;
+  const totalPay = calculateTimeslipPay({ ...formData, total_hours: totalHours });
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -180,6 +185,31 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
+              <Label>Pay Type</Label>
+              <Select value={formData.pay_type} onValueChange={(v) => setFormData({ ...formData, pay_type: v as 'hourly' | 'per_mile' })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hourly">Hourly</SelectItem>
+                  <SelectItem value="per_mile">Per mile</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {formData.pay_type === 'per_mile' ? (
+            <div className="space-y-2">
+              <Label htmlFor="per_mile_rate">Per-mile Rate (£)</Label>
+              <Input
+                id="per_mile_rate"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.per_mile_rate ?? ''}
+                onChange={(e) => setFormData({ ...formData, per_mile_rate: e.target.value === '' ? null : parseFloat(e.target.value) })}
+              />
+              <p className="text-xs text-muted-foreground">{(formData.mileage || 0)} miles × £{(formData.per_mile_rate || 0).toFixed(2)}</p>
+            </div>
+            ) : (
+            <div className="space-y-2">
               <Label htmlFor="hourly_rate">Hourly Rate (£)</Label>
               <Input
                 id="hourly_rate"
@@ -189,6 +219,7 @@ const TimeslipEditDialog: React.FC<TimeslipEditDialogProps> = ({
                 onChange={(e) => setFormData({ ...formData, hourly_rate: parseFloat(e.target.value) })}
               />
             </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="van_allowance">Van Allowance (£)</Label>
