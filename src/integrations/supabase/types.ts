@@ -2463,8 +2463,11 @@ export type Database = {
           created_by: string | null
           expires_at: string
           registration: string
+          route_date: string | null
+          saved_route_id: string | null
           sent_to_email: string | null
           sent_to_phone: string | null
+          stop_index: number | null
           token: string
         }
         Insert: {
@@ -2472,8 +2475,11 @@ export type Database = {
           created_by?: string | null
           expires_at?: string
           registration: string
+          route_date?: string | null
+          saved_route_id?: string | null
           sent_to_email?: string | null
           sent_to_phone?: string | null
+          stop_index?: number | null
           token?: string
         }
         Update: {
@@ -2481,8 +2487,11 @@ export type Database = {
           created_by?: string | null
           expires_at?: string
           registration?: string
+          route_date?: string | null
+          saved_route_id?: string | null
           sent_to_email?: string | null
           sent_to_phone?: string | null
+          stop_index?: number | null
           token?: string
         }
         Relationships: []
@@ -6036,6 +6045,51 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      saved_route_assignments: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          id: string
+          route_date: string
+          saved_route_id: string
+          updated_at: string
+          vehicle_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          route_date: string
+          saved_route_id: string
+          updated_at?: string
+          vehicle_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          route_date?: string
+          saved_route_id?: string
+          updated_at?: string
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_route_assignments_saved_route_id_fkey"
+            columns: ["saved_route_id"]
+            isOneToOne: false
+            referencedRelation: "saved_routes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_route_assignments_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       saved_routes: {
         Row: {

@@ -19,10 +19,11 @@ export function tokenColour(name: string): string {
 const ROUTE_TOKENS = ["--segment-1", "--segment-2", "--segment-3", "--segment-4", "--status-transit", "--status-trunk", "--status-booked", "--status-ni"];
 const DEPOT: Pt = { lat: DEPOT_LOCATION.lat, lon: DEPOT_LOCATION.lon };
 const MAX_STOPS_PER_REQUEST = 25;
+export interface StopEtaView { minutes: number; miles: number; eta: string; stopsBefore: number }
 
 export interface RouteStop { lat: number; lon: number; type: string; orderId?: string; address?: string; estimatedTime?: string; visitedAt: number | null }
 export interface RouteAnalysis {
-  key: string; timeslipId: string | null; name: string | null; registration: string; driver: string | null; colour: string;
+  key: string; timeslipId: string | null; savedRouteId: string | null; vehicleId: string | null; name: string | null; registration: string; driver: string | null; colour: string;
   stops: RouteStop[]; path: Sample[]; stretches: OffRouteStretch[];
   roadLine: Pt[] | null; roadUnavailable: boolean; plannedRoadMiles: number | null; plannedMinutes: number | null;
   timeslipMiles: number | null; drivenMiles: number;
@@ -31,7 +32,7 @@ export interface RouteAnalysis {
 
 interface DayRow {
   timeslip_id: string | null; saved_route_id: string | null; route_name: string | null; start_time: string | null;
-  planned_stops: any[] | null; registration: string | null; driver_name: string | null;
+  planned_stops: any[] | null; vehicle_id: string | null; registration: string | null; driver_name: string | null;
   job_locations: any[] | null; mileage: number | null; total_hours: number | null;
 }
 
@@ -115,7 +116,7 @@ export function useRouteDay(date: string) {
       const road = roads[i]?.data ?? null;
       const against = road?.line?.length ? road.line : [DEPOT, ...stops, DEPOT];
       return {
-        key: r.timeslip_id ?? r.saved_route_id ?? String(i), timeslipId: r.timeslip_id, name: r.route_name,
+        key: r.timeslip_id ?? r.saved_route_id ?? String(i), timeslipId: r.timeslip_id, savedRouteId: r.saved_route_id, vehicleId: r.vehicle_id, name: r.route_name,
         registration: reg || (r.timeslip_id ? "No van" : "No timeslip yet"), driver: r.driver_name,
         colour: tokenColour(ROUTE_TOKENS[i % ROUTE_TOKENS.length]),
         stops: stops.map((s) => ({ ...s, visitedAt: firstVisit(s, path) })),
@@ -132,7 +133,7 @@ export function useRouteDay(date: string) {
   return { analyses, isLoading: routes.isLoading || history.isLoading, error: routes.error || history.error };
 }
 
-export function RouteLayers({ analyses }: { analyses: RouteAnalysis[] }) {
+export function RouteLayers({ analyses, etas }: { analyses: RouteAnalysis[]; etas?: Map<string, Map<number, StopEtaView>> }) {
   const done = tokenColour("--status-done"), failed = tokenColour("--status-failed");
   return (
     <>
@@ -160,7 +161,7 @@ export function RouteLayers({ analyses }: { analyses: RouteAnalysis[] }) {
                     <div className="font-semibold">{a.registration} · stop {i + 1}</div>
                     <div className="capitalize">{s.type}{s.estimatedTime ? ` · planned ${s.estimatedTime}` : ""}</div>
                     {s.address && <div>{s.address}</div>}
-                    <div>{s.visitedAt ? `Reached ${format(new Date(s.visitedAt), "HH:mm")}` : a.path.length ? "Not reached" : "No tracking yet"}</div>
+                    <div>{s.visitedAt ? `Reached ${format(new Date(s.visitedAt), "HH:mm")}` : etas?.get(a.key)?.get(i) ? `ETA ${format(new Date(etas.get(a.key)!.get(i)!.eta), "HH:mm")} · ${etas.get(a.key)!.get(i)!.miles} mi` : a.path.length ? "Not reached" : "No tracking yet"}</div>
                   </div>
                 </Popup>
               </CircleMarker>

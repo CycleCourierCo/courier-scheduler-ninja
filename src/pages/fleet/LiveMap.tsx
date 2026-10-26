@@ -17,7 +17,10 @@ import { DRIVER_PIN_MAX_AGE_MIN } from "@/lib/driverApp/stops";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RouteLayers, useRouteDay } from "@/components/fleet/RouteOverlay";
-import { SendEtaLinkDialog } from "@/components/fleet/SendEtaLinkDialog";
+import { SendEtaLinkDialog, type EtaTarget } from "@/components/fleet/SendEtaLinkDialog";
+import { useStopEtas } from "@/components/fleet/useStopEtas";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { format } from "date-fns";
 import { isStale, liveStatus, matchVehicles, type LivePosition, type LiveStatus } from "@/lib/fleet/liveTracking";
 
@@ -44,7 +47,9 @@ export default function LiveMap() {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/London" });
   const [date, setDate] = useState(today);
   const [vanFilter, setVanFilter] = useState("all");
-  const [etaReg, setEtaReg] = useState<string | null>(null);
+  const [etaTarget, setEtaTarget] = useState<EtaTarget | null>(null);
+  const setEtaReg = (registration: string) => setEtaTarget({ registration });
+  const qc = useQueryClient();
   const isToday = date === today;
   const isMobile = useIsMobile();
   const [view, setView] = useState<"map" | "list">(() => (typeof window !== "undefined" && window.matchMedia("(max-width: 767px)").matches ? "list" : "map"));
@@ -95,6 +100,16 @@ export default function LiveMap() {
     retry: 1,
   });
   const vehicles = useQuery({ queryKey: ["fleet-vehicles-live"], queryFn: listVehicles });
+  const stopEtas = useStopEtas(shownRoutes, isToday);
+  const etaMaps = useMemo(() => new Map([...stopEtas].map(([k, v]) => [k, v.byStop])), [stopEtas]);
+  const assignVan = async (savedRouteId: string, vehicleId: string) => {
+    const { data: u } = await supabase.auth.getUser();
+    const { error } = await (supabase as any).from("saved_route_assignments")
+      .upsert({ saved_route_id: savedRouteId, route_date: date, vehicle_id: vehicleId, assigned_by: u.user?.id ?? null }, { onConflict: "saved_route_id,route_date" });
+    if (error) { toast.error("Couldn't assign the van"); return; }
+    toast.success("Van assigned — linked to its timeslip if there is one");
+    qc.invalidateQueries({ queryKey: ["fleet-route-day", date] });
+  };
   const redIssues = useQuery({
     queryKey: ["fleet-red-issues"],
     queryFn: async () => {
@@ -157,7 +172,7 @@ export default function LiveMap() {
               <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <FitAll points={points} />
               <FlyTo target={focus} />
-              <RouteLayers analyses={shownRoutes} />
+              <RouteLayers analyses={shownRoutes} etas={etaMaps} />
               {isToday && rows.filter((r) => vanFilter === "all" || r.position.registration === vanFilter).map(({ position: p, vehicle }) => {
                 const st = liveStatus(p);
                 const stale = isStale(p.timestamp);
@@ -206,13 +221,24 @@ export default function LiveMap() {
                     <div key={a.key} role="button" tabIndex={0} onClick={() => a.stops[0] && focusOn([a.stops[0].lat, a.stops[0].lon])}
                       className="block w-full min-w-0 overflow-hidden text-left rounded-md border p-2.5 cursor-pointer hover:bg-muted" style={{ borderLeft: `4px solid ${a.colour}` }}>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="min-w-0 font-semibold truncate">{a.timeslipId ? a.registration : `Route ${(a.name ?? "").replace(/^\d{4}-\d{2}-\d{2}\s*[—-]\s*/, "") || "—"}`}</span>
+                        <span className="min-w-0 font-semibold truncate">{a.vehicleId ? a.registration : `Route ${(a.name ?? "").replace(/^\d{4}-\d{2}-\d{2}\s*[—-]\s*/, "") || "—"}`}</span>
                         <Badge className="shrink-0" variant={visited === a.stops.length ? "default" : "secondary"}>{visited}/{a.stops.length} stops</Badge>
                       </div>
                       <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-                        {!a.timeslipId && <Badge variant="outline" className="shrink-0 text-[10px]">No timeslip linked</Badge>}
-                        <span className="min-w-0 truncate">{a.timeslipId ? `${a.driver || "No driver"}${a.name ? ` · ${a.name}` : ""}` : "Link it on a timeslip"}</span>
+                        {!a.timeslipId && <Badge variant="outline" className="shrink-0 text-[10px]">{a.vehicleId ? "Timeslip not created yet" : "No van assigned"}</Badge>}
+                        <span className="min-w-0 truncate">{a.timeslipId ? `${a.driver || "No driver"}${a.name ? ` · ${a.name}` : ""}` : a.name ?? ""}</span>
                       </div>
+                      {a.savedRouteId && (
+                        <div className="mt-1" onClick={(e) => e.stopPropagation()}>
+                          <Select value={a.vehicleId ?? undefined} onValueChange={(v) => assignVan(a.savedRouteId!, v)}>
+                            <SelectTrigger className="h-8 text-xs" aria-label="Assign van"><SelectValue placeholder="Assign van" /></SelectTrigger>
+                            <SelectContent>
+                              {(vehicles.data ?? []).filter((v: any) => !v.status || ["active", "operational"].includes(v.status) || v.id === a.vehicleId)
+                                .map((v: any) => <SelectItem key={v.id} value={v.id}>{v.registration}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                       <div className="text-xs text-muted-foreground truncate">
                         {a.plannedRoadMiles != null ? `Planned ${a.plannedRoadMiles.toFixed(0)} mi by road (depot to depot)` : a.roadUnavailable ? "Road line unavailable — showing straight lines" : "Loading road route…"}
                       </div>
@@ -226,6 +252,37 @@ export default function LiveMap() {
                           </>
                         )}
                       </div>
+                      {a.stops.length > 0 && (
+                        <details className="mt-1" onClick={(e) => e.stopPropagation()}>
+                          <summary className="cursor-pointer text-xs text-primary">Stops & live ETAs</summary>
+                          <ol className="mt-1 space-y-1">
+                            {a.stops.map((s, i) => {
+                              const r = stopEtas.get(a.key);
+                              const e = r?.byStop.get(i);
+                              const canLink = isToday && !s.visitedAt && !!a.vehicleId && !!a.savedRouteId && !!e;
+                              return (
+                                <li key={i} className="flex min-w-0 items-center gap-2 text-xs">
+                                  <span className="w-5 shrink-0 text-muted-foreground">{i + 1}.</span>
+                                  <span className="min-w-0 flex-1 truncate"><span className="capitalize">{s.type}</span>{s.address ? ` · ${s.address}` : ""}</span>
+                                  <span className="shrink-0 text-muted-foreground">
+                                    {s.visitedAt ? `Reached ${format(new Date(s.visitedAt), "HH:mm")}`
+                                      : !isToday ? (a.path.length ? "Not reached" : "No tracking")
+                                      : !a.vehicleId ? "Assign a van"
+                                      : e ? `ETA ${format(new Date(e.eta), "HH:mm")} · ${e.miles} mi`
+                                      : r?.loading ? "Working out…" : "Van position unavailable"}
+                                  </span>
+                                  {canLink && (
+                                    <button className="shrink-0 text-primary underline" onClick={() => setEtaTarget({
+                                      registration: a.registration,
+                                      stop: { saved_route_id: a.savedRouteId!, date, stop_index: i, label: `Stop ${i + 1}`, orderId: s.orderId, type: s.type },
+                                    })}>Send</button>
+                                  )}
+                                </li>
+                              );
+                            })}
+                          </ol>
+                        </details>
+                      )}
                     </div>
                   );
                 })}
@@ -269,7 +326,7 @@ export default function LiveMap() {
           )}
         </div>
       </div>
-      <SendEtaLinkDialog registration={etaReg} onClose={() => setEtaReg(null)} />
+      <SendEtaLinkDialog target={etaTarget} onClose={() => setEtaTarget(null)} />
     </Layout>
   );
 }
