@@ -233,7 +233,7 @@ export default function LiveMap() {
                           <Select value={a.vehicleId ?? undefined} onValueChange={(v) => assignVan(a.savedRouteId!, v)}>
                             <SelectTrigger className="h-8 text-xs" aria-label="Assign van"><SelectValue placeholder="Assign van" /></SelectTrigger>
                             <SelectContent>
-                              {(vehicles.data ?? []).filter((v: any) => !v.status || ["active", "operational"].includes(v.status) || v.id === a.vehicleId)
+                              {(vehicles.data ?? []).filter((v: any) => !v.status || ["active", "operational", "in_use"].includes(v.status) || v.id === a.vehicleId)
                                 .map((v: any) => <SelectItem key={v.id} value={v.id}>{v.registration}</SelectItem>)}
                             </SelectContent>
                           </Select>
@@ -297,7 +297,7 @@ export default function LiveMap() {
               const st = liveStatus(p);
               const stale = isStale(p.timestamp);
               const red = vehicle && redIssues.data?.has(vehicle.id);
-              const offRoad = vehicle && (vehicle as any).status && (vehicle as any).status !== "active" && (vehicle as any).status !== "operational";
+              const offRoad = vehicle && (vehicle as any).status && (vehicle as any).status !== "active" && (vehicle as any).status !== "operational" && (vehicle as any).status !== "in_use";
               return (
                 <div key={p.id} role="button" tabIndex={0} onClick={() => focusOn([p.lat, p.lon])}
                   className={`block w-full min-w-0 overflow-hidden text-left rounded-md border p-2.5 cursor-pointer hover:bg-muted ${stale ? "opacity-60" : ""}`}>
