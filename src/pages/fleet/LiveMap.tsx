@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { colouredMarkerIcon } from "@/lib/mapMarkers";
+import { DRIVER_PIN_MAX_AGE_MIN } from "@/lib/driverApp/stops";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RouteLayers, useRouteDay } from "@/components/fleet/RouteOverlay";
@@ -58,6 +59,25 @@ export default function LiveMap() {
   }, [isMobile, view]);
   const focusOn = (pt: [number, number]) => { setFocus([...pt] as [number, number]); if (isMobile) setView("map"); };
   const routeDay = useRouteDay(date);
+  // Driver phones on shift (driver app) — latest fix per driver within the last few minutes.
+  const driverPins = useQuery({
+    queryKey: ["driver-phone-positions"],
+    enabled: isToday,
+    refetchInterval: 120_000,
+    queryFn: async () => {
+      const since = new Date(Date.now() - DRIVER_PIN_MAX_AGE_MIN * 60_000).toISOString();
+      const { data } = await supabase.from("driver_positions" as any).select("driver_id, lat, lng, recorded_at").gte("recorded_at", since).order("recorded_at", { ascending: false }).limit(500);
+      const latest = new Map<string, any>();
+      for (const r of (data ?? []) as any[]) if (!latest.has(r.driver_id)) latest.set(r.driver_id, r);
+      const ids = [...latest.keys()];
+      const names = new Map<string, string>();
+      if (ids.length) {
+        const { data: profs } = await supabase.from("profiles").select("id, name").in("id", ids);
+        for (const p of profs ?? []) names.set(p.id, p.name ?? "Driver");
+      }
+      return [...latest.values()].map((r) => ({ ...r, name: names.get(r.driver_id) ?? "Driver" }));
+    },
+  });
   const shownRoutes = routeDay.analyses.filter((a) => vanFilter === "all" || a.registration === vanFilter);
 
   const positions = useQuery({
@@ -157,6 +177,17 @@ export default function LiveMap() {
                   </Marker>
                 );
               })}
+              {isToday && (driverPins.data ?? []).map((d) => (
+                <Marker key={`phone-${d.driver_id}`} position={[d.lat, d.lng]} icon={colouredMarkerIcon("violet")}>
+                  <Popup>
+                    <div className="space-y-1 text-sm">
+                      <div className="font-semibold">{d.name}</div>
+                      <div>Driver app (phone)</div>
+                      <div className="text-muted-foreground">Updated {formatDistanceToNow(new Date(d.recorded_at), { addSuffix: true })}</div>
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
             </MapContainer>
           </div>
           )}
