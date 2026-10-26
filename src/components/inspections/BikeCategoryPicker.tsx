@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, ChevronDown, Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 
 import { cn } from "@/lib/utils";
@@ -37,9 +36,10 @@ export function BikeCategoryPicker({ value, onChange, disabled, buttonClassName,
   }, [open]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <div className="w-full min-w-0">
         <Button
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
           type="button"
           variant="outline"
           size="sm"
@@ -49,12 +49,8 @@ export function BikeCategoryPicker({ value, onChange, disabled, buttonClassName,
           <span className="min-w-0 truncate">{value || placeholder || "Choose bike category…"}</span>
           <ChevronDown className="h-3.5 w-3.5 opacity-60 shrink-0" />
         </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="flex max-h-[var(--radix-popover-content-available-height)] w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 sm:w-[300px] sm:max-w-[92vw]"
-        align="start"
-        onOpenAutoFocus={(event) => event.preventDefault()}
-      >
+      {open && (
+      <div className="mt-1 flex max-h-72 w-full min-w-[220px] flex-col overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
         <div className="p-2 border-b">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -90,7 +86,8 @@ export function BikeCategoryPicker({ value, onChange, disabled, buttonClassName,
             </button>
           ))}
         </div>
-      </PopoverContent>
-    </Popover>
+      </div>
+      )}
+    </div>
   );
 }
