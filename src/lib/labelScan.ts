@@ -33,3 +33,9 @@ export function driverScanState(routes: RouteToday[] = []): "not_on_route" | "be
   if (!mine) return "not_on_route";
   return mine.started ? "on_route" : "before_start";
 }
+
+/** Roles that get the staff bike card when they scan a label (customers never do). */
+export const SCAN_STAFF_ROLES = ["admin", "cs_agent", "loader", "route_planner", "mechanic", "driver"];
+export function isScanStaff(roles: string[] = []): boolean {
+  return roles.some((r) => SCAN_STAFF_ROLES.includes(r));
+}

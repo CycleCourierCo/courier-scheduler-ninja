@@ -26,3 +26,12 @@ describe("label scans", () => {
     expect(driverScanState([{ assignment_id: "a", route: "R", registration: null, started: false, mine: true, stop_types: ["pickup"] }])).toBe("before_start");
   });
 });
+
+import { isScanStaff } from "./labelScan";
+describe("isScanStaff", () => {
+  it("sends staff to the dashboard popup but keeps customers on tracking", () => {
+    expect(isScanStaff(["driver"])).toBe(true);
+    expect(isScanStaff(["b2b_customer"])).toBe(false);
+    expect(isScanStaff([])).toBe(false);
+  });
+});
