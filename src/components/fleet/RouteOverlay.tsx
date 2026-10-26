@@ -25,7 +25,7 @@ export interface StopEtaView { minutes: number; miles: number; eta: string; stop
 
 export interface RouteStop { lat: number; lon: number; type: string; orderId?: string; address?: string; estimatedTime?: string; visitedAt: number | null; trackingNumber?: string | null; completed?: "Collected" | "Delivered" | null }
 export interface RouteAnalysis {
-  key: string; timeslipId: string | null; savedRouteId: string | null; vehicleId: string | null; name: string | null; registration: string; driver: string | null; colour: string;
+  key: string; timeslipId: string | null; savedRouteId: string | null; vehicleId: string | null; hasVan: boolean; name: string | null; registration: string; driver: string | null; colour: string;
   stops: RouteStop[]; path: Sample[]; stretches: OffRouteStretch[];
   roadLine: Pt[] | null; roadUnavailable: boolean; plannedRoadMiles: number | null; plannedMinutes: number | null;
   timeslipMiles: number | null; drivenMiles: number;
@@ -142,7 +142,7 @@ export function useRouteDay(date: string) {
       const road = roads[i]?.data ?? null;
       const against = road?.line?.length ? road.line : [DEPOT, ...stops, DEPOT];
       return {
-        key: r.timeslip_id ?? r.saved_route_id ?? String(i), timeslipId: r.timeslip_id, savedRouteId: r.saved_route_id, vehicleId: r.vehicle_id, name: r.route_name,
+        key: r.timeslip_id ?? r.saved_route_id ?? String(i), timeslipId: r.timeslip_id, savedRouteId: r.saved_route_id, vehicleId: r.vehicle_id, hasVan: !!reg, name: r.route_name,
         registration: reg || (r.timeslip_id ? "No van" : "No timeslip yet"), driver: r.driver_name,
         colour: tokenColour(ROUTE_TOKENS[i % ROUTE_TOKENS.length]),
         stops: stops.map((s) => {

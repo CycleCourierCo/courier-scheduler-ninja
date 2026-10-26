@@ -6054,28 +6054,31 @@ export type Database = {
           assigned_by: string | null
           created_at: string
           id: string
+          registration: string | null
           route_date: string
           saved_route_id: string
           updated_at: string
-          vehicle_id: string
+          vehicle_id: string | null
         }
         Insert: {
           assigned_by?: string | null
           created_at?: string
           id?: string
+          registration?: string | null
           route_date: string
           saved_route_id: string
           updated_at?: string
-          vehicle_id: string
+          vehicle_id?: string | null
         }
         Update: {
           assigned_by?: string | null
           created_at?: string
           id?: string
+          registration?: string | null
           route_date?: string
           saved_route_id?: string
           updated_at?: string
-          vehicle_id?: string
+          vehicle_id?: string | null
         }
         Relationships: [
           {

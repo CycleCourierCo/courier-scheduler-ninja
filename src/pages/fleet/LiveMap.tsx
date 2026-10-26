@@ -1,3 +1,4 @@
+import { normaliseReg } from "@/lib/fleet/liveTracking";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Link, useNavigate } from "react-router-dom";
@@ -102,10 +103,12 @@ export default function LiveMap() {
   const vehicles = useQuery({ queryKey: ["fleet-vehicles-live"], queryFn: listVehicles });
   const stopEtas = useStopEtas(shownRoutes, isToday);
   const etaMaps = useMemo(() => new Map([...stopEtas].map(([k, v]) => [k, v.byStop])), [stopEtas]);
-  const assignVan = async (savedRouteId: string, vehicleId: string) => {
+  const assignVan = async (savedRouteId: string, registration: string) => {
     const { data: u } = await supabase.auth.getUser();
+    const reg = normaliseReg(registration);
+    const vehicleId = ((vehicles.data ?? []) as any[]).find((v) => normaliseReg(v.registration) === reg)?.id ?? null;
     const { error } = await (supabase as any).from("saved_route_assignments")
-      .upsert({ saved_route_id: savedRouteId, route_date: date, vehicle_id: vehicleId, assigned_by: u.user?.id ?? null }, { onConflict: "saved_route_id,route_date" });
+      .upsert({ saved_route_id: savedRouteId, route_date: date, vehicle_id: vehicleId, registration: reg, assigned_by: u.user?.id ?? null }, { onConflict: "saved_route_id,route_date" });
     if (error) { toast.error("Couldn't assign the van"); return; }
     toast.success("Van assigned — linked to its timeslip if there is one");
     qc.invalidateQueries({ queryKey: ["fleet-route-day", date] });
@@ -221,20 +224,21 @@ export default function LiveMap() {
                     <div key={a.key} role="button" tabIndex={0} onClick={() => a.stops[0] && focusOn([a.stops[0].lat, a.stops[0].lon])}
                       className="block w-full min-w-0 overflow-hidden text-left rounded-md border p-2.5 cursor-pointer hover:bg-muted" style={{ borderLeft: `4px solid ${a.colour}` }}>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="min-w-0 font-semibold truncate">{a.vehicleId ? a.registration : `Route ${(a.name ?? "").replace(/^\d{4}-\d{2}-\d{2}\s*[—-]\s*/, "") || "—"}`}</span>
+                        <span className="min-w-0 font-semibold truncate">{a.hasVan ? a.registration : `Route ${(a.name ?? "").replace(/^\d{4}-\d{2}-\d{2}\s*[—-]\s*/, "") || "—"}`}</span>
                         <Badge className="shrink-0" variant={visited === a.stops.length ? "default" : "secondary"}>{visited}/{a.stops.length} stops</Badge>
                       </div>
                       <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
-                        {!a.timeslipId && <Badge variant="outline" className="shrink-0 text-[10px]">{a.vehicleId ? "Timeslip not created yet" : "No van assigned"}</Badge>}
+                        {!a.timeslipId && <Badge variant="outline" className="shrink-0 text-[10px]">{a.hasVan ? "Timeslip not created yet" : "No van assigned"}</Badge>}
                         <span className="min-w-0 truncate">{a.timeslipId ? `${a.driver || "No driver"}${a.name ? ` · ${a.name}` : ""}` : a.name ?? ""}</span>
                       </div>
                       {a.savedRouteId && (
                         <div className="mt-1" onClick={(e) => e.stopPropagation()}>
-                          <Select value={a.vehicleId ?? undefined} onValueChange={(v) => assignVan(a.savedRouteId!, v)}>
+                          <Select value={a.hasVan ? a.registration : undefined} onValueChange={(v) => assignVan(a.savedRouteId!, v)}>
                             <SelectTrigger className="h-8 text-xs" aria-label="Assign van"><SelectValue placeholder="Assign van" /></SelectTrigger>
                             <SelectContent>
-                              {(vehicles.data ?? []).filter((v: any) => !v.status || ["active", "operational", "in_use"].includes(v.status) || v.id === a.vehicleId)
-                                .map((v: any) => <SelectItem key={v.id} value={v.id}>{v.registration}</SelectItem>)}
+                              {[...new Set([...rows.map((r) => normaliseReg(r.position.registration)), ...(a.hasVan ? [a.registration] : [])])].filter(Boolean)
+                                .map((reg) => <SelectItem key={reg} value={reg}>{reg}</SelectItem>)}
+                              {rows.length === 0 && <div className="px-2 py-1.5 text-xs text-muted-foreground">No vans on the tracker right now</div>}
                             </SelectContent>
                           </Select>
                         </div>
@@ -259,15 +263,18 @@ export default function LiveMap() {
                             {a.stops.map((s, i) => {
                               const r = stopEtas.get(a.key);
                               const e = r?.byStop.get(i);
-                              const canLink = isToday && !s.visitedAt && !s.completed && !!a.vehicleId && !!a.savedRouteId && !!e;
+                              const canLink = isToday && !s.visitedAt && !s.completed && a.hasVan && !!a.savedRouteId && !!e;
                               return (
-                                <li key={i} className={`flex min-w-0 items-center gap-2 text-xs ${s.completed ? "opacity-60" : ""}`}>
-                                  <span className="w-5 shrink-0 text-muted-foreground">{i + 1}.</span>
-                                  <span className="min-w-0 flex-1 truncate">{s.trackingNumber && <span className="font-mono">{s.trackingNumber} · </span>}<span className="capitalize">{s.type}</span>{s.address ? ` · ${s.address}` : ""}</span>
-                                  <span className="shrink-0 text-muted-foreground">
+                                <li key={i} className={`flex min-w-0 items-start gap-2 border-t border-border/60 py-1.5 text-xs first:border-t-0 ${s.completed ? "opacity-60" : ""}`}>
+                                  <span className="w-5 shrink-0 pt-0.5 font-semibold text-muted-foreground">{i + 1}</span>
+                                  <span className="min-w-0 flex-1">
+                                    {s.trackingNumber && <span className="block truncate font-mono text-[11px]">{s.trackingNumber}</span>}
+                                    <span className="block truncate text-muted-foreground"><span className="capitalize">{s.type}</span>{s.address ? ` · ${s.address}` : ""}</span>
+                                  </span>
+                                  <span className="shrink-0 pt-0.5 text-right text-muted-foreground">
                                     {s.completed ? `✓ ${s.completed}` : s.visitedAt ? `Reached ${format(new Date(s.visitedAt), "HH:mm")}`
                                       : !isToday ? (a.path.length ? "Not reached" : "No tracking")
-                                      : !a.vehicleId ? "Assign a van"
+                                      : !a.hasVan ? "—"
                                       : e ? `ETA ${format(new Date(e.eta), "HH:mm")} · ${e.miles} mi`
                                       : r?.loading ? "Working out…" : "Van position unavailable"}
                                   </span>
