@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Label scan role toggle: show each assigned action view for multi-role staff; retain existing permissions and default view.
+
 - [x] Per-mile profitability: recorded driver pay is all-inclusive in route and daily totals; flat/actual regression tests pass (£324, not £518.40). Signed-in UI check unavailable with external unmanaged authentication.
 
 - [x] Add thermal-label section dividers and tracking QR; sample PDF visually checked and QR decoded at 203 dpi (signed-in destinations deferred by request)
