@@ -61,6 +61,8 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
         is_test_account: user.is_test_account,
         show_sender_on_label: user.show_sender_on_label ?? false,
         hourly_rate: user.hourly_rate,
+        pay_type: user.pay_type ?? 'hourly',
+        per_mile_rate: user.per_mile_rate ?? null,
         workshop_hourly_rate: user.workshop_hourly_rate,
         uses_own_van: user.uses_own_van,
         van_allowance: user.van_allowance,
@@ -442,6 +444,33 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
             <TabsContent value="driver" className="space-y-4 mt-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2 min-w-0">
+                  <Label>Pay Type</Label>
+                  <Select
+                    value={formData.pay_type ?? 'hourly'}
+                    onValueChange={(v) => setFormData({ ...formData, pay_type: v as 'hourly' | 'per_mile' })}
+                  >
+                    <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="hourly">Hourly</SelectItem>
+                      <SelectItem value="per_mile">Per mile</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {formData.pay_type === 'per_mile' ? (
+                  <div className="space-y-2 min-w-0">
+                    <Label htmlFor="edit-per-mile-rate">Per-mile Rate (£)</Label>
+                    <Input
+                      id="edit-per-mile-rate"
+                      className="w-full"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={formData.per_mile_rate ?? ''}
+                      onChange={(e) => setFormData({ ...formData, per_mile_rate: e.target.value === '' ? null : parseFloat(e.target.value) })}
+                    />
+                  </div>
+                ) : (
+                <div className="space-y-2 min-w-0">
                   <Label htmlFor="edit-hourly-rate">Driver Hourly Rate (£)</Label>
                   <Input
                     id="edit-hourly-rate"
@@ -452,6 +481,7 @@ export const EditUserDialog: React.FC<EditUserDialogProps> = ({
                     onChange={(e) => setFormData({ ...formData, hourly_rate: parseFloat(e.target.value) || 0 })}
                   />
                 </div>
+                )}
                 <div className="space-y-2 min-w-0">
                   <Label htmlFor="edit-van-allowance">Van Allowance (£)</Label>
                   <Input

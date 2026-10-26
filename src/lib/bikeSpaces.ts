@@ -131,3 +131,26 @@ export function useUpdateBikeSpaces() {
     },
   });
 }
+
+export interface VanLoadStop { type: string; orderId?: string | null }
+const isPickup = (t: string) => /pick|collect/i.test(t);
+const isDelivery = (t: string) => /deliver|drop/i.test(t);
+
+/**
+ * Van load along a route, same rule as Route Builder timeslots:
+ * start = deliveries whose collection isn't on this route; +collection, −delivery.
+ */
+export function computeVanLoads(stops: VanLoadStop[], spacesFor: (orderId?: string | null) => number) {
+  const pickups = new Set(stops.filter((s) => isPickup(s.type) && s.orderId).map((s) => s.orderId));
+  let load = 0;
+  for (const s of stops) if (isDelivery(s.type) && !(s.orderId && pickups.has(s.orderId))) load += spacesFor(s.orderId);
+  const start = Math.round(load * 100) / 100;
+  let peak = load;
+  const after = stops.map((s) => {
+    if (isPickup(s.type)) load += spacesFor(s.orderId);
+    else if (isDelivery(s.type)) load -= spacesFor(s.orderId);
+    if (load > peak) peak = load;
+    return Math.round(load * 100) / 100;
+  });
+  return { start, after, peak: Math.round(peak * 100) / 100 };
+}

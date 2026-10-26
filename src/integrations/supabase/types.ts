@@ -4107,6 +4107,50 @@ export type Database = {
           },
         ]
       }
+      label_scans: {
+        Row: {
+          action: string
+          created_at: string
+          detail: string | null
+          id: string
+          lat: number | null
+          lon: number | null
+          order_id: string
+          role: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          detail?: string | null
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          order_id: string
+          role?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          detail?: string | null
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          order_id?: string
+          role?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_scans_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       labour_time_multipliers: {
         Row: {
           adjustment_type: string
@@ -5408,6 +5452,8 @@ export type Database = {
           longitude: number | null
           name: string | null
           opening_hours: Json | null
+          pay_type: string
+          per_mile_rate: number | null
           phone: string | null
           postal_code: string | null
           quickbooks_customer_id: string | null
@@ -5463,6 +5509,8 @@ export type Database = {
           longitude?: number | null
           name?: string | null
           opening_hours?: Json | null
+          pay_type?: string
+          per_mile_rate?: number | null
           phone?: string | null
           postal_code?: string | null
           quickbooks_customer_id?: string | null
@@ -5518,6 +5566,8 @@ export type Database = {
           longitude?: number | null
           name?: string | null
           opening_hours?: Json | null
+          pay_type?: string
+          per_mile_rate?: number | null
           phone?: string | null
           postal_code?: string | null
           quickbooks_customer_id?: string | null
@@ -6077,30 +6127,36 @@ export type Database = {
         Row: {
           assigned_by: string | null
           created_at: string
+          driver_id: string | null
           id: string
           registration: string | null
           route_date: string
           saved_route_id: string
+          started_at: string | null
           updated_at: string
           vehicle_id: string | null
         }
         Insert: {
           assigned_by?: string | null
           created_at?: string
+          driver_id?: string | null
           id?: string
           registration?: string | null
           route_date: string
           saved_route_id: string
+          started_at?: string | null
           updated_at?: string
           vehicle_id?: string | null
         }
         Update: {
           assigned_by?: string | null
           created_at?: string
+          driver_id?: string | null
           id?: string
           registration?: string | null
           route_date?: string
           saved_route_id?: string
+          started_at?: string | null
           updated_at?: string
           vehicle_id?: string | null
         }
@@ -6618,6 +6674,8 @@ export type Database = {
           job_locations: Json | null
           lunch_hours: number
           mileage: number | null
+          pay_type: string
+          per_mile_rate: number | null
           planned_snapshot: Json | null
           quickbooks_bill_created_at: string | null
           quickbooks_bill_id: string | null
@@ -6650,6 +6708,8 @@ export type Database = {
           job_locations?: Json | null
           lunch_hours?: number
           mileage?: number | null
+          pay_type?: string
+          per_mile_rate?: number | null
           planned_snapshot?: Json | null
           quickbooks_bill_created_at?: string | null
           quickbooks_bill_id?: string | null
@@ -6682,6 +6742,8 @@ export type Database = {
           job_locations?: Json | null
           lunch_hours?: number
           mileage?: number | null
+          pay_type?: string
+          per_mile_rate?: number | null
           planned_snapshot?: Json | null
           quickbooks_bill_created_at?: string | null
           quickbooks_bill_id?: string | null
@@ -7898,6 +7960,7 @@ export type Database = {
         }
         Returns: Json
       }
+      _label_staff_role: { Args: { _uid: string }; Returns: string }
       _normalise_postcode: { Args: { p: string }; Returns: string }
       _postgis_deprecate: {
         Args: { newname: string; oldname: string; version: string }
@@ -8140,6 +8203,7 @@ export type Database = {
         }[]
       }
       disablelongtransactions: { Args: never; Returns: string }
+      driver_start_route: { Args: { p_assignment_id: string }; Returns: string }
       driver_today_stops: { Args: { p_date: string }; Returns: Json }
       dropgeometrycolumn:
         | {
@@ -8347,6 +8411,8 @@ export type Database = {
           longitude: number | null
           name: string | null
           opening_hours: Json | null
+          pay_type: string
+          per_mile_rate: number | null
           phone: string | null
           postal_code: string | null
           quickbooks_customer_id: string | null
@@ -8491,6 +8557,20 @@ export type Database = {
         Returns: boolean
       }
       is_timeslip_admin: { Args: never; Returns: boolean }
+      label_lookup: {
+        Args: { p_lat?: number; p_lon?: number; p_ref: string }
+        Returns: Json
+      }
+      label_scan_action: {
+        Args: {
+          p_action: string
+          p_detail?: string
+          p_lat?: number
+          p_lon?: number
+          p_order_id: string
+        }
+        Returns: boolean
+      }
       list_internal_users: {
         Args: never
         Returns: {
@@ -9269,6 +9349,8 @@ export type Database = {
           longitude: number | null
           name: string | null
           opening_hours: Json | null
+          pay_type: string
+          per_mile_rate: number | null
           phone: string | null
           postal_code: string | null
           quickbooks_customer_id: string | null

@@ -545,17 +545,19 @@ export const calculateProfitability = (
     return sum + (addon.hours * timeslip.hourly_rate);
   }, 0);
 
-  // Mileage costs: in 'actual' mode use the van's real fuel + maintenance cost per mile
-  // for the van and month of the timeslip; otherwise the flat estimate rate.
+  // Per-mile driver pay is all-inclusive; never add vehicle running costs again.
+  // Hourly drivers retain actual or estimated mileage costs.
   let mileageCosts: number;
-  if (costContext.mode === 'actual' && costContext.rateMap && timeslip.vehicle_id && timeslip.date) {
+  if (timeslip.pay_type === 'per_mile') {
+    mileageCosts = 0;
+  } else if (costContext.mode === 'actual' && costContext.rateMap && timeslip.vehicle_id && timeslip.date) {
     const rate = costContext.rateMap.get(`${timeslip.vehicle_id}|${timeslip.date.slice(0, 7)}`) ?? 0;
     mileageCosts = (timeslip.mileage || 0) * rate;
   } else {
     mileageCosts = (timeslip.mileage || 0) * costPerMile;
   }
 
-  // Total costs = driver pay + mileage costs
+  // Total costs = recorded driver pay + any non-inclusive vehicle costs
   const totalCosts = (timeslip.total_pay || 0) + mileageCosts;
 
   // Profit = revenue - total costs

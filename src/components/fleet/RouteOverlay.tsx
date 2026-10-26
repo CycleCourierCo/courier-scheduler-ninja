@@ -1,3 +1,4 @@
+import { computeVanLoads, getOrderSpaces, useBikeSpaces, formatSpaces, DEFAULT_VAN_SPACES_CAPACITY } from "@/lib/bikeSpaces";
 import { Fragment, useMemo } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Polyline, Marker, Popup } from "react-leaflet";
@@ -23,10 +24,10 @@ const DEPOT: Pt = { lat: DEPOT_LOCATION.lat, lon: DEPOT_LOCATION.lon };
 const MAX_STOPS_PER_REQUEST = 25;
 export interface StopEtaView { minutes: number; miles: number; eta: string; stopsBefore: number }
 
-export interface RouteStop { lat: number; lon: number; type: string; orderId?: string; address?: string; estimatedTime?: string; visitedAt: number | null; trackingNumber?: string | null; completed?: "Collected" | "Delivered" | null }
+export interface RouteStop { lat: number; lon: number; type: string; orderId?: string; address?: string; estimatedTime?: string; visitedAt: number | null; trackingNumber?: string | null; completed?: "Collected" | "Delivered" | null; loadAfter?: number }
 export interface RouteAnalysis {
   key: string; timeslipId: string | null; savedRouteId: string | null; vehicleId: string | null; hasVan: boolean; name: string | null; registration: string; driver: string | null; colour: string;
-  stops: RouteStop[]; path: Sample[]; stretches: OffRouteStretch[];
+  stops: RouteStop[]; startLoad: number; peakLoad: number; path: Sample[]; stretches: OffRouteStretch[];
   roadLine: Pt[] | null; roadUnavailable: boolean; plannedRoadMiles: number | null; plannedMinutes: number | null;
   timeslipMiles: number | null; drivenMiles: number;
   startTime: string | null; doneStops: any[] | null; timeslipHours: number | null;
@@ -117,9 +118,9 @@ export function useRouteDay(date: string) {
     queryKey: ["fleet-route-orders", orderIds.join(",")],
     enabled: orderIds.length > 0,
     queryFn: async () => {
-      const out = new Map<string, { tracking_number: string | null; order_collected: boolean | null; order_delivered: boolean | null }>();
+      const out = new Map<string, { tracking_number: string | null; order_collected: boolean | null; order_delivered: boolean | null; bikes?: any; bike_type?: string | null; bike_quantity?: number | null }>();
       for (let i = 0; i < orderIds.length; i += 200) {
-        const { data, error } = await supabase.from("orders").select("id, tracking_number, order_collected, order_delivered").in("id", orderIds.slice(i, i + 200));
+        const { data, error } = await supabase.from("orders").select("id, tracking_number, order_collected, order_delivered, bikes, bike_type, bike_quantity").in("id", orderIds.slice(i, i + 200));
         if (error) throw error;
         for (const o of data ?? []) out.set(o.id, o);
       }
@@ -128,6 +129,9 @@ export function useRouteDay(date: string) {
     refetchInterval: 120_000,
   });
 
+  const { data: bikeSpacesData } = useBikeSpaces();
+  const spaceMap = bikeSpacesData?.spaceMap ?? {};
+  const vanCapacity = bikeSpacesData?.capacity ?? DEFAULT_VAN_SPACES_CAPACITY;
   const roadsKey = roads.map((q) => `${q.status}:${q.dataUpdatedAt}`).join("|");
   const analyses = useMemo<RouteAnalysis[]>(() => {
     const byReg = new Map<string, Sample[]>();
@@ -145,10 +149,16 @@ export function useRouteDay(date: string) {
         key: r.timeslip_id ?? r.saved_route_id ?? String(i), timeslipId: r.timeslip_id, savedRouteId: r.saved_route_id, vehicleId: r.vehicle_id, hasVan: !!reg, name: r.route_name,
         registration: reg || (r.timeslip_id ? "No van" : "No timeslip yet"), driver: r.driver_name,
         colour: tokenColour(ROUTE_TOKENS[i % ROUTE_TOKENS.length]),
-        stops: stops.map((s) => {
-          const o = s.orderId ? orders.data?.get(s.orderId) : undefined;
-          return { ...s, visitedAt: firstVisit(s, path), trackingNumber: o?.tracking_number ?? null, completed: stopCompletion(s.type, o) };
-        }),
+        ...(() => {
+          const loads = computeVanLoads(stops, (id) => getOrderSpaces(id ? orders.data?.get(id) : undefined, spaceMap));
+          return {
+            startLoad: loads.start, peakLoad: loads.peak,
+            stops: stops.map((s, si) => {
+              const o = s.orderId ? orders.data?.get(s.orderId) : undefined;
+              return { ...s, visitedAt: firstVisit(s, path), trackingNumber: o?.tracking_number ?? null, completed: stopCompletion(s.type, o), loadAfter: loads.after[si] };
+            }),
+          };
+        })(),
         path, stretches: path.length ? offRouteStretches(path, against) : [],
         roadLine: road?.line ?? null, roadUnavailable: !!roads[i]?.isError,
         plannedRoadMiles: road ? road.miles : null, plannedMinutes: road ? road.minutes : null,
@@ -157,9 +167,9 @@ export function useRouteDay(date: string) {
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planned, roadsKey, history.data, orders.data]);
+  }, [planned, roadsKey, history.data, orders.data, spaceMap]);
 
-  return { analyses, isLoading: routes.isLoading || history.isLoading, error: routes.error || history.error };
+  return { analyses, vanCapacity, isLoading: routes.isLoading || history.isLoading, error: routes.error || history.error };
 }
 
 /** Road-snapped driven line per route (falls back to raw points while loading or on failure). */
@@ -211,6 +221,7 @@ export function RouteLayers({ analyses, etas, date, onSendStop }: { analyses: Ro
                   <div className="text-sm space-y-0.5">
                     <div className="font-semibold">{a.registration} · stop {i + 1}</div>
                     {s.trackingNumber && <div className="font-mono">{s.trackingNumber}</div>}
+                    {s.loadAfter != null && <div>🚲 {formatSpaces(s.loadAfter)} in van after this stop</div>}
                     <div className="capitalize">{s.type}{s.estimatedTime ? ` · planned ${s.estimatedTime}` : ""}</div>
                     {s.address && <div>{s.address}</div>}
                     <div>{s.completed ? `✓ ${s.completed}` : s.visitedAt ? `Reached ${format(new Date(s.visitedAt), "HH:mm")}` : etas?.get(a.key)?.get(i) ? `ETA ${format(new Date(etas.get(a.key)!.get(i)!.eta), "HH:mm")} · ${etas.get(a.key)!.get(i)!.miles} mi` : a.path.length ? "Not reached" : "No tracking yet"}</div>

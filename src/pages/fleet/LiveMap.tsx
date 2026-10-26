@@ -1,3 +1,4 @@
+import { formatSpaces } from "@/lib/bikeSpaces";
 import { normaliseReg } from "@/lib/fleet/liveTracking";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -10,6 +11,7 @@ import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { listVehicles } from "@/services/vehicleService";
+import { listUsersByRole } from "@/services/mechanicTimeslipService";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -113,6 +115,22 @@ export default function LiveMap() {
     toast.success("Van assigned — linked to its timeslip if there is one");
     qc.invalidateQueries({ queryKey: ["fleet-route-day", date] });
   };
+  const drivers = useQuery({ queryKey: ["route-drivers"], queryFn: () => listUsersByRole("driver") });
+  const assignments = useQuery({
+    queryKey: ["route-assignments", date],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("saved_route_assignments").select("saved_route_id, driver_id, started_at").eq("route_date", date);
+      return new Map<string, { driver_id: string | null; started_at: string | null }>((data ?? []).map((r: any) => [r.saved_route_id, r]));
+    },
+  });
+  const assignDriver = async (savedRouteId: string, driverId: string) => {
+    const { data: u } = await supabase.auth.getUser();
+    const { error } = await (supabase as any).from("saved_route_assignments")
+      .upsert({ saved_route_id: savedRouteId, route_date: date, driver_id: driverId, assigned_by: u.user?.id ?? null }, { onConflict: "saved_route_id,route_date" });
+    if (error) { toast.error("Couldn't assign the driver"); return; }
+    toast.success("Driver assigned — the route appears in their app once they start at the depot");
+    qc.invalidateQueries({ queryKey: ["route-assignments", date] });
+  };
   const redIssues = useQuery({
     queryKey: ["fleet-red-issues"],
     queryFn: async () => {
@@ -143,7 +161,7 @@ export default function LiveMap() {
             <Button variant="outline" size="sm" asChild><Link to="/fleet">Fleet</Link></Button>
           </div>
           <div className="flex items-center gap-2">
-            <Input type="date" value={date} max={today} onChange={(e) => e.target.value && setDate(e.target.value)} className="h-9 min-w-0 flex-1 sm:flex-none sm:w-auto" aria-label="Route date" />
+            <Input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} className="h-9 min-w-0 flex-1 sm:flex-none sm:w-auto" aria-label="Route date" />
             <Select value={vanFilter} onValueChange={setVanFilter}>
               <SelectTrigger className="h-9 w-28 shrink-0" aria-label="Show van"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -233,7 +251,13 @@ export default function LiveMap() {
                         <span className="min-w-0 truncate">{a.timeslipId ? `${a.driver || "No driver"}${a.name ? ` · ${a.name}` : ""}` : a.name ?? ""}</span>
                       </div>
                       {a.savedRouteId && (
-                        <div className="mt-1" onClick={(e) => e.stopPropagation()}>
+                        <div className="mt-1 grid grid-cols-2 gap-1" onClick={(e) => e.stopPropagation()}>
+                          <Select value={assignments.data?.get(a.savedRouteId)?.driver_id ?? undefined} onValueChange={(v) => assignDriver(a.savedRouteId!, v)}>
+                            <SelectTrigger className="h-8 text-xs" aria-label="Assign driver"><SelectValue placeholder="Assign driver" /></SelectTrigger>
+                            <SelectContent>
+                              {(drivers.data ?? []).map((d) => <SelectItem key={d.id} value={d.id}>{d.name || d.email || "Driver"}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
                           <Select value={a.hasVan ? a.registration : undefined} onValueChange={(v) => assignVan(a.savedRouteId!, v)}>
                             <SelectTrigger className="h-8 text-xs" aria-label="Assign van"><SelectValue placeholder="Assign van" /></SelectTrigger>
                             <SelectContent>
@@ -258,6 +282,12 @@ export default function LiveMap() {
                         )}
                       </div>
                       {a.stops.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1 text-xs">
+                          <Badge variant="outline">Leaves depot with 🚲 {formatSpaces(a.startLoad)}</Badge>
+                          <Badge variant={a.peakLoad > routeDay.vanCapacity ? "destructive" : "outline"}>Peak {formatSpaces(a.peakLoad)}/{formatSpaces(routeDay.vanCapacity)}{a.peakLoad > routeDay.vanCapacity ? " · overloaded" : ""}</Badge>
+                        </div>
+                      )}
+                      {a.stops.length > 0 && (
                         <details className="mt-1" onClick={(e) => e.stopPropagation()}>
                           <summary className="cursor-pointer text-xs text-primary">Stops & live ETAs</summary>
                           <ol className="mt-1 space-y-1">
@@ -271,6 +301,7 @@ export default function LiveMap() {
                                   <span className="min-w-0 flex-1">
                                     {s.trackingNumber && <span className="block truncate font-mono text-[11px]">{s.trackingNumber}</span>}
                                     <span className="block truncate text-muted-foreground"><span className="capitalize">{s.type}</span>{s.address ? ` · ${s.address}` : ""}</span>
+                                    {s.loadAfter != null && <span className={`block text-[11px] ${s.loadAfter > routeDay.vanCapacity ? "font-semibold text-destructive" : "text-muted-foreground"}`}>🚲 {formatSpaces(s.loadAfter)}/{formatSpaces(routeDay.vanCapacity)} in van after</span>}
                                   </span>
                                   <span className="shrink-0 pt-0.5 text-right text-muted-foreground">
                                     {s.completed ? `✓ ${s.completed}` : s.visitedAt ? `Reached ${format(new Date(s.visitedAt), "HH:mm")}`
@@ -299,7 +330,7 @@ export default function LiveMap() {
             )}
             {!routeDay.isLoading && routeDay.analyses.length === 0 && <p className="text-xs text-muted-foreground">No saved routes for this date.</p>}
             {isToday && <h2 className="text-sm font-semibold pt-2">Live vans</h2>}
-            {!isToday && <p className="text-xs text-muted-foreground">Live pins are hidden for past dates.</p>}
+            {!isToday && <p className="text-xs text-muted-foreground">{date < today ? "Live pins are hidden for past dates." : "Live pins appear on the day itself once routes start."}</p>}
             {positions.isLoading && <p className="text-sm text-muted-foreground">Loading vans…</p>}
             {isToday && rows.filter((r) => vanFilter === "all" || r.position.registration === vanFilter).map(({ position: p, vehicle }) => {
               const st = liveStatus(p);

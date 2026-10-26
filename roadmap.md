@@ -1,5 +1,9 @@
 # Roadmap
 
+- [x] Label scan role toggle: show each assigned action view for multi-role staff; retain existing permissions and default view.
+
+- [x] Per-mile profitability: recorded driver pay is all-inclusive in route and daily totals; flat/actual regression tests pass (£324, not £518.40). Signed-in UI check unavailable with external unmanaged authentication.
+
 - [x] Add thermal-label section dividers and tracking QR; sample PDF visually checked and QR decoded at 203 dpi (signed-in destinations deferred by request)
 
 - [x] Move the tracking QR to the bottom of the label (bottom-right, "SCAN TO TRACK" beside it); five sample PDFs checked at 203 dpi — QR decodes, no overlap, and every label that fitted before still fits
@@ -76,3 +80,7 @@
 - [ ] Build and run on a real phone — needs the user's Mac/Android Studio and store accounts
 - [ ] Add privacy-policy wording for location/photos — needs the user's approval of the text
 - [x] Live Map: road-snapped driven line; tracking link button in stop pop-ups
+
+- [x] Label QR: role-aware tracking page (loader bay/van actions, driver route check, mechanic/admin shortcuts), Scan page with camera + van-loading batch, scan history
+- [ ] Driver collect/deliver straight from a scan — links to Today's Route proof screen; marking orders collected/delivered from the app still awaits user approval (customer messages)
+- [ ] Signed-in check on a real phone as loader/driver — preview sign-in not available
