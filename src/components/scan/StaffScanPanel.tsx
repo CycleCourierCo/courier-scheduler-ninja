@@ -6,12 +6,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, Truck, Warehouse, Undo2, Wrench, ExternalLink, Route } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { panelForRoles, driverScanState, type RouteToday } from "@/lib/labelScan";
+import { panelsForRoles, driverScanState, type ScanPanel, type RouteToday } from "@/lib/labelScan";
 
 const ACTION_LABEL: Record<string, string> = { bay: "Put in bay", load_van: "Loaded onto van", unload: "Unloaded to depot" };
+const PANEL_LABEL: Record<ScanPanel, string> = { admin: "Office", loader: "Loader", mechanic: "Mechanic", driver: "Driver", staff: "Staff" };
 
 async function position(): Promise<{ lat: number | null; lon: number | null }> {
   if (!("geolocation" in navigator)) return { lat: null, lon: null };
@@ -23,6 +25,7 @@ async function position(): Promise<{ lat: number | null; lon: number | null }> {
 export default function StaffScanPanel({ reference, compact }: { reference: string; compact?: boolean }) {
   const qc = useQueryClient();
   const [bay, setBay] = useState("");
+  const [selectedPanel, setSelectedPanel] = useState<ScanPanel | null>(null);
   const q = useQuery({
     queryKey: ["label-lookup", reference],
     queryFn: async () => {
@@ -50,7 +53,8 @@ export default function StaffScanPanel({ reference, compact }: { reference: stri
   if (!d.found) return <Card className="border-destructive"><CardContent className="pt-6 text-sm">No order found for {reference}.</CardContent></Card>;
 
   const o = d.order;
-  const panel = panelForRoles(d.roles);
+  const panels = panelsForRoles(d.roles);
+  const panel = selectedPanel && panels.includes(selectedPanel) ? selectedPanel : panels[0] ?? "staff";
   const routes: RouteToday[] = d.routes_today ?? [];
   const bays = Array.isArray(o.storage_locations) ? o.storage_locations : [];
   const where = o.loaded_onto_van ? "On a van" : bays.length ? `Bay ${bays.map((b: any) => `${b.bay}${b.position ?? ""}`).join(", ")}` : o.delivered ? "Delivered" : o.collected ? "Collected, not in a bay" : "Not collected yet";
@@ -75,6 +79,22 @@ export default function StaffScanPanel({ reference, compact }: { reference: stri
           <div key={r.assignment_id} className="flex items-center gap-2 text-xs text-muted-foreground"><Route className="h-3 w-3" />{r.route} · {r.registration ?? "no van"} · {(r.stop_types ?? []).join(" + ")}</div>
         ))}
         {warnings.map((w) => <div key={w} className="flex items-start gap-2 rounded-md bg-destructive/10 p-2 text-destructive"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />{w}</div>)}
+
+        {panels.length > 1 && (
+          <Tabs value={panel} onValueChange={(value) => {
+            const next = panels.find((available) => available === value);
+            if (next) setSelectedPanel(next);
+          }}>
+            <TabsList aria-label="Scan role" className="flex h-auto w-full flex-wrap justify-start gap-1">
+              {panels.map((available) => (
+                <TabsTrigger key={available} value={available} className="min-h-12 flex-1 gap-1.5">
+                  {available === "loader" ? <Warehouse className="h-4 w-4 shrink-0" /> : available === "driver" ? <Truck className="h-4 w-4 shrink-0" /> : available === "mechanic" ? <Wrench className="h-4 w-4 shrink-0" /> : <ExternalLink className="h-4 w-4 shrink-0" />}
+                  {PANEL_LABEL[available]}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+        )}
 
         {(panel === "loader" || panel === "admin") && (
           <div className="space-y-2">

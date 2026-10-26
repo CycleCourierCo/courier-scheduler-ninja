@@ -9,14 +9,20 @@ export function parseScannedRef(text: string): string | null {
 
 export type ScanPanel = "admin" | "loader" | "driver" | "mechanic" | "staff";
 
-/** Which staff panel a scan opens, by the strongest role the user holds. */
-export function panelForRoles(roles: string[] = []): ScanPanel {
+/** Available scan views, preserving the existing role-to-action mapping. */
+export function panelsForRoles(roles: string[] = []): ScanPanel[] {
   const has = (r: string) => roles.includes(r);
-  if (has("admin") || has("cs_agent")) return "admin";
-  if (has("loader") || has("route_planner")) return "loader";
-  if (has("mechanic")) return "mechanic";
-  if (has("driver")) return "driver";
-  return "staff";
+  const panels: ScanPanel[] = [];
+  if (has("admin") || has("cs_agent")) panels.push("admin");
+  if (has("loader") || has("route_planner")) panels.push("loader");
+  if (has("mechanic")) panels.push("mechanic");
+  if (has("driver")) panels.push("driver");
+  return panels.length ? panels : ["staff"];
+}
+
+/** Which staff panel a scan opens by default. */
+export function panelForRoles(roles: string[] = []): ScanPanel {
+  return panelsForRoles(roles)[0] ?? "staff";
 }
 
 export interface RouteToday { assignment_id: string; route: string; registration: string | null; started: boolean; mine: boolean; stop_types: string[] | null }
