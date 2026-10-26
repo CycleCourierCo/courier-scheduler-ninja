@@ -2,7 +2,8 @@ import React, { useState } from "react";
 import * as Sentry from "@sentry/react";
 import { toast } from "sonner";
 import { notify } from "@/lib/notify";
-import { Plus, Trash2, Edit, Warehouse, ArrowUp, ArrowDown } from "lucide-react";
+import { Plus, Trash2, Edit, Warehouse, ArrowUp, ArrowDown, QrCode } from "lucide-react";
+import { printBayQrLabels } from "@/utils/bayQrLabels";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +33,8 @@ const StorageBaysPage: React.FC = () => {
   const [positionCount, setPositionCount] = useState("20");
   const [isActive, setIsActive] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [qrBay, setQrBay] = useState<StorageBay | null>(null);
+  const [qrSlots, setQrSlots] = useState(true);
 
   const openNew = () => {
     setEditing(null);
@@ -178,7 +181,7 @@ const StorageBaysPage: React.FC = () => {
                   <TableHead>Bay</TableHead>
                   <TableHead>Slots</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="w-[160px] text-right">Actions</TableHead>
+                  <TableHead className="w-[200px] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -204,6 +207,9 @@ const StorageBaysPage: React.FC = () => {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
+                      <Button size="icon" variant="ghost" aria-label={`Print QR labels for bay ${bay.label}`} onClick={() => setQrBay(bay)}>
+                        <QrCode className="h-4 w-4" />
+                      </Button>
                       <Button size="icon" variant="ghost" onClick={() => openEdit(bay)}>
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -223,6 +229,24 @@ const StorageBaysPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      <Dialog open={!!qrBay} onOpenChange={(o) => !o && setQrBay(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Print QR labels — bay {qrBay?.label}</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">Prints 4×6 labels for the thermal printer. Staff scan these after scanning a bike label to put it in this bay.</p>
+          <div className="flex items-center justify-between rounded-md border p-3">
+            <Label htmlFor="qr-slots">Also one label per slot ({qrBay?.position_count})</Label>
+            <Switch id="qr-slots" checked={qrSlots} onCheckedChange={setQrSlots} />
+          </div>
+          <DialogFooter>
+            <Button onClick={() => { if (qrBay && !printBayQrLabels(qrBay.label, qrBay.position_count, qrSlots)) toast.error("Allow pop-ups to print labels."); setQrBay(null); }}>
+              <QrCode className="mr-2 h-4 w-4" /> Print
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-sm">
