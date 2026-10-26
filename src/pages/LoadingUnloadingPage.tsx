@@ -9,6 +9,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { StorageUnitLayout } from "@/components/loading/StorageUnitLayout";
 import { PendingStorageAllocation } from "@/components/loading/PendingStorageAllocation";
 import { BikeSearchSection } from "@/components/loading/BikeSearchSection";
+import { QrCode } from "lucide-react";
 import { ScanToBaySection } from "@/components/loading/ScanToBaySection";
 import { BikesInStorage } from "@/components/loading/BikesInStorage";
 import { RemoveBikesDialog } from "@/components/loading/RemoveBikesDialog";
