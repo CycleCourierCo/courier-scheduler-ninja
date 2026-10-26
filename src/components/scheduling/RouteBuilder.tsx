@@ -1385,6 +1385,12 @@ const JobItem: React.FC<JobItemProps> = ({
   );
 };
 
+/** Saved pin for a stop: the work address when the stop uses it, else the order's home/ferry coords. */
+const savedStopCoords = (job: any): { lat: number | null; lon: number | null } => {
+  if (job?.addressSource === 'work' && job.lat != null && job.lon != null) return { lat: job.lat, lon: job.lon };
+  return job?.orderData ? resolveStopCoords(job.orderData, job.type) : { lat: null, lon: null };
+};
+
 const RouteBuilder: React.FC<RouteBuilderProps> = ({ 
   orders, 
   filterDate: externalFilterDate,
@@ -2202,9 +2208,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   const updateSavedRouteRow = async (routeId: string) => {
     try {
       const jobData = selectedJobs.map(job => {
-        const coords = job.orderData
-          ? resolveStopCoords(job.orderData, job.type)
-          : { lat: null, lon: null };
+        const coords = savedStopCoords(job);
         return {
           orderId: job.orderId,
           type: job.type,
@@ -2217,6 +2221,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           lon: coords.lon ?? job.lon,
           breakDuration: job.breakDuration,
           breakType: job.breakType,
+          addressSource: (job as any).addressSource,
         };
       });
       const { error } = await supabase
@@ -2241,9 +2246,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       if (!user) return null;
 
       const jobData = selectedJobs.map(job => {
-        const coords = job.orderData
-          ? resolveStopCoords(job.orderData, job.type)
-          : { lat: null, lon: null };
+        const coords = savedStopCoords(job);
         return {
           orderId: job.orderId,
           type: job.type,
@@ -2256,6 +2259,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           lon: coords.lon ?? job.lon,
           breakDuration: job.breakDuration,
           breakType: job.breakType,
+          addressSource: (job as any).addressSource,
         };
       });
 
@@ -2784,6 +2788,10 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       // NI deliveries must resolve to the ferry hand-off, never the customer coords
       const leg = getLegContact(freshOrder, job.type as 'pickup' | 'delivery');
       const { lat: newLat, lon: newLon } = resolveStopCoords(freshOrder, job.type);
+      // Work-address stops keep their work pin; only the home fallback refreshes.
+      if ((job as any).addressSource === 'work') {
+        return { ...job, homeLat: newLat ?? (job as any).homeLat, homeLon: newLon ?? (job as any).homeLon };
+      }
 
       if (newLat !== job.lat || newLon !== job.lon) {
         console.log(`Updated coordinates for ${job.contactName}: (${job.lat}, ${job.lon}) -> (${newLat}, ${newLon})`);
@@ -2910,11 +2918,11 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { toast.error('Please sign in again'); return; }
     const jobData = jobs.map((job) => {
-      const coords = job.orderData ? resolveStopCoords(job.orderData, job.type) : { lat: null, lon: null };
+      const coords = savedStopCoords(job);
       return {
         orderId: job.orderId, type: job.type, address: job.address, contactName: job.contactName,
         phoneNumber: job.phoneNumber, order: job.order, estimatedTime: job.estimatedTime,
-        lat: coords.lat ?? job.lat, lon: coords.lon ?? job.lon,
+        lat: coords.lat ?? job.lat, lon: coords.lon ?? job.lon, addressSource: job.addressSource,
       };
     });
     const { error } = await supabase.from('saved_routes').insert({
@@ -3085,6 +3093,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     // route to the ferry hand-off, even if the stop was added/saved earlier.
     const jobs = rawJobs.map((job: any) => {
       if (job.type === 'break' || !job.orderData) return job;
+      if (job.addressSource === 'work') return job;
       const leg = getLegContact(job.orderData, job.type);
       if (leg.lat == null || leg.lon == null) return job;
       return {
