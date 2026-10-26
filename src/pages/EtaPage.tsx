@@ -22,7 +22,7 @@ interface DepotData {
 interface StopData {
   kind: "stop";
   registration: string; driver: string | null;
-  stop: { lat: number; lon: number; type: string };
+  stop: { lat: number; lon: number; type: string } | null;
   position: Pos | null;
   done?: boolean; closed?: boolean; completed?: string; unavailable?: boolean;
   route?: { polyline: string; miles: number; minutes: number; eta: string; stopsBefore: number };
@@ -36,6 +36,16 @@ function Fit({ pts }: { pts: [number, number][] }) {
 }
 
 function StopView({ d }: { d: StopData }) {
+  if (d.closed || !d.stop) {
+    return (
+      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 bg-background px-6 text-center">
+        <BrandLogo compact withWordmark />
+        <CheckCircle2 className="h-10 w-10 text-primary" />
+        <div className="text-xl font-bold">{d.completed ? `Your bike has been ${d.completed.toLowerCase()}` : "This stop is complete"}</div>
+        <div className="text-sm text-muted-foreground">Live tracking for this stop has ended.</div>
+      </div>
+    );
+  }
   const line = d.route ? decodePolyline(d.route.polyline) : [];
   const pts: [number, number][] = [[d.stop.lat, d.stop.lon], ...(d.position ? [[d.position.lat, d.position.lon] as [number, number]] : [])];
   const verb = d.stop.type.startsWith("del") ? "delivery" : "collection";
