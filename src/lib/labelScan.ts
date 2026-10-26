@@ -39,3 +39,11 @@ export const SCAN_STAFF_ROLES = ["admin", "cs_agent", "loader", "route_planner",
 export function isScanStaff(roles: string[] = []): boolean {
   return roles.some((r) => SCAN_STAFF_ROLES.includes(r));
 }
+
+/** Bay QR labels encode "CCCBAY:<bay>" or "CCCBAY:<bay>-<slot>". Returns the bay detail ("A" or "A-3"). */
+export const bayQrText = (bay: string, slot?: number) => `CCCBAY:${bay.toUpperCase()}${slot ? `-${slot}` : ""}`;
+export function parseBayCode(text: string): string | null {
+  const m = (text ?? "").trim().match(/^CCCBAY:([A-Za-z0-9]{1,8})(?:-(\d{1,3}))?$/i);
+  if (!m) return null;
+  return m[2] ? `${m[1].toUpperCase()}-${parseInt(m[2], 10)}` : m[1].toUpperCase();
+}

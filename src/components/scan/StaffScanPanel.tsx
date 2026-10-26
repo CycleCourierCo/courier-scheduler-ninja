@@ -1,4 +1,5 @@
 import { useState } from "react";
+import BayScanner from "@/components/scan/BayScanner";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,6 +26,7 @@ async function position(): Promise<{ lat: number | null; lon: number | null }> {
 export default function StaffScanPanel({ reference, compact }: { reference: string; compact?: boolean }) {
   const qc = useQueryClient();
   const [bay, setBay] = useState("");
+  const [scanBay, setScanBay] = useState(false);
   const [selectedPanel, setSelectedPanel] = useState<ScanPanel | null>(null);
   const q = useQuery({
     queryKey: ["label-lookup", reference],
@@ -102,6 +104,11 @@ export default function StaffScanPanel({ reference, compact }: { reference: stri
               <Input value={bay} onChange={(e) => setBay(e.target.value.toUpperCase())} placeholder="Bay, e.g. A-3" className="h-12" />
               <Button className="h-12" disabled={!bay || act.isPending} onClick={() => act.mutate({ action: "bay", detail: bay })}><Warehouse className="mr-1 h-4 w-4" />Put in bay</Button>
             </div>
+            {scanBay ? (
+              <BayScanner onCancel={() => setScanBay(false)} onBay={(b) => { setScanBay(false); act.mutate({ action: "bay", detail: b }); }} />
+            ) : (
+              <Button variant="secondary" className="h-12 w-full" disabled={act.isPending || o.status === "cancelled"} onClick={() => setScanBay(true)}><Warehouse className="mr-1 h-4 w-4" />Allocate — scan bay location</Button>
+            )}
             <div className="grid grid-cols-2 gap-2">
               <Button className="h-12" disabled={act.isPending || o.status === "cancelled"} onClick={() => act.mutate({ action: "load_van", detail: routes[0]?.registration ?? undefined })}><Truck className="mr-1 h-4 w-4" />Load onto van</Button>
               <Button variant="outline" className="h-12" disabled={act.isPending || !o.loaded_onto_van} onClick={() => act.mutate({ action: "unload" })}><Undo2 className="mr-1 h-4 w-4" />Unload to depot</Button>
