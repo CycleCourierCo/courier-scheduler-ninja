@@ -1,3 +1,4 @@
+import { normaliseReg } from "@/lib/fleet/liveTracking";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Link, useNavigate } from "react-router-dom";
