@@ -175,7 +175,8 @@ export default function LiveMap() {
               <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <FitAll points={points} />
               <FlyTo target={focus} />
-              <RouteLayers analyses={shownRoutes} etas={etaMaps} />
+              <RouteLayers analyses={shownRoutes} etas={etaMaps} date={date}
+                onSendStop={isToday ? (t) => setEtaTarget({ registration: t.registration, stop: { saved_route_id: t.savedRouteId, date, stop_index: t.stopIndex, label: `Stop ${t.stopIndex + 1}`, orderId: t.orderId, type: t.type } }) : undefined} />
               {isToday && rows.filter((r) => vanFilter === "all" || r.position.registration === vanFilter).map(({ position: p, vehicle }) => {
                 const st = liveStatus(p);
                 const stale = isStale(p.timestamp);
