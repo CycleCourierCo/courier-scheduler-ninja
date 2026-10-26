@@ -1,6 +1,7 @@
 import { Fragment, useMemo } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { Polyline, CircleMarker, Marker, Popup } from "react-leaflet";
+import { Polyline, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
 import { format } from "date-fns";
 import * as Sentry from "@sentry/react";
 import { supabase } from "@/integrations/supabase/client";
@@ -21,7 +22,7 @@ const DEPOT: Pt = { lat: DEPOT_LOCATION.lat, lon: DEPOT_LOCATION.lon };
 const MAX_STOPS_PER_REQUEST = 25;
 export interface StopEtaView { minutes: number; miles: number; eta: string; stopsBefore: number }
 
-export interface RouteStop { lat: number; lon: number; type: string; orderId?: string; address?: string; estimatedTime?: string; visitedAt: number | null }
+export interface RouteStop { lat: number; lon: number; type: string; orderId?: string; address?: string; estimatedTime?: string; visitedAt: number | null; trackingNumber?: string | null; completed?: "Collected" | "Delivered" | null }
 export interface RouteAnalysis {
   key: string; timeslipId: string | null; savedRouteId: string | null; vehicleId: string | null; name: string | null; registration: string; driver: string | null; colour: string;
   stops: RouteStop[]; path: Sample[]; stretches: OffRouteStretch[];
@@ -65,6 +66,21 @@ export async function fetchRoadLine(stops: Pt[]) {
   return { line, miles: distance / 1609.344, minutes: Math.round(duration / 60) };
 }
 
+/** A stop is complete when its order leg is done: delivery stops → delivered, others → collected. */
+export function stopCompletion(type: string | undefined, o?: { order_collected: boolean | null; order_delivered: boolean | null }): "Collected" | "Delivered" | null {
+  if (!o) return null;
+  if (/deliver|drop/i.test(type ?? "")) return o.order_delivered ? "Delivered" : null;
+  return o.order_collected ? "Collected" : null;
+}
+
+function stopIcon(n: number, ring: string, fill: string, done: boolean) {
+  return L.divIcon({
+    className: "",
+    iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -12],
+    html: `<div style="width:24px;height:24px;border-radius:9999px;border:2px solid ${ring};background:${fill};color:#fff;font:700 11px/20px Overpass,sans-serif;text-align:center">${done ? "&#10003;" : n}</div>`,
+  });
+}
+
 export function useRouteDay(date: string) {
   const routes = useQuery({
     queryKey: ["fleet-route-day", date],
@@ -102,6 +118,22 @@ export function useRouteDay(date: string) {
     })),
   });
 
+  const orderIds = useMemo(() => [...new Set(planned.flatMap((p) => p.stops.map((s) => s.orderId).filter(Boolean)))] as string[], [planned]);
+  const orders = useQuery({
+    queryKey: ["fleet-route-orders", orderIds.join(",")],
+    enabled: orderIds.length > 0,
+    queryFn: async () => {
+      const out = new Map<string, { tracking_number: string | null; order_collected: boolean | null; order_delivered: boolean | null }>();
+      for (let i = 0; i < orderIds.length; i += 200) {
+        const { data, error } = await supabase.from("orders").select("id, tracking_number, order_collected, order_delivered").in("id", orderIds.slice(i, i + 200));
+        if (error) throw error;
+        for (const o of data ?? []) out.set(o.id, o);
+      }
+      return out;
+    },
+    refetchInterval: 120_000,
+  });
+
   const roadsKey = roads.map((q) => `${q.status}:${q.dataUpdatedAt}`).join("|");
   const analyses = useMemo<RouteAnalysis[]>(() => {
     const byReg = new Map<string, Sample[]>();
@@ -119,7 +151,10 @@ export function useRouteDay(date: string) {
         key: r.timeslip_id ?? r.saved_route_id ?? String(i), timeslipId: r.timeslip_id, savedRouteId: r.saved_route_id, vehicleId: r.vehicle_id, name: r.route_name,
         registration: reg || (r.timeslip_id ? "No van" : "No timeslip yet"), driver: r.driver_name,
         colour: tokenColour(ROUTE_TOKENS[i % ROUTE_TOKENS.length]),
-        stops: stops.map((s) => ({ ...s, visitedAt: firstVisit(s, path) })),
+        stops: stops.map((s) => {
+          const o = s.orderId ? orders.data?.get(s.orderId) : undefined;
+          return { ...s, visitedAt: firstVisit(s, path), trackingNumber: o?.tracking_number ?? null, completed: stopCompletion(s.type, o) };
+        }),
         path, stretches: path.length ? offRouteStretches(path, against) : [],
         roadLine: road?.line ?? null, roadUnavailable: !!roads[i]?.isError,
         plannedRoadMiles: road ? road.miles : null, plannedMinutes: road ? road.minutes : null,
@@ -128,7 +163,7 @@ export function useRouteDay(date: string) {
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planned, roadsKey, history.data]);
+  }, [planned, roadsKey, history.data, orders.data]);
 
   return { analyses, isLoading: routes.isLoading || history.isLoading, error: routes.error || history.error };
 }
@@ -154,17 +189,18 @@ export function RouteLayers({ analyses, etas }: { analyses: RouteAnalysis[]; eta
                 pathOptions={{ color: failed, weight: 7, opacity: 0.6 }} />
             ))}
             {a.stops.map((s, i) => (
-              <CircleMarker key={i} center={[s.lat, s.lon]} radius={8}
-                pathOptions={{ color: a.colour, weight: 2, fillColor: s.visitedAt ? done : a.path.length ? failed : a.colour, fillOpacity: 0.9 }}>
+              <Marker key={i} position={[s.lat, s.lon]}
+                icon={stopIcon(i + 1, a.colour, s.completed || s.visitedAt ? done : a.path.length ? failed : a.colour, !!s.completed)}>
                 <Popup>
                   <div className="text-sm space-y-0.5">
                     <div className="font-semibold">{a.registration} · stop {i + 1}</div>
+                    {s.trackingNumber && <div className="font-mono">{s.trackingNumber}</div>}
                     <div className="capitalize">{s.type}{s.estimatedTime ? ` · planned ${s.estimatedTime}` : ""}</div>
                     {s.address && <div>{s.address}</div>}
-                    <div>{s.visitedAt ? `Reached ${format(new Date(s.visitedAt), "HH:mm")}` : etas?.get(a.key)?.get(i) ? `ETA ${format(new Date(etas.get(a.key)!.get(i)!.eta), "HH:mm")} · ${etas.get(a.key)!.get(i)!.miles} mi` : a.path.length ? "Not reached" : "No tracking yet"}</div>
+                    <div>{s.completed ? `✓ ${s.completed}` : s.visitedAt ? `Reached ${format(new Date(s.visitedAt), "HH:mm")}` : etas?.get(a.key)?.get(i) ? `ETA ${format(new Date(etas.get(a.key)!.get(i)!.eta), "HH:mm")} · ${etas.get(a.key)!.get(i)!.miles} mi` : a.path.length ? "Not reached" : "No tracking yet"}</div>
                   </div>
                 </Popup>
-              </CircleMarker>
+              </Marker>
             ))}
           </Fragment>
         );
