@@ -94,7 +94,7 @@ export function ProofDialog({ stop, driverId, open, onOpenChange, onSaved }: {
               ))}
               <Button type="button" variant="outline" className="h-20 w-20 flex-col" onClick={takePhoto}><CameraIcon className="h-5 w-5" />Photo</Button>
               <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={async (e) => {
-                const f = e.target.files?.[0]; if (f) setPhotos((x) => [...x, ""].slice(0, -1).concat([""]) && x);
+                const f = e.target.files?.[0];
                 if (f) { const d = await readFile(f); setPhotos((x) => [...x, d]); } e.target.value = "";
               }} />
             </div>
