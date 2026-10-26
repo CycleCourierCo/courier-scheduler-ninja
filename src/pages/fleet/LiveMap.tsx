@@ -161,7 +161,7 @@ export default function LiveMap() {
             <Button variant="outline" size="sm" asChild><Link to="/fleet">Fleet</Link></Button>
           </div>
           <div className="flex items-center gap-2">
-            <Input type="date" value={date} max={today} onChange={(e) => e.target.value && setDate(e.target.value)} className="h-9 min-w-0 flex-1 sm:flex-none sm:w-auto" aria-label="Route date" />
+            <Input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} className="h-9 min-w-0 flex-1 sm:flex-none sm:w-auto" aria-label="Route date" />
             <Select value={vanFilter} onValueChange={setVanFilter}>
               <SelectTrigger className="h-9 w-28 shrink-0" aria-label="Show van"><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -330,7 +330,7 @@ export default function LiveMap() {
             )}
             {!routeDay.isLoading && routeDay.analyses.length === 0 && <p className="text-xs text-muted-foreground">No saved routes for this date.</p>}
             {isToday && <h2 className="text-sm font-semibold pt-2">Live vans</h2>}
-            {!isToday && <p className="text-xs text-muted-foreground">Live pins are hidden for past dates.</p>}
+            {!isToday && <p className="text-xs text-muted-foreground">{date < today ? "Live pins are hidden for past dates." : "Live pins appear on the day itself once routes start."}</p>}
             {positions.isLoading && <p className="text-sm text-muted-foreground">Loading vans…</p>}
             {isToday && rows.filter((r) => vanFilter === "all" || r.position.registration === vanFilter).map(({ position: p, vehicle }) => {
               const st = liveStatus(p);
