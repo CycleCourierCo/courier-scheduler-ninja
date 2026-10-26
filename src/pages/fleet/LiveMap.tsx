@@ -161,7 +161,7 @@ export default function LiveMap() {
             <Button variant="outline" size="sm" asChild><Link to="/fleet">Fleet</Link></Button>
           </div>
           <div className="flex items-center gap-2">
-            <Input type="date" value={date} max={today} onChange={(e) => e.target.value && setDate(e.target.value)} className="h-9 min-w-0 flex-1 sm:flex-none sm:w-auto" aria-label="Route date" />
+            <Input type="date" value={date} onChange={(e) => e.target.value && setDate(e.target.value)} className="h-9 min-w-0 flex-1 sm:flex-none sm:w-auto" aria-label="Route date" />
             <Select value={vanFilter} onValueChange={setVanFilter}>
               <SelectTrigger className="h-9 w-28 shrink-0" aria-label="Show van"><SelectValue /></SelectTrigger>
               <SelectContent>
