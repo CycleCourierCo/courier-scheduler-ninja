@@ -1,8 +1,8 @@
 // ETA links: fleet staff send a public link showing a van's live (Radius) position and either
 // its road route back to the depot, or its ETA to one stop on a saved route
 // (drive time + 15 min per remaining stop before it). Public "view" reads by token.
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { Resend } from "https://esm.sh/resend@2.0.0";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
+import { Resend } from "npm:resend@2.0.0";
 import { emailShell, EMAIL_BRAND } from "../_shared/emailLayout.ts";
 import { computeStopEtas, isPositionFresh, wasVisited, type Leg } from "../_shared/stopEta.ts";
 
