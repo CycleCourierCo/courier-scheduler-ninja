@@ -17,8 +17,9 @@ import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 import type { Order } from "@/types/order";
 import DoorstepShell from "@/components/design/DoorstepShell";
 import Layout from "@/components/Layout";
-import StaffScanPanel from "@/components/scan/StaffScanPanel";
-import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { getRoles } from "@/lib/roles";
+import { isScanStaff } from "@/lib/labelScan";
 
 
 const formSchema = z.object({
@@ -68,6 +69,12 @@ const TrackingPage = () => {
   const queryClient = useQueryClient();
   const [searchId, setSearchId] = useState<string | undefined>(id);
   const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  const { userProfile } = useAuth() as any;
+
+  // Staff scanning a label get the bike card as a dashboard popup, never on this public page.
+  useEffect(() => {
+    if (id && isScanStaff(getRoles(userProfile))) navigate(`/dashboard?scan=${encodeURIComponent(id)}`, { replace: true });
+  }, [id, userProfile, navigate]);
 
   useEffect(() => {
     if (id) {
@@ -106,7 +113,6 @@ const TrackingPage = () => {
   return (
     <Layout>
       <DoorstepShell title="Track your bike" reference={order?.trackingNumber ?? searchId}>
-          {searchId && <div className="mb-6"><StaffScanPanel reference={searchId} /></div>}
           {!order && <Card className="mb-8">
             <CardContent className="pt-6">
               <TrackingForm onSearch={handleSearch} />
@@ -271,7 +277,6 @@ const TrackingPage = () => {
             </CardContent>
           </Card>
         )}
-        <p className="mt-8 text-center text-xs text-muted-foreground"><Link to={`/auth?next=${encodeURIComponent(`/tracking/${searchId ?? ""}`)}`} className="underline">Staff? Sign in</Link></p>
       </DoorstepShell>
     </Layout>
   );
