@@ -12,7 +12,7 @@ import { listVehicles } from "@/services/vehicleService";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { colouredMarkerIcon } from "@/lib/mapMarkers";
+import { colouredMarkerIcon, vanMarkerIcon } from "@/lib/mapMarkers";
 import { DRIVER_PIN_MAX_AGE_MIN } from "@/lib/driverApp/stops";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -177,7 +177,7 @@ export default function LiveMap() {
                 const st = liveStatus(p);
                 const stale = isStale(p.timestamp);
                 return (
-                  <Marker key={p.id} position={[p.lat, p.lon]} icon={colouredMarkerIcon(stale ? "grey" : STATUS_PIN[st])}>
+                  <Marker key={p.id} position={[p.lat, p.lon]} icon={vanMarkerIcon(stale ? "grey" : STATUS_PIN[st])}>
                     <Popup>
                       <div className="space-y-1 text-sm">
                         <div className="font-semibold">{p.registration}</div>
@@ -259,13 +259,13 @@ export default function LiveMap() {
                             {a.stops.map((s, i) => {
                               const r = stopEtas.get(a.key);
                               const e = r?.byStop.get(i);
-                              const canLink = isToday && !s.visitedAt && !!a.vehicleId && !!a.savedRouteId && !!e;
+                              const canLink = isToday && !s.visitedAt && !s.completed && !!a.vehicleId && !!a.savedRouteId && !!e;
                               return (
-                                <li key={i} className="flex min-w-0 items-center gap-2 text-xs">
+                                <li key={i} className={`flex min-w-0 items-center gap-2 text-xs ${s.completed ? "opacity-60" : ""}`}>
                                   <span className="w-5 shrink-0 text-muted-foreground">{i + 1}.</span>
-                                  <span className="min-w-0 flex-1 truncate"><span className="capitalize">{s.type}</span>{s.address ? ` · ${s.address}` : ""}</span>
+                                  <span className="min-w-0 flex-1 truncate">{s.trackingNumber && <span className="font-mono">{s.trackingNumber} · </span>}<span className="capitalize">{s.type}</span>{s.address ? ` · ${s.address}` : ""}</span>
                                   <span className="shrink-0 text-muted-foreground">
-                                    {s.visitedAt ? `Reached ${format(new Date(s.visitedAt), "HH:mm")}`
+                                    {s.completed ? `✓ ${s.completed}` : s.visitedAt ? `Reached ${format(new Date(s.visitedAt), "HH:mm")}`
                                       : !isToday ? (a.path.length ? "Not reached" : "No tracking")
                                       : !a.vehicleId ? "Assign a van"
                                       : e ? `ETA ${format(new Date(e.eta), "HH:mm")} · ${e.miles} mi`

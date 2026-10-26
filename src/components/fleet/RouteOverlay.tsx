@@ -77,7 +77,7 @@ function stopIcon(n: number, ring: string, fill: string, done: boolean) {
   return L.divIcon({
     className: "",
     iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -12],
-    html: `<div style="width:24px;height:24px;border-radius:9999px;border:2px solid ${ring};background:${fill};color:#fff;font:700 11px/20px Overpass,sans-serif;text-align:center">${done ? "&#10003;" : n}</div>`,
+    html: `<div style="width:24px;height:24px;border-radius:9999px;border:2px solid ${ring};background:${fill};color:${tokenColour("--primary-foreground")};font:700 11px/20px Overpass,sans-serif;text-align:center">${done ? "&#10003;" : n}</div>`,
   });
 }
 

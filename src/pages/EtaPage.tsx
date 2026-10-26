@@ -6,7 +6,7 @@ import { useEffect } from "react";
 import { format, formatDistanceToNow } from "date-fns";
 import { CheckCircle2, Truck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { colouredMarkerIcon } from "@/lib/mapMarkers";
+import { colouredMarkerIcon, vanMarkerIcon } from "@/lib/mapMarkers";
 import { routeDepotIcon } from "@/components/scheduling/RouteMapPrimitives";
 import { decodePolyline } from "@/services/routeGenerationService";
 import { tokenColour } from "@/components/fleet/RouteOverlay";
@@ -46,7 +46,7 @@ function StopView({ d }: { d: StopData }) {
           <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <Fit pts={line.length ? line : pts} />
           {line.length > 1 && <Polyline positions={line} pathOptions={{ color: tokenColour("--foreground"), weight: 6, opacity: 0.85 }} />}
-          {d.position && !d.done && <Marker position={[d.position.lat, d.position.lon]} icon={colouredMarkerIcon("black")} />}
+          {d.position && !d.done && <Marker position={[d.position.lat, d.position.lon]} icon={vanMarkerIcon("black")} />}
           <Marker position={[d.stop.lat, d.stop.lon]} icon={colouredMarkerIcon("green")} />
         </MapContainer>
       </div>
@@ -100,7 +100,7 @@ function DepotView({ d }: { d: DepotData }) {
           <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <Fit pts={line} />
           <Polyline positions={line} pathOptions={{ color: tokenColour("--primary"), weight: 5, opacity: 0.85 }} />
-          <Marker position={[d.position.lat, d.position.lon]} icon={colouredMarkerIcon("green")} />
+          <Marker position={[d.position.lat, d.position.lon]} icon={vanMarkerIcon("green")} />
           <Marker position={[d.depot.lat, d.depot.lon]} icon={routeDepotIcon} />
         </MapContainer>
       </div>
