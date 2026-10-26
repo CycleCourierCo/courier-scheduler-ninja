@@ -15,3 +15,14 @@ The planned route is drawn along roads by Google. The driven line uses the van's
 - In `RouteOverlay.tsx`, the solid line is drawn from the snapped polyline, falling back to the raw points. `pathMiles` and the deviation checks keep using the raw points.
 - One test checks the batching and overlap rule.
 - Prerequisite: the Roads API must be enabled on the Google Cloud key. If it's off, the map keeps the straight lines and shows a short note.
+
+# Tracking in the stop pop-up
+
+## What changes
+- When you tap a stop marker, its pop-up shows the live ETA and miles, plus **Copy tracking link** and **Send** buttons. These open the existing Send ETA link window for that stop.
+- Stops that are already collected or delivered show their tick and status instead, with no link buttons.
+- If the van has no fresh position, the pop-up says "Van position unavailable" and the buttons are greyed out.
+
+## Technical details
+- The Leaflet `Popup` in `RouteOverlay.tsx` reads `etas` (already passed in), and a new `onSendStop(target)` callback from `LiveMap.tsx` opens `SendEtaLinkDialog` with the stop target. This reuses the "Stops & live ETAs" logic.
+- Task added to roadmap.md during build.
