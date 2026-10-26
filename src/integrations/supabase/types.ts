@@ -5408,6 +5408,8 @@ export type Database = {
           longitude: number | null
           name: string | null
           opening_hours: Json | null
+          pay_type: string
+          per_mile_rate: number | null
           phone: string | null
           postal_code: string | null
           quickbooks_customer_id: string | null
@@ -5463,6 +5465,8 @@ export type Database = {
           longitude?: number | null
           name?: string | null
           opening_hours?: Json | null
+          pay_type?: string
+          per_mile_rate?: number | null
           phone?: string | null
           postal_code?: string | null
           quickbooks_customer_id?: string | null
@@ -5518,6 +5522,8 @@ export type Database = {
           longitude?: number | null
           name?: string | null
           opening_hours?: Json | null
+          pay_type?: string
+          per_mile_rate?: number | null
           phone?: string | null
           postal_code?: string | null
           quickbooks_customer_id?: string | null
@@ -6624,6 +6630,8 @@ export type Database = {
           job_locations: Json | null
           lunch_hours: number
           mileage: number | null
+          pay_type: string
+          per_mile_rate: number | null
           planned_snapshot: Json | null
           quickbooks_bill_created_at: string | null
           quickbooks_bill_id: string | null
@@ -6656,6 +6664,8 @@ export type Database = {
           job_locations?: Json | null
           lunch_hours?: number
           mileage?: number | null
+          pay_type?: string
+          per_mile_rate?: number | null
           planned_snapshot?: Json | null
           quickbooks_bill_created_at?: string | null
           quickbooks_bill_id?: string | null
@@ -6688,6 +6698,8 @@ export type Database = {
           job_locations?: Json | null
           lunch_hours?: number
           mileage?: number | null
+          pay_type?: string
+          per_mile_rate?: number | null
           planned_snapshot?: Json | null
           quickbooks_bill_created_at?: string | null
           quickbooks_bill_id?: string | null
@@ -8354,6 +8366,8 @@ export type Database = {
           longitude: number | null
           name: string | null
           opening_hours: Json | null
+          pay_type: string
+          per_mile_rate: number | null
           phone: string | null
           postal_code: string | null
           quickbooks_customer_id: string | null
@@ -9276,6 +9290,8 @@ export type Database = {
           longitude: number | null
           name: string | null
           opening_hours: Json | null
+          pay_type: string
+          per_mile_rate: number | null
           phone: string | null
           postal_code: string | null
           quickbooks_customer_id: string | null
