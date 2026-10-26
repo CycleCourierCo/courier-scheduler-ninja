@@ -162,8 +162,29 @@ export function useRouteDay(date: string) {
   return { analyses, isLoading: routes.isLoading || history.isLoading, error: routes.error || history.error };
 }
 
-export function RouteLayers({ analyses, etas }: { analyses: RouteAnalysis[]; etas?: Map<string, Map<number, StopEtaView>> }) {
+/** Road-snapped driven line per route (falls back to raw points while loading or on failure). */
+function useSnappedPaths(analyses: RouteAnalysis[], date?: string) {
+  const qs = useQueries({
+    queries: analyses.map((a) => ({
+      queryKey: ["fleet-snapped-path", date, a.registration, a.path.length],
+      enabled: !!date && a.hasVan && a.path.length > 1,
+      queryFn: async () => {
+        const start = new Date(`${date}T00:00:00`); const end = new Date(start.getTime() + 86400_000);
+        const { data, error } = await supabase.functions.invoke("snap-path", { body: { registration: a.registration, date, from: start.toISOString(), to: end.toISOString() } });
+        if (error || !Array.isArray(data?.segments)) throw error ?? new Error("No snapped path");
+        return data.segments as [number, number][][];
+      },
+      staleTime: 120_000, retry: 0, placeholderData: (prev: any) => prev,
+    })),
+  });
+  return qs.map((q) => q.data ?? null);
+}
+
+export interface StopLinkTarget { registration: string; savedRouteId: string; stopIndex: number; orderId?: string; type: string }
+
+export function RouteLayers({ analyses, etas, date, onSendStop }: { analyses: RouteAnalysis[]; etas?: Map<string, Map<number, StopEtaView>>; date?: string; onSendStop?: (t: StopLinkTarget) => void }) {
   const done = tokenColour("--status-done"), failed = tokenColour("--status-failed");
+  const snapped = useSnappedPaths(analyses, date);
   return (
     <>
       {analyses.length > 0 && (
@@ -171,13 +192,14 @@ export function RouteLayers({ analyses, etas }: { analyses: RouteAnalysis[]; eta
           <Popup><div className="text-sm"><div className="font-semibold">Depot</div><div>{DEPOT_LOCATION.address}</div></div></Popup>
         </Marker>
       )}
-      {analyses.map((a) => {
+      {analyses.map((a, ai) => {
+        const driven = snapped[ai]?.length ? snapped[ai]! : a.path.length > 1 ? [a.path.map((s) => [s.lat, s.lon] as [number, number])] : [];
         const planned = a.roadLine ?? [DEPOT, ...a.stops, DEPOT];
         return (
           <Fragment key={a.key}>
             <Polyline positions={planned.map((s) => [s.lat, s.lon])}
               pathOptions={{ color: a.colour, weight: 3, dashArray: a.roadLine ? "8 6" : "2 8", opacity: 0.8 }} />
-            {a.path.length > 1 && <Polyline positions={a.path.map((s) => [s.lat, s.lon])} pathOptions={{ color: a.colour, weight: 4, opacity: 0.9 }} />}
+            {driven.map((seg, si) => <Polyline key={`d${si}`} positions={seg} pathOptions={{ color: a.colour, weight: 4, opacity: 0.9 }} />)}
             {a.stretches.map((st, i) => (
               <Polyline key={i} positions={a.path.filter((p) => p.t >= st.start && p.t <= st.end).map((p) => [p.lat, p.lon])}
                 pathOptions={{ color: failed, weight: 7, opacity: 0.6 }} />
@@ -192,6 +214,19 @@ export function RouteLayers({ analyses, etas }: { analyses: RouteAnalysis[]; eta
                     <div className="capitalize">{s.type}{s.estimatedTime ? ` · planned ${s.estimatedTime}` : ""}</div>
                     {s.address && <div>{s.address}</div>}
                     <div>{s.completed ? `✓ ${s.completed}` : s.visitedAt ? `Reached ${format(new Date(s.visitedAt), "HH:mm")}` : etas?.get(a.key)?.get(i) ? `ETA ${format(new Date(etas.get(a.key)!.get(i)!.eta), "HH:mm")} · ${etas.get(a.key)!.get(i)!.miles} mi` : a.path.length ? "Not reached" : "No tracking yet"}</div>
+                    {onSendStop && !s.completed && !s.visitedAt && a.hasVan && a.savedRouteId && (() => {
+                      const e = etas?.get(a.key)?.get(i);
+                      return (
+                        <div className="pt-1.5">
+                          {!e && <div className="text-muted-foreground">Van position unavailable</div>}
+                          <button type="button" disabled={!e}
+                            className="mt-1 w-full rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                            onClick={() => onSendStop({ registration: a.registration, savedRouteId: a.savedRouteId!, stopIndex: i, orderId: s.orderId, type: s.type })}>
+                            Tracking link — copy or send
+                          </button>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </Popup>
               </Marker>

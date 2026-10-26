@@ -31,3 +31,4 @@
 - Drivers read their day's stops only through the driver_today_stops security-definer function (own timeslip's linked route) — drivers never get direct access to saved_routes. Proofs of delivery are queued on the phone first and uploaded to delivery_proofs/private storage, so poor signal never loses them.
 - Saved routes are assigned to a van per date in saved_route_assignments; triggers copy the route onto that van's timeslip (before the planned-snapshot freeze), so van assignment is the single way a route reaches a driver.
 - Stop ETAs (Radius position → remaining stops, +15 min per earlier stop) are computed only in eta-link using supabase/functions/_shared/stopEta.ts, which has no imports so Vitest tests the same rule.
+- The Live Map's driven line is road-snapped by the snap-path function (Google Roads) and cached in service-role-only fleet_snapped_paths; deviation and mileage maths always use the raw tracker points, so snapping never changes what gets flagged.

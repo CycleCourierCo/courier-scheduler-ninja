@@ -75,3 +75,4 @@
 - [x] Capacitor setup, Today's Route page, proof of delivery with offline queue, shift location sharing + Live Map pins, store checklist (docs/DRIVER_APP.md)
 - [ ] Build and run on a real phone — needs the user's Mac/Android Studio and store accounts
 - [ ] Add privacy-policy wording for location/photos — needs the user's approval of the text
+- [x] Live Map: road-snapped driven line; tracking link button in stop pop-ups

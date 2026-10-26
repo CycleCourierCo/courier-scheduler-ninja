@@ -2993,6 +2993,30 @@ export type Database = {
         }
         Relationships: []
       }
+      fleet_snapped_paths: {
+        Row: {
+          last_point_at: string
+          path_date: string
+          points: Json
+          registration: string
+          updated_at: string
+        }
+        Insert: {
+          last_point_at: string
+          path_date: string
+          points?: Json
+          registration: string
+          updated_at?: string
+        }
+        Update: {
+          last_point_at?: string
+          path_date?: string
+          points?: Json
+          registration?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fleet_tyres: {
         Row: {
           brand: string | null
