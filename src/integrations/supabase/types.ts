@@ -6077,30 +6077,36 @@ export type Database = {
         Row: {
           assigned_by: string | null
           created_at: string
+          driver_id: string | null
           id: string
           registration: string | null
           route_date: string
           saved_route_id: string
+          started_at: string | null
           updated_at: string
           vehicle_id: string | null
         }
         Insert: {
           assigned_by?: string | null
           created_at?: string
+          driver_id?: string | null
           id?: string
           registration?: string | null
           route_date: string
           saved_route_id: string
+          started_at?: string | null
           updated_at?: string
           vehicle_id?: string | null
         }
         Update: {
           assigned_by?: string | null
           created_at?: string
+          driver_id?: string | null
           id?: string
           registration?: string | null
           route_date?: string
           saved_route_id?: string
+          started_at?: string | null
           updated_at?: string
           vehicle_id?: string | null
         }
@@ -8140,6 +8146,7 @@ export type Database = {
         }[]
       }
       disablelongtransactions: { Args: never; Returns: string }
+      driver_start_route: { Args: { p_assignment_id: string }; Returns: string }
       driver_today_stops: { Args: { p_date: string }; Returns: Json }
       dropgeometrycolumn:
         | {
