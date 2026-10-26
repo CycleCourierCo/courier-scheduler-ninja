@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseScannedRef, panelForRoles, panelsForRoles, driverScanState } from "./labelScan";
+import { parseScannedRef, panelForRoles, panelsForRoles, driverScanState, parseBayCode, bayQrText } from "./labelScan";
 
 describe("label scans", () => {
   it("reads the CCC number from the printed label URL", () => {
@@ -36,12 +36,11 @@ describe("isScanStaff", () => {
   });
 });
 
-import { parseBayCode, bayQrText, parseScannedRef as refOnly } from "./labelScan";
 describe("bay QR codes", () => {
   it("reads a slot label as bay-slot", () => expect(parseBayCode(bayQrText("a", 3))).toBe("A-3"));
   it("reads a whole-bay label as the bay", () => expect(parseBayCode("CCCBAY:K")).toBe("K"));
   it("never treats a bike label as a bay, or a bay label as a bike", () => {
     expect(parseBayCode("https://booking.cyclecourierco.com/tracking/CCC123456")).toBeNull();
-    expect(refOnly("CCCBAY:A-3")).toBeNull();
+    expect(parseScannedRef("CCCBAY:A-3")).toBeNull();
   });
 });
