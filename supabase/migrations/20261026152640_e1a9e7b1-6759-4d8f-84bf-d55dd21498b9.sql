@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.timeslip_inherit_pay_type() FROM PUBLIC, anon, authenticated;
