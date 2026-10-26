@@ -20,6 +20,7 @@ import RepairOffer from "./pages/RepairOffer";
 import InspectionApproval from "./pages/InspectionApproval";
 import NiPartnerUpload from "./pages/NiPartnerUpload";
 import TrackingPage from "./pages/TrackingPage";
+import ScanPage from "./pages/ScanPage";
 const EtaPage = lazy(() => import("./pages/EtaPage"));
 import NotFound from "./pages/NotFound";
 
@@ -211,6 +212,7 @@ function App() {
                   <InvoicesPage />
                 </ProtectedRoute>
               } />
+              <Route path="/scan" element={<ProtectedRoute><ScanPage /></ProtectedRoute>} />
               <Route path="/loading" element={
                 <ProtectedRoute>
                   <LoadingUnloadingPage />

@@ -1,6 +1,6 @@
 import type { ComponentType } from "react";
 import type { UserRole } from "@/types/user";
-import {
+import { ScanLine,
   Home, Package, Package2, Upload, Truck, FileText, PoundSterling, Calendar, CalendarClock,
   ClipboardCheck, Warehouse, Clock, Wrench, Car, Fuel, ShieldAlert, Boxes,
   BarChart3, TrendingUp, Inbox, CheckSquare, Megaphone, Mail, BookOpen, User, Users,
@@ -92,6 +92,8 @@ export const APP_ROUTES: AppRoute[] = [
     prefixes: ["/fleet/"], defaultRoles: ["fleet_manager"] },
   { key: "driver-timeslips", path: "/timeslips", label: "Timeslips", section: "Fleet", icon: Clock,
     defaultRoles: ["driver", "timeslip_admin"] },
+  { key: "scan", path: "/scan", label: "Scan Label", section: "Fleet", icon: ScanLine,
+    defaultRoles: ["loader", "driver", "mechanic", "route_planner", "cs_agent"] },
   { key: "driver-today", path: "/driver/today", label: "Today's Route", section: "Fleet", icon: MapPin,
     defaultRoles: ["driver"] },
   { key: "my-holidays", path: "/my-holidays", label: "My Availability", section: "Fleet", icon: CalendarOff,
