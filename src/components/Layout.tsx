@@ -14,7 +14,7 @@ import { useRoutePermissions } from "@/hooks/useRoutePermissions";
 import { PendingAbsenceBadge } from "./user-management/PendingAbsenceBadge";
 const FLOOR_SCREEN_PATHS = [
   "/loading", "/box-my-bike", "/build-my-bike", "/storage-bays", "/warehouse-stock",
-  "/mechanic-clock", "/bicycle-inspections", "/driver-timeslips", "/timeslips", "/fuel-finder",
+  "/mechanic-clock", "/bicycle-inspections", "/driver-timeslips", "/timeslips", "/fuel-finder", "/driver/today",
 ];
 
 interface LayoutProps {

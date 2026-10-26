@@ -92,6 +92,8 @@ export const APP_ROUTES: AppRoute[] = [
     prefixes: ["/fleet/"], defaultRoles: ["fleet_manager"] },
   { key: "driver-timeslips", path: "/timeslips", label: "Timeslips", section: "Fleet", icon: Clock,
     defaultRoles: ["driver", "timeslip_admin"] },
+  { key: "driver-today", path: "/driver/today", label: "Today's Route", section: "Fleet", icon: MapPin,
+    defaultRoles: ["driver"] },
   { key: "my-holidays", path: "/my-holidays", label: "My Availability", section: "Fleet", icon: CalendarOff,
     defaultRoles: ["driver"] },
   { key: "fuel-finder", path: "/fuel-finder", label: "Fuel Finder", section: "Fleet", icon: Fuel,
