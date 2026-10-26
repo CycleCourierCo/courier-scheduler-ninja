@@ -14,7 +14,7 @@ import { useRoutePermissions } from "@/hooks/useRoutePermissions";
 import { PendingAbsenceBadge } from "./user-management/PendingAbsenceBadge";
 const FLOOR_SCREEN_PATHS = [
   "/loading", "/box-my-bike", "/build-my-bike", "/storage-bays", "/warehouse-stock",
-  "/mechanic-clock", "/bicycle-inspections", "/driver-timeslips", "/timeslips", "/fuel-finder",
+  "/mechanic-clock", "/bicycle-inspections", "/driver-timeslips", "/timeslips", "/fuel-finder", "/driver/today",
 ];
 
 interface LayoutProps {
@@ -81,6 +81,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
       { to: "/timeslips", label: "Timeslips", icon: Clock },
       { to: "/fuel-finder", label: "Fuel Finder", icon: Fuel },
       { to: "/claims", label: "Damage Claims", icon: ShieldAlert },
+      { to: "/driver/today", label: "Today's Route", icon: Truck },
       { to: "/my-holidays", label: "My Availability", icon: CalendarOff },
     ],
   },
