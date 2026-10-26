@@ -9,6 +9,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { StorageUnitLayout } from "@/components/loading/StorageUnitLayout";
 import { PendingStorageAllocation } from "@/components/loading/PendingStorageAllocation";
 import { BikeSearchSection } from "@/components/loading/BikeSearchSection";
+import { ScanToBaySection } from "@/components/loading/ScanToBaySection";
 import { BikesInStorage } from "@/components/loading/BikesInStorage";
 import { RemoveBikesDialog } from "@/components/loading/RemoveBikesDialog";
 
@@ -925,36 +926,22 @@ const LoadingUnloadingPage = () => {
                     <span className="sm:hidden">Print Labels</span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent>
+                <DialogContent className="inset-x-auto bottom-auto left-1/2 top-1/2 w-[calc(100vw-1.5rem)] -translate-x-1/2 -translate-y-1/2 rounded-md">
                   <DialogHeader>
                     <DialogTitle>Select Date for Collection Labels</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <Popover open={isDatePickerOpen} onOpenChange={setIsDatePickerOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !selectedDate && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <CalendarComponent
-                          mode="single"
-                          selected={selectedDate}
-                          onSelect={(date) => {
-                            setSelectedDate(date);
-                            setIsDatePickerOpen(false);
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <div className="flex flex-col items-center gap-2">
+                      <p className="text-sm font-medium">
+                        {selectedDate ? format(selectedDate, "PPP") : "Pick a date"}
+                      </p>
+                      <CalendarComponent
+                        mode="single"
+                        selected={selectedDate}
+                        onSelect={(date) => date && setSelectedDate(date)}
+                        className="rounded-md border pointer-events-auto"
+                      />
+                    </div>
                     <Button
                       onClick={handlePrintLabels}
                       disabled={!selectedDate || isGeneratingPDF}
@@ -975,36 +962,22 @@ const LoadingUnloadingPage = () => {
                     <span className="sm:hidden">Loading List</span>
                   </Button>
                 </DialogTrigger>
-                <DialogContent className="max-w-2xl">
+                <DialogContent className="inset-x-auto bottom-auto left-1/2 top-1/2 max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 rounded-md">
                   <DialogHeader>
                     <DialogTitle>Bikes Needing Loading</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <Popover open={isLoadingDatePickerOpen} onOpenChange={setIsLoadingDatePickerOpen}>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !selectedLoadingDate && "text-muted-foreground"
-                          )}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {selectedLoadingDate ? format(selectedLoadingDate, "PPP") : "Pick a date"}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0">
-                        <CalendarComponent
-                          mode="single"
-                          selected={selectedLoadingDate}
-                          onSelect={(date) => {
-                            setSelectedLoadingDate(date);
-                            setIsLoadingDatePickerOpen(false);
-                          }}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
+                    <div className="flex flex-col items-center gap-2">
+                      <p className="text-sm font-medium">
+                        {selectedLoadingDate ? format(selectedLoadingDate, "PPP") : "Pick a date"}
+                      </p>
+                      <CalendarComponent
+                        mode="single"
+                        selected={selectedLoadingDate}
+                        onSelect={(date) => date && setSelectedLoadingDate(date)}
+                        className="rounded-md border pointer-events-auto"
+                      />
+                    </div>
                     
                      {selectedLoadingDate && (
                        <div className="space-y-6 max-h-96 overflow-y-auto">
@@ -1330,6 +1303,8 @@ const LoadingUnloadingPage = () => {
             />
           </CardContent>
         </Card>
+
+        <ScanToBaySection onSaved={fetchData} />
 
         <BikeSearchSection
           orders={orders}

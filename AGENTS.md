@@ -35,3 +35,4 @@
 - Label QR scans resolve by role at the destination: staff bike cards and scan actions go only through label_lookup / label_scan_action (security definer, role-checked) and every staff action is written to label_scans — printed labels never change and the chain of custody covers every scan path.
 - Staff scan cards open only as a popup on staff pages (?scan=<ref>); signed-in staff opening a tracking link are redirected there, so the public tracking page never shows staff data.
 - Label scan role tabs use the shared role-to-panel mapping and only expose assigned views; switching views never changes server permissions.
+- Bay QR labels encode CCCBAY:<bay>[-<slot>] (parseBayCode in src/lib/labelScan.ts) and every scan-to-bay path saves through label_scan_action — bike and bay codes can never be confused and each allocation is logged.
