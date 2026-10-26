@@ -98,7 +98,7 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
             </div>
             <div className="flex justify-between">
               <span>Hourly Rate:</span>
-              <span className="font-medium">£{(timeslip.hourly_rate ?? 0).toFixed(2)}/h</span>
+              <span className="font-medium">{timeslip.pay_type === "per_mile" ? `£${(timeslip.per_mile_rate ?? 0).toFixed(2)}/mile` : `£${(timeslip.hourly_rate ?? 0).toFixed(2)}/h`}</span>
             </div>
             {(timeslip.van_allowance ?? 0) > 0 && (
               <div className="flex justify-between text-primary">
