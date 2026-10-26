@@ -4,6 +4,7 @@
 - **Job marker popup** on the Live Map shows the CCC tracking number (e.g. CCC754...) above the address, plus in the "Stops & live ETAs" list.
 - **Numbered stops**: each stop marker shows its route order number (1, 2, 3...) inside the circle, matching the numbers in the stop list.
 - **Van icon**: van positions on the Live Map (and the customer ETA page) use a proper van symbol instead of a plain pin, still coloured by route and grey when the position is old.
+- **Planned vs driven lines**: the planned route is drawn as a dotted line and the van's recorded driving for that day as a solid line in the same colour; stretches where the van went off-route are highlighted in red so deviations stand out. The driven line only exists from when position recording started.
 - **Completed stops**: once a bike is collected (collection stop) or delivered (delivery stop), the marker turns solid green with a tick, the popup says "Collected" / "Delivered" with the time, and the stop row in the list is ticked and greyed. This uses the order's real status, not just GPS, so it works even with no tracking.
 - Completed stops are no longer counted in "X stops before yours" or in the 15-min-per-stop ETA for later stops.
 - **ETA links switch off**: when a stop's bike has been collected/delivered, its live tracking link stops showing the van and instead shows "Your bike has been collected/delivered" with no map position. The "Send" button for that stop disappears.
