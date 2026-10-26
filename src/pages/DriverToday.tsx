@@ -15,6 +15,26 @@ import { ProofDialog } from "@/components/driver/ProofDialog";
 
 const SHIFT_KEY = "driver-on-shift-date";
 
+interface LoadingItem {
+  order_id: string; tracking_number: string | null; receiver_name: string | null;
+  bike_brand: string | null; bike_model: string | null; bike_quantity: number;
+  storage_locations: Array<{ bay?: string; position?: number }> | null;
+  collected: boolean; collected_on_this_route: boolean; from_van: string | null;
+}
+interface DriverDay {
+  assignment_id?: string; route_name?: string; registration?: string | null;
+  started_at?: string | null; stop_count?: number; stops?: unknown; loading?: LoadingItem[];
+}
+
+/** Where a bike on the loading list comes from. */
+export function loadingSource(i: LoadingItem): string {
+  const bays = (i.storage_locations ?? []).filter((l) => l?.bay).map((l) => `Bay ${l.bay}${l.position ?? ""}`);
+  if (bays.length) return `Depot · ${bays.join(", ")}`;
+  if (i.collected_on_this_route) return "Collected on this route";
+  if (i.from_van) return `From van ${i.from_van}`;
+  return "Not in a bay — check with the office";
+}
+
 export default function DriverToday() {
   const { user } = useAuth();
   const today = format(new Date(), "yyyy-MM-dd");
@@ -23,15 +43,30 @@ export default function DriverToday() {
   const [queuedIds, setQueuedIds] = useState<Set<string>>(new Set());
   const [onShift, setOnShift] = useState(false);
 
+  const [tab, setTab] = useState<"loading" | "stops">("loading");
+  const [starting, setStarting] = useState(false);
   const route = useQuery({
     queryKey: ["driver-today", today],
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("driver_today_stops" as any, { p_date: today });
       if (error) throw error;
-      return data as { route_name?: string; stops?: unknown };
+      return data as DriverDay;
     },
   });
+  const assigned = !!route.data?.assignment_id;
+  const started = !!route.data?.started_at;
+
+  async function startRoute() {
+    if (!route.data?.assignment_id) return;
+    setStarting(true);
+    const { error } = await supabase.rpc("driver_start_route" as any, { p_assignment_id: route.data.assignment_id });
+    setStarting(false);
+    if (error) { toast.error("Couldn't start the route. Try again."); return; }
+    if (!onShift) await toggleShift(true);
+    setTab("stops");
+    route.refetch();
+  }
   const stops = normaliseStops(route.data?.stops);
 
   const done = useQuery({
