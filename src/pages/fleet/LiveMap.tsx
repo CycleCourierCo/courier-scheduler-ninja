@@ -1,3 +1,4 @@
+import { formatSpaces } from "@/lib/bikeSpaces";
 import { normaliseReg } from "@/lib/fleet/liveTracking";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -281,6 +282,12 @@ export default function LiveMap() {
                         )}
                       </div>
                       {a.stops.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1 text-xs">
+                          <Badge variant="outline">Leaves depot with 🚲 {formatSpaces(a.startLoad)}</Badge>
+                          <Badge variant={a.peakLoad > routeDay.vanCapacity ? "destructive" : "outline"}>Peak {formatSpaces(a.peakLoad)}/{formatSpaces(routeDay.vanCapacity)}{a.peakLoad > routeDay.vanCapacity ? " · overloaded" : ""}</Badge>
+                        </div>
+                      )}
+                      {a.stops.length > 0 && (
                         <details className="mt-1" onClick={(e) => e.stopPropagation()}>
                           <summary className="cursor-pointer text-xs text-primary">Stops & live ETAs</summary>
                           <ol className="mt-1 space-y-1">
@@ -294,6 +301,7 @@ export default function LiveMap() {
                                   <span className="min-w-0 flex-1">
                                     {s.trackingNumber && <span className="block truncate font-mono text-[11px]">{s.trackingNumber}</span>}
                                     <span className="block truncate text-muted-foreground"><span className="capitalize">{s.type}</span>{s.address ? ` · ${s.address}` : ""}</span>
+                                    {s.loadAfter != null && <span className={`block text-[11px] ${s.loadAfter > routeDay.vanCapacity ? "font-semibold text-destructive" : "text-muted-foreground"}`}>🚲 {formatSpaces(s.loadAfter)}/{formatSpaces(routeDay.vanCapacity)} in van after</span>}
                                   </span>
                                   <span className="shrink-0 pt-0.5 text-right text-muted-foreground">
                                     {s.completed ? `✓ ${s.completed}` : s.visitedAt ? `Reached ${format(new Date(s.visitedAt), "HH:mm")}`
