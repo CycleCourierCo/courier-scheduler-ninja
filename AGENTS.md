@@ -33,4 +33,5 @@
 - Stop ETAs (Radius position → remaining stops, +15 min per earlier stop) are computed only in eta-link using supabase/functions/_shared/stopEta.ts, which has no imports so Vitest tests the same rule.
 - The Live Map's driven line is road-snapped by the snap-path function (Google Roads) and cached in service-role-only fleet_snapped_paths; deviation and mileage maths always use the raw tracker points, so snapping never changes what gets flagged.
 - Label QR scans resolve by role at the destination: staff bike cards and scan actions go only through label_lookup / label_scan_action (security definer, role-checked) and every staff action is written to label_scans — printed labels never change and the chain of custody covers every scan path.
+- Staff scan cards open only as a popup on staff pages (?scan=<ref>); signed-in staff opening a tracking link are redirected there, so the public tracking page never shows staff data.
 - Label scan role tabs use the shared role-to-panel mapping and only expose assigned views; switching views never changes server permissions.

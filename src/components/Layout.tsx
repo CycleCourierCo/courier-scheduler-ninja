@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/s
 import ThemeToggle from "./ThemeToggle";
 import TaskNotificationBell from "./tasks/TaskNotificationBell";
 import BrandLogo from "./BrandLogo";
+import StaffScanDialog from "./scan/StaffScanDialog";
 import { hasRole, getRoles } from "@/lib/roles";
 import { useRoutePermissions } from "@/hooks/useRoutePermissions";
 import { PendingAbsenceBadge } from "./user-management/PendingAbsenceBadge";
@@ -412,6 +413,7 @@ const Layout: React.FC<LayoutProps> = ({
       </header>
       <main className={`flex flex-1 flex-col${isFloorScreen ? " floor-controls" : ""}`}>
         {children}
+        <StaffScanDialog />
       </main>
       <footer className="border-t bg-background py-10 text-muted-foreground">
         <div className="container mx-auto px-4">
