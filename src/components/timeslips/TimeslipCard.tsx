@@ -31,6 +31,33 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
     rejected: 'border-transparent bg-status-failed text-primary-foreground'
   };
 
+  if (!isAdmin) {
+    return (
+      <Card className="min-w-0 overflow-hidden">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 flex-wrap">
+            <span className="break-words">{format(new Date(timeslip.date), 'EEEE, MMMM d, yyyy')}</span>
+            <Badge variant="outline" className={statusColors[timeslip.status]}>
+              {timeslip.status}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm space-y-1 p-3 bg-muted rounded-lg">
+            <div className="flex justify-between">
+              <span>Mileage:</span>
+              <span className="font-medium">{timeslip.mileage ?? 0} miles</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Per-mile rate:</span>
+              <span className="font-medium">£{(timeslip.per_mile_rate ?? 0).toFixed(2)}/mile</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="hover:shadow-md transition-shadow min-w-0 overflow-hidden">
         <CardHeader>
