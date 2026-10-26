@@ -111,7 +111,6 @@ const VehicleProfile = () => {
   const v = summary.vehicle as any;
   const f = form as any;
   const crit = summary.openIssues.filter((i) => i.severity === "high");
-  const dueSoon = summary.due.filter((d) => d.status === "red" || d.status === "amber");
 
   return (
     <Layout>
