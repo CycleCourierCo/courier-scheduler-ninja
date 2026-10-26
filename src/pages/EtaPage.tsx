@@ -50,7 +50,7 @@ function StopView({ d }: { d: StopData }) {
           <Marker position={[d.stop.lat, d.stop.lon]} icon={colouredMarkerIcon("green")} />
         </MapContainer>
       </div>
-      <header className="absolute left-3 top-3 z-10 rounded-full border bg-card px-3 py-1.5 shadow-sm">
+      <header className="absolute right-3 top-3 z-10 rounded-full border bg-card px-3 py-1.5 shadow-sm">
         <BrandLogo compact withWordmark />
       </header>
       <section className="absolute inset-x-0 bottom-0 z-10 rounded-t-2xl border-t bg-card px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 shadow-lg">
