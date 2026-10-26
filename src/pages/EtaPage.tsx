@@ -24,7 +24,7 @@ interface StopData {
   registration: string; driver: string | null;
   stop: { lat: number; lon: number; type: string };
   position: Pos | null;
-  done?: boolean; unavailable?: boolean;
+  done?: boolean; closed?: boolean; completed?: string; unavailable?: boolean;
   route?: { polyline: string; miles: number; minutes: number; eta: string; stopsBefore: number };
 }
 
@@ -58,7 +58,7 @@ function StopView({ d }: { d: StopData }) {
         {d.done ? (
           <div className="flex items-center gap-3">
             <CheckCircle2 className="h-8 w-8 text-primary" />
-            <div><div className="text-xl font-bold">Your {verb} is done</div><div className="text-sm text-muted-foreground">The driver has been to your address.</div></div>
+            <div><div className="text-xl font-bold">{d.completed ? `Your bike has been ${d.completed.toLowerCase()}` : `Your ${verb} is done`}</div><div className="text-sm text-muted-foreground">{d.closed ? "Live tracking for this stop has ended." : "The driver has been to your address."}</div></div>
           </div>
         ) : d.route ? (
           <>
