@@ -81,6 +81,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
       { to: "/timeslips", label: "Timeslips", icon: Clock },
       { to: "/fuel-finder", label: "Fuel Finder", icon: Fuel },
       { to: "/claims", label: "Damage Claims", icon: ShieldAlert },
+      { to: "/driver/today", label: "Today's Route", icon: Truck },
       { to: "/my-holidays", label: "My Availability", icon: CalendarOff },
     ],
   },

@@ -4,7 +4,7 @@ import {
   Home, Package, Package2, Upload, Truck, FileText, PoundSterling, Calendar, CalendarClock,
   ClipboardCheck, Warehouse, Clock, Wrench, Car, Fuel, ShieldAlert, Boxes,
   BarChart3, TrendingUp, Inbox, CheckSquare, Megaphone, Mail, BookOpen, User, Users,
-  Shield, CalendarOff, Key, Webhook, Store, Lock, KanbanSquare,
+  Shield, CalendarOff, Key, Webhook, Store, Lock, KanbanSquare, MapPin,
 } from "lucide-react";
 
 export type AppRouteSection =
