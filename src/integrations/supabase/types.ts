@@ -1742,6 +1742,59 @@ export type Database = {
           },
         ]
       }
+      delivery_proofs: {
+        Row: {
+          captured_at: string
+          created_at: string
+          driver_id: string
+          id: string
+          lat: number | null
+          lng: number | null
+          note: string | null
+          order_id: string
+          photo_paths: string[]
+          recipient_name: string | null
+          signature_path: string | null
+          stop_type: string
+        }
+        Insert: {
+          captured_at?: string
+          created_at?: string
+          driver_id: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          note?: string | null
+          order_id: string
+          photo_paths?: string[]
+          recipient_name?: string | null
+          signature_path?: string | null
+          stop_type?: string
+        }
+        Update: {
+          captured_at?: string
+          created_at?: string
+          driver_id?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          note?: string | null
+          order_id?: string
+          photo_paths?: string[]
+          recipient_name?: string | null
+          signature_path?: string | null
+          stop_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_proofs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       difficult_areas: {
         Row: {
           active: boolean
@@ -1871,6 +1924,33 @@ export type Database = {
           note?: string | null
           start_time?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      driver_positions: {
+        Row: {
+          accuracy: number | null
+          driver_id: string
+          id: number
+          lat: number
+          lng: number
+          recorded_at: string
+        }
+        Insert: {
+          accuracy?: number | null
+          driver_id: string
+          id?: never
+          lat: number
+          lng: number
+          recorded_at?: string
+        }
+        Update: {
+          accuracy?: number | null
+          driver_id?: string
+          id?: never
+          lat?: number
+          lng?: number
+          recorded_at?: string
         }
         Relationships: []
       }
@@ -7976,6 +8056,7 @@ export type Database = {
         }[]
       }
       disablelongtransactions: { Args: never; Returns: string }
+      driver_today_stops: { Args: { p_date: string }; Returns: Json }
       dropgeometrycolumn:
         | {
             Args: {
