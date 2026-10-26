@@ -19,6 +19,8 @@ export interface Timeslip {
   
   // Pay calculation
   hourly_rate: number;
+  pay_type?: 'hourly' | 'per_mile';
+  per_mile_rate?: number | null;
   van_allowance: number;
   total_pay: number; // Computed
   
