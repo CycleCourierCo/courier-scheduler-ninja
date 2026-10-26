@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { formatServiceLabel } from "@/constants/vehicleMaintenance";
 import {
   computeNextDue,
+  listFleetIntervalDefaults,
   currentOdometer,
   deleteLog,
   listVehicleTimeslipMiles,
@@ -57,11 +58,12 @@ const VehicleMaintenanceDialog = ({ vehicleId, vehicleReg, baselineMileage, open
   const load = async () => {
     setLoading(true);
     try {
-      const [l, iv, slips, rd] = await Promise.all([
+      const [l, iv, slips, rd, fd] = await Promise.all([
         listLogs(vehicleId),
         listIntervals(vehicleId),
         listVehicleTimeslipMiles(vehicleId),
         listOdometerReadings(vehicleId),
+        listFleetIntervalDefaults().catch(() => []),
       ]);
       const odo = effectiveOdometer(baselineMileage, slips, rd);
       setLogs(l);
@@ -69,7 +71,7 @@ const VehicleMaintenanceDialog = ({ vehicleId, vehicleReg, baselineMileage, open
       setReadings(rd);
       setOdoBase(odo.base);
       setTimeslipMiles(odo.sinceMiles);
-      setDue(computeNextDue(l, iv, { baselineMileage: odo.base, timeslipMileage: odo.sinceMiles }));
+      setDue(computeNextDue(l, iv, { baselineMileage: odo.base, timeslipMileage: odo.sinceMiles, fleetDefaults: fd }));
     } catch (e) {
       toast.error(`Couldn't load maintenance details — ${(e as Error).message}`);
     } finally {
