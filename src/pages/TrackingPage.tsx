@@ -271,7 +271,7 @@ const TrackingPage = () => {
             </CardContent>
           </Card>
         )}
-        <p className="mt-8 text-center text-xs text-muted-foreground"><Link to={`/auth?redirect=${encodeURIComponent(`/tracking/${searchId ?? ""}`)}`} className="underline">Staff? Sign in</Link></p>
+        <p className="mt-8 text-center text-xs text-muted-foreground"><Link to={`/auth?next=${encodeURIComponent(`/tracking/${searchId ?? ""}`)}`} className="underline">Staff? Sign in</Link></p>
       </DoorstepShell>
     </Layout>
   );
