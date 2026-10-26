@@ -65,13 +65,15 @@ export const rehydrateSavedJobs = (jobData: SavedJobData[], orders: OrderData[])
       return { ...savedJob, orderData: order };
     }
     const leg = getLegContact(order, savedJob.type);
+    const isWork = (savedJob as any).addressSource === 'work';
     return {
       ...savedJob,
-      address: leg.address ? formatLegAddress(leg.address) : savedJob.address,
+      address: isWork ? savedJob.address : (leg.address ? formatLegAddress(leg.address) : savedJob.address),
       contactName: leg.name || savedJob.contactName,
       phoneNumber: leg.phone || savedJob.phoneNumber,
-      lat: leg.lat ?? savedJob.lat,
-      lon: leg.lon ?? savedJob.lon,
+      lat: isWork ? savedJob.lat : (leg.lat ?? savedJob.lat),
+      lon: isWork ? savedJob.lon : (leg.lon ?? savedJob.lon),
+      ...(isWork ? { homeLat: leg.lat, homeLon: leg.lon, homeAddress: leg.address ? formatLegAddress(leg.address) : undefined } : {}),
       orderData: order
     };
   });
