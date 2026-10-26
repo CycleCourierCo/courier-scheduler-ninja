@@ -45,3 +45,10 @@ export function metersBetween(a: { lat: number; lon: number }, b: { lat: number;
 export function wasVisited(stop: { lat: number; lon: number }, path: { lat: number; lon: number }[], radius = VISIT_RADIUS_M) {
   return path.some((p) => metersBetween(stop, p) <= radius);
 }
+
+/** A stop is complete when its order leg is done: delivery stops → delivered, others → collected. */
+export function stopCompletion(type: string | undefined, o?: { order_collected: boolean | null; order_delivered: boolean | null } | null): "Collected" | "Delivered" | null {
+  if (!o) return null;
+  if (/deliver|drop/i.test(type ?? "")) return o.order_delivered ? "Delivered" : null;
+  return o.order_collected ? "Collected" : null;
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeStopEtas, isPositionFresh, wasVisited } from "../../../supabase/functions/_shared/stopEta";
+import { computeStopEtas, isPositionFresh, wasVisited, stopCompletion } from "../../../supabase/functions/_shared/stopEta";
 
 const NOW = Date.parse("2026-10-26T10:00:00Z");
 
@@ -22,7 +22,6 @@ describe("stop ETAs", () => {
   });
 });
 
-import { stopCompletion } from "@/components/fleet/RouteOverlay";
 describe("stop completion from order status", () => {
   it("collection stop is complete once collected; delivery only once delivered", () => {
     const o = { order_collected: true, order_delivered: false };

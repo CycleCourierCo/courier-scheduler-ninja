@@ -9,6 +9,7 @@ import { normaliseReg } from "@/lib/fleet/liveTracking";
 import { firstVisit, offRouteStretches, pathMiles, type Pt, type Sample, type OffRouteStretch } from "@/lib/fleet/routeDeviation";
 import { DEPOT_LOCATION } from "@/constants/depot";
 import { decodePolyline } from "@/services/routeGenerationService";
+import { stopCompletion } from "../../../supabase/functions/_shared/stopEta";
 import { routeDepotIcon } from "@/components/scheduling/RouteMapPrimitives";
 
 /** Read a semantic token as a usable colour string (Leaflet needs literal colours). */
@@ -64,13 +65,6 @@ export async function fetchRoadLine(stops: Pt[]) {
     origin = destination;
   }
   return { line, miles: distance / 1609.344, minutes: Math.round(duration / 60) };
-}
-
-/** A stop is complete when its order leg is done: delivery stops → delivered, others → collected. */
-export function stopCompletion(type: string | undefined, o?: { order_collected: boolean | null; order_delivered: boolean | null }): "Collected" | "Delivered" | null {
-  if (!o) return null;
-  if (/deliver|drop/i.test(type ?? "")) return o.order_delivered ? "Delivered" : null;
-  return o.order_collected ? "Collected" : null;
 }
 
 function stopIcon(n: number, ring: string, fill: string, done: boolean) {
