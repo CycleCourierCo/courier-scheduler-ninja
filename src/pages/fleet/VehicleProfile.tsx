@@ -183,12 +183,23 @@ const VehicleProfile = () => {
             <Card className="p-3 space-y-1">
               <h2 className="font-semibold mb-1">Mileage & servicing</h2>
               <div className="flex justify-between text-sm"><span className="text-muted-foreground">Current odometer</span><span className="font-medium">{summary.odometer.toLocaleString("en-GB")} mi</span></div>
-              {dueSoon.length === 0 ? <p className="text-sm text-muted-foreground">No servicing due soon.</p> : dueSoon.map((d, i) => (
-                <div key={i} className="flex justify-between text-sm">
-                  <span>{d.label}</span>
-                  <Badge variant={d.status === "red" ? "destructive" : "secondary"}>{d.status === "red" ? "Overdue" : "Due soon"}</Badge>
-                </div>
-              ))}
+              {summary.due.map((d, i) => {
+                const fmt = (x: string) => new Date(x).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+                const next = [d.dueDate && fmt(d.dueDate), d.dueMiles != null && `${d.dueMiles.toLocaleString("en-GB")} mi`].filter(Boolean).join(" or ");
+                return (
+                  <div key={i} className="flex justify-between gap-2 text-sm">
+                    <span>
+                      {d.label}
+                      <span className="block text-xs text-muted-foreground">
+                        {d.neverDone ? "No record yet" : `Done ${fmt(d.lastDate!)}${d.lastMiles != null ? ` at ${d.lastMiles.toLocaleString("en-GB")} mi` : " (no mileage entered)"}${next ? ` · next ${next}` : ""}`}
+                      </span>
+                    </span>
+                    <Badge variant={d.status === "red" ? "destructive" : d.status === "ok" ? "outline" : "secondary"} className="h-fit shrink-0">
+                      {d.status === "red" ? "Overdue" : d.status === "amber" ? "Due soon" : d.status === "ok" ? "OK" : "No record"}
+                    </Badge>
+                  </div>
+                );
+              })}
             </Card>
             <Card className="p-3 space-y-1">
               <button type="button" className="font-semibold mb-1 hover:underline" onClick={() => setTab("defects")}>Open defects</button>
