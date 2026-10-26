@@ -1,10 +1,15 @@
-# Optional follow-ups to the home/work address fix
+# Pay drivers per mile on timeslips
 
-The fix itself is already done and confirmed (stop 6 now in Bristol). These small extras are still open:
-
-1. Add an automatic check: a stop set to Work keeps its work location when the route is saved, reloaded or recalculated; a Home stop and a Northern Ireland ferry stop are unchanged.
-2. Re-time today's routes that had a stop moved, so arrival times and drive times use the work location.
+## What changes
+- Each driver gets a **pay type**: Hourly (current) or Per mile, plus a **per-mile rate** (£).
+- Set on the driver's profile in driver settings. New timeslips copy the driver's pay type and rate; admins can still change both on a single timeslip.
+- Per-mile pay = **mileage × per-mile rate + van allowance**. Hours are still recorded (for reports) but don't affect pay.
+- Hourly drivers are unchanged; all existing timeslips stay hourly with the same totals.
+- Timeslip create/edit forms show a Hourly / Per mile switch; the pay breakdown shows "X miles × £Y" when per mile.
+- Pay totals in driver analytics and timeslip lists use the new total automatically.
 
 ## Technical details
-- Extract `savedStopCoords` from `RouteBuilder.tsx` into `src/lib/altLocation.ts` and add `altLocation.test.ts` covering work / home / ferry cases.
-- Re-timing is done by reloading the affected route in Route Builder and pressing Recalculate (no data change needed from me).
+- Migration: `profiles.pay_type text default 'hourly'`, `profiles.per_mile_rate numeric`; `timeslips.pay_type text default 'hourly'`, `timeslips.per_mile_rate numeric`. Recreate generated `total_pay`: `CASE WHEN pay_type='per_mile' THEN COALESCE(mileage,0)*COALESCE(per_mile_rate,0) + van_allowance ELSE (current hours formula) END`. Validation trigger limits pay_type to hourly/per_mile. Extend the profile-update RPC to accept the two new fields (admin only, as hourly_rate today).
+- Timeslip generation/creation copies pay_type/per_mile_rate from the driver profile.
+- Update `src/types/timeslip.ts`, `timeslipService.ts`, timeslip forms, driver profile settings.
+- Add `calculateTimeslipPay` helper with vitest tests: per-mile (e.g. 120 miles × £0.45 + £10 = £64) and hourly unchanged.
