@@ -90,6 +90,7 @@ const ReviewDetailPage = lazy(() => import("./pages/ReviewDetailPage"));
 const MyReviewsPage = lazy(() => import("./pages/MyReviewsPage"));
 const DriversRota = lazy(() => import("./pages/DriversRota"));
 const EmailCentre = lazy(() => import("./pages/EmailCentre"));
+const DriverToday = lazy(() => import("./pages/DriverToday"));
 const DriverHolidayRequests = lazy(() => import("./pages/DriverHolidayRequests"));
 
 const queryClient = new QueryClient({
@@ -235,6 +236,11 @@ function App() {
               <Route path="/drivers-rota" element={
                 <ProtectedRoute>
                   <DriversRota />
+                </ProtectedRoute>
+              } />
+              <Route path="/driver/today" element={
+                <ProtectedRoute>
+                  <DriverToday />
                 </ProtectedRoute>
               } />
               <Route path="/my-holidays" element={

@@ -68,3 +68,13 @@ export function colouredMarkerIcon(colour: MarkerColour): L.Icon {
   iconCache.set(colour, icon);
   return icon;
 }
+
+/** Van symbol marker (side-on van in a round badge), cached per colour. */
+const vanCache = new Map<MarkerColour, L.DivIcon>();
+export function vanMarkerIcon(colour: MarkerColour): L.DivIcon {
+  const hit = vanCache.get(colour); if (hit) return hit;
+  const c = COLOURS[colour];
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="15.5" fill="${c.fill}" stroke="${c.stroke}" stroke-width="2"/><g fill="#fff"><path d="M7 12h13v9H7z"/><path d="M20 14h4l3 3.5V21h-7z"/></g><g fill="${c.stroke}" stroke="#fff" stroke-width="1.2"><circle cx="11" cy="22" r="2.2"/><circle cx="23" cy="22" r="2.2"/></g><path d="M21.5 15.2h2.1l1.8 2.1h-3.9z" fill="${c.fill}"/></svg>`;
+  const icon = L.divIcon({ className: "", html: svg, iconSize: [34, 34], iconAnchor: [17, 17], popupAnchor: [0, -17] });
+  vanCache.set(colour, icon); return icon;
+}

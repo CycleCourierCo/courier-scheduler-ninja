@@ -1742,6 +1742,59 @@ export type Database = {
           },
         ]
       }
+      delivery_proofs: {
+        Row: {
+          captured_at: string
+          created_at: string
+          driver_id: string
+          id: string
+          lat: number | null
+          lng: number | null
+          note: string | null
+          order_id: string
+          photo_paths: string[]
+          recipient_name: string | null
+          signature_path: string | null
+          stop_type: string
+        }
+        Insert: {
+          captured_at?: string
+          created_at?: string
+          driver_id: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          note?: string | null
+          order_id: string
+          photo_paths?: string[]
+          recipient_name?: string | null
+          signature_path?: string | null
+          stop_type?: string
+        }
+        Update: {
+          captured_at?: string
+          created_at?: string
+          driver_id?: string
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          note?: string | null
+          order_id?: string
+          photo_paths?: string[]
+          recipient_name?: string | null
+          signature_path?: string | null
+          stop_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delivery_proofs_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       difficult_areas: {
         Row: {
           active: boolean
@@ -1871,6 +1924,33 @@ export type Database = {
           note?: string | null
           start_time?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      driver_positions: {
+        Row: {
+          accuracy: number | null
+          driver_id: string
+          id: number
+          lat: number
+          lng: number
+          recorded_at: string
+        }
+        Insert: {
+          accuracy?: number | null
+          driver_id: string
+          id?: never
+          lat: number
+          lng: number
+          recorded_at?: string
+        }
+        Update: {
+          accuracy?: number | null
+          driver_id?: string
+          id?: never
+          lat?: number
+          lng?: number
+          recorded_at?: string
         }
         Relationships: []
       }
@@ -2379,30 +2459,42 @@ export type Database = {
       }
       fleet_eta_links: {
         Row: {
+          closed_status: string | null
           created_at: string
           created_by: string | null
           expires_at: string
           registration: string
+          route_date: string | null
+          saved_route_id: string | null
           sent_to_email: string | null
           sent_to_phone: string | null
+          stop_index: number | null
           token: string
         }
         Insert: {
+          closed_status?: string | null
           created_at?: string
           created_by?: string | null
           expires_at?: string
           registration: string
+          route_date?: string | null
+          saved_route_id?: string | null
           sent_to_email?: string | null
           sent_to_phone?: string | null
+          stop_index?: number | null
           token?: string
         }
         Update: {
+          closed_status?: string | null
           created_at?: string
           created_by?: string | null
           expires_at?: string
           registration?: string
+          route_date?: string | null
+          saved_route_id?: string | null
           sent_to_email?: string | null
           sent_to_phone?: string | null
+          stop_index?: number | null
           token?: string
         }
         Relationships: []
@@ -2897,6 +2989,30 @@ export type Database = {
           mileage_margin_mi?: number
           reminder_days?: number[]
           tread_warn_mm?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      fleet_snapped_paths: {
+        Row: {
+          last_point_at: string
+          path_date: string
+          points: Json
+          registration: string
+          updated_at: string
+        }
+        Insert: {
+          last_point_at: string
+          path_date: string
+          points?: Json
+          registration: string
+          updated_at?: string
+        }
+        Update: {
+          last_point_at?: string
+          path_date?: string
+          points?: Json
+          registration?: string
           updated_at?: string
         }
         Relationships: []
@@ -5957,6 +6073,54 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_route_assignments: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          id: string
+          registration: string | null
+          route_date: string
+          saved_route_id: string
+          updated_at: string
+          vehicle_id: string | null
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          registration?: string | null
+          route_date: string
+          saved_route_id: string
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          id?: string
+          registration?: string | null
+          route_date?: string
+          saved_route_id?: string
+          updated_at?: string
+          vehicle_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_route_assignments_saved_route_id_fkey"
+            columns: ["saved_route_id"]
+            isOneToOne: false
+            referencedRelation: "saved_routes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_route_assignments_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_routes: {
         Row: {
           created_at: string | null
@@ -7976,6 +8140,7 @@ export type Database = {
         }[]
       }
       disablelongtransactions: { Args: never; Returns: string }
+      driver_today_stops: { Args: { p_date: string }; Returns: Json }
       dropgeometrycolumn:
         | {
             Args: {

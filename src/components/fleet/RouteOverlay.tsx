@@ -1,6 +1,7 @@
 import { Fragment, useMemo } from "react";
 import { useQueries, useQuery } from "@tanstack/react-query";
-import { Polyline, CircleMarker, Marker, Popup } from "react-leaflet";
+import { Polyline, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
 import { format } from "date-fns";
 import * as Sentry from "@sentry/react";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,6 +9,7 @@ import { normaliseReg } from "@/lib/fleet/liveTracking";
 import { firstVisit, offRouteStretches, pathMiles, type Pt, type Sample, type OffRouteStretch } from "@/lib/fleet/routeDeviation";
 import { DEPOT_LOCATION } from "@/constants/depot";
 import { decodePolyline } from "@/services/routeGenerationService";
+import { stopCompletion } from "../../../supabase/functions/_shared/stopEta";
 import { routeDepotIcon } from "@/components/scheduling/RouteMapPrimitives";
 
 /** Read a semantic token as a usable colour string (Leaflet needs literal colours). */
@@ -19,10 +21,11 @@ export function tokenColour(name: string): string {
 const ROUTE_TOKENS = ["--segment-1", "--segment-2", "--segment-3", "--segment-4", "--status-transit", "--status-trunk", "--status-booked", "--status-ni"];
 const DEPOT: Pt = { lat: DEPOT_LOCATION.lat, lon: DEPOT_LOCATION.lon };
 const MAX_STOPS_PER_REQUEST = 25;
+export interface StopEtaView { minutes: number; miles: number; eta: string; stopsBefore: number }
 
-export interface RouteStop { lat: number; lon: number; type: string; orderId?: string; address?: string; estimatedTime?: string; visitedAt: number | null }
+export interface RouteStop { lat: number; lon: number; type: string; orderId?: string; address?: string; estimatedTime?: string; visitedAt: number | null; trackingNumber?: string | null; completed?: "Collected" | "Delivered" | null }
 export interface RouteAnalysis {
-  key: string; timeslipId: string | null; name: string | null; registration: string; driver: string | null; colour: string;
+  key: string; timeslipId: string | null; savedRouteId: string | null; vehicleId: string | null; hasVan: boolean; name: string | null; registration: string; driver: string | null; colour: string;
   stops: RouteStop[]; path: Sample[]; stretches: OffRouteStretch[];
   roadLine: Pt[] | null; roadUnavailable: boolean; plannedRoadMiles: number | null; plannedMinutes: number | null;
   timeslipMiles: number | null; drivenMiles: number;
@@ -31,7 +34,7 @@ export interface RouteAnalysis {
 
 interface DayRow {
   timeslip_id: string | null; saved_route_id: string | null; route_name: string | null; start_time: string | null;
-  planned_stops: any[] | null; registration: string | null; driver_name: string | null;
+  planned_stops: any[] | null; vehicle_id: string | null; registration: string | null; driver_name: string | null;
   job_locations: any[] | null; mileage: number | null; total_hours: number | null;
 }
 
@@ -62,6 +65,14 @@ export async function fetchRoadLine(stops: Pt[]) {
     origin = destination;
   }
   return { line, miles: distance / 1609.344, minutes: Math.round(duration / 60) };
+}
+
+function stopIcon(n: number, ring: string, fill: string, done: boolean) {
+  return L.divIcon({
+    className: "",
+    iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -12],
+    html: `<div style="width:24px;height:24px;border-radius:9999px;border:2px solid ${ring};background:${fill};color:${tokenColour("--primary-foreground")};font:700 11px/20px Overpass,sans-serif;text-align:center">${done ? "&#10003;" : n}</div>`,
+  });
 }
 
 export function useRouteDay(date: string) {
@@ -101,6 +112,22 @@ export function useRouteDay(date: string) {
     })),
   });
 
+  const orderIds = useMemo(() => [...new Set(planned.flatMap((p) => p.stops.map((s) => s.orderId).filter(Boolean)))] as string[], [planned]);
+  const orders = useQuery({
+    queryKey: ["fleet-route-orders", orderIds.join(",")],
+    enabled: orderIds.length > 0,
+    queryFn: async () => {
+      const out = new Map<string, { tracking_number: string | null; order_collected: boolean | null; order_delivered: boolean | null }>();
+      for (let i = 0; i < orderIds.length; i += 200) {
+        const { data, error } = await supabase.from("orders").select("id, tracking_number, order_collected, order_delivered").in("id", orderIds.slice(i, i + 200));
+        if (error) throw error;
+        for (const o of data ?? []) out.set(o.id, o);
+      }
+      return out;
+    },
+    refetchInterval: 120_000,
+  });
+
   const roadsKey = roads.map((q) => `${q.status}:${q.dataUpdatedAt}`).join("|");
   const analyses = useMemo<RouteAnalysis[]>(() => {
     const byReg = new Map<string, Sample[]>();
@@ -115,10 +142,13 @@ export function useRouteDay(date: string) {
       const road = roads[i]?.data ?? null;
       const against = road?.line?.length ? road.line : [DEPOT, ...stops, DEPOT];
       return {
-        key: r.timeslip_id ?? r.saved_route_id ?? String(i), timeslipId: r.timeslip_id, name: r.route_name,
+        key: r.timeslip_id ?? r.saved_route_id ?? String(i), timeslipId: r.timeslip_id, savedRouteId: r.saved_route_id, vehicleId: r.vehicle_id, hasVan: !!reg, name: r.route_name,
         registration: reg || (r.timeslip_id ? "No van" : "No timeslip yet"), driver: r.driver_name,
         colour: tokenColour(ROUTE_TOKENS[i % ROUTE_TOKENS.length]),
-        stops: stops.map((s) => ({ ...s, visitedAt: firstVisit(s, path) })),
+        stops: stops.map((s) => {
+          const o = s.orderId ? orders.data?.get(s.orderId) : undefined;
+          return { ...s, visitedAt: firstVisit(s, path), trackingNumber: o?.tracking_number ?? null, completed: stopCompletion(s.type, o) };
+        }),
         path, stretches: path.length ? offRouteStretches(path, against) : [],
         roadLine: road?.line ?? null, roadUnavailable: !!roads[i]?.isError,
         plannedRoadMiles: road ? road.miles : null, plannedMinutes: road ? road.minutes : null,
@@ -127,13 +157,34 @@ export function useRouteDay(date: string) {
       };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [planned, roadsKey, history.data]);
+  }, [planned, roadsKey, history.data, orders.data]);
 
   return { analyses, isLoading: routes.isLoading || history.isLoading, error: routes.error || history.error };
 }
 
-export function RouteLayers({ analyses }: { analyses: RouteAnalysis[] }) {
+/** Road-snapped driven line per route (falls back to raw points while loading or on failure). */
+function useSnappedPaths(analyses: RouteAnalysis[], date?: string) {
+  const qs = useQueries({
+    queries: analyses.map((a) => ({
+      queryKey: ["fleet-snapped-path", date, a.registration, a.path.length],
+      enabled: !!date && a.hasVan && a.path.length > 1,
+      queryFn: async () => {
+        const start = new Date(`${date}T00:00:00`); const end = new Date(start.getTime() + 86400_000);
+        const { data, error } = await supabase.functions.invoke("snap-path", { body: { registration: a.registration, date, from: start.toISOString(), to: end.toISOString() } });
+        if (error || !Array.isArray(data?.segments)) throw error ?? new Error("No snapped path");
+        return data.segments as [number, number][][];
+      },
+      staleTime: 120_000, retry: 0, placeholderData: (prev: any) => prev,
+    })),
+  });
+  return qs.map((q) => q.data ?? null);
+}
+
+export interface StopLinkTarget { registration: string; savedRouteId: string; stopIndex: number; orderId?: string; type: string }
+
+export function RouteLayers({ analyses, etas, date, onSendStop }: { analyses: RouteAnalysis[]; etas?: Map<string, Map<number, StopEtaView>>; date?: string; onSendStop?: (t: StopLinkTarget) => void }) {
   const done = tokenColour("--status-done"), failed = tokenColour("--status-failed");
+  const snapped = useSnappedPaths(analyses, date);
   return (
     <>
       {analyses.length > 0 && (
@@ -141,29 +192,44 @@ export function RouteLayers({ analyses }: { analyses: RouteAnalysis[] }) {
           <Popup><div className="text-sm"><div className="font-semibold">Depot</div><div>{DEPOT_LOCATION.address}</div></div></Popup>
         </Marker>
       )}
-      {analyses.map((a) => {
+      {analyses.map((a, ai) => {
+        const driven = snapped[ai]?.length ? snapped[ai]! : a.path.length > 1 ? [a.path.map((s) => [s.lat, s.lon] as [number, number])] : [];
         const planned = a.roadLine ?? [DEPOT, ...a.stops, DEPOT];
         return (
           <Fragment key={a.key}>
             <Polyline positions={planned.map((s) => [s.lat, s.lon])}
               pathOptions={{ color: a.colour, weight: 3, dashArray: a.roadLine ? "8 6" : "2 8", opacity: 0.8 }} />
-            {a.path.length > 1 && <Polyline positions={a.path.map((s) => [s.lat, s.lon])} pathOptions={{ color: a.colour, weight: 4, opacity: 0.9 }} />}
+            {driven.map((seg, si) => <Polyline key={`d${si}`} positions={seg} pathOptions={{ color: a.colour, weight: 4, opacity: 0.9 }} />)}
             {a.stretches.map((st, i) => (
               <Polyline key={i} positions={a.path.filter((p) => p.t >= st.start && p.t <= st.end).map((p) => [p.lat, p.lon])}
                 pathOptions={{ color: failed, weight: 7, opacity: 0.6 }} />
             ))}
             {a.stops.map((s, i) => (
-              <CircleMarker key={i} center={[s.lat, s.lon]} radius={8}
-                pathOptions={{ color: a.colour, weight: 2, fillColor: s.visitedAt ? done : a.path.length ? failed : a.colour, fillOpacity: 0.9 }}>
+              <Marker key={i} position={[s.lat, s.lon]}
+                icon={stopIcon(i + 1, a.colour, s.completed || s.visitedAt ? done : a.path.length ? failed : a.colour, !!s.completed)}>
                 <Popup>
                   <div className="text-sm space-y-0.5">
                     <div className="font-semibold">{a.registration} · stop {i + 1}</div>
+                    {s.trackingNumber && <div className="font-mono">{s.trackingNumber}</div>}
                     <div className="capitalize">{s.type}{s.estimatedTime ? ` · planned ${s.estimatedTime}` : ""}</div>
                     {s.address && <div>{s.address}</div>}
-                    <div>{s.visitedAt ? `Reached ${format(new Date(s.visitedAt), "HH:mm")}` : a.path.length ? "Not reached" : "No tracking yet"}</div>
+                    <div>{s.completed ? `✓ ${s.completed}` : s.visitedAt ? `Reached ${format(new Date(s.visitedAt), "HH:mm")}` : etas?.get(a.key)?.get(i) ? `ETA ${format(new Date(etas.get(a.key)!.get(i)!.eta), "HH:mm")} · ${etas.get(a.key)!.get(i)!.miles} mi` : a.path.length ? "Not reached" : "No tracking yet"}</div>
+                    {onSendStop && !s.completed && !s.visitedAt && a.hasVan && a.savedRouteId && (() => {
+                      const e = etas?.get(a.key)?.get(i);
+                      return (
+                        <div className="pt-1.5">
+                          {!e && <div className="text-muted-foreground">Van position unavailable</div>}
+                          <button type="button" disabled={!e}
+                            className="mt-1 w-full rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                            onClick={() => onSendStop({ registration: a.registration, savedRouteId: a.savedRouteId!, stopIndex: i, orderId: s.orderId, type: s.type })}>
+                            Tracking link — copy or send
+                          </button>
+                        </div>
+                      );
+                    })()}
                   </div>
                 </Popup>
-              </CircleMarker>
+              </Marker>
             ))}
           </Fragment>
         );

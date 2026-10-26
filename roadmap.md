@@ -70,3 +70,9 @@
 - [x] Fleet Phase 4: van warnings on pickers (red ack recorded), compliance page, fleet alert emails + 7am digest
 - [x] Fleet Phase 5: tested warnings (fleet manager), red-defect close rule, access blocks, real daily list sent; route planners removed from fleet warnings
 - [x] Old Vehicles page folded into Fleet (Add van, DVLA refresh, edit, insurance tab + chart); dashboard redesigned for phones
+
+## Driver app (plan 2026-10-26)
+- [x] Capacitor setup, Today's Route page, proof of delivery with offline queue, shift location sharing + Live Map pins, store checklist (docs/DRIVER_APP.md)
+- [ ] Build and run on a real phone — needs the user's Mac/Android Studio and store accounts
+- [ ] Add privacy-policy wording for location/photos — needs the user's approval of the text
+- [x] Live Map: road-snapped driven line; tracking link button in stop pop-ups
