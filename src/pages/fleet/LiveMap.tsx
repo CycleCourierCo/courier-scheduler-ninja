@@ -10,6 +10,7 @@ import { AlertTriangle, Loader2, RefreshCw } from "lucide-react";
 import Layout from "@/components/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { listVehicles } from "@/services/vehicleService";
+import { listUsersByRole } from "@/services/mechanicTimeslipService";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -112,6 +113,22 @@ export default function LiveMap() {
     if (error) { toast.error("Couldn't assign the van"); return; }
     toast.success("Van assigned — linked to its timeslip if there is one");
     qc.invalidateQueries({ queryKey: ["fleet-route-day", date] });
+  };
+  const drivers = useQuery({ queryKey: ["route-drivers"], queryFn: () => listUsersByRole("driver") });
+  const assignments = useQuery({
+    queryKey: ["route-assignments", date],
+    queryFn: async () => {
+      const { data } = await (supabase as any).from("saved_route_assignments").select("saved_route_id, driver_id, started_at").eq("route_date", date);
+      return new Map<string, { driver_id: string | null; started_at: string | null }>((data ?? []).map((r: any) => [r.saved_route_id, r]));
+    },
+  });
+  const assignDriver = async (savedRouteId: string, driverId: string) => {
+    const { data: u } = await supabase.auth.getUser();
+    const { error } = await (supabase as any).from("saved_route_assignments")
+      .upsert({ saved_route_id: savedRouteId, route_date: date, driver_id: driverId, assigned_by: u.user?.id ?? null }, { onConflict: "saved_route_id,route_date" });
+    if (error) { toast.error("Couldn't assign the driver"); return; }
+    toast.success("Driver assigned — the route appears in their app once they start at the depot");
+    qc.invalidateQueries({ queryKey: ["route-assignments", date] });
   };
   const redIssues = useQuery({
     queryKey: ["fleet-red-issues"],
@@ -233,7 +250,13 @@ export default function LiveMap() {
                         <span className="min-w-0 truncate">{a.timeslipId ? `${a.driver || "No driver"}${a.name ? ` · ${a.name}` : ""}` : a.name ?? ""}</span>
                       </div>
                       {a.savedRouteId && (
-                        <div className="mt-1" onClick={(e) => e.stopPropagation()}>
+                        <div className="mt-1 grid grid-cols-2 gap-1" onClick={(e) => e.stopPropagation()}>
+                          <Select value={assignments.data?.get(a.savedRouteId)?.driver_id ?? undefined} onValueChange={(v) => assignDriver(a.savedRouteId!, v)}>
+                            <SelectTrigger className="h-8 text-xs" aria-label="Assign driver"><SelectValue placeholder="Assign driver" /></SelectTrigger>
+                            <SelectContent>
+                              {(drivers.data ?? []).map((d) => <SelectItem key={d.id} value={d.id}>{d.name || d.email || "Driver"}</SelectItem>)}
+                            </SelectContent>
+                          </Select>
                           <Select value={a.hasVan ? a.registration : undefined} onValueChange={(v) => assignVan(a.savedRouteId!, v)}>
                             <SelectTrigger className="h-8 text-xs" aria-label="Assign van"><SelectValue placeholder="Assign van" /></SelectTrigger>
                             <SelectContent>
