@@ -52,7 +52,7 @@ export interface UserProfile {
   accounts_email: string | null;
   // Driver fields
   hourly_rate: number | null;
-  pay_type?: 'hourly' | 'per_mile' | null;
+  pay_type?: string | null;
   per_mile_rate?: number | null;
   workshop_hourly_rate?: number | null;
   uses_own_van: boolean | null;
