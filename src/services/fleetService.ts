@@ -1,7 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { listVehicles, type Vehicle } from "@/services/vehicleService";
 import { listPolicies, type InsurancePolicy } from "@/services/insuranceService";
-import { computeNextDue, type DueItem, type MaintenanceInterval, type MaintenanceLog } from "@/services/vehicleMaintenanceService";
+import { computeNextDue, listFleetIntervalDefaults, type DueItem, type MaintenanceInterval, type MaintenanceLog } from "@/services/vehicleMaintenanceService";
 import { effectiveOdometer } from "@/lib/odometer";
 
 const db = supabase as any;
@@ -36,7 +36,7 @@ async function pageAll<T>(build: (from: number, to: number) => any): Promise<T[]
 }
 
 export async function loadFleetOverview(): Promise<{ rows: FleetVehicleSummary[]; recent: FleetAuditRow[]; policies: InsurancePolicy[] }> {
-  const [vehicles, policies, logs, intervals, readings, issues, slips, recent, repairs, tyres, settings] = await Promise.all([
+  const [vehicles, policies, logs, intervals, readings, issues, slips, recent, repairs, tyres, settings, fleetDefaults] = await Promise.all([
     listVehicles(),
     listPolicies().catch(() => [] as InsurancePolicy[]),
     pageAll<MaintenanceLog>((a, b) => db.from("vehicle_maintenance_logs").select("*").range(a, b)),
@@ -48,6 +48,7 @@ export async function loadFleetOverview(): Promise<{ rows: FleetVehicleSummary[]
     pageAll<any>((a, b) => db.from("fleet_repair_jobs").select("id, vehicle_id, title, status").not("status", "in", "(verified,closed,cancelled)").range(a, b)),
     pageAll<any>((a, b) => db.from("fleet_tyres").select("vehicle_id, position, last_tread_mm").is("removed_date", null).not("last_tread_mm", "is", null).range(a, b)),
     db.from("fleet_settings").select("tread_warn_mm").eq("id", 1).maybeSingle().then((r: any) => r.data),
+    listFleetIntervalDefaults().catch(() => []),
   ]);
   const warnMm = Number(settings?.tread_warn_mm ?? 3);
 
@@ -56,7 +57,7 @@ export async function loadFleetOverview(): Promise<{ rows: FleetVehicleSummary[]
 
   const rows = vehicles.map((v) => {
     const odo = effectiveOdometer((v as any).odometer_baseline_mi ?? 0, by(slips, v.id), by(readings, v.id));
-    const due = computeNextDue(by(logs, v.id), by(intervals, v.id), { baselineMileage: odo.base, timeslipMileage: odo.sinceMiles });
+    const due = computeNextDue(by(logs, v.id), by(intervals, v.id), { baselineMileage: odo.base, timeslipMileage: odo.sinceMiles, fleetDefaults });
     const current = policies.filter((p) => p.vehicle_id === v.id && p.start_date <= today).sort((a, b) => b.end_date.localeCompare(a.end_date))[0];
     return { vehicle: v, odometer: odo.total, due, openIssues: by(issues, v.id), insuranceEnd: current?.end_date ?? null,
       openRepairs: by(repairs, v.id), lowTyres: by(tyres, v.id).filter((t: any) => Number(t.last_tread_mm) <= warnMm) };

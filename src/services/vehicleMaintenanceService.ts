@@ -226,6 +226,42 @@ export interface ComputeDueOptions {
   baselineMileage: number; // vehicle.odometer_baseline_mi
   timeslipMileage: number; // sum of approved timeslip mileage for vehicle
   today?: Date;
+  /** Fleet-wide intervals; per-vehicle intervals override these. */
+  fleetDefaults?: Omit<MaintenanceInterval, "id" | "vehicle_id">[];
+}
+
+export type FleetIntervalDefault = Omit<MaintenanceInterval, "id" | "vehicle_id"> & { id: string };
+
+export async function listFleetIntervalDefaults(): Promise<FleetIntervalDefault[]> {
+  const { data, error } = await (supabase as any).from("fleet_service_interval_defaults").select("*");
+  if (error) throw error;
+  return data ?? [];
+}
+
+export async function upsertFleetIntervalDefault(input: Omit<FleetIntervalDefault, "id">): Promise<void> {
+  const existing = await listFleetIntervalDefaults();
+  const match = existing.find((e) => e.service_type === input.service_type && (e.position ?? null) === (input.position ?? null) && (e.custom_name ?? null) === (input.custom_name ?? null));
+  const db = supabase as any;
+  const { error } = match
+    ? await db.from("fleet_service_interval_defaults").update({ interval_miles: input.interval_miles, interval_months: input.interval_months }).eq("id", match.id)
+    : await db.from("fleet_service_interval_defaults").insert(input);
+  if (error) throw error;
+}
+
+export async function deleteInterval(id: string): Promise<void> {
+  const { error } = await supabase.from("vehicle_maintenance_intervals" as never).delete().eq("id", id);
+  if (error) throw error;
+}
+
+export interface BulkServiceItem {
+  vehicle_id: string; service_type: ServiceType; position: ServicePosition | null; custom_name: string | null;
+  service_date: string; odometer_mi: number | null; cost: number | null; vendor: string | null; notes: string | null;
+  brand: string | null; model: string | null;
+}
+export async function bulkLogService(items: BulkServiceItem[]): Promise<number> {
+  const { data, error } = await (supabase as any).rpc("fleet_bulk_log_service", { p_items: items });
+  if (error) throw error;
+  return Number(data) || 0;
 }
 
 /** Effective odometer reading right now */
@@ -268,8 +304,8 @@ export function computeNextDue(
       });
     }
   }
-  // Override with per-vehicle intervals
-  for (const iv of intervals) {
+  // Fleet-wide defaults, then per-vehicle intervals on top
+  for (const iv of [...(opts.fleetDefaults ?? []), ...intervals]) {
     buckets.set(keyOf(iv.service_type, iv.position, iv.custom_name), {
       serviceType: iv.service_type,
       position: iv.position ?? undefined,
@@ -310,7 +346,7 @@ export function computeNextDue(
     // Status
     let status: DueItem["status"] = "unknown";
     if (!last) {
-      status = "amber";
+      status = "unknown";
     } else {
       const milesPct =
         remainingMiles != null && intervalMiles

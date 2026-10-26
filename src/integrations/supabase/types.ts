@@ -2966,6 +2966,45 @@ export type Database = {
           },
         ]
       }
+      fleet_service_interval_defaults: {
+        Row: {
+          created_at: string
+          custom_name: string | null
+          id: string
+          interval_miles: number | null
+          interval_months: number | null
+          position:
+            | Database["public"]["Enums"]["vehicle_service_position"]
+            | null
+          service_type: Database["public"]["Enums"]["vehicle_service_type"]
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          custom_name?: string | null
+          id?: string
+          interval_miles?: number | null
+          interval_months?: number | null
+          position?:
+            | Database["public"]["Enums"]["vehicle_service_position"]
+            | null
+          service_type: Database["public"]["Enums"]["vehicle_service_type"]
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          custom_name?: string | null
+          id?: string
+          interval_miles?: number | null
+          interval_months?: number | null
+          position?:
+            | Database["public"]["Enums"]["vehicle_service_position"]
+            | null
+          service_type?: Database["public"]["Enums"]["vehicle_service_type"]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fleet_settings: {
         Row: {
           id: number
@@ -8237,6 +8276,7 @@ export type Database = {
         | { Args: { table_name: string }; Returns: string }
       enablelongtransactions: { Args: never; Returns: string }
       equals: { Args: { geom1: unknown; geom2: unknown }; Returns: boolean }
+      fleet_bulk_log_service: { Args: { p_items: Json }; Returns: number }
       fleet_notify: {
         Args: { p_action: string; p_id: string }
         Returns: undefined
