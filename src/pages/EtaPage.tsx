@@ -42,7 +42,7 @@ function StopView({ d }: { d: StopData }) {
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-background">
       <div className="absolute inset-0 z-0">
-        <MapContainer center={[d.stop.lat, d.stop.lon]} zoom={13} zoomControl={false} style={{ height: "100%", width: "100%" }}>
+        <MapContainer center={[d.stop.lat, d.stop.lon]} zoom={13} style={{ height: "100%", width: "100%" }}>
           <TileLayer attribution="&copy; OpenStreetMap" url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
           <Fit pts={line.length ? line : pts} />
           {line.length > 1 && <Polyline positions={line} pathOptions={{ color: tokenColour("--foreground"), weight: 6, opacity: 0.85 }} />}
@@ -50,7 +50,7 @@ function StopView({ d }: { d: StopData }) {
           <Marker position={[d.stop.lat, d.stop.lon]} icon={colouredMarkerIcon("green")} />
         </MapContainer>
       </div>
-      <header className="absolute left-3 top-3 z-10 rounded-full border bg-card px-3 py-1.5 shadow-sm">
+      <header className="absolute right-3 top-3 z-10 rounded-full border bg-card px-3 py-1.5 shadow-sm">
         <BrandLogo compact withWordmark />
       </header>
       <section className="absolute inset-x-0 bottom-0 z-10 rounded-t-2xl border-t bg-card px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 shadow-lg">
