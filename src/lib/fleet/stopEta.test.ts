@@ -21,3 +21,13 @@ describe("stop ETAs", () => {
     expect(wasVisited(stop, [{ lat: 52.4710, lon: -1.8757 }])).toBe(false); // ~220 m
   });
 });
+
+import { stopCompletion } from "@/components/fleet/RouteOverlay";
+describe("stop completion from order status", () => {
+  it("collection stop is complete once collected; delivery only once delivered", () => {
+    const o = { order_collected: true, order_delivered: false };
+    expect(stopCompletion("pickup", o)).toBe("Collected");
+    expect(stopCompletion("delivery", o)).toBeNull();
+    expect(stopCompletion("delivery", { order_collected: true, order_delivered: true })).toBe("Delivered");
+  });
+});
