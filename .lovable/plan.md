@@ -8,7 +8,7 @@
 5. **Uber-style tracking page** for each link: full-screen map with the van icon moving along the road line to the customer's pin, a bottom card with big ETA time, "X stops before you", minutes away, driver first name and van, refreshing every 2 minutes. Shows "Delivered/Collected" once the stop is visited, and expires at end of day.
 
 ## Position source
-Driver's phone (driver app) first; falls back to the van's Radius position via the linked timeslip. If neither is fresher than 15 minutes, the stop shows "Driver position unavailable" and no link can be sent.
+The van's Radius tracker position only, found through the van on the driver's timeslip for that day. If the Radius position is more than 15 minutes old, the stop shows "Van position unavailable" and no link can be sent.
 
 ## Privacy
 Public page shows only the van location, the line to that customer, ETA and driver first name — no other customers' addresses or stops. Link only works for its own stop.
