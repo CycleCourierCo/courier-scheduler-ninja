@@ -62,7 +62,7 @@ const Auth = () => {
       // Partner app approvals send people here to sign in; return them to the
       // approval screen instead of the dashboard. Only same-site paths allowed.
       const next = new URLSearchParams(window.location.search).get("next");
-      if (next && next.startsWith("/oauth/authorize")) {
+      if (next && (next.startsWith("/oauth/authorize") || /^\/tracking\/[A-Za-z0-9-]+$/.test(next))) {
         navigate(next, { replace: true });
         return;
       }

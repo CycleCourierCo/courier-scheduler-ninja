@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarClock, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, PoundSterling, Megaphone, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare, BookOpen, Store, ClipboardCheck, Lock, Boxes, KanbanSquare, Plug } from "lucide-react";
+import { ScanLine, Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarClock, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, PoundSterling, Megaphone, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare, BookOpen, Store, ClipboardCheck, Lock, Boxes, KanbanSquare, Plug } from "lucide-react";
 import NoticeBanner from "./NoticeBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { useRoutePermissions } from "@/hooks/useRoutePermissions";
 import { PendingAbsenceBadge } from "./user-management/PendingAbsenceBadge";
 const FLOOR_SCREEN_PATHS = [
   "/loading", "/box-my-bike", "/build-my-bike", "/storage-bays", "/warehouse-stock",
-  "/mechanic-clock", "/bicycle-inspections", "/driver-timeslips", "/timeslips", "/fuel-finder", "/driver/today",
+  "/mechanic-clock", "/bicycle-inspections", "/driver-timeslips", "/timeslips", "/fuel-finder", "/driver/today", "/scan",
 ];
 
 interface LayoutProps {
@@ -49,6 +49,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
       { to: "/expiring-dates", label: "Expiring Dates", icon: CalendarClock },
       { to: "/drivers-rota", label: "Drivers Rota", icon: CalendarOff },
       { to: "/loading", label: "Loading & Storage", icon: Package },
+      { to: "/scan", label: "Scan Label", icon: ScanLine },
       { to: "/warehouse-stock", label: "Warehouse Stock", icon: Warehouse },
       { to: "/storage-bays", label: "Storage Bays", icon: Warehouse },
       { to: "/trunk-runs", label: "Trunk Runs", icon: Truck },

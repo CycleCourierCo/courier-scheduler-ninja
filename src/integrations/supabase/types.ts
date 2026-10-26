@@ -4107,6 +4107,50 @@ export type Database = {
           },
         ]
       }
+      label_scans: {
+        Row: {
+          action: string
+          created_at: string
+          detail: string | null
+          id: string
+          lat: number | null
+          lon: number | null
+          order_id: string
+          role: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          created_at?: string
+          detail?: string | null
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          order_id: string
+          role?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          created_at?: string
+          detail?: string | null
+          id?: string
+          lat?: number | null
+          lon?: number | null
+          order_id?: string
+          role?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "label_scans_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       labour_time_multipliers: {
         Row: {
           adjustment_type: string
@@ -7916,6 +7960,7 @@ export type Database = {
         }
         Returns: Json
       }
+      _label_staff_role: { Args: { _uid: string }; Returns: string }
       _normalise_postcode: { Args: { p: string }; Returns: string }
       _postgis_deprecate: {
         Args: { newname: string; oldname: string; version: string }
@@ -8512,6 +8557,20 @@ export type Database = {
         Returns: boolean
       }
       is_timeslip_admin: { Args: never; Returns: boolean }
+      label_lookup: {
+        Args: { p_lat?: number; p_lon?: number; p_ref: string }
+        Returns: Json
+      }
+      label_scan_action: {
+        Args: {
+          p_action: string
+          p_detail?: string
+          p_lat?: number
+          p_lon?: number
+          p_order_id: string
+        }
+        Returns: boolean
+      }
       list_internal_users: {
         Args: never
         Returns: {

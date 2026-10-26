@@ -78,3 +78,7 @@
 - [ ] Build and run on a real phone — needs the user's Mac/Android Studio and store accounts
 - [ ] Add privacy-policy wording for location/photos — needs the user's approval of the text
 - [x] Live Map: road-snapped driven line; tracking link button in stop pop-ups
+
+- [x] Label QR: role-aware tracking page (loader bay/van actions, driver route check, mechanic/admin shortcuts), Scan page with camera + van-loading batch, scan history
+- [ ] Driver collect/deliver straight from a scan — links to Today's Route proof screen; marking orders collected/delivered from the app still awaits user approval (customer messages)
+- [ ] Signed-in check on a real phone as loader/driver — preview sign-in not available

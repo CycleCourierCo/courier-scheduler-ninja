@@ -17,6 +17,8 @@ import { formatTimeslotWindow } from "@/utils/timeslotUtils";
 import type { Order } from "@/types/order";
 import DoorstepShell from "@/components/design/DoorstepShell";
 import Layout from "@/components/Layout";
+import StaffScanPanel from "@/components/scan/StaffScanPanel";
+import { Link } from "react-router-dom";
 
 
 const formSchema = z.object({
@@ -104,6 +106,7 @@ const TrackingPage = () => {
   return (
     <Layout>
       <DoorstepShell title="Track your bike" reference={order?.trackingNumber ?? searchId}>
+          {searchId && <div className="mb-6"><StaffScanPanel reference={searchId} /></div>}
           {!order && <Card className="mb-8">
             <CardContent className="pt-6">
               <TrackingForm onSearch={handleSearch} />
@@ -268,6 +271,7 @@ const TrackingPage = () => {
             </CardContent>
           </Card>
         )}
+        <p className="mt-8 text-center text-xs text-muted-foreground"><Link to={`/auth?next=${encodeURIComponent(`/tracking/${searchId ?? ""}`)}`} className="underline">Staff? Sign in</Link></p>
       </DoorstepShell>
     </Layout>
   );
