@@ -7,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Navigation, Phone, CheckCircle2, MapPin, Loader2, Radio } from "lucide-react";
+import { Navigation, Phone, CheckCircle2, MapPin, Loader2, Radio, Package, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { normaliseStops, navigateUrl, telUrl, type DriverStop } from "@/lib/driverApp/stops";
 import { flushProofs, queuedCount, queuedOrderIds, startShiftTracking, stopShiftTracking } from "@/lib/driverApp/native";
@@ -125,13 +125,50 @@ export default function DriverToday() {
         )}
         {pending > 0 && <p className="rounded-md bg-muted p-3 text-sm">{pending} proof{pending > 1 ? "s" : ""} waiting to upload — they'll send when you're back online.</p>}
 
-        {route.isLoading && <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading your stops…</p>}
+        {route.isLoading && <p className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading your day…</p>}
         {route.error && <p className="text-sm text-destructive">Couldn't load your route. Check your signal and try again.</p>}
-        {!route.isLoading && !route.error && stops.length === 0 && (
-          <Card><CardContent className="p-6 text-sm text-muted-foreground">No route linked to your timeslip for today yet. Ask the office to link today's saved route.</CardContent></Card>
+        {!route.isLoading && !route.error && !assigned && (
+          <Card><CardContent className="p-6 text-sm text-muted-foreground">No route assigned to you for today yet. The office will assign one.</CardContent></Card>
         )}
 
-        <ol className="space-y-3">
+        {assigned && (
+          <div className="grid grid-cols-2 gap-1 rounded-md border p-1" role="tablist">
+            <Button role="tab" aria-selected={tab === "loading"} variant={tab === "loading" ? "default" : "ghost"} className="h-12" onClick={() => setTab("loading")}>
+              <Package className="h-4 w-4" />Loading list
+            </Button>
+            <Button role="tab" aria-selected={tab === "stops"} variant={tab === "stops" ? "default" : "ghost"} className="h-12" onClick={() => setTab("stops")}>
+              <MapPin className="h-4 w-4" />Stops
+            </Button>
+          </div>
+        )}
+
+        {assigned && tab === "loading" && (
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">Van <span className="font-mono font-semibold text-foreground">{route.data?.registration || "not set"}</span> · {(route.data?.loading ?? []).length} to load</p>
+            {(route.data?.loading ?? []).length === 0 && <Card><CardContent className="p-4 text-sm text-muted-foreground">Nothing to load for this route.</CardContent></Card>}
+            {(route.data?.loading ?? []).map((i) => (
+              <Card key={i.order_id}><CardContent className="space-y-1 p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate font-mono text-sm font-semibold">{i.tracking_number}</span>
+                  {i.bike_quantity > 1 && <Badge variant="secondary">×{i.bike_quantity}</Badge>}
+                </div>
+                <p className="text-sm">{[i.bike_brand, i.bike_model].filter(Boolean).join(" ") || "Bike"} · {i.receiver_name}</p>
+                <p className="text-sm font-semibold text-primary">{loadingSource(i)}</p>
+              </CardContent></Card>
+            ))}
+          </div>
+        )}
+
+        {assigned && tab === "stops" && !started && (
+          <Card><CardContent className="space-y-3 p-6 text-center">
+            <p className="text-sm text-muted-foreground">Your stops appear once you start the route at the depot.</p>
+            <Button className="h-12 w-full" onClick={startRoute} disabled={starting}>
+              {starting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Truck className="h-4 w-4" />}At depot — start route
+            </Button>
+          </CardContent></Card>
+        )}
+
+        <ol className={tab === "stops" ? "space-y-3" : "hidden"}>
           {stops.map((s, i) => (
             <li key={`${s.orderId}-${s.type}-${i}`}>
               <Card className={isDone(s) ? "opacity-60" : ""}>
