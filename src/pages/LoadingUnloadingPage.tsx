@@ -9,6 +9,7 @@ import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { StorageUnitLayout } from "@/components/loading/StorageUnitLayout";
 import { PendingStorageAllocation } from "@/components/loading/PendingStorageAllocation";
 import { BikeSearchSection } from "@/components/loading/BikeSearchSection";
+import { QrCode } from "lucide-react";
 import { ScanToBaySection } from "@/components/loading/ScanToBaySection";
 import { BikesInStorage } from "@/components/loading/BikesInStorage";
 import { RemoveBikesDialog } from "@/components/loading/RemoveBikesDialog";
@@ -917,6 +918,20 @@ const LoadingUnloadingPage = () => {
             
             {/* Action buttons */}
             <div className="flex flex-col gap-2 md:flex-row md:gap-3">
+              {/* Scan to bay popup */}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="w-full md:w-auto">
+                    <QrCode className="mr-2 h-4 w-4" />
+                    Scan to bay
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="inset-x-auto bottom-auto left-1/2 top-1/2 max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-md">
+                  <DialogHeader><DialogTitle>Scan to bay</DialogTitle></DialogHeader>
+                  <ScanToBaySection onSaved={fetchData} />
+                </DialogContent>
+              </Dialog>
+
               {/* Print Collection Labels */}
               <Dialog open={isLabelsDialogOpen} onOpenChange={setIsLabelsDialogOpen}>
                 <DialogTrigger asChild>

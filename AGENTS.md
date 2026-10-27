@@ -36,3 +36,4 @@
 - Staff scan cards open only as a popup on staff pages (?scan=<ref>); signed-in staff opening a tracking link are redirected there, so the public tracking page never shows staff data.
 - Label scan role tabs use the shared role-to-panel mapping and only expose assigned views; switching views never changes server permissions.
 - Bay QR labels encode CCCBAY:<bay>[-<slot>] (parseBayCode in src/lib/labelScan.ts) and every scan-to-bay path saves through label_scan_action — bike and bay codes can never be confused and each allocation is logged.
+- Service intervals resolve van override > fleet_service_interval_defaults > built-in DEFAULT_INTERVALS in computeNextDue; bulk servicing saves through fleet_bulk_log_service, and a mileage on any service record is also stored as an odometer reading — one rule for all vans, odometer stays in step.

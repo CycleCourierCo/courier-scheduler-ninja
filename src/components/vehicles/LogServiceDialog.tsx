@@ -14,7 +14,7 @@ import {
   type ServicePosition,
   type ServiceType,
 } from "@/constants/vehicleMaintenance";
-import { createLog } from "@/services/vehicleMaintenanceService";
+import { createLog, addOdometerReading } from "@/services/vehicleMaintenanceService";
 
 interface Props {
   vehicleId: string;
@@ -81,6 +81,10 @@ const LogServiceDialog = ({ vehicleId, vehicleReg, currentMileage, open, onOpenC
         part_number: partNumber.trim() || null,
         notes: notes.trim() || null,
       });
+      if (odometerMi && Number(odometerMi) > 0) {
+        // Keep the van's odometer in step with the mileage on the service record
+        await addOdometerReading({ vehicle_id: vehicleId, reading_date: serviceDate, odometer_mi: Math.round(Number(odometerMi)), note: "From service record" }).catch(() => undefined);
+      }
       toast.success("Service logged");
       reset();
       onOpenChange(false);

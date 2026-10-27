@@ -12,6 +12,9 @@ import VehicleStatusBadge from "@/components/vehicles/VehicleStatusBadge";
 import AddVehicleDialog from "@/components/vehicles/AddVehicleDialog";
 import InsuranceTab from "@/components/vehicles/InsuranceTab";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import BulkServiceDialog from "@/components/vehicles/BulkServiceDialog";
+import MaintenanceIntervalsDialog from "@/components/vehicles/MaintenanceIntervalsDialog";
 
 type Filter = "all" | "operational" | "under_repair" | "out_of_service" | "critical" | "issues" | "service_soon" | "service_overdue" | "mot_soon" | "inspection_due" | "inspection_overdue" | "actions" | "repairs" | "verify" | "tyres";
 
@@ -48,6 +51,10 @@ const FleetDashboard = () => {
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [window, setWindow] = useState(30);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [intervalsOpen, setIntervalsOpen] = useState(false);
+  const toggleSel = (id: string) => setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
   const reload = () => loadFleetOverview().then((r) => { setRows(r.rows); setRecent(r.recent); }).catch(() => {});
   useEffect(() => {
@@ -175,6 +182,15 @@ const FleetDashboard = () => {
                   {filter !== "all" && <Badge variant="secondary" className="cursor-pointer" onClick={() => setFilter("all")}>Filtered · clear</Badge>}
                   <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search registration or make" className="ml-auto max-w-xs" />
                 </div>
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <label className="flex items-center gap-2 px-1">
+                    <Checkbox checked={list.length > 0 && list.every((r) => selected.has(r.vehicle.id))}
+                      onCheckedChange={(c) => setSelected(c ? new Set(list.map((r) => r.vehicle.id)) : new Set())} aria-label="Select all vans" />
+                    Select all
+                  </label>
+                  <Button size="sm" disabled={selected.size === 0} onClick={() => setBulkOpen(true)}>Add service to selected ({selected.size})</Button>
+                  <Button size="sm" variant="outline" className="ml-auto" onClick={() => setIntervalsOpen(true)}>Service intervals (all vans)</Button>
+                </div>
                 {list.length === 0 ? (
                   <p className="py-6 text-center text-sm text-muted-foreground">No vehicles match.</p>
                 ) : (
@@ -183,8 +199,9 @@ const FleetDashboard = () => {
                       const crit = r.openIssues.filter((i) => i.severity === "high").length;
                       const overdue = r.due.filter((d) => d.status === "red").length;
                       return (
-                        <li key={r.vehicle.id}>
-                          <Link to={`/fleet/vehicles/${r.vehicle.id}`} className="flex flex-wrap items-center gap-2 py-2 hover:bg-muted rounded px-1">
+                        <li key={r.vehicle.id} className="flex items-center gap-2">
+                          <Checkbox checked={selected.has(r.vehicle.id)} onCheckedChange={() => toggleSel(r.vehicle.id)} aria-label={`Select ${r.vehicle.registration}`} className="ml-1" />
+                          <Link to={`/fleet/vehicles/${r.vehicle.id}`} className="flex flex-1 flex-wrap items-center gap-2 py-2 hover:bg-muted rounded px-1">
                             <span className="font-mono font-bold">{r.vehicle.registration}</span>
                             <span className="text-xs text-muted-foreground">{r.vehicle.make ?? ""}</span>
                             <VehicleStatusBadge status={r.vehicle.status} />
@@ -202,6 +219,9 @@ const FleetDashboard = () => {
                 )}
               </Card>
 
+              <BulkServiceDialog open={bulkOpen} onOpenChange={setBulkOpen} onSaved={() => { setSelected(new Set()); reload(); }}
+                vans={rows.filter((r) => selected.has(r.vehicle.id)).map((r) => ({ id: r.vehicle.id, registration: r.vehicle.registration, odometer: r.odometer }))} />
+              <MaintenanceIntervalsDialog open={intervalsOpen} onOpenChange={setIntervalsOpen} onSaved={reload} />
               <div className="space-y-4">
                 <Card className="p-3 space-y-2">
                   <div className="flex items-center gap-2">
