@@ -2286,6 +2286,36 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     }
   };
 
+  // Register a saved route for the selected date so the Live Map shows it
+  const registerRouteForDate = async (routeId: string): Promise<boolean> => {
+    const route_date = format(selectedDate, 'yyyy-MM-dd');
+    const { error } = await supabase
+      .from('saved_route_assignments')
+      .upsert({ saved_route_id: routeId, route_date }, { onConflict: 'saved_route_id,route_date', ignoreDuplicates: true });
+    if (error) {
+      console.error('Failed to register route on Live Map:', error);
+      toast.warning(`Couldn't add route to Live Map: ${error.message}`);
+      return false;
+    }
+    return true;
+  };
+
+  const sendRouteToLiveMap = async () => {
+    let routeId = currentRouteId;
+    if (routeId) {
+      await updateSavedRouteRow(routeId);
+    } else {
+      const created = await createSavedRouteRow();
+      if (!created) return;
+      routeId = created.id;
+      setCurrentRouteId(created.id);
+      setCurrentRouteName(created.name);
+    }
+    if (await registerRouteForDate(routeId)) {
+      toast.success(`Route added to the Live Map for ${format(selectedDate, 'd MMM')}`);
+    }
+  };
+
 
 
   // Handle initial jobs from URL parameters
@@ -3675,12 +3705,14 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       if (successCount > 0) {
         if (currentRouteId) {
           await updateSavedRouteRow(currentRouteId);
+          await registerRouteForDate(currentRouteId);
           toast.success(`Saved route "${currentRouteName ?? ''}" updated`);
         } else {
           const created = await createSavedRouteRow();
           if (created) {
             setCurrentRouteId(created.id);
             setCurrentRouteName(created.name);
+            await registerRouteForDate(created.id);
             toast.success(`Route saved as "${created.name}"`);
           }
         }
@@ -4176,6 +4208,18 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
               <FolderOpen className="h-4 w-4" />
               Load Route
             </Button>
+
+            {/* Push current route to the Live Map for the selected date */}
+            <Button
+              variant="outline"
+              onClick={sendRouteToLiveMap}
+              disabled={selectedJobs.length === 0}
+              className="flex items-center gap-2"
+            >
+              <MapPin className="h-4 w-4" />
+              Send to Live Map
+            </Button>
+
             
             {/* Results Count */}
             <div className="ml-auto">
