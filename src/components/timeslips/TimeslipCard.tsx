@@ -31,7 +31,8 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
     rejected: 'border-transparent bg-status-failed text-primary-foreground'
   };
 
-  if (!isAdmin) {
+  // Only per-mile drivers get the cut-down view; hourly drivers keep the full card
+  if (!isAdmin && timeslip.pay_type === "per_mile") {
     return (
       <Card className="min-w-0 overflow-hidden">
         <CardHeader>
