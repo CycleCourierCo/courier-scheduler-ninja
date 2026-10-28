@@ -374,7 +374,7 @@ function buildDriverMessage(
 }
 
 // HTML Email template builders
-function buildManagementEmailHtml(
+function buildManagementEmailHtmlRaw(
   date: string,
   bikesFromDepot: LoadingListRequest['bikesNeedingLoading'],
   bikesToDepot: LoadingListRequest['bikesNeedingLoading'],
@@ -502,7 +502,7 @@ function formatLoadOrderEntryHtml(entry: LoadOrderEntry, loadIndex: number, tota
   `;
 }
 
-function buildDriverEmailHtml(
+function buildDriverEmailHtmlRaw(
   driverName: string,
   categories: ReturnType<typeof categorizeBikesForDriver>,
   date: string
@@ -651,7 +651,7 @@ function buildDriverEmailHtml(
 }
 // Build a bay-grouped breakdown of bikes coming OUT of storage today.
 // Returns both plain-text (for WhatsApp) and HTML (for email).
-function buildBayBreakdown(bikesFromDepot: LoadingListRequest['bikesNeedingLoading'], date: string): { text: string; html: string } {
+function buildBayBreakdownRaw(bikesFromDepot: LoadingListRequest['bikesNeedingLoading'], date: string): { text: string; html: string } {
   // Flatten: one entry per allocation (a bike may occupy multiple positions)
   type Row = { bay: string; position: number; bike: typeof bikesFromDepot[number] };
   const rows: Row[] = [];
@@ -744,6 +744,28 @@ function buildBayBreakdown(bikesFromDepot: LoadingListRequest['bikesNeedingLoadi
 
 
 // Helper to send a SendZen session text message
+/** Deep-copies data with every string HTML-escaped, so order text can never inject markup into emails. */
+function escDeep<T>(v: T): T {
+  if (typeof v === 'string') {
+    return v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;') as any;
+  }
+  if (Array.isArray(v)) return v.map(escDeep) as any;
+  if (v && typeof v === 'object') {
+    const out: any = {};
+    for (const [k, x] of Object.entries(v as any)) out[k] = escDeep(x);
+    return out;
+  }
+  return v;
+}
+const buildManagementEmailHtml = (...a: Parameters<typeof buildManagementEmailHtmlRaw>) =>
+  buildManagementEmailHtmlRaw(...(escDeep(a) as typeof a));
+const buildDriverEmailHtml = (...a: Parameters<typeof buildDriverEmailHtmlRaw>) =>
+  buildDriverEmailHtmlRaw(...(escDeep(a) as typeof a));
+const buildBayBreakdown = (...a: Parameters<typeof buildBayBreakdownRaw>) => ({
+  text: buildBayBreakdownRaw(...a).text,
+  html: buildBayBreakdownRaw(...(escDeep(a) as typeof a)).html,
+});
+
 async function sendSendZenMessage(sendzenApiKey: string, toNumber: string, messageBody: string): Promise<{ ok: boolean; data: any }> {
   const cleanPhone = toNumber.replace(/[^\d]/g, '');
   const formattedPhone = cleanPhone.startsWith('+') ? cleanPhone : `+${cleanPhone}`;
