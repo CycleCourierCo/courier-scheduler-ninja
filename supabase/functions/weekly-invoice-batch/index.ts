@@ -10,6 +10,7 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { trackedFetch } from "../_shared/integrationLog.ts";
 import { applyEmailBrand } from "../_shared/emailLayout.ts";
 import { applyTemplateToPayload, saveSample } from "../_shared/emailTemplates.ts";
+import { escapeHtml, summariseInvoiceError, cleanStoredError, isRetryableStatus } from './errorSummary.ts';
 import { eligibleStoragePeriods, londonDate } from '../_shared/warehouseStorageBilling.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
@@ -287,8 +288,9 @@ async function processBatch(params: {
   start: Date;
   end: Date;
   label: string;
+  customerIds?: string[];
 }) {
-  const { logId, start, end, label } = params;
+  const { logId, start, end, label, customerIds } = params;
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
   const invoiceUrl = `${SUPABASE_URL}/functions/v1/create-quickbooks-invoice`;
 
@@ -303,7 +305,7 @@ async function processBatch(params: {
       .order('name');
     if (custErr) throw custErr;
 
-    const eligible = (customers || []).filter((c: any) => c.accounts_email);
+    const eligible = (customers || []).filter((c: any) => c.accounts_email && (!customerIds?.length || customerIds.includes(c.id)));
     const withoutEmail = (customers || []).filter((c: any) => !c.accounts_email);
 
     const successful: any[] = [];
@@ -658,7 +660,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // Fire-and-forget background processing so pg_net returns immediately.
     // @ts-ignore EdgeRuntime is provided by Supabase Edge Runtime.
-    EdgeRuntime.waitUntil(processBatch({ logId: logRow.id, start, end, label }));
+    EdgeRuntime.waitUntil(processBatch({ logId: logRow.id, start, end, label, customerIds: Array.isArray(body?.customerIds) ? body.customerIds.filter((x: unknown) => typeof x === 'string').slice(0, 50) : undefined }));
 
     return new Response(JSON.stringify({
       accepted: true,
