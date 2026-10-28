@@ -5122,6 +5122,7 @@ export type Database = {
           ni_inbound_status: string | null
           ni_partner_label_uploaded_at: string | null
           ni_partner_label_url: string | null
+          ni_partner_token: string
           order_collected: boolean | null
           order_delivered: boolean | null
           payment_collection_phone: string | null
@@ -5252,6 +5253,7 @@ export type Database = {
           ni_inbound_status?: string | null
           ni_partner_label_uploaded_at?: string | null
           ni_partner_label_url?: string | null
+          ni_partner_token?: string
           order_collected?: boolean | null
           order_delivered?: boolean | null
           payment_collection_phone?: string | null
@@ -5382,6 +5384,7 @@ export type Database = {
           ni_inbound_status?: string | null
           ni_partner_label_uploaded_at?: string | null
           ni_partner_label_url?: string | null
+          ni_partner_token?: string
           order_collected?: boolean | null
           order_delivered?: boolean | null
           payment_collection_phone?: string | null
@@ -8502,7 +8505,10 @@ export type Database = {
         }[]
       }
       get_my_pending_availability_orders: { Args: never; Returns: Json }
-      get_ni_partner_job: { Args: { p_order_id: string }; Returns: Json }
+      get_ni_partner_job: {
+        Args: { p_order_id: string; p_token: string }
+        Returns: Json
+      }
       get_oauth_client_public: {
         Args: { p_client_id: string; p_redirect_uri: string }
         Returns: Json

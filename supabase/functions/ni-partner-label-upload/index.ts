@@ -40,17 +40,24 @@ Deno.serve(async (req) => {
     const form = await req.formData()
     const orderId = (form.get('orderId') as string) || ''
     const bfsNumber = (form.get('bfsNumber') as string) || ''
+    const partnerKey = ((form.get('partnerKey') as string) || '').trim()
     const file = form.get('label') as File | null
 
     if (!orderId || typeof orderId !== 'string') {
       return json({ error: 'orderId is required' }, 400)
     }
 
-    // Only validate the order is a Northern Ireland order. The order UUID is the secret.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!UUID_RE.test(orderId) || !UUID_RE.test(partnerKey)) {
+      return json({ error: 'This partner link is invalid or out of date — please ask us for a new one' }, 403)
+    }
+
+    // The private partner key (not the public tracking id) authorises this write.
     const { data: order, error: orderError } = await admin
       .from('orders')
       .select('id, is_northern_ireland, ni_bfs_number, ni_partner_label_url')
       .eq('id', orderId)
+      .eq('ni_partner_token', partnerKey)
       .maybeSingle()
 
     if (orderError) {

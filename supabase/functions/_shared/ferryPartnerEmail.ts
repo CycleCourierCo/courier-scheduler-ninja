@@ -18,6 +18,8 @@ const formatAddress = (address?: Record<string, any> | null) =>
 
 export interface FerryPartnerEmailInput {
   orderId?: string
+  /** Private partner key (orders.ni_partner_token) required by the upload page. */
+  ni_partner_token?: string | null
   sender?: Record<string, any> | null
   receiver?: Record<string, any> | null
   tracking_number?: string | null
@@ -88,8 +90,8 @@ export function buildFerryPartnerEmail(order: FerryPartnerEmailInput) {
     ? `${subjectPrefix}NI to England — collection booking ${trackingNumber}${collectionDay ? ` — ${collectionDay}` : ''}`
     : `${subjectPrefix}England to NI — delivery booking ${trackingNumber}`
 
-  const uploadUrl = order.orderId
-    ? `${buildPublicAppUrl()}/ni-partner/${order.orderId}`
+  const uploadUrl = order.orderId && order.ni_partner_token
+    ? `${buildPublicAppUrl()}/ni-partner/${order.orderId}?k=${order.ni_partner_token}`
     : null
 
   const html = `

@@ -755,6 +755,7 @@ The Cycle Courier Co. Team`
           if (isNorthernIreland && niDirection === 'outbound') {
             const ferryEmail = buildFerryPartnerEmail({
               orderId: order.id,
+              ni_partner_token: order.ni_partner_token,
               sender: body.sender,
               receiver: body.receiver,
               tracking_number: order.tracking_number,

@@ -53,6 +53,7 @@ const MAX_BYTES = MAX_MB * 1024 * 1024;
 
 export default function NiPartnerUpload() {
   const { orderId } = useParams<{ orderId: string }>();
+  const partnerKey = new URLSearchParams(window.location.search).get("k") || "";
   const [job, setJob] = useState<PartnerJob | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -64,13 +65,13 @@ export default function NiPartnerUpload() {
   const [signedLabelUrl, setSignedLabelUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!orderId) {
+    if (!orderId || !partnerKey) {
       setLoading(false);
       setNotFound(true);
       return;
     }
     Promise.resolve(
-      supabase.rpc("get_ni_partner_job", { p_order_id: orderId })
+      supabase.rpc("get_ni_partner_job", { p_order_id: orderId, p_token: partnerKey })
     )
       .then(({ data, error }) => {
         if (error || !data) {
@@ -88,7 +89,7 @@ export default function NiPartnerUpload() {
       .catch(() => setNotFound(true))
       .finally(() => setLoading(false));
 
-  }, [orderId]);
+  }, [orderId, partnerKey]);
 
   useEffect(() => {
     if (!labelUrl) {
@@ -140,6 +141,7 @@ export default function NiPartnerUpload() {
       const form = new FormData();
       form.append("orderId", orderId);
       form.append("bfsNumber", bfs.trim());
+      form.append("partnerKey", partnerKey);
       if (file) form.append("label", file);
 
       const { data, error } = await supabase.functions.invoke("ni-partner-label-upload", {

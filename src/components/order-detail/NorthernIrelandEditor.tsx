@@ -135,7 +135,23 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
   };
 
 
-  const partnerUploadUrl = `${getPublicAppUrl()}/ni-partner/${order.id}`;
+  // The partner link carries a private key separate from the public tracking id.
+  const [partnerToken, setPartnerToken] = React.useState<string | null>(
+    ((order as any).ni_partner_token ?? (order as any).niPartnerToken ?? null) as string | null
+  );
+  React.useEffect(() => {
+    if (partnerToken || !order.id) return;
+    let cancelled = false;
+    Promise.resolve(
+      supabase.from("orders").select("ni_partner_token").eq("id", order.id).maybeSingle()
+    ).then(({ data }) => {
+      if (!cancelled && data?.ni_partner_token) setPartnerToken(data.ni_partner_token as string);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [order.id, partnerToken]);
+  const partnerUploadUrl = `${getPublicAppUrl()}/ni-partner/${order.id}${partnerToken ? `?k=${partnerToken}` : ""}`;
 
   const copyUploadLink = async () => {
     try {
