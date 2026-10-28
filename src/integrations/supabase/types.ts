@@ -8599,6 +8599,7 @@ export type Database = {
       is_current_user_admin: { Args: never; Returns: boolean }
       is_fleet_staff: { Args: { _uid: string }; Returns: boolean }
       is_internal_staff: { Args: { _user_id: string }; Returns: boolean }
+      is_office_staff: { Args: { _user_id: string }; Returns: boolean }
       is_review_employee_stage: {
         Args: {
           _cycle_id: string
@@ -8633,6 +8634,15 @@ export type Database = {
       load_orders_onto_van: {
         Args: { p_order_ids: string[] }
         Returns: string[]
+      }
+      loading_staff_directory: {
+        Args: { p_role: string }
+        Returns: {
+          email: string
+          id: string
+          name: string
+          phone: string
+        }[]
       }
       longtransactionsenabled: { Args: never; Returns: boolean }
       my_profile_guard: {
