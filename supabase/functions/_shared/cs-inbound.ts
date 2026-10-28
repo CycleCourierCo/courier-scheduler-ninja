@@ -46,8 +46,9 @@ export async function ingestInboundEmail(
   if (body.in_reply_to) {
     const { data: priorMsg } = await supabase
       .from('cs_messages')
-      .select('conversation_id')
+      .select('conversation_id, cs_conversations!inner(contact_id)')
       .eq('email_message_id', body.in_reply_to)
+      .eq('cs_conversations.contact_id', contactRow!.id)
       .limit(1).maybeSingle();
     if (priorMsg?.conversation_id) conversationId = priorMsg.conversation_id;
   }
@@ -60,6 +61,7 @@ export async function ingestInboundEmail(
         .from('cs_conversations')
         .select('id')
         .eq('ticket_ref', ref)
+        .eq('contact_id', contactRow!.id)
         .limit(1).maybeSingle();
       if (refConv?.id) conversationId = refConv.id;
     }
