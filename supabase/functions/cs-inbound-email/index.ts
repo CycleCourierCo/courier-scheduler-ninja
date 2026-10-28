@@ -6,7 +6,7 @@ import { ingestInboundEmail, isDuplicateInbound, type InboundEmail } from "../_s
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-inbound-secret',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
@@ -14,6 +14,15 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
+    // Fail closed: producers must present CS_INBOUND_SECRET (Resend uses the signed cs-resend-inbound instead).
+    const expected = Deno.env.get('CS_INBOUND_SECRET');
+    const got = req.headers.get('x-inbound-secret') || '';
+    if (!expected) {
+      return new Response(JSON.stringify({ error: 'inbound not configured' }), { status: 503, headers: corsHeaders });
+    }
+    if (got !== expected) {
+      return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: corsHeaders });
+    }
     const body = await req.json() as InboundEmail;
     if (!body?.from) {
       return new Response(JSON.stringify({ error: 'from required' }), { status: 400, headers: corsHeaders });
@@ -37,7 +46,7 @@ serve(async (req) => {
     });
   } catch (e: any) {
     console.error('cs-inbound-email error:', e?.message);
-    return new Response(JSON.stringify({ error: e?.message || 'failed' }), {
+    return new Response(JSON.stringify({ error: 'failed' }), {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

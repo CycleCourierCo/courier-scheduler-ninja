@@ -15,11 +15,13 @@ serve(async (req) => {
   try {
     // Optional shared-secret check
     const expected = Deno.env.get('SENDZEN_INBOUND_SECRET');
-    if (expected) {
-      const got = req.headers.get('x-sendzen-signature') || req.headers.get('authorization')?.replace('Bearer ', '');
-      if (got !== expected) {
-        return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: corsHeaders });
-      }
+    // Fail closed: without a configured secret nobody can post into the inbox.
+    if (!expected) {
+      return new Response(JSON.stringify({ error: 'inbound not configured' }), { status: 503, headers: corsHeaders });
+    }
+    const got = req.headers.get('x-sendzen-signature') || req.headers.get('authorization')?.replace('Bearer ', '');
+    if (got !== expected) {
+      return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: corsHeaders });
     }
 
     const body = await req.json();

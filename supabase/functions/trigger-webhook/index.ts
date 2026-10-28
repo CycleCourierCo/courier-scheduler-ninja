@@ -1,4 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
+import { identifyCaller } from '../_shared/staffAuth.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,6 +17,15 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Only the database trigger (cron secret), other functions (service role) or signed-in staff may dispatch signed webhooks.
+    const caller = await identifyCaller(req);
+    if (!caller || !caller.isStaff) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: caller ? 403 : 401,
+      });
+    }
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
