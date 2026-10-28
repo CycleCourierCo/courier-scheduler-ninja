@@ -17,6 +17,8 @@ export interface QueuedProof {
   lat: number | null;
   lng: number | null;
   capturedAt: string;
+  /** Account that captured the proof; only that driver may upload it. */
+  driverId?: string;
 }
 const QUEUE_KEY = "driver-proof-queue";
 
@@ -27,7 +29,10 @@ async function readQueue(): Promise<QueuedProof[]> {
 async function writeQueue(q: QueuedProof[]) {
   await Preferences.set({ key: QUEUE_KEY, value: JSON.stringify(q) });
 }
-export async function queuedCount() { return (await readQueue()).length; }
+export async function queuedCount(driverId?: string) {
+  const q = await readQueue();
+  return driverId ? q.filter((p) => !p.driverId || p.driverId === driverId).length : q.length;
+}
 export async function queuedOrderIds() { return new Set((await readQueue()).map((p) => p.orderId)); }
 
 async function dataUrlToBlob(url: string) { return (await fetch(url)).blob(); }
@@ -58,7 +63,7 @@ async function uploadProof(p: QueuedProof, driverId: string) {
 
 /** Saves the proof on the phone first, then tries to upload everything waiting. */
 export async function saveProof(p: QueuedProof, driverId: string) {
-  await writeQueue([...(await readQueue()), p]);
+  await writeQueue([...(await readQueue()), { ...p, driverId }]);
   return flushProofs(driverId);
 }
 
@@ -69,10 +74,12 @@ export async function flushProofs(driverId: string): Promise<number> {
   try {
     const remaining: QueuedProof[] = [];
     for (const p of await readQueue()) {
+      // A proof captured by another driver on this phone stays queued for them.
+      if (p.driverId && p.driverId !== driverId) { remaining.push(p); continue; }
       try { await uploadProof(p, driverId); } catch { remaining.push(p); }
     }
     await writeQueue(remaining);
-    return remaining.length;
+    return remaining.filter((p) => !p.driverId || p.driverId === driverId).length;
   } finally { flushing = false; }
 }
 

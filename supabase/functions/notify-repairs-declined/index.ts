@@ -38,14 +38,27 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
     const token = authHeader.replace("Bearer ", "");
+    let callerId: string | null = null;
+    let callerIsStaff = false;
     if (token !== Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")) {
       const { data: { user }, error: authError } = await admin.auth.getUser(token);
       if (authError || !user) return json({ error: "Unauthorized" }, 401);
+      callerId = user.id;
+      const { data: roles } = await admin.from("user_roles").select("role").eq("user_id", user.id);
+      callerIsStaff = (roles || []).some((r: any) => !["b2b_customer", "b2c_customer"].includes(r.role));
+    } else {
+      callerIsStaff = true;
     }
 
     const body = await req.json().catch(() => ({}));
     const orderId = typeof body?.orderId === "string" ? body.orderId.trim() : "";
     if (!UUID.test(orderId)) return json({ error: "A valid orderId is required" }, 400);
+
+    // Customers may only trigger this for their own order.
+    if (!callerIsStaff) {
+      const { data: owned } = await admin.from("orders").select("id").eq("id", orderId).eq("user_id", callerId).maybeSingle();
+      if (!owned) return json({ error: "Forbidden" }, 403);
+    }
 
     const { data: issues, error: issuesError } = await admin
       .from("inspection_issues")
