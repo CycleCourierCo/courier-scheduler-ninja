@@ -750,9 +750,10 @@ function escDeep<T>(v: T): T {
     return v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;') as any;
   }
   if (Array.isArray(v)) return v.map(escDeep) as any;
-  if (v && typeof v === 'object') {
+  if (v instanceof Set) return new Set([...v].map(escDeep)) as any;
+  if (v && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype) {
     const out: any = {};
-    for (const [k, x] of Object.entries(v as any)) out[k] = escDeep(x);
+    for (const [k, x] of Object.entries(v as any)) out[escDeep(k)] = escDeep(x);
     return out;
   }
   return v;
