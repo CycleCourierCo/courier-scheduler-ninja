@@ -198,8 +198,9 @@ const LoadingUnloadingPage = () => {
   useEffect(() => {
     const fetchProfiles = async () => {
       const [driverResult, loaderResult] = await Promise.all([
-        supabase.from('profiles').select('id, name, phone, email').eq('role', 'driver').or('is_active.is.null,is_active.eq.true').or('account_status.is.null,account_status.not.in.(suspended,rejected)').order('name'),
-        supabase.from('profiles').select('id, name, phone, email').eq('role', 'loader').or('is_active.is.null,is_active.eq.true').or('account_status.is.null,account_status.not.in.(suspended,rejected)').order('name'),
+        // Name/contact-only directory: loaders can't read colleagues' pay.
+        supabase.rpc('loading_staff_directory', { p_role: 'driver' }),
+        supabase.rpc('loading_staff_directory', { p_role: 'loader' }),
       ]);
       
       if (!driverResult.error && driverResult.data) {
