@@ -306,7 +306,7 @@ async function processBatch(params: {
     if (custErr) throw custErr;
 
     const eligible = (customers || []).filter((c: any) => c.accounts_email && (!customerIds?.length || customerIds.includes(c.id)));
-    const withoutEmail = (customers || []).filter((c: any) => !c.accounts_email);
+    const withoutEmail = customerIds?.length ? [] : (customers || []).filter((c: any) => !c.accounts_email);
 
     const successful: any[] = [];
     const failed: any[] = [];
