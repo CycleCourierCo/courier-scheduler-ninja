@@ -614,6 +614,50 @@ Deno.serve(async (req: Request): Promise<Response> => {
     let body: any = {};
     try { body = await req.json(); } catch (_) { /* empty body */ }
 
+    // Retry failed: re-run only customers that failed in a past run and have
+    // not been invoiced since, using that run's exact date range.
+    if (body?.retryFailed === true) {
+      let q = supabase.from('weekly_invoice_batch_logs')
+        .select('id, range_start, range_end, range_label, run_started_at, run_completed_at')
+        .eq('status', 'completed').gt('failed_count', 0)
+        .order('created_at', { ascending: false }).limit(1);
+      if (typeof body?.logId === 'string') q = q.eq('id', body.logId);
+      const { data: runs } = await q;
+      const run = runs?.[0];
+      if (!run) {
+        return new Response(JSON.stringify({ error: 'No run with failed invoices found' }), {
+          status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: hist } = await supabase.from('invoice_history')
+        .select('user_id, status, created_at')
+        .gte('created_at', run.run_started_at)
+        .order('created_at', { ascending: true });
+      const runEnd = run.run_completed_at ?? run.run_started_at;
+      const failedIds = new Set<string>();
+      const createdIds = new Set<string>();
+      for (const h of hist || []) {
+        if (h.status === 'failed' && h.created_at <= runEnd) failedIds.add(h.user_id);
+        if (h.status === 'created') createdIds.add(h.user_id);
+      }
+      const customerIds = [...failedIds].filter((id) => !createdIds.has(id));
+      if (customerIds.length === 0) {
+        return new Response(JSON.stringify({ retried: 0, label: run.range_label, message: 'All failed customers have since been invoiced' }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const label = `${run.range_label} (retry of failed)`;
+      const { data: retryLog, error: retryErr } = await supabase.from('weekly_invoice_batch_logs')
+        .insert({ range_start: run.range_start, range_end: run.range_end, range_label: label, status: 'running', triggered_by: `${triggeredBy}:retry` })
+        .select('id').single();
+      if (retryErr || !retryLog) throw retryErr || new Error('Could not create retry log');
+      // @ts-ignore EdgeRuntime is provided by Supabase
+      EdgeRuntime.waitUntil(processBatch({ logId: retryLog.id, start: new Date(run.range_start), end: new Date(run.range_end), label, customerIds }));
+      return new Response(JSON.stringify({ logId: retryLog.id, retried: customerIds.length, label: run.range_label }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Report-only: rebuild and re-send the summary for an existing run.
     if (body?.reportOnly === true) {
       const result = await resendReport(body?.logId);
