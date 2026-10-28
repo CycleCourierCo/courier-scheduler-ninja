@@ -90,6 +90,20 @@ export default function InvoicesPage() {
   const [quickBooksConnected, setQuickBooksConnected] = useState(false);
   const [isCreatingAllInvoices, setIsCreatingAllInvoices] = useState(false);
   const [isRetryingFailed, setIsRetryingFailed] = useState(false);
+  const [retryLogId, setRetryLogId] = useState<string>("latest");
+  const { data: failedRuns } = useQuery({
+    queryKey: ["failed-invoice-runs", isRetryingFailed],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("weekly_invoice_batch_logs")
+        .select("id, range_start, range_end, range_label, failed_count")
+        .eq("status", "completed")
+        .gt("failed_count", 0)
+        .order("created_at", { ascending: false })
+        .limit(10);
+      return data || [];
+    },
+  });
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
   const [isSyncingInvoices, setIsSyncingInvoices] = useState(false);
   
@@ -389,7 +403,9 @@ export default function InvoicesPage() {
   const handleRetryFailed = async () => {
     setIsRetryingFailed(true);
     try {
-      const { data, error } = await supabase.functions.invoke("weekly-invoice-batch", { body: { retryFailed: true } });
+      const body: Record<string, unknown> = { retryFailed: true };
+      if (retryLogId !== "latest") body.logId = retryLogId;
+      const { data, error } = await supabase.functions.invoke("weekly-invoice-batch", { body });
       if (error) throw error;
       if (!data?.logId) {
         notify.success("Nothing to retry", { description: data?.message || "No failed invoices left from the last run." });
@@ -680,6 +696,23 @@ export default function InvoicesPage() {
             </div>
           )}
           
+          {failedRuns && failedRuns.length > 0 && (
+            <div className="space-y-1">
+              <Label>Run to retry</Label>
+              <Select value={retryLogId} onValueChange={setRetryLogId}>
+                <SelectTrigger className="w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="latest">Most recent run with failures</SelectItem>
+                  {failedRuns.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>
+                      {format(new Date(r.range_start), "d MMM")} – {format(new Date(r.range_end), "d MMM")}: {r.failed_count} failed
+                      {String(r.range_label || "").includes("retry") ? " (retry)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row sm:justify-end gap-3">
             <Button
               onClick={handleRetryFailed}
@@ -689,7 +722,7 @@ export default function InvoicesPage() {
               className="w-full sm:w-auto sm:min-w-[200px]"
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${isRetryingFailed ? "animate-spin" : ""}`} />
-              {isRetryingFailed ? "Retrying failed…" : "Retry failed (last run)"}
+              {isRetryingFailed ? "Retrying failed…" : retryLogId === "latest" ? "Retry failed (last run)" : "Retry failed (chosen run)"}
             </Button>
             <Button
               onClick={handleCreateAllInvoices}
