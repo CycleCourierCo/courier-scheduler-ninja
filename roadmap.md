@@ -1,6 +1,7 @@
 # Roadmap
 
-- [ ] Security Audit: full-platform source review, independent candidate verification, coverage ledger and reports; no live probes or application changes.
+- [x] Security Audit partial source pass: independent retained-record verification, coverage ledger and reports delivered; no live probes or application changes.
+- [ ] Security Audit completion: critic-identified subsystem coverage and one disputed manifest trace remain incomplete; runtime confirmation waits on an approved isolated fixture and owner-observed deployment metadata.
 
 - [x] Label scan role toggle: show each assigned action view for multi-role staff; retain existing permissions and default view.
 
