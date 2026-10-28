@@ -40,3 +40,4 @@
 - NI ferry-partner links carry orders.ni_partner_token (?k=); partner reads/writes check it and submit_ni_partner_details is service-role-only — the public tracking id must never authorise writes.
 - Driver proofs of delivery are accepted only for orders on the driver's own assigned route (driver_can_prove_order, ±1 day) and the phone queue stores the capturing driver — another login on the same phone can't upload them.
 - Duplicate-safe writes claim first: customer Shopify lines insert their unique order-log row before booking, return-to-seller relies on one return per returned_from_order_id (unique index), and set_order_availability returns {error} for a wrong postcode instead of raising so failed attempts are kept.
+- Sensitive columns are pinned by BEFORE UPDATE guard triggers (profiles pay/pricing, review_cycles parties, inspection_issues customer/mechanic limits) rather than column lists in RLS — every update path, including future ones, is covered.
