@@ -69,7 +69,7 @@ export async function saveProof(p: QueuedProof, driverId: string) {
 
 let flushing = false;
 export async function flushProofs(driverId: string): Promise<number> {
-  if (flushing) return queuedCount();
+  if (flushing) return queuedCount(driverId);
   flushing = true;
   try {
     const remaining: QueuedProof[] = [];

@@ -78,7 +78,7 @@ export default function DriverToday() {
     },
   });
 
-  const refreshQueue = async () => { setPending(await queuedCount()); setQueuedIds(await queuedOrderIds()); };
+  const refreshQueue = async () => { setPending(await queuedCount(user?.id)); setQueuedIds(await queuedOrderIds()); };
 
   useEffect(() => {
     if (!user) return;
