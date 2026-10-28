@@ -8245,6 +8245,10 @@ export type Database = {
         }[]
       }
       disablelongtransactions: { Args: never; Returns: string }
+      driver_can_prove_order: {
+        Args: { _captured: string; _order_id: string; _uid: string }
+        Returns: boolean
+      }
       driver_start_route: { Args: { p_assignment_id: string }; Returns: string }
       driver_today_stops: { Args: { p_date: string }; Returns: Json }
       dropgeometrycolumn:
