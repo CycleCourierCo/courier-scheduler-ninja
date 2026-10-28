@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { summariseInvoiceError, cleanStoredError, escapeHtml, isRetryableStatus } from './errorSummary';
+import { summariseInvoiceError, cleanStoredError, escapeHtml, isRetryableStatus } from '../../supabase/functions/weekly-invoice-batch/errorSummary';
 
 describe('invoice batch error summary', () => {
   it('turns an HTML 502 page into a short message', () => {
