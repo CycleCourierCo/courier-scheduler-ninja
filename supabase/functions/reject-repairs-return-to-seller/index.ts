@@ -155,11 +155,17 @@ serve(async (req) => {
     }
 
     // 2. Create the return job (legs swapped) for the same account.
+    // A retry or double-click reuses the return job already created for this order.
     const returnSender = order.receiver;
     const returnReceiver = order.sender;
+    const { data: priorReturn } = await admin
+      .from("orders")
+      .select("id, tracking_number")
+      .eq("returned_from_order_id", order.id)
+      .maybeSingle();
 
-    let returnTrackingNumber: string | null = null;
-    try {
+    let returnTrackingNumber: string | null = priorReturn?.tracking_number ?? null;
+    if (!priorReturn) try {
       const trackRes = await fetch(`${supabaseUrl}/functions/v1/generate-tracking-numbers`, {
         method: "POST",
         headers: {
@@ -183,7 +189,9 @@ serve(async (req) => {
       return json({ success: false, error: "Couldn't create a reference for the return job" }, 502);
     }
 
-    const { data: returnOrder, error: returnError } = await admin
+    let returnOrder: { id: string; tracking_number: string | null } | null = priorReturn ?? null;
+    if (!returnOrder) {
+    const { data: inserted, error: returnError } = await admin
       .from("orders")
       .insert({
         user_id: order.user_id,
@@ -214,7 +222,21 @@ serve(async (req) => {
       })
       .select("id, tracking_number")
       .single();
-    if (returnError) throw returnError;
+    if (returnError && (returnError as any).code === "23505") {
+      // Another request created it at the same moment — use that one.
+      const { data: raced } = await admin
+        .from("orders")
+        .select("id, tracking_number")
+        .eq("returned_from_order_id", order.id)
+        .maybeSingle();
+      returnOrder = raced ?? null;
+    } else if (returnError) {
+      throw returnError;
+    } else {
+      returnOrder = inserted;
+    }
+    }
+    if (!returnOrder) throw new Error("Return job could not be created");
 
     // 3. Tear down the original job's Shipday legs.
     const trackingEvents: Record<string, any> = order.tracking_events || {};
