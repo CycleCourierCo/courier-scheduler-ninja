@@ -38,3 +38,4 @@
 - Bay QR labels encode CCCBAY:<bay>[-<slot>] (parseBayCode in src/lib/labelScan.ts) and every scan-to-bay path saves through label_scan_action — bike and bay codes can never be confused and each allocation is logged.
 - Service intervals resolve van override > fleet_service_interval_defaults > built-in DEFAULT_INTERVALS in computeNextDue; bulk servicing saves through fleet_bulk_log_service, and a mileage on any service record is also stored as an odometer reading — one rule for all vans, odometer stays in step.
 - NI ferry-partner links carry orders.ni_partner_token (?k=); partner reads/writes check it and submit_ni_partner_details is service-role-only — the public tracking id must never authorise writes.
+- Driver proofs of delivery are accepted only for orders on the driver's own assigned route (driver_can_prove_order, ±1 day) and the phone queue stores the capturing driver — another login on the same phone can't upload them.
