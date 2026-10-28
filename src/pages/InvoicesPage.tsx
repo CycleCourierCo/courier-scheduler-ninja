@@ -89,6 +89,7 @@ export default function InvoicesPage() {
   const [isConnectingQuickBooks, setIsConnectingQuickBooks] = useState(false);
   const [quickBooksConnected, setQuickBooksConnected] = useState(false);
   const [isCreatingAllInvoices, setIsCreatingAllInvoices] = useState(false);
+  const [isRetryingFailed, setIsRetryingFailed] = useState(false);
   const [batchProgress, setBatchProgress] = useState({ current: 0, total: 0 });
   const [isSyncingInvoices, setIsSyncingInvoices] = useState(false);
   
@@ -385,6 +386,37 @@ export default function InvoicesPage() {
     }
   };
 
+  const handleRetryFailed = async () => {
+    setIsRetryingFailed(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("weekly-invoice-batch", { body: { retryFailed: true } });
+      if (error) throw error;
+      if (!data?.logId) {
+        notify.success("Nothing to retry", { description: data?.message || "No failed invoices left from the last run." });
+        return;
+      }
+      notify.success("Retrying failed invoices", { description: `${data.retried} customer(s) for ${data.label}. A report is emailed when done.` });
+      const started = Date.now();
+      while (Date.now() - started < 10 * 60_000) {
+        await new Promise((r) => setTimeout(r, 4000));
+        const { data: run } = await supabase
+          .from("weekly_invoice_batch_logs")
+          .select("status, successful_count, failed_count")
+          .eq("id", data.logId)
+          .maybeSingle();
+        if (run && run.status !== "running") {
+          notify.success("Retry finished", { description: `${run.successful_count} created, ${run.failed_count} still failed.` });
+          break;
+        }
+      }
+    } catch (err: any) {
+      notify.error("Couldn't retry failed invoices", { description: err?.message || "Please try again" });
+    } finally {
+      setIsRetryingFailed(false);
+      refetchHistory();
+    }
+  };
+
   const handleCreateAllInvoices = async () => {
     if (!startDate || !endDate) {
       notify.error("Missing Date Range", { description: "Please select start and end dates." });
@@ -649,6 +681,16 @@ export default function InvoicesPage() {
           )}
           
           <div className="flex flex-col sm:flex-row sm:justify-end gap-3">
+            <Button
+              onClick={handleRetryFailed}
+              disabled={isRetryingFailed || isCreatingAllInvoices || isCreatingInvoice || !quickBooksConnected}
+              size="lg"
+              variant="outline"
+              className="w-full sm:w-auto sm:min-w-[200px]"
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${isRetryingFailed ? "animate-spin" : ""}`} />
+              {isRetryingFailed ? "Retrying failed…" : "Retry failed (last run)"}
+            </Button>
             <Button
               onClick={handleCreateAllInvoices}
               disabled={
