@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Supabase pentest review (28 October, post-grant sweep): read-only live access probes, hosted catalog/storage checks and independent source review; authenticated cross-account tests require an isolated fixture/session.
+
 - [x] Security Audit partial source pass: independent retained-record verification, coverage ledger and reports delivered; no live probes or application changes.
 - [ ] Security Audit completion: critic-identified subsystem coverage and one disputed manifest trace remain incomplete; runtime confirmation waits on an approved isolated fixture and owner-observed deployment metadata.
 
