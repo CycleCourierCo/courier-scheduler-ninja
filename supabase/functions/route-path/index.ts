@@ -1,4 +1,5 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
+import { identifyCaller } from '../_shared/staffAuth.ts';
 
 interface Pt { lat: number; lon: number }
 interface Body {
@@ -13,6 +14,13 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
+    // Credentialed Google proxy: staff only, bounded request size.
+    const caller = await identifyCaller(req);
+    if (!caller || !caller.isStaff) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: caller ? 403 : 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     const GOOGLE_MAPS_API_KEY = Deno.env.get('GOOGLE_MAPS_API_KEY');
     if (!LOVABLE_API_KEY || !GOOGLE_MAPS_API_KEY) {
@@ -24,6 +32,11 @@ Deno.serve(async (req) => {
     const body: Body = await req.json();
     if (!body?.origin || !Array.isArray(body?.stops)) {
       return new Response(JSON.stringify({ error: 'origin and stops required' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (body.stops.length > 25) {
+      return new Response(JSON.stringify({ error: 'Too many stops (max 25)' }), {
         status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
