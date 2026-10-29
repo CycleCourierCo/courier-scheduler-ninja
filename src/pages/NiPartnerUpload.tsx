@@ -9,7 +9,7 @@ import { Loader2, Upload, FileCheck, ExternalLink, Ship, ArrowRightLeft, Phone }
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { toPublicFileUrl } from "@/lib/publicFileUrl";
-import { CITY_AIR_EXPRESS } from "@/constants/depot";
+import { ferryPartnerFor } from "@/constants/depot";
 import DoorstepShell from "@/components/design/DoorstepShell";
 
 interface PartnerJob {
@@ -133,7 +133,7 @@ export default function NiPartnerUpload() {
     e.preventDefault();
     if (!orderId) return;
     if (!bfs.trim() && !file && !labelUrl) {
-      toast.error("Please enter a BFS number or upload a label");
+      toast.error(`Please enter a ${isIom ? "consignment" : "BFS"} number or upload a label`);
       return;
     }
     setSubmitting(true);
@@ -154,7 +154,7 @@ export default function NiPartnerUpload() {
       if (data.labelUrl) {
         setLabelUrl(data.labelUrl);
       }
-      toast.success("Label and BFS number saved");
+      toast.success(`Label and ${isIom ? "consignment" : "BFS"} number saved`);
     } catch (err: any) {
       console.error("Partner upload failed", err);
       toast.error(err?.message || "Could not save — please try again");
@@ -163,14 +163,18 @@ export default function NiPartnerUpload() {
     }
   };
 
+  const isIom = (job as any)?.ferry_region === "isle_of_man";
+  const regionName = isIom ? "Isle of Man" : "Northern Ireland";
+  const partner = ferryPartnerFor(isIom ? "isle_of_man" : "northern_ireland");
+  const refName = isIom ? "consignment number" : "BFS consignment number";
   const directionLabel =
     job?.direction === "inbound"
-      ? "From Northern Ireland to mainland"
-      : "To Northern Ireland";
+      ? `From ${regionName} to mainland`
+      : `To ${regionName}`;
 
   return (
-    <DoorstepShell title="Northern Ireland partner upload" reference={job?.tracking_number ?? undefined}>
-      <p className="text-muted-foreground">For {CITY_AIR_EXPRESS.name} — upload the shipping label and BFS consignment number.</p>
+    <DoorstepShell title={`${job ? regionName : "Ferry"} partner upload`} reference={job?.tracking_number ?? undefined}>
+      <p className="text-muted-foreground">For {job ? partner.name : "our ferry partner"} — upload the shipping label and {refName}.</p>
           <div className="space-y-6">
             {loading ? (
               <div className="flex items-center gap-2 text-muted-foreground py-8">
@@ -179,7 +183,7 @@ export default function NiPartnerUpload() {
               </div>
             ) : notFound || !job ? (
               <div className="text-center py-8">
-                <p className="text-muted-foreground">This link is no longer valid or the order is not a Northern Ireland job.</p>
+                <p className="text-muted-foreground">This link is no longer valid or the order is not a ferry job.</p>
               </div>
             ) : (
               <>
@@ -216,12 +220,12 @@ export default function NiPartnerUpload() {
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="bfs">BFS consignment number</Label>
+                    <Label htmlFor="bfs" className="capitalize">{refName}</Label>
                     <Input className="data-text h-12"
                       id="bfs"
                       value={bfs}
                       onChange={(e) => setBfs(e.target.value)}
-                      placeholder="e.g. BFS12345678"
+                      placeholder={isIom ? "Consignment number" : "e.g. BFS12345678"}
                       disabled={submitting}
                     />
                     {bfsSaved && bfsSaved === bfs && (
@@ -276,7 +280,7 @@ export default function NiPartnerUpload() {
                     ) : (
                       <Upload className="h-4 w-4 mr-2" />
                     )}
-                    {submitting ? "Saving…" : "Upload label / save BFS number"}
+                    {submitting ? "Saving…" : `Upload label / save ${isIom ? "consignment" : "BFS"} number`}
                   </Button>
                 </form>
               </>
