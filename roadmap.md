@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Apply the ten Supabase pentest concerns: report/photo authorization, fleet completion integrity, proof storage/retry/account binding, custom repair permission, webhook signatures, explicit staff roles and credential-safe logs; verify without changing production bookings.
+
 - [x] Supabase pentest partial review (28 October, post-grant sweep): anonymous probes, hosted catalog/storage checks, independent source reviews and local signature fixture; report delivered without application fixes.
 - [ ] Supabase pentest authenticated completion: cross-account and operational/concurrency tests require isolated fixtures and test sessions (external unmanaged Supabase); no production user or booking writes performed.
 
