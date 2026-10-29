@@ -1742,6 +1742,36 @@ export type Database = {
           },
         ]
       }
+      delivery_proof_uploads: {
+        Row: {
+          captured_at: string
+          created_at: string
+          driver_id: string
+          id: string
+          order_id: string
+          photo_paths: string[]
+          signature_path: string | null
+        }
+        Insert: {
+          captured_at: string
+          created_at?: string
+          driver_id: string
+          id: string
+          order_id: string
+          photo_paths?: string[]
+          signature_path?: string | null
+        }
+        Update: {
+          captured_at?: string
+          created_at?: string
+          driver_id?: string
+          id?: string
+          order_id?: string
+          photo_paths?: string[]
+          signature_path?: string | null
+        }
+        Relationships: []
+      }
       delivery_proofs: {
         Row: {
           captured_at: string
@@ -9455,6 +9485,10 @@ export type Database = {
         Returns: string
       }
       verify_api_key: { Args: { api_key: string }; Returns: string }
+      verify_foam_photo_access: {
+        Args: { p_identifier: string; p_postcode: string }
+        Returns: Json
+      }
       verify_oauth_token: { Args: { access_token: string }; Returns: string }
     }
     Enums: {
