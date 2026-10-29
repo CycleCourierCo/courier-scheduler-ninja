@@ -1,7 +1,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { corsHeaders } from '../_shared/cors.ts'
 import { initSentry, captureException, startSpan } from '../_shared/sentry.ts'
-import { resolveNiDirection } from '../_shared/northernIreland.ts'
+import { resolveNiDirection, resolveFerryRegion } from '../_shared/northernIreland.ts'
 import { buildFerryPartnerEmail } from '../_shared/ferryPartnerEmail.ts'
 import { trackedFetch } from "../_shared/integrationLog.ts";
 import { resolveApiCaller, apiAuthErrorResponse } from "../_shared/apiAuth.ts";
@@ -415,6 +415,7 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
       //  - inbound (sender in NI): ferry partner collects in NI, we collect in Manchester
       const niDirection = resolveNiDirection(body.sender, body.receiver)
       const isNorthernIreland = niDirection !== null
+      const ferryRegion = resolveFerryRegion(body.sender, body.receiver)
       const niTimestamp = new Date().toISOString()
 
       // Create order WITHOUT waiting for geocoding/emails/Shipday — those run in the background.
@@ -443,6 +444,7 @@ const handleRequest = async (req: Request, ctx: { userId: string | null }) => {
         box_my_bike_status: (body.isBoxMyBike || body.is_box_my_bike) ? 'awaiting_depot' : null,
         box_buyer: boxBuyer,
         is_northern_ireland: isNorthernIreland,
+        ferry_region: ferryRegion,
         ni_direction: niDirection,
         foam_status: niDirection === 'outbound' ? 'pending_collection' : null,
         foam_pending_collection_at: niDirection === 'outbound' ? niTimestamp : null,
@@ -764,6 +766,7 @@ The Cycle Courier Co. Team`
               bike_quantity: body.bikeQuantity || body.bike_quantity || 1,
               ni_direction: niDirection,
               is_northern_ireland: true,
+              ferry_region: ferryRegion,
             })
             const { error: ferryError } = await supabase.functions.invoke('send-email', {
               body: {

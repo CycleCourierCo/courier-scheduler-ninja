@@ -167,6 +167,8 @@ serve(async (req) => {
     const sender = order.sender;
     const receiver = order.receiver;
 
+    const CITY_AIR_EXPRESS = ferryPartnerFor(order);
+    const ferryRegionName = ferryRegionLabel(order).toUpperCase();
     const ferryAddress = `${CITY_AIR_EXPRESS.address.street}, ${CITY_AIR_EXPRESS.address.city}, ${CITY_AIR_EXPRESS.address.state} ${CITY_AIR_EXPRESS.address.zipCode}`;
 
     // Northern Ireland legs are always driven to/from the ferry hand-off in Manchester,
@@ -174,7 +176,7 @@ serve(async (req) => {
     //  - outbound (receiver in NI): the DELIVERY leg goes to the hand-off point
     //  - inbound (sender in NI): the PICKUP leg is collected from the hand-off point
     const niDirection = niDirectionOf(order);
-    const niByPostcode = isNorthernIrelandAddress(receiver?.address);
+    const niByPostcode = ferryRegionOfAddress(receiver?.address) !== null;
     const forcedNi = typeof forceNorthernIreland === "boolean" ? forceNorthernIreland : null;
     const isNI = forcedNi !== null ? forcedNi : (niDirection !== null || niByPostcode);
     const isInboundNI = isNI && (forcedNi === true ? niDirection === "inbound" : niDirection === "inbound");
@@ -266,8 +268,8 @@ serve(async (req) => {
     const senderNotes = order.sender_notes || '';
     const pickupInstructions = [
       ...orderDetails,
-      isInboundNI ? 'NORTHERN IRELAND (inbound) — collect from the ferry hand-off point' : '',
-      isInboundNI ? formatNiSenderBlock(sender, order.tracking_number) : '',
+      isInboundNI ? `${ferryRegionName} (inbound) — collect from the ferry hand-off point' : '',
+      isInboundNI ? formatNiSenderBlock(sender, order.tracking_number, ferryRegionOf(order)) : '',
       baseDeliveryInstructions,
       senderNotes
     ].filter(Boolean).join(' | ');
@@ -275,8 +277,8 @@ serve(async (req) => {
     const receiverNotes = order.receiver_notes || '';
     const deliveryInstructions = [
       ...orderDetails,
-      isOutboundNI ? 'NORTHERN IRELAND — hand over at the ferry hand-off point' : '',
-      isOutboundNI ? formatNiReceiverBlock(receiver, order.tracking_number) : '',
+      isOutboundNI ? `${ferryRegionName} — hand over at the ferry hand-off point' : '',
+      isOutboundNI ? formatNiReceiverBlock(receiver, order.tracking_number, ferryRegionOf(order)) : '',
       baseDeliveryInstructions,
       receiverNotes
     ].filter(Boolean).join(' | ');
