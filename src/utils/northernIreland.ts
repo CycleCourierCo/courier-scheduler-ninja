@@ -12,6 +12,8 @@
 
 export const NI_SURCHARGE_PER_BIKE = 120;
 
+const normalise = (v?: string | null) => (v || '').trim().toLowerCase();
+
 export type UkRegion =
   | 'England'
   | 'Scotland'
@@ -19,7 +21,54 @@ export type UkRegion =
   | 'Northern Ireland'
   | null;
 
-const normalise = (v?: string | null) => (v || '').trim().toLowerCase();
+/** Customer-facing, VAT-inclusive Isle of Man surcharge per bike. */
+export const IOM_SURCHARGE_PER_BIKE = 180;
+
+export type FerryRegion = 'northern_ireland' | 'isle_of_man';
+
+export const FERRY_REGION_LABEL: Record<FerryRegion, string> = {
+  northern_ireland: 'Northern Ireland',
+  isle_of_man: 'Isle of Man',
+};
+
+export const FERRY_REGION_SHORT: Record<FerryRegion, string> = {
+  northern_ireland: 'NI',
+  isle_of_man: 'IoM',
+};
+
+export function isIsleOfManPostcode(postcode?: string | null): boolean {
+  if (!postcode) return false;
+  return /^im\d/i.test(postcode.replace(/\s+/g, ''));
+}
+
+export function isIsleOfManAddress(address?: (RegionAddressLike & { city?: string | null }) | null): boolean {
+  if (!address) return false;
+  if ([address.region, address.state, address.country].some((v) => normalise(v).includes('isle of man'))) return true;
+  return isIsleOfManPostcode(address.zipCode || address.postcode);
+}
+
+/** Ferry region for one address, or null for mainland Great Britain. */
+export function ferryRegionOfAddress(address?: RegionAddressLike | null): FerryRegion | null {
+  if (isIsleOfManAddress(address)) return 'isle_of_man';
+  if (isNorthernIrelandAddress(address)) return 'northern_ireland';
+  return null;
+}
+
+/** Ferry region stored on an order, defaulting to NI for older ferry orders. */
+export function ferryRegionOf(order: any): FerryRegion | null {
+  if (!order) return null;
+  const stored = order.ferry_region ?? order.ferryRegion;
+  if (stored === 'isle_of_man' || stored === 'northern_ireland') return stored;
+  const fromAddr = ferryRegionOfAddress(order.receiver?.address) || ferryRegionOfAddress(order.sender?.address);
+  if (fromAddr) return fromAddr;
+  return order.is_northern_ireland || order.isNorthernIreland ? 'northern_ireland' : null;
+}
+
+export const ferryRegionLabel = (order: any): string =>
+  FERRY_REGION_LABEL[ferryRegionOf(order) || 'northern_ireland'];
+
+export const ferrySurchargeFor = (region: FerryRegion | null): number =>
+  region === 'isle_of_man' ? IOM_SURCHARGE_PER_BIKE : region === 'northern_ireland' ? NI_SURCHARGE_PER_BIKE : 0;
 
 export function isNorthernIrelandPostcode(postcode?: string | null): boolean {
   if (!postcode) return false;
