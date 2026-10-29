@@ -60,7 +60,10 @@ const OrderList: React.FC<{ title: string; orders: NiOrder[]; side: "sender" | "
       {orders.length === 0 && <p className="text-sm text-muted-foreground">None right now.</p>}
       {orders.map((o) => (
         <div key={o.id} className="rounded border p-2 text-sm">
-          <div className="font-medium">{o.tracking_number || "—"}</div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-medium">{o.tracking_number || "—"}</span>
+            {o.ferry_region === "isle_of_man" && <Badge>Isle of Man</Badge>}
+          </div>
           <div className="text-muted-foreground">
             {bikeOf(o)} · {o[side]?.address?.city || "—"}
           </div>
