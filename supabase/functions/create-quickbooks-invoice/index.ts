@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { isNorthernIrelandAddress, NI_SURCHARGE_NET } from "../_shared/northernIreland.ts";
+import { isNorthernIrelandAddress, NI_SURCHARGE_NET, isIsleOfManAddress, ferrySurchargeNetFor, ferryRegionShort, ferryRegionLabel } from "../_shared/northernIreland.ts";
 import { prepareInvoiceDelivery } from "../_shared/quickbooksInvoiceDelivery.ts";
 import { trackedFetch } from "../_shared/integrationLog.ts";
 import { eligibleStoragePeriods, londonDate, STORAGE_NET_GBP, STORAGE_PRODUCT_NAME } from '../_shared/warehouseStorageBilling.ts';
@@ -39,6 +39,7 @@ interface InvoiceRequest {
     inspection_type?: string | null;
     is_box_my_bike?: boolean | null;
     is_northern_ireland?: boolean | null;
+    ferry_region?: string | null;
     guaranteed_delivery?: boolean | null;
     guaranteed_delivery_payer?: string | null;
     guaranteed_delivery_amount?: number | null;
@@ -697,9 +698,13 @@ const handler = async (req: Request): Promise<Response> => {
         }
         
         // Northern Ireland surcharge: £100 net (£120 inc. VAT) per bike, rolled into the bike line
+        // Isle of Man: £150 net (£180 inc. VAT) per bike, same ferry process.
         const isNI = order.is_northern_ireland === true
-          || isNorthernIrelandAddress(order.receiver?.address);
-        const unitPrice = isNI ? product.price + NI_SURCHARGE_NET : product.price;
+          || isNorthernIrelandAddress(order.receiver?.address)
+          || isIsleOfManAddress(order.receiver?.address);
+        const ferrySurcharge = isNI ? ferrySurchargeNetFor(order) || NI_SURCHARGE_NET : 0;
+        const ferryShort = ferryRegionShort(order);
+        const unitPrice = product.price + ferrySurcharge;
 
         // Build description
         let description = `${order.tracking_number || order.id}`;
@@ -711,7 +716,7 @@ const handler = async (req: Request): Promise<Response> => {
         }
         description += ` - ${senderName} → ${receiverName}`;
         if (isNI) {
-          description += ` - Northern Ireland (incl. £${NI_SURCHARGE_NET} NI surcharge)`;
+          description += ` - ${ferryRegionLabel(order)} (incl. £${ferrySurcharge} ${ferryShort} surcharge)`;
         }
         
         lineItems.push({

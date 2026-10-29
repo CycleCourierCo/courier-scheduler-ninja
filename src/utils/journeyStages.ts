@@ -1,3 +1,4 @@
+import { ferryRegionOf } from "@/utils/northernIreland";
 import { Order, BOX_MY_BIKE_STATUS_ORDER, FOAM_STATUS_ORDER } from "@/types/order";
 import { isOutboundNi, isInboundNi } from "@/utils/niDelivery";
 import type { JourneyStop } from "@/components/design/JourneyStrip";
@@ -24,7 +25,7 @@ export function buildJourneyStops(order: Order): JourneyStop[] {
   // Collection (inbound NI bikes are collected by the ferry partner in NI)
   const collected = !!order.orderCollected || (inboundNi && !!anyOrder.niInboundCollectedAt);
   stops.push({
-    label: inboundNi ? "Collected in NI" : "Collected",
+    label: inboundNi ? (ferryRegionOf(order) === "isle_of_man" ? "Collected in IoM" : "Collected in NI") : "Collected",
     state: collected ? "complete" : "upcoming",
     icon: "collected",
   });

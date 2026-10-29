@@ -6,6 +6,7 @@ import { createAuthErrorResponse } from "../_shared/auth.ts";
 import { identifyCaller } from "../_shared/staffAuth.ts";
 import { expectationsHtml, expectationsText, expectationsForOrder } from "../_shared/deliveryExpectations.ts";
 import { trackResend } from "../_shared/integrationLog.ts";
+import { localiseFerryText } from "../_shared/northernIreland.ts";
 import { emailUI, stagesForOrder, stageIndex } from "../_shared/emailLayout.ts";
 import { loadTemplate, isSendAllowed, cleanAddresses, hasCustomBody, varsFromOrder, fillVars, renderBlocks } from "../_shared/emailTemplates.ts";
 
@@ -99,11 +100,19 @@ serve(async (req) => {
       const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
       const { data: orderData } = await adminClient
         .from("orders")
-        .select("user_id, sender, receiver, is_northern_ireland, is_box_my_bike, ni_direction, foam_status, needs_inspection")
+        .select("user_id, sender, receiver, is_northern_ireland, ferry_region, is_box_my_bike, ni_direction, foam_status, needs_inspection")
         .eq("id", checkOrderId)
         .single();
 
       orderRow = orderData || null;
+
+      // Isle of Man orders reuse the Northern Ireland copy with the region swapped.
+      if (orderRow?.ferry_region === 'isle_of_man' || reqData.ferryRegion === 'isle_of_man') {
+        const loc = (v: any) => (typeof v === 'string' ? localiseFerryText('isle_of_man', v) : v);
+        const origSend = resend.emails.send.bind(resend.emails);
+        (resend.emails as any).send = (p: any, ...rest: any[]) =>
+          origSend({ ...p, subject: loc(p?.subject), html: loc(p?.html), text: loc(p?.text) }, ...rest);
+      }
 
       if (orderData?.user_id) {
         const { data: profile } = await adminClient

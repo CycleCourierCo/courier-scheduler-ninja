@@ -12,7 +12,8 @@ import {
   NI_INBOUND_STATUS_LABELS,
   NI_INBOUND_STATUS_ORDER,
 } from "@/types/order";
-import { CITY_AIR_EXPRESS } from "@/constants/depot";
+import { ferryPartnerFor } from "@/constants/depot";
+import { ferryRegionOf } from "@/utils/northernIreland";
 import { sendOrderUpdateEmail } from "@/lib/sendOrderUpdateEmail";
 import OrderSearchBar from "@/components/boxmybike/OrderSearchBar";
 import { filterOrdersBySearch } from "@/utils/orderSearch";
@@ -137,7 +138,7 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inbound-ni-orders"] });
-      toast.success("Inbound NI stage updated");
+      toast.success("Inbound ferry stage updated");
     },
     onError: (e: any) => toast.error(e?.message || "Failed to update stage"),
   });
@@ -219,7 +220,7 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
   if (!isStaff) {
     return (
       <div className="text-sm text-muted-foreground py-8 text-center">
-        Inbound Northern Ireland tracking is only available to staff.
+        Inbound ferry (NI / Isle of Man) tracking is only available to staff.
       </div>
     );
   }
@@ -251,7 +252,7 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
               <div className="text-sm text-muted-foreground py-8 text-center">
                 {search.trim()
                   ? "No orders match your search."
-                  : "No inbound NI orders in this stage."}
+                  : "No inbound NI or Isle of Man orders in this stage."}
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -416,7 +417,7 @@ const InboundCard: React.FC<{
         </p>
         <div className="rounded border bg-muted/30 p-3 space-y-1">
           <p className="font-medium flex items-center gap-1">
-            <Ship className="h-3.5 w-3.5" /> NI collection point
+            <Ship className="h-3.5 w-3.5" /> {ferryRegionOf(order) === "isle_of_man" ? "IoM" : "NI"} collection point
           </p>
           <p>{niParty?.name || "—"}</p>
           <p className="text-muted-foreground">{address || "—"}</p>
@@ -449,7 +450,7 @@ const InboundCard: React.FC<{
         )}
         {(
           [
-            ["ni_inbound_collected_at", order.ni_inbound_collected_at, "Collected in Northern Ireland"],
+            ["ni_inbound_collected_at", order.ni_inbound_collected_at, ferryRegionOf(order) === "isle_of_man" ? "Collected in Isle of Man" : "Collected in Northern Ireland"],
             ["ni_inbound_ferry_crossed_at", order.ni_inbound_ferry_crossed_at, "Crossed the ferry"],
             ["ni_inbound_received_at", order.ni_inbound_received_at, "Collected from partner"],
           ] as Array<[string, string | null, string]>
@@ -492,7 +493,7 @@ const InboundCard: React.FC<{
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Handover at {CITY_AIR_EXPRESS.name} — {CITY_AIR_EXPRESS.formatted}
+          Handover at {ferryPartnerFor(ferryRegionOf(order)).name} — {ferryPartnerFor(ferryRegionOf(order)).formatted}
         </p>
       </CardContent>
     </Card>

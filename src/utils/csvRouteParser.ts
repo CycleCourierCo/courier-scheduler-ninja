@@ -1,7 +1,8 @@
 import { OrderData } from "@/pages/JobScheduling";
 import { needsCollectionLeg, needsDeliveryLeg } from "@/components/scheduling/heatJobPoints";
 import { getLegContact, isFerryLeg } from "@/utils/niDelivery";
-import { CITY_AIR_EXPRESS } from "@/constants/depot";
+import { CITY_AIR_EXPRESS, FREIGHT_HUB, ferryPartnerFor } from "@/constants/depot";
+import { ferryRegionOf } from "@/utils/northernIreland";
 
 export interface CSVRow {
   sequence: number;
@@ -141,8 +142,7 @@ const extractPostcode = (address: string): string | null => {
 };
 
 /** Names a Northern Ireland ferry hand-off stop can appear under in a route file */
-const FERRY_NAME_ALIASES = [CITY_AIR_EXPRESS.name, CITY_AIR_EXPRESS.displayName].map(normalizeName);
-const FERRY_POSTCODE = extractPostcode(CITY_AIR_EXPRESS.address.zipCode);
+const FERRY_NAME_ALIASES = [CITY_AIR_EXPRESS.name, FREIGHT_HUB.name, CITY_AIR_EXPRESS.displayName].map(normalizeName);
 
 /**
  * Score a route row against the stop a driver actually visits for this leg.
@@ -162,7 +162,7 @@ const scoreLeg = (
 
   const names = ferry ? FERRY_NAME_ALIASES : [normalizeName(contact?.name || '')];
   const legPostcode = ferry
-    ? FERRY_POSTCODE
+    ? extractPostcode(ferryPartnerFor(ferryRegionOf(order)).address.zipCode)
     : extractPostcode(
         `${contact?.address?.street || ''} ${contact?.address?.city || ''} ${contact?.address?.zipCode || ''}`
       );

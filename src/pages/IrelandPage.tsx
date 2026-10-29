@@ -72,7 +72,7 @@ const OrderList: React.FC<{ title: string; orders: NiOrder[]; side: "sender" | "
 const TrunkRunsSection: React.FC = () => {
   const { data = [], isLoading, error } = useQuery({ queryKey: ["ireland-trunk-counts"], queryFn: loadNiOrders });
   if (isLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
-  if (error) return <div className="text-sm text-destructive">Couldn't load Northern Ireland bikes.</div>;
+  if (error) return <div className="text-sm text-destructive">Couldn't load ferry bikes.</div>;
   const toCollect = data.filter((o) => !o.order_collected && o.sender_confirmed_at);
   const toDeliver = data.filter((o) => o.order_collected);
   return (
@@ -93,11 +93,11 @@ const IrelandPage: React.FC = () => {
       <div className="floor-density mx-auto max-w-6xl px-4 py-6 sm:px-6">
         <div className="mb-6 border-b pb-4">
           <h1>Ireland</h1>
-          <p className="text-muted-foreground">Foam My Bike, inbound Northern Ireland bikes and trunk runs.</p>
+          <p className="text-muted-foreground">Foam My Bike, inbound Northern Ireland and Isle of Man bikes and trunk runs.</p>
         </div>
         <Tabs value={section} onValueChange={(v) => setSection(v as typeof section)} className="mb-6">
           <TabsList className="flex flex-wrap h-auto">
-            <TabsTrigger value="foam">Foam My Bike (NI)</TabsTrigger>
+            <TabsTrigger value="foam">Foam My Bike (NI / IoM)</TabsTrigger>
             <TabsTrigger value="inbound-ni">Inbound NI</TabsTrigger>
             {isStaff && <TabsTrigger value="trunk">Trunk runs</TabsTrigger>}
           </TabsList>

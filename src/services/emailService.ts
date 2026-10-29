@@ -2,7 +2,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { getOrder } from "./orderService";
 
 import { getNiDirection, isInboundNi } from "@/utils/niDelivery";
-import { CITY_AIR_EXPRESS } from "@/constants/depot";
+import { ferryPartnerFor } from "@/constants/depot";
+import { ferryRegionOf } from "@/utils/northernIreland";
 import { Order } from "@/types/order";
 
 /**
@@ -597,8 +598,8 @@ export const sendReceiverAvailabilityEmail = async (id: string): Promise<boolean
     // to the ferry hand-off point, who book the onward transport — not to the NI receiver.
     // Inbound (NI → England) deliveries are normal mainland deliveries.
     const isNI = getNiDirection(order as any) === 'outbound';
-    const recipientEmail = isNI ? CITY_AIR_EXPRESS.email : order.receiver.email;
-    const recipientName = isNI ? CITY_AIR_EXPRESS.displayName : (order.receiver.name || "Receiver");
+    const recipientEmail = isNI ? ferryPartnerFor(ferryRegionOf(order)).email : order.receiver.email;
+    const recipientName = isNI ? ferryPartnerFor(ferryRegionOf(order)).displayName : (order.receiver.name || "Receiver");
 
     console.log("Sending receiver availability email to:", recipientEmail);
     
@@ -613,6 +614,7 @@ export const sendReceiverAvailabilityEmail = async (id: string): Promise<boolean
         item: item,
         trackingNumber: order.trackingNumber,
         niDirection: isNI ? 'outbound' : undefined,
+        ferryRegion: ferryRegionOf(order) || undefined,
         niReceiver: isNI ? {
           name: order.receiver.name,
           email: order.receiver.email,
@@ -666,7 +668,7 @@ export const sendSenderDatesConfirmedEmail = async (orderId: string, selectedDat
     // Inbound NI: City Air Express collect the bike in Northern Ireland,
     // so copy them on the agreed collection dates.
     const recipients = isInboundNi(order)
-      ? [order.sender.email, CITY_AIR_EXPRESS.email]
+      ? [order.sender.email, ferryPartnerFor(ferryRegionOf(order)).email]
       : [order.sender.email];
 
     const response = await supabase.functions.invoke("send-email", {
@@ -711,8 +713,8 @@ export const sendReceiverDatesConfirmedEmail = async (orderId: string, selectedD
     // Northern Ireland: for outbound (England → NI) the dates email goes to the ferry
     // hand-off point, not the NI receiver. Inbound deliveries are normal mainland ones.
     const isNI = getNiDirection(order as any) === 'outbound';
-    const recipientEmail = isNI ? CITY_AIR_EXPRESS.email : order.receiver.email;
-    const recipientName = isNI ? CITY_AIR_EXPRESS.displayName : (order.receiver.name || "Customer");
+    const recipientEmail = isNI ? ferryPartnerFor(ferryRegionOf(order)).email : order.receiver.email;
+    const recipientName = isNI ? ferryPartnerFor(ferryRegionOf(order)).displayName : (order.receiver.name || "Customer");
     
     const response = await supabase.functions.invoke("send-email", {
       body: {
@@ -723,6 +725,7 @@ export const sendReceiverDatesConfirmedEmail = async (orderId: string, selectedD
         selectedDates: selectedDates,
         baseUrl,
         niDirection: isNI ? 'outbound' : undefined,
+        ferryRegion: ferryRegionOf(order) || undefined,
         niReceiver: isNI ? {
           name: order.receiver.name,
           email: order.receiver.email,

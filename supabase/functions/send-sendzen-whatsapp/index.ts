@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import {
-  CITY_AIR_EXPRESS,
+  ferryPartnerFor,
   isNorthernIrelandAddress,
   niDirectionOf,
   isFerryLeg,
@@ -163,7 +163,8 @@ function isFerryRecipient(o: any, recipientType: "sender" | "receiver"): boolean
 }
 
 /** Contact we message / send to Shipday for a delivery leg on an NI order. */
-function niHandoffContact() {
+function niHandoffContact(o?: any) {
+  const CITY_AIR_EXPRESS = ferryPartnerFor(o);
   return {
     name: CITY_AIR_EXPRESS.name,
     phone: CITY_AIR_EXPRESS.phone,
@@ -174,7 +175,7 @@ function niHandoffContact() {
 
 /** Resolve the contact for a leg — the ferry hand-off on whichever side is in NI. */
 function resolveLegContact(o: any, isPickup: boolean) {
-  if (isFerryLeg(o, isPickup)) return niHandoffContact();
+  if (isFerryLeg(o, isPickup)) return niHandoffContact(o);
   return isPickup ? o?.sender : o?.receiver;
 }
 
@@ -631,7 +632,7 @@ serve(async (req: Request): Promise<Response> => {
       console.log("NI ferry leg — messaging ferry hand-off contact instead of the customer");
     }
     const contact = primaryIsNiDelivery
-      ? niHandoffContact()
+      ? niHandoffContact(order)
       : (recipientType === "sender" ? order.sender : order.receiver);
     if (!contact?.phone) {
       return new Response(

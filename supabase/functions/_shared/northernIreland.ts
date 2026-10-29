@@ -197,3 +197,20 @@ export function formatNiSenderBlock(sender: any, trackingNumber?: string | null,
     trackingNumber ? `Tracking: ${trackingNumber}` : '',
   ].filter(Boolean).join('\n');
 }
+
+/**
+ * Isle of Man orders reuse the Northern Ireland wording; swap region names in
+ * finished copy so every message stays consistent with the NI version.
+ */
+export function localiseFerryText(orderOrRegion: any, text: string): string {
+  if (!text) return text;
+  const region = typeof orderOrRegion === 'string' ? orderOrRegion : ferryRegionOf(orderOrRegion);
+  if (region !== 'isle_of_man') return text;
+  return text
+    .replace(/Northern Ireland/g, 'Isle of Man')
+    .replace(/Northern Irish/g, 'Manx')
+    .replace(/\bNI\b/g, 'IoM')
+    .replace(/City Air Express/g, FREIGHT_HUB.name)
+    .replace(/Unit 1 Ordinal Street, Trafford Park, Manchester, M17 1GB/g, FREIGHT_HUB.formatted)
+    .replace(/\bManchester\b/g, 'Widnes');
+}
