@@ -10,6 +10,7 @@ import { useCsQueues, useCsStaff } from "@/hooks/useCsQueues";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { describeDue, dueBadgeClass } from "@/lib/csTickets";
 
 interface Props { conversation: CsConversation; onDismiss?: () => void }
@@ -25,6 +26,7 @@ const ConversationHeader: React.FC<Props> = ({ conversation, onDismiss }) => {
   const due = describeDue(conversation.next_response_due_at);
   const [closing, setClosing] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const [askClose, setAskClose] = useState(false);
   const [controlsOpen, setControlsOpen] = useState(true);
   const isClosed = conversation.status === 'closed';
   const isEmail = conversation.channel === 'email';
@@ -45,12 +47,17 @@ const ConversationHeader: React.FC<Props> = ({ conversation, onDismiss }) => {
     } catch (e: any) { toast.error(e?.message || 'Failed'); }
   };
 
-  const handleClose = async () => {
+  const handleClose = () => { if (!closing && !isClosed) setAskClose(true); };
+
+  const doClose = async (notify: boolean) => {
     if (closing || isClosed) return;
+    setAskClose(false);
     setClosing(true);
     try {
-      await closeTicket(conversation.id);
-      toast.success('Ticket closed and the customer has been emailed');
+      const r: any = await closeTicket(conversation.id, notify);
+      if (r?.notified === 'email') toast.success('Closed and customer emailed');
+      else if (r?.notified === 'whatsapp') toast.success('Closed and customer sent a WhatsApp');
+      else toast.success(`Closed (customer not notified${r?.reason ? ` — ${r.reason}` : ''})`);
       refresh();
       onDismiss?.();
     } catch (e: any) {
@@ -179,6 +186,25 @@ const ConversationHeader: React.FC<Props> = ({ conversation, onDismiss }) => {
             Close ticket
           </Button>
         )}
+
+        <AlertDialog open={askClose} onOpenChange={setAskClose}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Close this ticket?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {isEmail
+                  ? 'You can email the customer to say it is resolved, or close it quietly.'
+                  : 'You can send the customer a short WhatsApp saying it is resolved (only within 24 hours of their last message), or close it quietly.'}
+                {' '}If they reply within 7 days the same ticket reopens.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter className="gap-2">
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <Button variant="outline" onClick={() => doClose(false)}>Close quietly</Button>
+              <Button onClick={() => doClose(true)}>Close and let the customer know</Button>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {isClosed && (
           <Button
