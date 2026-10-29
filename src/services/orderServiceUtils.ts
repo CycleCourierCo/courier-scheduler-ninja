@@ -86,6 +86,7 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     destinationRegion: dbOrder.destination_region || null,
     isNorthernIreland: dbOrder.is_northern_ireland || false,
     niDirection: dbOrder.ni_direction || null,
+    ferryRegion: dbOrder.ferry_region || null,
     foamStatus: dbOrder.foam_status || null,
     foamPendingCollectionAt: dbOrder.foam_pending_collection_at ? parseDate(dbOrder.foam_pending_collection_at) : null,
     foamPendingFoamingAt: dbOrder.foam_pending_foaming_at ? parseDate(dbOrder.foam_pending_foaming_at) : null,
