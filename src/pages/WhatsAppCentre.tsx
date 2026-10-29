@@ -14,6 +14,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import WhatsAppWebhooks from "@/components/whatsapp/WhatsAppWebhooks";
 import { Plus, RefreshCw, Trash2 } from "lucide-react";
 
 interface Tpl { id: string | null; name: string; language: string; category: string; status: string; components: any[] }
@@ -89,6 +91,12 @@ export default function WhatsAppCentre() {
       <div className="container mx-auto p-4 space-y-4 max-w-5xl">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h1 className="text-2xl font-bold">WhatsApp Centre</h1>
+        </div>
+        <Tabs defaultValue="templates">
+          <TabsList><TabsTrigger value="templates">Templates</TabsTrigger><TabsTrigger value="webhooks">Webhooks</TabsTrigger></TabsList>
+          <TabsContent value="webhooks"><WhatsAppWebhooks /></TabsContent>
+          <TabsContent value="templates" className="space-y-4">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           <div className="flex gap-2">
             <Button variant="outline" onClick={load} disabled={loading}><RefreshCw className="h-4 w-4 mr-1" />Refresh</Button>
             <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" />New template</Button>
@@ -125,6 +133,8 @@ export default function WhatsAppCentre() {
             })}
           </div>
         )}
+          </TabsContent>
+        </Tabs>
       </div>
 
       <Dialog open={open} onOpenChange={setOpen}>
