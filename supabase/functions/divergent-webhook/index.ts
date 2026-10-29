@@ -80,11 +80,12 @@ if (import.meta.main) Deno.serve(async (req) => {
     console.log("divergent-webhook event:", evt?.type);
 
     if (evt.type === "sms.delivered" || evt.type === "sms.failed") {
-      await admin.from("sms_messages").update({
+      const { error: smsError } = await admin.from("sms_messages").update({
         status: evt.type === "sms.delivered" ? "delivered" : "failed",
         error: evt.type === "sms.failed" ? String(data?.failure?.reason || data?.statusReason || "failed").slice(0, 300) : null,
         updated_at: new Date().toISOString(),
       }).eq("provider_id", String(data.id));
+      if (smsError) throw smsError;
     } else if (evt.type === "sms.received") {
       const from = String(data.sender || data.from || data.originator || "").replace(/[^\d+]/g, "");
       const text = String(data.content || data.text || "");
@@ -106,7 +107,8 @@ if (import.meta.main) Deno.serve(async (req) => {
         if (error) throw error;
         conv = { id: created.id, linked_order_id: null, auto_link_locked: false } as any;
       }
-      await admin.from("cs_messages").insert({ conversation_id: conv!.id, direction: "in", body_text: text, external_id: data.id ? String(data.id) : null, status: "received" });
+      const { error: messageError } = await admin.from("cs_messages").insert({ conversation_id: conv!.id, direction: "in", body_text: text, external_id: data.id ? String(data.id) : null, status: "received" });
+      if (messageError) throw messageError;
       if (!conv!.auto_link_locked) {
         const link = await resolveOrderLink(admin, { channel: "whatsapp", handle, body: text });
         await admin.from("cs_conversations").update({

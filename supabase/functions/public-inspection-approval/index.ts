@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import { corsHeaders } from "../_shared/cors.ts";
+import { regenerateInspectionReport } from "../_shared/inspectionReport.ts";
 import { captureException, initSentry, startSpan } from "../_shared/sentry.ts";
 
 initSentry("public-inspection-approval");
@@ -38,6 +39,10 @@ serve(async (req) => {
           p_service_decision: serviceDecision,
         });
         if (error) throw error;
+        if ((data as any)?.success) {
+          try { await regenerateInspectionReport(admin, inspectionId); }
+          catch { console.error("inspection report refresh failed"); }
+        }
         return json(data ?? { success: false });
       }
 

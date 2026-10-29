@@ -46,10 +46,12 @@ serve(async (req) => {
     // Staff may regenerate at any stage; anyone else only once the inspection
     // has been released to the customer (the report is customer-facing then).
     let isStaff = false;
+    let userId: string | null = null;
     const authHeader = req.headers.get("Authorization");
     if (authHeader?.startsWith("Bearer ")) {
       const { data: { user } } = await admin.auth.getUser(authHeader.replace("Bearer ", ""));
       if (user) {
+        userId = user.id;
         const { data: staff } = await admin.rpc("is_internal_staff", { _user_id: user.id });
         isStaff = staff === true;
       }
@@ -58,10 +60,11 @@ serve(async (req) => {
     if (!isStaff) {
       const { data: insp } = await admin
         .from("bicycle_inspections")
-        .select("released_to_customer_at")
+        .select("released_to_customer_at, orders!inner(user_id)")
         .eq("id", resolvedId)
         .maybeSingle();
-      if (!insp?.released_to_customer_at) return json({ error: "Forbidden" }, 403);
+      const ownerId = (insp as any)?.orders?.user_id;
+      if (!userId || !insp?.released_to_customer_at || ownerId !== userId) return json({ error: "Forbidden" }, 403);
     }
 
     const { url } = await regenerateInspectionReport(admin, resolvedId);
