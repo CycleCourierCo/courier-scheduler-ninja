@@ -57,6 +57,20 @@ export default function WhatsAppCentre() {
   };
   useEffect(() => { load(); }, []);
 
+  const [seeding, setSeeding] = useState(false);
+  const seed = async () => {
+    setSeeding(true);
+    try {
+      const { results = [] } = await call({ action: "seed_cs" });
+      const ok = results.filter((r: any) => r.ok).length;
+      const failed = results.filter((r: any) => !r.ok);
+      if (ok) toast.success(`${ok} template${ok === 1 ? "" : "s"} submitted for approval`);
+      failed.forEach((r: any) => toast.error(`${r.name}: ${/exist/i.test(r.error || "") ? "already exists" : (r.error || "rejected")}`));
+      await load();
+    } catch (e: any) { toast.error(e.message); }
+    finally { setSeeding(false); }
+  };
+
   const shown = useMemo(() => items.filter((t) => t.name.toLowerCase().includes(q.toLowerCase())), [items, q]);
   const nVars = varCount(form.body);
 
@@ -99,6 +113,7 @@ export default function WhatsAppCentre() {
         <div className="flex flex-wrap items-center justify-end gap-2">
           <div className="flex gap-2">
             <Button variant="outline" onClick={load} disabled={loading}><RefreshCw className="h-4 w-4 mr-1" />Refresh</Button>
+            <Button variant="outline" disabled={seeding} onClick={seed}>{seeding ? "Adding…" : "Add standard CS templates"}</Button>
             <Button onClick={() => setOpen(true)}><Plus className="h-4 w-4 mr-1" />New template</Button>
           </div>
         </div>
