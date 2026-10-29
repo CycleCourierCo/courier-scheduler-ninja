@@ -22,8 +22,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { CITY_AIR_EXPRESS } from "@/constants/depot";
-import { ferryRegionOfAddress, ferryRegionOf, FERRY_REGION_LABEL } from "@/utils/northernIreland";
+import { ferryRegionOfAddress, ferryRegionOf, FERRY_REGION_LABEL, ferrySurchargeFor } from "@/utils/northernIreland";
 import { ferryPartnerFor } from "@/constants/depot";
 import { getNiDirection } from "@/utils/niDelivery";
 import { createShipdayOrder } from "@/services/shipdayService";
@@ -89,7 +88,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
       );
       if (mailError) throw mailError;
       setFerryNotifiedAt((data as any)?.notifiedAt || new Date().toISOString());
-      toast.success(`Collection day saved and emailed to ${CITY_AIR_EXPRESS.email}`);
+      toast.success(`Collection day saved and emailed to ${partner.email}`);
       onUpdate();
     } catch (e: any) {
       console.error("Collection day save failed", e);
@@ -125,7 +124,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
       });
       if (error) throw error;
       setFerryNotifiedAt((data as any)?.notifiedAt || new Date().toISOString());
-      toast.success(`Booking email sent to ${CITY_AIR_EXPRESS.email}`);
+      toast.success(`Booking email sent to ${partner.email}`);
       onUpdate();
     } catch (e: any) {
       console.error("Ferry partner email resend failed", e);
@@ -238,7 +237,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
   const foamStatus = ((order as any).foamStatus ?? (order as any).foam_status) as FoamStatus | null;
   const receiverAddress = order.receiver?.address;
   const senderAddress = order.sender?.address;
-  // Which end of the journey is in Northern Ireland decides the whole flow:
+  // Which end of the journey is in ${regionLabel} decides the whole flow:
   // outbound = we hand the bike over at the ferry, inbound = we collect it there.
   const storedDirection = getNiDirection(order);
   const looksOutbound = ferryRegionOfAddress(receiverAddress as any) !== null;
@@ -327,7 +326,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
       }
       if (Boolean((updated as any).is_northern_ireland) !== markAsNI) {
         throw new Error(
-          "The Northern Ireland flag did not save correctly. Shipday was left untouched — please retry."
+          `The ${regionLabel} flag did not save correctly. Shipday was left untouched — please retry.`
         );
       }
       flagged = true;
@@ -338,9 +337,9 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
       toast.success(
         markAsNI
           ? (isInbound
-            ? "Marked as an inbound Northern Ireland order — collection re-routed to the ferry hand-off"
-            : "Marked as a Northern Ireland delivery and re-routed to the ferry hand-off")
-          : `Northern Ireland flag removed and ${ferryLeg === "pickup" ? "collection" : "delivery"} restored to the customer address`
+            ? `Marked as an inbound ${regionLabel} order — collection re-routed to the ferry hand-off`
+            : `Marked as a ${regionLabel} delivery and re-routed to the ferry hand-off`)
+          : `${regionLabel} flag removed and ${ferryLeg === "pickup" ? "collection" : "delivery"} restored to the customer address`
       );
       onUpdate();
     } catch (e: any) {
@@ -351,7 +350,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
         );
         onUpdate();
       } else {
-        toast.error(e?.message || "Could not update the Northern Ireland flag");
+        toast.error(e?.message || `Could not update the ${regionLabel} flag`);
       }
     } finally {
       setWorking(false);
@@ -366,7 +365,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
       {!bare && (
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Ship className="h-4 w-4" /> Northern Ireland {isInbound ? "collection" : "delivery"}
+            <Ship className="h-4 w-4` /> ${regionLabel} {isInbound ? `collection" : "delivery"}
           </CardTitle>
         </CardHeader>
       )}
@@ -375,7 +374,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
           <div className="space-y-2 text-sm">
             <div className="flex flex-wrap items-center gap-2">
               <Badge className="bg-emerald-600 hover:bg-emerald-600">
-                {isInbound ? "Northern Ireland collection (inbound)" : "Northern Ireland delivery"}
+                {isInbound ? `${regionLabel} collection (inbound)` : `${regionLabel} delivery`}
               </Badge>
               {foamStatus && (
                 <Badge variant="outline">{FOAM_STATUS_LABELS[foamStatus] || foamStatus}</Badge>
@@ -383,8 +382,8 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
             </div>
             <p className="text-muted-foreground">
               {isInbound
-                ? `The ferry partner collects in Northern Ireland and we collect from the ferry port, ${CITY_AIR_EXPRESS.formatted}. No foaming is needed — the bike arrives packed.`
-                : `Delivery is handed over at the ferry port, ${CITY_AIR_EXPRESS.formatted}.`}{" "}
+                ? `The ferry partner collects in ${regionLabel} and we collect from the ferry port, ${partner.formatted}. No foaming is needed — the bike arrives packed.`
+                : `Delivery is handed over at the ferry port, ${partner.formatted}.`}{" "}
               A £120 per-bike surcharge applies at invoicing.
             </p>
             <div className="space-y-1">
@@ -403,14 +402,14 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
               </Button>
               <p className="text-xs text-muted-foreground">
                 {ferryNotifiedAt
-                  ? `Last sent ${new Date(ferryNotifiedAt).toLocaleString("en-GB")} to ${CITY_AIR_EXPRESS.email}`
-                  : `Not recorded as sent yet — sends the booking details to ${CITY_AIR_EXPRESS.email}`}
+                  ? `Last sent ${new Date(ferryNotifiedAt).toLocaleString("en-GB")} to ${partner.email}`
+                  : `Not recorded as sent yet — sends the booking details to ${partner.email}`}
               </p>
             </div>
             {isInbound && (
               <div className="rounded border bg-muted/30 p-3 space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">Collection day in Northern Ireland</span>
+                  <span className="font-medium">Collection day in ${regionLabel}</span>
                   <Button
                     type="button"
                     variant="ghost"
@@ -429,7 +428,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
                   )}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  Monday to Friday only. Saving emails {CITY_AIR_EXPRESS.email} with the day.
+                  Monday to Friday only. Saving emails {partner.email} with the day.
                 </p>
                 <CollectionDayDialog
                   open={dayDialogOpen}
@@ -525,10 +524,10 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
 
         ) : (
           <p className="text-sm text-muted-foreground">
-            This order is not flagged as a Northern Ireland order.
+            This order is not flagged as a ${regionLabel} order.
             {looksNI && (
               <span className="block mt-1 text-status-waiting font-medium">
-                The {looksInbound ? "collection" : "delivery"} address looks like Northern Ireland.
+                The {looksInbound ? "collection" : "delivery"} address looks like ${regionLabel}.
               </span>
             )}
           </p>
@@ -536,7 +535,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
 
         {blocked ? (
           <p className="text-sm text-muted-foreground">
-            This order is {String(order.status).replace(/_/g, " ")} — the Northern Ireland flag can no
+            This order is {String(order.status).replace(/_/g, " ")} — the {regionLabel} flag can no
             longer be changed.
           </p>
         ) : (
@@ -545,16 +544,16 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
               <Button variant={isNI ? "outline" : "default"} size="sm" disabled={working}>
                 {working && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
                 {isNI
-                  ? "Unmark Northern Ireland order"
-                  : `Mark as Northern Ireland ${isInbound ? "collection" : "delivery"}`}
+                  ? `Unmark ${regionLabel} order`
+                  : `Mark as ${regionLabel} ${isInbound ? "collection" : "delivery"}`}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>
                   {isNI
-                    ? "Remove the Northern Ireland flag?"
-                    : `Mark as a Northern Ireland ${isInbound ? "collection" : "delivery"}?`}
+                    ? `Remove the ${regionLabel} flag?`
+                    : `Mark as a ${regionLabel} ${isInbound ? "collection" : "delivery"}?`}
                 </AlertDialogTitle>
                 <AlertDialogDescription asChild>
                   <div className="space-y-2 text-sm">
@@ -567,13 +566,13 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
                     ) : isInbound ? (
                       <p>
                         The Shipday collection job is re-created against the ferry hand-off point in
-                        Manchester (the ferry partner collects in Northern Ireland), and a £120
+                        {partner.address.city} (the ferry partner collects in ${regionLabel}), and a £{ferrySurchargeFor(ferryRegion)}
                         per-bike surcharge applies to future invoicing. No foaming step is added.
                       </p>
                     ) : (
                       <p>
                         The bike enters the Foam My Bike pipeline at “Pending collection”, the Shipday
-                        delivery job is re-created to the ferry hand-off point in Manchester, and a £120
+                        delivery job is re-created to the ferry hand-off point in {partner.address.city}, and a £{ferrySurchargeFor(ferryRegion)}
                         per-bike surcharge applies to future invoicing.
                       </p>
                     )}
@@ -600,7 +599,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
                     applyChange(!isNI);
                   }}
                 >
-                  {isNI ? "Unmark" : "Mark as Northern Ireland"}
+                  {isNI ? "Unmark" : `Mark as ${regionLabel}`}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
