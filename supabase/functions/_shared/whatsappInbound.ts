@@ -103,7 +103,13 @@ const STATUS_MAP: Record<string, WaStatusUpdate['status']> = {
   sent: 'sent', delivered: 'delivered', read: 'read', failed: 'failed', undelivered: 'failed',
 };
 
-export function parseWhatsAppWebhook(body: any): { messages: InboundWaMessage[]; statuses: WaStatusUpdate[] } {
+export interface WaEcho extends Omit<InboundWaMessage, 'from' | 'name'> {
+  /** Customer number the business messaged from the WhatsApp Business phone app. */
+  to: string;
+}
+
+export function parseWhatsAppWebhook(body: any): { messages: InboundWaMessage[]; statuses: WaStatusUpdate[]; echoes: WaEcho[] } {
+  const echoes: WaEcho[] = [];
   const messages: InboundWaMessage[] = [];
   const statuses: WaStatusUpdate[] = [];
   const values: any[] = [];
@@ -111,8 +117,8 @@ export function parseWhatsAppWebhook(body: any): { messages: InboundWaMessage[];
     for (const c of Array.isArray(e?.changes) ? e.changes : []) if (c?.value) values.push(c.value);
   }
   if (body?.value) values.push(body.value);
-  if (body?.data && (body.data.messages || body.data.statuses || body.data.calls)) values.push(body.data);
-  if (body?.messages || body?.statuses || body?.calls) values.push(body);
+  if (body?.data && (body.data.messages || body.data.statuses || body.data.calls || body.data.message_echoes)) values.push(body.data);
+  if (body?.messages || body?.statuses || body?.calls || body?.message_echoes) values.push(body);
 
   for (const v of values) {
     const names: Record<string, string> = {};
@@ -123,6 +129,11 @@ export function parseWhatsAppWebhook(body: any): { messages: InboundWaMessage[];
       const d = describe(m);
       if (!m?.from || !d.text) continue;
       messages.push({ from: String(m.from), name: names[m.from] || null, externalId: m.id || null, ...d });
+    }
+    for (const m of Array.isArray(v.message_echoes) ? v.message_echoes : []) {
+      const d = describe(m);
+      if (!m?.to || !d.text) continue;
+      echoes.push({ to: String(m.to), externalId: m.id || null, ...d });
     }
     for (const c of Array.isArray(v.calls) ? v.calls : []) {
       const call = describeCall(c);
@@ -150,7 +161,7 @@ export function parseWhatsAppWebhook(body: any): { messages: InboundWaMessage[];
       });
     }
   }
-  return { messages, statuses };
+  return { messages, statuses, echoes };
 }
 
 export function normaliseWaHandle(from: string): string {
