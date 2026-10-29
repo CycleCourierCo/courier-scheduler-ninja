@@ -2657,6 +2657,7 @@ export type Database = {
           correction_reason: string | null
           created_at: string
           created_by: string | null
+          expected_checklist: Json | null
           finalised_at: string | null
           finalised_by: string | null
           id: string
@@ -2677,6 +2678,7 @@ export type Database = {
           correction_reason?: string | null
           created_at?: string
           created_by?: string | null
+          expected_checklist?: Json | null
           finalised_at?: string | null
           finalised_by?: string | null
           id?: string
@@ -2697,6 +2699,7 @@ export type Database = {
           correction_reason?: string | null
           created_at?: string
           created_by?: string | null
+          expected_checklist?: Json | null
           finalised_at?: string | null
           finalised_by?: string | null
           id?: string
@@ -8247,6 +8250,10 @@ export type Database = {
       disablelongtransactions: { Args: never; Returns: string }
       driver_can_prove_order: {
         Args: { _captured: string; _order_id: string }
+        Returns: boolean
+      }
+      driver_can_upload_proof_file: {
+        Args: { _name: string }
         Returns: boolean
       }
       driver_start_route: { Args: { p_assignment_id: string }; Returns: string }
