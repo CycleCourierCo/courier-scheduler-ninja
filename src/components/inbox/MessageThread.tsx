@@ -111,7 +111,7 @@ const MessageThread: React.FC<Props> = ({ messages }) => {
               <MessageAttachments messageId={m.id} attachments={m.attachments as any} />
             )}
             <div className="mt-1 flex items-center justify-between gap-2 text-[10px] opacity-70">
-              <span>{format(new Date(m.created_at), 'PP p')}</span>
+              <span>{format(new Date(m.created_at), 'PP p')}{(m as any).sent_via === 'phone' ? ' · Sent from phone' : ''}</span>
               <span className="flex items-center gap-1">
                 {m.status === 'failed' && (
                   <span className="flex items-center gap-1">

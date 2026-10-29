@@ -62,3 +62,14 @@ describe('WhatsApp media and calls', () => {
     expect(waMediaSizeError('application/pdf', 50 * 1024 * 1024)).toBeNull();
   });
 });
+
+describe('message echoes', () => {
+  it('reads replies sent from the WhatsApp Business phone app', async () => {
+    const { parseWhatsAppWebhook } = await import('../../supabase/functions/_shared/whatsappInbound');
+    const r = parseWhatsAppWebhook({ entry: [{ changes: [{ field: 'smb_message_echoes', value: {
+      message_echoes: [{ from: '447000000000', to: '447424750206', id: 'wamid.E1', type: 'text', text: { body: 'On our way' } }],
+    } }] }] });
+    expect(r.echoes).toEqual([expect.objectContaining({ to: '447424750206', externalId: 'wamid.E1', text: 'On our way' })]);
+    expect(r.messages).toHaveLength(0);
+  });
+});

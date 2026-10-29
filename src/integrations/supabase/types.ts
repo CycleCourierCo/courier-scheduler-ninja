@@ -1336,6 +1336,7 @@ export type Database = {
           in_reply_to: string | null
           is_automatic: boolean
           provider_message_id: string | null
+          sent_via: string | null
           status: string
           system_event: string | null
         }
@@ -1356,6 +1357,7 @@ export type Database = {
           in_reply_to?: string | null
           is_automatic?: boolean
           provider_message_id?: string | null
+          sent_via?: string | null
           status?: string
           system_event?: string | null
         }
@@ -1376,6 +1378,7 @@ export type Database = {
           in_reply_to?: string | null
           is_automatic?: boolean
           provider_message_id?: string | null
+          sent_via?: string | null
           status?: string
           system_event?: string | null
         }

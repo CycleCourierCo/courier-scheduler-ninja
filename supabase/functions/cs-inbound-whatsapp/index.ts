@@ -52,7 +52,7 @@ serve(async (req) => {
 
     let body: any;
     try { body = JSON.parse(raw); } catch { return json({ error: 'invalid json' }, 400); }
-    const { messages, statuses } = parseWhatsAppWebhook(body);
+    const { messages, statuses, echoes } = parseWhatsAppWebhook(body);
 
     const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
 
@@ -71,6 +71,49 @@ serve(async (req) => {
         ...(s.status === 'failed' && s.error ? { error: s.error.slice(0, 500) } : {}),
       }).eq('id', msg.id);
       statusUpdated++;
+    }
+
+    // Replies typed on the WhatsApp Business phone app (message echoes): file under the customer's chat.
+    let echoed = 0;
+    for (const e of echoes) {
+      if (e.externalId) {
+        const { data: dup } = await supabase.from('cs_messages').select('id')
+          .or(`external_id.eq.${e.externalId},provider_message_id.eq.${e.externalId}`).limit(1).maybeSingle();
+        if (dup) continue;
+      }
+      const handle = normaliseWaHandle(e.to);
+      const { data: contactRow, error: contactErr } = await supabase.from('cs_contacts')
+        .upsert({ channel: 'whatsapp', handle }, { onConflict: 'channel,handle' }).select().single();
+      if (contactErr) throw contactErr;
+      const now = new Date().toISOString();
+      let { data: conv } = await supabase.from('cs_conversations').select('id')
+        .eq('contact_id', contactRow.id).eq('channel', 'whatsapp')
+        .order('last_message_at', { ascending: false }).limit(1).maybeSingle();
+      if (!conv?.id) {
+        const { data: created, error: cErr } = await supabase.from('cs_conversations').insert({
+          channel: 'whatsapp', contact_id: contactRow.id, status: 'pending',
+          last_message_at: now, last_message_preview: e.text.slice(0, 140), unread_count: 0,
+        }).select('id').single();
+        if (cErr) throw cErr;
+        conv = created;
+      } else {
+        await supabase.from('cs_conversations').update({ last_message_at: now, last_message_preview: e.text.slice(0, 140) }).eq('id', conv.id);
+      }
+      let attachments: any[] | undefined;
+      if (e.attachment) {
+        const pid = findPhoneNumberId(body);
+        const withPid = { ...e.attachment, ...(pid ? { phone_number_id: pid } : {}) };
+        const stored = await downloadWhatsAppMedia(supabase, conv!.id, withPid);
+        attachments = [stored ? { ...withPid, url: stored.url, path: stored.path, size: stored.size }
+          : { ...withPid, download_failed: true }];
+      }
+      const { error: mErr } = await supabase.from('cs_messages').insert({
+        conversation_id: conv!.id, direction: 'out', body_text: e.text, external_id: e.externalId,
+        provider_message_id: e.externalId, status: 'sent', delivery_status: 'sent', sent_via: 'phone',
+        ...(attachments ? { attachments } : {}),
+      });
+      if (mErr) throw mErr;
+      echoed++;
     }
 
     const saved: string[] = [];
@@ -149,7 +192,7 @@ serve(async (req) => {
       }
     }
 
-    return json({ ok: true, saved: saved.length, statuses: statusUpdated });
+    return json({ ok: true, saved: saved.length, echoed, statuses: statusUpdated });
   } catch (e: any) {
     console.error('cs-inbound-whatsapp error:', e?.message);
     return json({ error: 'failed' }, 500);
