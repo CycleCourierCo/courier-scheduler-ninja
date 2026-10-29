@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { corsHeaders } from '../_shared/cors.ts'
-import { CITY_AIR_EXPRESS } from '../_shared/northernIreland.ts'
+import { ferryPartnerFor } from '../_shared/northernIreland.ts'
 import { sanitizeFileName } from '../_shared/sanitizeFileName.ts'
 
 const MAX_BYTES = 10 * 1024 * 1024
