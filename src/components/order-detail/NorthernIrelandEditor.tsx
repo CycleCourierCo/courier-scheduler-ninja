@@ -23,7 +23,8 @@ import {
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { CITY_AIR_EXPRESS } from "@/constants/depot";
-import { isNorthernIrelandAddress } from "@/utils/northernIreland";
+import { ferryRegionOfAddress, ferryRegionOf, FERRY_REGION_LABEL } from "@/utils/northernIreland";
+import { ferryPartnerFor } from "@/constants/depot";
 import { getNiDirection } from "@/utils/niDelivery";
 import { createShipdayOrder } from "@/services/shipdayService";
 import { FOAM_STATUS_LABELS, FoamStatus, Order } from "@/types/order";
@@ -240,8 +241,12 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
   // Which end of the journey is in Northern Ireland decides the whole flow:
   // outbound = we hand the bike over at the ferry, inbound = we collect it there.
   const storedDirection = getNiDirection(order);
-  const looksOutbound = isNorthernIrelandAddress(receiverAddress as any);
-  const looksInbound = !looksOutbound && isNorthernIrelandAddress(senderAddress as any);
+  const looksOutbound = ferryRegionOfAddress(receiverAddress as any) !== null;
+  const looksInbound = !looksOutbound && ferryRegionOfAddress(senderAddress as any) !== null;
+  const ferryRegion = (isNI ? ferryRegionOf(order) : null) ??
+    (ferryRegionOfAddress(receiverAddress as any) || ferryRegionOfAddress(senderAddress as any) || "northern_ireland");
+  const regionLabel = FERRY_REGION_LABEL[ferryRegion];
+  const partner = ferryPartnerFor(ferryRegion);
   const direction: "outbound" | "inbound" =
     (isNI ? storedDirection : null) ?? (looksInbound ? "inbound" : "outbound");
   const isInbound = direction === "inbound";
@@ -288,7 +293,8 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
         ? {
             is_northern_ireland: true,
             ni_direction: direction,
-            destination_region: isInbound ? null : "Northern Ireland",
+            ferry_region: ferryRegion,
+            destination_region: isInbound ? null : regionLabel,
             // Inbound bikes arrive already packed, so they skip the foam pipeline.
             foam_status: isInbound ? null : "pending_collection",
             foam_pending_collection_at: isInbound ? null : now,
