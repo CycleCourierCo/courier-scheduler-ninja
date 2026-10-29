@@ -124,7 +124,7 @@ async function uploadProof(p: QueuedProof, driverId: string) {
 }
 
 /** Saves the proof on the phone first, then tries to upload everything waiting. */
-export async function saveProof(p: QueuedProof, driverId: string) {
+export async function saveProof(p: Omit<QueuedProof, "driverId">, driverId: string) {
   await withQueueLock(async () => {
     const q = await readQueue();
     const same = q.find((x) => x.id === p.id);
