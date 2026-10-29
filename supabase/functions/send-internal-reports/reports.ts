@@ -99,10 +99,10 @@ const STAGE_LABELS: Record<string, string> = {
   box_boxed: "Box My Bike — boxed",
   box_awaiting_3p: "Box My Bike — awaiting courier",
   box_collected_3p: "Box My Bike — collected by courier",
-  foam_pending_collection: "Northern Ireland — arranging collection",
-  foam_pending_foaming: "Northern Ireland — at depot",
-  foam_ready: "Northern Ireland — foamed and ready",
-  foam_at_ferry: "Northern Ireland — at ferry port",
+  foam_pending_collection: "Ferry (NI / IoM) — arranging collection",
+  foam_pending_foaming: "Ferry (NI / IoM) — at depot",
+  foam_ready: "Ferry (NI / IoM) — foamed and ready",
+  foam_at_ferry: "Ferry (NI / IoM) — at ferry port",
 };
 
 export const buildCustomerUpdateReport = async (admin: any, date: string) => {

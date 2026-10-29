@@ -323,6 +323,7 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
         open={!!dayEditing}
         onOpenChange={(o) => !o && setDayEditing(null)}
         initial={dayEditing?.pickup_date || null}
+        ferryRegion={dayEditing ? ferryRegionOf(dayEditing) : null}
         saving={setCollectionDay.isPending}
         onConfirm={(day) => {
           if (!dayEditing) return;
