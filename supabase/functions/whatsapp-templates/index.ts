@@ -72,6 +72,65 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
+    // ---- Webhooks ----
+    const WH = "https://api.sendzen.io/v1/webhook/config";
+    const EVENTS = ["Incoming message", "Delivery status", "Account status", "Template status"];
+    const mask = (w: any) => ({ ...w, secret: undefined, has_secret: !!w?.secret });
+    const idOk = (v: unknown) => typeof v === "string" && /^[0-9A-Za-z_-]{1,100}$/.test(v);
+    const validWh = (b: any, partial: boolean) => {
+      const out: Record<string, unknown> = {};
+      if (!partial || b.webhook_name !== undefined) {
+        if (typeof b.webhook_name !== "string" || !b.webhook_name.trim() || b.webhook_name.length > 100) return null;
+        out.webhook_name = b.webhook_name.trim();
+      }
+      if (!partial || b.url !== undefined) {
+        try { const u = new URL(b.url); if (!["http:", "https:"].includes(u.protocol)) return null; } catch { return null; }
+        out.url = b.url;
+      }
+      if (b.timeout !== undefined) { const t = Number(b.timeout); if (!Number.isInteger(t) || t < 1 || t > 60) return null; out.timeout = t; }
+      if (b.is_active !== undefined) out.is_active = !!b.is_active;
+      if (b.subscribed_events !== undefined) {
+        if (!Array.isArray(b.subscribed_events) || b.subscribed_events.some((e: any) => !EVENTS.includes(e))) return null;
+        out.subscribed_events = b.subscribed_events;
+      }
+      if (typeof b.secret === "string" && b.secret.length) { if (b.secret.length > 256) return null; out.secret = b.secret; }
+      return out;
+    };
+    const relay = async (r: Response) => {
+      const text = await r.text();
+      if (!r.ok) return json({ error: "SendZen webhook request failed", status: r.status, details: text.slice(0, 500) }, 400);
+      try { return JSON.parse(text); } catch { return text; }
+    };
+
+    if (action === "wh_list") {
+      const r = await fetch(WH, { headers });
+      const d = await relay(r);
+      if (d instanceof Response) return d;
+      const rows = Array.isArray(d) ? d : d?.data ?? [];
+      return json({ webhooks: (Array.isArray(rows) ? rows : []).map(mask), waba_id: WABA });
+    }
+    if (action === "wh_create") {
+      const v = validWh(body, false);
+      const pid = Number(body.project_id);
+      if (!v || !Number.isInteger(pid) || pid <= 0) return json({ error: "Check the name, URL, project ID and events" }, 400);
+      const r = await fetch(WH, { method: "POST", headers, body: JSON.stringify({ ...v, project_id: pid, waba_id: Number(WABA) }) });
+      const d = await relay(r);
+      return d instanceof Response ? d : json({ ok: true });
+    }
+    if (action === "wh_update") {
+      const v = validWh(body, true);
+      if (!idOk(body.id) || !v) return json({ error: "Invalid webhook details" }, 400);
+      const r = await fetch(`${WH}/${encodeURIComponent(body.id)}`, { method: "PUT", headers, body: JSON.stringify(v) });
+      const d = await relay(r);
+      return d instanceof Response ? d : json({ ok: true });
+    }
+    if (action === "wh_delete") {
+      if (!idOk(body.id)) return json({ error: "Invalid webhook" }, 400);
+      const r = await fetch(`${WH}/${encodeURIComponent(body.id)}`, { method: "DELETE", headers });
+      const d = await relay(r);
+      return d instanceof Response ? d : json({ ok: true });
+    }
+
     return json({ error: "Unknown action" }, 400);
   } catch (e) {
     console.error("whatsapp-templates error", e instanceof Error ? e.message : "unknown");
