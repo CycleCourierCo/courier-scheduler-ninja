@@ -16,6 +16,7 @@ interface NiOrder {
   id: string;
   tracking_number: string | null;
   status: string;
+  ferry_region: string | null;
   order_collected: boolean | null;
   sender_confirmed_at: string | null;
   bikes: any;
@@ -36,7 +37,7 @@ const loadNiOrders = async (): Promise<NiOrder[]> => {
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase
       .from("orders")
-      .select("id,tracking_number,status,order_collected,sender_confirmed_at,bikes,bike_brand,bike_model,sender,receiver")
+      .select("id,tracking_number,status,ferry_region,order_collected,sender_confirmed_at,bikes,bike_brand,bike_model,sender,receiver")
       .eq("is_northern_ireland", true)
       .not("status", "in", `(${FINISHED.join(",")})`)
       .order("created_at", { ascending: true })
@@ -59,7 +60,10 @@ const OrderList: React.FC<{ title: string; orders: NiOrder[]; side: "sender" | "
       {orders.length === 0 && <p className="text-sm text-muted-foreground">None right now.</p>}
       {orders.map((o) => (
         <div key={o.id} className="rounded border p-2 text-sm">
-          <div className="font-medium">{o.tracking_number || "—"}</div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="font-medium">{o.tracking_number || "—"}</span>
+            {o.ferry_region === "isle_of_man" && <Badge>Isle of Man</Badge>}
+          </div>
           <div className="text-muted-foreground">
             {bikeOf(o)} · {o[side]?.address?.city || "—"}
           </div>
@@ -98,7 +102,7 @@ const IrelandPage: React.FC = () => {
         <Tabs value={section} onValueChange={(v) => setSection(v as typeof section)} className="mb-6">
           <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="foam">Foam My Bike (NI / IoM)</TabsTrigger>
-            <TabsTrigger value="inbound-ni">Inbound NI</TabsTrigger>
+            <TabsTrigger value="inbound-ni">Inbound (NI / IoM)</TabsTrigger>
             {isStaff && <TabsTrigger value="trunk">Trunk runs</TabsTrigger>}
           </TabsList>
         </Tabs>
