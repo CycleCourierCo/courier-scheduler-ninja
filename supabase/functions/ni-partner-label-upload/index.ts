@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
     // The private partner key (not the public tracking id) authorises this write.
     const { data: order, error: orderError } = await admin
       .from('orders')
-      .select('id, is_northern_ireland, ni_bfs_number, ni_partner_label_url')
+      .select('id, is_northern_ireland, ferry_region, sender, receiver, ni_bfs_number, ni_partner_label_url')
       .eq('id', orderId)
       .eq('ni_partner_token', partnerKey)
       .maybeSingle()
@@ -68,7 +68,7 @@ Deno.serve(async (req) => {
       return json({ error: 'Order not found' }, 404)
     }
     if (!order.is_northern_ireland) {
-      return json({ error: 'This order is not a Northern Ireland order' }, 400)
+      return json({ error: 'This order is not a ferry (Northern Ireland or Isle of Man) order' }, 400)
     }
 
     let savedLabelUrl: string | null = null
@@ -131,7 +131,8 @@ Deno.serve(async (req) => {
       success: true,
       bfsNumber: submitBfs || order.ni_bfs_number,
       labelUrl: submitLabel || order.ni_partner_label_url,
-      cityAirExpressEmail: CITY_AIR_EXPRESS.email,
+      cityAirExpressEmail: ferryPartnerFor(order).email,
+      partnerName: ferryPartnerFor(order).name,
     })
   } catch (e) {
     console.error('ni-partner-label-upload failed:', (e as Error)?.message)

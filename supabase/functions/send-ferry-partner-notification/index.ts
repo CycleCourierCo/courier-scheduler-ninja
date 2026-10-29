@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
     const { data: order, error } = await admin
       .from('orders')
       .select(
-        'id, sender, receiver, tracking_number, bike_brand, bike_model, bike_quantity, is_northern_ireland, ni_direction, ferry_partner_notified_at, pickup_date, sender_notes, ni_partner_token'
+        'id, sender, receiver, tracking_number, bike_brand, bike_model, bike_quantity, is_northern_ireland, ferry_region, ni_direction, ferry_partner_notified_at, pickup_date, sender_notes, ni_partner_token'
       )
       .eq('id', orderId)
       .maybeSingle()
@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
     if (error) return json({ error: 'Could not load the order' }, 500)
     if (!order) return json({ error: 'Order not found' }, 404)
     if (!order.is_northern_ireland) {
-      return json({ error: 'This order is not flagged as a Northern Ireland order' }, 400)
+      return json({ error: 'This order is not flagged as a ferry (Northern Ireland or Isle of Man) order' }, 400)
     }
 
     // One-time send unless explicitly forced (manual resend button).
