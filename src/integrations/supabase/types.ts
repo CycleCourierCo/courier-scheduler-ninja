@@ -1103,6 +1103,11 @@ export type Database = {
       }
       cs_canned_responses: {
         Row: {
+          auto_disabled_at: string | null
+          auto_disabled_notified_at: string | null
+          auto_disabled_reason: string | null
+          auto_send_mode: string
+          blocked_from_auto: boolean
           body: string
           category: string
           created_at: string
@@ -1115,6 +1120,11 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_disabled_at?: string | null
+          auto_disabled_notified_at?: string | null
+          auto_disabled_reason?: string | null
+          auto_send_mode?: string
+          blocked_from_auto?: boolean
           body: string
           category?: string
           created_at?: string
@@ -1127,6 +1137,11 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_disabled_at?: string | null
+          auto_disabled_notified_at?: string | null
+          auto_disabled_reason?: string | null
+          auto_send_mode?: string
+          blocked_from_auto?: boolean
           body?: string
           category?: string
           created_at?: string
@@ -1139,6 +1154,96 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      cs_canned_usage: {
+        Row: {
+          auto_sent: boolean
+          conversation_id: string
+          created_at: string
+          flagged_at: string | null
+          flagged_by: string | null
+          flagged_wrong: boolean
+          id: string
+          inbound_message_id: string | null
+          match_score: number
+          outcome: string
+          response_id: string
+          runner_up_score: number
+          sent_message_id: string | null
+          similarity: number | null
+          staff_id: string | null
+        }
+        Insert: {
+          auto_sent?: boolean
+          conversation_id: string
+          created_at?: string
+          flagged_at?: string | null
+          flagged_by?: string | null
+          flagged_wrong?: boolean
+          id?: string
+          inbound_message_id?: string | null
+          match_score?: number
+          outcome: string
+          response_id: string
+          runner_up_score?: number
+          sent_message_id?: string | null
+          similarity?: number | null
+          staff_id?: string | null
+        }
+        Update: {
+          auto_sent?: boolean
+          conversation_id?: string
+          created_at?: string
+          flagged_at?: string | null
+          flagged_by?: string | null
+          flagged_wrong?: boolean
+          id?: string
+          inbound_message_id?: string | null
+          match_score?: number
+          outcome?: string
+          response_id?: string
+          runner_up_score?: number
+          sent_message_id?: string | null
+          similarity?: number | null
+          staff_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cs_canned_usage_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "cs_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_canned_usage_inbound_message_id_fkey"
+            columns: ["inbound_message_id"]
+            isOneToOne: false
+            referencedRelation: "cs_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_canned_usage_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "cs_canned_responses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cs_canned_usage_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: false
+            referencedRelation: "cs_canned_stats"
+            referencedColumns: ["response_id"]
+          },
+          {
+            foreignKeyName: "cs_canned_usage_sent_message_id_fkey"
+            columns: ["sent_message_id"]
+            isOneToOne: false
+            referencedRelation: "cs_messages"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cs_channel_endpoints: {
         Row: {
@@ -7990,6 +8095,24 @@ export type Database = {
       }
     }
     Views: {
+      cs_canned_stats: {
+        Row: {
+          as_is: number | null
+          auto_sent: number | null
+          confidence: number | null
+          edited: number | null
+          flagged_wrong: number | null
+          replaced: number | null
+          response_id: string | null
+          rewritten: number | null
+          trial_agreed: number | null
+          trial_reviewed: number | null
+          trial_total: number | null
+          uses: number | null
+          window_uses: number | null
+        }
+        Relationships: []
+      }
       geography_columns: {
         Row: {
           coord_dimension: number | null
@@ -8259,6 +8382,14 @@ export type Database = {
       create_webhook_secret: {
         Args: { p_name: string; p_secret: string }
         Returns: string
+      }
+      cs_canned_confidence_of: {
+        Args: { p_id: string }
+        Returns: {
+          confidence: number
+          uses: number
+          window_uses: number
+        }[]
       }
       cs_pick_queue_assignee: { Args: { p_queue_id: string }; Returns: string }
       cs_update_order_bikes: {
