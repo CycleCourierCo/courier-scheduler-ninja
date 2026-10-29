@@ -88,6 +88,10 @@ const ConversationHeader: React.FC<Props> = ({ conversation, onDismiss }) => {
             {conversation.contact?.display_name || conversation.contact?.handle || 'Unknown'}
           </div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <span className={cn("rounded border px-1.5 text-[10px] font-medium",
+              conversation.channel === 'email' ? "border-primary text-primary" : "border-success text-success")}>
+              {conversation.channel === 'email' ? 'Email' : 'WhatsApp'}
+            </span>
             {conversation.ticket_ref && <span className="font-mono">{conversation.ticket_ref}</span>}
             {conversation.subject && <span className="truncate">{conversation.subject}</span>}
           </div>
