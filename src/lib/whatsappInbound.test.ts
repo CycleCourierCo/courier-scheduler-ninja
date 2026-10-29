@@ -7,7 +7,7 @@ describe('WhatsApp inbound parser', () => {
       contacts: [{ wa_id: '447700900123', profile: { name: 'Sam' } }],
       messages: [{ from: '447700900123', id: 'wamid.1', type: 'text', text: { body: 'Hi' } }],
     } }] }] });
-    expect(r.messages).toEqual([{ from: '447700900123', name: 'Sam', externalId: 'wamid.1', text: 'Hi', attachment: null }]);
+    expect(r.messages).toEqual([{ from: '447700900123', name: 'Sam', externalId: 'wamid.1', text: 'Hi', attachment: null, replyTo: null }]);
   });
   it('still reads the old flat shape', () => {
     expect(parseWhatsAppWebhook({ from: '447700900123', text: 'Hello', id: 'x' }).messages[0].text).toBe('Hello');
@@ -24,5 +24,41 @@ describe('WhatsApp inbound parser', () => {
   it('never moves a read reply back to delivered', () => {
     expect(nextDeliveryStatus('read', 'delivered')).toBe('read');
     expect(nextDeliveryStatus('sent', 'failed')).toBe('failed');
+  });
+});
+
+import { waMediaKindFor, waMediaSizeError } from '../../supabase/functions/_shared/whatsappMedia';
+
+describe('WhatsApp media and calls', () => {
+  it('keeps the media ID so the file can be downloaded', () => {
+    const r = parseWhatsAppWebhook({ messages: [{ from: '44', id: 'b', type: 'audio', audio: { id: 'MID1', mime_type: 'audio/ogg; codecs=opus', voice: true } }] });
+    expect(r.messages[0].text).toBe('[Voice note]');
+    expect(r.messages[0].attachment).toMatchObject({ media_id: 'MID1', content_type: 'audio/ogg', filename: 'voice-note.ogg' });
+  });
+  it('records a missed call once, on the final call event', () => {
+    const r = parseWhatsAppWebhook({ calls: [
+      { id: 'c1', from: '44', event: 'connect' },
+      { id: 'c1', from: '44', event: 'terminate', status: 'FAILED', duration: 0 },
+    ] });
+    expect(r.messages).toHaveLength(1);
+    expect(r.messages[0]).toMatchObject({ externalId: 'call:c1', text: '📞 Missed WhatsApp call', isCall: true });
+  });
+  it('shows answered call length', () => {
+    const r = parseWhatsAppWebhook({ calls: [{ id: 'c2', from: '44', event: 'terminate', status: 'COMPLETED', duration: 192 }] });
+    expect(r.messages[0].text).toBe('📞 WhatsApp call · 3m 12s');
+  });
+  it('links reactions and replies to the original message', () => {
+    const r = parseWhatsAppWebhook({ messages: [
+      { from: '44', id: 'r', type: 'reaction', reaction: { message_id: 'orig', emoji: '👍' } },
+      { from: '44', id: 'q', type: 'text', text: { body: 'yes' }, context: { id: 'orig' } },
+    ] });
+    expect(r.messages[0]).toMatchObject({ isReaction: true, replyTo: 'orig', text: 'Reacted 👍' });
+    expect(r.messages[1].replyTo).toBe('orig');
+  });
+  it('applies WhatsApp size limits per file type', () => {
+    expect(waMediaKindFor('image/png')).toBe('image');
+    expect(waMediaKindFor('image/heic')).toBe('document');
+    expect(waMediaSizeError('image/jpeg', 6 * 1024 * 1024)).toMatch(/5MB/);
+    expect(waMediaSizeError('application/pdf', 50 * 1024 * 1024)).toBeNull();
   });
 });

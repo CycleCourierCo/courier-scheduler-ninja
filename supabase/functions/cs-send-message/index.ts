@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { trackResend, trackedFetch } from "../_shared/integrationLog.ts";
 import { buildThreadHeaders, threadSubject } from "../_shared/cs-thread.ts";
+import { waMediaKindFor, waMediaSizeError, waKindTakesCaption } from "../_shared/whatsappMedia.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -136,67 +137,102 @@ serve(async (req) => {
       const fromNumber = '441217980767';
       const phone = conv.contact.handle.replace(/[^\d]/g, '');
 
-      const payloads: any[] = [];
-      if (template) {
-        payloads.push({
-          to: phone, from: fromNumber, type: 'template',
-          template: {
-            name: template.name, lang_code: 'en_GB',
-            components: template.params
-              ? [{ type: 'body', parameters: Object.entries(template.params).map(([k, v]) => ({ type: 'text', text: String(v), parameter_name: k })) }]
-              : [],
-          },
-        });
-      } else if (body_text) {
-        payloads.push({ to: phone, from: fromNumber, type: 'text', text: { body: body_text } });
-      }
-      // WhatsApp sends each file as its own media message.
       for (const a of attachments) {
-        const kind = a.content_type.startsWith('image/') ? 'image' : 'document';
-        payloads.push({
-          to: phone, from: fromNumber, type: kind,
-          [kind]: kind === 'image' ? { link: a.url } : { link: a.url, filename: a.filename },
-        });
+        const err = waMediaSizeError(a.content_type, a.size);
+        if (err) {
+          return new Response(JSON.stringify({ error: `${a.filename}: ${err}` }), { status: 400, headers: corsHeaders });
+        }
       }
 
-      try {
-        for (const payload of payloads) {
-          const res = await trackedFetch("whatsapp", "cs reply", 'https://api.sendzen.io/v1/messages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SENDZEN_API_KEY}` },
-            body: JSON.stringify(payload),
-          });
-          const respText = await res.text();
-          if (!res.ok) {
-            status = 'failed';
-            errorMsg = respText.slice(0, 500);
-            break;
-          }
-          try { externalId = externalId || JSON.parse(respText)?.id || JSON.parse(respText)?.message_id || null; } catch { /* ignore */ }
-        }
-      } catch (e: any) {
-        status = 'failed';
-        errorMsg = e?.message || 'sendzen failed';
+      // Each WhatsApp send is its own message so every one gets its own delivery ticks.
+      type Send = { payload: any; text: string | null; files: typeof attachments };
+      const sends: Send[] = [];
+      let caption = body_text ? String(body_text) : '';
+      if (template) {
+        sends.push({
+          payload: {
+            to: phone, from: fromNumber, type: 'template',
+            template: {
+              name: template.name, lang_code: 'en_GB',
+              components: template.params
+                ? [{ type: 'body', parameters: Object.entries(template.params).map(([k, v]) => ({ type: 'text', text: String(v), parameter_name: k })) }]
+                : [],
+            },
+          },
+          text: body_text || `[Template: ${template.name}]`, files: [],
+        });
+        caption = '';
+      } else if (caption && (attachments.length === 0 || !waKindTakesCaption(waMediaKindFor(attachments[0].content_type)) || caption.length > 1024)) {
+        sends.push({ payload: { to: phone, from: fromNumber, type: 'text', text: { body: caption, preview_url: true } }, text: caption, files: [] });
+        caption = '';
       }
+      attachments.forEach((a, i) => {
+        const kind = waMediaKindFor(a.content_type);
+        const media: any = { link: a.url };
+        if (kind === 'document') media.filename = a.filename;
+        const useCaption = i === 0 && caption && waKindTakesCaption(kind);
+        if (useCaption) media.caption = caption;
+        sends.push({ payload: { to: phone, from: fromNumber, type: kind, [kind]: media }, text: useCaption ? caption : null, files: [a] });
+      });
+
+      const rows: any[] = [];
+      let anyFailed = false;
+      for (const s of sends) {
+        let rowStatus: 'sent' | 'failed' = 'sent';
+        let rowErr: string | null = null;
+        let rowExt: string | null = null;
+        if (anyFailed) { rowStatus = 'failed'; rowErr = 'not sent: an earlier part failed'; }
+        else {
+          try {
+            const res = await trackedFetch("whatsapp", "cs reply", 'https://api.sendzen.io/v1/messages', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${SENDZEN_API_KEY}` },
+              body: JSON.stringify(s.payload),
+            });
+            const respText = await res.text();
+            if (!res.ok) { rowStatus = 'failed'; rowErr = respText.slice(0, 500); }
+            else {
+              try {
+                const j = JSON.parse(respText);
+                rowExt = j?.messages?.[0]?.id || j?.data?.messages?.[0]?.id || j?.id || j?.message_id || j?.data?.id || null;
+              } catch { /* ignore */ }
+            }
+          } catch (e: any) { rowStatus = 'failed'; rowErr = e?.message || 'sendzen failed'; }
+        }
+        if (rowStatus === 'failed') anyFailed = true;
+        rows.push({
+          id: rows.length === 0 ? messageId : crypto.randomUUID(),
+          conversation_id, direction: 'out', author_id: userId,
+          body_text: s.text,
+          attachments: s.files.map(({ url, filename, content_type, size, path }) => ({ url, filename, content_type, size, path })),
+          external_id: rowExt, provider_message_id: rowExt,
+          delivery_status: rowStatus === 'sent' ? 'sent' : 'failed',
+          status: rowStatus, error: rowErr,
+        });
+      }
+      status = anyFailed ? 'failed' : 'sent';
+      errorMsg = rows.find((r) => r.error)?.error ?? null;
+      await admin.from('cs_messages').insert(rows);
     }
 
-    // Insert outbound message
-    await admin.from('cs_messages').insert({
-      id: messageId,
-      conversation_id,
-      direction: 'out',
-      author_id: userId,
-      body_text: body_text || null,
-      body_html: body_html || null,
-      attachments: attachments.map(({ url, filename, content_type, size }) => ({ url, filename, content_type, size })),
-      external_id: externalId,
-      provider_message_id: externalId,
-      delivery_status: status === 'sent' ? 'sent' : 'failed',
-      status,
-      error: errorMsg,
-      email_message_id: emailMessageId,
-      in_reply_to: emailInReplyTo,
-    });
+    if (conv.channel !== 'whatsapp') {
+      await admin.from('cs_messages').insert({
+        id: messageId,
+        conversation_id,
+        direction: 'out',
+        author_id: userId,
+        body_text: body_text || null,
+        body_html: body_html || null,
+        attachments: attachments.map(({ url, filename, content_type, size }) => ({ url, filename, content_type, size })),
+        external_id: externalId,
+        provider_message_id: externalId,
+        delivery_status: status === 'sent' ? 'sent' : 'failed',
+        status,
+        error: errorMsg,
+        email_message_id: emailMessageId,
+        in_reply_to: emailInReplyTo,
+      });
+    }
 
     if (status === 'sent') {
       await admin.from('cs_conversations').update({
