@@ -19,7 +19,7 @@ describe('cs analytics', () => {
     expect(s.resolutionMins).toBe(120);
   });
   it('internal notes are not staff replies', () => {
-    expect(isStaffReply(msg({ direction: 'out', author_id: 'a', status: 'note' }))).toBe(false);
+    expect(isStaffReply(msg({ direction: 'note', author_id: 'a' }))).toBe(false);
   });
   it('classifies damage before tracking', () => {
     expect(classifyTopic('where is my bike, it arrived damaged')).toBe('damage');
