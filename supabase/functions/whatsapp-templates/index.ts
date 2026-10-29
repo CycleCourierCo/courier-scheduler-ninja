@@ -102,6 +102,17 @@ Deno.serve(async (req) => {
       try { return JSON.parse(text); } catch { return text; }
     };
 
+    if (action === "projects") {
+      const r = await fetch("https://api.sendzen.io/v1/projects", { headers });
+      const d = await relay(r);
+      if (d instanceof Response) return d;
+      const rows = Array.isArray(d) ? d : d?.data ?? [];
+      return json({
+        projects: (Array.isArray(rows) ? rows : []).map((p: any) => ({
+          project_id: p.project_id, project_name: p.project_name, is_try_sandbox: !!p.is_try_sandbox,
+        })),
+      });
+    }
     if (action === "wh_list") {
       const r = await fetch(WH, { headers });
       const d = await relay(r);
