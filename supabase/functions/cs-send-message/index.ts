@@ -21,32 +21,35 @@ serve(async (req) => {
     if (!authHeader?.startsWith('Bearer ')) {
       return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: corsHeaders });
     }
-    const userClient = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } },
-    );
-    const { data: userData, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !userData?.user) {
-      return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: corsHeaders });
-    }
-    const userId = userData.user.id;
-
-    const admin = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    );
-
-    const { data: roleRows } = await admin
-      .from('user_roles')
-      .select('role')
-      .eq('user_id', userId);
-    const roles = (roleRows || []).map((r: any) => r.role);
-    if (!roles.includes('admin') && !roles.includes('cs_agent')) {
-      return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403, headers: corsHeaders });
+    const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+    const admin = createClient(Deno.env.get('SUPABASE_URL') ?? '', serviceKey);
+    // Only the server's own auto-reply (service role) may send without a person attached.
+    const isService = !!serviceKey && authHeader.slice(7).trim() === serviceKey;
+    let userId: string | null = null;
+    if (!isService) {
+      const userClient = createClient(
+        Deno.env.get('SUPABASE_URL') ?? '',
+        Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+        { global: { headers: { Authorization: authHeader } } },
+      );
+      const { data: userData, error: userErr } = await userClient.auth.getUser();
+      if (userErr || !userData?.user) {
+        return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: corsHeaders });
+      }
+      userId = userData.user.id;
+      const { data: roleRows } = await admin.from('user_roles').select('role').eq('user_id', userId);
+      const roles = (roleRows || []).map((r: any) => r.role);
+      if (!roles.includes('admin') && !roles.includes('cs_agent')) {
+        return new Response(JSON.stringify({ error: 'forbidden' }), { status: 403, headers: corsHeaders });
+      }
     }
 
     const body = await req.json();
+    const automatic = isService && body?.automatic === true;
+    if (isService && !automatic) {
+      return new Response(JSON.stringify({ error: 'automatic flag required' }), { status: 400, headers: corsHeaders });
+    }
+    const autoFields = automatic ? { is_automatic: true, sent_via: 'auto_reply' } : {};
     const { conversation_id, body_text, body_html, template } = body || {};
     const rawAttachments = Array.isArray(body?.attachments) ? body.attachments : [];
     if (!conversation_id || (!body_text && !template && rawAttachments.length === 0)) {
@@ -202,7 +205,7 @@ serve(async (req) => {
         if (rowStatus === 'failed') anyFailed = true;
         rows.push({
           id: rows.length === 0 ? messageId : crypto.randomUUID(),
-          conversation_id, direction: 'out', author_id: userId,
+          conversation_id, direction: 'out', author_id: userId, ...autoFields,
           body_text: s.text,
           attachments: s.files.map(({ url, filename, content_type, size, path }) => ({ url, filename, content_type, size, path })),
           external_id: rowExt, provider_message_id: rowExt,
@@ -221,6 +224,7 @@ serve(async (req) => {
         conversation_id,
         direction: 'out',
         author_id: userId,
+        ...autoFields,
         body_text: body_text || null,
         body_html: body_html || null,
         attachments: attachments.map(({ url, filename, content_type, size }) => ({ url, filename, content_type, size })),
@@ -234,7 +238,13 @@ serve(async (req) => {
       });
     }
 
-    if (status === 'sent') {
+    if (status === 'sent' && automatic) {
+      // Auto-replies leave the ticket where it was so staff still see it.
+      await admin.from('cs_conversations').update({
+        last_message_at: new Date().toISOString(),
+        last_message_preview: (body_text || '').slice(0, 140),
+      }).eq('id', conversation_id);
+    } else if (status === 'sent') {
       await admin.from('cs_conversations').update({
         last_message_at: new Date().toISOString(),
         last_message_preview: (body_text || (attachments.length ? `📎 ${attachments.map((a) => a.filename).join(', ')}` : '')).slice(0, 140),
@@ -251,7 +261,7 @@ serve(async (req) => {
         .is('ack_sent_at', null);
     }
 
-    return new Response(JSON.stringify({ ok: status === 'sent', status, error: errorMsg }), {
+    return new Response(JSON.stringify({ ok: status === 'sent', status, error: errorMsg, message_id: messageId }), {
       status: status === 'sent' ? 200 : 502,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
