@@ -5,6 +5,7 @@ import { ScanLine,
   ClipboardCheck, Warehouse, Clock, Wrench, Car, Fuel, ShieldAlert, Boxes,
   BarChart3, TrendingUp, Inbox, CheckSquare, Megaphone, Mail, BookOpen, User, Users,
   Shield, CalendarOff, Key, Webhook, Store, Lock, KanbanSquare, MapPin,
+  MessageSquare,
 } from "lucide-react";
 
 export type AppRouteSection =
