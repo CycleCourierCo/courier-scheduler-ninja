@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { resolveOrderLink } from "../_shared/cs-order-linker.ts";
 import { parseWhatsAppWebhook, normaliseWaHandle, nextDeliveryStatus } from "../_shared/whatsappInbound.ts";
+import { canReopenClosed } from "../_shared/csTicketRules.ts";
 import { downloadWhatsAppMedia, findPhoneNumberId } from "../_shared/whatsappMediaStore.ts";
 
 const corsHeaders = {
@@ -146,6 +147,17 @@ serve(async (req) => {
         .select('id, linked_order_id, auto_link_locked, unread_count')
         .eq('contact_id', contactRow!.id).eq('channel', 'whatsapp').neq('status', 'closed')
         .order('last_message_at', { ascending: false }).limit(1).maybeSingle();
+      if (!conv) {
+        // A reply within 7 days of closing reopens the same ticket.
+        const { data: closed } = await supabase.from('cs_conversations')
+          .select('id, linked_order_id, auto_link_locked, unread_count, closed_at')
+          .eq('contact_id', contactRow!.id).eq('channel', 'whatsapp').eq('status', 'closed')
+          .order('closed_at', { ascending: false }).limit(1).maybeSingle();
+        if (closed && canReopenClosed(closed.closed_at)) {
+          await supabase.from('cs_conversations').update({ closed_at: null, closure_email_sent_at: null }).eq('id', closed.id);
+          conv = closed as any;
+        }
+      }
 
       let conversationId: string;
       if (conv?.id) {

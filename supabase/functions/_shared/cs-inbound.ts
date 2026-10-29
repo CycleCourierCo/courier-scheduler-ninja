@@ -1,3 +1,4 @@
+import { canReopenClosed } from './csTicketRules.ts';
 // Shared inbound-email ingestion for the customer service inbox.
 // Used by cs-inbound-email (generic JSON) and cs-resend-inbound (Resend webhook).
 import { resolveOrderLink } from "./cs-order-linker.ts";
@@ -79,6 +80,18 @@ export async function ingestInboundEmail(
       .order('last_message_at', { ascending: false })
       .limit(1).maybeSingle();
     if (openConv?.id) conversationId = openConv.id;
+  }
+
+  // A reply to a ticket closed more than 7 days ago starts a new ticket.
+  if (conversationId) {
+    const { data: c } = await supabase.from('cs_conversations').select('status, closed_at').eq('id', conversationId).maybeSingle();
+    if (c?.status === 'closed' && !canReopenClosed(c.closed_at)) conversationId = null;
+  }
+  if (!conversationId) {
+    const { data: recent } = await supabase.from('cs_conversations').select('id, closed_at')
+      .eq('channel', 'email').eq('contact_id', contactRow!.id).eq('status', 'closed')
+      .order('closed_at', { ascending: false }).limit(1).maybeSingle();
+    if (recent?.id && canReopenClosed(recent.closed_at)) conversationId = recent.id;
   }
 
   // Show only what the customer wrote in this reply, not our quoted email.
