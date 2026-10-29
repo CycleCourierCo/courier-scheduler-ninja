@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import type { ContactInfo, Address } from "@/types/order";
 import { getGroupedBikes } from "@/utils/bikeSummary";
-import { isNorthernIrelandAddress } from "@/utils/northernIreland";
+import { ferryRegionOfAddress } from "@/utils/northernIreland";
 import ExpiringDatesMap, { type MapLeg } from "@/components/expiring/ExpiringDatesMap";
 
 const londonDay = (v: unknown): string | null => {
@@ -86,7 +86,7 @@ const ExpiringDatesPage = () => {
       const sender = o.sender as (ContactInfo & { address: Address }) | null;
       const receiver = o.receiver as (ContactInfo & { address: Address }) | null;
       // Northern Ireland work is never route-planned from the depot — hide it here.
-      if (isNorthernIrelandAddress(sender?.address) || isNorthernIrelandAddress(receiver?.address)) {
+      if (ferryRegionOfAddress(sender?.address) || ferryRegionOfAddress(receiver?.address)) {
         continue;
       }
       const bikeLabel =
