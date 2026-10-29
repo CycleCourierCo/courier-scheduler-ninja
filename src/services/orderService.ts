@@ -13,7 +13,7 @@ import {
 import { generateTrackingNumber } from "@/services/trackingService";
 import { upsertContact } from "@/services/contactService";
 import { geocodeAddress, buildAddressString } from "@/utils/geocoding";
-import { resolveRegion, isNorthernIrelandAddress } from "@/utils/northernIreland";
+import { resolveRegion, ferryRegionOfAddress } from "@/utils/northernIreland";
 import { resolveScotlandDirection } from "@/utils/scotland";
 import { canFilterByCustomer } from "@/lib/roles";
 
@@ -495,8 +495,12 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
     };
     // Northern Ireland can be either end of the journey:
     // outbound = mainland -> NI, inbound = NI -> mainland (ferry partner collects in NI).
-    const receiverIsNi = isNorthernIrelandAddress(receiverRegionInput);
-    const senderIsNi = isNorthernIrelandAddress(senderRegionInput);
+    // Isle of Man runs the same ferry process with a different partner.
+    const receiverFerry = ferryRegionOfAddress(receiverRegionInput);
+    const senderFerry = ferryRegionOfAddress(senderRegionInput);
+    const receiverIsNi = receiverFerry !== null;
+    const senderIsNi = senderFerry !== null;
+    const ferryRegion = receiverFerry || senderFerry;
     const niDirection: 'outbound' | 'inbound' | null = receiverIsNi
       ? 'outbound'
       : (senderIsNi ? 'inbound' : null);
@@ -564,8 +568,9 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
         is_warehouse_storage: isWarehouseStorage || false,
         box_my_bike_status: isBoxMyBike ? 'awaiting_depot' : null,
         box_buyer: isBoxMyBike && boxBuyer?.email ? boxBuyer : null,
-        destination_region: destinationRegion,
+        destination_region: receiverFerry === 'isle_of_man' ? 'Isle of Man' : destinationRegion,
         is_northern_ireland: isNorthernIreland,
+        ferry_region: ferryRegion,
         ni_direction: niDirection,
         // Outbound NI bikes enter the Foam My Bike pipeline immediately.
         // Inbound bikes arrive already packed, so there is no foam step.

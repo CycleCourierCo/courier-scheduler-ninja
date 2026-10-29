@@ -1,5 +1,5 @@
-import { CITY_AIR_EXPRESS } from "@/constants/depot";
-import { isNorthernIrelandAddress } from "@/utils/northernIreland";
+import { ferryPartnerFor } from "@/constants/depot";
+import { ferryRegionOfAddress, ferryRegionOf } from "@/utils/northernIreland";
 
 /**
  * Northern Ireland jobs never have a driver at the Northern Irish door.
@@ -36,8 +36,8 @@ export const getNiDirection = (order: any): NiDirection => {
   if (!order) return null;
   const stored = order.ni_direction ?? order.niDirection ?? null;
   if (stored === "outbound" || stored === "inbound") return stored;
-  if (isNorthernIrelandAddress(order.receiver?.address)) return "outbound";
-  if (isNorthernIrelandAddress(order.sender?.address)) return "inbound";
+  if (ferryRegionOfAddress(order.receiver?.address)) return "outbound";
+  if (ferryRegionOfAddress(order.sender?.address)) return "inbound";
   if (order.is_northern_ireland === true || order.isNorthernIreland === true) return "outbound";
   return null;
 };
@@ -54,20 +54,19 @@ export const isFerryLeg = (order: any, type: "pickup" | "delivery" | string): bo
   return false;
 };
 
-const ferryContact = (finalDestination: string | null): DeliveryDestination => ({
-  name: CITY_AIR_EXPRESS.displayName,
-  phone: CITY_AIR_EXPRESS.phone,
-  email: CITY_AIR_EXPRESS.email,
-  address: {
-    ...CITY_AIR_EXPRESS.address,
-    lat: CITY_AIR_EXPRESS.lat,
-    lon: CITY_AIR_EXPRESS.lon,
-  },
-  lat: CITY_AIR_EXPRESS.lat,
-  lon: CITY_AIR_EXPRESS.lon,
-  isNorthernIreland: true,
-  finalDestination,
-});
+const ferryContact = (order: any, finalDestination: string | null): DeliveryDestination => {
+  const p = ferryPartnerFor(ferryRegionOf(order));
+  return {
+    name: p.displayName,
+    phone: p.phone,
+    email: p.email,
+    address: { ...p.address, lat: p.lat, lon: p.lon },
+    lat: p.lat,
+    lon: p.lon,
+    isNorthernIreland: true,
+    finalDestination,
+  };
+};
 
 /**
  * Returns the stop the driver actually visits for a delivery leg.
@@ -87,7 +86,7 @@ export const getDeliveryDestination = (order: any): DeliveryDestination => {
     };
   }
 
-  return ferryContact(
+  return ferryContact(order,
     `${receiver.name ? receiver.name + " — " : ""}${formatSimple(receiver.address)}`
   );
 };
@@ -102,7 +101,8 @@ export const resolveStopCoords = (
 ): { lat: number | null; lon: number | null } => {
   if (!order || type === "break") return { lat: null, lon: null };
   if (isFerryLeg(order, type)) {
-    return { lat: CITY_AIR_EXPRESS.lat, lon: CITY_AIR_EXPRESS.lon };
+    const p = ferryPartnerFor(ferryRegionOf(order));
+    return { lat: p.lat, lon: p.lon };
   }
   const a = (type === "pickup" ? order?.sender?.address : order?.receiver?.address) || {};
   return { lat: a.lat ?? null, lon: a.lon ?? null };
@@ -113,7 +113,7 @@ export const getLegContact = (order: any, type: "pickup" | "delivery") => {
   if (type === "pickup") {
     const sender = order?.sender || {};
     if (isInboundNi(order)) {
-      return ferryContact(
+      return ferryContact(order,
         `${sender.name ? sender.name + " — " : ""}${formatSimple(sender.address)}`
       );
     }

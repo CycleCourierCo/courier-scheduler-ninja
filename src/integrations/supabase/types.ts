@@ -5104,6 +5104,7 @@ export type Database = {
           destination_region: string | null
           ferry_confirmation_sent_at: string | null
           ferry_partner_notified_at: string | null
+          ferry_region: string | null
           foam_crossed_to_ni_at: string | null
           foam_delivered_ni_at: string | null
           foam_delivered_to_ferry_at: string | null
@@ -5235,6 +5236,7 @@ export type Database = {
           destination_region?: string | null
           ferry_confirmation_sent_at?: string | null
           ferry_partner_notified_at?: string | null
+          ferry_region?: string | null
           foam_crossed_to_ni_at?: string | null
           foam_delivered_ni_at?: string | null
           foam_delivered_to_ferry_at?: string | null
@@ -5366,6 +5368,7 @@ export type Database = {
           destination_region?: string | null
           ferry_confirmation_sent_at?: string | null
           ferry_partner_notified_at?: string | null
+          ferry_region?: string | null
           foam_crossed_to_ni_at?: string | null
           foam_delivered_ni_at?: string | null
           foam_delivered_to_ferry_at?: string | null
