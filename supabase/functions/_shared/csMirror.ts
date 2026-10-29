@@ -36,21 +36,13 @@ export async function mirrorWhatsAppOutbound(admin: any, opts: {
     if (convId) {
       await admin.from('cs_conversations').update({ last_message_at: now, last_message_preview: preview }).eq('id', convId);
     } else {
-      // Automated sends open a resolved thread so they don't fill the open queue; a reply reopens it.
-      const { data: created, error } = await admin.from('cs_conversations').insert({
-        channel: 'whatsapp', contact_id: contactId, status: 'resolved',
+      // Automated sends start as 'pending' so they don't crowd the open queue; a reply reopens it.
+      const { data: created } = await admin.from('cs_conversations').insert({
+        channel: 'whatsapp', contact_id: contactId, status: 'pending',
         last_message_at: now, last_message_preview: preview, unread_count: 0,
         ...(opts.orderId ? { linked_order_id: opts.orderId } : {}),
       }).select('id').single();
-      if (error) {
-        // Fall back to an open thread if 'resolved' isn't an allowed status.
-        const { data: c2 } = await admin.from('cs_conversations').insert({
-          channel: 'whatsapp', contact_id: contactId, status: 'open',
-          last_message_at: now, last_message_preview: preview, unread_count: 0,
-          ...(opts.orderId ? { linked_order_id: opts.orderId } : {}),
-        }).select('id').single();
-        convId = c2?.id;
-      } else convId = created.id;
+      convId = created?.id;
     }
     if (!convId) return;
     const ext = opts.ok && opts.respText ? waProviderId(opts.respText) : null;
