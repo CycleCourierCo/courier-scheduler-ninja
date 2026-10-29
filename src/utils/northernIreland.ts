@@ -116,3 +116,15 @@ export function isNorthernIrelandAddress(address?: RegionAddressLike | null): bo
 export function applyNiSurcharge(basePrice: number, isNi: boolean): number {
   return isNi ? basePrice + NI_SURCHARGE_PER_BIKE : basePrice;
 }
+
+/** Isle of Man orders reuse the NI copy; swap region wording in finished text. */
+export function localiseFerryText(orderOrRegion: any, text: string): string {
+  if (!text) return text;
+  const region = typeof orderOrRegion === 'string' ? orderOrRegion : ferryRegionOf(orderOrRegion);
+  if (region !== 'isle_of_man') return text;
+  return text
+    .replace(/Northern Ireland/g, 'Isle of Man')
+    .replace(/\bNI\b/g, 'IoM')
+    .replace(/City Air Express/g, 'Freight Hub')
+    .replace(/\bManchester\b/g, 'Widnes');
+}
