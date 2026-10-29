@@ -30,6 +30,31 @@ export const fetchUserContacts = async (userId: string): Promise<Contact[]> => {
   return data || [];
 };
 
+/**
+ * Search the address book: up to `limit` matches on name/email/postcode/street.
+ * With fewer than 2 characters it returns the most recently updated contacts.
+ * userId null = all contacts the caller can see (RLS decides).
+ */
+export const searchContacts = async ({
+  userId,
+  search,
+  limit = 30,
+}: { userId: string | null; search: string; limit?: number }): Promise<Contact[]> => {
+  let query = supabase.from('contacts').select('*').limit(limit);
+  if (userId) query = query.eq('user_id', userId);
+  const q = search.trim().replace(/[%,()*\\]/g, ' ').trim();
+  if (q.length >= 2) {
+    query = query
+      .or(`name.ilike.%${q}%,email.ilike.%${q}%,postal_code.ilike.%${q}%,street.ilike.%${q}%`)
+      .order('name');
+  } else {
+    query = query.order('updated_at', { ascending: false });
+  }
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data || []) as Contact[];
+};
+
 export const fetchAllContacts = async (): Promise<Contact[]> => {
   const PAGE_SIZE = 1000;
   let allData: Contact[] = [];
