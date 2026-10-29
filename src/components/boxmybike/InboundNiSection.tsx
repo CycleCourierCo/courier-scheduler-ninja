@@ -492,7 +492,7 @@ const InboundCard: React.FC<{
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
-          Handover at {CITY_AIR_EXPRESS.name} — {CITY_AIR_EXPRESS.formatted}
+          Handover at {ferryPartnerFor(ferryRegionOf(order)).name} — {ferryPartnerFor(ferryRegionOf(order)).formatted}
         </p>
       </CardContent>
     </Card>

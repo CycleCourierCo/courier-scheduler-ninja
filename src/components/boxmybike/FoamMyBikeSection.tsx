@@ -428,11 +428,11 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
           <div className="text-sm">
             <div><span className="text-muted-foreground">From:</span> {o.sender?.name}</div>
             <div>
-              <span className="text-muted-foreground">To (NI):</span> {o.receiver?.name} —{" "}
+              <span className="text-muted-foreground">To ({ferryRegionOf(o) === "isle_of_man" ? "IoM" : "NI"}):</span> {o.receiver?.name} —{" "}
               {[addr.street, addr.city, addr.zipCode].filter(Boolean).join(", ")}
             </div>
             <div className="text-muted-foreground text-xs mt-1">
-              Ferry hand-off: {CITY_AIR_EXPRESS.formatted}
+              Ferry hand-off: {ferryPartnerFor(ferryRegionOf(o)).formatted}
             </div>
             {o.ni_bfs_number && (
               <div className="text-xs mt-1">

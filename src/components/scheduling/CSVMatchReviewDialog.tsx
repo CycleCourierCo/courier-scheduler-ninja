@@ -350,7 +350,7 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
                         : candidate.order.receiver;
                       const ferry = isFerryLeg(candidate.order, candidate.jobType);
                       const contactLabel = ferry
-                        ? `${CITY_AIR_EXPRESS.name} — ${customer?.name || 'Customer'}`
+                        ? `${ferryPartnerFor(ferryRegionOf(candidate.order)).name} — ${customer?.name || 'Customer'}`
                         : customer?.name;
                       return (
                         <label
