@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { geocodeAddress, buildAddressString } from "@/utils/geocoding";
 import { ContactSelector } from "@/components/create-order/ContactSelector";
-import { useContacts } from "@/hooks/useContacts";
 import { Contact } from "@/services/contactService";
 import AddressSearchInput, { SelectedAddress } from "@/components/address/AddressSearchInput";
 
@@ -44,7 +43,6 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
   // Populated only when an address is picked from the search — avoids a second
   // geocode call and keeps NI routing accurate after an address change.
   const [searchedAddress, setSearchedAddress] = useState<SelectedAddress | null>(null);
-  const { data: allContacts = [], isLoading: contactsLoading } = useContacts(undefined, true);
 
   const handleSelectContact = (selected: Contact) => {
     setSearchedAddress(null);
@@ -314,9 +312,7 @@ const AdminContactEditor: React.FC<AdminContactEditorProps> = ({
               <Label className="text-sm">Select from address book</Label>
               <div className="mt-1">
                 <ContactSelector
-                  contacts={allContacts}
                   onSelect={handleSelectContact}
-                  isLoading={contactsLoading}
                   placeholder="Choose a saved contact..."
                 />
               </div>
