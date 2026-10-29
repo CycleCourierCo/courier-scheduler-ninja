@@ -1859,8 +1859,6 @@ export const submitPublicRepairOffer = async (
     p_approved_issue_ids: approvedIssueIds,
   });
   if (error) throw error;
-  // Refresh the customer-facing report so it reflects the receiver's decisions.
-  void regenerateInspectionReport({ orderId });
   // Raise the receiver's invoice (and email it) for anything they just approved.
   if ((data as any)?.approved > 0) {
     void supabase.functions
@@ -1960,7 +1958,6 @@ export const submitPublicInspectionApproval = async (
     body: { inspectionId, approvedIssueIds, serviceDecision },
   });
   if (error) throw error;
-  void regenerateInspectionReport({ inspectionId });
   return (data || { success: false }) as any;
 };
 

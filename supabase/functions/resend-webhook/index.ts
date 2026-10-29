@@ -30,16 +30,7 @@ Deno.serve(async (req) => {
     const svixTs = req.headers.get("svix-timestamp") ?? "";
     const svixSig = req.headers.get("svix-signature") ?? "";
 
-    console.log("Incoming Resend webhook:", JSON.stringify({
-      svix_id: svixId,
-      svix_timestamp: svixTs,
-      svix_signature_length: svixSig.length,
-      svix_signature_prefix: svixSig.slice(0, 12),
-      payload_bytes: payload.length,
-      secret_set: true,
-      secret_length: secret.length,
-      secret_prefix: secret.slice(0, 6),
-    }));
+    console.log("Incoming Resend webhook", { payload_bytes: new TextEncoder().encode(payload).byteLength });
 
     const headers = {
       "svix-id": svixId,
@@ -51,10 +42,10 @@ Deno.serve(async (req) => {
     try {
       const wh = new Webhook(secret);
       evt = wh.verify(payload, headers);
-      console.log("Signature verification PASSED, event type:", evt?.type ?? "unknown");
+      console.log("Resend webhook verified", { event_type: evt?.type ?? "unknown" });
       logInboundWebhook("resend", "delivery event");
     } catch (err) {
-      console.error("Signature verification FAILED:", (err as Error).message);
+      console.warn("Resend webhook signature verification failed");
       logInboundWebhook("resend", "delivery event", { success: false, statusCode: 401, errorLabel: "invalid_signature" });
       return new Response(JSON.stringify({ error: "invalid signature" }), {
         status: 401,

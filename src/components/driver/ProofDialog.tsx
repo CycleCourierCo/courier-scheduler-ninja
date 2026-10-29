@@ -51,8 +51,10 @@ export function ProofDialog({ stop, driverId, open, onOpenChange, onSaved }: {
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const draftId = useRef<string | null>(null);
+  const captured = useRef<string | null>(null);
 
-  useEffect(() => { if (open) { setPhotos([]); setSignature(null); setName(""); setNote(""); } }, [open]);
+  useEffect(() => { if (open) { draftId.current = null; captured.current = null; setPhotos([]); setSignature(null); setName(""); setNote(""); } }, [open, driverId]);
 
   const takePhoto = async () => {
     if (!isNative()) { fileRef.current?.click(); return; }
@@ -68,13 +70,18 @@ export function ProofDialog({ stop, driverId, open, onOpenChange, onSaved }: {
     setSaving(true);
     try {
       const pos = await currentPosition();
+      draftId.current ??= crypto.randomUUID();
+      captured.current ??= new Date().toISOString();
       const left = await saveProof({
-        id: crypto.randomUUID(), orderId: stop.orderId, stopType: stop.type, photos, signature,
+        id: draftId.current, orderId: stop.orderId, stopType: stop.type, photos, signature,
         recipientName: name.trim(), note: note.trim(), lat: pos?.lat ?? null, lng: pos?.lng ?? null,
-        capturedAt: new Date().toISOString(),
+        capturedAt: captured.current,
       }, driverId);
       toast.success(left > 0 ? "Saved on your phone — it'll upload when you're back online" : "Proof saved");
+      draftId.current = null; captured.current = null;
       onSaved(); onOpenChange(false);
+    } catch {
+      toast.error("Couldn't save this proof on the phone. Try again.");
     } finally { setSaving(false); }
   };
 

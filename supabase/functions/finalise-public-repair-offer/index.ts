@@ -11,6 +11,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { trackResend } from "../_shared/integrationLog.ts";
+import { regenerateInspectionReport } from "../_shared/inspectionReport.ts";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -151,6 +152,10 @@ const handler = async (req: Request): Promise<Response> => {
     );
     if (inspectionIds.length === 0) {
       return json({ success: true, invoiced: 0, confirmed: 0 });
+    }
+    for (const inspectionId of inspectionIds) {
+      try { await regenerateInspectionReport(supabase, inspectionId); }
+      catch { console.error("inspection report refresh failed"); }
     }
 
     const { data: order } = await supabase
