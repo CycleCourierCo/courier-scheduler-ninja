@@ -28,7 +28,7 @@ const SAFE_FIELDS = [
   "bike_brand", "bike_model", "bike_type", "pickup_date", "delivery_date",
   "scheduled_pickup_date", "scheduled_delivery_date", "scheduled_at", "pickup_timeslot", "delivery_timeslot",
   "order_collected", "order_delivered", "sender_confirmed_at", "receiver_confirmed_at",
-  "needs_inspection", "inspection_summary", "is_northern_ireland", "ni_direction", "is_box_my_bike",
+  "needs_inspection", "inspection_summary", "is_northern_ireland", "ferry_region", "ni_direction", "is_box_my_bike",
   "box_my_bike_status", "box_tracking_url", "box_in_depot_at", "box_boxed_at", "box_label_printed_at",
   "box_collected_by_3p_at", "box_delivered_by_3p_at", "foam_status", "foam_foamed_at",
   "foam_delivered_to_ferry_at", "foam_crossed_to_ni_at", "foam_delivered_ni_at",
