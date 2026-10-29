@@ -237,7 +237,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
   const foamStatus = ((order as any).foamStatus ?? (order as any).foam_status) as FoamStatus | null;
   const receiverAddress = order.receiver?.address;
   const senderAddress = order.sender?.address;
-  // Which end of the journey is in ${regionLabel} decides the whole flow:
+  // Which end of the journey is in Northern Ireland / Isle of Man decides the whole flow:
   // outbound = we hand the bike over at the ferry, inbound = we collect it there.
   const storedDirection = getNiDirection(order);
   const looksOutbound = ferryRegionOfAddress(receiverAddress as any) !== null;
@@ -365,7 +365,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
       {!bare && (
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
-            <Ship className="h-4 w-4` /> ${regionLabel} {isInbound ? `collection" : "delivery"}
+            <Ship className="h-4 w-4" /> {regionLabel} {isInbound ? "collection" : "delivery"}
           </CardTitle>
         </CardHeader>
       )}
@@ -409,7 +409,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
             {isInbound && (
               <div className="rounded border bg-muted/30 p-3 space-y-2">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-medium">Collection day in ${regionLabel}</span>
+                  <span className="font-medium">Collection day in {regionLabel}</span>
                   <Button
                     type="button"
                     variant="ghost"
@@ -524,10 +524,10 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
 
         ) : (
           <p className="text-sm text-muted-foreground">
-            This order is not flagged as a ${regionLabel} order.
+            This order is not flagged as a {regionLabel} order.
             {looksNI && (
               <span className="block mt-1 text-status-waiting font-medium">
-                The {looksInbound ? "collection" : "delivery"} address looks like ${regionLabel}.
+                The {looksInbound ? "collection" : "delivery"} address looks like {regionLabel}.
               </span>
             )}
           </p>
@@ -566,7 +566,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
                     ) : isInbound ? (
                       <p>
                         The Shipday collection job is re-created against the ferry hand-off point in
-                        {partner.address.city} (the ferry partner collects in ${regionLabel}), and a £{ferrySurchargeFor(ferryRegion)}
+                        {partner.address.city} (the ferry partner collects in {regionLabel}), and a £{ferrySurchargeFor(ferryRegion)}
                         per-bike surcharge applies to future invoicing. No foaming step is added.
                       </p>
                     ) : (
