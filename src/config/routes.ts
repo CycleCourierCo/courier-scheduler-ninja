@@ -148,6 +148,8 @@ export const APP_ROUTES: AppRoute[] = [
     defaultRoles: ["tech"] },
   { key: "email-centre", path: "/admin/email-centre", label: "Email Centre", section: "Comms", icon: Mail,
     defaultRoles: [] },
+  { key: "whatsapp-centre", path: "/admin/whatsapp-centre", label: "WhatsApp Centre", section: "Comms", icon: MessageSquare,
+    defaultRoles: [] },
   { key: "route-permissions", path: "/admin/route-permissions", label: "Route Permissions", section: "Admin", icon: Lock,
     defaultRoles: [] },
 ];

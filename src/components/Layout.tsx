@@ -103,6 +103,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
       { to: "/notices", label: "Notice Bars", icon: Megaphone },
       { to: "/emails", label: "Announcement Emails", icon: Mail },
       { to: "/admin/email-centre", label: "Email Centre", icon: Mail },
+      { to: "/admin/whatsapp-centre", label: "WhatsApp Centre", icon: MessageSquare },
       { to: "/knowledge", label: "Knowledge Base", icon: BookOpen },
     ],
   },
