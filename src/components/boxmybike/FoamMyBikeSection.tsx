@@ -623,7 +623,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
   if (!isStaff) {
     return orders.length === 0 ? (
       <div className="text-sm text-muted-foreground py-8 text-center">
-        No Northern Ireland deliveries yet.
+        No Northern Ireland or Isle of Man deliveries yet.
       </div>
     ) : (
       <>
