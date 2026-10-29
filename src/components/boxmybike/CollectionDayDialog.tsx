@@ -48,6 +48,8 @@ interface Props {
   initial?: string | string[] | Date | Date[] | null;
   saving?: boolean;
   onConfirm: (day: string) => void;
+  /** Ferry region of the order (defaults to Northern Ireland). */
+  ferryRegion?: 'northern_ireland' | 'isle_of_man' | null;
 }
 
 /**
@@ -60,6 +62,7 @@ const CollectionDayDialog: React.FC<Props> = ({
   onOpenChange,
   initial,
   saving,
+  ferryRegion,
   onConfirm,
 }) => {
   const [value, setValue] = React.useState<string>("");
@@ -94,7 +97,7 @@ const CollectionDayDialog: React.FC<Props> = ({
     const d = new Date(`${value}T12:00:00Z`);
     const weekday = d.getUTCDay();
     if (weekday === 0 || weekday === 6) {
-      toast.error("Collections in Northern Ireland run Monday to Friday only");
+      toast.error(`Collections in ${ferryRegion === "isle_of_man" ? "the Isle of Man" : "Northern Ireland"} run Monday to Friday only`);
       return;
     }
     if (holidays.includes(value)) {
@@ -108,9 +111,9 @@ const CollectionDayDialog: React.FC<Props> = ({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Collection day in Northern Ireland</DialogTitle>
+          <DialogTitle>Collection day in {ferryRegion === "isle_of_man" ? "the Isle of Man" : "Northern Ireland"}</DialogTitle>
           <DialogDescription>
-            Monday to Friday only. Saving emails City Air Express straight away with this day.
+            Monday to Friday only. Saving emails {ferryRegion === "isle_of_man" ? "Freight Hub" : "City Air Express"} straight away with this day.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2">

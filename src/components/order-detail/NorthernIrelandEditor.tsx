@@ -434,6 +434,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
                   open={dayDialogOpen}
                   onOpenChange={setDayDialogOpen}
                   initial={pickupDay}
+                  ferryRegion={ferryRegion}
                   saving={savingDay}
                   onConfirm={saveCollectionDay}
                 />
