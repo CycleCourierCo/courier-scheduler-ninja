@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
 import { useCannedResponses } from "@/hooks/useCannedResponses";
+import { CannedConfidencePanel, ConfidenceBadge, useCannedStats } from "./CannedConfidence";
 import {
   createCannedResponse, deleteCannedResponse, updateCannedResponse,
   type CsCannedResponse,
@@ -19,6 +20,7 @@ const PLACEHOLDERS = ['{{customer_name}}', '{{ticket_ref}}', '{{tracking_number}
 const CannedResponseManager: React.FC = () => {
   const qc = useQueryClient();
   const { data: responses = [], isLoading } = useCannedResponses(true);
+  const { data: stats = {} } = useCannedStats();
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState({ title: '', category: 'General', body: '', keywords: '' });
 
@@ -100,6 +102,7 @@ const CannedResponseManager: React.FC = () => {
               <CardTitle className="text-base">{r.title}</CardTitle>
               <Badge variant="secondary">{r.category}</Badge>
               {!r.is_active && <Badge variant="outline">Hidden</Badge>}
+              <ConfidenceBadge stats={stats[r.id]} mode={r.auto_send_mode} />
               <div className="ml-auto flex items-center gap-3">
                 <label className="flex items-center gap-2 text-xs text-muted-foreground">
                   Active
@@ -125,6 +128,7 @@ const CannedResponseManager: React.FC = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
+            <CannedConfidencePanel response={r} stats={stats[r.id]} />
             <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
               <Input
                 className="h-8 text-sm"
