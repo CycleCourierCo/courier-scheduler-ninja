@@ -46,3 +46,4 @@
 
 - Fleet inspections save their expected checklist when started and can be finalised only after starting as a draft with every expected check present — the database derives the result and completion details so direct writes cannot skip checks.
 - Inspection-report generation is limited to staff or the signed-in booking owner, while public decision endpoints refresh reports server-side; foam photo access uses a service-only, rate-limited receiver-postcode database check.
+- Isle of Man reuses the Northern Ireland ferry flow: orders.is_northern_ireland means 'ferry order' and orders.ferry_region (northern_ireland|isle_of_man) picks partner, surcharge and wording via ferryPartnerFor/ferryRegionOf/localiseFerryText (client utils + _shared/northernIreland.ts) — one flow, no duplicated pipeline.
