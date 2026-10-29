@@ -1,4 +1,5 @@
 import { canReopenClosed } from './csTicketRules.ts';
+import { queueCannedAutoReply } from './cannedAutoReplyQueue.ts';
 // Shared inbound-email ingestion for the customer service inbox.
 // Used by cs-inbound-email (generic JSON) and cs-resend-inbound (Resend webhook).
 import { resolveOrderLink } from "./cs-order-linker.ts";
@@ -129,7 +130,7 @@ export async function ingestInboundEmail(
     }).eq('id', conversationId);
   }
 
-  await supabase.from('cs_messages').insert({
+  const { data: inRow } = await supabase.from('cs_messages').insert({
     conversation_id: conversationId,
     direction: 'in',
     body_text: replyText || null,
@@ -138,7 +139,7 @@ export async function ingestInboundEmail(
     email_message_id: body.message_id || null,
     in_reply_to: body.in_reply_to || null,
     status: 'received',
-  });
+  }).select('id').single();
 
   // Resolve order link (unless an agent has locked it)
   const { data: conv } = await supabase
@@ -168,6 +169,9 @@ export async function ingestInboundEmail(
       // ignore — acknowledgement is best effort
     }
   }
+
+  // Confident instant responses can answer straight away (runs in the background, never blocks the webhook).
+  if (inRow?.id) queueCannedAutoReply(conversationId!, inRow.id);
 
   return conversationId!;
 }

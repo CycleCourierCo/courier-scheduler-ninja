@@ -4,6 +4,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { resolveOrderLink } from "../_shared/cs-order-linker.ts";
 import { parseWhatsAppWebhook, normaliseWaHandle, nextDeliveryStatus } from "../_shared/whatsappInbound.ts";
 import { canReopenClosed } from "../_shared/csTicketRules.ts";
+import { queueCannedAutoReply } from "../_shared/cannedAutoReplyQueue.ts";
 import { downloadWhatsAppMedia, findPhoneNumberId } from "../_shared/whatsappMediaStore.ts";
 
 const corsHeaders = {
@@ -187,13 +188,14 @@ serve(async (req) => {
           : { ...withPid, url: m.attachment.url || '', download_failed: true }];
       }
 
-      const { error: mErr } = await supabase.from('cs_messages').insert({
+      const { data: inRow, error: mErr } = await supabase.from('cs_messages').insert({
         conversation_id: conversationId, direction: 'in', body_text: bodyText,
         external_id: m.externalId, status: 'received',
         ...(attachments ? { attachments } : {}),
-      });
+      }).select('id').single();
       if (mErr) throw mErr;
       saved.push(conversationId);
+      if (!m.isReaction && !m.isCall && inRow?.id) queueCannedAutoReply(conversationId, inRow.id);
 
       if (!conv!.auto_link_locked) {
         const link = await resolveOrderLink(supabase, { channel: 'whatsapp', handle, body: m.text });
