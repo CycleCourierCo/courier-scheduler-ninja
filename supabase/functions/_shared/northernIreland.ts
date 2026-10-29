@@ -24,7 +24,84 @@ export const CITY_AIR_EXPRESS = {
   formatted: 'Unit 1 Ordinal Street, Trafford Park, Manchester, M17 1GB',
 };
 
+/** Isle of Man surcharge: £180 inc. VAT customer-facing, £150 net on QuickBooks lines. */
+export const IOM_SURCHARGE_PER_BIKE = 180;
+export const IOM_SURCHARGE_NET = 150;
+
+/** Isle of Man ferry hand-off point (Widnes). */
+export const FREIGHT_HUB = {
+  displayName: 'Ferry hand-off',
+  name: 'Freight Hub',
+  email: 'hello@freighthub.im',
+  phone: '+44 7624 246112',
+  address: {
+    street: 'Unit 7, Alexandra Industrial Estate',
+    city: 'Widnes',
+    state: 'Cheshire',
+    zipCode: 'WA8 7AH',
+    country: 'United Kingdom',
+  },
+  formatted: 'Freight Hub, Unit 7, Alexandra Industrial Estate, Widnes, WA8 7AH',
+};
+export const FREIGHT_HUB_COORDS = { lat: 53.361291, lon: -2.737584 };
+
+export type FerryRegion = 'northern_ireland' | 'isle_of_man';
+
 const normalise = (v?: string | null) => (v || '').trim().toLowerCase();
+
+export function isIsleOfManPostcode(postcode?: string | null): boolean {
+  if (!postcode) return false;
+  return /^im\d/i.test(postcode.replace(/\s+/g, ''));
+}
+
+export function isIsleOfManAddress(address?: Record<string, any> | null): boolean {
+  if (!address) return false;
+  if ([address.region, address.state, address.country].some((v) => normalise(v).includes('isle of man'))) return true;
+  return isIsleOfManPostcode(address.zipCode || address.postcode);
+}
+
+export function ferryRegionOfAddress(address?: Record<string, any> | null): FerryRegion | null {
+  if (isIsleOfManAddress(address)) return 'isle_of_man';
+  if (isNorthernIrelandAddress(address)) return 'northern_ireland';
+  return null;
+}
+
+export function resolveFerryRegion(sender?: Record<string, any> | null, receiver?: Record<string, any> | null): FerryRegion | null {
+  return ferryRegionOfAddress(receiver?.address || receiver) || ferryRegionOfAddress(sender?.address || sender);
+}
+
+/** Region stored on the order; older ferry orders default to Northern Ireland. */
+export function ferryRegionOf(order: any): FerryRegion | null {
+  if (!order) return null;
+  const stored = order.ferry_region ?? order.ferryRegion;
+  if (stored === 'isle_of_man' || stored === 'northern_ireland') return stored;
+  const derived = resolveFerryRegion(order.sender, order.receiver);
+  if (derived) return derived;
+  return order.is_northern_ireland ? 'northern_ireland' : null;
+}
+
+export const ferryRegionLabel = (orderOrRegion: any): string =>
+  (typeof orderOrRegion === 'string' ? orderOrRegion : ferryRegionOf(orderOrRegion)) === 'isle_of_man'
+    ? 'Isle of Man' : 'Northern Ireland';
+
+export const ferryRegionShort = (orderOrRegion: any): string =>
+  (typeof orderOrRegion === 'string' ? orderOrRegion : ferryRegionOf(orderOrRegion)) === 'isle_of_man' ? 'IoM' : 'NI';
+
+/** Partner for the order's ferry region (defaults to the NI partner). */
+export function ferryPartnerFor(orderOrRegion: any) {
+  const region = typeof orderOrRegion === 'string' ? orderOrRegion : ferryRegionOf(orderOrRegion);
+  return region === 'isle_of_man' ? FREIGHT_HUB : CITY_AIR_EXPRESS;
+}
+
+export function ferryPartnerCoordsFor(orderOrRegion: any) {
+  const region = typeof orderOrRegion === 'string' ? orderOrRegion : ferryRegionOf(orderOrRegion);
+  return region === 'isle_of_man' ? FREIGHT_HUB_COORDS : CITY_AIR_EXPRESS_COORDS;
+}
+
+export function ferrySurchargeNetFor(orderOrRegion: any): number {
+  const region = typeof orderOrRegion === 'string' ? orderOrRegion : ferryRegionOf(orderOrRegion);
+  return region === 'isle_of_man' ? IOM_SURCHARGE_NET : region === 'northern_ireland' ? NI_SURCHARGE_NET : 0;
+}
 
 export function isNorthernIrelandPostcode(postcode?: string | null): boolean {
   if (!postcode) return false;
@@ -56,10 +133,10 @@ export function isNorthernIrelandAddress(address?: Record<string, any> | null): 
 }
 
 /** Human-readable NI receiver block used in emails and Shipday instructions. */
-export function formatNiReceiverBlock(receiver: any, trackingNumber?: string | null): string {
+export function formatNiReceiverBlock(receiver: any, trackingNumber?: string | null, region?: FerryRegion | null): string {
   const a = receiver?.address || {};
   return [
-    `NI RECEIVER: ${receiver?.name || ''}`,
+    `${region === 'isle_of_man' ? 'IoM' : 'NI'} RECEIVER: ${receiver?.name || ''}`,
     `Address: ${[a.street, a.city, a.state, a.zipCode].filter(Boolean).join(', ')}`,
     `Phone: ${receiver?.phone || ''}`,
     `Email: ${receiver?.email || ''}`,
@@ -81,8 +158,8 @@ export function resolveNiDirection(
   sender?: Record<string, any> | null,
   receiver?: Record<string, any> | null,
 ): NiDirection {
-  if (isNorthernIrelandAddress(receiver?.address || receiver)) return 'outbound';
-  if (isNorthernIrelandAddress(sender?.address || sender)) return 'inbound';
+  if (ferryRegionOfAddress(receiver?.address || receiver)) return 'outbound';
+  if (ferryRegionOfAddress(sender?.address || sender)) return 'inbound';
   return null;
 }
 
@@ -110,10 +187,10 @@ export function isFerryLeg(order: any, isPickup: boolean): boolean {
 }
 
 /** Human-readable NI sender block for inbound jobs (Shipday notes / emails). */
-export function formatNiSenderBlock(sender: any, trackingNumber?: string | null): string {
+export function formatNiSenderBlock(sender: any, trackingNumber?: string | null, region?: FerryRegion | null): string {
   const a = sender?.address || {};
   return [
-    `NI SENDER: ${sender?.name || ''}`,
+    `${region === 'isle_of_man' ? 'IoM' : 'NI'} SENDER: ${sender?.name || ''}`,
     `Address: ${[a.street, a.city, a.state, a.zipCode].filter(Boolean).join(', ')}`,
     `Phone: ${sender?.phone || ''}`,
     `Email: ${sender?.email || ''}`,
