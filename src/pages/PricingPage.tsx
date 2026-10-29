@@ -6,11 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Bike, MapPin, Wrench, CalendarCheck, Info } from "lucide-react";
 import { pricingData } from "@/constants/bikePricing";
-import { NI_SURCHARGE_PER_BIKE } from "@/utils/northernIreland";
+import { NI_SURCHARGE_PER_BIKE, IOM_SURCHARGE_PER_BIKE } from "@/utils/northernIreland";
 import { hasRole } from "@/lib/roles";
 
 // Page prices are shown ex-VAT; the NI constant is VAT-inclusive.
 const NI_SURCHARGE_NET = Math.round(NI_SURCHARGE_PER_BIKE / 1.2);
+const IOM_SURCHARGE_NET = Math.round(IOM_SURCHARGE_PER_BIKE / 1.2);
 
 
 const PricingPage: React.FC = () => {
@@ -95,6 +96,38 @@ const PricingPage: React.FC = () => {
             <p className="text-sm text-muted-foreground pt-2">
               Example: Non-Electric Bike to NI — £60 + £{NI_SURCHARGE_NET} = £
               {60 + NI_SURCHARGE_NET} + VAT
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Isle of Man */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center text-xl">
+              <MapPin className="mr-2 h-5 w-5 text-primary" />
+              Isle of Man
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-border">
+              <span className="text-foreground">
+                Surcharge per bike (on top of standard price)
+              </span>
+              <span className="font-semibold text-foreground whitespace-nowrap">
+                £{IOM_SURCHARGE_NET}{" "}
+                <span className="text-muted-foreground font-normal text-sm">
+                  + VAT (£{IOM_SURCHARGE_PER_BIKE} inc. VAT)
+                </span>
+              </span>
+            </div>
+            <p className="text-sm text-muted-foreground pt-3">
+              Isle of Man bikes are collected in mainland England &amp; Wales,
+              handed over at the ferry port and completed by our onward ferry
+              partner. The final delivery date is confirmed after ferry hand-off.
+            </p>
+            <p className="text-sm text-muted-foreground pt-2">
+              Example: Non-Electric Bike to the Isle of Man — £60 + £{IOM_SURCHARGE_NET} = £
+              {60 + IOM_SURCHARGE_NET} + VAT
             </p>
           </CardContent>
         </Card>

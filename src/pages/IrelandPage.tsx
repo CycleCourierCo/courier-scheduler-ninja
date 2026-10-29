@@ -97,7 +97,7 @@ const IrelandPage: React.FC = () => {
         </div>
         <Tabs value={section} onValueChange={(v) => setSection(v as typeof section)} className="mb-6">
           <TabsList className="flex flex-wrap h-auto">
-            <TabsTrigger value="foam">Foam My Bike (NI)</TabsTrigger>
+            <TabsTrigger value="foam">Foam My Bike (NI / IoM)</TabsTrigger>
             <TabsTrigger value="inbound-ni">Inbound NI</TabsTrigger>
             {isStaff && <TabsTrigger value="trunk">Trunk runs</TabsTrigger>}
           </TabsList>
