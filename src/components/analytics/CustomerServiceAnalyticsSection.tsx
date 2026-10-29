@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { buildReport, formatMins, type CsConv, type CsMsg } from "@/lib/csAnalytics";
+import { useCannedResponses } from "@/hooks/useCannedResponses";
+import { ConfidenceBadge, useCannedStats } from "@/components/inbox/CannedConfidence";
 
 const RANGES = [{ label: "7 days", days: 7 }, { label: "30 days", days: 30 }, { label: "90 days", days: 90 }, { label: "1 year", days: 365 }];
 
@@ -76,6 +78,13 @@ export default function CustomerServiceAnalyticsSection() {
       name: data.queues.find((q) => q.id === id)?.name ?? "Unassigned", count,
     })).sort((a, b) => b.count - a.count);
   }, [data, report]);
+
+  const { data: canned = [] } = useCannedResponses(true);
+  const { data: cannedStats = {} } = useCannedStats();
+  const cannedRows = canned
+    .map((r) => ({ r, s: cannedStats[r.id] }))
+    .filter((x) => (x.s?.uses ?? 0) + (x.s?.auto_sent ?? 0) + (x.s?.trial_total ?? 0) > 0)
+    .sort((a, b) => (b.s?.confidence ?? -1) - (a.s?.confidence ?? -1) || (b.s?.uses ?? 0) - (a.s?.uses ?? 0));
 
   const maxHeat = report ? Math.max(1, ...report.heat.flat()) : 1;
 
@@ -208,6 +217,36 @@ export default function CustomerServiceAnalyticsSection() {
                   </div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader><CardTitle className="text-base">Instant response accuracy</CardTitle>
+              <p className="text-xs text-muted-foreground">All time. Based on whether staff sent the suggested reply as is, edited it or replaced it.</p></CardHeader>
+            <CardContent className="overflow-x-auto">
+              {cannedRows.length === 0 ? <p className="text-sm text-muted-foreground">No instant responses used yet — scores build up as staff reply.</p> : (
+                <Table>
+                  <TableHeader><TableRow>
+                    <TableHead>Response</TableHead><TableHead>Confidence</TableHead><TableHead className="text-right">Uses</TableHead>
+                    <TableHead className="text-right">As is</TableHead><TableHead className="text-right">Edited</TableHead>
+                    <TableHead className="text-right">Rewritten / swapped</TableHead><TableHead className="text-right">Auto-sent</TableHead><TableHead className="text-right">Flagged wrong</TableHead>
+                  </TableRow></TableHeader>
+                  <TableBody>
+                    {cannedRows.map(({ r, s: st }) => (
+                      <TableRow key={r.id}>
+                        <TableCell>{r.title}</TableCell>
+                        <TableCell><ConfidenceBadge stats={st} mode={r.auto_send_mode} /></TableCell>
+                        <TableCell className="text-right">{st?.uses ?? 0}</TableCell>
+                        <TableCell className="text-right">{st?.as_is ?? 0}</TableCell>
+                        <TableCell className="text-right">{st?.edited ?? 0}</TableCell>
+                        <TableCell className="text-right">{(st?.rewritten ?? 0) + (st?.replaced ?? 0)}</TableCell>
+                        <TableCell className="text-right">{st?.auto_sent ?? 0}</TableCell>
+                        <TableCell className="text-right">{st?.flagged_wrong ?? 0}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
             </CardContent>
           </Card>
 
