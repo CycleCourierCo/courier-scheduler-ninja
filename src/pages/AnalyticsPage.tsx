@@ -64,6 +64,8 @@ import PerformanceLeaderboard from "@/components/analytics/PerformanceLeaderboar
 import TimeSeriesFilters from "@/components/analytics/TimeSeriesFilters";
 import InspectionsOverTimeChart from "@/components/analytics/InspectionsOverTimeChart";
 import DriverAnalyticsSection from "@/components/analytics/DriverAnalyticsSection";
+import CustomerServiceAnalyticsSection from "@/components/analytics/CustomerServiceAnalyticsSection";
+import { MessageSquare } from "lucide-react";
 import StatsCard from "@/components/analytics/StatsCard";
 import ApiWebhookSection from "@/components/analytics/ApiWebhookSection";
 import IntegrationsSection from "@/components/analytics/IntegrationsSection";
@@ -336,7 +338,7 @@ const AnalyticsPage = () => {
               onValueChange={setActiveTab}
               className="mb-4 sm:mb-8"
             >
-              <TabsList className="mb-4 grid h-auto w-full grid-cols-2 gap-1 sm:mb-8 sm:grid-cols-3 lg:grid-cols-10">
+              <TabsList className="mb-4 grid h-auto w-full grid-cols-2 gap-1 sm:mb-8 sm:grid-cols-3 lg:grid-cols-11">
                 <TabsTrigger value="bike-value" className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 py-2">
                   <PoundSterling className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span className="hidden sm:inline">Bike Value</span>
