@@ -16,6 +16,7 @@ interface NiOrder {
   id: string;
   tracking_number: string | null;
   status: string;
+  ferry_region: string | null;
   order_collected: boolean | null;
   sender_confirmed_at: string | null;
   bikes: any;
@@ -36,7 +37,7 @@ const loadNiOrders = async (): Promise<NiOrder[]> => {
   for (let from = 0; ; from += 1000) {
     const { data, error } = await supabase
       .from("orders")
-      .select("id,tracking_number,status,order_collected,sender_confirmed_at,bikes,bike_brand,bike_model,sender,receiver")
+      .select("id,tracking_number,status,ferry_region,order_collected,sender_confirmed_at,bikes,bike_brand,bike_model,sender,receiver")
       .eq("is_northern_ireland", true)
       .not("status", "in", `(${FINISHED.join(",")})`)
       .order("created_at", { ascending: true })
