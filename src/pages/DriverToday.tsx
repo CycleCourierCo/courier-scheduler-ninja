@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Navigation, Phone, CheckCircle2, MapPin, Loader2, Radio, Package, Truck } from "lucide-react";
 import { toast } from "sonner";
 import { normaliseStops, navigateUrl, telUrl, type DriverStop } from "@/lib/driverApp/stops";
-import { flushProofs, queuedCount, queuedOrderIds, startShiftTracking, stopShiftTracking } from "@/lib/driverApp/native";
+import { flushProofs, queuedCount, queuedStopKeys, startShiftTracking, stopShiftTracking } from "@/lib/driverApp/native";
 import { ProofDialog } from "@/components/driver/ProofDialog";
 
 const SHIFT_KEY = "driver-on-shift-date";
@@ -46,7 +46,7 @@ export default function DriverToday() {
   const [tab, setTab] = useState<"loading" | "stops">("loading");
   const [starting, setStarting] = useState(false);
   const route = useQuery({
-    queryKey: ["driver-today", today],
+    queryKey: ["driver-today", today, user?.id],
     enabled: !!user,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("driver_today_stops" as any, { p_date: today });
@@ -78,7 +78,12 @@ export default function DriverToday() {
     },
   });
 
-  const refreshQueue = async () => { setPending(await queuedCount(user?.id)); setQueuedIds(await queuedOrderIds()); };
+  const refreshQueue = async () => {
+    if (!user) { setPending(0); setQueuedIds(new Set()); return; }
+    const id = user.id;
+    const [count, keys] = await Promise.all([queuedCount(id), queuedStopKeys(id)]);
+    if (id === user.id) { setPending(count); setQueuedIds(keys); }
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -103,7 +108,7 @@ export default function DriverToday() {
     }
   }
 
-  const isDone = (s: DriverStop) => done.data?.has(`${s.orderId}:${s.type}`) || (s.orderId ? queuedIds.has(s.orderId) : false);
+  const isDone = (s: DriverStop) => done.data?.has(`${s.orderId}:${s.type}`) || queuedIds.has(`${s.orderId}:${s.type}`);
 
   return (
     <Layout>
