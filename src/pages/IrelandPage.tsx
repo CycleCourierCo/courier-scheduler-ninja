@@ -4,6 +4,7 @@ import Layout from "@/components/Layout";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasRole } from "@/lib/roles";
@@ -73,10 +74,11 @@ const OrderList: React.FC<{ title: string; orders: NiOrder[]; side: "sender" | "
   </Card>
 );
 
-const TrunkRunsSection: React.FC = () => {
-  const { data = [], isLoading, error } = useQuery({ queryKey: ["ireland-trunk-counts"], queryFn: loadNiOrders });
+const TrunkRunsSection: React.FC<{ region: string }> = ({ region }) => {
+  const { data: all = [], isLoading, error } = useQuery({ queryKey: ["ireland-trunk-counts"], queryFn: loadNiOrders });
   if (isLoading) return <div className="text-sm text-muted-foreground">Loading…</div>;
   if (error) return <div className="text-sm text-destructive">Couldn't load ferry bikes.</div>;
+  const data = region === "all" ? all : all.filter((o) => (o.ferry_region || "northern_ireland") === region);
   const toCollect = data.filter((o) => !o.order_collected && o.sender_confirmed_at);
   const toDeliver = data.filter((o) => o.order_collected);
   return (
@@ -90,25 +92,31 @@ const TrunkRunsSection: React.FC = () => {
 const IrelandPage: React.FC = () => {
   const { user, userProfile } = useAuth();
   const isStaff = hasRole(userProfile, "admin") || hasRole(userProfile, "mechanic") || hasRole(userProfile, "loader");
+  const [region, setRegion] = React.useState<"all" | "northern_ireland" | "isle_of_man">("all");
   const [section, setSection] = React.useState<"foam" | "inbound-ni" | "trunk">("foam");
 
   return (
     <Layout>
       <div className="floor-density mx-auto max-w-6xl px-4 py-6 sm:px-6">
         <div className="mb-6 border-b pb-4">
-          <h1>Ireland</h1>
-          <p className="text-muted-foreground">Foam My Bike, inbound Northern Ireland and Isle of Man bikes and trunk runs.</p>
+          <h1>Foam My Bike</h1>
+          <p className="text-muted-foreground">Ferry bikes for Northern Ireland and Isle of Man: foaming, inbound and trunk runs.</p>
         </div>
         <Tabs value={section} onValueChange={(v) => setSection(v as typeof section)} className="mb-6">
           <TabsList className="flex flex-wrap h-auto">
-            <TabsTrigger value="foam">Foam My Bike (NI / IoM)</TabsTrigger>
-            <TabsTrigger value="inbound-ni">Inbound (NI / IoM)</TabsTrigger>
+            <TabsTrigger value="foam">Foam My Bike</TabsTrigger>
+            <TabsTrigger value="inbound-ni">Inbound</TabsTrigger>
             {isStaff && <TabsTrigger value="trunk">Trunk runs</TabsTrigger>}
           </TabsList>
         </Tabs>
-        {section === "foam" && <FoamMyBikeSection isStaff={isStaff} userId={user?.id} />}
-        {section === "inbound-ni" && <InboundNiSection isStaff={isStaff} />}
-        {section === "trunk" && isStaff && <TrunkRunsSection />}
+        <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Ferry region">
+          {([["all", "All"], ["northern_ireland", "Northern Ireland"], ["isle_of_man", "Isle of Man"]] as const).map(([v, l]) => (
+            <Button key={v} size="sm" variant={region === v ? "default" : "outline"} className="rounded-full" onClick={() => setRegion(v)}>{l}</Button>
+          ))}
+        </div>
+        {section === "foam" && <FoamMyBikeSection isStaff={isStaff} userId={user?.id} region={region} />}
+        {section === "inbound-ni" && <InboundNiSection isStaff={isStaff} region={region} />}
+        {section === "trunk" && isStaff && <TrunkRunsSection region={region} />}
       </div>
     </Layout>
   );
