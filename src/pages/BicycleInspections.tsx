@@ -1382,6 +1382,15 @@ const BicycleInspections = () => {
         toast.error("Choose the bike category before reporting issues");
         return;
       }
+      const uncoded = allChecklistIssues.filter((i) => !i.repairId).length;
+      if (
+        uncoded > 0 &&
+        !window.confirm(
+          `${uncoded} issue${uncoded === 1 ? " has" : "s have"} no repair picked from the catalogue, so no job code or labour price will be saved. Submit anyway?`
+        )
+      ) {
+        return;
+      }
       addMultipleIssuesMutation.mutate({
         orderId: selectedOrderForInspection,
         issues: allChecklistIssues,
