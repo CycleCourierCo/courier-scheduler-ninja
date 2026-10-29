@@ -10,8 +10,10 @@ import { Loader2, Send, Zap, Paperclip, X } from "lucide-react";
 import type { CsConversation, CsMessage } from "@/types/customerService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCannedResponses } from "@/hooks/useCannedResponses";
-import { fillCannedBody, suggestCannedResponses } from "@/lib/cannedMatch";
-import type { CsCannedResponse } from "@/services/cannedResponseService";
+import { fillCannedBody, scoreCannedResponses } from "@/lib/cannedMatch";
+import { recordCannedOutcome, type CsCannedResponse } from "@/services/cannedResponseService";
+import { outcomeForSimilarity, textSimilarity } from "../../../supabase/functions/_shared/cannedConfidence";
+import { ConfidenceBadge, useCannedStats } from "./CannedConfidence";
 import CannedResponsePicker from "./CannedResponsePicker";
 import WhatsAppTemplateSender from "./WhatsAppTemplateSender";
 
@@ -52,10 +54,22 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
     return () => { cancelled = true; };
   }, [conversation.linked_order_id]);
 
-  const suggestions = useMemo(
-    () => (isNote ? [] : suggestCannedResponses(lastInbound?.body_text, cannedResponses)),
+  const { data: cannedStats = {} } = useCannedStats();
+  const scored = useMemo(
+    () => (isNote ? [] : scoreCannedResponses(lastInbound?.body_text, cannedResponses)),
     [isNote, lastInbound?.body_text, cannedResponses],
   );
+  const suggestions = useMemo(() => scored.slice(0, 3).map((s) => s.response), [scored]);
+
+  // What the reply box was filled with, so we can learn how staff used it.
+  const activeFill = React.useRef<{ response: CsCannedResponse; filled: string; inboundId: string | null; score: number; runnerUp: number } | null>(null);
+  const logOutcome = (fill: NonNullable<typeof activeFill.current>, outcome: 'as_is' | 'edited' | 'rewritten' | 'replaced', similarity: number | null) => {
+    if (!user?.id) return;
+    recordCannedOutcome({
+      responseId: fill.response.id, conversationId: conversation.id, inboundMessageId: fill.inboundId,
+      matchScore: fill.score, runnerUpScore: fill.runnerUp, outcome, similarity, staffId: user.id,
+    }).catch(() => {});
+  };
 
   const myName = (user as any)?.user_metadata?.name
     || (user?.email ? user.email.split('@')[0] : '')
@@ -71,6 +85,14 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
       orderStatus: linkedOrder?.status || null,
       myName,
     });
+    const prev = activeFill.current;
+    if (prev && prev.response.id !== response.id && prev.inboundId === (lastInbound?.id ?? null)) logOutcome(prev, 'replaced', null);
+    const idx = scored.findIndex((s) => s.response.id === response.id);
+    const others = scored.filter((s) => s.response.id !== response.id);
+    activeFill.current = {
+      response, filled, inboundId: lastInbound?.id ?? null,
+      score: idx >= 0 ? scored[idx].score : 0, runnerUp: others[0]?.score ?? 0,
+    };
     setText(filled);
   };
 
@@ -112,6 +134,12 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
       } else {
         const attachments = await Promise.all(files.map((f) => uploadReplyAttachment(conversation.id, f)));
         await sendMessage({ conversationId: conversation.id, bodyText: body, attachments });
+        const fill = activeFill.current;
+        if (fill && fill.inboundId === (lastInbound?.id ?? null)) {
+          const sim = textSimilarity(fill.filled, body);
+          logOutcome(fill, outcomeForSimilarity(sim), sim);
+        }
+        activeFill.current = null;
         toast.success(conversation.channel === 'email' ? "Email sent" : "WhatsApp sent");
       }
       setText("");
@@ -169,6 +197,7 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
                 title="Prefill this reply"
               >
                 <Zap className="h-3 w-3 mr-1" />{s.title}
+                <span className="ml-1"><ConfidenceBadge stats={cannedStats[s.id]} mode={s.auto_send_mode} /></span>
               </Button>
             ))}
           </>
