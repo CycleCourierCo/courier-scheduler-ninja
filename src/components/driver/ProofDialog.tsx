@@ -51,8 +51,10 @@ export function ProofDialog({ stop, driverId, open, onOpenChange, onSaved }: {
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const draftId = useRef<string | null>(null);
+  const captured = useRef<string | null>(null);
 
-  useEffect(() => { if (open) { setPhotos([]); setSignature(null); setName(""); setNote(""); } }, [open]);
+  useEffect(() => { if (open) { draftId.current = null; captured.current = null; setPhotos([]); setSignature(null); setName(""); setNote(""); } }, [open, driverId]);
 
   const takePhoto = async () => {
     if (!isNative()) { fileRef.current?.click(); return; }
