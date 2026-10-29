@@ -16,6 +16,22 @@ async function fetchBytes(url: string, apiKey: string | undefined): Promise<{ by
   return { bytes: buf, type };
 }
 
+let cachedPid: string | undefined;
+/** Reads our WhatsApp phone number ID from SendZen's account list (matches SENDZEN_WABA_ID when set). */
+async function lookupPhoneNumberId(apiKey: string | undefined): Promise<string | undefined> {
+  if (cachedPid || !apiKey) return cachedPid;
+  try {
+    const res = await fetch(`${SENDZEN}/v1/waba`, { headers: { Authorization: `Bearer ${apiKey}` } });
+    if (!res.ok) { await res.body?.cancel(); return undefined; }
+    const j = await res.json();
+    const wabas = (j?.projects || []).flatMap((p: any) => p?.wabas || []);
+    const want = Deno.env.get('SENDZEN_WABA_ID');
+    const hit = wabas.find((w: any) => want && w?.waba_id === want) || wabas.find((w: any) => w?.phone_number_id);
+    cachedPid = hit?.phone_number_id ? String(hit.phone_number_id) : undefined;
+  } catch { /* ignore */ }
+  return cachedPid;
+}
+
 export async function downloadWhatsAppMedia(
   admin: any,
   conversationId: string,
@@ -24,7 +40,7 @@ export async function downloadWhatsAppMedia(
 ): Promise<{ url: string; path: string; size: number } | null> {
   const apiKey = Deno.env.get('SENDZEN_API_KEY');
   const candidates: string[] = [];
-  const pid = att.phone_number_id || phoneNumberId || Deno.env.get('SENDZEN_PHONE_NUMBER_ID');
+  const pid = att.phone_number_id || phoneNumberId || Deno.env.get('SENDZEN_PHONE_NUMBER_ID') || await lookupPhoneNumberId(apiKey);
   // SendZen's documented proxy: GET /v1/{phoneNumberId}/media?url=<Meta media URL>
   if (pid && att.url && /^https:\/\//.test(att.url)) {
     candidates.push(`${SENDZEN}/v1/${encodeURIComponent(pid)}/media?url=${encodeURIComponent(att.url)}`);
