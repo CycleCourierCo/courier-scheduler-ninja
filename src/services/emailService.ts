@@ -2,7 +2,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { getOrder } from "./orderService";
 
 import { getNiDirection, isInboundNi } from "@/utils/niDelivery";
-import { CITY_AIR_EXPRESS } from "@/constants/depot";
+import { ferryPartnerFor } from "@/constants/depot";
+import { ferryRegionOf } from "@/utils/northernIreland";
 import { Order } from "@/types/order";
 
 /**
@@ -613,6 +614,7 @@ export const sendReceiverAvailabilityEmail = async (id: string): Promise<boolean
         item: item,
         trackingNumber: order.trackingNumber,
         niDirection: isNI ? 'outbound' : undefined,
+        ferryRegion: ferryRegionOf(order) || undefined,
         niReceiver: isNI ? {
           name: order.receiver.name,
           email: order.receiver.email,
@@ -723,6 +725,7 @@ export const sendReceiverDatesConfirmedEmail = async (orderId: string, selectedD
         selectedDates: selectedDates,
         baseUrl,
         niDirection: isNI ? 'outbound' : undefined,
+        ferryRegion: ferryRegionOf(order) || undefined,
         niReceiver: isNI ? {
           name: order.receiver.name,
           email: order.receiver.email,

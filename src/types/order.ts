@@ -205,6 +205,7 @@ export type Order = {
   isNorthernIreland?: boolean;
   /** 'outbound' = mainland -> NI, 'inbound' = NI -> mainland */
   niDirection?: 'outbound' | 'inbound' | null;
+  ferryRegion?: 'northern_ireland' | 'isle_of_man' | null;
   foamStatus?: FoamStatus | null;
   foamPendingCollectionAt?: Date | null;
   foamPendingFoamingAt?: Date | null;
