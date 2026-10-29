@@ -12,7 +12,8 @@ import {
   NI_INBOUND_STATUS_LABELS,
   NI_INBOUND_STATUS_ORDER,
 } from "@/types/order";
-import { CITY_AIR_EXPRESS } from "@/constants/depot";
+import { ferryPartnerFor } from "@/constants/depot";
+import { ferryRegionOf } from "@/utils/northernIreland";
 import { sendOrderUpdateEmail } from "@/lib/sendOrderUpdateEmail";
 import OrderSearchBar from "@/components/boxmybike/OrderSearchBar";
 import { filterOrdersBySearch } from "@/utils/orderSearch";
