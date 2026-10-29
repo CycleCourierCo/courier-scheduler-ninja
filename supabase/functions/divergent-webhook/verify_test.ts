@@ -1,5 +1,5 @@
 import { assertEquals } from "jsr:@std/assert@1";
-import { verify } from "./index.ts";
+import { verify } from "./verify.ts";
 
 const enc = new TextEncoder();
 const b64 = (b: ArrayBuffer) => btoa(String.fromCharCode(...new Uint8Array(b)));
