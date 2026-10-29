@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { FoamStatus, FOAM_STATUS_LABELS, FOAM_STATUS_ORDER } from "@/types/order";
-import { CITY_AIR_EXPRESS } from "@/constants/depot";
+import { ferryPartnerFor } from "@/constants/depot";
+import { ferryRegionOf } from "@/utils/northernIreland";
 import { sendOrderUpdateEmail } from "@/lib/sendOrderUpdateEmail";
 import { formatStorageLocations } from "@/utils/storageLocation";
 import { isServiceComplete, serviceGateLabel } from "@/utils/servicingGate";
@@ -124,7 +125,7 @@ function prevFoamStage(s: FoamStatus | null): FoamStatus | null {
   return FOAM_STATUS_ORDER[i - 1];
 }
 
-const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ isStaff, userId }) => {
+const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string; region?: "all" | "northern_ireland" | "isle_of_man" }> = ({ isStaff, userId, region = "all" }) => {
   const queryClient = useQueryClient();
   const { userProfile } = useAuth();
   const isAdmin = hasRole(userProfile, "admin");
@@ -141,7 +142,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
 
 
   const { data: orders = [], isLoading } = useQuery({
-    queryKey: ["foam-my-bike-orders", userId, isStaff],
+    queryKey: ["foam-my-bike-orders", userId, isStaff, region],
     queryFn: async () => {
       let q = supabase
         .from("orders")
@@ -152,6 +153,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
         .neq("status", "cancelled")
         .order("created_at", { ascending: false });
       if (!isStaff && userId) q = q.eq("user_id", userId);
+      if (region !== "all") q = q.eq("ferry_region", region);
       const { data, error } = await q;
       if (error) throw error;
       return (data || []) as unknown as FoamOrder[];
@@ -428,11 +430,11 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
           <div className="text-sm">
             <div><span className="text-muted-foreground">From:</span> {o.sender?.name}</div>
             <div>
-              <span className="text-muted-foreground">To (NI):</span> {o.receiver?.name} —{" "}
+              <span className="text-muted-foreground">To ({ferryRegionOf(o) === "isle_of_man" ? "IoM" : "NI"}):</span> {o.receiver?.name} —{" "}
               {[addr.street, addr.city, addr.zipCode].filter(Boolean).join(", ")}
             </div>
             <div className="text-muted-foreground text-xs mt-1">
-              Ferry hand-off: {CITY_AIR_EXPRESS.formatted}
+              Ferry hand-off: {ferryPartnerFor(ferryRegionOf(o)).formatted}
             </div>
             {o.ni_bfs_number && (
               <div className="text-xs mt-1">
@@ -622,7 +624,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
   if (!isStaff) {
     return orders.length === 0 ? (
       <div className="text-sm text-muted-foreground py-8 text-center">
-        No Northern Ireland deliveries yet.
+        No Northern Ireland or Isle of Man deliveries yet.
       </div>
     ) : (
       <>

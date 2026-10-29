@@ -42,6 +42,7 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
   const [showAll, setShowAll] = useState(false);
   const [rows, setRows] = useState<LabourTimeRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const { data: settings } = useWorkshopSettings();
   const rate = settings?.hourly_rate_gbp ?? 75;
   const minCharge = settings?.min_charge_gbp ?? 15;
@@ -56,6 +57,7 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
     if (!open) return;
     const id = ++requestId.current;
     setLoading(true);
+    setLoadError(false);
     listLabourTimes({
       page: 1,
       pageSize: 30,
@@ -68,7 +70,7 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
       })
       .catch((err) => {
         console.error("RepairPicker load failed", err);
-        if (id === requestId.current) setRows([]);
+        if (id === requestId.current) { setRows([]); setLoadError(true); }
       })
       .finally(() => {
         if (id === requestId.current) setLoading(false);
@@ -82,9 +84,10 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
   }, [value, rows]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <div className="w-full min-w-0">
         <Button
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
           type="button"
           variant="outline"
           size="sm"
@@ -97,12 +100,9 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
           </span>
           <ChevronDown className="h-3.5 w-3.5 opacity-60 shrink-0" />
         </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="flex max-h-[var(--radix-popover-content-available-height)] w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 sm:w-[420px] sm:max-w-[92vw]"
-        align="start"
-        onOpenAutoFocus={(event) => event.preventDefault()}
-      >
+      {open && (
+      <div className="mt-1 flex max-h-96 w-full min-w-[260px] flex-col overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
+
         <div className="p-2 border-b space-y-2">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -136,7 +136,10 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
           onWheel={(event) => event.stopPropagation()}
         >
           {loading && <p className="p-3 text-xs text-muted-foreground">Loading…</p>}
-          {!loading && rows.length === 0 && (
+          {!loading && loadError && (
+            <p className="p-3 text-xs text-destructive">Couldn't load the repair catalogue. Check your connection and reopen this list.</p>
+          )}
+          {!loading && !loadError && rows.length === 0 && (
             <p className="p-3 text-xs text-muted-foreground">No matching repairs.</p>
           )}
           {!loading &&
@@ -200,7 +203,8 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
               );
             })}
         </div>
-      </PopoverContent>
-    </Popover>
+      </div>
+      )}
+    </div>
   );
 }

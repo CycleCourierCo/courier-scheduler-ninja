@@ -1742,6 +1742,36 @@ export type Database = {
           },
         ]
       }
+      delivery_proof_uploads: {
+        Row: {
+          captured_at: string
+          created_at: string
+          driver_id: string
+          id: string
+          order_id: string
+          photo_paths: string[]
+          signature_path: string | null
+        }
+        Insert: {
+          captured_at: string
+          created_at?: string
+          driver_id: string
+          id: string
+          order_id: string
+          photo_paths?: string[]
+          signature_path?: string | null
+        }
+        Update: {
+          captured_at?: string
+          created_at?: string
+          driver_id?: string
+          id?: string
+          order_id?: string
+          photo_paths?: string[]
+          signature_path?: string | null
+        }
+        Relationships: []
+      }
       delivery_proofs: {
         Row: {
           captured_at: string
@@ -2657,6 +2687,7 @@ export type Database = {
           correction_reason: string | null
           created_at: string
           created_by: string | null
+          expected_checklist: Json | null
           finalised_at: string | null
           finalised_by: string | null
           id: string
@@ -2677,6 +2708,7 @@ export type Database = {
           correction_reason?: string | null
           created_at?: string
           created_by?: string | null
+          expected_checklist?: Json | null
           finalised_at?: string | null
           finalised_by?: string | null
           id?: string
@@ -2697,6 +2729,7 @@ export type Database = {
           correction_reason?: string | null
           created_at?: string
           created_by?: string | null
+          expected_checklist?: Json | null
           finalised_at?: string | null
           finalised_by?: string | null
           id?: string
@@ -5071,6 +5104,7 @@ export type Database = {
           destination_region: string | null
           ferry_confirmation_sent_at: string | null
           ferry_partner_notified_at: string | null
+          ferry_region: string | null
           foam_crossed_to_ni_at: string | null
           foam_delivered_ni_at: string | null
           foam_delivered_to_ferry_at: string | null
@@ -5122,6 +5156,7 @@ export type Database = {
           ni_inbound_status: string | null
           ni_partner_label_uploaded_at: string | null
           ni_partner_label_url: string | null
+          ni_partner_token: string
           order_collected: boolean | null
           order_delivered: boolean | null
           payment_collection_phone: string | null
@@ -5201,6 +5236,7 @@ export type Database = {
           destination_region?: string | null
           ferry_confirmation_sent_at?: string | null
           ferry_partner_notified_at?: string | null
+          ferry_region?: string | null
           foam_crossed_to_ni_at?: string | null
           foam_delivered_ni_at?: string | null
           foam_delivered_to_ferry_at?: string | null
@@ -5252,6 +5288,7 @@ export type Database = {
           ni_inbound_status?: string | null
           ni_partner_label_uploaded_at?: string | null
           ni_partner_label_url?: string | null
+          ni_partner_token?: string
           order_collected?: boolean | null
           order_delivered?: boolean | null
           payment_collection_phone?: string | null
@@ -5331,6 +5368,7 @@ export type Database = {
           destination_region?: string | null
           ferry_confirmation_sent_at?: string | null
           ferry_partner_notified_at?: string | null
+          ferry_region?: string | null
           foam_crossed_to_ni_at?: string | null
           foam_delivered_ni_at?: string | null
           foam_delivered_to_ferry_at?: string | null
@@ -5382,6 +5420,7 @@ export type Database = {
           ni_inbound_status?: string | null
           ni_partner_label_uploaded_at?: string | null
           ni_partner_label_url?: string | null
+          ni_partner_token?: string
           order_collected?: boolean | null
           order_delivered?: boolean | null
           payment_collection_phone?: string | null
@@ -8242,6 +8281,14 @@ export type Database = {
         }[]
       }
       disablelongtransactions: { Args: never; Returns: string }
+      driver_can_prove_order: {
+        Args: { _captured: string; _order_id: string }
+        Returns: boolean
+      }
+      driver_can_upload_proof_file: {
+        Args: { _name: string }
+        Returns: boolean
+      }
       driver_start_route: { Args: { p_assignment_id: string }; Returns: string }
       driver_today_stops: { Args: { p_date: string }; Returns: Json }
       dropgeometrycolumn:
@@ -8502,7 +8549,10 @@ export type Database = {
         }[]
       }
       get_my_pending_availability_orders: { Args: never; Returns: Json }
-      get_ni_partner_job: { Args: { p_order_id: string }; Returns: Json }
+      get_ni_partner_job: {
+        Args: { p_order_id: string; p_token: string }
+        Returns: Json
+      }
       get_oauth_client_public: {
         Args: { p_client_id: string; p_redirect_uri: string }
         Returns: Json
@@ -8589,6 +8639,7 @@ export type Database = {
       is_current_user_admin: { Args: never; Returns: boolean }
       is_fleet_staff: { Args: { _uid: string }; Returns: boolean }
       is_internal_staff: { Args: { _user_id: string }; Returns: boolean }
+      is_office_staff: { Args: { _user_id: string }; Returns: boolean }
       is_review_employee_stage: {
         Args: {
           _cycle_id: string
@@ -8623,6 +8674,15 @@ export type Database = {
       load_orders_onto_van: {
         Args: { p_order_ids: string[] }
         Returns: string[]
+      }
+      loading_staff_directory: {
+        Args: { p_role: string }
+        Returns: {
+          email: string
+          id: string
+          name: string
+          phone: string
+        }[]
       }
       longtransactionsenabled: { Args: never; Returns: boolean }
       my_profile_guard: {
@@ -9428,6 +9488,10 @@ export type Database = {
         Returns: string
       }
       verify_api_key: { Args: { api_key: string }; Returns: string }
+      verify_foam_photo_access: {
+        Args: { p_identifier: string; p_postcode: string }
+        Returns: Json
+      }
       verify_oauth_token: { Args: { access_token: string }; Returns: string }
     }
     Enums: {

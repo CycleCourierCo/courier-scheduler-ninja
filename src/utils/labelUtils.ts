@@ -1,3 +1,4 @@
+import { ferryRegionOf } from "@/utils/northernIreland";
 import jsPDF from 'jspdf';
 import { format } from "date-fns";
 import type { Order } from "@/types/order";
@@ -294,7 +295,7 @@ export const renderLabelPage = (
 
     if (order.needsInspection) drawIcon(artwork.repair, 'thermal-repair-icon', 'SERVICE');
     if (order.isBoxMyBike) drawIcon(artwork.box, 'thermal-box-icon', 'BOX');
-    if (order.isNorthernIreland) drawFallback('NI');
+    if (order.isNorthernIreland) drawFallback(ferryRegionOf(order) === 'isle_of_man' ? 'IOM' : 'NI');
   }
 
   // Tracking QR at the bottom of the label, right-aligned on whole printer dots.

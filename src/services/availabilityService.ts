@@ -107,12 +107,16 @@ export const confirmSenderAvailability = async (orderId: string, dateStrings: st
     }
     
     // Submit availability via secure RPC (handles dates, notes, confirmed_at, status atomically)
-    const { error } = await supabase.rpc("set_order_availability" as any, {
+    const { data: _availResult, error: _availError } = await supabase.rpc("set_order_availability" as any, {
       p_order_id: orderId,
       p_side: "sender",
       p_dates: dateStrings,
       p_notes: null,
     });
+
+    // A wrong postcode comes back as a result (so the attempt is still counted), not as an error.
+
+    const error = _availError ?? (((_availResult as any)?.error) ? { message: String((_availResult as any).error) } : null);
 
     if (error) {
       console.error("Error confirming sender availability:", error);
@@ -169,12 +173,16 @@ export const confirmReceiverAvailability = async (orderId: string, dateStrings: 
       return false;
     }
     
-    const { error } = await supabase.rpc("set_order_availability" as any, {
+    const { data: _availResult, error: _availError } = await supabase.rpc("set_order_availability" as any, {
       p_order_id: orderId,
       p_side: "receiver",
       p_dates: dateStrings,
       p_notes: null,
     });
+
+    // A wrong postcode comes back as a result (so the attempt is still counted), not as an error.
+
+    const error = _availError ?? (((_availResult as any)?.error) ? { message: String((_availResult as any).error) } : null);
 
     if (error) {
       console.error("Error confirming receiver availability:", error);
@@ -231,7 +239,7 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
       withGeocodedAltLocation(altLocation),
     ]);
 
-    const { data: rpcData, error } = await supabase.rpc("set_order_availability" as any, {
+    const { data: rpcData, error: _availError } = await supabase.rpc("set_order_availability" as any, {
       p_order_id: orderId,
       p_side: "sender",
       p_dates: dateStrings,
@@ -241,6 +249,10 @@ export const updateSenderAvailability = async (orderId: string, dates: Date[], n
       p_lat: coords.lat,
       p_lon: coords.lon,
     });
+
+    // A wrong postcode comes back as a result (so the attempt is still counted), not as an error.
+
+    const error = _availError ?? (((rpcData as any)?.error) ? { message: String((rpcData as any).error) } : null);
 
 
     if (error) {
@@ -285,7 +297,7 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
       withGeocodedAltLocation(altLocation),
     ]);
 
-    const { data: rpcData, error } = await supabase.rpc("set_order_availability" as any, {
+    const { data: rpcData, error: _availError } = await supabase.rpc("set_order_availability" as any, {
       p_order_id: orderId,
       p_side: "receiver",
       p_dates: dateStrings,
@@ -295,6 +307,10 @@ export const updateReceiverAvailability = async (orderId: string, dates: Date[],
       p_lat: coords.lat,
       p_lon: coords.lon,
     });
+
+    // A wrong postcode comes back as a result (so the attempt is still counted), not as an error.
+
+    const error = _availError ?? (((rpcData as any)?.error) ? { message: String((rpcData as any).error) } : null);
 
 
     if (error) {

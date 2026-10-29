@@ -1,6 +1,6 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1'
 import { corsHeaders } from '../_shared/cors.ts'
-import { CITY_AIR_EXPRESS } from '../_shared/northernIreland.ts'
+import { ferryPartnerFor } from '../_shared/northernIreland.ts'
 import { sanitizeFileName } from '../_shared/sanitizeFileName.ts'
 
 const MAX_BYTES = 10 * 1024 * 1024
@@ -40,17 +40,24 @@ Deno.serve(async (req) => {
     const form = await req.formData()
     const orderId = (form.get('orderId') as string) || ''
     const bfsNumber = (form.get('bfsNumber') as string) || ''
+    const partnerKey = ((form.get('partnerKey') as string) || '').trim()
     const file = form.get('label') as File | null
 
     if (!orderId || typeof orderId !== 'string') {
       return json({ error: 'orderId is required' }, 400)
     }
 
-    // Only validate the order is a Northern Ireland order. The order UUID is the secret.
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+    if (!UUID_RE.test(orderId) || !UUID_RE.test(partnerKey)) {
+      return json({ error: 'This partner link is invalid or out of date — please ask us for a new one' }, 403)
+    }
+
+    // The private partner key (not the public tracking id) authorises this write.
     const { data: order, error: orderError } = await admin
       .from('orders')
-      .select('id, is_northern_ireland, ni_bfs_number, ni_partner_label_url')
+      .select('id, is_northern_ireland, ferry_region, sender, receiver, ni_bfs_number, ni_partner_label_url')
       .eq('id', orderId)
+      .eq('ni_partner_token', partnerKey)
       .maybeSingle()
 
     if (orderError) {
@@ -61,7 +68,7 @@ Deno.serve(async (req) => {
       return json({ error: 'Order not found' }, 404)
     }
     if (!order.is_northern_ireland) {
-      return json({ error: 'This order is not a Northern Ireland order' }, 400)
+      return json({ error: 'This order is not a ferry (Northern Ireland or Isle of Man) order' }, 400)
     }
 
     let savedLabelUrl: string | null = null
@@ -124,7 +131,8 @@ Deno.serve(async (req) => {
       success: true,
       bfsNumber: submitBfs || order.ni_bfs_number,
       labelUrl: submitLabel || order.ni_partner_label_url,
-      cityAirExpressEmail: CITY_AIR_EXPRESS.email,
+      cityAirExpressEmail: ferryPartnerFor(order).email,
+      partnerName: ferryPartnerFor(order).name,
     })
   } catch (e) {
     console.error('ni-partner-label-upload failed:', (e as Error)?.message)

@@ -10,6 +10,7 @@ import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { trackedFetch } from "../_shared/integrationLog.ts";
 import { applyEmailBrand } from "../_shared/emailLayout.ts";
 import { applyTemplateToPayload, saveSample } from "../_shared/emailTemplates.ts";
+import { escapeHtml, summariseInvoiceError, cleanStoredError, isRetryableStatus } from './errorSummary.ts';
 import { eligibleStoragePeriods, londonDate } from '../_shared/warehouseStorageBilling.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
@@ -254,12 +255,12 @@ function buildReportHtml(args: {
         <tr><th>Customer</th><th>Email</th><th>Orders</th><th>Bikes</th><th>Storage months</th><th>Invoice #</th></tr>
         ${successful.map((i) => `
           <tr>
-            <td>${i.customerName}</td>
-            <td>${i.customerEmail}</td>
+            <td>${escapeHtml(i.customerName)}</td>
+            <td style="word-break:break-word;">${escapeHtml(i.customerEmail)}</td>
             <td>${i.orderCount}</td>
             <td>${i.bikeCount}${i.skippedBikes > 0 ? ` <span style="color:#dc2626;">(${i.skippedBikes} skipped)</span>` : ''}</td>
             <td>${i.storageCount || 0}</td>
-            <td>${i.invoiceNumber || 'N/A'}</td>
+            <td>${escapeHtml(i.invoiceNumber || 'N/A')}</td>
           </tr>`).join('')}
       </table>` : '<p>No successful invoices</p>'}
 
@@ -267,14 +268,14 @@ function buildReportHtml(args: {
     ${failed.length > 0 ? `
       <table border="1" cellpadding="8" cellspacing="0">
         <tr><th>Customer</th><th>Email</th><th>Error</th></tr>
-        ${failed.map((i) => `<tr><td>${i.customerName}</td><td>${i.customerEmail}</td><td>${i.error}</td></tr>`).join('')}
+        ${failed.map((i) => `<tr><td>${escapeHtml(i.customerName)}</td><td style="word-break:break-word;">${escapeHtml(i.customerEmail)}</td><td>${escapeHtml(cleanStoredError(i.error))}</td></tr>`).join('')}
       </table>` : '<p>No failed invoices</p>'}
 
     <h3>Skipped Customers</h3>
     ${skipped.length > 0 ? `
       <table border="1" cellpadding="8" cellspacing="0" style="background-color:#fff3cd;">
         <tr><th>Customer</th><th>Email</th><th>Orders in Range</th><th>Reason</th></tr>
-        ${skipped.map((c) => `<tr><td>${c.customerName}</td><td>${c.customerEmail}</td><td>${c.orderCount}</td><td>${c.reason}</td></tr>`).join('')}
+        ${skipped.map((c) => `<tr><td>${escapeHtml(c.customerName)}</td><td style="word-break:break-word;">${escapeHtml(c.customerEmail)}</td><td>${c.orderCount}</td><td>${escapeHtml(c.reason)}</td></tr>`).join('')}
       </table>
       <p><strong>Note:</strong> These customers were excluded from invoice creation. To include them, add an accounts email address in User Management.</p>
     ` : '<p>No customers were skipped</p>'}
@@ -287,8 +288,9 @@ async function processBatch(params: {
   start: Date;
   end: Date;
   label: string;
+  customerIds?: string[];
 }) {
-  const { logId, start, end, label } = params;
+  const { logId, start, end, label, customerIds } = params;
   const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);
   const invoiceUrl = `${SUPABASE_URL}/functions/v1/create-quickbooks-invoice`;
 
@@ -303,8 +305,8 @@ async function processBatch(params: {
       .order('name');
     if (custErr) throw custErr;
 
-    const eligible = (customers || []).filter((c: any) => c.accounts_email);
-    const withoutEmail = (customers || []).filter((c: any) => !c.accounts_email);
+    const eligible = (customers || []).filter((c: any) => c.accounts_email && (!customerIds?.length || customerIds.includes(c.id)));
+    const withoutEmail = customerIds?.length ? [] : (customers || []).filter((c: any) => !c.accounts_email);
 
     const successful: any[] = [];
     const failed: any[] = [];
@@ -342,30 +344,37 @@ async function processBatch(params: {
 
         allOrders.push(...(orders || []));
 
-        const resp = await fetch(invoiceUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Cron-Secret': CRON_SECRET,
-          },
-          body: JSON.stringify({
-            customerId: customer.id,
-            customerEmail: customer.accounts_email,
-            customerName: customer.name,
-            startDate: start.toISOString(),
-            endDate: end.toISOString(),
-            orders: orders || [],
-          }),
+        const payload = JSON.stringify({
+          customerId: customer.id,
+          customerEmail: customer.accounts_email,
+          customerName: customer.name,
+          startDate: start.toISOString(),
+          endDate: end.toISOString(),
+          orders: orders || [],
         });
+        const delays = [2000, 5000, 10000];
+        let resp: Response | null = null;
+        let lastErr = '';
+        for (let attempt = 0; attempt <= delays.length; attempt++) {
+          try {
+            resp = await fetch(invoiceUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'X-Cron-Secret': CRON_SECRET },
+              body: payload,
+            });
+            if (resp.ok || !isRetryableStatus(resp.status)) break;
+            lastErr = summariseInvoiceError(resp.status, await resp.text());
+            resp = null;
+          } catch (netErr: any) {
+            lastErr = `Network error contacting invoicing: ${String(netErr?.message || netErr).slice(0, 120)}`;
+            resp = null;
+          }
+          if (attempt < delays.length) await new Promise((r) => setTimeout(r, delays[attempt]));
+        }
+        if (!resp) throw new Error(lastErr || 'Invoice request failed');
 
         if (!resp.ok) {
-          const text = await resp.text();
-          let friendly = `create-quickbooks-invoice ${resp.status}`;
-          try {
-            const parsed = JSON.parse(text);
-            if (parsed?.error) friendly = String(parsed.error);
-          } catch { friendly = `${friendly}: ${text}`; }
-          throw new Error(friendly);
+          throw new Error(summariseInvoiceError(resp.status, await resp.text()));
         }
         const data = await resp.json();
 
@@ -605,6 +614,50 @@ Deno.serve(async (req: Request): Promise<Response> => {
     let body: any = {};
     try { body = await req.json(); } catch (_) { /* empty body */ }
 
+    // Retry failed: re-run only customers that failed in a past run and have
+    // not been invoiced since, using that run's exact date range.
+    if (body?.retryFailed === true) {
+      let q = supabase.from('weekly_invoice_batch_logs')
+        .select('id, range_start, range_end, range_label, run_started_at, run_completed_at')
+        .eq('status', 'completed').gt('failed_count', 0)
+        .order('created_at', { ascending: false }).limit(1);
+      if (typeof body?.logId === 'string') q = q.eq('id', body.logId);
+      const { data: runs } = await q;
+      const run = runs?.[0];
+      if (!run) {
+        return new Response(JSON.stringify({ error: 'No run with failed invoices found' }), {
+          status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const { data: hist } = await supabase.from('invoice_history')
+        .select('user_id, status, created_at')
+        .gte('created_at', run.run_started_at)
+        .order('created_at', { ascending: true });
+      const runEnd = run.run_completed_at ?? run.run_started_at;
+      const failedIds = new Set<string>();
+      const createdIds = new Set<string>();
+      for (const h of hist || []) {
+        if (h.status === 'failed' && h.created_at <= runEnd) failedIds.add(h.user_id);
+        if (h.status === 'created') createdIds.add(h.user_id);
+      }
+      const customerIds = [...failedIds].filter((id) => !createdIds.has(id));
+      if (customerIds.length === 0) {
+        return new Response(JSON.stringify({ retried: 0, label: run.range_label, message: 'All failed customers have since been invoiced' }), {
+          status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      const label = `${run.range_label} (retry of failed)`;
+      const { data: retryLog, error: retryErr } = await supabase.from('weekly_invoice_batch_logs')
+        .insert({ range_start: run.range_start, range_end: run.range_end, range_label: label, status: 'running', triggered_by: `${triggeredBy}:retry` })
+        .select('id').single();
+      if (retryErr || !retryLog) throw retryErr || new Error('Could not create retry log');
+      // @ts-ignore EdgeRuntime is provided by Supabase
+      EdgeRuntime.waitUntil(processBatch({ logId: retryLog.id, start: new Date(run.range_start), end: new Date(run.range_end), label, customerIds }));
+      return new Response(JSON.stringify({ logId: retryLog.id, retried: customerIds.length, label: run.range_label }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Report-only: rebuild and re-send the summary for an existing run.
     if (body?.reportOnly === true) {
       const result = await resendReport(body?.logId);
@@ -651,7 +704,7 @@ Deno.serve(async (req: Request): Promise<Response> => {
 
     // Fire-and-forget background processing so pg_net returns immediately.
     // @ts-ignore EdgeRuntime is provided by Supabase Edge Runtime.
-    EdgeRuntime.waitUntil(processBatch({ logId: logRow.id, start, end, label }));
+    EdgeRuntime.waitUntil(processBatch({ logId: logRow.id, start, end, label, customerIds: Array.isArray(body?.customerIds) ? body.customerIds.filter((x: unknown) => typeof x === 'string').slice(0, 50) : undefined }));
 
     return new Response(JSON.stringify({
       accepted: true,

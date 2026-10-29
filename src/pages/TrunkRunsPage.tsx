@@ -188,10 +188,12 @@ const TrunkRunsPage: React.FC = () => {
   };
 
   const printManifest = (run: TrunkRun, items: any[]) => {
+    const esc = (v: unknown) =>
+      String(v ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]!));
     const rows = items
       .map((item) => {
         const c = candidateOrPlaceholder(item, candidates);
-        return `<tr><td>${c.tracking_number ?? "—"}</td><td>${c.bike_summary}</td><td>${item.origin_bay ?? "—"}</td><td>${formatSpaces(Number(item.spaces))}</td><td>${c.destination}</td></tr>`;
+        return `<tr><td>${esc(c.tracking_number ?? "—")}</td><td>${esc(c.bike_summary)}</td><td>${esc(item.origin_bay ?? "—")}</td><td>${esc(formatSpaces(Number(item.spaces)))}</td><td>${esc(c.destination)}</td></tr>`;
       })
       .join("");
     const html = `<!doctype html><html><head><title>Trunk manifest</title>

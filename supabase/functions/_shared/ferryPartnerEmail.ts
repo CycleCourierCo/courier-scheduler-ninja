@@ -3,7 +3,7 @@
  * Shared by the orders API/Shopify creation path and the manual resend function
  * so every route produces an identical email.
  */
-import { CITY_AIR_EXPRESS, niDirectionOf } from './northernIreland.ts'
+import { ferryPartnerFor, ferryRegionLabel, ferryRegionShort, niDirectionOf } from './northernIreland.ts'
 
 const esc = (v: unknown) =>
   String(v ?? '')
@@ -18,6 +18,8 @@ const formatAddress = (address?: Record<string, any> | null) =>
 
 export interface FerryPartnerEmailInput {
   orderId?: string
+  /** Private partner key (orders.ni_partner_token) required by the upload page. */
+  ni_partner_token?: string | null
   sender?: Record<string, any> | null
   receiver?: Record<string, any> | null
   tracking_number?: string | null
@@ -26,6 +28,7 @@ export interface FerryPartnerEmailInput {
   bike_quantity?: number | null
   ni_direction?: string | null
   is_northern_ireland?: boolean | null
+  ferry_region?: string | null
   /** Confirmed collection day(s) chosen by the NI customer (YYYY-MM-DD). */
   pickup_date?: string[] | string | null
   /** Collection notes the NI customer left when choosing their day. */
@@ -57,20 +60,25 @@ function buildPublicAppUrl(): string {
 export function buildFerryPartnerEmail(order: FerryPartnerEmailInput) {
   const direction = niDirectionOf(order) || 'outbound'
   const inbound = direction === 'inbound'
+  const CITY_AIR_EXPRESS = ferryPartnerFor(order)
+  const regionName = ferryRegionLabel(order)
+  const short = ferryRegionShort(order)
+  const isIom = short === 'IoM'
+  const refLabel = isIom ? 'consignment number' : 'BFS number'
   const party = inbound ? order.sender : order.receiver
   const other = inbound ? order.receiver : order.sender
   const trackingNumber = order.tracking_number || ''
   const bike = [order.bike_brand, order.bike_model].filter(Boolean).join(' ').trim() || 'Bicycle'
   const quantity = order.bike_quantity || 1
 
-  const directionLabel = inbound ? 'NI to England' : 'England to NI'
-  const directionPlain = inbound ? 'From Northern Ireland to mainland' : 'To Northern Ireland'
+  const directionLabel = inbound ? `${short} to England` : `England to ${short}`
+  const directionPlain = inbound ? `From ${regionName} to mainland` : `To ${regionName}`
 
   const heading = inbound
-    ? 'Northern Ireland collection — please arrange the NI-side pickup'
-    : 'Northern Ireland delivery — please arrange the onward transport'
+    ? `${regionName} collection — please arrange the ${short}-side pickup`
+    : `${regionName} delivery — please arrange the onward transport`
 
-  const partyLabel = inbound ? 'NI collection address' : 'NI delivery address'
+  const partyLabel = inbound ? `${short} collection address` : `${short} delivery address`
 
   const pickupDays = (Array.isArray(order.pickup_date)
     ? order.pickup_date
@@ -85,11 +93,11 @@ export function buildFerryPartnerEmail(order: FerryPartnerEmailInput) {
   const isUpdate = order.isUpdate === true
   const subjectPrefix = isUpdate ? 'UPDATED — ' : ''
   const subject = inbound
-    ? `${subjectPrefix}NI to England — collection booking ${trackingNumber}${collectionDay ? ` — ${collectionDay}` : ''}`
-    : `${subjectPrefix}England to NI — delivery booking ${trackingNumber}`
+    ? `${subjectPrefix}${short} to England — collection booking ${trackingNumber}${collectionDay ? ` — ${collectionDay}` : ''}`
+    : `${subjectPrefix}England to ${short} — delivery booking ${trackingNumber}`
 
-  const uploadUrl = order.orderId
-    ? `${buildPublicAppUrl()}/ni-partner/${order.orderId}`
+  const uploadUrl = order.orderId && order.ni_partner_token
+    ? `${buildPublicAppUrl()}/ni-partner/${order.orderId}?k=${order.ni_partner_token}`
     : null
 
   const html = `
@@ -98,7 +106,7 @@ export function buildFerryPartnerEmail(order: FerryPartnerEmailInput) {
       <p style="background-color:#eef2ff; border-left:4px solid #4D6863; padding:10px 12px; border-radius:4px; margin:0 0 16px;">
         <strong>Direction: ${esc(directionLabel)} (${esc(directionPlain)})</strong>
       </p>
-      <p>The Cycle Courier Co. has a Northern Ireland job for you.</p>
+      <p>The Cycle Courier Co. has a ${esc(regionName)} job for you.</p>
       ${isUpdate
         ? `<p style="background-color:#fff4e5; border-left:4px solid #f59e0b; padding:10px 12px; border-radius:4px; margin:0 0 16px;">
              <strong>This is an update to an existing booking</strong> — it replaces the day previously arranged for this tracking number. Please don't treat it as a new job.
@@ -129,16 +137,16 @@ export function buildFerryPartnerEmail(order: FerryPartnerEmailInput) {
         : ''}
       <p>
         ${inbound
-          ? `Please collect from the address above in Northern Ireland and hand the item over to us at ${esc(CITY_AIR_EXPRESS.formatted)}. The onward mainland delivery is to ${esc(other?.name)} and is handled by us.`
-          : `We will deliver the item to the ferry hand-off point at ${esc(CITY_AIR_EXPRESS.formatted)} for onward transport to the Northern Ireland address above. Collected from ${esc(other?.name)}.`}
+          ? `Please collect from the address above in ${esc(regionName)} and hand the item over to us at ${esc(CITY_AIR_EXPRESS.formatted)}. The onward mainland delivery is to ${esc(other?.name)} and is handled by us.`
+          : `We will deliver the item to the ferry hand-off point at ${esc(CITY_AIR_EXPRESS.formatted)} for onward transport to the ${esc(regionName)} address above. Collected from ${esc(other?.name)}.`}
       </p>
       ${uploadUrl
         ? `<div style="margin: 24px 0;">
              <a href="${esc(uploadUrl)}" style="background-color:#4D6863; color:#fff; padding:12px 18px; text-decoration:none; border-radius:4px; display:inline-block; font-weight:bold;">
-               Upload label and BFS number
+               Upload label and ${esc(refLabel)}
              </a>
              <p style="margin-top:8px; font-size:13px; color:#555;">
-               Use this link to upload the shipping label and add your BFS consignment number.
+               Use this link to upload the shipping label and add your ${esc(isIom ? 'consignment number' : 'BFS consignment number')}.
              </p>
            </div>`
         : ''}

@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { expectationsHtml, expectationsText, expectationsForOrder } from "../_shared/deliveryExpectations.ts";
 import { emailUI, stagesForOrder, stageIndex } from "../_shared/emailLayout.ts";
+import { localiseFerryText } from "../_shared/northernIreland.ts";
 
 /**
  * Per-template presentation (ccc-email-design.md §5): eyebrow, status pill,
@@ -748,9 +749,9 @@ async function sendUpdatesForOrder(
         },
         body: JSON.stringify({
           to,
-          subject: update.subject,
-          html: buildHtml(order, update, name),
-          text: buildText(order, update, name),
+          subject: localiseFerryText(order, update.subject),
+          html: localiseFerryText(order, buildHtml(order, update, name)),
+          text: localiseFerryText(order, buildText(order, update, name)),
           cccShell,
           meta: { orderId: order.id, action: "customer_update", stage: update.stageKey },
         }),

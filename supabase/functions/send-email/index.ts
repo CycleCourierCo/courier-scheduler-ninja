@@ -2,9 +2,11 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { Resend } from "https://esm.sh/resend@2.0.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { initSentry, captureException } from "../_shared/sentry.ts";
-import { requireAuth, createAuthErrorResponse } from "../_shared/auth.ts";
+import { createAuthErrorResponse } from "../_shared/auth.ts";
+import { identifyCaller } from "../_shared/staffAuth.ts";
 import { expectationsHtml, expectationsText, expectationsForOrder } from "../_shared/deliveryExpectations.ts";
 import { trackResend } from "../_shared/integrationLog.ts";
+import { localiseFerryText } from "../_shared/northernIreland.ts";
 import { emailUI, stagesForOrder, stageIndex } from "../_shared/emailLayout.ts";
 import { loadTemplate, isSendAllowed, cleanAddresses, hasCustomBody, varsFromOrder, fillVars, renderBlocks } from "../_shared/emailTemplates.ts";
 
@@ -49,7 +51,7 @@ serve(async (req) => {
     
     // Parse request data and log it
     const reqData = await req.json();
-    console.log('Request data:', JSON.stringify(reqData, null, 2));
+    console.log('send-email request', { emailType: reqData.emailType ?? null, action: reqData.meta?.action ?? null });
 
     // Email types that can be sent from public pages (no auth required)
     // These are system-triggered emails from customer availability confirmations
@@ -57,22 +59,36 @@ serve(async (req) => {
 
     // Only require auth for non-public email types
     if (!publicEmailTypes.includes(reqData.emailType)) {
-      // Allow service role key (used when called from other edge functions like orders)
-      const authHeader = req.headers.get('Authorization');
-      const token = authHeader?.replace('Bearer ', '') || '';
-      const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+      const caller = await identifyCaller(req);
+      if (!caller) return createAuthErrorResponse('Unauthorized', 401);
 
-      if (token === serviceRoleKey) {
-        console.log('Authenticated via service role key for email sending');
-      } else {
-        const authResult = await requireAuth(req);
-        if (!authResult.success) {
-          return createAuthErrorResponse(authResult.error!, authResult.status!);
+      // Customers may only send to themselves, the office, or contacts on their own bookings,
+      // always from the default company sender. Staff, cron and other functions are unrestricted.
+      if (!caller.isStaff) {
+        const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+        const actionOrderId = reqData.meta?.action ? (reqData.meta?.orderId || reqData.orderId) : null;
+        if (reqData.meta?.action) {
+          const { data: own } = await admin.from('orders').select('id').eq('id', actionOrderId).eq('user_id', caller.userId).maybeSingle();
+          if (!own) return createAuthErrorResponse('Forbidden', 403);
+        } else {
+          const allowed = new Set<string>(['info@cyclecourierco.com']);
+          if (caller.email) allowed.add(caller.email);
+          const { data: orders } = await admin.from('orders')
+            .select('sender, receiver').eq('user_id', caller.userId)
+            .order('created_at', { ascending: false }).limit(500);
+          for (const o of orders || []) {
+            const found = JSON.stringify([o.sender, o.receiver]).match(/[^\s"'<>,;:]+@[^\s"'<>,;:]+\.[a-z]{2,}/gi) || [];
+            for (const e of found) allowed.add(e.toLowerCase());
+          }
+          const recipients = (Array.isArray(reqData.to) ? reqData.to : [reqData.to]).filter(Boolean).map((e: string) => String(e).toLowerCase().trim());
+          if (!recipients.length || recipients.some((e: string) => !allowed.has(e))) {
+            return createAuthErrorResponse('Forbidden: recipient not allowed', 403);
+          }
+          delete reqData.from;
+          delete reqData.cc;
+          delete reqData.bcc;
         }
-        console.log('Authenticated user:', authResult.userId);
       }
-    } else {
-      console.log('Public email type:', reqData.emailType, '- no auth required');
     }
 
     // Order row used for test-account suppression and expectations wording
@@ -84,11 +100,19 @@ serve(async (req) => {
       const adminClient = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
       const { data: orderData } = await adminClient
         .from("orders")
-        .select("user_id, sender, receiver, is_northern_ireland, is_box_my_bike, ni_direction, foam_status, needs_inspection")
+        .select("user_id, sender, receiver, is_northern_ireland, ferry_region, is_box_my_bike, ni_direction, foam_status, needs_inspection")
         .eq("id", checkOrderId)
         .single();
 
       orderRow = orderData || null;
+
+      // Isle of Man orders reuse the Northern Ireland copy with the region swapped.
+      if (orderRow?.ferry_region === 'isle_of_man' || reqData.ferryRegion === 'isle_of_man') {
+        const loc = (v: any) => (typeof v === 'string' ? localiseFerryText('isle_of_man', v) : v);
+        const origSend = resend.emails.send.bind(resend.emails);
+        (resend.emails as any).send = (p: any, ...rest: any[]) =>
+          origSend({ ...p, subject: loc(p?.subject), html: loc(p?.html), text: loc(p?.text) }, ...rest);
+      }
 
       if (orderData?.user_id) {
         const { data: profile } = await adminClient

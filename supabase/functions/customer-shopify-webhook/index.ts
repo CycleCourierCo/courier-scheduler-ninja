@@ -127,15 +127,25 @@ serve(async (req) => {
           continue;
         }
 
-        // Dedupe
-        const { data: existingLog } = await admin
+        // Atomic claim: the unique (shop, order, sku) row is written BEFORE booking,
+        // so overlapping Shopify retries can't both create a courier job.
+        const { data: claim, error: claimErr } = await admin
           .from("customer_shopify_order_log")
+          .insert({
+            store_id: store.id,
+            user_id: store.user_id,
+            shop_domain: shopDomain,
+            shopify_order_id: shopifyOrderId,
+            shopify_order_number: orderNumber,
+            line_item_sku: sku,
+            status: "processing",
+            message: "Booking in progress",
+          })
           .select("id")
-          .eq("shop_domain", shopDomain)
-          .eq("shopify_order_id", shopifyOrderId)
-          .eq("line_item_sku", sku)
-          .maybeSingle();
-        if (existingLog) continue;
+          .single();
+        if (claimErr || !claim) continue; // already claimed (duplicate delivery) or log unavailable
+        const finishLog = (fields: Record<string, unknown>) =>
+          admin.from("customer_shopify_order_log").update(fields).eq("id", claim.id);
 
         // Find stock by SKU (FIFO)
         const { data: stockMatch } = await admin
@@ -162,13 +172,7 @@ serve(async (req) => {
         }
 
         if (!stockMatch && !registeredSku) {
-          await admin.from("customer_shopify_order_log").insert({
-            store_id: store.id,
-            user_id: store.user_id,
-            shop_domain: shopDomain,
-            shopify_order_id: shopifyOrderId,
-            shopify_order_number: orderNumber,
-            line_item_sku: sku,
+          await finishLog({
             status: "unmatched_sku",
             message: `No stored bike or registered SKU found for "${sku}"`,
             raw_payload: item,
@@ -270,13 +274,7 @@ serve(async (req) => {
           .single();
 
         if (orderErr || !newOrder) {
-          await admin.from("customer_shopify_order_log").insert({
-            store_id: store.id,
-            user_id: store.user_id,
-            shop_domain: shopDomain,
-            shopify_order_id: shopifyOrderId,
-            shopify_order_number: orderNumber,
-            line_item_sku: sku,
+          await finishLog({
             status: "error",
             message: `Failed to create order: ${orderErr?.message}`,
             warehouse_stock_id: stockMatch?.id ?? null,
@@ -289,18 +287,13 @@ serve(async (req) => {
           await admin
             .from("warehouse_stock")
             .update({ status: "reserved", linked_order_id: newOrder.id })
-            .eq("id", stockMatch.id);
+            .eq("id", stockMatch.id)
+            .eq("status", "stored");
         }
 
         // Log success
-        await admin.from("customer_shopify_order_log").insert({
-          store_id: store.id,
-          user_id: store.user_id,
-          shop_domain: shopDomain,
-          shopify_order_id: shopifyOrderId,
-          shopify_order_number: orderNumber,
-          line_item_sku: sku,
-          status: stockMatch ? "matched" : "matched_customer_stock",
+        await finishLog({
+            status: stockMatch ? "matched" : "matched_customer_stock",
           message: stockMatch
             ? `Created order for ${stockMatch.bike_brand || ""} ${stockMatch.bike_model || ""}`.trim()
             : `Booked collection from you for ${bikeDetails.bike_brand || ""} ${bikeDetails.bike_model || ""}`.trim(),

@@ -3,6 +3,7 @@ import { isOutboundNi, isInboundNi } from "@/utils/niDelivery";
 import React, { useEffect, useState } from "react";
 import { format, isValid, parseISO } from "date-fns";
 import { Order, ShipdayUpdate } from "@/types/order";
+import { localiseFerryText } from "@/utils/northernIreland";
 import { Package, ClipboardEdit, Calendar, Truck, Check, CheckCircle, Clock, MapPin, Map, Bike, AlertCircle, Image, Lock, Wrench, Box, Ship, Snowflake } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import PostcodeVerification from "./PostcodeVerification";
@@ -671,7 +672,11 @@ const TrackingTimeline: React.FC<TrackingTimelineProps> = ({ order, orderIdentif
       });
   };
 
-  const trackingEvents = getTrackingEvents();
+  const trackingEvents = getTrackingEvents().map((e: any) => ({
+    ...e,
+    title: typeof e.title === 'string' ? localiseFerryText(order, e.title) : e.title,
+    description: typeof e.description === 'string' ? localiseFerryText(order, e.description) : e.description,
+  }));
   const latestTrackingEvent = trackingEvents[trackingEvents.length - 1];
   const journeyStops = buildJourneyStops(order);
 

@@ -48,3 +48,32 @@ export const CITY_AIR_EXPRESS = {
 // bike must be loaded as driver won't have it yet
 export const DEPOT_PROXIMITY_THRESHOLD_METERS = 500;
 
+
+// Isle of Man ferry hand-off point. Isle of Man deliveries are dropped here
+// (and inbound Isle of Man bikes collected from here) instead of the island address.
+export const FREIGHT_HUB = {
+  displayName: 'Ferry hand-off',
+  name: 'Freight Hub',
+  email: 'hello@freighthub.im',
+  phone: '+44 7624 246112',
+  address: {
+    street: 'Unit 7, Alexandra Industrial Estate',
+    city: 'Widnes',
+    state: 'Cheshire',
+    zipCode: 'WA8 7AH',
+    country: 'United Kingdom',
+  },
+  formatted: 'Freight Hub, Unit 7, Alexandra Industrial Estate, Widnes, WA8 7AH',
+  lat: 53.361291,
+  lon: -2.737584,
+};
+
+export type FerryRegion = 'northern_ireland' | 'isle_of_man';
+
+/** Ferry partner for an order (or region). Defaults to the Northern Ireland partner. */
+export const ferryPartnerFor = (orderOrRegion?: any) => {
+  const region = typeof orderOrRegion === 'string'
+    ? orderOrRegion
+    : orderOrRegion?.ferry_region ?? orderOrRegion?.ferryRegion;
+  return region === 'isle_of_man' ? FREIGHT_HUB : CITY_AIR_EXPRESS;
+};

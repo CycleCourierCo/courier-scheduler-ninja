@@ -8,7 +8,8 @@ import { Check, X, AlertTriangle, MapPin, Package, Truck, CalendarClock, CircleA
 import { format } from "date-fns";
 import { MatchResult, MatchCandidate, getDeliveryCollectionStatus } from "@/utils/csvRouteParser";
 import { isFerryLeg } from "@/utils/niDelivery";
-import { CITY_AIR_EXPRESS } from "@/constants/depot";
+import { ferryPartnerFor } from "@/constants/depot";
+import { ferryRegionOf } from "@/utils/northernIreland";
 
 export interface CSVSelectedJob {
   orderId: string;
@@ -350,7 +351,7 @@ const CSVMatchReviewDialog: React.FC<CSVMatchReviewDialogProps> = ({
                         : candidate.order.receiver;
                       const ferry = isFerryLeg(candidate.order, candidate.jobType);
                       const contactLabel = ferry
-                        ? `${CITY_AIR_EXPRESS.name} — ${customer?.name || 'Customer'}`
+                        ? `${ferryPartnerFor(ferryRegionOf(candidate.order)).name} — ${customer?.name || 'Customer'}`
                         : customer?.name;
                       return (
                         <label

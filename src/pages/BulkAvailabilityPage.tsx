@@ -108,12 +108,16 @@ const BulkAvailabilityPage = () => {
 
         const isSender = role === 'sender';
 
-        const { error } = await supabase.rpc("set_order_availability" as any, {
+        const { data: _availResult, error: _availError } = await supabase.rpc("set_order_availability" as any, {
           p_order_id: orderId,
           p_side: isSender ? "sender" : "receiver",
           p_dates: dateStrings,
           p_notes: notes,
         });
+
+        // A wrong postcode comes back as a result (so the attempt is still counted), not as an error.
+
+        const error = _availError ?? (((_availResult as any)?.error) ? { message: String((_availResult as any).error) } : null);
 
         if (error) {
           console.error("Error updating availability:", error);
