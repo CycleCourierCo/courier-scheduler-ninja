@@ -42,6 +42,7 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
   const [showAll, setShowAll] = useState(false);
   const [rows, setRows] = useState<LabourTimeRow[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const { data: settings } = useWorkshopSettings();
   const rate = settings?.hourly_rate_gbp ?? 75;
   const minCharge = settings?.min_charge_gbp ?? 15;
@@ -56,6 +57,7 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
     if (!open) return;
     const id = ++requestId.current;
     setLoading(true);
+    setLoadError(false);
     listLabourTimes({
       page: 1,
       pageSize: 30,
@@ -68,7 +70,7 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
       })
       .catch((err) => {
         console.error("RepairPicker load failed", err);
-        if (id === requestId.current) setRows([]);
+        if (id === requestId.current) { setRows([]); setLoadError(true); }
       })
       .finally(() => {
         if (id === requestId.current) setLoading(false);
@@ -136,7 +138,10 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
           onWheel={(event) => event.stopPropagation()}
         >
           {loading && <p className="p-3 text-xs text-muted-foreground">Loading…</p>}
-          {!loading && rows.length === 0 && (
+          {!loading && loadError && (
+            <p className="p-3 text-xs text-destructive">Couldn't load the repair catalogue. Check your connection and reopen this list.</p>
+          )}
+          {!loading && !loadError && rows.length === 0 && (
             <p className="p-3 text-xs text-muted-foreground">No matching repairs.</p>
           )}
           {!loading &&

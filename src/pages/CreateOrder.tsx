@@ -21,7 +21,6 @@ import OrderDetails from "@/components/create-order/OrderDetails";
 import OrderOptions from "@/components/create-order/OrderOptions";
 import DeliveryInstructions from "@/components/create-order/DeliveryInstructions";
 import { ContactSelector } from "@/components/create-order/ContactSelector";
-import { useContacts } from "@/hooks/useContacts";
 import { Contact } from "@/services/contactService";
 import { Input } from "@/components/ui/input";
 import { DEPOT_RECEIVER } from "@/constants/depot";
@@ -215,7 +214,7 @@ const CreateOrder = () => {
   const isAdmin = hasRole(userProfile, 'admin');
   const canBookForOthers = isAdmin || hasRole(userProfile, 'cs_agent' as any);
   const [bookFor, setBookFor] = React.useState<PickedAccount | null>(null);
-  const { data: contacts = [], isLoading: isLoadingContacts } = useContacts(bookFor?.id || user?.id, isAdmin);
+  const contactBookUserId = bookFor?.id || (isAdmin ? null : user?.id ?? null);
 
   const form = useForm<CreateOrderFormData>({
     resolver: zodResolver(orderSchema),
@@ -762,9 +761,8 @@ const CreateOrder = () => {
                         </div>
                         <div className="mb-4">
                           <ContactSelector
-                            contacts={contacts}
+                            userId={contactBookUserId}
                             onSelect={(contact) => fillFromContact(contact, "sender")}
-                            isLoading={isLoadingContacts}
                             placeholder="Select from address book..."
                           />
                         </div>
@@ -825,9 +823,8 @@ const CreateOrder = () => {
                         </div>
                         <div className="mb-4">
                           <ContactSelector
-                            contacts={contacts}
+                            userId={contactBookUserId}
                             onSelect={(contact) => fillFromContact(contact, "receiver")}
-                            isLoading={isLoadingContacts}
                             placeholder="Select from address book..."
                           />
                         </div>
