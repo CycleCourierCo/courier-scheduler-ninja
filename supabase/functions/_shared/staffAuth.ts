@@ -1,7 +1,12 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 
-/** Roles that are customers, never staff. */
-export const CUSTOMER_ROLES = ['b2b_customer', 'b2c_customer'];
+/** Explicit staff roles; new roles get no business-action access until added. */
+export const STAFF_ROLES = [
+  'admin', 'loader', 'route_planner', 'sales', 'driver', 'mechanic',
+  'timeslip_admin', 'cs_agent', 'fleet_manager', 'tech', 'project_manager',
+] as const;
+
+export const isStaffRole = (role: string) => (STAFF_ROLES as readonly string[]).includes(role);
 
 export interface CallerInfo {
   kind: 'service' | 'cron' | 'user';
@@ -37,13 +42,14 @@ export async function identifyCaller(req: Request): Promise<CallerInfo | null> {
 
   const { data: { user }, error } = await admin.auth.getUser(token);
   if (error || !user) return null;
-  const { data: rows } = await admin.from('user_roles').select('role').eq('user_id', user.id);
+  const { data: rows, error: rolesError } = await admin.from('user_roles').select('role').eq('user_id', user.id);
+  if (rolesError) return null;
   const roles = (rows || []).map((r: any) => String(r.role));
   return {
     kind: 'user',
     userId: user.id,
     email: user.email?.toLowerCase(),
     roles,
-    isStaff: roles.some((r) => !CUSTOMER_ROLES.includes(r)),
+    isStaff: roles.some(isStaffRole),
   };
 }
