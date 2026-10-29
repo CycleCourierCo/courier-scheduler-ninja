@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { sendMessage, addNote, fetchOrdersByIds, uploadReplyAttachment } from "@/services/customerServiceInboxService";
+import { waMediaSizeError } from "../../../supabase/functions/_shared/whatsappMedia";
 import { toast } from "sonner";
 import { Loader2, Send, Zap, Paperclip, X } from "lucide-react";
 import type { CsConversation, CsMessage } from "@/types/customerService";
@@ -87,7 +88,10 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
     if (!list) return;
     const next = [...files];
     for (const f of Array.from(list)) {
-      if (f.size > MAX_FILE) { toast.error(`${f.name} is over 20MB`); continue; }
+      if (conversation.channel === 'whatsapp' && !isNote) {
+        const err = waMediaSizeError(f.type || 'application/octet-stream', f.size);
+        if (err) { toast.error(`${f.name}: ${err}`); continue; }
+      } else if (f.size > MAX_FILE) { toast.error(`${f.name} is over 20MB`); continue; }
       if (next.length >= 10) { toast.error("Up to 10 files per reply"); break; }
       next.push(f);
     }

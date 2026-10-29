@@ -1,11 +1,24 @@
-// Parses SendZen / Meta-style WhatsApp webhook payloads. No imports so Vitest can test it.
+// Parses SendZen / Meta-style WhatsApp webhook payloads. No imports from outside _shared so Vitest can test it.
+import { formatCallDuration } from './whatsappMedia.ts';
+
+export interface InboundWaAttachment {
+  url: string;
+  filename: string;
+  content_type: string;
+  kind?: string;
+  media_id?: string;
+}
 
 export interface InboundWaMessage {
   from: string;
   name: string | null;
   externalId: string | null;
   text: string;
-  attachment: { url: string; filename: string; content_type: string } | null;
+  attachment: InboundWaAttachment | null;
+  /** WhatsApp message ID this message replies to or reacts to. */
+  replyTo?: string | null;
+  isReaction?: boolean;
+  isCall?: boolean;
 }
 
 export interface WaStatusUpdate {
@@ -15,38 +28,75 @@ export interface WaStatusUpdate {
 }
 
 const MEDIA_LABEL: Record<string, string> = {
-  image: '[Photo]', video: '[Video]', audio: '[Voice note]', voice: '[Voice note]',
+  image: '[Photo]', video: '[Video]', audio: '[Audio]', voice: '[Voice note]',
   document: '[Document]', sticker: '[Sticker]',
 };
 
-function describe(m: any): { text: string; attachment: InboundWaMessage['attachment'] } {
+const EXT: Record<string, string> = {
+  'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/3gpp': '3gp',
+  'audio/ogg': 'ogg', 'audio/mpeg': 'mp3', 'audio/mp4': 'm4a', 'audio/aac': 'aac', 'audio/amr': 'amr',
+  'application/pdf': 'pdf',
+};
+
+function describe(m: any): Omit<InboundWaMessage, 'from' | 'name' | 'externalId'> {
   const type = m?.type || (m?.text ? 'text' : '');
-  if (typeof m?.text === 'string') return { text: m.text, attachment: null };
-  if (m?.text?.body) return { text: String(m.text.body), attachment: null };
+  const replyTo = m?.context?.id || null;
+  if (typeof m?.text === 'string') return { text: m.text, attachment: null, replyTo };
+  if (m?.text?.body) return { text: String(m.text.body), attachment: null, replyTo };
   if (MEDIA_LABEL[type]) {
     const media = m[type] || {};
+    const isVoice = type === 'audio' && media.voice === true;
+    const label = isVoice ? MEDIA_LABEL.voice : MEDIA_LABEL[type];
     const caption = media.caption ? ` ${media.caption}` : '';
+    const mime = String(media.mime_type || (type === 'image' ? 'image/jpeg' : type === 'sticker' ? 'image/webp' : 'application/octet-stream')).split(';')[0];
     const url = media.link || media.url || '';
+    const filename = media.filename || `${isVoice ? 'voice-note' : type}.${EXT[mime] || 'bin'}`;
     return {
-      text: `${MEDIA_LABEL[type]}${caption}`,
-      attachment: url ? {
-        url, filename: media.filename || `${type}`,
-        content_type: media.mime_type || (type === 'image' ? 'image/jpeg' : 'application/octet-stream'),
-      } : null,
+      text: `${label}${caption}`,
+      attachment: url || media.id ? { url, filename, content_type: mime, kind: type, ...(media.id ? { media_id: String(media.id) } : {}) } : null,
+      replyTo,
     };
   }
   if (type === 'location' && m.location) {
     const l = m.location;
-    return { text: `[Location] ${l.name ? l.name + ' ' : ''}https://maps.google.com/?q=${l.latitude},${l.longitude}`, attachment: null };
+    const name = [l.name, l.address].filter(Boolean).join(', ');
+    return { text: `[Location] ${name ? name + ' ' : ''}https://maps.google.com/?q=${l.latitude},${l.longitude}`, attachment: null, replyTo };
   }
-  if (type === 'button') return { text: String(m.button?.text || m.button?.payload || '[Button reply]'), attachment: null };
+  if (type === 'contacts' && Array.isArray(m.contacts)) {
+    const cards = m.contacts.map((c: any) => {
+      const nm = c.name?.formatted_name || [c.name?.first_name, c.name?.last_name].filter(Boolean).join(' ') || 'Contact';
+      const phones = (c.phones || []).map((p: any) => p.phone).filter(Boolean).join(', ');
+      return `${nm}${phones ? ` (${phones})` : ''}`;
+    });
+    return { text: `[Contact card] ${cards.join('; ')}`, attachment: null, replyTo };
+  }
+  if (type === 'button') return { text: String(m.button?.text || m.button?.payload || '[Button reply]'), attachment: null, replyTo };
   if (type === 'interactive') {
     const i = m.interactive || {};
-    return { text: String(i.button_reply?.title || i.list_reply?.title || '[Reply]'), attachment: null };
+    return { text: String(i.button_reply?.title || i.list_reply?.title || '[Reply]'), attachment: null, replyTo };
   }
-  if (type === 'reaction') return { text: `[Reaction] ${m.reaction?.emoji || ''}`.trim(), attachment: null };
-  if (type) return { text: `[${type}]`, attachment: null };
-  return { text: '', attachment: null };
+  if (type === 'reaction') {
+    const emoji = m.reaction?.emoji;
+    return { text: emoji ? `Reacted ${emoji}` : 'Removed a reaction', attachment: null, replyTo: m.reaction?.message_id || null, isReaction: true };
+  }
+  if (type === 'unsupported' || type) return { text: `[Unsupported WhatsApp message${type && type !== 'unsupported' ? `: ${type}` : ''}]`, attachment: null, replyTo };
+  return { text: '', attachment: null, replyTo };
+}
+
+/** WhatsApp calling webhooks: only the final event of a call is recorded, so each call shows once. */
+function describeCall(c: any): InboundWaMessage | null {
+  const event = String(c?.event || '').toLowerCase();
+  const status = String(c?.status || '').toLowerCase();
+  if (!c?.id || !c?.from) return null;
+  if (event && event !== 'terminate') return null;
+  if (String(c.direction || '').toUpperCase() === 'BUSINESS_INITIATED') return null;
+  const duration = Number(c.duration ?? 0);
+  const answered = duration > 0 || status === 'completed';
+  return {
+    from: String(c.from), name: null, externalId: `call:${c.id}`,
+    text: answered && duration > 0 ? `📞 WhatsApp call · ${formatCallDuration(duration)}` : '📞 Missed WhatsApp call',
+    attachment: null, isCall: true,
+  };
 }
 
 const STATUS_MAP: Record<string, WaStatusUpdate['status']> = {
@@ -61,8 +111,8 @@ export function parseWhatsAppWebhook(body: any): { messages: InboundWaMessage[];
     for (const c of Array.isArray(e?.changes) ? e.changes : []) if (c?.value) values.push(c.value);
   }
   if (body?.value) values.push(body.value);
-  if (body?.data && (body.data.messages || body.data.statuses)) values.push(body.data);
-  if (body?.messages || body?.statuses) values.push(body);
+  if (body?.data && (body.data.messages || body.data.statuses || body.data.calls)) values.push(body.data);
+  if (body?.messages || body?.statuses || body?.calls) values.push(body);
 
   for (const v of values) {
     const names: Record<string, string> = {};
@@ -73,6 +123,10 @@ export function parseWhatsAppWebhook(body: any): { messages: InboundWaMessage[];
       const d = describe(m);
       if (!m?.from || !d.text) continue;
       messages.push({ from: String(m.from), name: names[m.from] || null, externalId: m.id || null, ...d });
+    }
+    for (const c of Array.isArray(v.calls) ? v.calls : []) {
+      const call = describeCall(c);
+      if (call) messages.push({ ...call, name: names[call.from] || null });
     }
     for (const s of Array.isArray(v.statuses) ? v.statuses : []) {
       const st = STATUS_MAP[String(s?.status || '').toLowerCase()];
