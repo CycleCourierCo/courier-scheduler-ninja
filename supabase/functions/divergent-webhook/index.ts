@@ -14,25 +14,30 @@ function timingSafeEq(a: string, b: string) {
   return r === 0;
 }
 
-async function verify(req: Request, raw: string, secret: string): Promise<boolean> {
+export async function verify(req: Request, raw: string, secret: string, nowMs = Date.now()): Promise<boolean> {
   const sigInput = req.headers.get("signature-input");
   const sigHeader = req.headers.get("signature");
-  if (!sigInput || !sigHeader) return false;
-  // Content-Digest must match the body
   const digestHeader = req.headers.get("content-digest") || "";
+  if (req.method !== "POST" || !sigInput || !sigHeader || !req.headers.get("webhook-id")) return false;
   const actual = b64(await crypto.subtle.digest("SHA-256", enc.encode(raw)));
-  const dm = digestHeader.match(/sha-256=:([^:]+):/);
-  if (dm && dm[1] !== actual) return false;
+  const dm = digestHeader.match(/(?:^|,)\s*sha-256=:([^:]+):\s*(?:,|$)/i);
+  if (!dm || !timingSafeEq(dm[1], actual)) return false;
   const key = await crypto.subtle.importKey("raw", enc.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   const url = new URL(req.url);
-  // Each signature: label=("@method" ...);created=..;expires=..;keyid=..;alg=..
   for (const part of sigInput.split(/,(?=\s*[\w-]+=\()/)) {
     const m = part.trim().match(/^([\w-]+)=(\(.*?\))(.*)$/);
     if (!m) continue;
     const [, label, list, params] = m;
-    const exp = params.match(/expires=(\d+)/);
-    if (exp && Number(exp[1]) * 1000 < Date.now()) continue;
-    const comps = [...list.matchAll(/"([^"]+)"/g)].map((x) => x[1]);
+    const exp = [...params.matchAll(/;expires=(\d+)/g)];
+    const created = [...params.matchAll(/;created=(\d+)/g)];
+    if (exp.length !== 1 || created.length > 1) continue;
+    const expiresMs = Number(exp[0][1]) * 1000;
+    const createdMs = created.length ? Number(created[0][1]) * 1000 : null;
+    if (expiresMs <= nowMs || expiresMs > nowMs + 5 * 60_000 + 30_000) continue;
+    if (createdMs !== null && (createdMs > nowMs + 30_000 || nowMs - createdMs > 5 * 60_000 + 30_000 || expiresMs <= createdMs || expiresMs - createdMs > 5 * 60_000)) continue;
+    const comps = [...list.matchAll(/"([^"]+)"/g)].map((x) => x[1].toLowerCase());
+    const covers = (c: string) => comps.includes(c);
+    if (!covers("content-digest") || !covers("webhook-id") || !covers("@method") || !(covers("@target-uri") || (covers("@authority") && covers("@path")))) continue;
     const lines = comps.map((c) => {
       let v = "";
       if (c === "@method") v = req.method.toUpperCase();
@@ -45,15 +50,17 @@ async function verify(req: Request, raw: string, secret: string): Promise<boolea
     });
     lines.push(`"@signature-params": ${list}${params}`);
     const expected = b64(await crypto.subtle.sign("HMAC", key, enc.encode(lines.join("\n"))));
-    const sm = sigHeader.match(new RegExp(`${label}=:([^:]+):`));
+    const sm = sigHeader.match(new RegExp(`(?:^|,)\\s*${label}=:([^:]+):`));
     if (sm && timingSafeEq(sm[1], expected)) return true;
   }
   return false;
 }
 
-Deno.serve(async (req) => {
+if (import.meta.main) Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   const json = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+  let claimed: string | null = null;
+  let admin: ReturnType<typeof createClient> | null = null;
   try {
     const secret = Deno.env.get("DIVERGENT_WEBHOOK_SECRET");
     if (!secret) return json({ error: "not configured" }, 503);
@@ -62,12 +69,12 @@ Deno.serve(async (req) => {
       console.warn("divergent-webhook: signature check failed");
       return json({ error: "invalid signature" }, 401);
     }
-    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const webhookId = req.headers.get("webhook-id");
-    if (webhookId) {
-      const { error } = await admin.from("divergent_webhook_events").insert({ webhook_id: webhookId });
-      if (error) return json({ ok: true, duplicate: true });
-    }
+    admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const webhookId = req.headers.get("webhook-id")!;
+    const { error: claimError } = await admin.from("divergent_webhook_events").insert({ webhook_id: webhookId });
+    if (claimError?.code === "23505") return json({ ok: true, duplicate: true });
+    if (claimError) throw claimError;
+    claimed = webhookId;
     const evt = JSON.parse(raw);
     const data = evt?.data || {};
     console.log("divergent-webhook event:", evt?.type);
@@ -109,7 +116,9 @@ Deno.serve(async (req) => {
     }
     return json({ ok: true });
   } catch (e) {
-    console.error("divergent-webhook error:", (e as Error).message);
+    // Release the claim so Divergent's retry can process the event.
+    if (claimed && admin) await admin.from("divergent_webhook_events").delete().eq("webhook_id", claimed);
+    console.error("divergent-webhook error");
     return json({ error: "Internal server error" }, 500);
   }
 });
