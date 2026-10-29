@@ -13,6 +13,7 @@ import { useCannedResponses } from "@/hooks/useCannedResponses";
 import { fillCannedBody, suggestCannedResponses } from "@/lib/cannedMatch";
 import type { CsCannedResponse } from "@/services/cannedResponseService";
 import CannedResponsePicker from "./CannedResponsePicker";
+import WhatsAppTemplateSender from "./WhatsAppTemplateSender";
 
 interface Props {
   conversation: CsConversation;
@@ -31,6 +32,7 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
   const [files, setFiles] = useState<File[]>([]);
   const fileInput = React.useRef<HTMLInputElement>(null);
   const [linkedOrder, setLinkedOrder] = useState<any | null>(null);
+  const [tplOpen, setTplOpen] = useState(false);
 
   const { data: cannedResponses = [] } = useCannedResponses();
 
@@ -134,9 +136,20 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
 
   return (
     <div className="border-t p-2 lg:p-3 space-y-2 bg-background shrink-0 max-h-[45dvh] overflow-y-auto">
+      {conversation.channel === 'whatsapp' && (
+        <WhatsAppTemplateSender open={tplOpen} onOpenChange={setTplOpen} conversationId={conversation.id} onSent={onSent}
+          defaults={{
+            customer_name: conversation.contact?.display_name?.split(' ')[0] || '',
+            ticket_ref: conversation.ticket_ref,
+            tracking_number: linkedOrder?.tracking_number || linkedOrder?.customer_order_number,
+            reference: linkedOrder?.tracking_number || conversation.ticket_ref,
+            order_status: linkedOrder?.status,
+          }} />
+      )}
       {outsideWaWindow && !isNote && (
         <div className="text-xs text-status-waiting bg-status-waiting/10 border border-status-waiting/40 rounded p-2">
-          The WhatsApp 24h reply window is closed. Free-form messages may be rejected — use an approved WhatsApp template, or send an internal note.
+          The WhatsApp 24h reply window is closed. Free-form messages will be rejected — send an approved template instead.
+          <Button type="button" size="sm" variant="outline" className="ml-2 h-7 text-xs" onClick={() => setTplOpen(true)}>Send template</Button>
         </div>
       )}
 
