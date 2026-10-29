@@ -1,112 +1,134 @@
-// Inbound WhatsApp webhook (e.g. SendZen). Creates CS contact/conversation/message.
+// Inbound WhatsApp webhook (SendZen). Saves messages into the CS inbox and tracks delivery status of replies.
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { resolveOrderLink } from "../_shared/cs-order-linker.ts";
+import { parseWhatsAppWebhook, normaliseWaHandle, nextDeliveryStatus } from "../_shared/whatsappInbound.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-sendzen-signature',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-sendzen-signature, x-hub-signature-256, x-signature',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+const json = (b: unknown, status = 200) =>
+  new Response(JSON.stringify(b), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+
+function safeEqual(a: string, b: string) {
+  if (a.length !== b.length) return false;
+  let r = 0;
+  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return r === 0;
+}
+
+async function hmacHex(secret: string, body: string) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(body));
+  return Array.from(new Uint8Array(sig)).map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+async function verified(req: Request, raw: string, secret: string) {
+  const candidates = [
+    req.headers.get('x-sendzen-signature'),
+    req.headers.get('x-hub-signature-256'),
+    req.headers.get('x-signature'),
+    req.headers.get('authorization')?.replace(/^Bearer\s+/i, ''),
+  ].filter(Boolean).map((v) => String(v).trim());
+  if (!candidates.length) return false;
+  const hex = await hmacHex(secret, raw);
+  return candidates.some((c) => {
+    const v = c.replace(/^sha256=/i, '').toLowerCase();
+    return safeEqual(v, hex) || safeEqual(c, secret);
+  });
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: corsHeaders });
 
   try {
-    // Optional shared-secret check
     const expected = Deno.env.get('SENDZEN_INBOUND_SECRET');
-    // Fail closed: without a configured secret nobody can post into the inbox.
-    if (!expected) {
-      return new Response(JSON.stringify({ error: 'inbound not configured' }), { status: 503, headers: corsHeaders });
+    if (!expected) return json({ error: 'inbound not configured' }, 503);
+    const raw = await req.text();
+    if (!(await verified(req, raw, expected))) return json({ error: 'unauthorized' }, 401);
+
+    let body: any;
+    try { body = JSON.parse(raw); } catch { return json({ error: 'invalid json' }, 400); }
+    const { messages, statuses } = parseWhatsAppWebhook(body);
+
+    const supabase = createClient(Deno.env.get('SUPABASE_URL') ?? '', Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '');
+
+    // Delivery tracking for our replies
+    let statusUpdated = 0;
+    for (const s of statuses) {
+      const { data: msg } = await supabase.from('cs_messages')
+        .select('id, delivery_status, delivery_events')
+        .or(`provider_message_id.eq.${s.externalId},external_id.eq.${s.externalId}`)
+        .eq('direction', 'out').limit(1).maybeSingle();
+      if (!msg) continue;
+      const events = Array.isArray(msg.delivery_events) ? msg.delivery_events : [];
+      await supabase.from('cs_messages').update({
+        delivery_status: nextDeliveryStatus(msg.delivery_status, s.status),
+        delivery_events: [...events, { status: s.status, at: new Date().toISOString(), ...(s.error ? { error: s.error } : {}) }],
+        ...(s.status === 'failed' && s.error ? { error: s.error.slice(0, 500) } : {}),
+      }).eq('id', msg.id);
+      statusUpdated++;
     }
-    const got = req.headers.get('x-sendzen-signature') || req.headers.get('authorization')?.replace('Bearer ', '');
-    if (got !== expected) {
-      return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401, headers: corsHeaders });
-    }
 
-    const body = await req.json();
-    // SendZen webhook payload — tolerate multiple shapes
-    const from = body.from || body.sender || body.wa_id || body.message?.from || '';
-    const text = body.text || body.body || body.message?.text?.body || body.message?.text || '';
-    const externalId = body.message_id || body.id || body.message?.id || null;
-    const senderName = body.profile_name || body.contact?.profile?.name || body.from_name;
+    const saved: string[] = [];
+    for (const m of messages) {
+      if (m.externalId) {
+        const { data: dup } = await supabase.from('cs_messages').select('id')
+          .eq('external_id', m.externalId).eq('direction', 'in').limit(1).maybeSingle();
+        if (dup) continue;
+      }
+      const handle = normaliseWaHandle(m.from);
+      const { data: contactRow, error: contactErr } = await supabase.from('cs_contacts')
+        .upsert({ channel: 'whatsapp', handle, ...(m.name ? { display_name: m.name } : {}) }, { onConflict: 'channel,handle' })
+        .select().single();
+      if (contactErr) throw contactErr;
 
-    if (!from || !text) {
-      return new Response(JSON.stringify({ error: 'from + text required' }), { status: 400, headers: corsHeaders });
-    }
+      const now = new Date().toISOString();
+      const preview = m.text.slice(0, 140);
+      let { data: conv } = await supabase.from('cs_conversations')
+        .select('id, linked_order_id, auto_link_locked, unread_count')
+        .eq('contact_id', contactRow!.id).eq('channel', 'whatsapp').neq('status', 'closed')
+        .order('last_message_at', { ascending: false }).limit(1).maybeSingle();
 
-    const handle = String(from).replace(/[^\d+]/g, '').replace(/^00/, '+');
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-    );
-
-    const { data: contactRow, error: contactErr } = await supabase
-      .from('cs_contacts')
-      .upsert({ channel: 'whatsapp', handle, display_name: senderName || null }, { onConflict: 'channel,handle' })
-      .select().single();
-    if (contactErr) throw contactErr;
-
-    // WhatsApp: one rolling conversation per contact (latest open or new)
-    let { data: conv } = await supabase
-      .from('cs_conversations')
-      .select('id, linked_order_id, auto_link_locked')
-      .eq('contact_id', contactRow!.id)
-      .eq('channel', 'whatsapp')
-      .neq('status', 'closed')
-      .order('last_message_at', { ascending: false })
-      .limit(1).maybeSingle();
-
-    let conversationId: string;
-    if (conv?.id) {
-      conversationId = conv.id;
-      await supabase.from('cs_conversations').update({
-        status: 'open',
-        last_message_at: new Date().toISOString(),
-        last_message_preview: String(text).slice(0, 140),
-        unread_count: 1,
-      }).eq('id', conversationId);
-    } else {
-      const { data: created, error: cErr } = await supabase
-        .from('cs_conversations')
-        .insert({
-          channel: 'whatsapp',
-          contact_id: contactRow!.id,
-          status: 'open',
-          last_message_at: new Date().toISOString(),
-          last_message_preview: String(text).slice(0, 140),
-          unread_count: 1,
+      let conversationId: string;
+      if (conv?.id) {
+        conversationId = conv.id;
+        await supabase.from('cs_conversations').update({
+          status: 'open', last_message_at: now, last_message_preview: preview,
+          unread_count: (conv.unread_count ?? 0) + 1,
+        }).eq('id', conversationId);
+      } else {
+        const { data: created, error: cErr } = await supabase.from('cs_conversations').insert({
+          channel: 'whatsapp', contact_id: contactRow!.id, status: 'open',
+          last_message_at: now, last_message_preview: preview, unread_count: 1,
         }).select().single();
-      if (cErr) throw cErr;
-      conversationId = created.id;
-      conv = { id: conversationId, linked_order_id: null, auto_link_locked: false } as any;
-    }
+        if (cErr) throw cErr;
+        conversationId = created.id;
+        conv = { id: conversationId, linked_order_id: null, auto_link_locked: false, unread_count: 1 } as any;
+      }
 
-    await supabase.from('cs_messages').insert({
-      conversation_id: conversationId,
-      direction: 'in',
-      body_text: String(text),
-      external_id: externalId,
-      status: 'received',
-    });
-
-    if (!conv!.auto_link_locked) {
-      const link = await resolveOrderLink(supabase, {
-        channel: 'whatsapp', handle, body: String(text),
+      const { error: mErr } = await supabase.from('cs_messages').insert({
+        conversation_id: conversationId, direction: 'in', body_text: m.text,
+        external_id: m.externalId, status: 'received',
+        ...(m.attachment ? { attachments: [m.attachment] } : {}),
       });
-      await supabase.from('cs_conversations').update({
-        linked_order_id: link.linked_order_id ?? conv!.linked_order_id,
-        suggested_order_ids: link.suggested_order_ids,
-      }).eq('id', conversationId);
+      if (mErr) throw mErr;
+      saved.push(conversationId);
+
+      if (!conv!.auto_link_locked) {
+        const link = await resolveOrderLink(supabase, { channel: 'whatsapp', handle, body: m.text });
+        await supabase.from('cs_conversations').update({
+          linked_order_id: link.linked_order_id ?? conv!.linked_order_id,
+          suggested_order_ids: link.suggested_order_ids,
+        }).eq('id', conversationId);
+      }
     }
 
-    return new Response(JSON.stringify({ ok: true, conversation_id: conversationId }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return json({ ok: true, saved: saved.length, statuses: statusUpdated });
   } catch (e: any) {
     console.error('cs-inbound-whatsapp error:', e?.message);
-    return new Response(JSON.stringify({ error: e?.message || 'failed' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return json({ error: 'failed' }, 500);
   }
 });
