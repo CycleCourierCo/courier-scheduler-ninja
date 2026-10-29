@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { sendTicketClosedEmail } from "../_shared/cs-auto-email.ts";
+import { inWhatsAppWindow, whatsappClosingText } from "../_shared/csTicketRules.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -44,7 +45,7 @@ serve(async (req) => {
 
     const { data: conv, error: convErr } = await admin
       .from('cs_conversations')
-      .select('id, status')
+      .select('id, status, channel, ticket_ref, contact:cs_contacts(handle)')
       .eq('id', conversationId)
       .maybeSingle();
     if (convErr) throw convErr;
@@ -69,11 +70,42 @@ serve(async (req) => {
       .eq('id', conversationId)
       .is('ack_sent_at', null);
 
-    if (notify) {
+    let notified: 'email' | 'whatsapp' | null = null;
+    let notNotifiedReason: string | null = null;
+    if (notify && conv.channel === 'email') {
       await sendTicketClosedEmail(admin, conversationId);
+      notified = 'email';
+    } else if (notify && conv.channel === 'whatsapp') {
+      const { data: lastIn } = await admin.from('cs_messages').select('created_at')
+        .eq('conversation_id', conversationId).eq('direction', 'in')
+        .order('created_at', { ascending: false }).limit(1).maybeSingle();
+      const handle = (conv as any).contact?.handle as string | undefined;
+      const key = Deno.env.get('SENDZEN_API_KEY');
+      if (!inWhatsAppWindow(lastIn?.created_at)) notNotifiedReason = 'outside the 24-hour WhatsApp window';
+      else if (!handle || !key) notNotifiedReason = 'WhatsApp not configured';
+      else {
+        const text = whatsappClosingText(conv.ticket_ref);
+        let ext: string | null = null; let err: string | null = null;
+        try {
+          const res = await fetch('https://api.sendzen.io/v1/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+            body: JSON.stringify({ to: handle.replace(/[^\d]/g, ''), from: '441217980767', type: 'text', text: { body: text } }),
+          });
+          const t = await res.text();
+          if (!res.ok) err = `SendZen ${res.status}`;
+          else { try { const j = JSON.parse(t); ext = j?.messages?.[0]?.id || j?.data?.messages?.[0]?.id || j?.id || null; } catch { /* ignore */ } }
+        } catch { err = 'send failed'; }
+        await admin.from('cs_messages').insert({
+          conversation_id: conversationId, direction: 'out', author_id: userData.user.id, body_text: text,
+          external_id: ext, provider_message_id: ext, is_automatic: true,
+          status: err ? 'failed' : 'sent', delivery_status: err ? 'failed' : 'sent', error: err,
+        });
+        if (err) notNotifiedReason = 'WhatsApp send failed'; else notified = 'whatsapp';
+      }
     }
 
-    return json({ ok: true });
+    return json({ ok: true, notified, reason: notNotifiedReason });
   } catch (e: any) {
     console.error('cs-close-ticket error:', e?.message);
     return json({ error: e?.message || 'failed' }, 500);
