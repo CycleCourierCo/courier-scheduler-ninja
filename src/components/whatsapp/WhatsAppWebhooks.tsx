@@ -50,7 +50,11 @@ export default function WhatsAppWebhooks() {
     catch (e: any) { toast.error(e.message); }
     finally { setLoading(false); }
   };
-  useEffect(() => { load(); }, []);
+  const [projects, setProjects] = useState<{ project_id: number; project_name: string; is_try_sandbox: boolean }[]>([]);
+  useEffect(() => {
+    load();
+    call({ action: "projects" }).then((d) => setProjects(d?.projects || [])).catch(() => setProjects([]));
+  }, []);
 
   const save = async () => {
     if (!form) return;
@@ -130,7 +134,14 @@ export default function WhatsAppWebhooks() {
               <div><Label>Name</Label><Input value={form.webhook_name} onChange={(e) => setForm({ ...form, webhook_name: e.target.value })} /></div>
               <div><Label>URL</Label><Input value={form.url} placeholder="https://…" onChange={(e) => setForm({ ...form, url: e.target.value })} /></div>
               {!form.id && (
-                <div><Label>SendZen project ID</Label><Input inputMode="numeric" value={form.project_id} onChange={(e) => setForm({ ...form, project_id: e.target.value.replace(/\D/g, "") })} /></div>
+                <div><Label>SendZen project ID</Label>{projects.length > 0 ? (
+                  <select className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.project_id} onChange={(e) => setForm({ ...form, project_id: e.target.value })}>
+                    <option value="">Choose a project…</option>
+                    {projects.map((p) => <option key={p.project_id} value={String(p.project_id)}>{p.project_name}{p.is_try_sandbox ? " (sandbox)" : ""} — {p.project_id}</option>)}
+                  </select>
+                ) : (
+                  <Input inputMode="numeric" value={form.project_id} onChange={(e) => setForm({ ...form, project_id: e.target.value.replace(/\D/g, "") })} />
+                )}</div>
               )}
               <div className="grid grid-cols-2 gap-2">
                 <div><Label>Timeout (seconds)</Label><Input inputMode="numeric" value={form.timeout} onChange={(e) => setForm({ ...form, timeout: e.target.value.replace(/\D/g, "") })} /></div>
