@@ -84,9 +84,10 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
   }, [value, rows]);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
+    <div className="w-full min-w-0">
         <Button
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
           type="button"
           variant="outline"
           size="sm"
@@ -99,12 +100,9 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
           </span>
           <ChevronDown className="h-3.5 w-3.5 opacity-60 shrink-0" />
         </Button>
-      </PopoverTrigger>
-      <PopoverContent
-        className="flex max-h-[var(--radix-popover-content-available-height)] w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 sm:w-[420px] sm:max-w-[92vw]"
-        align="start"
-        onOpenAutoFocus={(event) => event.preventDefault()}
-      >
+      {open && (
+      <div className="mt-1 flex max-h-96 w-full min-w-[260px] flex-col overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
+
         <div className="p-2 border-b space-y-2">
           <div className="relative">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -205,7 +203,8 @@ export function RepairPicker({ bikeType, value, onSelect, disabled, placeholder,
               );
             })}
         </div>
-      </PopoverContent>
-    </Popover>
+      </div>
+      )}
+    </div>
   );
 }
