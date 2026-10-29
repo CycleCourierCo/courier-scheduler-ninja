@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { resolveOrderLink } from "../_shared/cs-order-linker.ts";
 import { parseWhatsAppWebhook, normaliseWaHandle, nextDeliveryStatus } from "../_shared/whatsappInbound.ts";
-import { downloadWhatsAppMedia } from "../_shared/whatsappMediaStore.ts";
+import { downloadWhatsAppMedia, findPhoneNumberId } from "../_shared/whatsappMediaStore.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -124,10 +124,12 @@ serve(async (req) => {
       // Customer media: copy the file into private storage so it stays openable.
       let attachments: any[] | undefined;
       if (m.attachment) {
-        const stored = await downloadWhatsAppMedia(supabase, conversationId, m.attachment);
+        const pid = findPhoneNumberId(body);
+        const withPid = { ...m.attachment, ...(pid ? { phone_number_id: pid } : {}) };
+        const stored = await downloadWhatsAppMedia(supabase, conversationId, withPid);
         attachments = [stored
-          ? { ...m.attachment, url: stored.url, path: stored.path, size: stored.size }
-          : { ...m.attachment, url: m.attachment.url || '', download_failed: true }];
+          ? { ...withPid, url: stored.url, path: stored.path, size: stored.size }
+          : { ...withPid, url: m.attachment.url || '', download_failed: true }];
       }
 
       const { error: mErr } = await supabase.from('cs_messages').insert({
