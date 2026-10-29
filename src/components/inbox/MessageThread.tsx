@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { AlertCircle, CheckCircle2, ChevronDown } from "lucide-react";
 import DOMPurify from "dompurify";
 import MessageDeliveryTicks from "./MessageDeliveryTicks";
+import MessageAttachments from "./MessageAttachments";
 
 interface Props {
   messages: CsMessage[];
@@ -107,13 +108,7 @@ const MessageThread: React.FC<Props> = ({ messages }) => {
               <div className="whitespace-pre-wrap">{m.body_text || '(empty)'}</div>
             )}
             {Array.isArray(m.attachments) && m.attachments.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {m.attachments.map((a, i) => (
-                  <a key={i} href={a.url} target="_blank" rel="noopener" className="text-xs underline">
-                    {a.filename || `attachment-${i+1}`}
-                  </a>
-                ))}
-              </div>
+              <MessageAttachments messageId={m.id} attachments={m.attachments as any} />
             )}
             <div className="mt-1 flex items-center justify-between gap-2 text-[10px] opacity-70">
               <span>{format(new Date(m.created_at), 'PP p')}</span>
