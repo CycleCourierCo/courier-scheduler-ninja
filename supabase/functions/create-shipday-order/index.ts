@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { corsHeaders } from "../_shared/cors.ts";
 import { initSentry, captureException } from "../_shared/sentry.ts";
-import { CITY_AIR_EXPRESS, isNorthernIrelandAddress, formatNiReceiverBlock, formatNiSenderBlock, niDirectionOf } from "../_shared/northernIreland.ts";
+import { ferryPartnerFor, ferryRegionLabel, ferryRegionOf, ferryRegionOfAddress, formatNiReceiverBlock, formatNiSenderBlock, niDirectionOf } from "../_shared/northernIreland.ts";
 import { requireOpsAuth, createAuthErrorResponse } from "../_shared/auth.ts";
 import { trackedFetch } from "../_shared/integrationLog.ts";
 
@@ -268,7 +268,7 @@ serve(async (req) => {
     const senderNotes = order.sender_notes || '';
     const pickupInstructions = [
       ...orderDetails,
-      isInboundNI ? `${ferryRegionName} (inbound) — collect from the ferry hand-off point' : '',
+      isInboundNI ? `${ferryRegionName} (inbound) — collect from the ferry hand-off point` : '',
       isInboundNI ? formatNiSenderBlock(sender, order.tracking_number, ferryRegionOf(order)) : '',
       baseDeliveryInstructions,
       senderNotes
@@ -277,7 +277,7 @@ serve(async (req) => {
     const receiverNotes = order.receiver_notes || '';
     const deliveryInstructions = [
       ...orderDetails,
-      isOutboundNI ? `${ferryRegionName} — hand over at the ferry hand-off point' : '',
+      isOutboundNI ? `${ferryRegionName} — hand over at the ferry hand-off point` : '',
       isOutboundNI ? formatNiReceiverBlock(receiver, order.tracking_number, ferryRegionOf(order)) : '',
       baseDeliveryInstructions,
       receiverNotes
