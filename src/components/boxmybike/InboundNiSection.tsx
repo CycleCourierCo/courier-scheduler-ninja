@@ -72,7 +72,7 @@ function prevInboundStage(s: NiInboundStatus | null): NiInboundStatus | null {
   return NI_INBOUND_STATUS_ORDER[i - 1];
 }
 
-const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
+const InboundNiSection: React.FC<{ isStaff: boolean; region?: "all" | "northern_ireland" | "isle_of_man" }> = ({ isStaff, region = "all" }) => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = React.useState<NiInboundStatus>("awaiting_ni_collection");
@@ -91,9 +91,9 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
 
 
   const { data: orders = [], isLoading } = useQuery({
-    queryKey: ["inbound-ni-orders"],
+    queryKey: ["inbound-ni-orders", region],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let q = supabase
         .from("orders")
         .select(
           "id, tracking_number, status, ni_inbound_status, sender, receiver, bike_brand, bike_model, bike_quantity, user_id, created_at, ni_partner_label_url, ni_partner_label_uploaded_at, ni_bfs_number, ni_inbound_collected_at, ni_inbound_ferry_crossed_at, ni_inbound_received_at, pickup_date"
@@ -102,6 +102,8 @@ const InboundNiSection: React.FC<{ isStaff: boolean }> = ({ isStaff }) => {
         .eq("ni_direction", "inbound")
         .neq("status", "cancelled")
         .order("created_at", { ascending: false });
+      if (region !== "all") q = q.eq("ferry_region", region);
+      const { data, error } = await q;
       if (error) throw error;
       return (data || []) as InboundOrder[];
     },

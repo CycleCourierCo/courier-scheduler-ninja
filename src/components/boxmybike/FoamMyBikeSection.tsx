@@ -125,7 +125,7 @@ function prevFoamStage(s: FoamStatus | null): FoamStatus | null {
   return FOAM_STATUS_ORDER[i - 1];
 }
 
-const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ isStaff, userId }) => {
+const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string; region?: "all" | "northern_ireland" | "isle_of_man" }> = ({ isStaff, userId, region = "all" }) => {
   const queryClient = useQueryClient();
   const { userProfile } = useAuth();
   const isAdmin = hasRole(userProfile, "admin");
@@ -142,7 +142,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
 
 
   const { data: orders = [], isLoading } = useQuery({
-    queryKey: ["foam-my-bike-orders", userId, isStaff],
+    queryKey: ["foam-my-bike-orders", userId, isStaff, region],
     queryFn: async () => {
       let q = supabase
         .from("orders")
@@ -153,6 +153,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string }> = ({ is
         .neq("status", "cancelled")
         .order("created_at", { ascending: false });
       if (!isStaff && userId) q = q.eq("user_id", userId);
+      if (region !== "all") q = q.eq("ferry_region", region);
       const { data, error } = await q;
       if (error) throw error;
       return (data || []) as unknown as FoamOrder[];
