@@ -3,6 +3,7 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.41.0";
 import { resolveOrderLink } from "../_shared/cs-order-linker.ts";
 import { parseWhatsAppWebhook, normaliseWaHandle, nextDeliveryStatus } from "../_shared/whatsappInbound.ts";
+import { downloadWhatsAppMedia } from "../_shared/whatsappMediaStore.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -86,7 +87,18 @@ serve(async (req) => {
       if (contactErr) throw contactErr;
 
       const now = new Date().toISOString();
-      const preview = m.text.slice(0, 140);
+      // Quote the message being replied to / reacted to so staff see the context.
+      let bodyText = m.text;
+      if (m.replyTo) {
+        const { data: quoted } = await supabase.from('cs_messages').select('body_text')
+          .or(`external_id.eq.${m.replyTo},provider_message_id.eq.${m.replyTo}`).limit(1).maybeSingle();
+        if (quoted?.body_text) {
+          const q = String(quoted.body_text).replace(/\s+/g, ' ').slice(0, 120);
+          bodyText = m.isReaction ? `${m.text} to: "${q}"` : `↪ Replying to: "${q}"\n${m.text}`;
+        }
+      }
+      const preview = bodyText.slice(0, 140);
+      const bump = m.isReaction ? 0 : 1;
       let { data: conv } = await supabase.from('cs_conversations')
         .select('id, linked_order_id, auto_link_locked, unread_count')
         .eq('contact_id', contactRow!.id).eq('channel', 'whatsapp').neq('status', 'closed')
@@ -97,7 +109,7 @@ serve(async (req) => {
         conversationId = conv.id;
         await supabase.from('cs_conversations').update({
           status: 'open', last_message_at: now, last_message_preview: preview,
-          unread_count: (conv.unread_count ?? 0) + 1,
+          unread_count: (conv.unread_count ?? 0) + bump,
         }).eq('id', conversationId);
       } else {
         const { data: created, error: cErr } = await supabase.from('cs_conversations').insert({
@@ -109,10 +121,19 @@ serve(async (req) => {
         conv = { id: conversationId, linked_order_id: null, auto_link_locked: false, unread_count: 1 } as any;
       }
 
+      // Customer media: copy the file into private storage so it stays openable.
+      let attachments: any[] | undefined;
+      if (m.attachment) {
+        const stored = await downloadWhatsAppMedia(supabase, conversationId, m.attachment);
+        attachments = [stored
+          ? { ...m.attachment, url: stored.url, path: stored.path, size: stored.size }
+          : { ...m.attachment, url: m.attachment.url || '', download_failed: true }];
+      }
+
       const { error: mErr } = await supabase.from('cs_messages').insert({
-        conversation_id: conversationId, direction: 'in', body_text: m.text,
+        conversation_id: conversationId, direction: 'in', body_text: bodyText,
         external_id: m.externalId, status: 'received',
-        ...(m.attachment ? { attachments: [m.attachment] } : {}),
+        ...(attachments ? { attachments } : {}),
       });
       if (mErr) throw mErr;
       saved.push(conversationId);
