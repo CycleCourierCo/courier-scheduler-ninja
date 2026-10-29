@@ -1,3 +1,4 @@
+import { ferryRegionOf } from "@/utils/northernIreland";
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -343,7 +344,7 @@ const OrderServicesPanel: React.FC<OrderServicesPanelProps> = ({ order, onRefres
           {row(
             "ni",
             <Ship className="h-4 w-4 shrink-0" />,
-            "Northern Ireland",
+            ferryRegionOf(order) === "isle_of_man" ? "Isle of Man" : "Northern Ireland",
             <>
               {isNI ? (
                 <Badge className="bg-emerald-600 hover:bg-emerald-600">

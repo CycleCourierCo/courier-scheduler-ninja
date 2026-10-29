@@ -3,7 +3,7 @@ import { getOrder } from "./orderService";
 
 import { getNiDirection, isInboundNi } from "@/utils/niDelivery";
 import { ferryPartnerFor } from "@/constants/depot";
-import { ferryRegionOf } from "@/utils/northernIreland";
+import { ferryRegionOf, localiseFerryText } from "@/utils/northernIreland";
 import { Order } from "@/types/order";
 
 /**
@@ -287,7 +287,7 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
     const niInbound = niDirection === 'inbound';
     const niParty: any = (niInbound ? order.sender : order.receiver) || {};
     const addr = niParty.address || ({} as any);
-    const niDetailsBlock = isNI ? `
+    const niDetailsBlock = isNI ? localiseFerryText(order, `
             <p style="background-color:#eef2ff; border-left:4px solid #4D6863; padding:10px 12px; border-radius:4px;">
               <strong>Direction: ${niInbound ? 'NI to England' : 'England to NI'}</strong>
             </p>
@@ -299,7 +299,7 @@ export const sendOrderNotificationToReceiver = async (id: string): Promise<boole
               <p><strong>Email:</strong> ${niParty.email || ''}</p>
               <p style="margin-bottom:0;">${niInbound ? 'Our ferry partner collects this bicycle from the Northern Ireland address above and hands it to us in Manchester for the mainland delivery.' : 'This bicycle will be delivered to the ferry port for onward transport to Northern Ireland.'}</p>
             </div>
-    ` : '';
+    `) : '';
 
     const response = await supabase.functions.invoke("send-email", {
       body: {

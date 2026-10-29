@@ -254,7 +254,7 @@ export default function SenderAvailability() {
         }
         description={
           singleDay
-            ? "Pick the one day in the next two weeks that the bike will be ready. Our Northern Ireland partner books this collection in for that day."
+            ? "Pick the one day in the next two weeks that the bike will be ready. Our ferry partner books this collection in for that day."
             : mode === 'now'
               ? "These days come from your business opening hours — adjust them if needed, then submit."
               : "Select dates when you will be available for package pickup"

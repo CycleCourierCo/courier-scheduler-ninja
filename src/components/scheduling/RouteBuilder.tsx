@@ -1858,7 +1858,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       // NI ferry legs are driven to the hand-off point — never override with customer coords
       const targetOrder = orderList.find(o => o.id === orderId);
       if (targetOrder && isFerryLeg(targetOrder, type)) {
-        toast.info('This is a Northern Ireland job — the stop always uses the ferry hand-off location.');
+        toast.info('This is a ferry (Northern Ireland / Isle of Man) job — the stop always uses the ferry hand-off location.');
         return;
       }
 
