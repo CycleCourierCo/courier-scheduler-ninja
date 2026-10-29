@@ -7,7 +7,7 @@ describe('WhatsApp inbound parser', () => {
       contacts: [{ wa_id: '447700900123', profile: { name: 'Sam' } }],
       messages: [{ from: '447700900123', id: 'wamid.1', type: 'text', text: { body: 'Hi' } }],
     } }] }] });
-    expect(r.messages).toEqual([{ from: '447700900123', name: 'Sam', externalId: 'wamid.1', text: 'Hi', attachment: null }]);
+    expect(r.messages).toEqual([{ from: '447700900123', name: 'Sam', externalId: 'wamid.1', text: 'Hi', attachment: null, replyTo: null }]);
   });
   it('still reads the old flat shape', () => {
     expect(parseWhatsAppWebhook({ from: '447700900123', text: 'Hello', id: 'x' }).messages[0].text).toBe('Hello');
