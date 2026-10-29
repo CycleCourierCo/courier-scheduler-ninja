@@ -5,13 +5,32 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
 const NAME_RE = /^[a-z0-9_]{1,512}$/;
+const EXAMPLES: Record<string, string> = {
+  customer_name: "Sam", reference: "CCC754159147108", message: "Our driver is outside but cannot access the gate.",
+  ticket_ref: "CS-1042", order_status: "Collected", tracking_number: "CCC754159147108",
+};
+// Utility versions of the inbox instant responses, for use after the 24-hour reply window closes.
+const CS_TEMPLATES = [
+  { name: "booking_service_update", body: "Hello {{customer_name}}, this is an update regarding your Cycle Courier Co booking ({{reference}}):\n\n{{message}}\n\nPlease reply to this message if you need any assistance." },
+  { name: "cs_tracking_update", body: "Hi {{customer_name}}, regarding ticket {{ticket_ref}}: your bike is currently showing as {{order_status}}. You can follow live progress at https://booking.cyclecourierco.com/tracking using tracking number {{tracking_number}}. Reply here if anything looks wrong." },
+  { name: "cs_collection_reschedule", body: "Hi {{customer_name}}, we can look at moving the collection for {{tracking_number}}. Could you reply with the weekdays that work best for you over the next two weeks? We will then confirm the new date." },
+  { name: "cs_delivery_reschedule", body: "Hi {{customer_name}}, we can look at moving the delivery for {{tracking_number}}. Please reply with the weekdays you are available and we will rebook and confirm the new date." },
+  { name: "cs_damage_claim_initial", body: "Hi {{customer_name}}, we are sorry to hear there is a problem with the bike and are investigating under ticket {{ticket_ref}}. Please reply with clear photos of the damage, a photo of the packaging as it arrived, and a short description of what you found." },
+  { name: "cs_invoice_payment_query", body: "Hi {{customer_name}}, thanks for your message about billing (ticket {{ticket_ref}}). We are checking this with our accounts team. If you have an invoice number, please reply with it so we can match it up quickly." },
+  { name: "cs_quote_request", body: "Hi {{customer_name}}, thanks for your enquiry. To give you an accurate price please reply with the collection postcode, delivery postcode, type of bike, and whether you need us to box it." },
+  { name: "cs_holding_update", body: "Hi {{customer_name}}, thanks for your patience on ticket {{ticket_ref}}. We are looking into this now and will message you as soon as we have an update." },
+];
 const CATEGORIES = ["UTILITY", "MARKETING", "AUTHENTICATION"];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const caller = await identifyCaller(req);
-    if (!caller || (caller.kind === "user" && !caller.roles.includes("admin"))) {
+    const body = await req.json().catch(() => ({}));
+    const action = body?.action;
+    // Inbox agents may read the template list (to send one); everything else is admin-only.
+    const canList = caller?.kind === "user" && caller.roles.some((r) => ["admin", "cs_agent"].includes(r));
+    if (!caller || (caller.kind === "user" && !caller.roles.includes("admin") && !(action === "list" && canList))) {
       return json({ error: "Admins only" }, 403);
     }
     const KEY = Deno.env.get("SENDZEN_API_KEY");
@@ -20,8 +39,20 @@ Deno.serve(async (req) => {
     const base = `https://api.sendzen.io/v1/${encodeURIComponent(WABA)}/message_templates`;
     const headers = { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" };
 
-    const body = await req.json().catch(() => ({}));
-    const action = body?.action;
+    if (action === "seed_cs") {
+      const results: { name: string; ok: boolean; error?: string }[] = [];
+      for (const t of CS_TEMPLATES) {
+        const params = [...t.body.matchAll(/{{(\w+)}}/g)].map((m) => m[1]);
+        const components = [{
+          type: "BODY", text: t.body,
+          example: { body_text_named_params: params.map((p) => ({ param_name: p, example: EXAMPLES[p] ?? "example" })) },
+        }];
+        const r = await fetch(base, { method: "POST", headers, body: JSON.stringify({ name: t.name, language: "en_GB", category: "UTILITY", parameter_format: "NAMED", components }) });
+        const text = await r.text();
+        results.push(r.ok ? { name: t.name, ok: true } : { name: t.name, ok: false, error: text.slice(0, 300) });
+      }
+      return json({ results });
+    }
 
     if (action === "list") {
       const all: any[] = [];
