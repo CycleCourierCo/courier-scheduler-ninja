@@ -4,7 +4,7 @@ const MAX_BYTES = 100 * 1024 * 1024;
 
 async function fetchBytes(url: string, apiKey: string | undefined): Promise<{ bytes: Uint8Array; type: string } | null> {
   const res = await fetch(url, { headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {} });
-  if (!res.ok) { await res.body?.cancel(); return null; }
+  if (!res.ok) { console.warn(`media download attempt failed: ${res.status}`); await res.body?.cancel(); return null; }
   const type = (res.headers.get('content-type') || '').split(';')[0];
   if (type.includes('json')) {
     const j = await res.json().catch(() => null);
@@ -19,13 +19,18 @@ async function fetchBytes(url: string, apiKey: string | undefined): Promise<{ by
 export async function downloadWhatsAppMedia(
   admin: any,
   conversationId: string,
-  att: { url?: string; media_id?: string; filename: string; content_type: string },
+  att: { url?: string; media_id?: string; phone_number_id?: string; filename: string; content_type: string },
+  phoneNumberId?: string,
 ): Promise<{ url: string; path: string; size: number } | null> {
   const apiKey = Deno.env.get('SENDZEN_API_KEY');
   const candidates: string[] = [];
+  const pid = att.phone_number_id || phoneNumberId || Deno.env.get('SENDZEN_PHONE_NUMBER_ID');
+  // SendZen's documented proxy: GET /v1/{phoneNumberId}/media?url=<Meta media URL>
+  if (pid && att.url && /^https:\/\//.test(att.url)) {
+    candidates.push(`${SENDZEN}/v1/${encodeURIComponent(pid)}/media?url=${encodeURIComponent(att.url)}`);
+  }
   if (att.media_id) {
     candidates.push(`${SENDZEN}/v1/media/${encodeURIComponent(att.media_id)}`);
-    const pid = Deno.env.get('SENDZEN_PHONE_NUMBER_ID');
     if (pid) candidates.push(`${SENDZEN}/v1/${pid}/media/${encodeURIComponent(att.media_id)}`);
   }
   if (att.url && /^https:\/\//.test(att.url)) candidates.push(att.url);
@@ -46,4 +51,12 @@ export async function downloadWhatsAppMedia(
     } catch { /* try next */ }
   }
   return null;
+}
+
+/** Finds metadata.phone_number_id anywhere in a webhook payload. */
+export function findPhoneNumberId(v: any, depth = 0): string | undefined {
+  if (!v || typeof v !== 'object' || depth > 8) return undefined;
+  for (const k of ['phone_number_id', 'phoneNumberId']) if (v[k]) return String(v[k]);
+  for (const x of Object.values(v)) { const r = findPhoneNumberId(x, depth + 1); if (r) return r; }
+  return undefined;
 }
