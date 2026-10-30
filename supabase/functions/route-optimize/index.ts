@@ -1430,10 +1430,7 @@ serve(async (req) => {
         const placed = new Set(solved!.flatMap((r) => r.stops.map((s) => s.leg.key)));
         const left = pool.filter((l) => !placed.has(l.key));
         const londonLeft = left.filter((l) => isLondonLeg(l)).length;
-        const vansFull = solved!.length > 0 && solved!.every((r) => {
-          const loads = r.stops.length;
-          return loads > 0;
-        });
+        const vansFull = solved!.length > 0;
         dayDebug.left_off = {
           total: left.length,
           london: londonLeft,
@@ -1625,6 +1622,7 @@ serve(async (req) => {
         spare_vans: Math.max(0, available - usedVans.size),
         is_provisional: false,
         capacity_note: debug.days[date]?.capacity_note ?? null,
+        left_off: debug.days[date]?.left_off ?? null,
         shortfall: hint ? { extra_vans: 1, extra_jobs: hint.jobs, urgent: hint.must_go } : null,
         spare_van_hint: hint,
         variants: [{ variant: 'primary', routes: dayRoutes, tradeoff_note: null }],
