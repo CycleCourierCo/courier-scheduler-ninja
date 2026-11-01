@@ -5,6 +5,9 @@ import { format } from "date-fns";
 import { AlertCircle, CheckCircle2, ChevronDown } from "lucide-react";
 import DOMPurify from "dompurify";
 import MessageDeliveryTicks from "./MessageDeliveryTicks";
+import MessageAttachments from "./MessageAttachments";
+import { flagWrongAutoReply } from "@/services/cannedResponseService";
+import { toast } from "sonner";
 
 interface Props {
   messages: CsMessage[];
@@ -25,6 +28,25 @@ const sanitizeMessageHtml = (html: string) =>
     FORBID_ATTR: ['style', 'srcdoc', 'formaction', 'onerror', 'onload', 'onclick'],
     ALLOW_DATA_ATTR: false,
   });
+
+const AutoReplyBar: React.FC<{ messageId: string }> = ({ messageId }) => {
+  const [state, setState] = useState<'idle' | 'busy' | 'done'>('idle');
+  return (
+    <div className="mb-1 flex items-center gap-2 text-[10px] uppercase tracking-wide font-semibold opacity-80">
+      Auto-sent instant response
+      {state === 'done' ? <span className="normal-case font-normal">· flagged, auto-send switched off</span> : (
+        <button type="button" disabled={state === 'busy'} className="normal-case font-normal underline"
+          onClick={async () => {
+            setState('busy');
+            try { await flagWrongAutoReply(messageId); setState('done'); toast.success('Flagged. Auto-send is now off for this response.'); }
+            catch (e: any) { setState('idle'); toast.error(e?.message || "Couldn't flag"); }
+          }}>
+          Wrong auto-reply
+        </button>
+      )}
+    </div>
+  );
+};
 
 const SYSTEM_LABELS: Record<string, string> = {
   ticket_closed: 'This ticket has been closed — the customer was emailed',
@@ -98,6 +120,7 @@ const MessageThread: React.FC<Props> = ({ messages }) => {
                 Internal note
               </div>
             )}
+            {(m as any).sent_via === 'auto_reply' && <AutoReplyBar messageId={m.id} />}
             {m.body_html ? (
               <div
                 className="prose prose-sm max-w-none [&_*]:!text-inherit"
@@ -107,16 +130,10 @@ const MessageThread: React.FC<Props> = ({ messages }) => {
               <div className="whitespace-pre-wrap">{m.body_text || '(empty)'}</div>
             )}
             {Array.isArray(m.attachments) && m.attachments.length > 0 && (
-              <div className="mt-2 flex flex-wrap gap-1">
-                {m.attachments.map((a, i) => (
-                  <a key={i} href={a.url} target="_blank" rel="noopener" className="text-xs underline">
-                    {a.filename || `attachment-${i+1}`}
-                  </a>
-                ))}
-              </div>
+              <MessageAttachments messageId={m.id} attachments={m.attachments as any} />
             )}
             <div className="mt-1 flex items-center justify-between gap-2 text-[10px] opacity-70">
-              <span>{format(new Date(m.created_at), 'PP p')}</span>
+              <span>{format(new Date(m.created_at), 'PP p')}{(m as any).sent_via === 'phone' ? ' · Sent from phone' : ''}</span>
               <span className="flex items-center gap-1">
                 {m.status === 'failed' && (
                   <span className="flex items-center gap-1">

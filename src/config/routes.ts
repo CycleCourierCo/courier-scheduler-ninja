@@ -5,6 +5,7 @@ import { ScanLine,
   ClipboardCheck, Warehouse, Clock, Wrench, Car, Fuel, ShieldAlert, Boxes,
   BarChart3, TrendingUp, Inbox, CheckSquare, Megaphone, Mail, BookOpen, User, Users,
   Shield, CalendarOff, Key, Webhook, Store, Lock, KanbanSquare, MapPin,
+  MessageSquare,
 } from "lucide-react";
 
 export type AppRouteSection =
@@ -147,6 +148,8 @@ export const APP_ROUTES: AppRoute[] = [
   { key: "shopify-integration", path: "/shopify-integration", label: "Shopify Integration", section: "Admin", icon: Store,
     defaultRoles: ["tech"] },
   { key: "email-centre", path: "/admin/email-centre", label: "Email Centre", section: "Comms", icon: Mail,
+    defaultRoles: [] },
+  { key: "whatsapp-centre", path: "/admin/whatsapp-centre", label: "WhatsApp Centre", section: "Comms", icon: MessageSquare,
     defaultRoles: [] },
   { key: "route-permissions", path: "/admin/route-permissions", label: "Route Permissions", section: "Admin", icon: Lock,
     defaultRoles: [] },

@@ -2,6 +2,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3";
 import { sendSms, fitSms } from "../_shared/divergentSms.ts";
+import { mirrorWhatsAppOutbound } from "../_shared/csMirror.ts";
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -128,6 +129,7 @@ Deno.serve(async (req) => {
       const link = `${BASE}/${j.side}-availability/${j.order.id}`;
       let status = "sent";
       let err: string | null = null;
+      let respText = "";
       try {
         const res = await fetch("https://api.sendzen.io/v1/messages", {
           method: "POST",
@@ -143,9 +145,10 @@ Deno.serve(async (req) => {
             },
           }),
         });
+        respText = await res.text();
         if (!res.ok) {
           status = "failed";
-          err = `[${res.status}] ${(await res.text()).slice(0, 300)}`;
+          err = `[${res.status}] ${respText.slice(0, 300)}`;
           console.error(`dates_chaser failed for order ${j.order.id}: ${err}`);
         }
       } catch (e) {
@@ -153,6 +156,11 @@ Deno.serve(async (req) => {
         err = String((e as Error).message).slice(0, 300);
       }
       if (status === "sent") counts.sent++; else counts.failed++;
+      await mirrorWhatsAppOutbound(admin, {
+        phone: j.phone, ok: status === "sent", respText: status === "sent" ? respText : (err || ""),
+        orderId: j.order.id, name: j.order[j.side]?.name || null,
+        text: `[Automated: dates chaser] Please choose the dates you're available for your bike ${j.side === "sender" ? "collection" : "delivery"}: ${link}`,
+      });
       await admin.from("date_chase_log").insert({ order_id: j.order.id, side: j.side, status, error: err, sent_by: user.id });
       const leg = j.side === "sender" ? "collection" : "delivery";
       const sms = await sendSms(admin, {

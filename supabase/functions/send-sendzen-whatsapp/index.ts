@@ -10,6 +10,7 @@ import {
   formatNiSenderBlock,
 } from "../_shared/northernIreland.ts";
 import { requireOpsAuth, createAuthErrorResponse } from "../_shared/auth.ts";
+import { mirrorWhatsAppOutbound } from "../_shared/csMirror.ts";
 import { trackResend, trackedFetch } from "../_shared/integrationLog.ts";
 import { sendSms, fitSms } from "../_shared/divergentSms.ts";
 
@@ -779,6 +780,11 @@ serve(async (req: Request): Promise<Response> => {
       console.error("SendZen send failed:", err?.message);
       sendzenResponseText = err?.message || "fetch error";
     }
+
+    const mirrorText = type === "review"
+      ? `[Automated: review request] Hi ${contact.name || "Customer"}, how did we do? Please leave us a review.`
+      : `[Automated: ${type.replace(/_/g, " ")}] ${scheduledDate ? formatDateForTemplate(scheduledDate) : ""}${deliveryTime ? ` ${deliveryTime}–${calculateEndTime(deliveryTime)}` : ""}${order.tracking_number ? ` · ${order.tracking_number}` : ""}`.trim();
+    await mirrorWhatsAppOutbound(supabase, { phone, text: mirrorText, ok: sendzenSuccess, respText: sendzenResponseText, orderId, name: contact.name || null });
 
     // For grouped stops, fetch the other delivery-leg orders so the email can
     // list every final destination (NI ferry hand-off carries multiple bikes).

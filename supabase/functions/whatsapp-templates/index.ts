@@ -1,0 +1,181 @@
+import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { identifyCaller } from "../_shared/staffAuth.ts";
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+
+const NAME_RE = /^[a-z0-9_]{1,512}$/;
+const EXAMPLES: Record<string, string> = {
+  customer_name: "Sam", reference: "CCC754159147108", message: "Our driver is outside but cannot access the gate.",
+  ticket_ref: "CS-1042", order_status: "Collected", tracking_number: "CCC754159147108",
+};
+// Utility versions of the inbox instant responses, for use after the 24-hour reply window closes.
+const CS_TEMPLATES = [
+  { name: "booking_service_update", body: "Hello {{customer_name}}, this is an update regarding your Cycle Courier Co booking ({{reference}}):\n\n{{message}}\n\nPlease reply to this message if you need any assistance." },
+  { name: "cs_tracking_update", body: "Hi {{customer_name}}, regarding ticket {{ticket_ref}}: your bike is currently showing as {{order_status}}. You can follow live progress at https://booking.cyclecourierco.com/tracking using tracking number {{tracking_number}}. Reply here if anything looks wrong." },
+  { name: "cs_collection_reschedule", body: "Hi {{customer_name}}, we can look at moving the collection for {{tracking_number}}. Could you reply with the weekdays that work best for you over the next two weeks? We will then confirm the new date." },
+  { name: "cs_delivery_reschedule", body: "Hi {{customer_name}}, we can look at moving the delivery for {{tracking_number}}. Please reply with the weekdays you are available and we will rebook and confirm the new date." },
+  { name: "cs_damage_claim_initial", body: "Hi {{customer_name}}, we are sorry to hear there is a problem with the bike and are investigating under ticket {{ticket_ref}}. Please reply with clear photos of the damage, a photo of the packaging as it arrived, and a short description of what you found." },
+  { name: "cs_invoice_payment_query", body: "Hi {{customer_name}}, thanks for your message about billing (ticket {{ticket_ref}}). We are checking this with our accounts team. If you have an invoice number, please reply with it so we can match it up quickly." },
+  { name: "cs_quote_request", body: "Hi {{customer_name}}, thanks for your enquiry. To give you an accurate price please reply with the collection postcode, delivery postcode, type of bike, and whether you need us to box it." },
+  { name: "cs_holding_update", body: "Hi {{customer_name}}, thanks for your patience on ticket {{ticket_ref}}. We are looking into this now and will message you as soon as we have an update." },
+];
+const CATEGORIES = ["UTILITY", "MARKETING", "AUTHENTICATION"];
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  try {
+    const caller = await identifyCaller(req);
+    const body = await req.json().catch(() => ({}));
+    const action = body?.action;
+    // Inbox agents may read the template list (to send one); everything else is admin-only.
+    const canList = caller?.kind === "user" && caller.roles.some((r) => ["admin", "cs_agent"].includes(r));
+    if (!caller || (caller.kind === "user" && !caller.roles.includes("admin") && !(action === "list" && canList))) {
+      return json({ error: "Admins only" }, 403);
+    }
+    const KEY = Deno.env.get("SENDZEN_API_KEY");
+    const WABA = Deno.env.get("SENDZEN_WABA_ID");
+    if (!KEY || !WABA) return json({ error: "WhatsApp service not configured" }, 500);
+    const base = `https://api.sendzen.io/v1/${encodeURIComponent(WABA)}/message_templates`;
+    const headers = { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" };
+
+    if (action === "seed_cs") {
+      const results: { name: string; ok: boolean; error?: string }[] = [];
+      for (const t of CS_TEMPLATES) {
+        const params = [...t.body.matchAll(/{{(\w+)}}/g)].map((m) => m[1]);
+        const components = [{
+          type: "BODY", text: t.body,
+          example: { body_text_named_params: params.map((p) => ({ param_name: p, example: EXAMPLES[p] ?? "example" })) },
+        }];
+        const r = await fetch(base, { method: "POST", headers, body: JSON.stringify({ name: t.name, language: "en_GB", category: "UTILITY", parameter_format: "NAMED", components }) });
+        const text = await r.text();
+        results.push(r.ok ? { name: t.name, ok: true } : { name: t.name, ok: false, error: text.slice(0, 300) });
+      }
+      return json({ results });
+    }
+
+    if (action === "list") {
+      const all: any[] = [];
+      let after: string | undefined;
+      for (let i = 0; i < 10; i++) {
+        const u = new URL(base);
+        u.searchParams.set("limit", "100");
+        if (after) u.searchParams.set("after", after);
+        const r = await fetch(u, { headers });
+        const text = await r.text();
+        if (!r.ok) return json({ error: "SendZen list failed", status: r.status, details: text.slice(0, 500) }, 502);
+        const d = JSON.parse(text);
+        const rows = Array.isArray(d) ? d : d?.data?.data ?? d?.data ?? d?.message_templates ?? [];
+        all.push(...(Array.isArray(rows) ? rows : []));
+        after = d?.data?.paging?.cursors?.after ?? d?.paging?.cursors?.after;
+        const hasNext = d?.data?.paging?.next ?? d?.paging?.next;
+        if (!after || !hasNext) break;
+      }
+      return json({
+        templates: all.map((t) => ({
+          id: t.id ?? null, name: t.name, language: t.language, category: t.category,
+          status: t.status, components: t.components ?? [],
+        })),
+      });
+    }
+
+    if (action === "create") {
+      const { name, language, category, components } = body;
+      if (typeof name !== "string" || !NAME_RE.test(name)) return json({ error: "Name must be lowercase letters, numbers and underscores" }, 400);
+      if (typeof language !== "string" || !/^[a-z]{2}(_[A-Z]{2})?$/.test(language)) return json({ error: "Invalid language" }, 400);
+      if (!CATEGORIES.includes(category)) return json({ error: "Invalid category" }, 400);
+      if (!Array.isArray(components) || components.length === 0 || components.length > 10) return json({ error: "Invalid components" }, 400);
+      const r = await fetch(base, { method: "POST", headers, body: JSON.stringify({ name, language, category, components }) });
+      const text = await r.text();
+      if (!r.ok) return json({ error: "SendZen rejected the template", status: r.status, details: text.slice(0, 1000) }, 400);
+      return json({ ok: true, result: text.slice(0, 1000) });
+    }
+
+    if (action === "delete") {
+      const { name, hsm_id } = body;
+      if (typeof name !== "string" || !NAME_RE.test(name)) return json({ error: "Invalid name" }, 400);
+      const u = new URL(base);
+      u.searchParams.set("name", name);
+      if (typeof hsm_id === "string" && /^[0-9A-Za-z_-]{1,64}$/.test(hsm_id)) u.searchParams.set("hsm_id", hsm_id);
+      const r = await fetch(u, { method: "DELETE", headers });
+      const text = await r.text();
+      if (!r.ok) return json({ error: "SendZen delete failed", status: r.status, details: text.slice(0, 500) }, 400);
+      return json({ ok: true });
+    }
+
+    // ---- Webhooks ----
+    const WH = "https://api.sendzen.io/v1/webhook/config";
+    const EVENTS = ["Incoming message", "Delivery status", "Account status", "Template status"];
+    const mask = (w: any) => ({ ...w, secret: undefined, has_secret: !!w?.secret });
+    const idOk = (v: unknown) => typeof v === "string" && /^[0-9A-Za-z_-]{1,100}$/.test(v);
+    const validWh = (b: any, partial: boolean) => {
+      const out: Record<string, unknown> = {};
+      if (!partial || b.webhook_name !== undefined) {
+        if (typeof b.webhook_name !== "string" || !b.webhook_name.trim() || b.webhook_name.length > 100) return null;
+        out.webhook_name = b.webhook_name.trim();
+      }
+      if (!partial || b.url !== undefined) {
+        try { const u = new URL(b.url); if (!["http:", "https:"].includes(u.protocol)) return null; } catch { return null; }
+        out.url = b.url;
+      }
+      if (b.timeout !== undefined) { const t = Number(b.timeout); if (!Number.isInteger(t) || t < 1 || t > 60) return null; out.timeout = t; }
+      if (b.is_active !== undefined) out.is_active = !!b.is_active;
+      if (b.subscribed_events !== undefined) {
+        if (!Array.isArray(b.subscribed_events) || b.subscribed_events.some((e: any) => !EVENTS.includes(e))) return null;
+        out.subscribed_events = b.subscribed_events;
+      }
+      if (typeof b.secret === "string" && b.secret.length) { if (b.secret.length > 256) return null; out.secret = b.secret; }
+      return out;
+    };
+    const relay = async (r: Response) => {
+      const text = await r.text();
+      if (!r.ok) return json({ error: "SendZen webhook request failed", status: r.status, details: text.slice(0, 500) }, 400);
+      try { return JSON.parse(text); } catch { return text; }
+    };
+
+    if (action === "projects") {
+      const r = await fetch("https://api.sendzen.io/v1/projects", { headers });
+      const d = await relay(r);
+      if (d instanceof Response) return d;
+      const rows = Array.isArray(d) ? d : d?.data ?? [];
+      return json({
+        projects: (Array.isArray(rows) ? rows : []).map((p: any) => ({
+          project_id: p.project_id, project_name: p.project_name, is_try_sandbox: !!p.is_try_sandbox,
+        })),
+      });
+    }
+    if (action === "wh_list") {
+      const r = await fetch(WH, { headers });
+      const d = await relay(r);
+      if (d instanceof Response) return d;
+      const rows = Array.isArray(d) ? d : d?.data ?? [];
+      return json({ webhooks: (Array.isArray(rows) ? rows : []).map(mask), waba_id: WABA });
+    }
+    if (action === "wh_create") {
+      const v = validWh(body, false);
+      const pid = Number(body.project_id);
+      if (!v || !Number.isInteger(pid) || pid <= 0) return json({ error: "Check the name, URL, project ID and events" }, 400);
+      const r = await fetch(WH, { method: "POST", headers, body: JSON.stringify({ ...v, project_id: pid, waba_id: Number(WABA) }) });
+      const d = await relay(r);
+      return d instanceof Response ? d : json({ ok: true });
+    }
+    if (action === "wh_update") {
+      const v = validWh(body, true);
+      if (!idOk(body.id) || !v) return json({ error: "Invalid webhook details" }, 400);
+      const r = await fetch(`${WH}/${encodeURIComponent(body.id)}`, { method: "PUT", headers, body: JSON.stringify(v) });
+      const d = await relay(r);
+      return d instanceof Response ? d : json({ ok: true });
+    }
+    if (action === "wh_delete") {
+      if (!idOk(body.id)) return json({ error: "Invalid webhook" }, 400);
+      const r = await fetch(`${WH}/${encodeURIComponent(body.id)}`, { method: "DELETE", headers });
+      const d = await relay(r);
+      return d instanceof Response ? d : json({ ok: true });
+    }
+
+    return json({ error: "Unknown action" }, 400);
+  } catch (e) {
+    console.error("whatsapp-templates error", e instanceof Error ? e.message : "unknown");
+    return json({ error: "Internal server error" }, 500);
+  }
+});

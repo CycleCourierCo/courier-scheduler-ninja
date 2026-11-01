@@ -1,3 +1,5 @@
+import { canReopenClosed } from './csTicketRules.ts';
+import { queueCannedAutoReply } from './cannedAutoReplyQueue.ts';
 // Shared inbound-email ingestion for the customer service inbox.
 // Used by cs-inbound-email (generic JSON) and cs-resend-inbound (Resend webhook).
 import { resolveOrderLink } from "./cs-order-linker.ts";
@@ -81,6 +83,18 @@ export async function ingestInboundEmail(
     if (openConv?.id) conversationId = openConv.id;
   }
 
+  // A reply to a ticket closed more than 7 days ago starts a new ticket.
+  if (conversationId) {
+    const { data: c } = await supabase.from('cs_conversations').select('status, closed_at').eq('id', conversationId).maybeSingle();
+    if (c?.status === 'closed' && !canReopenClosed(c.closed_at)) conversationId = null;
+  }
+  if (!conversationId) {
+    const { data: recent } = await supabase.from('cs_conversations').select('id, closed_at')
+      .eq('channel', 'email').eq('contact_id', contactRow!.id).eq('status', 'closed')
+      .order('closed_at', { ascending: false }).limit(1).maybeSingle();
+    if (recent?.id && canReopenClosed(recent.closed_at)) conversationId = recent.id;
+  }
+
   // Show only what the customer wrote in this reply, not our quoted email.
   const replyText = stripQuotedText(body.text);
   const replyHtml = stripQuotedHtml(body.html);
@@ -116,7 +130,7 @@ export async function ingestInboundEmail(
     }).eq('id', conversationId);
   }
 
-  await supabase.from('cs_messages').insert({
+  const { data: inRow } = await supabase.from('cs_messages').insert({
     conversation_id: conversationId,
     direction: 'in',
     body_text: replyText || null,
@@ -125,7 +139,7 @@ export async function ingestInboundEmail(
     email_message_id: body.message_id || null,
     in_reply_to: body.in_reply_to || null,
     status: 'received',
-  });
+  }).select('id').single();
 
   // Resolve order link (unless an agent has locked it)
   const { data: conv } = await supabase
@@ -155,6 +169,9 @@ export async function ingestInboundEmail(
       // ignore — acknowledgement is best effort
     }
   }
+
+  // Confident instant responses can answer straight away (runs in the background, never blocks the webhook).
+  if (inRow?.id) queueCannedAutoReply(conversationId!, inRow.id);
 
   return conversationId!;
 }

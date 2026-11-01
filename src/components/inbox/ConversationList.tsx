@@ -61,6 +61,10 @@ const ConversationList: React.FC<Props> = ({ conversations, selectedId, onSelect
                   {c.last_message_preview || '—'}
                 </div>
                 <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                  <Badge variant="outline" className={cn("h-4 px-1.5 text-[10px]",
+                    c.channel === 'email' ? "border-primary text-primary" : "border-success text-success")}>
+                    {c.channel === 'email' ? 'Email' : 'WhatsApp'}
+                  </Badge>
                   {c.unread_count > 0 && (
                     <Badge variant="default" className="h-4 px-1.5 text-[10px]">
                       {c.unread_count} new

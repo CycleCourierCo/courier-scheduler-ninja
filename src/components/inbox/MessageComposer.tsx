@@ -4,14 +4,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { sendMessage, addNote, fetchOrdersByIds, uploadReplyAttachment } from "@/services/customerServiceInboxService";
+import { waMediaSizeError } from "../../../supabase/functions/_shared/whatsappMedia";
 import { toast } from "sonner";
 import { Loader2, Send, Zap, Paperclip, X } from "lucide-react";
 import type { CsConversation, CsMessage } from "@/types/customerService";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCannedResponses } from "@/hooks/useCannedResponses";
-import { fillCannedBody, suggestCannedResponses } from "@/lib/cannedMatch";
-import type { CsCannedResponse } from "@/services/cannedResponseService";
+import { fillCannedBody, scoreCannedResponses } from "@/lib/cannedMatch";
+import { recordCannedOutcome, type CsCannedResponse } from "@/services/cannedResponseService";
+import { outcomeForSimilarity, textSimilarity } from "../../../supabase/functions/_shared/cannedConfidence";
+import { ConfidenceBadge, useCannedStats } from "./CannedConfidence";
 import CannedResponsePicker from "./CannedResponsePicker";
+import WhatsAppTemplateSender from "./WhatsAppTemplateSender";
 
 interface Props {
   conversation: CsConversation;
@@ -30,6 +34,7 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
   const [files, setFiles] = useState<File[]>([]);
   const fileInput = React.useRef<HTMLInputElement>(null);
   const [linkedOrder, setLinkedOrder] = useState<any | null>(null);
+  const [tplOpen, setTplOpen] = useState(false);
 
   const { data: cannedResponses = [] } = useCannedResponses();
 
@@ -49,10 +54,22 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
     return () => { cancelled = true; };
   }, [conversation.linked_order_id]);
 
-  const suggestions = useMemo(
-    () => (isNote ? [] : suggestCannedResponses(lastInbound?.body_text, cannedResponses)),
+  const { data: cannedStats = {} } = useCannedStats();
+  const scored = useMemo(
+    () => (isNote ? [] : scoreCannedResponses(lastInbound?.body_text, cannedResponses)),
     [isNote, lastInbound?.body_text, cannedResponses],
   );
+  const suggestions = useMemo(() => scored.slice(0, 3).map((s) => s.response), [scored]);
+
+  // What the reply box was filled with, so we can learn how staff used it.
+  const activeFill = React.useRef<{ response: CsCannedResponse; filled: string; inboundId: string | null; score: number; runnerUp: number } | null>(null);
+  const logOutcome = (fill: NonNullable<typeof activeFill.current>, outcome: 'as_is' | 'edited' | 'rewritten' | 'replaced', similarity: number | null) => {
+    if (!user?.id) return;
+    recordCannedOutcome({
+      responseId: fill.response.id, conversationId: conversation.id, inboundMessageId: fill.inboundId,
+      matchScore: fill.score, runnerUpScore: fill.runnerUp, outcome, similarity, staffId: user.id,
+    }).catch(() => {});
+  };
 
   const myName = (user as any)?.user_metadata?.name
     || (user?.email ? user.email.split('@')[0] : '')
@@ -68,6 +85,14 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
       orderStatus: linkedOrder?.status || null,
       myName,
     });
+    const prev = activeFill.current;
+    if (prev && prev.response.id !== response.id && prev.inboundId === (lastInbound?.id ?? null)) logOutcome(prev, 'replaced', null);
+    const idx = scored.findIndex((s) => s.response.id === response.id);
+    const others = scored.filter((s) => s.response.id !== response.id);
+    activeFill.current = {
+      response, filled, inboundId: lastInbound?.id ?? null,
+      score: idx >= 0 ? scored[idx].score : 0, runnerUp: others[0]?.score ?? 0,
+    };
     setText(filled);
   };
 
@@ -87,7 +112,10 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
     if (!list) return;
     const next = [...files];
     for (const f of Array.from(list)) {
-      if (f.size > MAX_FILE) { toast.error(`${f.name} is over 20MB`); continue; }
+      if (conversation.channel === 'whatsapp' && !isNote) {
+        const err = waMediaSizeError(f.type || 'application/octet-stream', f.size);
+        if (err) { toast.error(`${f.name}: ${err}`); continue; }
+      } else if (f.size > MAX_FILE) { toast.error(`${f.name} is over 20MB`); continue; }
       if (next.length >= 10) { toast.error("Up to 10 files per reply"); break; }
       next.push(f);
     }
@@ -106,6 +134,12 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
       } else {
         const attachments = await Promise.all(files.map((f) => uploadReplyAttachment(conversation.id, f)));
         await sendMessage({ conversationId: conversation.id, bodyText: body, attachments });
+        const fill = activeFill.current;
+        if (fill && fill.inboundId === (lastInbound?.id ?? null)) {
+          const sim = textSimilarity(fill.filled, body);
+          logOutcome(fill, outcomeForSimilarity(sim), sim);
+        }
+        activeFill.current = null;
         toast.success(conversation.channel === 'email' ? "Email sent" : "WhatsApp sent");
       }
       setText("");
@@ -130,9 +164,20 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
 
   return (
     <div className="border-t p-2 lg:p-3 space-y-2 bg-background shrink-0 max-h-[45dvh] overflow-y-auto">
+      {conversation.channel === 'whatsapp' && (
+        <WhatsAppTemplateSender open={tplOpen} onOpenChange={setTplOpen} conversationId={conversation.id} onSent={onSent}
+          defaults={{
+            customer_name: conversation.contact?.display_name?.split(' ')[0] || '',
+            ticket_ref: conversation.ticket_ref,
+            tracking_number: linkedOrder?.tracking_number || linkedOrder?.customer_order_number,
+            reference: linkedOrder?.tracking_number || conversation.ticket_ref,
+            order_status: linkedOrder?.status,
+          }} />
+      )}
       {outsideWaWindow && !isNote && (
         <div className="text-xs text-status-waiting bg-status-waiting/10 border border-status-waiting/40 rounded p-2">
-          The WhatsApp 24h reply window is closed. Free-form messages may be rejected — use an approved WhatsApp template, or send an internal note.
+          The WhatsApp 24h reply window is closed. Free-form messages will be rejected — send an approved template instead.
+          <Button type="button" size="sm" variant="outline" className="ml-2 h-7 text-xs" onClick={() => setTplOpen(true)}>Send template</Button>
         </div>
       )}
 
@@ -152,6 +197,7 @@ const MessageComposer: React.FC<Props> = ({ conversation, messages, onSent }) =>
                 title="Prefill this reply"
               >
                 <Zap className="h-3 w-3 mr-1" />{s.title}
+                <span className="ml-1"><ConfidenceBadge stats={cannedStats[s.id]} mode={s.auto_send_mode} /></span>
               </Button>
             ))}
           </>

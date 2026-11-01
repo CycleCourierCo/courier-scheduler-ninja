@@ -909,6 +909,11 @@ const GenerateRoutesDialog: React.FC = () => {
                   </div>
 
                   <div className="space-y-3">
+                    {(activeDay as any).left_off?.total > 0 && (
+                      <div className="rounded-md border border-border bg-muted p-2 text-sm text-muted-foreground">
+                        {(activeDay as any).left_off.total} job{(activeDay as any).left_off.total === 1 ? '' : 's'} left off — {(activeDay as any).left_off.reason}
+                      </div>
+                    )}
                     {(activeDay as any).capacity_note && (
                       <div className="rounded-md border border-destructive/40 bg-destructive/10 p-2 text-sm text-destructive">{(activeDay as any).capacity_note}</div>
                     )}

@@ -91,6 +91,7 @@ const ReviewDetailPage = lazy(() => import("./pages/ReviewDetailPage"));
 const MyReviewsPage = lazy(() => import("./pages/MyReviewsPage"));
 const DriversRota = lazy(() => import("./pages/DriversRota"));
 const EmailCentre = lazy(() => import("./pages/EmailCentre"));
+const WhatsAppCentre = lazy(() => import("./pages/WhatsAppCentre"));
 const DriverToday = lazy(() => import("./pages/DriverToday"));
 const DriverHolidayRequests = lazy(() => import("./pages/DriverHolidayRequests"));
 
@@ -434,6 +435,11 @@ function App() {
               <Route path="/admin/email-centre" element={
                 <ProtectedRoute adminOnly>
                   <EmailCentre />
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/whatsapp-centre" element={
+                <ProtectedRoute adminOnly>
+                  <WhatsAppCentre />
                 </ProtectedRoute>
               } />
               <Route path="/admin/route-permissions" element={

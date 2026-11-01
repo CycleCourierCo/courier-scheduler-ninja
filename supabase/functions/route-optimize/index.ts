@@ -33,8 +33,6 @@ const PENCE_PER_KM = 28;              // £0.45/mile
 const DRIVER_RATE = 11;
 const COST_PER_MILE = 0.45;
 const DEFAULT_MAX_LONG_VANS = 1;
-// Rough jobs-per-van figure, used only to guess how many vans London needs.
-const LONDON_JOBS_PER_VAN = 13;
 const MAX_REMOVALS_PER_DAY = 6;
 const LONG_DAY_MIN_JOBS = 5;
 const SPREAD_WARN_MI = 150;
@@ -1248,7 +1246,7 @@ serve(async (req) => {
           let wanted = Math.min(
             LONDON_MAX_VANS,
             free.length,
-            Math.max(1, Math.ceil(Math.max(londonLegs.length / LONDON_JOBS_PER_VAN, londonSpaces / Math.max(1, cap)))),
+            Math.max(1, Math.ceil(londonSpaces / Math.max(1, cap))),
           );
           // always leave a van for the rest of the country when there is other work
           if (pool.length > londonLegs.length && wanted >= free.length) wanted = Math.max(1, free.length - 1);
@@ -1293,6 +1291,28 @@ serve(async (req) => {
       if (!solved) continue;
 
       const servedKeys = (rs: SolvedRoute[]) => new Set(rs.flatMap((r) => r.stops.map((s) => s.leg.key)));
+
+      // 3.35 London top-up: if London jobs were left off, try one more London van
+      if (!quickOnly && budgetLeft() > 15_000) {
+        const served = servedKeys(solved);
+        const leftLondon = londonLegs.filter((l) => !served.has(l.key)).length;
+        const londonCount = assignments.filter((a) => a.london).length;
+        const convertible = assignments.filter((a) => !a.london);
+        if (leftLondon > 0 && londonCount < LONDON_MAX_VANS && convertible.length > 1) {
+          const target = convertible[convertible.length - 1];
+          const trial = assignments.map((a) => (a === target ? { ...a, london: true } : a));
+          try {
+            const retry = await solveDay(date, pool, trial);
+            if (retry && servedKeys(retry).size > served.size) {
+              solved = retry;
+              assignments = trial;
+              dayDebug.extra_london_van = true;
+            }
+          } catch {
+            // improvement pass only
+          }
+        }
+      }
 
       // 3.4 fill: put idle vans to work while jobs are still unplanned
       if (!quickOnly && budgetLeft() > 15_000) {
@@ -1355,11 +1375,12 @@ serve(async (req) => {
           });
           // A weak van stays only for must-go work or if it pays its way;
           // ordinary jobs on a dropped van wait for a later day.
-          if (!retry || lostMustGo.length > 0 || (lost.length > 0 && weakest.margin >= 0)) {
+          // Never take a van off if any job at all would be left behind.
+          if (!retry || lost.length > 0) {
             protectedVans.add(weakest.r.meta.vanId);
             dayDebug.removals.push({
               van: weakest.r.meta.vanName, jobs: weakest.r.stops.length,
-              outcome: lostMustGo.length > 0 ? 'kept — must-go work would be lost' : 'kept — route makes a profit',
+              outcome: lostMustGo.length > 0 ? 'kept — must-go work would be lost' : 'kept — jobs would be left off',
               lost_jobs: lost.length, lost_must_go: lostMustGo.length,
             });
             continue;
@@ -1405,6 +1426,20 @@ serve(async (req) => {
       dayDebug.lapsed_placed = solved!.reduce((n, r) => n + r.stops.filter((s) => s.leg.lapsed).length, 0);
       dayDebug.vans_used = new Set(solved!.map((r) => r.meta.vanId)).size;
       dayDebug.jobs_per_route = solved!.map((r) => r.stops.length);
+      {
+        const placed = new Set(solved!.flatMap((r) => r.stops.map((s) => s.leg.key)));
+        const left = pool.filter((l) => !placed.has(l.key));
+        const londonLeft = left.filter((l) => isLondonLeg(l)).length;
+        const vansFull = solved!.length > 0;
+        dayDebug.left_off = {
+          total: left.length,
+          london: londonLeft,
+          reason: left.length === 0 ? null
+            : londonLeft === left.length && assignments.filter((a) => a.london).length >= LONDON_MAX_VANS
+              ? 'London van limit reached'
+              : vansFull ? 'vans full or out of shift hours' : 'no van available',
+        };
+      }
       dayDebug.margin_per_route = solved!.map((r) => money(r).margin);
     }
 
@@ -1587,6 +1622,7 @@ serve(async (req) => {
         spare_vans: Math.max(0, available - usedVans.size),
         is_provisional: false,
         capacity_note: debug.days[date]?.capacity_note ?? null,
+        left_off: debug.days[date]?.left_off ?? null,
         shortfall: hint ? { extra_vans: 1, extra_jobs: hint.jobs, urgent: hint.must_go } : null,
         spare_van_hint: hint,
         variants: [{ variant: 'primary', routes: dayRoutes, tradeoff_note: null }],

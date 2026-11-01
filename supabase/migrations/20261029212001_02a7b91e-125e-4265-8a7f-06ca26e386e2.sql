@@ -1,0 +1,1 @@
+ALTER TABLE public.cs_messages ADD COLUMN IF NOT EXISTS sent_via text;
