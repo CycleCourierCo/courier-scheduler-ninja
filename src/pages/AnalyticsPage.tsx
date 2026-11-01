@@ -67,6 +67,7 @@ import DriverAnalyticsSection from "@/components/analytics/DriverAnalyticsSectio
 import CustomerServiceAnalyticsSection from "@/components/analytics/CustomerServiceAnalyticsSection";
 import { MessageSquare } from "lucide-react";
 import StatsCard from "@/components/analytics/StatsCard";
+import SameDayAnalyticsSection from "@/components/analytics/SameDayAnalyticsSection";
 import ApiWebhookSection from "@/components/analytics/ApiWebhookSection";
 import IntegrationsSection from "@/components/analytics/IntegrationsSection";
 import { Bike, Calendar as CalendarLucide, Package, Truck, BarChart, PieChart, LineChart, Clock, CheckCircle2, Target, Warehouse, Timer, ClipboardCheck, AlertTriangle, PoundSterling, ThumbsUp, Route, Users, Webhook, PlugZap } from "lucide-react";
@@ -581,6 +582,10 @@ const AnalyticsPage = () => {
                 <PerformanceTrendChart orders={orders} range={perfRange} granularity={perfGranularity} />
 
                 <PerformanceLeaderboard orders={orders} range={perfRange} />
+
+                <h3 className="text-base sm:text-lg font-semibold pt-4">Same-day collect &amp; deliver</h3>
+                <SameDayAnalyticsSection orders={orders} range={perfRange} />
+
 
                 <div className="grid grid-cols-1 gap-2 sm:gap-4">
                   <StorageLevelsChart orders={orders} range={perfRange} granularity={perfGranularity} />
