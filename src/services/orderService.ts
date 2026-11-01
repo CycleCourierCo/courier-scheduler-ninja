@@ -217,11 +217,12 @@ export const getOrdersWithFilters = async (filters: OrderFilters = {}): Promise<
       // Exclude completed/cancelled orders so this is actionable
       query = query.not('status', 'in', '(delivered,cancelled)');
       if (missingDates === 'sender') {
-        query = query.or('pickup_date.is.null,pickup_date.eq.{}');
+        // Bikes already collected never need sender collection dates
+        query = query.eq('order_collected', false).or('pickup_date.is.null,pickup_date.eq.{}');
       } else if (missingDates === 'receiver') {
         query = query.or('delivery_date.is.null,delivery_date.eq.{}');
       } else if (missingDates === 'either') {
-        query = query.or('pickup_date.is.null,pickup_date.eq.{},delivery_date.is.null,delivery_date.eq.{}');
+        query = query.or('and(order_collected.eq.false,or(pickup_date.is.null,pickup_date.eq.{})),delivery_date.is.null,delivery_date.eq.{}');
       }
     }
 
