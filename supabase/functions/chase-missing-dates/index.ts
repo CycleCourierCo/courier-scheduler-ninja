@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     for (let from = 0; ; from += 1000) {
       let q = admin
         .from("orders")
-        .select("id, user_id, sender, receiver, pickup_date, delivery_date, needs_inspection")
+        .select("id, user_id, sender, receiver, pickup_date, delivery_date, needs_inspection, order_collected, status")
         .not("status", "in", "(delivered,cancelled)");
       if (f.missingDates === "sender") q = q.or("pickup_date.is.null,pickup_date.eq.{}");
       else if (f.missingDates === "receiver") q = q.or("delivery_date.is.null,delivery_date.eq.{}");
@@ -105,9 +105,14 @@ Deno.serve(async (req) => {
     const counts = { sent: 0, failed: 0, smsSent: 0, smsFailed: 0, noPhone: 0, testAccount: 0, recentlyChased: 0, waitingOnSender: 0, awaitingWorkshop: 0 };
     const jobs: { order: any; side: "sender" | "receiver"; phone: string }[] = [];
 
+    // A bike already collected (or past collection) never needs sender date chasing,
+    // even when pickup_date is empty because collection was scheduled directly by staff.
+    const COLLECTED_STATUSES = new Set(["collected", "at_depot", "dispatched", "out_for_delivery"]);
+    const alreadyCollected = (o: any) => o.order_collected === true || COLLECTED_STATUSES.has(o.status);
+
     for (const o of orders) {
       const sides: ("sender" | "receiver")[] = [];
-      const senderMissing = empty(o.pickup_date);
+      const senderMissing = empty(o.pickup_date) && !alreadyCollected(o);
       const receiverMissing = empty(o.delivery_date);
       if (f.missingDates !== "receiver" && senderMissing) sides.push("sender");
       if (f.missingDates !== "sender" && receiverMissing) {
