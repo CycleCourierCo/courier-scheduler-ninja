@@ -792,7 +792,7 @@ The Cycle Courier Co. Team`
           captureException(emailError)
         }
 
-        // Shipday creation is queued by the database insert trigger.
+        // Automatic Shipday creation on booking is switched off (insert trigger disabled); staff push jobs manually.
       })()
 
       // @ts-ignore EdgeRuntime is provided by Supabase Edge Runtime
