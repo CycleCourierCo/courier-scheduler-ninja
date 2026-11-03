@@ -4427,6 +4427,59 @@ export type Database = {
         }
         Relationships: []
       }
+      lost_found_items: {
+        Row: {
+          collection_van_checked: boolean
+          created_at: string
+          created_by: string
+          delivery_van_checked: boolean
+          depot_checked: boolean
+          description: string
+          id: string
+          item_name: string
+          item_type: string
+          order_id: string
+          photo_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          collection_van_checked?: boolean
+          created_at?: string
+          created_by?: string
+          delivery_van_checked?: boolean
+          depot_checked?: boolean
+          description?: string
+          id?: string
+          item_name: string
+          item_type?: string
+          order_id: string
+          photo_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          collection_van_checked?: boolean
+          created_at?: string
+          created_by?: string
+          delivery_van_checked?: boolean
+          depot_checked?: boolean
+          description?: string
+          id?: string
+          item_name?: string
+          item_type?: string
+          order_id?: string
+          photo_path?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lost_found_items_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mechanic_timeslips: {
         Row: {
           admin_notes: string | null
