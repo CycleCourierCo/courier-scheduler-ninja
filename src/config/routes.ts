@@ -113,6 +113,8 @@ export const APP_ROUTES: AppRoute[] = [
     defaultRoles: [] },
 
   // Comms
+  { key: "lost_found", path: "/lost-and-found", label: "Lost and Found", section: "Comms", icon: Package,
+    defaultRoles: ["cs_agent"] },
   { key: "inbox", path: "/inbox", label: "Customer Service Inbox", section: "Comms", icon: Inbox,
     prefixes: ["/inbox/"], defaultRoles: ["cs_agent"] },
   { key: "tasks", path: "/tasks", label: "Tasks", section: "Comms", icon: CheckSquare,

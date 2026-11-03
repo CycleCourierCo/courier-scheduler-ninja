@@ -73,6 +73,7 @@ const FleetLiveMap = lazy(() => import("./pages/fleet/LiveMap"));
 const FleetRouteReport = lazy(() => import("./pages/fleet/RouteReport"));
 const EquipmentPage = lazy(() => import("./pages/EquipmentPage"));
 const ClaimsList = lazy(() => import("./pages/ClaimsList"));
+const LostAndFound = lazy(() => import("./pages/LostAndFound"));
 const NewClaim = lazy(() => import("./pages/NewClaim"));
 const ClaimDetail = lazy(() => import("./pages/ClaimDetail"));
 const IrelandPage = lazy(() => import("./pages/IrelandPage"));
@@ -417,6 +418,7 @@ function App() {
                   <ClaimsList />
                 </ProtectedRoute>
               } />
+              <Route path="/lost-and-found" element={<ProtectedRoute><LostAndFound /></ProtectedRoute>} />
               <Route path="/claims/new" element={
                 <ProtectedRoute adminOnly={true}>
                   <NewClaim />
