@@ -1,5 +1,7 @@
 # Roadmap
 
+- [ ] Lost and Found: order-linked items, private photos, collection/delivery van and depot checks, admin/customer-service access and verification.
+
 - [x] Apply the ten Supabase pentest concerns: report/photo authorization, fleet completion integrity, proof storage/retry/account binding, custom repair permission, webhook signatures, explicit staff roles and credential-safe logs; verify without changing production bookings.
 - [ ] Retire existing long-lived inspection PDF links from public pages/emails — needs a decision because old links would stop working.
 - [ ] Signed-in driver, fleet manager and admin checks — needs isolated test accounts on the external backend.
