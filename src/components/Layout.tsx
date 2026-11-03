@@ -99,6 +99,7 @@ const ADMIN_MENU_SECTIONS: AdminMenuSection[] = [
     label: "Comms",
     items: [
       { to: "/inbox", label: "Customer Service Inbox", icon: Inbox },
+      { to: "/lost-and-found", label: "Lost and Found", icon: Package },
       { to: "/tasks", label: "Tasks", icon: CheckSquare },
       { to: "/notices", label: "Notice Bars", icon: Megaphone },
       { to: "/emails", label: "Announcement Emails", icon: Mail },
