@@ -139,7 +139,7 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
       <Card className="overflow-hidden">
         <CardHeader className="signboard rounded-none space-y-2">
           <CardTitle className="text-[30px] text-primary-foreground">{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
+          <CardDescription className="text-primary-foreground/85">{description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
           {bufferNotice && (
@@ -150,8 +150,8 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
               </AlertDescription>
             </Alert>
           )}
-          <div className="flex flex-col md:flex-row gap-8">
-            <div className="min-w-0 flex-1">
+          <div className="flex flex-col lg:flex-row gap-8">
+            <div className="min-w-0 flex-1 lg:max-w-sm">
               <h3 className="text-lg font-medium mb-4 flex items-center">
                 <CalendarIcon className="mr-2 h-5 w-5 text-primary" />
                 {singleDay ? 'Select Your Collection Day' : 'Select Available Dates'}
@@ -166,10 +166,24 @@ export const AvailabilityForm: React.FC<AvailabilityFormProps> = ({
                   disabled={disableDate}
                   fromDate={minDate || today}
                   toDate={calendarEndDate}
-                  className="w-full p-3 pointer-events-auto"
+                  className="w-full p-1 sm:p-3 pointer-events-auto"
                   classNames={{
-                    head_cell: 'text-muted-foreground flex-1 font-normal text-[0.8rem]',
-                    cell: 'h-11 flex-1 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20',
+                    // One month, always full width so the 7 day columns never squash together
+                    months: 'flex flex-col',
+                    month: 'w-full space-y-4',
+                    caption: 'relative flex h-12 items-center justify-center',
+                    caption_label: 'text-base font-semibold',
+                    nav: 'flex items-center',
+                    nav_button: cn(
+                      buttonVariants({ variant: 'outline' }),
+                      'h-12 w-12 p-0 [&_svg]:h-6 [&_svg]:w-6 disabled:opacity-30'
+                    ),
+                    nav_button_previous: 'absolute left-0',
+                    nav_button_next: 'absolute right-0',
+                    head_row: 'flex w-full',
+                    head_cell: 'text-muted-foreground min-w-0 flex-1 font-normal text-[0.8rem]',
+                    row: 'flex w-full mt-1',
+                    cell: 'h-11 min-w-0 flex-1 text-center text-sm p-0 relative [&:has([aria-selected].day-range-end)]:rounded-r-md [&:has([aria-selected].day-outside)]:bg-accent/50 [&:has([aria-selected])]:bg-accent first:[&:has([aria-selected])]:rounded-l-md last:[&:has([aria-selected])]:rounded-r-md focus-within:relative focus-within:z-20',
                     day: cn(
                       buttonVariants({ variant: 'ghost' }),
                       'h-11 w-full p-0 font-normal aria-selected:opacity-100 hover:bg-accent hover:text-accent-foreground transition-colors'
