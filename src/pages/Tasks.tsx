@@ -9,6 +9,7 @@ import { CheckSquare, Plus } from "lucide-react";
 import TaskList from "@/components/tasks/TaskList";
 import TaskDialog from "@/components/tasks/TaskDialog";
 import TaskDetailDrawer from "@/components/tasks/TaskDetailDrawer";
+import AssigneePicker from "@/components/tasks/AssigneePicker";
 import type { TaskFilters } from "@/types/task";
 
 const Tasks: React.FC = () => {
@@ -31,7 +32,7 @@ const Tasks: React.FC = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto min-w-0 px-3 py-4 sm:px-4 sm:py-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <CheckSquare className="h-5 w-5 text-primary" />
@@ -42,8 +43,8 @@ const Tasks: React.FC = () => {
           </Button>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mb-3">
-          <Input placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} className="md:col-span-2" />
+        <div className="grid grid-cols-2 md:grid-cols-6 items-start gap-2 mb-3">
+          <Input placeholder="Search…" value={search} onChange={e => setSearch(e.target.value)} className="col-span-2 text-base md:text-sm" />
           <Select value={status} onValueChange={v => setStatus(v as any)}>
             <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
@@ -66,15 +67,20 @@ const Tasks: React.FC = () => {
               <SelectItem value="low">Low</SelectItem>
             </SelectContent>
           </Select>
-          <Select value={assignee} onValueChange={v => setAssignee(v as any)}>
-            <SelectTrigger><SelectValue placeholder="Assignee" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Anyone</SelectItem>
-              <SelectItem value="mine">Mine</SelectItem>
-              <SelectItem value="unassigned">Unassigned</SelectItem>
-              {users.map(u => <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <div className="col-span-2 md:col-span-1 md:row-start-1 md:col-start-5">
+            <AssigneePicker
+              id="task-filter-assignee"
+              ariaLabel="Filter by assignee"
+              value={assignee || 'all'}
+              onChange={v => setAssignee(v)}
+              users={users}
+              fixedOptions={[
+                { value: 'all', label: 'Anyone' },
+                { value: 'mine', label: 'Mine' },
+                { value: 'unassigned', label: 'Unassigned' },
+              ]}
+            />
+          </div>
           <Select value={due} onValueChange={v => setDue(v as any)}>
             <SelectTrigger><SelectValue placeholder="Due" /></SelectTrigger>
             <SelectContent>
@@ -86,7 +92,7 @@ const Tasks: React.FC = () => {
           </Select>
         </div>
 
-        <div className="border rounded-md bg-card">
+        <div className="min-w-0 overflow-hidden border rounded-md bg-card">
           <TaskList tasks={tasks} loading={isLoading} onSelect={setSelectedId} />
         </div>
       </div>
