@@ -1511,8 +1511,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   
   // Save/Load route states
   const [showSaveRouteDialog, setShowSaveRouteDialog] = useState(false);
-  // True when the save popup was opened straight after sending the route
-  const [saveAfterSend, setSaveAfterSend] = useState(false);
+  // True when the save popup was opened by "Send All Timeslots": save first, then send
+  const [saveBeforeSend, setSaveBeforeSend] = useState(false);
   const [showLoadRouteDialog, setShowLoadRouteDialog] = useState(false);
   const [bulkMessageOpen, setBulkMessageOpen] = useState(false);
   const [currentRouteId, setCurrentRouteId] = useState<string | null>(null);
@@ -3481,6 +3481,17 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   };
 
   // WhatsApp: Send all timeslots (no 4-minute delay)
+  // Name and save the route first; the save popup then sends the timeslots
+  const requestSendAllTimeslots = () => {
+    const sendable = selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon);
+    if (sendable.length === 0) {
+      toast.error('No jobs with valid timeslots and coordinates to send');
+      return;
+    }
+    setSaveBeforeSend(true);
+    setShowSaveRouteDialog(true);
+  };
+
   const sendAllTimeslotsWhatsApp = async () => {
     const jobsToSend = selectedJobs.filter(job => 
       job.type !== 'break' && job.estimatedTime && job.lat && job.lon
@@ -3728,11 +3739,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         toast.error(`All ${failureCount} WhatsApp messages failed`);
       }
 
-      // Ask the planner to name and save the route (it then shows on the Live Map)
-      if (successCount > 0) {
-        setSaveAfterSend(true);
-        setShowSaveRouteDialog(true);
-      }
+
     } catch (error) {
       console.error('Error in WhatsApp bulk send:', error);
       toast.error('Failed to send WhatsApp timeslots');
@@ -4743,7 +4750,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                   </div>
                   
                   <Button
-                    onClick={sendAllTimeslotsWhatsApp}
+                    onClick={requestSendAllTimeslots}
                     disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
                     variant="outline"
                     size="sm"
@@ -4988,7 +4995,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                     Save Route
                   </Button>
                   <Button
-                    onClick={sendAllTimeslotsWhatsApp}
+                    onClick={requestSendAllTimeslots}
                     disabled={isSendingTimeslots || selectedJobs.filter(job => job.type !== 'break' && job.estimatedTime && job.lat && job.lon).length === 0}
                     variant="outline"
                     size="sm"
@@ -5091,7 +5098,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         open={showSaveRouteDialog}
         onOpenChange={(open) => {
           setShowSaveRouteDialog(open);
-          if (!open) setSaveAfterSend(false);
+          if (!open) setSaveBeforeSend(false);
         }}
         jobs={selectedJobs}
         jobData={buildSavedJobData}
@@ -5099,16 +5106,18 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         startingBikes={startingBikes}
         existingRouteId={currentRouteId}
         existingRouteName={currentRouteName}
-        afterSend={saveAfterSend}
+        beforeSend={saveBeforeSend}
         routeDateLabel={format(selectedDate, 'EEE d MMM')}
         onSaved={async (routeId, routeName) => {
           setCurrentRouteId(routeId);
           setCurrentRouteName(routeName);
-          if (saveAfterSend) {
+          if (saveBeforeSend) {
             const onMap = await registerRouteForDate(routeId);
             toast.success(onMap
-              ? `Route "${routeName}" saved and added to the Live Map for ${format(selectedDate, 'd MMM')}`
-              : `Route "${routeName}" saved`);
+              ? `Route "${routeName}" saved and added to the Live Map for ${format(selectedDate, 'd MMM')} — sending timeslots...`
+              : `Route "${routeName}" saved — sending timeslots...`);
+            // Send after the popup closes; progress shows on the Send button
+            setTimeout(() => { void sendAllTimeslotsWhatsApp(); }, 0);
           } else {
             toast.success(`Route "${routeName}" saved (ID: ${routeId.substring(0, 8)}...)`);
           }
