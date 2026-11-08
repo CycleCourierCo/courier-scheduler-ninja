@@ -14,7 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { TASK_PRIORITIES, TASK_STATUSES, type Task } from "@/types/task";
 import { TASK_CATEGORIES } from "@/constants/taskCategories";
-import { Loader2, X } from "lucide-react";
+import { Check, ChevronDown, Loader2, X } from "lucide-react";
 
 interface Props {
   open: boolean;
@@ -50,6 +50,8 @@ const TaskDialog: React.FC<Props> = ({
   const [priority, setPriority] = useState<Task['priority']>('normal');
   const [status, setStatus] = useState<Task['status']>('open');
   const [assigneeId, setAssigneeId] = useState<string>('');
+  const [assigneeOpen, setAssigneeOpen] = useState(false);
+  const [assigneeSearch, setAssigneeSearch] = useState('');
   const [dueDate, setDueDate] = useState<string>('');
   const [category, setCategory] = useState<string>(defaultCategory || '');
   const [plannedDate, setPlannedDate] = useState<string>(defaultPlannedDate || '');
@@ -94,6 +96,8 @@ const TaskDialog: React.FC<Props> = ({
     }
     setOrderQuery('');
     setOrderResults([]);
+    setAssigneeOpen(false);
+    setAssigneeSearch('');
   }, [open, task, defaultTitle, defaultDescription, defaultOrderId, defaultPlannedDate, defaultCategory]);
 
   useEffect(() => {
@@ -172,17 +176,12 @@ const TaskDialog: React.FC<Props> = ({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Assignee</Label>
-              <Select value={assigneeId || 'unassigned'} onValueChange={v => setAssigneeId(v === 'unassigned' ? '' : v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {users.map(u => (
-                    <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="min-w-0">
+              <Label htmlFor="task-assignee">Assignee</Label>
+              <Button id="task-assignee" type="button" variant="outline" aria-expanded={assigneeOpen} aria-controls="task-assignee-options" className="w-full justify-between px-3 font-normal" onClick={() => setAssigneeOpen(value => !value)}>
+                <span className="truncate">{users.find(u => u.id === assigneeId)?.name || users.find(u => u.id === assigneeId)?.email || 'Unassigned'}</span>
+                <ChevronDown className="ml-2 h-4 w-4 shrink-0" />
+              </Button>
             </div>
             <div>
               <Label>Due</Label>
@@ -254,6 +253,15 @@ const TaskDialog: React.FC<Props> = ({
               </div>
             )}
           </div>
+
+          {assigneeOpen && <div id="task-assignee-options" className="min-w-0 space-y-2 rounded-md border p-2">
+            <Input aria-label="Search assignees" placeholder="Search names…" value={assigneeSearch} onChange={e => setAssigneeSearch(e.target.value)} className="text-base" />
+            <div className="max-h-48 overflow-y-auto overscroll-contain touch-pan-y" role="group" aria-label="Assignee options">
+              <Button type="button" variant="ghost" className="h-11 w-full justify-start gap-2" aria-pressed={!assigneeId} onClick={() => { setAssigneeId(''); setAssigneeOpen(false); }}><Check className={`h-4 w-4 shrink-0 ${assigneeId ? 'invisible' : ''}`} />Unassigned</Button>
+              {users.filter(u => (u.name || u.email || '').toLowerCase().includes(assigneeSearch.trim().toLowerCase())).map(u => <Button key={u.id} type="button" variant="ghost" className="h-11 w-full justify-start gap-2" aria-pressed={assigneeId === u.id} onClick={() => { setAssigneeId(u.id); setAssigneeOpen(false); }}><Check className={`h-4 w-4 shrink-0 ${assigneeId === u.id ? '' : 'invisible'}`} /><span className="truncate">{u.name || u.email}</span></Button>)}
+              {assigneeSearch && !users.some(u => (u.name || u.email || '').toLowerCase().includes(assigneeSearch.trim().toLowerCase())) && <p className="p-2 text-sm text-muted-foreground">No matching people</p>}
+            </div>
+          </div>}
 
           <div>
             <Label>Linked order</Label>
