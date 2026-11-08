@@ -37,6 +37,8 @@ interface SaveRouteDialogProps {
   /** Opened by "Send All Timeslots": saving also sends the route. */
   beforeSend?: boolean;
   routeDateLabel?: string;
+  /** Route Builder's chosen day (YYYY-MM-DD), stored with the route. */
+  routeDate?: string;
   onSaved: (routeId: string, routeName: string) => void | Promise<void>;
 }
 
@@ -51,6 +53,7 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
   jobData: buildJobData,
   beforeSend = false,
   routeDateLabel,
+  routeDate,
   onSaved
 }) => {
   const [saveAsNew, setSaveAsNew] = useState(false);
@@ -105,6 +108,7 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
             job_data: jobData,
             start_time: startTime,
             starting_bikes: startingBikes,
+            ...(routeDate ? { route_date: routeDate } : {}),
           })
           .eq('id', existingRouteId);
 
@@ -120,6 +124,7 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
             job_data: jobData,
             start_time: startTime,
             starting_bikes: startingBikes,
+            ...(routeDate ? { route_date: routeDate } : {}),
             created_by: user.id
           });
 
@@ -228,7 +233,7 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
               ({collectionCount} collections, {deliveryCount} deliveries)
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              Start time: {startTime} • Starting bikes: {startingBikes}
+              {routeDateLabel ? `Date: ${routeDateLabel} • ` : ''}Start time: {startTime} • Starting bikes: {startingBikes}
             </p>
           </div>
         </div>

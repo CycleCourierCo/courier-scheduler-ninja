@@ -82,7 +82,7 @@ interface LoadRouteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   orders: OrderData[];
-  onLoadRoute: (jobs: LoadedJob[], startTime: string, startingBikes: number, routeId?: string, routeName?: string) => void;
+  onLoadRoute: (jobs: LoadedJob[], startTime: string, startingBikes: number, routeId?: string, routeName?: string, routeDate?: string | null) => void;
 }
 
 const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
@@ -181,7 +181,7 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
       toast.warning(`${staleCount} job(s) in this route are no longer available`);
     }
 
-    onLoadRoute(loadedJobs, route.start_time, route.starting_bikes, route.id, route.name);
+    onLoadRoute(loadedJobs, route.start_time, route.starting_bikes, route.id, route.name, route.route_date ?? null);
     onOpenChange(false);
     toast.success(`Route "${route.name}" loaded successfully`);
   };
