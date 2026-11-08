@@ -6423,6 +6423,7 @@ export type Database = {
           id: string
           job_data: Json
           name: string
+          route_date: string | null
           start_time: string | null
           starting_bikes: number | null
           updated_at: string | null
@@ -6433,6 +6434,7 @@ export type Database = {
           id?: string
           job_data?: Json
           name: string
+          route_date?: string | null
           start_time?: string | null
           starting_bikes?: number | null
           updated_at?: string | null
@@ -6443,6 +6445,7 @@ export type Database = {
           id?: string
           job_data?: Json
           name?: string
+          route_date?: string | null
           start_time?: string | null
           starting_bikes?: number | null
           updated_at?: string | null
