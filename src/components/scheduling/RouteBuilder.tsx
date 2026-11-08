@@ -53,6 +53,7 @@ import TimeslotRouteMap from "./TimeslotRouteMap";
 
 // Profitability constants are shared with Generate Routes so rates stay in step.
 import { COST_PER_MILE, DRIVER_HOURLY_RATE, formatGBP } from "@/lib/routeCosts";
+import { isRemovableUncollectedDelivery, isRemovableNotCustomerDate } from "@/lib/routeCleanFilters";
 
 // Location grouping radius for consolidating messages (in meters)
 const describeBikes = (o: any): string => {
@@ -189,8 +190,11 @@ const getAvailabilityBadge = (
     };
   }
 
+  // Expired = no customer date left on or after the route date being planned
+  // (or today, if planning a past date).
   const todayStr = format(new Date(), 'yyyy-MM-dd');
-  const allExpired = relevantDates.every(date => format(new Date(date), 'yyyy-MM-dd') < todayStr);
+  const cutoffStr = selectedDateStr > todayStr ? selectedDateStr : todayStr;
+  const allExpired = relevantDates.every(date => format(new Date(date), 'yyyy-MM-dd') < cutoffStr);
   if (allExpired) {
     return {
       text: 'Dates Expired',
@@ -2916,8 +2920,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   };
 
   // ---- Quick-clean filters for the Get Timeslots popup ----
-  const isUncollectedDelivery = (j: any) =>
-    j.type === 'delivery' && (j.orderData?.order_collected ?? j.order?.order_collected) !== true;
+  const isUncollectedDelivery = (j: any) => isRemovableUncollectedDelivery(j, selectedJobs, selectedDate);
   const isUninspectedDelivery = (j: any) => {
     if (j.type !== 'delivery') return false;
     const needs = (j.orderData?.needs_inspection ?? j.order?.needs_inspection) === true;
@@ -2925,8 +2928,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     return needs && st !== 'inspected' && st !== 'repaired';
   };
   const isNotCustomerDate = (j: any) =>
-    j.type !== 'break' &&
-    getAvailabilityBadge(j.type, selectedDate, j.orderData?.pickup_date, j.orderData?.delivery_date)?.text === 'Not Customer Date';
+    isRemovableNotCustomerDate(j.type, selectedDate, j.orderData?.pickup_date, j.orderData?.delivery_date);
   const cleanCounts = {
     notCollected: selectedJobs.filter(isUncollectedDelivery).length,
     notInspected: selectedJobs.filter(isUninspectedDelivery).length,
