@@ -60,7 +60,7 @@ const AssigneePicker: React.FC<Props> = ({ id, value, onChange, users, fixedOpti
         onClick={() => setOpen(o => !o)}
       >
         <span className="truncate">{selectedLabel}</span>
-        <ChevronDown className={`ml-2 h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`ml-2 h-4 w-4 shrink-0 ${open ? "rotate-180" : ""}`} />
       </Button>
       {open && (
         <div id={`${id}-options`} className={`mt-1 min-w-0 space-y-2 rounded-md border bg-popover p-2 shadow-sm ${floating ? "absolute left-0 top-full z-40 w-[min(20rem,calc(100vw-1.5rem))]" : ""}`}>
