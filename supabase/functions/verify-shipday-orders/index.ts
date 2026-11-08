@@ -66,16 +66,36 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Keep the planned day per job so the route builder can spot a job that is
+    // on Shipday but still sitting on an older day (e.g. left over from a
+    // previous route) and move it onto the route's date.
+    const dateById = new Map<string, string>();
+    if (Array.isArray(activeOrders)) {
+      for (const o of activeOrders) {
+        const raw =
+          o?.activityLog?.expectedDeliveryDate ||
+          o?.expectedDeliveryDate ||
+          o?.activityLog?.expectedPickupDate ||
+          o?.expectedPickupDate ||
+          "";
+        const match = typeof raw === "string" ? raw.match(/^\d{4}-\d{2}-\d{2}/) : null;
+        if (match) dateById.set(String(o.orderId), match[0]);
+      }
+    }
+
     const results: Record<string, boolean> = {};
     const pickupAddresses: Record<string, string> = {};
+    const expectedDates: Record<string, string> = {};
     for (const id of shipdayIds) {
       results[id] = activeIdSet.has(String(id));
       const addr = pickupAddressById.get(String(id));
       if (addr) pickupAddresses[id] = addr;
+      const day = dateById.get(String(id));
+      if (day) expectedDates[id] = day;
     }
 
     return new Response(
-      JSON.stringify({ results, pickupAddresses }),
+      JSON.stringify({ results, pickupAddresses, expectedDates }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
