@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { routeTabUrl, openRouteTabs, blockedTabsMessage } from "@/lib/routeTabs";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { AlertTriangle, CalendarClock, Loader2, Lock, MapPin, RefreshCw, Truck, Unlock, Wand2 } from "lucide-react";
+import { AlertTriangle, CalendarClock, ExternalLink, Loader2, Lock, MapPin, RefreshCw, Truck, Unlock, Wand2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -162,7 +163,7 @@ const RouteCard: React.FC<{ route: PlanRoute; date: string; onUse: (route: PlanR
       <Button size="sm" onClick={() => onUse(route)} disabled={busy} className="w-full sm:w-auto">
         Use this route
       </Button>
-      <p className="text-xs text-muted-foreground">Opens Get Timeslots for {dayLabel(date)} with these stops in order.</p>
+      <p className="text-xs text-muted-foreground">Opens Get Timeslots in a new tab for {dayLabel(date)} with these stops in order.</p>
     </CardContent>
   </Card>
 );
