@@ -53,6 +53,7 @@ import TimeslotRouteMap from "./TimeslotRouteMap";
 
 // Profitability constants are shared with Generate Routes so rates stay in step.
 import { COST_PER_MILE, DRIVER_HOURLY_RATE, formatGBP } from "@/lib/routeCosts";
+import { isRemovableUncollectedDelivery, isRemovableNotCustomerDate } from "@/lib/routeCleanFilters";
 
 // Location grouping radius for consolidating messages (in meters)
 const describeBikes = (o: any): string => {
