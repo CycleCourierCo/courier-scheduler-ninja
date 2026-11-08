@@ -1,6 +1,7 @@
 # Roadmap
 
-- [ ] Lost and Found: order-linked items, private photos, collection/delivery van and depot checks, admin/customer-service access and verification.
+- [x] Lost and Found: order-linked items, private photos, collection/delivery van and depot checks, admin/customer-service access; five tests pass and access rules verified.
+- [ ] Lost and Found signed-in creation/photo/check readback — external unmanaged authentication prevents an authenticated browser test.
 
 - [x] Apply the ten Supabase pentest concerns: report/photo authorization, fleet completion integrity, proof storage/retry/account binding, custom repair permission, webhook signatures, explicit staff roles and credential-safe logs; verify without changing production bookings.
 - [ ] Retire existing long-lived inspection PDF links from public pages/emails — needs a decision because old links would stop working.
