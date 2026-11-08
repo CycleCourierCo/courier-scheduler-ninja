@@ -49,6 +49,7 @@ import {
   resolveStopAddress,
 } from "@/lib/altLocation";
 import { uuid } from "@/lib/uuid";
+import { routeTabUrl, parseRouteTabParams, stashRouteStops, takeStashedRouteStops, openRouteTabs, blockedTabsMessage } from "@/lib/routeTabs";
 import GuaranteedDatePanel from "./GuaranteedDatePanel";
 import TimeslotRouteMap from "./TimeslotRouteMap";
 
@@ -2385,10 +2386,45 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       
       if (jobs.length > 0) {
         setSelectedJobs(jobs);
+        if (routeTabParams.openTimeslots) autoTimeslotsRef.current = true;
         toast.success(`Loaded ${jobs.length} jobs from URL`);
       }
     }
   }, [initialJobs, orderList]);
+
+  // Route opened in a new tab: restore its day/start time, then open Get Timeslots
+  const [routeTabParams] = useState(() => parseRouteTabParams(window.location.search));
+  const autoTimeslotsRef = useRef(false);
+  React.useEffect(() => {
+    if (routeTabParams.routeDate) setSelectedDate(new Date(`${routeTabParams.routeDate}T12:00:00`));
+    if (routeTabParams.startTime) setStartTime(routeTabParams.startTime);
+  }, []);
+
+  // Stops handed over from another tab (e.g. a split route), with work/home choices kept
+  const stashLoadedRef = useRef(false);
+  React.useEffect(() => {
+    if (stashLoadedRef.current || !orderList.length || !routeTabParams.stashKey) return;
+    stashLoadedRef.current = true;
+    const stops = takeStashedRouteStops(routeTabParams.stashKey);
+    if (!stops?.length) {
+      toast.error("Couldn't open that route — try opening it again from the original tab");
+      return;
+    }
+    const jobs = rehydrateSavedJobs(stops as any, orderList);
+    const stale = jobs.filter(j => j.type !== 'break' && !j.orderData).length;
+    if (stale > 0) toast.warning(`${stale} job(s) in this route are no longer available`);
+    setSelectedJobs(jobs as SelectedJob[]);
+    if (routeTabParams.openTimeslots) autoTimeslotsRef.current = true;
+    toast.success(`Loaded ${jobs.length} stops`);
+  }, [orderList]);
+
+  // Runs after the restored stops, day and start time are in place
+  React.useEffect(() => {
+    if (!autoTimeslotsRef.current) return;
+    if (!selectedJobs.some(j => j.type !== 'break')) return;
+    autoTimeslotsRef.current = false;
+    calculateTimeslots();
+  }, [selectedJobs, startTime, selectedDate]);
 
   // Load a saved route from ?savedRoute=<id> (opened from "Open selected in new tabs")
   const savedRouteLoadedRef = useRef(false);
@@ -2410,7 +2446,9 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       const jobs = rehydrateSavedJobs((data.job_data as any) || [], orderList);
       const stale = jobs.filter(j => j.type !== 'break' && !j.orderData).length;
       if (stale > 0) toast.warning(`${stale} job(s) in this route are no longer available`);
-      handleLoadSavedRoute(jobs as SelectedJob[], data.start_time, data.starting_bikes, data.id, data.name);
+      handleLoadSavedRoute(jobs as SelectedJob[], data.start_time, data.starting_bikes, data.id, data.name, (data as any).route_date ?? null);
+      if (routeTabParams.routeDate) setSelectedDate(new Date(`${routeTabParams.routeDate}T12:00:00`));
+      if (routeTabParams.openTimeslots) autoTimeslotsRef.current = true;
       toast.success(`Route "${data.name}" loaded`);
     })();
   }, [orderList]);
@@ -2994,6 +3032,23 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       route_date: format(selectedDate, 'yyyy-MM-dd'), created_by: user.id,
     });
     if (error) toast.error(`Couldn't save: ${error.message}`); else toast.success(`Saved "${name}"`);
+  };
+  const splitStopsForTab = (jobs: any[]) => jobs.map((job, i) => {
+    const coords = savedStopCoords(job);
+    return {
+      orderId: job.orderId, type: job.type, address: job.address, contactName: job.contactName,
+      phoneNumber: job.phoneNumber, order: i + 1, lat: coords.lat ?? job.lat, lon: coords.lon ?? job.lon,
+      breakDuration: job.breakDuration, breakType: job.breakType, addressSource: job.addressSource,
+    };
+  });
+  const openSplitRoutesInTabs = (routes: any[][]) => {
+    const urls = routes.map((jobs) => routeTabUrl({
+      stashKey: stashRouteStops(splitStopsForTab(jobs)),
+      routeDate: format(selectedDate, 'yyyy-MM-dd'),
+      startTime,
+    }));
+    const blocked = openRouteTabs(urls);
+    if (blocked > 0) toast.warning(blockedTabsMessage(blocked));
   };
   const renderCleanBar = (compact: boolean) => {
     const cls = compact ? 'flex-1 h-8 text-xs' : '';
@@ -5147,6 +5202,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         shiftStart={startTime || '09:00'}
         onLoad={(jobs) => { setSelectedJobs(jobs as any); calculateTimeslots(jobs as any); }}
         onSave={saveSplitRoute}
+        onOpenInTabs={openSplitRoutesInTabs}
       />
       <BulkRouteMessageDialog
         open={bulkMessageOpen}
