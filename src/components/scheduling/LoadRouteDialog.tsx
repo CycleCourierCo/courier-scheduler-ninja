@@ -37,6 +37,7 @@ interface SavedRoute {
   job_data: SavedJobData[];
   start_time: string;
   starting_bikes: number;
+  route_date?: string | null;
   created_by: string;
   created_at: string;
 }
@@ -308,6 +309,12 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
                             <span className="text-xs text-muted-foreground">
                               {stats.collections}C / {stats.deliveries}D
                             </span>
+                            {route.route_date && (
+                              <Badge variant="secondary" className="text-xs">
+                                {format(new Date(`${route.route_date}T12:00:00`), "EEE d MMM")}
+                                {route.start_time ? ` · ${route.start_time.slice(0, 5)}` : ""}
+                              </Badge>
+                            )}
                             {!viability.allMatched && (
                               <Badge variant="outline" className="text-xs bg-status-waiting/10 text-status-waiting border-status-waiting/40">
                                 <AlertTriangle className="h-3 w-3 mr-1" />
