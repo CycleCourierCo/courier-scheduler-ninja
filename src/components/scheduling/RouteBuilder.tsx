@@ -1511,6 +1511,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   
   // Save/Load route states
   const [showSaveRouteDialog, setShowSaveRouteDialog] = useState(false);
+  // True when the save popup was opened straight after sending the route
+  const [saveAfterSend, setSaveAfterSend] = useState(false);
   const [showLoadRouteDialog, setShowLoadRouteDialog] = useState(false);
   const [bulkMessageOpen, setBulkMessageOpen] = useState(false);
   const [currentRouteId, setCurrentRouteId] = useState<string | null>(null);
@@ -2211,6 +2213,25 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     setCurrentRouteId(routeId ?? null);
     setCurrentRouteName(routeName ?? null);
   };
+
+  // Stops exactly as they are stored on a saved route (keeps work/home address choice)
+  const buildSavedJobData = () => selectedJobs.map(job => {
+    const coords = savedStopCoords(job);
+    return {
+      orderId: job.orderId,
+      type: job.type,
+      address: job.address,
+      contactName: job.contactName,
+      phoneNumber: job.phoneNumber,
+      order: job.order,
+      estimatedTime: job.estimatedTime,
+      lat: coords.lat ?? job.lat,
+      lon: coords.lon ?? job.lon,
+      breakDuration: job.breakDuration,
+      breakType: job.breakType,
+      addressSource: (job as any).addressSource,
+    };
+  });
 
   // Silently update saved_routes row for the currently loaded route
   const updateSavedRouteRow = async (routeId: string) => {
@@ -3707,22 +3728,10 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         toast.error(`All ${failureCount} WhatsApp messages failed`);
       }
 
-      // Persist the route so it can be re-loaded later
+      // Ask the planner to name and save the route (it then shows on the Live Map)
       if (successCount > 0) {
-        if (currentRouteId) {
-          await updateSavedRouteRow(currentRouteId);
-          await registerRouteForDate(currentRouteId);
-          toast.success(`Saved route "${currentRouteName ?? ''}" updated`);
-        } else {
-          const created = await createSavedRouteRow();
-          if (created) {
-            setCurrentRouteId(created.id);
-            setCurrentRouteName(created.name);
-            await registerRouteForDate(created.id);
-            toast.success(`Route saved as "${created.name}"`);
-          }
-        }
-
+        setSaveAfterSend(true);
+        setShowSaveRouteDialog(true);
       }
     } catch (error) {
       console.error('Error in WhatsApp bulk send:', error);
@@ -5080,16 +5089,29 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
       <SaveRouteDialog
         open={showSaveRouteDialog}
-        onOpenChange={setShowSaveRouteDialog}
+        onOpenChange={(open) => {
+          setShowSaveRouteDialog(open);
+          if (!open) setSaveAfterSend(false);
+        }}
         jobs={selectedJobs}
+        jobData={buildSavedJobData}
         startTime={startTime}
         startingBikes={startingBikes}
         existingRouteId={currentRouteId}
         existingRouteName={currentRouteName}
-        onSaved={(routeId, routeName) => {
+        afterSend={saveAfterSend}
+        routeDateLabel={format(selectedDate, 'EEE d MMM')}
+        onSaved={async (routeId, routeName) => {
           setCurrentRouteId(routeId);
           setCurrentRouteName(routeName);
-          toast.success(`Route "${routeName}" saved (ID: ${routeId.substring(0, 8)}...)`);
+          if (saveAfterSend) {
+            const onMap = await registerRouteForDate(routeId);
+            toast.success(onMap
+              ? `Route "${routeName}" saved and added to the Live Map for ${format(selectedDate, 'd MMM')}`
+              : `Route "${routeName}" saved`);
+          } else {
+            toast.success(`Route "${routeName}" saved (ID: ${routeId.substring(0, 8)}...)`);
+          }
         }}
       />
 

@@ -31,7 +31,12 @@ interface SaveRouteDialogProps {
   startingBikes: number;
   existingRouteId?: string | null;
   existingRouteName?: string | null;
-  onSaved: (routeId: string, routeName: string) => void;
+  /** Stops in the exact shape to store; falls back to the plain job fields. */
+  jobData?: () => unknown[];
+  /** Opened straight after the route was sent to customers. */
+  afterSend?: boolean;
+  routeDateLabel?: string;
+  onSaved: (routeId: string, routeName: string) => void | Promise<void>;
 }
 
 const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
@@ -42,9 +47,13 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
   startingBikes,
   existingRouteId,
   existingRouteName,
+  jobData: buildJobData,
+  afterSend = false,
+  routeDateLabel,
   onSaved
 }) => {
-  const isUpdate = !!existingRouteId;
+  const [saveAsNew, setSaveAsNew] = useState(false);
+  const isUpdate = !!existingRouteId && !saveAsNew;
   const [routeName, setRouteName] = useState(existingRouteName ?? "");
   const [isSaving, setIsSaving] = useState(false);
   const [generatedId, setGeneratedId] = useState<string>(() => existingRouteId ?? uuid());
@@ -54,6 +63,7 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
     if (open) {
       setRouteName(existingRouteName ?? "");
       setGeneratedId(existingRouteId ?? uuid());
+      setSaveAsNew(false);
     }
   }, [open, existingRouteId, existingRouteName]);
 
@@ -65,7 +75,7 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
 
     setIsSaving(true);
     try {
-      const jobData = jobs.map(job => ({
+      const jobData = buildJobData ? buildJobData() : jobs.map(job => ({
         orderId: job.orderId,
         type: job.type,
         address: job.address,
@@ -99,7 +109,7 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
 
         if (error) throw error;
 
-        onSaved(existingRouteId, routeName.trim());
+        await onSaved(existingRouteId, routeName.trim());
       } else {
         const { error } = await supabase
           .from('saved_routes')
@@ -114,7 +124,7 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
 
         if (error) throw error;
 
-        onSaved(generatedId, routeName.trim());
+        await onSaved(generatedId, routeName.trim());
       }
 
       onOpenChange(false);
@@ -142,12 +152,14 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isUpdate ? <RefreshCw className="h-5 w-5" /> : <Save className="h-5 w-5" />}
-            {isUpdate ? "Update Saved Route" : "Save Route"}
+            {afterSend ? "Route sent — name and save it" : isUpdate ? "Update Saved Route" : "Save Route"}
           </DialogTitle>
           <DialogDescription>
-            {isUpdate
-              ? "Update this saved route with the current jobs and settings"
-              : "Save this route configuration for later use"}
+            {afterSend
+              ? `Saving puts this route on the Live Map${routeDateLabel ? ` for ${routeDateLabel}` : ""} so it can be assigned to a driver. If you skip, it won't be saved.`
+              : isUpdate
+                ? "Update this saved route with the current jobs and settings"
+                : "Save this route configuration for later use"}
           </DialogDescription>
         </DialogHeader>
         
@@ -160,8 +172,30 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
               onChange={(e) => setRouteName(e.target.value)}
               placeholder="e.g., Birmingham North Morning Run"
               autoFocus
+              onKeyDown={(e) => { if (e.key === "Enter" && routeName.trim() && !isSaving) handleSave(); }}
             />
           </div>
+
+          {existingRouteId && (
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4"
+                checked={saveAsNew}
+                onChange={(e) => {
+                  setSaveAsNew(e.target.checked);
+                  setGeneratedId(e.target.checked ? uuid() : existingRouteId);
+                  if (e.target.checked && routeName === (existingRouteName ?? "")) setRouteName("");
+                }}
+              />
+              <span>
+                Save as a new route
+                <span className="block text-xs text-muted-foreground">
+                  Leave unticked to update "{existingRouteName || "the loaded route"}".
+                </span>
+              </span>
+            </label>
+          )}
           
           <div className="space-y-2">
             <Label>Route ID</Label>
@@ -200,7 +234,7 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
         
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
+            {afterSend ? "Don't save" : "Cancel"}
           </Button>
           <Button onClick={handleSave} disabled={isSaving || !routeName.trim()}>
             {isSaving
