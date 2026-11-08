@@ -6,6 +6,7 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { identifyPostHogUser, resetPostHogUser } from "@/lib/posthog";
 import { toast } from "sonner";
+import { edgeFunctionErrorMessage } from "@/lib/registrationRules";
 
 
 type AuthContextType = {
@@ -177,33 +178,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const isBusinessAccount = metadata.is_business === 'true';
       
       if (isBusinessAccount) {
-        
-        // Use our Edge Function to create the business user
-        try {
-          const response = await supabase.functions.invoke("create-business-user", {
-            body: {
-              email,
-              password,
-              userData: {
-                name,
-                ...metadata
-              }
+        // Use our Edge Function to create the business user.
+        // The form shows one error toast, so this only throws a readable message.
+        const response = await supabase.functions.invoke("create-business-user", {
+          body: {
+            email: email.trim().toLowerCase(),
+            password,
+            userData: {
+              name,
+              ...metadata
             }
-          });
-          
-          if (response.error) {
-            throw new Error(response.error.message || "We couldn't create your business account. Please try again in a moment.");
           }
-          
-          if (!response.data) {
-            throw new Error("Your business account didn't save. Please try again — if this keeps happening, email info@cyclecourierco.com.");
-          }
-          
-          return { data: response.data, isBusinessAccount: true };
-        } catch (err: any) {
-          toast.error(err.message || "We couldn't finish creating your business account. Please try again in a moment.");
-          throw err;
+        });
+
+        if (response.error) {
+          throw new Error(
+            await edgeFunctionErrorMessage(
+              response.error,
+              "We couldn't create your business account. Please try again in a moment, or email info@cyclecourierco.com."
+            )
+          );
         }
+
+        if (!response.data) {
+          throw new Error("Your business account didn't save. Please try again — if this keeps happening, email info@cyclecourierco.com.");
+        }
+
+        return { data: response.data, isBusinessAccount: true };
       } else {
         // For regular accounts, use normal signup with auto-login
         const { data, error } = await supabase.auth.signUp({
@@ -221,9 +222,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         return data;
       }
-    } catch (error: any) {
-      toast.error(error.message || "We couldn't finish creating your account. Please try again in a moment.");
-      throw error;
     } finally {
       setIsLoading(false);
     }
