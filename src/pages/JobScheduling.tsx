@@ -67,6 +67,7 @@ const JobScheduling = () => {
   const [clusters, setClusters] = useState<Cluster[]>([]);
   const [shipdayVerification, setShipdayVerification] = useState<ShipdayVerificationResults>({});
   const [shipdayPickupAddresses, setShipdayPickupAddresses] = useState<ShipdayPickupAddresses>({});
+  const [shipdayExpectedDates, setShipdayExpectedDates] = useState<Record<string, string>>({});
   const [isVerifyingShipday, setIsVerifyingShipday] = useState(false);
   const shipdayVerificationRun = useRef(0);
   const [routeJobKeys, setRouteJobKeys] = useState<Set<string>>(new Set());
@@ -159,6 +160,7 @@ const JobScheduling = () => {
         // Merge so earlier results (e.g. route jobs) aren't wiped by later checks
         setShipdayVerification(prev => ({ ...prev, ...(data.results || {}) }));
         setShipdayPickupAddresses(prev => ({ ...prev, ...(data.pickupAddresses || {}) }));
+        setShipdayExpectedDates(prev => ({ ...prev, ...(data.expectedDates || {}) }));
       }
     } catch (err) {
       console.error('Error verifying Shipday orders:', err);
@@ -360,6 +362,7 @@ const JobScheduling = () => {
                 initialJobs={initialJobs}
                 shipdayVerification={shipdayVerification}
                 shipdayPickupAddresses={shipdayPickupAddresses}
+                shipdayExpectedDates={shipdayExpectedDates}
                 isVerifyingShipday={isVerifyingShipday}
                 onVerifyVisibleShipday={verifyShipdayIds}
                 onReVerifyShipday={() => orders && verifyShipdayOrders(orders)}

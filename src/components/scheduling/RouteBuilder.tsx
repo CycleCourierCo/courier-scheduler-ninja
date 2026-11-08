@@ -3899,7 +3899,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     //    still open and for which day, so stops added after the route was built
     //    (or left over from an older route) are never skipped by mistake.
     setIsLoadingShipday(true);
-    let decisions: ReturnType<typeof planRouteShipdayPush<(typeof stops)[number] & { shipdayId: string | null; orderStatus?: string | null; onShipday?: boolean; shipdayDate?: string | null }>>;
+    let decisions: Array<{ job: any; action: 'create' | 'move' | 'skip'; reason: string }> = [];
     try {
       const orderIds = [...new Set(stops.map(j => j.orderId))];
       const fresh = new Map<string, { status: string | null; shipday_pickup_id: string | null; shipday_delivery_id: string | null }>();
