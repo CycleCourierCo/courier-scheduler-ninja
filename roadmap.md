@@ -97,3 +97,5 @@
 - [x] Label QR: role-aware tracking page (loader bay/van actions, driver route check, mechanic/admin shortcuts), Scan page with camera + van-loading batch, scan history
 - [ ] Driver collect/deliver straight from a scan — links to Today's Route proof screen; marking orders collected/delivered from the app still awaits user approval (customer messages)
 - [ ] Signed-in check on a real phone as loader/driver — preview sign-in not available
+
+- [x] Tasks on phones: assignee picker works in New/Edit task and the list filter; task list fits the screen and shows who created each task.
