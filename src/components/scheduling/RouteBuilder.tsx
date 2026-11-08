@@ -35,6 +35,7 @@ import { countJobsForOrders } from "@/utils/jobUtils";
 import { getLegContact, getFoamBadge, resolveStopCoords, isFerryLeg } from "@/utils/niDelivery";
 import { parseCSV, matchCSVToOrders, MatchResult, analyzeRouteViability, RouteAnalysis } from "@/utils/csvRouteParser";
 import { createShipdayOrder } from "@/services/shipdayService";
+import { planRouteShipdayPush } from "@/lib/shipdayRoutePush";
 import { getRevenueForRouteStops, clearSpecialRatePriceCache } from "@/services/profitabilityService";
 import { useAuth } from "@/contexts/AuthContext";
 import { hasRole } from "@/lib/roles";
@@ -105,6 +106,8 @@ interface RouteBuilderProps {
   initialJobs?: { orderId: string; type: 'pickup' | 'delivery' }[];
   shipdayVerification?: ShipdayVerificationResults;
   shipdayPickupAddresses?: Record<string, string>;
+  /** Day each open Shipday job is planned for, keyed by Shipday id (YYYY-MM-DD). */
+  shipdayExpectedDates?: Record<string, string>;
   isVerifyingShipday?: boolean;
   onVerifyVisibleShipday?: (shipdayIds: string[]) => void;
   onReVerifyShipday?: () => void;
@@ -1411,6 +1414,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   initialJobs,
   shipdayVerification = {},
   shipdayPickupAddresses = {},
+  shipdayExpectedDates = {},
   isVerifyingShipday = false,
   onVerifyVisibleShipday,
   onReVerifyShipday,
@@ -3765,10 +3769,13 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
 
 
   // Helper to get Shipday status for a job
-  const getShipdayStatus = (order: OrderData, jobType: 'pickup' | 'delivery'): 'verified' | 'missing' | 'none' | 'pending' | 'stale' => {
+  const getShipdayStatus = (order: OrderData, jobType: 'pickup' | 'delivery', routeDay?: string): 'verified' | 'missing' | 'none' | 'pending' | 'stale' | 'other_day' => {
     const shipdayId = jobType === 'pickup' ? order.shipday_pickup_id : order.shipday_delivery_id;
     if (!shipdayId) return 'none';
     if (shipdayVerification[shipdayId] === true) {
+      // Route stops: an open Shipday job on a different day isn't on this route
+      const plannedDay = shipdayExpectedDates[shipdayId];
+      if (routeDay && plannedDay && plannedDay !== routeDay) return 'other_day';
       // Ferry legs must point at the Manchester hand-off point. Jobs created before
       // the order was flagged as a ferry job still carry the customer's own address.
       if (isFerryLeg(order, jobType)) {
@@ -3802,7 +3809,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   };
 
   const [isLoadingShipday, setIsLoadingShipday] = useState(false);
-  const [pendingShipdayPush, setPendingShipdayPush] = useState<{ count: number; run: () => Promise<void> } | null>(null);
+  const [pendingShipdayPush, setPendingShipdayPush] = useState<{ count: number; moves?: number; dayLabel?: string; run: () => Promise<void> } | null>(null);
 
   const missingVisibleShipdayJobs = availableJobs.filter(
     (job): job is typeof job & { type: 'pickup' | 'delivery' } =>
@@ -3823,18 +3830,21 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       let success = 0;
       let failed = 0;
 
+      let blocked = 0;
       for (const job of jobsToAdd) {
         try {
           await createShipdayOrder(job.orderId, job.type);
           success++;
         } catch (err) {
+          if ((err as { blocked?: string })?.blocked) { blocked++; continue; }
           console.error('Failed to add missing job to Shipday', job, err);
           failed++;
         }
       }
 
-      if (failed === 0) toast.success(`${success} missing jobs added to Shipday`);
-      else toast.warning(`${success} added, ${failed} failed`);
+      const blockedNote = blocked > 0 ? `, ${blocked} skipped (failed or cancelled — needs a new day first)` : '';
+      if (failed === 0) toast.success(`${success} missing jobs added to Shipday${blockedNote}`);
+      else toast.warning(`${success} added, ${failed} failed${blockedNote}`);
       onReVerifyShipday?.();
       setIsLoadingShipday(false);
     };
@@ -3851,49 +3861,159 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     await doPush();
   };
 
-  // Route jobs (timeslot popup) not yet on Shipday
-  const routeJobsMissingShipday = selectedJobs.filter(
-    (j): j is typeof j & { type: 'pickup' | 'delivery' } =>
-      j.type !== 'break' &&
-      !!j.orderData &&
-      (j.type === 'pickup' || j.type === 'delivery') &&
-      getShipdayStatus(j.orderData, j.type) !== 'verified' &&
-      // Only skip unchecked jobs while a check is still running
-      !(isVerifyingShipday && getShipdayStatus(j.orderData, j.type) === 'pending')
+  // Route jobs (timeslot popup) not yet on Shipday for this route's day
+  const routeDayStr = format(selectedDate, 'yyyy-MM-dd');
+  const routeStops = selectedJobs.filter(
+    (j): j is typeof j & { type: 'pickup' | 'delivery' } => j.type === 'pickup' || j.type === 'delivery'
+  );
+  const routeJobsMissingShipday = routeStops.filter(
+    (j) => !j.orderData || getShipdayStatus(j.orderData, j.type, routeDayStr) !== 'verified'
   );
 
+  const describeRouteStop = (job: { orderId: string; type: 'pickup' | 'delivery'; orderData?: any }) => {
+    const contact = job.type === 'pickup' ? job.orderData?.sender : job.orderData?.receiver;
+    const ref = job.orderData?.tracking_number || job.orderId.slice(0, 8);
+    return `${contact?.name || ref} (${job.type === 'pickup' ? 'collection' : 'delivery'})`;
+  };
+
+  // Keep route stops in step with the order's real Shipday ids
+  const applyShipdayIdsToRoute = (updates: Map<string, { shipday_pickup_id?: string | null; shipday_delivery_id?: string | null }>) => {
+    if (updates.size === 0) return;
+    setSelectedJobs(prev => prev.map(j => {
+      const u = updates.get(j.orderId);
+      if (!u || !j.orderData) return j;
+      return { ...j, orderData: { ...j.orderData, ...u } };
+    }));
+  };
+
   const handleAddRouteJobsToShipday = async () => {
-    if (routeJobsMissingShipday.length === 0) {
-      toast.info('All route jobs are already on Shipday');
+    if (routeStops.length === 0) {
+      toast.info('There are no stops on this route');
+      return;
+    }
+    const routeDay = routeDayStr;
+    const routeDayLabel = format(selectedDate, 'EEE d MMM');
+    const stops = [...routeStops];
+
+    // 1. Read each order's current Shipday ids and ask Shipday which jobs are
+    //    still open and for which day, so stops added after the route was built
+    //    (or left over from an older route) are never skipped by mistake.
+    setIsLoadingShipday(true);
+    let decisions: Array<{ job: any; action: 'create' | 'move' | 'skip'; reason: string }> = [];
+    try {
+      const orderIds = [...new Set(stops.map(j => j.orderId))];
+      const fresh = new Map<string, { status: string | null; shipday_pickup_id: string | null; shipday_delivery_id: string | null }>();
+      for (let i = 0; i < orderIds.length; i += 100) {
+        const { data, error } = await supabase
+          .from('orders')
+          .select('id, status, shipday_pickup_id, shipday_delivery_id')
+          .in('id', orderIds.slice(i, i + 100));
+        if (error) throw error;
+        (data || []).forEach((o: any) => fresh.set(o.id, o));
+      }
+      applyShipdayIdsToRoute(new Map([...fresh].map(([id, o]) => [id, { shipday_pickup_id: o.shipday_pickup_id, shipday_delivery_id: o.shipday_delivery_id }])));
+
+      const states = stops.map(j => {
+        const o = fresh.get(j.orderId);
+        const sid = j.type === 'pickup'
+          ? (o ? o.shipday_pickup_id : j.orderData?.shipday_pickup_id)
+          : (o ? o.shipday_delivery_id : j.orderData?.shipday_delivery_id);
+        return { ...j, shipdayId: sid ? String(sid) : null, orderStatus: o?.status ?? j.orderData?.status ?? null };
+      });
+
+      const shipdayIds = [...new Set(states.map(st => st.shipdayId).filter((x): x is string => !!x))];
+      const open: Record<string, boolean> = {};
+      const days: Record<string, string> = {};
+      for (let i = 0; i < shipdayIds.length; i += 200) {
+        const { data, error } = await supabase.functions.invoke('verify-shipday-orders', {
+          body: { shipdayIds: shipdayIds.slice(i, i + 200) },
+        });
+        if (error) throw error;
+        Object.assign(open, data?.results || {});
+        Object.assign(days, data?.expectedDates || {});
+      }
+      if (shipdayIds.length > 0) onVerifyVisibleShipday?.(shipdayIds);
+
+      decisions = planRouteShipdayPush(
+        states.map(st => ({
+          ...st,
+          onShipday: st.shipdayId ? open[st.shipdayId] : undefined,
+          shipdayDate: st.shipdayId ? days[st.shipdayId] ?? null : null,
+        })),
+        routeDay,
+      );
+    } catch (err: any) {
+      console.error('Could not check route stops against Shipday', err);
+      toast.error(`Couldn't check Shipday, nothing was sent: ${err?.message || 'unknown error'}`);
+      setIsLoadingShipday(false);
+      return;
+    }
+    setIsLoadingShipday(false);
+
+    const toSend = decisions.filter(d => d.action !== 'skip');
+    const moves = toSend.filter(d => d.action === 'move').length;
+    const cancelled = decisions.filter(d => d.reason === 'cancelled').length;
+    if (toSend.length === 0) {
+      toast.info(`All ${decisions.length - cancelled} route stops are already on Shipday for ${routeDayLabel}${cancelled ? ` (${cancelled} cancelled left off)` : ''}`);
       return;
     }
 
-    const jobsToAdd = [...routeJobsMissingShipday];
     const doPush = async () => {
       setIsLoadingShipday(true);
-      toast.info(`Adding ${jobsToAdd.length} route jobs to Shipday...`);
-      let success = 0;
-      let failed = 0;
+      toast.info(`Sending ${toSend.length} route stops to Shipday for ${routeDayLabel}...`);
+      let added = 0;
+      let moved = 0;
+      const blocked: string[] = [];
+      const failed: string[] = [];
+      const newIds = new Map<string, { shipday_pickup_id?: string | null; shipday_delivery_id?: string | null }>();
 
-      for (const job of jobsToAdd) {
+      for (const d of toSend) {
+        const job = d.job;
         try {
           const ov = buildAddressOverrides([job])[0];
-          await createShipdayOrder(job.orderId, job.type, undefined, undefined, ov ? { source: ov.source as any, address: ov.address, neighbourNumber: ov.neighbourNumber } : null);
-          success++;
-        } catch (err) {
+          const time = typeof job.estimatedTime === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(job.estimatedTime) ? job.estimatedTime : null;
+          const res = await createShipdayOrder(
+            job.orderId,
+            job.type,
+            undefined,
+            d.action === 'move',
+            ov ? { source: ov.source as any, address: ov.address, neighbourNumber: ov.neighbourNumber } : null,
+            { date: routeDay, time },
+          );
+          const entry = newIds.get(job.orderId) || {};
+          if (job.type === 'pickup' && res?.shipdayPickupId) entry.shipday_pickup_id = String(res.shipdayPickupId);
+          if (job.type === 'delivery' && res?.shipdayDeliveryId) entry.shipday_delivery_id = String(res.shipdayDeliveryId);
+          newIds.set(job.orderId, entry);
+          if (d.action === 'move') moved++; else added++;
+        } catch (err: any) {
+          if (err?.blocked) { blocked.push(describeRouteStop(job)); continue; }
           console.error('Failed to add route job to Shipday', job, err);
-          failed++;
+          failed.push(`${describeRouteStop(job)}: ${err?.message || 'unknown error'}`);
         }
       }
 
-      if (failed === 0) toast.success(`${success} route jobs added to Shipday`);
-      else toast.warning(`${success} added, ${failed} failed`);
-      onReVerifyShipday?.();
+      applyShipdayIdsToRoute(newIds);
+      const ids = [...newIds.values()].flatMap(v => [v.shipday_pickup_id, v.shipday_delivery_id]).filter((x): x is string => !!x);
+      if (ids.length > 0) onVerifyVisibleShipday?.(ids);
+
+      const parts = [`${added} added`];
+      if (moved > 0) parts.push(`${moved} moved to ${routeDayLabel}`);
+      if (blocked.length > 0) parts.push(`${blocked.length} skipped (cancelled)`);
+      if (failed.length > 0) {
+        toast.error(`${parts.join(', ')}, ${failed.length} failed`, {
+          description: failed.slice(0, 5).join(' · ') + (failed.length > 5 ? ` · and ${failed.length - 5} more` : ''),
+          duration: 15000,
+        });
+      } else if (blocked.length > 0) {
+        toast.warning(parts.join(', '), { description: blocked.slice(0, 5).join(' · ') });
+      } else {
+        toast.success(`${parts.join(', ')} on Shipday`);
+      }
       setIsLoadingShipday(false);
     };
 
-    if (jobsToAdd.length > 20) {
-      setPendingShipdayPush({ count: jobsToAdd.length, run: doPush });
+    if (moves > 0 || toSend.length > 20) {
+      setPendingShipdayPush({ count: toSend.length, moves, dayLabel: routeDayLabel, run: doPush });
       return;
     }
 
@@ -3917,17 +4037,20 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       toast.info(`Loading ${toSend.length} jobs into Shipday...`);
       let success = 0;
       let failed = 0;
+      let blocked = 0;
       for (const job of toSend) {
         try {
           await createShipdayOrder(job.orderId, job.type);
           success++;
         } catch (err) {
+          if ((err as { blocked?: string })?.blocked) { blocked++; continue; }
           console.error('Failed to load job into Shipday', job, err);
           failed++;
         }
       }
       const parts = [`${success} loaded`];
       if (alreadyIn > 0) parts.push(`${alreadyIn} already in Shipday`);
+      if (blocked > 0) parts.push(`${blocked} skipped (failed or cancelled — needs a new day first)`);
       if (failed > 0) parts.push(`${failed} failed`);
       const msg = parts.join(', ');
       if (failed === 0) toast.success(msg);
@@ -3961,7 +4084,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     }
   };
 
-  const renderShipdayIcon = (status: 'verified' | 'missing' | 'none' | 'pending' | 'stale', orderId?: string, jobType?: 'pickup' | 'delivery') => {
+  const renderShipdayIcon = (status: 'verified' | 'missing' | 'none' | 'pending' | 'stale' | 'other_day', orderId?: string, jobType?: 'pickup' | 'delivery') => {
     const syncKey = orderId && jobType ? `${orderId}-${jobType}` : '';
     if (syncKey && syncingShipdayIds.has(syncKey)) {
       return <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />;
@@ -3981,7 +4104,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         <AlertCircle className="h-4 w-4 text-status-waiting" />
       );
     }
-    if (status === 'missing' || status === 'none') {
+    if (status === 'missing' || status === 'none' || status === 'other_day') {
       return orderId && jobType ? (
         <button
           onClick={(e) => handleAddToShipday(e, orderId, jobType)}
@@ -3998,8 +4121,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
   };
 
   // Calculate Shipday counts for route jobs
-  const shipdayOnCount = selectedJobs.filter(j => j.type !== 'break' && j.orderData && getShipdayStatus(j.orderData, j.type as 'pickup' | 'delivery') === 'verified').length;
-  const shipdayOffCount = selectedJobs.filter(j => j.type !== 'break' && j.orderData && getShipdayStatus(j.orderData, j.type as 'pickup' | 'delivery') !== 'verified').length;
+  const shipdayOnCount = routeStops.length - routeJobsMissingShipday.length;
+  const shipdayOffCount = routeJobsMissingShipday.length;
 
   return (
     <TooltipProvider>
@@ -4007,8 +4130,12 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       <AlertDialog open={!!pendingShipdayPush} onOpenChange={(o) => { if (!o) setPendingShipdayPush(null); }}>
         <AlertDialogContent className="z-[200]">
           <AlertDialogHeader>
-            <AlertDialogTitle>Add {pendingShipdayPush?.count} route jobs to Shipday?</AlertDialogTitle>
-            <AlertDialogDescription>Each job not already on Shipday will be added one by one.</AlertDialogDescription>
+            <AlertDialogTitle>Send {pendingShipdayPush?.count} route stops to Shipday?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingShipdayPush?.moves
+                ? `${pendingShipdayPush.moves} of these are on Shipday for a different day. Their old Shipday job will be removed and re-added for ${pendingShipdayPush.dayLabel}. The rest are added one by one.`
+                : 'Each stop not already on Shipday for this day will be added one by one.'}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -4468,7 +4595,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                     onClick={handleAddRouteJobsToShipday}
                     size="sm"
                     variant="outline"
-                    disabled={isLoadingShipday || isVerifyingShipday || routeJobsMissingShipday.length === 0}
+                    disabled={isLoadingShipday || routeStops.length === 0}
                     className="w-full h-8 text-xs"
                   >
                     {isLoadingShipday ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <Plus className="h-3 w-3 mr-1" />}
@@ -4703,7 +4830,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                     onClick={handleAddRouteJobsToShipday}
                     size="sm"
                     variant="outline"
-                    disabled={isLoadingShipday || isVerifyingShipday || routeJobsMissingShipday.length === 0}
+                    disabled={isLoadingShipday || routeStops.length === 0}
                   >
                     {isLoadingShipday ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
                     Add all to Shipday ({routeJobsMissingShipday.length})

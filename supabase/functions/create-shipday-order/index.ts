@@ -5,6 +5,7 @@ import { initSentry, captureException } from "../_shared/sentry.ts";
 import { ferryPartnerFor, ferryRegionLabel, ferryRegionOf, ferryRegionOfAddress, formatNiReceiverBlock, formatNiSenderBlock, niDirectionOf } from "../_shared/northernIreland.ts";
 import { requireOpsAuth, createAuthErrorResponse } from "../_shared/auth.ts";
 import { trackedFetch } from "../_shared/integrationLog.ts";
+import { isRouteDate, isRouteTime, routeLegSchedule, shipdayLegBlock, shipdayLegBlockMessage } from "../_shared/shipdayLegRules.ts";
 
 
 interface OrderRequest {
@@ -115,6 +116,27 @@ serve(async (req) => {
     const ovNeighbour = typeof addressOverride?.neighbourNumber === 'string' ? addressOverride.neighbourNumber.slice(0, 50) : null;
     const ovNotes = [ovAddress ? `WORK ADDRESS: ${ovAddress}` : '', ovNeighbour ? `If no answer, try neighbour at ${ovNeighbour}` : ''].filter(Boolean).join(' | ');
     const shouldReplace = replace === true;
+    // Route builder: the route's day (YYYY-MM-DD) and planned start (HH:MM) for this leg
+    if (body?.scheduledDate !== undefined && !isRouteDate(body.scheduledDate)) {
+      return new Response(
+        JSON.stringify({ error: "scheduledDate must be YYYY-MM-DD" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
+    }
+    if (body?.timeslot !== undefined && body.timeslot !== null && !isRouteTime(body.timeslot)) {
+      return new Response(
+        JSON.stringify({ error: "timeslot must be HH:MM" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
+    }
+    if (body?.scheduledDate !== undefined && jobType !== "pickup" && jobType !== "delivery") {
+      return new Response(
+        JSON.stringify({ error: "scheduledDate needs a jobType" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 400 }
+      );
+    }
+    const routeDate: string | null = isRouteDate(body?.scheduledDate) ? body.scheduledDate : null;
+    const routeTime: string | null = isRouteTime(body?.timeslot) ? body.timeslot : null;
 
     if (!orderId) {
       return new Response(
@@ -154,6 +176,22 @@ serve(async (req) => {
         { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
       );
     }
+
+    // Cancelled orders, and legs that failed and haven't been given a new day,
+    // must not go back onto Shipday (a driver would be sent out again).
+    const blockedLegs: Array<{ leg: "pickup" | "delivery"; reason: string; message: string }> = [];
+    for (const leg of ["pickup", "delivery"] as const) {
+      if (jobType && jobType !== leg) continue;
+      const block = shipdayLegBlock(order, leg, jobType === leg ? routeDate : null);
+      if (block) blockedLegs.push({ leg, reason: block, message: shipdayLegBlockMessage(block, leg) });
+    }
+    if (blockedLegs.length > 0 && (jobType || blockedLegs.length === 2 || order.status === "cancelled")) {
+      return new Response(
+        JSON.stringify({ success: false, blocked: blockedLegs[0].reason, error: blockedLegs[0].message, blockedLegs }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      );
+    }
+    const blockedLegSet = new Set(blockedLegs.map((b) => b.leg));
 
     const shipdayApiKey = Deno.env.get("SHIPDAY_API_KEY");
     
@@ -215,21 +253,31 @@ serve(async (req) => {
       return { start: startTime, end: endTime };
     };
 
+    // Sent from a route: use the route's day (and its planned time unless the
+    // customer already has a timeslot for that day) for this leg.
+    const routeSchedule = routeDate && (jobType === "pickup" || jobType === "delivery")
+      ? routeLegSchedule(order, jobType, routeDate, routeTime)
+      : null;
+
     // Get the actual timeslots from the order
-    const pickupWindow = parseTimeSlot(order.pickup_timeslot);
-    const deliveryWindow = parseTimeSlot(order.delivery_timeslot);
+    const pickupWindow = parseTimeSlot(routeSchedule && jobType === "pickup" ? routeSchedule.timeslot : order.pickup_timeslot);
+    const deliveryWindow = parseTimeSlot(routeSchedule && jobType === "delivery" ? routeSchedule.timeslot : order.delivery_timeslot);
 
     // Get DATE portion from scheduled dates, default to tomorrow if not set
     let expectedPickupDateFormatted: string;
     let expectedDeliveryDateFormatted: string;
     
-    if (order.scheduled_pickup_date) {
+    if (routeSchedule && jobType === "pickup") {
+      expectedPickupDateFormatted = routeSchedule.date;
+    } else if (order.scheduled_pickup_date) {
       expectedPickupDateFormatted = formatDateOnly(new Date(order.scheduled_pickup_date)) || '';
     } else {
       expectedPickupDateFormatted = formatDateOnly(new Date(Date.now() + 24 * 60 * 60 * 1000)) || '';
     }
     
-    if (order.scheduled_delivery_date) {
+    if (routeSchedule && jobType === "delivery") {
+      expectedDeliveryDateFormatted = routeSchedule.date;
+    } else if (order.scheduled_delivery_date) {
       expectedDeliveryDateFormatted = formatDateOnly(new Date(order.scheduled_delivery_date)) || '';
     } else {
       expectedDeliveryDateFormatted = formatDateOnly(new Date(Date.now() + 24 * 60 * 60 * 1000)) || '';
@@ -361,8 +409,8 @@ serve(async (req) => {
     let deliveryResponse = null;
     let deliveryResponseData = null;
     
-    const createPickup = !jobType || jobType === 'pickup';
-    let createDelivery = !jobType || jobType === 'delivery';
+    const createPickup = (!jobType || jobType === 'pickup') && !blockedLegSet.has('pickup');
+    let createDelivery = (!jobType || jobType === 'delivery') && !blockedLegSet.has('delivery');
 
     // Box My Bike: never create the delivery leg on Shipday.
     // The 3rd-party courier handles delivery from our depot.
@@ -502,6 +550,8 @@ serve(async (req) => {
         shipdayPickupId,
         shipdayDeliveryId,
         trackingNumber: order.tracking_number,
+        scheduledDate: routeSchedule?.date ?? null,
+        blockedLegs,
         pickup_response: pickupResponseData,
         delivery_response: deliveryResponseData
       }),

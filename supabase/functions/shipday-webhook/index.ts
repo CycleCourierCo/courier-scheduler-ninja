@@ -560,7 +560,7 @@ serve(async (req) => {
     }
 
     // On ORDER_FAILED, clear scheduled date/timeslot and shipday id for the failed leg
-    // so the operator can re-schedule, and a fresh Shipday job can be created.
+    // so the operator can re-schedule; staff then send a fresh Shipday job.
     if (event === "ORDER_FAILED") {
       if (isPickup) {
         updateData.scheduled_pickup_date = null;
@@ -604,22 +604,8 @@ serve(async (req) => {
       });
     }
 
-    // After a failure, re-create the Shipday job for the failed leg
-    if (event === "ORDER_FAILED") {
-      try {
-        const jobType: 'pickup' | 'delivery' = isPickup ? 'pickup' : 'delivery';
-        const { error: recreateError } = await supabase.functions.invoke('create-shipday-order', {
-          body: { orderId: dbOrder.id, jobType },
-        });
-        if (recreateError) {
-          console.error(`Failed to re-create Shipday ${jobType} job:`, recreateError);
-        } else {
-          console.log(`Re-created Shipday ${jobType} job for order ${dbOrder.id}`);
-        }
-      } catch (recreateErr) {
-        console.error("Error invoking create-shipday-order after failure:", recreateErr);
-      }
-    }
+    // A failed leg is NOT put back on Shipday automatically: it stays off the
+    // drivers' apps until staff give it a new day or add it to a route.
 
     console.log(`Successfully updated order ${dbOrder.id} status to ${newStatus}`);
     console.log("Updated tracking events:", JSON.stringify(trackingEvents, null, 2));
