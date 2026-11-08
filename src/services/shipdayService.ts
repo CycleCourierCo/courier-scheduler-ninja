@@ -147,12 +147,18 @@ export const createShipdayOrder = async (
   jobType?: 'pickup' | 'delivery',
   forceNorthernIreland?: boolean,
   replace?: boolean,
-  addressOverride?: { source?: 'home' | 'work'; address?: string; neighbourNumber?: string | null } | null
+  addressOverride?: { source?: 'home' | 'work'; address?: string; neighbourNumber?: string | null } | null,
+  /** Route builder: put this leg on the route's day (YYYY-MM-DD) at its planned time (HH:MM). */
+  routeSchedule?: { date: string; time?: string | null } | null
 ) => {
   try {
     // Call the Supabase Edge Function
     const { data, error } = await supabase.functions.invoke("create-shipday-order", {
-      body: { orderId, jobType, forceNorthernIreland, replace, addressOverride: addressOverride || undefined }
+      body: {
+        orderId, jobType, forceNorthernIreland, replace,
+        addressOverride: addressOverride || undefined,
+        ...(routeSchedule && jobType ? { scheduledDate: routeSchedule.date, timeslot: routeSchedule.time || undefined } : {}),
+      }
     });
 
 
@@ -163,7 +169,10 @@ export const createShipdayOrder = async (
 
     if (!data || !data.success) {
       console.error("Failed to create Shipday orders:", data);
-      throw new Error(data?.error || "Shipday didn't accept these orders — please retry from the Dispatch page.");
+      const failure = new Error(data?.error || "Shipday didn't accept these orders — please retry from the Dispatch page.") as Error & { blocked?: string };
+      // Refused on purpose (cancelled order, or a failed leg without a new day)
+      if (data?.blocked) failure.blocked = String(data.blocked);
+      throw failure;
     }
     
     // Shipday webhook endpoint (requires the shared SHIPDAY_WEBHOOK_TOKEN header):
