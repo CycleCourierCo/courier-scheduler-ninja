@@ -7,6 +7,7 @@ import { Copy, Save, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { uuid } from "@/lib/uuid";
+import type { Json } from "@/integrations/supabase/types";
 
 interface SelectedJob {
   orderId: string;
@@ -75,7 +76,7 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
 
     setIsSaving(true);
     try {
-      const jobData = buildJobData ? buildJobData() : jobs.map(job => ({
+      const jobData = (buildJobData ? buildJobData() : jobs.map(job => ({
         orderId: job.orderId,
         type: job.type,
         address: job.address,
@@ -87,7 +88,7 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
         lon: job.lon,
         breakDuration: job.breakDuration,
         breakType: job.breakType
-      }));
+      }))) as unknown as Json;
 
       const { data: { user } } = await supabase.auth.getUser();
       
