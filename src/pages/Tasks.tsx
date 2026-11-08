@@ -67,10 +67,11 @@ const Tasks: React.FC = () => {
               <SelectItem value="low">Low</SelectItem>
             </SelectContent>
           </Select>
-          <div className="col-span-2 md:col-span-1 md:row-start-1 md:col-start-5">
+          <div className="min-w-0">
             <AssigneePicker
               id="task-filter-assignee"
               ariaLabel="Filter by assignee"
+              floating
               value={assignee || 'all'}
               onChange={v => setAssignee(v)}
               users={users}

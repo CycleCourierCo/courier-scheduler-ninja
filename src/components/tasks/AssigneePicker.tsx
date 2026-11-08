@@ -17,6 +17,8 @@ interface Props {
   /** Fixed choices shown before the people list (e.g. Anyone, Mine, Unassigned). */
   fixedOptions: PickerOption[];
   ariaLabel?: string;
+  /** Open the list over the content below (for filter bars) instead of pushing it down. */
+  floating?: boolean;
 }
 
 /**
@@ -24,7 +26,7 @@ interface Props {
  * normal page flow (no floating layer), so it can't be clipped off-screen or
  * trapped by dialog scroll locks on phones.
  */
-const AssigneePicker: React.FC<Props> = ({ id, value, onChange, users, fixedOptions, ariaLabel }) => {
+const AssigneePicker: React.FC<Props> = ({ id, value, onChange, users, fixedOptions, ariaLabel, floating = false }) => {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
 
@@ -46,7 +48,7 @@ const AssigneePicker: React.FC<Props> = ({ id, value, onChange, users, fixedOpti
   };
 
   return (
-    <div className="min-w-0">
+    <div className={`min-w-0 ${floating ? "relative" : ""}`}>
       <Button
         id={id}
         type="button"
@@ -61,7 +63,7 @@ const AssigneePicker: React.FC<Props> = ({ id, value, onChange, users, fixedOpti
         <ChevronDown className={`ml-2 h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </Button>
       {open && (
-        <div id={`${id}-options`} className="mt-1 min-w-0 space-y-2 rounded-md border bg-popover p-2 shadow-sm">
+        <div id={`${id}-options`} className={`mt-1 min-w-0 space-y-2 rounded-md border bg-popover p-2 shadow-sm ${floating ? "absolute left-0 top-full z-40 w-[min(20rem,calc(100vw-1.5rem))]" : ""}`}>
           <Input
             aria-label="Search people"
             placeholder="Search names…"
