@@ -2205,9 +2205,14 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     loadedStartTime: string, 
     loadedStartingBikes: number,
     routeId?: string,
-    routeName?: string
+    routeName?: string,
+    routeDate?: string | null
   ) => {
     setSelectedJobs(jobs);
+    // Restore the day the route was saved for
+    if (routeDate && /^\d{4}-\d{2}-\d{2}$/.test(routeDate)) {
+      setSelectedDate(new Date(`${routeDate}T12:00:00`));
+    }
     setStartTime(loadedStartTime);
     setStartingBikes(loadedStartingBikes);
     setCurrentRouteId(routeId ?? null);
@@ -2259,6 +2264,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           job_data: jobData,
           start_time: startTime,
           starting_bikes: startingBikes,
+          route_date: format(selectedDate, 'yyyy-MM-dd'),
         })
         .eq('id', routeId);
       if (error) throw error;
@@ -2303,6 +2309,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
           job_data: jobData,
           start_time: startTime,
           starting_bikes: startingBikes,
+          route_date: format(selectedDate, 'yyyy-MM-dd'),
           created_by: user.id,
         });
       if (error) throw error;
@@ -2983,7 +2990,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       };
     });
     const { error } = await supabase.from('saved_routes').insert({
-      id: uuid(), name, job_data: jobData, start_time: startTime, starting_bikes: startingBikes, created_by: user.id,
+      id: uuid(), name, job_data: jobData, start_time: startTime, starting_bikes: startingBikes,
+      route_date: format(selectedDate, 'yyyy-MM-dd'), created_by: user.id,
     });
     if (error) toast.error(`Couldn't save: ${error.message}`); else toast.success(`Saved "${name}"`);
   };
@@ -5108,6 +5116,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
         existingRouteName={currentRouteName}
         beforeSend={saveBeforeSend}
         routeDateLabel={format(selectedDate, 'EEE d MMM')}
+        routeDate={format(selectedDate, 'yyyy-MM-dd')}
         onSaved={async (routeId, routeName) => {
           setCurrentRouteId(routeId);
           setCurrentRouteName(routeName);
