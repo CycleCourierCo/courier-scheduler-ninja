@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { routeTabUrl } from "@/lib/routeTabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -160,7 +161,7 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
     savedRoutes
       .filter(r => selectedIds.has(r.id))
       .forEach(r => {
-        const w = window.open(`/scheduling?savedRoute=${encodeURIComponent(r.id)}`, '_blank');
+        const w = window.open(routeTabUrl({ savedRouteId: r.id, routeDate: r.route_date ?? null }), '_blank');
         if (!w) blocked++;
       });
     if (blocked > 0) {

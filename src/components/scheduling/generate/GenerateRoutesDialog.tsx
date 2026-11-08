@@ -575,22 +575,38 @@ const GenerateRoutesDialog: React.FC = () => {
     }
   };
 
-  const handleUseRoute = async (route: PlanRoute) => {
-    if (!result?.plan_id || !activeDay) return;
+  const routeUrl = (route: PlanRoute, date: string) =>
+    routeTabUrl({
+      jobs: route.stops.map((s) => ({ orderId: s.order_id, type: s.leg_type === "collection" ? "pickup" : "delivery" })),
+      routeDate: date,
+      startTime: shiftStart,
+    });
+
+  /** Open routes in new tabs first (browsers block tabs opened after a wait), then mark them used. */
+  const openRoutes = async (items: { route: PlanRoute; date: string }[]) => {
+    if (!result?.plan_id || items.length === 0) return;
+    const blocked = openRouteTabs(items.map(({ route, date }) => routeUrl(route, date)));
+    if (blocked > 0) toast.warning(blockedTabsMessage(blocked));
+    else toast.success(items.length === 1 ? "Opened in Get Timeslots" : `Opened ${items.length} routes in Get Timeslots`);
     setBusyRoute(true);
     try {
-      await selectPlanRoute(result.plan_id, route.route_id);
-      const jobs = route.stops
-        .map((s) => `${s.order_id}:${s.leg_type === "collection" ? "pickup" : "delivery"}`)
-        .join(",");
-      window.open(`/scheduling?jobs=${jobs}&date=${activeDay.date}`, "_blank");
-      toast.success("Opened in Get Timeslots");
+      for (const { route } of items) await selectPlanRoute(result.plan_id, route.route_id);
     } catch (e) {
-      toast.error((e as Error).message || "Could not use that route");
+      toast.error((e as Error).message || "Could not mark the routes as used");
     } finally {
       setBusyRoute(false);
     }
   };
+
+  const handleUseRoute = (route: PlanRoute) => {
+    if (!activeDay) return;
+    void openRoutes([{ route, date: activeDay.date }]);
+  };
+
+  const allGeneratedRoutes = useMemo(
+    () => (result?.days ?? []).flatMap((d) => (d.variants?.[0]?.routes ?? []).map((route) => ({ route, date: d.date }))),
+    [result],
+  );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -895,6 +911,23 @@ const GenerateRoutesDialog: React.FC = () => {
                 <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
 
                   <div className="space-y-3">
+                    {activeRoutes.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="secondary" className="gap-2" disabled={busyRoute}
+                          onClick={() => openRoutes(activeRoutes.map((route) => ({ route, date: activeDay.date })))}>
+                          <ExternalLink className="h-4 w-4" />
+                          Open all {activeRoutes.length} routes for {dayLabel(activeDay.date)}
+                        </Button>
+                        {allGeneratedRoutes.length > activeRoutes.length && (
+                          <Button size="sm" variant="outline" className="gap-2" disabled={busyRoute}
+                            onClick={() => openRoutes(allGeneratedRoutes)}>
+                            <ExternalLink className="h-4 w-4" />
+                            Open all {allGeneratedRoutes.length} generated routes
+                          </Button>
+                        )}
+                        <p className="w-full text-xs text-muted-foreground">Each route opens in its own tab, straight into Get Timeslots for its day.</p>
+                      </div>
+                    )}
                     {activeRoutes.length === 0 ? (
                       <Card>
                         <CardContent className="py-6 text-sm text-muted-foreground">
