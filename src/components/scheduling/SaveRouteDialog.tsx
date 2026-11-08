@@ -34,8 +34,8 @@ interface SaveRouteDialogProps {
   existingRouteName?: string | null;
   /** Stops in the exact shape to store; falls back to the plain job fields. */
   jobData?: () => unknown[];
-  /** Opened straight after the route was sent to customers. */
-  afterSend?: boolean;
+  /** Opened by "Send All Timeslots": saving also sends the route. */
+  beforeSend?: boolean;
   routeDateLabel?: string;
   onSaved: (routeId: string, routeName: string) => void | Promise<void>;
 }
@@ -49,7 +49,7 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
   existingRouteId,
   existingRouteName,
   jobData: buildJobData,
-  afterSend = false,
+  beforeSend = false,
   routeDateLabel,
   onSaved
 }) => {
@@ -153,11 +153,11 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {isUpdate ? <RefreshCw className="h-5 w-5" /> : <Save className="h-5 w-5" />}
-            {afterSend ? "Route sent — name and save it" : isUpdate ? "Update Saved Route" : "Save Route"}
+            {beforeSend ? "Name this route before sending" : isUpdate ? "Update Saved Route" : "Save Route"}
           </DialogTitle>
           <DialogDescription>
-            {afterSend
-              ? `Saving puts this route on the Live Map${routeDateLabel ? ` for ${routeDateLabel}` : ""} so it can be assigned to a driver. If you skip, it won't be saved.`
+            {beforeSend
+              ? `The route is saved and added to the Live Map${routeDateLabel ? ` for ${routeDateLabel}` : ""}, then the timeslots are sent to customers.`
               : isUpdate
                 ? "Update this saved route with the current jobs and settings"
                 : "Save this route configuration for later use"}
@@ -235,12 +235,14 @@ const SaveRouteDialog: React.FC<SaveRouteDialogProps> = ({
         
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {afterSend ? "Don't save" : "Cancel"}
+            Cancel
           </Button>
           <Button onClick={handleSave} disabled={isSaving || !routeName.trim()}>
             {isSaving
               ? (isUpdate ? "Updating..." : "Saving...")
-              : (isUpdate ? "Update Route" : "Save Route")}
+              : beforeSend
+                ? (isUpdate ? "Update & Send" : "Save & Send")
+                : (isUpdate ? "Update Route" : "Save Route")}
           </Button>
         </DialogFooter>
       </DialogContent>
