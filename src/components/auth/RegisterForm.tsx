@@ -10,6 +10,7 @@ import { User, Building } from "lucide-react";
 import { toast } from "sonner";
 import OpeningHoursEditor from "@/components/user-management/OpeningHoursEditor";
 import { DEFAULT_OPENING_HOURS, OpeningHours } from "@/types/user";
+import { passwordProblem, PASSWORD_HINT } from "@/lib/registrationRules";
 
 const addressSchema = z.object({
   address_line_1: z.string().min(1, "Enter the first line of your address (e.g. 12 High Street)"),
@@ -22,10 +23,13 @@ const addressSchema = z.object({
 
 const registerSchema = z.object({
   name: z.string().min(2, "Enter your full name (2+ characters)"),
-  email: z.string().email("Enter an email like name@example.com"),
+  email: z.string().trim().email("Enter an email like name@example.com").max(255, "That email is too long"),
   phone: z.string().min(3, "Enter a UK mobile like +447700900123").default("+44"),
-  password: z.string().min(6, "Use at least 6 characters — mix letters and numbers for a stronger password"),
-  confirmPassword: z.string().min(6, "Re-type the password above to confirm"),
+  password: z.string().superRefine((value, ctx) => {
+    const problem = passwordProblem(value);
+    if (problem) ctx.addIssue({ code: z.ZodIssueCode.custom, message: problem });
+  }),
+  confirmPassword: z.string().min(1, "Re-type the password above to confirm"),
   is_business: z.boolean().default(false),
   company_name: z.string().optional(),
   website: z.string().optional(),
@@ -82,6 +86,7 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
   });
 
   const onSubmit = async (data: RegisterFormValues) => {
+    if (localLoading) return;
     try {
       setLocalLoading(true);
       
@@ -108,7 +113,7 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
       onSuccessfulRegistration(data.is_business);
       form.reset();
     } catch (error: any) {
-      toast.error(error.message || "We couldn't create your account. Check your details and try again — or contact info@cyclecourierco.com if this keeps happening.");
+      toast.error(error?.message || "We couldn't create your account. Check your details and try again — or contact info@cyclecourierco.com if this keeps happening.");
     } finally {
       setLocalLoading(false);
     }
@@ -337,8 +342,9 @@ const RegisterForm = ({ onSuccessfulRegistration }: RegisterFormProps) => {
                 <FormItem>
                   <FormLabel>Password *</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="••••••••" {...field} />
+                    <Input type="password" autoComplete="new-password" placeholder="••••••••" {...field} />
                   </FormControl>
+                  <p className="text-xs text-muted-foreground">{PASSWORD_HINT}</p>
                   <FormMessage />
                 </FormItem>
               )}

@@ -14,6 +14,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { TASK_PRIORITIES, TASK_STATUSES, type Task } from "@/types/task";
 import { TASK_CATEGORIES } from "@/constants/taskCategories";
+import AssigneePicker from "./AssigneePicker";
 import { Loader2, X } from "lucide-react";
 
 interface Props {
@@ -172,17 +173,15 @@ const TaskDialog: React.FC<Props> = ({
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Assignee</Label>
-              <Select value={assigneeId || 'unassigned'} onValueChange={v => setAssigneeId(v === 'unassigned' ? '' : v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="unassigned">Unassigned</SelectItem>
-                  {users.map(u => (
-                    <SelectItem key={u.id} value={u.id}>{u.name || u.email}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="col-span-2 min-w-0">
+              <Label htmlFor="task-assignee">Assignee</Label>
+              <AssigneePicker
+                id="task-assignee"
+                value={assigneeId}
+                onChange={setAssigneeId}
+                users={users}
+                fixedOptions={[{ value: '', label: 'Unassigned' }]}
+              />
             </div>
             <div>
               <Label>Due</Label>

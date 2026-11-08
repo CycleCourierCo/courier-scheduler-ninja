@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { routeTabUrl } from "@/lib/routeTabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,7 @@ interface SavedRoute {
   job_data: SavedJobData[];
   start_time: string;
   starting_bikes: number;
+  route_date?: string | null;
   created_by: string;
   created_at: string;
 }
@@ -82,7 +84,7 @@ interface LoadRouteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   orders: OrderData[];
-  onLoadRoute: (jobs: LoadedJob[], startTime: string, startingBikes: number, routeId?: string, routeName?: string) => void;
+  onLoadRoute: (jobs: LoadedJob[], startTime: string, startingBikes: number, routeId?: string, routeName?: string, routeDate?: string | null) => void;
 }
 
 const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
@@ -159,7 +161,7 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
     savedRoutes
       .filter(r => selectedIds.has(r.id))
       .forEach(r => {
-        const w = window.open(`/scheduling?savedRoute=${encodeURIComponent(r.id)}`, '_blank');
+        const w = window.open(routeTabUrl({ savedRouteId: r.id, routeDate: r.route_date ?? null }), '_blank');
         if (!w) blocked++;
       });
     if (blocked > 0) {
@@ -181,7 +183,7 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
       toast.warning(`${staleCount} job(s) in this route are no longer available`);
     }
 
-    onLoadRoute(loadedJobs, route.start_time, route.starting_bikes, route.id, route.name);
+    onLoadRoute(loadedJobs, route.start_time, route.starting_bikes, route.id, route.name, route.route_date ?? null);
     onOpenChange(false);
     toast.success(`Route "${route.name}" loaded successfully`);
   };
@@ -308,6 +310,12 @@ const LoadRouteDialog: React.FC<LoadRouteDialogProps> = ({
                             <span className="text-xs text-muted-foreground">
                               {stats.collections}C / {stats.deliveries}D
                             </span>
+                            {route.route_date && (
+                              <Badge variant="secondary" className="text-xs">
+                                {format(new Date(`${route.route_date}T12:00:00`), "EEE d MMM")}
+                                {route.start_time ? ` · ${route.start_time.slice(0, 5)}` : ""}
+                              </Badge>
+                            )}
                             {!viability.allMatched && (
                               <Badge variant="outline" className="text-xs bg-status-waiting/10 text-status-waiting border-status-waiting/40">
                                 <AlertTriangle className="h-3 w-3 mr-1" />

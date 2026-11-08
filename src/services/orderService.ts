@@ -702,7 +702,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
           .select()
           .single();
 
-        // Shipday creation is queued by the database insert trigger.
+        // Automatic Shipday creation on booking is switched off (insert trigger disabled); staff push jobs manually.
       } catch (reverseOrderError) {
         console.error('Failed to create reverse order:', reverseOrderError);
         // Don't throw here - we don't want to fail the main order creation
@@ -740,7 +740,7 @@ export const createOrder = async (data: CreateOrderFormData): Promise<Order> => 
       // Handle errors silently in background
     });
     
-    // Shipday creation is queued by the database insert trigger.
+    // Automatic Shipday creation on booking is switched off (insert trigger disabled); staff push jobs manually.
 
     return mapDbOrderToOrderType(order);
   } catch (error) {

@@ -466,8 +466,7 @@ serve(async (req) => {
         event,
       });
 
-      // Mirror shipday-webhook side effects: send collection/delivery confirmations
-      // and re-create the Shipday job after a failure.
+      // Mirror shipday-webhook side effects: send collection/delivery confirmations.
       if (!suppressEmails && newStatus === "collected" && event === "ORDER_COMPLETED" && !dbOrder.collection_confirmation_sent_at) {
         try {
           const { error: emailErr } = await admin.functions.invoke("send-email", {
@@ -498,19 +497,7 @@ serve(async (req) => {
         }
       }
 
-      if (event === "ORDER_FAILED") {
-        try {
-          const jobType: "pickup" | "delivery" = isPickup ? "pickup" : "delivery";
-          const { error: recreateErr } = await admin.functions.invoke("create-shipday-order", {
-            body: { orderId: dbOrder.id, jobType },
-          });
-          if (recreateErr) {
-            errors.push({ shipdayId: sid, error: `recreate ${jobType}: ${recreateErr.message}` });
-          }
-        } catch (e) {
-          errors.push({ shipdayId: sid, error: `recreate exception: ${(e as Error).message}` });
-        }
-      }
+      // Failed legs are not re-created on Shipday; staff reschedule them.
     }
 
     const summary = {

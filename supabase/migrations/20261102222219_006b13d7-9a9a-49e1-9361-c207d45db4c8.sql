@@ -1,0 +1,1 @@
+ALTER TABLE public.orders DISABLE TRIGGER trg_queue_new_order_shipday_sync;

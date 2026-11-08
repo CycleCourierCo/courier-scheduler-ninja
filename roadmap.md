@@ -1,5 +1,8 @@
 # Roadmap
 
+- [x] Lost and Found: order-linked items, private photos, collection/delivery van and depot checks, admin/customer-service access; five tests pass and access rules verified.
+- [ ] Lost and Found signed-in creation/photo/check readback — external unmanaged authentication prevents an authenticated browser test.
+
 - [x] Apply the ten Supabase pentest concerns: report/photo authorization, fleet completion integrity, proof storage/retry/account binding, custom repair permission, webhook signatures, explicit staff roles and credential-safe logs; verify without changing production bookings.
 - [ ] Retire existing long-lived inspection PDF links from public pages/emails — needs a decision because old links would stop working.
 - [ ] Signed-in driver, fleet manager and admin checks — needs isolated test accounts on the external backend.
@@ -94,3 +97,5 @@
 - [x] Label QR: role-aware tracking page (loader bay/van actions, driver route check, mechanic/admin shortcuts), Scan page with camera + van-loading batch, scan history
 - [ ] Driver collect/deliver straight from a scan — links to Today's Route proof screen; marking orders collected/delivered from the app still awaits user approval (customer messages)
 - [ ] Signed-in check on a real phone as loader/driver — preview sign-in not available
+
+- [x] Tasks on phones: assignee picker works in New/Edit task and the list filter; task list fits the screen and shows who created each task.

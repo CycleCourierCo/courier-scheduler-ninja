@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Scissors } from "lucide-react";
+import { ExternalLink, Loader2, Scissors } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { COST_PER_MILE, DRIVER_HOURLY_RATE, formatGBP } from "@/lib/routeCosts";
@@ -18,12 +18,14 @@ interface Props {
   shiftStart: string;
   onLoad: (jobs: Stop[]) => void;
   onSave: (jobs: Stop[], name: string) => Promise<void>;
+  /** Open these routes in new tabs, each straight into Get Timeslots. */
+  onOpenInTabs?: (routes: Stop[][]) => void;
 }
 
 const cost = (s: number, m: number) => (m / 1609.34) * COST_PER_MILE + (s / 3600) * DRIVER_HOURLY_RATE;
 const hm = (s: number) => { const m = Math.round(s / 60); return `${Math.floor(m / 60)}h ${m % 60}m`; };
 
-const SplitRouteDialog: React.FC<Props> = ({ open, onOpenChange, stops, shiftStart, onLoad, onSave }) => {
+const SplitRouteDialog: React.FC<Props> = ({ open, onOpenChange, stops, shiftStart, onLoad, onSave, onOpenInTabs }) => {
   const [count, setCount] = useState(2);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<{ routes: SplitRoute[]; baseline: { duration_s: number; distance_m: number } | null } | null>(null);
@@ -85,9 +87,16 @@ const SplitRouteDialog: React.FC<Props> = ({ open, onOpenChange, stops, shiftSta
 
         {result && (
           <div className="space-y-3 mt-2">
-            <div className="text-sm text-muted-foreground">
-              Total {formatGBP(total)}
-              {baseCost !== null && ` · one route would be ${formatGBP(baseCost)} (${hm(result.baseline!.duration_s)} driving)`}
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="text-sm text-muted-foreground">
+                Total {formatGBP(total)}
+                {baseCost !== null && ` · one route would be ${formatGBP(baseCost)} (${hm(result.baseline!.duration_s)} driving)`}
+              </div>
+              {onOpenInTabs && (
+                <Button size="sm" variant="secondary" onClick={() => onOpenInTabs(result.routes.map((r) => r.jobs))}>
+                  <ExternalLink className="h-4 w-4 mr-2" />Open all in new tabs
+                </Button>
+              )}
             </div>
             {result.routes.map((r, i) => (
               <div key={i} className="border rounded-md p-3 space-y-2">
@@ -100,8 +109,13 @@ const SplitRouteDialog: React.FC<Props> = ({ open, onOpenChange, stops, shiftSta
                 <div className="text-xs text-muted-foreground line-clamp-2">
                   {r.jobs.map((j) => `${j.type === 'pickup' ? 'C' : 'D'}: ${j.contactName}`).join(' → ')}
                 </div>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={() => { onLoad(r.jobs); onOpenChange(false); setResult(null); }}>Load into builder</Button>
+                <div className="flex gap-2 flex-wrap">
+                  <Button size="sm" onClick={() => { onLoad(r.jobs); onOpenChange(false); setResult(null); }}>Load here</Button>
+                  {onOpenInTabs && (
+                    <Button size="sm" variant="outline" onClick={() => onOpenInTabs([r.jobs])}>
+                      <ExternalLink className="h-4 w-4 mr-2" />New tab
+                    </Button>
+                  )}
                   <Button size="sm" variant="outline" disabled={saving === i}
                     onClick={async () => { setSaving(i); try { await onSave(r.jobs, `${baseName} – ${i + 1} of ${result.routes.length}`); } finally { setSaving(null); } }}>
                     {saving === i ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}Save route
