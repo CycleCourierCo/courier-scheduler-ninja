@@ -3,6 +3,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 import { Resend } from "npm:resend@4.1.2";
 import { initSentry, captureException, startSpan } from "../_shared/sentry.ts";
 import { trackResend } from "../_shared/integrationLog.ts";
+import {
+  passwordProblem,
+  registrationAuthError,
+  registrationClientIp,
+  REGISTRATION_ATTEMPTS_PER_HOUR,
+} from "../_shared/registrationRules.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -17,7 +23,7 @@ const corsHeaders = {
 // ============================================================================
 const rateLimitMap = new Map<string, { count: number; firstAttemptAt: number }>();
 const RATE_LIMIT_WINDOW_MS = 3600000; // 1 hour
-const RATE_LIMIT_MAX_ATTEMPTS = 5;
+const RATE_LIMIT_MAX_ATTEMPTS = REGISTRATION_ATTEMPTS_PER_HOUR;
 
 function checkRateLimit(ip: string): { allowed: boolean; remaining: number; resetIn: number } {
   const now = Date.now();
@@ -75,7 +81,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function validateEmail(email: unknown): { valid: boolean; error?: string } {
   if (!email || typeof email !== 'string') {
-    return { valid: false, error: 'Email is required' };
+    return { valid: false, error: 'Enter your email address.' };
   }
   
   const trimmed = email.trim().toLowerCase();
@@ -85,7 +91,7 @@ function validateEmail(email: unknown): { valid: boolean; error?: string } {
   }
   
   if (!EMAIL_REGEX.test(trimmed)) {
-    return { valid: false, error: 'Invalid email format' };
+    return { valid: false, error: "That email address doesn't look right. Check it and try again." };
   }
   
   // Check for unicode/emoji in email (basic ASCII only)
@@ -95,33 +101,15 @@ function validateEmail(email: unknown): { valid: boolean; error?: string } {
   
   const domain = trimmed.split('@')[1];
   if (DISPOSABLE_EMAIL_DOMAINS.has(domain)) {
-    return { valid: false, error: 'Disposable email addresses are not allowed' };
+    return { valid: false, error: 'Please use your business email — temporary email addresses can’t be used.' };
   }
   
   return { valid: true };
 }
 
 function validatePassword(password: unknown): { valid: boolean; error?: string } {
-  if (!password || typeof password !== 'string') {
-    return { valid: false, error: 'Password is required' };
-  }
-  
-  if (password.length < 8) {
-    return { valid: false, error: 'Password must be at least 8 characters' };
-  }
-  
-  if (password.length > 128) {
-    return { valid: false, error: 'Password must be less than 128 characters' };
-  }
-  
-  const hasLetter = /[a-zA-Z]/.test(password);
-  const hasNumber = /[0-9]/.test(password);
-  
-  if (!hasLetter || !hasNumber) {
-    return { valid: false, error: 'Password must contain at least one letter and one number' };
-  }
-  
-  return { valid: true };
+  const problem = passwordProblem(password);
+  return problem ? { valid: false, error: problem } : { valid: true };
 }
 
 function validateUserData(userData: unknown): { valid: boolean; error?: string } {
@@ -190,6 +178,9 @@ const FROM_EMAIL = "CCC - Cycle Courier Co. <Ccc@notification.cyclecourierco.com
 const ADMIN_EMAIL = "info@cyclecourierco.com";
 const APPROVAL_URL = "https://booking.cyclecourierco.com/users";
 
+const escapeHtml = (v: string) =>
+  v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+
 async function sendRegistrationEmails(
   resend: InstanceType<typeof Resend>,
   email: string,
@@ -225,10 +216,10 @@ If you have any questions in the meantime, please don't hesitate to contact our 
 Thank you for choosing The Cycle Courier Co.
         `,
       });
-      console.log("User confirmation email sent to:", email);
+      console.log("User confirmation email sent");
     } catch (err) {
       console.error("Failed to send user confirmation email:", err);
-      captureException(err as Error, { type: "user_confirmation_email", email });
+      captureException(err as Error, { type: "user_confirmation_email" });
     }
   });
 
@@ -247,12 +238,12 @@ Thank you for choosing The Cycle Courier Co.
             
             <div style="background-color: #f7f7f7; padding: 20px; border-radius: 5px; margin: 20px 0;">
               <h3 style="margin-top: 0;">Business Details</h3>
-              <p><strong>Business Name:</strong> ${companyName}</p>
-              <p><strong>Contact Person:</strong> ${name}</p>
-              <p><strong>Email:</strong> ${email}</p>
-              <p><strong>Phone:</strong> ${phone}</p>
-              <p><strong>Website:</strong> ${website || 'Not provided'}</p>
-              <p><strong>Address:</strong> ${fullAddress}</p>
+              <p><strong>Business Name:</strong> ${escapeHtml(companyName)}</p>
+              <p><strong>Contact Person:</strong> ${escapeHtml(name)}</p>
+              <p><strong>Email:</strong> ${escapeHtml(email)}</p>
+              <p><strong>Phone:</strong> ${escapeHtml(phone)}</p>
+              <p><strong>Website:</strong> ${escapeHtml(website || 'Not provided')}</p>
+              <p><strong>Address:</strong> ${escapeHtml(fullAddress)}</p>
               <p><strong>Registered At:</strong> ${new Date().toISOString()}</p>
             </div>
             
@@ -271,7 +262,7 @@ Thank you for choosing The Cycle Courier Co.
       console.log("Admin notification email sent to:", ADMIN_EMAIL);
     } catch (err) {
       console.error("Failed to send admin notification email:", err);
-      captureException(err as Error, { type: "admin_notification_email", email });
+      captureException(err as Error, { type: "admin_notification_email" });
     }
   });
 }
@@ -288,20 +279,17 @@ serve(async (req) => {
 
   try {
     // Get client IP for rate limiting
-    const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 
-                     req.headers.get('x-real-ip') || 
-                     'unknown';
+    const clientIP = registrationClientIp(req.headers);
     
     // Check rate limit FIRST
     const rateLimit = checkRateLimit(clientIP);
     if (!rateLimit.allowed) {
       console.warn('Registration: Rate limit exceeded', {
         timestamp: new Date().toISOString(),
-        ip: clientIP,
         resetInMs: rateLimit.resetIn,
       });
       return new Response(
-        JSON.stringify({ error: 'Too many registration attempts. Please try again later.' }),
+        JSON.stringify({ error: 'Too many sign-up attempts from your connection. Please wait an hour and try again, or email info@cyclecourierco.com.' }),
         { 
           status: 429, 
           headers: { 
@@ -319,7 +307,7 @@ serve(async (req) => {
       body = await req.json();
     } catch {
       return new Response(
-        JSON.stringify({ error: 'Invalid JSON body' }),
+        JSON.stringify({ error: 'Something went wrong sending your details. Refresh the page and try again.' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -360,8 +348,6 @@ serve(async (req) => {
     // Log registration attempt (never log password)
     console.log('Creating business user', {
       timestamp: new Date().toISOString(),
-      emailDomain: email.split('@')[1],
-      ip: clientIP,
       rateLimitRemaining: rateLimit.remaining,
     });
 
@@ -378,11 +364,16 @@ serve(async (req) => {
     });
 
     if (error) {
-      console.error("Error creating business user:", {
+      const mapped = registrationAuthError(error.message);
+      console.warn("Business sign-up rejected by auth", {
         timestamp: new Date().toISOString(),
-        errorMessage: error.message,
+        status: mapped.status,
       });
-      throw error;
+      if (mapped.status >= 500) captureException(new Error("create-business-user auth failure"));
+      return new Response(
+        JSON.stringify({ error: mapped.error, success: false }),
+        { status: mapped.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
     }
 
     console.log("Business user created successfully:", {
@@ -401,7 +392,7 @@ serve(async (req) => {
       }
     } catch (emailError) {
       console.error("Error sending registration emails:", emailError);
-      captureException(emailError as Error, { type: "registration_emails", email });
+      captureException(emailError as Error, { type: "registration_emails" });
     }
 
     return new Response(
@@ -418,7 +409,7 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Failed to create business user',
+        error: "We couldn't create your account just now. Please try again in a few minutes, or email info@cyclecourierco.com.",
         success: false 
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
