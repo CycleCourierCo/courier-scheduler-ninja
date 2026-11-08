@@ -21,9 +21,16 @@ const COLLECTED_OR_UNDER_WAY = new Set([
   'in_transit_to_depot',
 ]);
 
-/** Calendar day (YYYY-MM-DD) in Europe/London for a stored date or timestamp. */
+/** Calendar day (YYYY-MM-DD): stored timestamps read in Europe/London, picked dates as picked. */
 export const londonDay = (value: string | Date): string => {
   if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  if (value instanceof Date) {
+    // A picked route date is a calendar day in the planner's own calendar.
+    const y = value.getFullYear();
+    const m = String(value.getMonth() + 1).padStart(2, '0');
+    const d = String(value.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(new Date(value));
