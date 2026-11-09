@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { Resend } from 'npm:resend@4.0.0';
 import { requireAdminOrCronAuth, createAuthErrorResponse } from '../_shared/auth.ts';
 import { trackResend } from "../_shared/integrationLog.ts";
+import { pickTimeslipVehicle } from "../_shared/timeslipVehicle.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -387,7 +388,11 @@ const handler = async (req: Request): Promise<Response> => {
         .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      const vehicleId = assignment?.vehicle_id || existingSlip?.vehicle_id || driver.default_vehicle_id || null;
+      const vehicleId = pickTimeslipVehicle({
+        assignedVehicleId: assignment?.vehicle_id,
+        existingVehicleId: existingSlip?.vehicle_id,
+        defaultVehicleId: driver.default_vehicle_id,
+      });
 
       // Create or update timeslip (upsert on driver_id, date)
       const { data: timeslip, error: timeslipError } = await supabaseClient
