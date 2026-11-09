@@ -91,9 +91,9 @@ export const timeslipService = {
   },
 
   // Generate timeslips for a date
-  async generateTimeslips(date: string) {
+  async generateTimeslips(date: string, driverId?: string) {
     const { data, error } = await supabase.functions.invoke('generate-timeslips', {
-      body: { date }
+      body: driverId ? { date, driverId } : { date }
     });
     
     if (error) throw error;
