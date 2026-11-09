@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogD
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Plus, Pencil, Archive, RotateCcw, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { InlinePicker } from "@/components/ui/inline-picker";
 import ProductConsistencyReport from "@/components/products/ProductConsistencyReport";
 
 type Product = {
@@ -133,7 +134,7 @@ export default function QuickBooksProducts() {
       </div>
 
       <Dialog open={!!form} onOpenChange={(o) => !o && setForm(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto overscroll-contain w-[calc(100vw-1.5rem)] max-w-lg">
           <DialogHeader><DialogTitle>{form?.id ? "Edit product" : "Add product"}</DialogTitle></DialogHeader>
           {form && (
             <div className="space-y-3">
@@ -148,20 +149,17 @@ export default function QuickBooksProducts() {
                 </div>
                 <div><Label>Price before VAT (£)</Label><Input type="number" step="0.01" min="0" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></div>
               </div>
-              <div><Label>VAT code</Label>
-                <Select value={form.taxCodeId || "none"} onValueChange={(v) => setForm({ ...form, taxCodeId: v === "none" ? "" : v })}>
-                  <SelectTrigger><SelectValue placeholder="Choose" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">None</SelectItem>
-                    {(refs.data?.taxCodes || []).map((t) => <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+              <div className="min-w-0"><Label htmlFor="qb-vat-code">VAT code</Label>
+                <InlinePicker id="qb-vat-code" ariaLabel="VAT code" value={form.taxCodeId || "none"}
+                  onChange={(v) => setForm({ ...form, taxCodeId: v === "none" ? "" : v })}
+                  options={[{ value: "none", label: "None" }, ...(refs.data?.taxCodes || []).map((t) => ({ value: t.id, label: t.name }))]}
+                  searchPlaceholder="Search VAT codes…" />
               </div>
-              <div><Label>Income account</Label>
-                <Select value={form.incomeAccountId} onValueChange={(v) => setForm({ ...form, incomeAccountId: v })}>
-                  <SelectTrigger><SelectValue placeholder={refs.isLoading ? "Loading…" : "Choose"} /></SelectTrigger>
-                  <SelectContent>{(refs.data?.incomeAccounts || []).map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}</SelectContent>
-                </Select>
+              <div className="min-w-0"><Label htmlFor="qb-income-account">Income account</Label>
+                <InlinePicker id="qb-income-account" ariaLabel="Income account" value={form.incomeAccountId}
+                  onChange={(v) => setForm({ ...form, incomeAccountId: v })}
+                  options={(refs.data?.incomeAccounts || []).map((a) => ({ value: a.id, label: a.name }))}
+                  placeholder={refs.isLoading ? "Loading…" : "Choose"} searchPlaceholder="Search accounts…" />
               </div>
               <div><Label>Description</Label><Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} /></div>
             </div>
