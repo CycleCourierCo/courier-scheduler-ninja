@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Timeslips: backfill Tahir's 26–28 Oct drafts; generator uses each driver's assigned van; Generate popup can target one driver
+
 - [x] Lost and Found: order-linked items, private photos, collection/delivery van and depot checks, admin/customer-service access; five tests pass and access rules verified.
 - [ ] Lost and Found signed-in creation/photo/check readback — external unmanaged authentication prevents an authenticated browser test.
 
