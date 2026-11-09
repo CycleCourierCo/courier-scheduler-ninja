@@ -11,7 +11,10 @@ const corsHeaders = {
 
 interface GenerateTimeslipsRequest {
   date: string; // YYYY-MM-DD format
+  driverId?: string; // optional: only generate for this driver's profile id
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface JobInfo {
   orderId: string;
@@ -70,7 +73,18 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { date }: GenerateTimeslipsRequest = await req.json();
+    const { date, driverId: rawDriverId }: GenerateTimeslipsRequest = await req.json();
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return new Response(JSON.stringify({ error: 'A valid date (YYYY-MM-DD) is required' }), {
+        status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+    if (rawDriverId && !UUID_RE.test(rawDriverId)) {
+      return new Response(JSON.stringify({ error: 'Invalid driver' }), {
+        status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+    const onlyDriverId = rawDriverId || null;
     const authHeader = req.headers.get('Authorization');
     const cronSecret = req.headers.get('X-Cron-Secret');
     
@@ -160,6 +174,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`👥 Users with driver role: ${driverIds.length}`);
 
     const createdTimeslips = [];
+    let matchedDrivers = 0;
     const warnings: string[] = [];
     const depotCoords = "52.4707965,-1.8749747"; // Depot coordinates
 
@@ -207,11 +222,18 @@ const handler = async (req: Request): Promise<Response> => {
 
 
       if (!driver) {
+        // A single-driver run ignores everyone else, including unmatched names
+        if (onlyDriverId) continue;
         const warning = `Driver not found in database: ${driverName}`;
         console.warn(`  ⚠️ ${warning}`);
         warnings.push(warning);
         continue;
       }
+
+      if (onlyDriverId && driver.id !== onlyDriverId) {
+        continue;
+      }
+      matchedDrivers++;
 
       // Build all stops from collections and deliveries
       const allStops: JobLocation[] = [];
@@ -344,7 +366,7 @@ const handler = async (req: Request): Promise<Response> => {
       // Never overwrite an approved timeslip
       const { data: existingSlip } = await supabaseClient
         .from('timeslips')
-        .select('id, status')
+        .select('id, status, vehicle_id')
         .eq('driver_id', driver.id)
         .eq('date', date)
         .maybeSingle();
@@ -352,6 +374,20 @@ const handler = async (req: Request): Promise<Response> => {
         warnings.push(`Skipped ${driverName}: timeslip already approved`);
         continue;
       }
+
+      // Van: the route assignment for this driver on this day wins, then a van
+      // already set on an existing draft, then the profile's default van.
+      // (Using the default van blindly could grab another driver's route.)
+      const { data: assignment } = await supabaseClient
+        .from('saved_route_assignments')
+        .select('vehicle_id')
+        .eq('driver_id', driver.id)
+        .eq('route_date', date)
+        .not('vehicle_id', 'is', null)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const vehicleId = assignment?.vehicle_id || existingSlip?.vehicle_id || driver.default_vehicle_id || null;
 
       // Create or update timeslip (upsert on driver_id, date)
       const { data: timeslip, error: timeslipError } = await supabaseClient
@@ -366,7 +402,7 @@ const handler = async (req: Request): Promise<Response> => {
           hourly_rate: driver.hourly_rate || 11.00,
           van_allowance: driver.uses_own_van ? (driver.van_allowance || 0.00) : 0.00,
           mileage: (driver.van_allowance || 0) > 0 ? 160 : null,
-          vehicle_id: driver.default_vehicle_id || null,
+          vehicle_id: vehicleId,
           total_stops: totalStops,
           total_jobs: totalJobs > 0 ? totalJobs : null,
           route_links: routeLinks,
