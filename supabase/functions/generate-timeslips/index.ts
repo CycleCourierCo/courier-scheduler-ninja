@@ -430,6 +430,11 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`     - Total Jobs: ${totalJobs}, Total Pay: £${totalPay.toFixed(2)}`);
     }
 
+    const driversCount = onlyDriverId ? matchedDrivers : driverJobsMap.size;
+    if (onlyDriverId && matchedDrivers === 0) {
+      warnings.push('The selected driver had no completed jobs on this date');
+    }
+
     // Send email notification
     console.log('\n📧 Sending email notification...');
     const executionTime = Date.now() - startTime;
@@ -459,7 +464,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       // Determine email subject based on outcome
       let subject = '';
-      if (createdTimeslips.length === 0 && driverJobsMap.size > 0) {
+      if (createdTimeslips.length === 0 && driversCount > 0) {
         subject = `❌ Timeslip Generation Failed - ${date}`;
       } else if (warnings.length > 0) {
         subject = `⚠️ Timeslips Generated - ${date} (${createdTimeslips.length} created, ${warnings.length} warnings)`;
@@ -468,7 +473,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       const emailHtml = `
-        <h2>Timeslip Generation Report - ${date}</h2>
+        <h2>Timeslip Generation Report - ${date}${onlyDriverId ? ' (single driver)' : ''}</h2>
         <p><strong>Execution Time:</strong> ${new Date().toISOString()}</p>
         <p><strong>Duration:</strong> ${(executionTime / 1000).toFixed(2)}s</p>
         <p><strong>Status:</strong> ${status.toUpperCase()}</p>
@@ -480,7 +485,7 @@ const handler = async (req: Request): Promise<Response> => {
         <ul>
           <li><strong>Total collections:</strong> ${queryResult.totalCollections}</li>
           <li><strong>Total deliveries:</strong> ${queryResult.totalDeliveries}</li>
-          <li><strong>Unique drivers:</strong> ${driverJobsMap.size}</li>
+          <li><strong>Unique drivers:</strong> ${driversCount}</li>
           <li><strong>Timeslips created:</strong> ${createdTimeslips.length}</li>
         </ul>
         
@@ -498,9 +503,9 @@ const handler = async (req: Request): Promise<Response> => {
           </ul>
         ` : ''}
         
-        ${createdTimeslips.length === 0 && driverJobsMap.size > 0 ? `
+        ${createdTimeslips.length === 0 && driversCount > 0 ? `
           <h3>🚨 Alert: No Timeslips Created</h3>
-          <p>The system found ${driverJobsMap.size} drivers with completed jobs, but created 0 timeslips.</p>
+          <p>The system found ${driversCount} drivers with completed jobs, but created 0 timeslips.</p>
           <p><strong>Possible Issues:</strong></p>
           <ul>
             <li>Driver names don't match database profiles</li>
@@ -535,7 +540,7 @@ const handler = async (req: Request): Promise<Response> => {
         run_date: date,
         status: status,
         timeslips_created: createdTimeslips.length,
-        drivers_processed: driverJobsMap.size,
+        drivers_processed: driversCount,
         warnings: warnings.length > 0 ? warnings : null,
         execution_duration_ms: executionTime
       });
@@ -553,6 +558,7 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ 
         success: true, 
         message: `Generated ${createdTimeslips.length} draft timeslip${createdTimeslips.length !== 1 ? 's' : ''}`,
+        driverMatched: onlyDriverId ? matchedDrivers > 0 : undefined,
         count: createdTimeslips.length,
         timeslips: createdTimeslips,
         warnings: warnings,
