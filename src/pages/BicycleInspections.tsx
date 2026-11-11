@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { isInspectionOrderCollected, getInspectionCollectedAt } from "@/lib/inspectionCollection";
 import { getPublicAppUrl } from "@/lib/publicAppUrl";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -1500,9 +1501,9 @@ const BicycleInspections = () => {
       if (sortBy === "tracking_asc") {
         return (a.tracking_number || "").localeCompare(b.tracking_number || "");
       }
-      // Use collection_confirmation_sent_at if available, fallback to created_at
-      const aTime = new Date(a.collection_confirmation_sent_at || a.created_at || 0).getTime();
-      const bTime = new Date(b.collection_confirmation_sent_at || b.created_at || 0).getTime();
+      // Use the collection time if known, fallback to created_at
+      const aTime = new Date(getInspectionCollectedAt(a) || a.created_at || 0).getTime();
+      const bTime = new Date(getInspectionCollectedAt(b) || b.created_at || 0).getTime();
       return sortBy === "oldest_collected" ? aTime - bTime : bTime - aTime;
     });
     return arr;
@@ -1510,7 +1511,7 @@ const BicycleInspections = () => {
 
   // Reference date used by the date filter: collection date, falling back to created date
   const getRefDate = (o: any) =>
-    o.collection_confirmation_sent_at || o.pickup_date || o.created_at || null;
+    getInspectionCollectedAt(o) || o.pickup_date || o.created_at || null;
   const getRepairerNames = (o: any): string[] =>
     (o.issues || [])
       .filter((iss: any) => iss.status === "repaired" && iss.resolved_by_name)
@@ -1690,7 +1691,7 @@ const BicycleInspections = () => {
       if (settled) invoicedList.push(i);
 
       if (!i.inspection || status === "pending") {
-        if (i.collection_confirmation_sent_at) collected.push(i);
+        if (isInspectionOrderCollected(i)) collected.push(i);
         else awaitingInspection.push(i);
         continue;
       }
@@ -1998,7 +1999,7 @@ const BicycleInspections = () => {
                   const hasAllocation = Array.isArray(order.storage_locations)
                     ? order.storage_locations.length > 0
                     : !!order.storage_locations;
-                  if (hasAllocation || !order.collection_confirmation_sent_at) return null;
+                  if (hasAllocation || !isInspectionOrderCollected(order) || order.order_delivered === true) return null;
                   const driver = getDriverAssignment(
                     {
                       trackingEvents: order.tracking_events,
@@ -2018,8 +2019,8 @@ const BicycleInspections = () => {
                 {canManageInspections && (
                   <Badge variant="outline" className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    {order.collection_confirmation_sent_at
-                      ? `Collected ${formatDistanceToNowStrict(new Date(order.collection_confirmation_sent_at))} ago`
+                    {getInspectionCollectedAt(order)
+                      ? `Collected ${formatDistanceToNowStrict(new Date(getInspectionCollectedAt(order)!))} ago`
                       : `Awaiting collection · created ${formatDistanceToNowStrict(new Date(order.created_at))} ago`}
                   </Badge>
                 )}
