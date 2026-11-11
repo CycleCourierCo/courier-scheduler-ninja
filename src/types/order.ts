@@ -245,6 +245,8 @@ export type Order = {
   misallocated_at?: string | null;
   misallocated_from?: string | null;
   misallocated_by_name?: string | null;
+  misallocated_original_by_name?: string | null;
+  misallocated_original_at?: string | null;
   storage_locations?: any; // Add storage_locations field for database storage
   loaded_onto_van?: boolean; // Track if bikes have been loaded onto van
   loaded_onto_van_at?: Date; // Track when bikes were loaded onto van

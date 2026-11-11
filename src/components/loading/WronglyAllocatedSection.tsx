@@ -63,7 +63,13 @@ export function WronglyAllocatedSection({ orders, onChanged, onAssign }: Props) 
                   <div className="text-xs text-muted-foreground">
                     <span className="font-mono">{o.trackingNumber}</span>
                     {" · "}was in <Badge variant="outline" className="text-xs">{o.misallocated_from}</Badge>
-                    {" · "}overridden by {o.misallocated_by_name || "staff"}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Originally allocated by <span className="font-medium text-foreground">{o.misallocated_original_by_name || "unknown"}</span>
+                    {o.misallocated_original_at && ` ${formatDistanceToNow(new Date(o.misallocated_original_at), { addSuffix: true })}`}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Overridden by <span className="font-medium text-foreground">{o.misallocated_by_name || "unknown"}</span>
                     {o.misallocated_at && ` ${formatDistanceToNow(new Date(o.misallocated_at), { addSuffix: true })}`}
                   </div>
                 </div>
