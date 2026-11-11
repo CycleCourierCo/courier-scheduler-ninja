@@ -8,6 +8,7 @@
 ## 2. BFS number on Foam My Bike
 - Search box currently only matches tracking number, names, bike, address and bay. Add the BFS number (and the inbound partner reference) to the search.
 - The BFS line only appears when a number exists. Show it on every ferry card, with "BFS: not added yet" when empty, so Jabir can see at a glance which bikes still need one. Apply on both outbound and inbound sections.
+- Isle of Man bikes label the same field "Order number" instead of "BFS number" everywhere it shows (cards, edit box, partner upload page). Northern Ireland keeps "BFS number".
 - Check Jabir's view in the preview afterwards (he has CS/route planner/mechanic roles) to confirm nothing else is hiding it.
 
 ## 3. Isle of Man filter still says "Northern Ireland"
