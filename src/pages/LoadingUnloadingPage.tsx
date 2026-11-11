@@ -12,6 +12,9 @@ import { BikeSearchSection } from "@/components/loading/BikeSearchSection";
 import { QrCode } from "lucide-react";
 import { ScanToBaySection } from "@/components/loading/ScanToBaySection";
 import { BikesInStorage } from "@/components/loading/BikesInStorage";
+import { useBayOverrideConfirm } from "@/components/loading/BayOverrideDialog";
+import { WronglyAllocatedSection } from "@/components/loading/WronglyAllocatedSection";
+import { overrideBaySlot } from "@/lib/bayOverride";
 import { RemoveBikesDialog } from "@/components/loading/RemoveBikesDialog";
 
 
@@ -48,6 +51,8 @@ export type StorageAllocation = {
   bikeModel?: string;
   customerName: string;
   allocatedAt: Date;
+  allocatedBy?: string | null;
+  allocatedByName?: string | null;
   bikeIndex?: number; // Track which bike this is for multi-bike orders
 };
 
@@ -248,6 +253,37 @@ const LoadingUnloadingPage = () => {
       .filter(item => !!item.order && item.order?.loaded_onto_van !== true);
   }, [orders, storageAllocations]);
 
+  const { ask: askOverride, dialog: overrideDialog } = useBayOverrideConfirm();
+
+  // Bay shows as taken: offer to override and move the old bike to "Wrongly allocated".
+  const resolveOccupied = async (orderId: string, bay: string, position: number): Promise<boolean> => {
+    const occupants = storageAllocations.filter(a => a.bay === bay && a.position === position && a.orderId !== orderId);
+    if (occupants.some(a => a.orderId.startsWith('stock:'))) {
+      toast.error(`Bay ${bay}${position} holds warehouse stock — move it from Warehouse Stock first`);
+      return false;
+    }
+    const occ = occupants[0];
+    const occOrder = orders.find(o => o.id === occ?.orderId);
+    const label = [occ?.customerName, [occ?.bikeBrand, occ?.bikeModel].filter(Boolean).join(' '), occOrder?.trackingNumber].filter(Boolean).join(' · ') || 'another bike';
+    if (!(await askOverride(`${bay}${position}`, label))) return false;
+    try {
+      await overrideBaySlot(orderId, bay, position);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Could not override bay');
+      return false;
+    }
+    const displaced = new Set(occupants.map(a => a.orderId));
+    setStorageAllocations(prev => prev.filter(a => !(a.bay === bay && a.position === position && displaced.has(a.orderId))));
+    setOrders(prev => prev.map(o => displaced.has(o.id) ? ({
+      ...o,
+      storage_locations: (Array.isArray(o.storage_locations) ? o.storage_locations : []).filter((l: any) => !(String(l.bay).toUpperCase() === bay && Number(l.position) === position)),
+      misallocated_at: new Date().toISOString(),
+      misallocated_from: `${bay}${position}`,
+    } as any) : o));
+    toast.success(`Bay ${bay}${position} cleared — old bike moved to Wrongly allocated`);
+    return true;
+  };
+
   const handleAllocateStorage = async (orderId: string, allocationsToMake: { bay: string; position: number; bikeIndex: number }[]) => {
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
@@ -259,8 +295,8 @@ const LoadingUnloadingPage = () => {
       );
 
       if (isOccupied) {
-        toast.error(`Bay ${allocation.bay}${allocation.position} is already occupied`);
-        return;
+        const ok = await resolveOccupied(orderId, allocation.bay, allocation.position);
+        if (!ok) return;
       }
     }
 
@@ -288,15 +324,17 @@ const LoadingUnloadingPage = () => {
         allocatedAt: allocation.allocatedAt instanceof Date ? allocation.allocatedAt.toISOString() : allocation.allocatedAt
       }));
 
-      const { error } = await supabase
+      const { data: savedRow, error } = await supabase
         .from('orders')
         .update({
-          storage_locations: allocationsForDb,
+          storage_locations: allocationsForDb as any,
           // Bike is now in a bay, so no driver is holding it
           held_by_driver_name: null,
           held_by_driver_at: null,
         })
-        .eq('id', orderId);
+        .eq('id', orderId)
+        .select('storage_locations')
+        .maybeSingle();
 
       if (error) {
         console.error('Error updating storage locations:', error);
@@ -311,7 +349,7 @@ const LoadingUnloadingPage = () => {
       }
       // Update just this order on screen — no full page reload
       applyStorageUpdate(orderId, {
-        storage_locations: allocationsForDb,
+        storage_locations: (savedRow as any)?.storage_locations ?? allocationsForDb,
         held_by_driver_name: null,
         held_by_driver_at: null,
       });
@@ -492,8 +530,8 @@ const LoadingUnloadingPage = () => {
     );
 
     if (isOccupied) {
-      toast.error(`Bay ${newBay}${newPosition} is already occupied`);
-      return;
+      const ok = await resolveOccupied(allocationToUpdate.orderId, newBay, newPosition);
+      if (!ok) return;
     }
 
     try {
@@ -501,14 +539,16 @@ const LoadingUnloadingPage = () => {
       const existingAllocations = order.storage_locations || [];
       const updatedAllocations = existingAllocations.map((a: any) => 
         a.id === allocationId 
-          ? { ...a, bay: newBay, position: newPosition }
+          ? (({ allocatedBy, allocatedByName, ...rest }: any) => ({ ...rest, bay: newBay, position: newPosition }))(a)
           : a
       );
 
-      const { error } = await supabase
+      const { data: savedRow, error } = await supabase
         .from('orders')
         .update({ storage_locations: updatedAllocations })
-        .eq('id', allocationToUpdate.orderId);
+        .eq('id', allocationToUpdate.orderId)
+        .select('storage_locations')
+        .maybeSingle();
 
       if (error) {
         console.error('Error updating storage location:', error);
@@ -517,7 +557,7 @@ const LoadingUnloadingPage = () => {
       }
 
       // Update just this order on screen — no full page reload
-      applyStorageUpdate(allocationToUpdate.orderId, { storage_locations: updatedAllocations });
+      applyStorageUpdate(allocationToUpdate.orderId, { storage_locations: (savedRow as any)?.storage_locations ?? updatedAllocations });
 
       toast.success(`Bike moved to bay ${newBay}${newPosition}`);
     } catch (error) {
@@ -893,6 +933,9 @@ const LoadingUnloadingPage = () => {
                 <DialogContent className="inset-x-auto bottom-auto left-1/2 top-1/2 max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-md">
                   <DialogHeader><DialogTitle>Scan to bay</DialogTitle></DialogHeader>
                   <ScanToBaySection onSaved={fetchData} />
+
+        <WronglyAllocatedSection orders={orders} onChanged={fetchData} />
+        {overrideDialog}
                 </DialogContent>
               </Dialog>
 

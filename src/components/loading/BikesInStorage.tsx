@@ -1,3 +1,4 @@
+import { allocatedByLabel } from "@/lib/bayOverride";
 import { useState } from "react";
 import { isInspectionDoneForRouting } from "@/lib/inspectionRouting";
 import { Card, CardContent } from "@/components/ui/card";
@@ -187,6 +188,9 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                           <span className="font-mono">{order.trackingNumber}</span>
                         </>
                       )}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      By {allocatedByLabel(allocations[0])} · {format(allocations[0].allocatedAt, "d MMM HH:mm")}
                     </p>
                   </div>
                 </div>

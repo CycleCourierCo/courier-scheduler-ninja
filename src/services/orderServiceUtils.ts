@@ -54,6 +54,9 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
     // Handle optional date fields
     trackingEvents: dbOrder.tracking_events,
     storage_locations: dbOrder.storage_locations,
+    misallocated_at: dbOrder.misallocated_at ?? null,
+    misallocated_from: dbOrder.misallocated_from ?? null,
+    misallocated_by_name: dbOrder.misallocated_by_name ?? null,
     loaded_onto_van: dbOrder.loaded_onto_van || false,
     loaded_onto_van_at: dbOrder.loaded_onto_van_at ? parseDate(dbOrder.loaded_onto_van_at) : undefined,
     held_by_driver_name: dbOrder.held_by_driver_name || null,
