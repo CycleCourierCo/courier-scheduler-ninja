@@ -21,6 +21,7 @@ import InspectionApproval from "./pages/InspectionApproval";
 import NiPartnerUpload from "./pages/NiPartnerUpload";
 import TrackingPage from "./pages/TrackingPage";
 import ScanPage from "./pages/ScanPage";
+import ReportLostItem from "./pages/ReportLostItem";
 const EtaPage = lazy(() => import("./pages/EtaPage"));
 import NotFound from "./pages/NotFound";
 
@@ -450,6 +451,7 @@ function App() {
                 </ProtectedRoute>
               } />
               <Route path="/eta/:token" element={<EtaPage />} />
+              <Route path="/report-lost-item" element={<ReportLostItem />} />
               <Route path="/tracking" element={<TrackingPage />} />
               <Route path="/tracking/:id" element={<TrackingPage />} />
               <Route path="/about" element={<AboutPage />} />
