@@ -39,27 +39,6 @@ const getCollectionDate = (order: Order | undefined): string | null => {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 };
 
-const hasBeenCollected = (order: Order) => {
-  if (order.status === "collected" || order.status === "driver_to_delivery") return true;
-  const updates = order.trackingEvents?.shipday?.updates || [];
-  return updates.some((u: any) =>
-    u.description?.toLowerCase().includes("collected") ||
-    u.description?.toLowerCase().includes("pickup") ||
-    u.event === "ORDER_POD_UPLOAD" ||
-    u.status?.toLowerCase().includes("collected")
-  );
-};
-
-const hasBeenDelivered = (order: Order) => {
-  if (order.status === "delivered") return true;
-  const updates = order.trackingEvents?.shipday?.updates || [];
-  return updates.some((u: any) =>
-    u.description?.toLowerCase().includes("delivered") ||
-    u.event === "DELIVERY_POD_UPLOAD" ||
-    u.status?.toLowerCase().includes("delivered")
-  );
-};
-
 export const BikeSearchSection = ({
   orders,
   storageAllocations,

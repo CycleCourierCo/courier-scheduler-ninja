@@ -213,40 +213,6 @@ const LoadingUnloadingPage = () => {
     fetchProfiles();
   }, []);
 
-  // Helper function to check if order has been collected based on tracking events
-  const hasBeenCollected = (order: Order) => {
-    // Check order status first
-    if (order.status === 'collected' || order.status === 'driver_to_delivery') {
-      return true;
-    }
-    
-    // Check tracking events for collection indicators
-    const trackingUpdates = order.trackingEvents?.shipday?.updates || [];
-    return trackingUpdates.some(update => 
-      update.description?.toLowerCase().includes('collected') || 
-      update.description?.toLowerCase().includes('pickup') ||
-      update.event === 'ORDER_POD_UPLOAD' ||
-      update.status?.toLowerCase().includes('collected')
-    );
-  };
-
-  // Helper function to check if order has been delivered / left the depot
-  const hasBeenDelivered = (order: Order) => {
-    // Delivered, 3rd-party courier hand-off and ferry hand-off all mean it's gone
-    if (hasLeftDepot(order.status)) {
-      return true;
-    }
-    
-    // Check tracking events for delivery indicators
-    const trackingUpdates = order.trackingEvents?.shipday?.updates || [];
-    return trackingUpdates.some(update => 
-      update.description?.toLowerCase().includes('delivered') || 
-      update.event === 'DELIVERY_POD_UPLOAD' ||
-      update.status?.toLowerCase().includes('delivered')
-    );
-  };
-
-
   // Get bikes that need storage allocation (collected but not delivered, not cancelled, and no storage allocation)
   const allocatedOrderIds = useMemo(
     () => new Set(storageAllocations.map(allocation => allocation.orderId)),
