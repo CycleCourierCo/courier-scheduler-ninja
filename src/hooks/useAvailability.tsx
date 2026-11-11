@@ -141,6 +141,11 @@ export const useAvailability = ({
         }
 
         console.log("Order loaded successfully:", fetchedOrder.id, "Status:", fetchedOrder.status);
+        if (String(fetchedOrder.status) === 'cancelled') {
+          setError("This order has been cancelled, so dates can't be added. If you think this is a mistake or want to rebook, please contact Cycle Courier Co.");
+          setIsLoading(false);
+          return;
+        }
         setOrder(fetchedOrder);
 
         // For receiver availability, set the minimum date to the earliest sender date if available
