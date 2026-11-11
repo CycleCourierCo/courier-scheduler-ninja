@@ -42,8 +42,19 @@ export function isScanStaff(roles: string[] = []): boolean {
 
 /** Bay QR labels encode "CCCBAY:<bay>" or "CCCBAY:<bay>-<slot>". Returns the bay detail ("A" or "A-3"). */
 export const bayQrText = (bay: string, slot?: number) => `CCCBAY:${bay.toUpperCase()}${slot ? `-${slot}` : ""}`;
+/** Normalise a bay entry ("B2", "b 2", "B-2", "CCCBAY:B2", "K") to "B-2" / "K" — same split as standard allocations. */
+export function normaliseBayDetail(text: string): string | null {
+  const t = (text ?? "").trim().replace(/^CCCBAY:/i, "").replace(/\s+/g, "").toUpperCase();
+  let m = t.match(/^([A-Z]+)-?(\d{1,3})$/) ?? t.match(/^([A-Z0-9]{1,8})-(\d{1,3})$/);
+  if (m) {
+    const pos = parseInt(m[2], 10);
+    return pos >= 1 ? `${m[1]}-${pos}` : null;
+  }
+  m = t.match(/^[A-Z0-9]{1,8}$/);
+  return m ? t : null;
+}
 export function parseBayCode(text: string): string | null {
-  const m = (text ?? "").trim().match(/^CCCBAY:([A-Za-z0-9]{1,8})(?:-(\d{1,3}))?$/i);
-  if (!m) return null;
-  return m[2] ? `${m[1].toUpperCase()}-${parseInt(m[2], 10)}` : m[1].toUpperCase();
+  const t = (text ?? "").trim();
+  if (!/^CCCBAY:/i.test(t)) return null;
+  return normaliseBayDetail(t);
 }
