@@ -288,8 +288,13 @@ const LoadingUnloadingPage = () => {
   };
 
   const handleAllocateStorage = async (orderId: string, allocationsToMake: { bay: string; position: number; bikeIndex: number }[]) => {
+    await allocateStorage(orderId, allocationsToMake);
+  };
+
+  /** Saves bay allocations for one order. Returns true only if the bays were saved. */
+  const allocateStorage = async (orderId: string, allocationsToMake: { bay: string; position: number; bikeIndex: number }[]): Promise<boolean> => {
     const order = orders.find(o => o.id === orderId);
-    if (!order) return;
+    if (!order) return false;
 
     // Check if any bay/position is already occupied
     for (const allocation of allocationsToMake) {
@@ -299,7 +304,7 @@ const LoadingUnloadingPage = () => {
 
       if (isOccupied) {
         const ok = await resolveOccupied(orderId, allocation.bay, allocation.position);
-        if (!ok) return;
+        if (!ok) return false;
       }
     }
 
@@ -342,7 +347,7 @@ const LoadingUnloadingPage = () => {
       if (error) {
         console.error('Error updating storage locations:', error);
         toast.error(/already occupied/i.test(error.message) ? error.message : 'Failed to save storage allocation');
-        return;
+        return false;
       }
 
       if ((order as any).isWarehouseStorage || (order as any).is_warehouse_storage) {
@@ -361,9 +366,11 @@ const LoadingUnloadingPage = () => {
       const updatedCount = newAllocations.length;
       
       toast.success(`Successfully allocated ${updatedCount} bike(s) to storage.`);
+      return true;
     } catch (error) {
       console.error('Error updating storage locations:', error);
       toast.error('Failed to save storage allocation');
+      return false;
     }
   };
 
@@ -1328,7 +1335,18 @@ const LoadingUnloadingPage = () => {
 
         <ScanToBaySection onSaved={fetchData} />
 
-        <WronglyAllocatedSection orders={orders} onChanged={fetchData} />
+        <WronglyAllocatedSection
+          orders={orders}
+          onChanged={fetchData}
+          onAssign={async (orderId, locations) => {
+            const ok = await allocateStorage(orderId, locations.map((l, i) => ({ ...l, bikeIndex: i })));
+            if (!ok) return false;
+            // Bike is back in a bay: clear the "Wrongly allocated" flag so it never reappears later.
+            try { await dismissMisallocated(orderId); } catch { /* bay is saved; flag clears on next override */ }
+            setOrders(prev => prev.map(o => o.id === orderId ? ({ ...o, misallocated_at: null, misallocated_from: null } as any) : o));
+            return true;
+          }}
+        />
 
         {/* Bay override confirmation — mounted at page level so it shows from every allocation path */}
         {overrideDialog}
