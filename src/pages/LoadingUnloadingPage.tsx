@@ -277,8 +277,19 @@ const LoadingUnloadingPage = () => {
     }
     const displaced = new Set(occupants.map(a => a.orderId));
     setStorageAllocations(prev => prev.filter(a => !(a.bay === bay && a.position === position && displaced.has(a.orderId))));
+    const { data: { user: me } } = await supabase.auth.getUser();
+    const { data: myProfile } = me ? await supabase.from('profiles').select('name').eq('id', me.id).maybeSingle() : { data: null };
     setOrders(prev => prev.map(o => displaced.has(o.id) ? ({
       ...o,
+      misallocated_by_name: (myProfile as any)?.name ?? null,
+      misallocated_original_by_name: (() => {
+        const l = (Array.isArray(o.storage_locations) ? o.storage_locations : []).find((l: any) => String(l.bay).toUpperCase() === bay && Number(l.position) === position) as any;
+        return l?.allocatedByName ?? null;
+      })(),
+      misallocated_original_at: (() => {
+        const l = (Array.isArray(o.storage_locations) ? o.storage_locations : []).find((l: any) => String(l.bay).toUpperCase() === bay && Number(l.position) === position) as any;
+        return l?.allocatedAt ? String(l.allocatedAt) : null;
+      })(),
       storage_locations: (Array.isArray(o.storage_locations) ? o.storage_locations : []).filter((l: any) => !(String(l.bay).toUpperCase() === bay && Number(l.position) === position)),
       misallocated_at: new Date().toISOString(),
       misallocated_from: `${bay}${position}`,

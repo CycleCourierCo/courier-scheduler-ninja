@@ -5322,6 +5322,8 @@ export type Database = {
           misallocated_by: string | null
           misallocated_by_name: string | null
           misallocated_from: string | null
+          misallocated_original_at: string | null
+          misallocated_original_by_name: string | null
           needs_inspection: boolean | null
           needs_payment_on_collection: boolean | null
           ni_bfs_number: string | null
@@ -5458,6 +5460,8 @@ export type Database = {
           misallocated_by?: string | null
           misallocated_by_name?: string | null
           misallocated_from?: string | null
+          misallocated_original_at?: string | null
+          misallocated_original_by_name?: string | null
           needs_inspection?: boolean | null
           needs_payment_on_collection?: boolean | null
           ni_bfs_number?: string | null
@@ -5594,6 +5598,8 @@ export type Database = {
           misallocated_by?: string | null
           misallocated_by_name?: string | null
           misallocated_from?: string | null
+          misallocated_original_at?: string | null
+          misallocated_original_by_name?: string | null
           needs_inspection?: boolean | null
           needs_payment_on_collection?: boolean | null
           ni_bfs_number?: string | null
