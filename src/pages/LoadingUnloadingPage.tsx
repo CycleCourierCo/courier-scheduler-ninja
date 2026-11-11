@@ -14,7 +14,7 @@ import { ScanToBaySection } from "@/components/loading/ScanToBaySection";
 import { BikesInStorage } from "@/components/loading/BikesInStorage";
 import { useBayOverrideConfirm } from "@/components/loading/BayOverrideDialog";
 import { WronglyAllocatedSection } from "@/components/loading/WronglyAllocatedSection";
-import { overrideBaySlot } from "@/lib/bayOverride";
+import { overrideBaySlot, dismissMisallocated } from "@/lib/bayOverride";
 import { RemoveBikesDialog } from "@/components/loading/RemoveBikesDialog";
 
 
