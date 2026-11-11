@@ -338,7 +338,7 @@ const LoadingUnloadingPage = () => {
 
       if (error) {
         console.error('Error updating storage locations:', error);
-        toast.error('Failed to save storage allocation');
+        toast.error(/already occupied/i.test(error.message) ? error.message : 'Failed to save storage allocation');
         return;
       }
 
