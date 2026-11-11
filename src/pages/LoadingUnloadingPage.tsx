@@ -756,7 +756,6 @@ const LoadingUnloadingPage = () => {
     
     // Auto-match drivers to profiles by name
     const autoPhones: Record<string, string> = {};
-    const autoEmails: Record<string, string> = {};
     const autoSelections: Record<string, string> = {};
     
     uniqueDrivers.forEach(driverName => {
@@ -766,13 +765,11 @@ const LoadingUnloadingPage = () => {
       if (matchedProfile) {
         autoSelections[driverName] = matchedProfile.id;
         if (matchedProfile.phone) autoPhones[driverName] = matchedProfile.phone;
-        if (matchedProfile.email) autoEmails[driverName] = matchedProfile.email;
       }
     });
     
     setDriverProfileSelections(autoSelections);
     setDriverPhoneNumbers(autoPhones);
-    setDriverEmails(autoEmails);
     setShowDriverPhoneDialog(true);
   };
 
@@ -1389,7 +1386,6 @@ const LoadingUnloadingPage = () => {
                       if (profile) {
                         setLoaderProfileSelection(profileId);
                         setLoaderPhoneNumber(profile.phone || '');
-                        setLoaderEmail(profile.email || '');
                       }
                     }}
                   >
@@ -1415,7 +1411,23 @@ const LoadingUnloadingPage = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Email</Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-xs text-muted-foreground">Email</Label>
+                    {(() => {
+                      const profileEmail = loaderProfiles.find(p => p.id === loaderProfileSelection)?.email;
+                      return profileEmail ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs"
+                          onClick={() => setLoaderEmail(profileEmail)}
+                        >
+                          Fill loader's email
+                        </Button>
+                      ) : null;
+                    })()}
+                  </div>
                   <Input
                     type="email"
                     placeholder="loader@example.com"
@@ -1438,7 +1450,6 @@ const LoadingUnloadingPage = () => {
                         if (profile) {
                           setDriverProfileSelections(prev => ({ ...prev, [driver]: profileId }));
                           setDriverPhoneNumbers(prev => ({ ...prev, [driver]: profile.phone || '' }));
-                          setDriverEmails(prev => ({ ...prev, [driver]: profile.email || '' }));
                         }
                       }}
                     >
@@ -1467,7 +1478,23 @@ const LoadingUnloadingPage = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Email</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="text-xs text-muted-foreground">Email</Label>
+                      {(() => {
+                        const profileEmail = driverProfiles.find(p => p.id === driverProfileSelections[driver])?.email;
+                        return profileEmail ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs"
+                            onClick={() => setDriverEmails(prev => ({ ...prev, [driver]: profileEmail }))}
+                          >
+                            Fill driver's email
+                          </Button>
+                        ) : null;
+                      })()}
+                    </div>
                     <Input
                       type="email"
                       placeholder="driver@example.com"
