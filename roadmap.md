@@ -103,3 +103,4 @@
 - [ ] Signed-in check on a real phone as loader/driver — preview sign-in not available
 
 - [x] Tasks on phones: assignee picker works in New/Edit task and the list filter; task list fits the screen and shows who created each task.
+- [x] Route planner: ship-as-is bikes count as inspection done; Repairs Declined / Awaiting Buyer Approval badges
