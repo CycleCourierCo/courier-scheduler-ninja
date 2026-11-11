@@ -72,7 +72,7 @@ export const stagesForOrder = (order: any): readonly string[] => {
   return STRIP_BRANCHES.standard;
 };
 
-const EMAIL_LOGO_URL = "https://courier-scheduler-ninja.lovable.app/__l5e/assets-v1/a9a6ee55-3d4c-4c56-8a80-9b4fd6660285/logo-cream.png";
+const EMAIL_LOGO_URL = "https://booking.cyclecourierco.com/__l5e/assets-v1/a9a6ee55-3d4c-4c56-8a80-9b4fd6660285/logo-cream.png";
 
 /** Index of the first matching stage label, else a fallback. */
 export const stageIndex = (stages: readonly string[], labels: string[], fallback: number): number => {
