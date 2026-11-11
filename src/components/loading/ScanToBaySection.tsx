@@ -8,6 +8,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQrScanner } from "@/hooks/useQrScanner";
 import { parseScannedRef } from "@/lib/labelScan";
 import BayScanner from "@/components/scan/BayScanner";
+import { useBayOverrideConfirm } from "@/components/loading/BayOverrideDialog";
+import { overrideBaySlot } from "@/lib/bayOverride";
 
 /** Two-step allocation: scan the bike label, then the bay QR. Saves through label_scan_action. */
 export function ScanToBaySection({ onSaved }: { onSaved?: () => void }) {
@@ -17,6 +19,7 @@ export function ScanToBaySection({ onSaved }: { onSaved?: () => void }) {
   const [bike, setBike] = useState<{ id: string; ref: string; name: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const busy = useRef(false);
+  const { ask: askOverride, dialog } = useBayOverrideConfirm();
 
   const pickBike = async (raw: string) => {
     const ref = parseScannedRef(raw);
@@ -33,7 +36,23 @@ export function ScanToBaySection({ onSaved }: { onSaved?: () => void }) {
   const save = async (bay: string) => {
     if (!bike) return;
     setSaving(true);
-    const { data, error } = await supabase.rpc("label_scan_action" as any, { p_order_id: bike.id, p_action: "bay", p_detail: bay });
+    let { data, error } = await supabase.rpc("label_scan_action" as any, { p_order_id: bike.id, p_action: "bay", p_detail: bay });
+    if (error && /already occupied/i.test(error.message)) {
+      const [b, p] = bay.toUpperCase().split("-");
+      const pos = Number(p);
+      if (b && Number.isFinite(pos)) {
+        const { data: occ } = await supabase.from("orders").select("tracking_number, sender, bikeBrand:bike_brand, bikeModel:bike_model")
+          .contains("storage_locations", [{ bay: b, position: pos }]).neq("id", bike.id).limit(1);
+        const o: any = occ?.[0];
+        const label = o ? [o.sender?.name, [o.bikeBrand, o.bikeModel].filter(Boolean).join(" "), o.tracking_number].filter(Boolean).join(" · ") : "another bike";
+        if (await askOverride(`${b}${pos}`, label)) {
+          try {
+            await overrideBaySlot(bike.id, b, pos);
+            ({ data, error } = await supabase.rpc("label_scan_action" as any, { p_order_id: bike.id, p_action: "bay", p_detail: bay }));
+          } catch (e: any) { error = e; }
+        } else { setSaving(false); return; }
+      }
+    }
     setSaving(false);
     if (error || !data) return toast.error(error?.message ?? "This bike can't be allocated (cancelled or delivered).");
     toast.success(`${bike.ref} put in bay ${bay}`);
@@ -42,6 +61,7 @@ export function ScanToBaySection({ onSaved }: { onSaved?: () => void }) {
 
   return (
     <Card>
+      {dialog}
       <CardHeader><CardTitle className="flex items-center gap-2"><QrCode className="h-5 w-5" />Scan to bay</CardTitle></CardHeader>
       <CardContent className="mx-auto max-w-md space-y-3">
         <ol className="flex gap-2 text-xs">

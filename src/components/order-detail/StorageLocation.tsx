@@ -13,6 +13,7 @@ import { useStorageBays, getBayMaxPosition } from "@/hooks/useStorageBays";
 import { hasLeftDepot } from "@/utils/storageLocation";
 import { hasBeenCollected } from "@/utils/depotPresence";
 import { uuid } from "@/lib/uuid";
+import { allocatedByLabel } from "@/lib/bayOverride";
 
 
 interface StorageLocationProps {
@@ -251,6 +252,9 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
                   </Badge>
                   <span className="text-sm text-muted-foreground">
                     Stored: {orderAllocations[0].allocatedAt.toLocaleDateString()} at {orderAllocations[0].allocatedAt.toLocaleTimeString()}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    By {allocatedByLabel(orderAllocations[0])}
                   </span>
                 </>
               )}
