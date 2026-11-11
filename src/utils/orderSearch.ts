@@ -8,6 +8,7 @@ interface SearchableOrder {
   bike_brand?: string | null;
   bike_model?: string | null;
   storage_locations?: any;
+  ni_bfs_number?: string | null;
 }
 
 /**
@@ -30,6 +31,7 @@ export function matchesOrderSearch(order: SearchableOrder, term: string): boolea
     addr.city,
     addr.zipCode,
     formatStorageLocations(order.storage_locations),
+    order.ni_bfs_number,
   ]
     .filter(Boolean)
     .join(" ")

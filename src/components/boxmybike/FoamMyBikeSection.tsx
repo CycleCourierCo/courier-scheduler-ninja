@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { FoamStatus, FOAM_STATUS_LABELS, FOAM_STATUS_ORDER } from "@/types/order";
 import { ferryPartnerFor } from "@/constants/depot";
-import { ferryRegionOf } from "@/utils/northernIreland";
+import { ferryRegionOf, ferryStageLabel, ferryRefLabel, localiseFerryText } from "@/utils/northernIreland";
 import { sendOrderUpdateEmail } from "@/lib/sendOrderUpdateEmail";
 import { formatStorageLocations } from "@/utils/storageLocation";
 import { isServiceComplete, serviceGateLabel } from "@/utils/servicingGate";
@@ -423,7 +423,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string; region?: 
                     {t.assigneeName ? `Assigned: ${t.assigneeName}` : "Assigned"}
                   </Badge>
                 ))}
-              <Badge variant="outline">{FOAM_STATUS_LABELS[stage]}</Badge>
+              <Badge variant="outline">{localiseFerryText(o, FOAM_STATUS_LABELS[stage])}</Badge>
             </div>
           </div>
 
@@ -436,11 +436,10 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string; region?: 
             <div className="text-muted-foreground text-xs mt-1">
               Ferry hand-off: {ferryPartnerFor(ferryRegionOf(o)).formatted}
             </div>
-            {o.ni_bfs_number && (
-              <div className="text-xs mt-1">
-                <span className="text-muted-foreground">BFS number:</span> {o.ni_bfs_number}
-              </div>
-            )}
+            <div className="text-xs mt-1">
+              <span className="text-muted-foreground">{ferryRefLabel(o)}:</span>{" "}
+              {o.ni_bfs_number || <span className="text-muted-foreground">not added yet</span>}
+            </div>
           </div>
 
 
@@ -539,7 +538,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string; region?: 
             )
               .filter(([, value]) => Boolean(value))
               .map(([column, value, stageKey]) => {
-                const label = FOAM_STATUS_LABELS[stageKey];
+                const label = localiseFerryText(o, FOAM_STATUS_LABELS[stageKey]);
                 return (
                   <div key={column} className="text-xs flex flex-wrap items-center gap-2">
                     <span className="text-muted-foreground">
@@ -561,7 +560,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string; region?: 
             <div className="flex flex-wrap gap-2">
               {prev && (
                 <Button size="sm" variant="outline" onClick={() => updateStage.mutate({ id: o.id, newStage: prev })}>
-                  <ChevronLeft className="h-4 w-4 mr-1" /> {FOAM_STATUS_LABELS[prev]}
+                  <ChevronLeft className="h-4 w-4 mr-1" /> {localiseFerryText(o, FOAM_STATUS_LABELS[prev])}
                 </Button>
               )}
               {next && (
@@ -577,7 +576,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string; region?: 
                   }
                   onClick={() => setPendingStage({ order: o, stage: next })}
                 >
-                  {FOAM_STATUS_LABELS[next]} <ChevronRight className="h-4 w-4 ml-1" />
+                  {localiseFerryText(o, FOAM_STATUS_LABELS[next])} <ChevronRight className="h-4 w-4 ml-1" />
                 </Button>
               )}
               {serviceBlocked && isAdmin && (
@@ -653,7 +652,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string; region?: 
         defaultOrderId={taskForOrder.id}
         defaultTitle={`Foam up ${taskForOrder.tracking_number || taskForOrder.id.slice(0, 8)}`}
         defaultDescription={[
-          `Stage: ${FOAM_STATUS_LABELS[(taskForOrder.foam_status || "pending_collection") as FoamStatus]}`,
+          `Stage: ${localiseFerryText(taskForOrder, FOAM_STATUS_LABELS[(taskForOrder.foam_status || "pending_collection") as FoamStatus])}`,
           `Bike: ${[taskForOrder.bike_brand, taskForOrder.bike_model].filter(Boolean).join(" ") || "Bicycle"}`,
           `Location: ${formatStorageLocations(taskForOrder.storage_locations) || "Not allocated"}`,
         ].join("\n")}
@@ -678,7 +677,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string; region?: 
       <TabsList className="flex flex-wrap h-auto">
         {FOAM_STATUS_ORDER.map((s) => (
           <TabsTrigger key={s} value={s} className="text-xs sm:text-sm">
-            {FOAM_STATUS_LABELS[s]}{" "}
+            {ferryStageLabel(region, FOAM_STATUS_LABELS[s])}{" "}
             <Badge variant="outline" className="ml-2">{grouped[s].length}</Badge>
           </TabsTrigger>
         ))}
@@ -698,7 +697,7 @@ const FoamMyBikeSection: React.FC<{ isStaff: boolean; userId?: string; region?: 
     <StageDateTimeDialog
       open={!!pendingStage}
       onOpenChange={(o) => !o && setPendingStage(null)}
-      title={pendingStage ? `Mark as “${FOAM_STATUS_LABELS[pendingStage.stage]}”` : ""}
+      title={pendingStage ? `Mark as “${ferryStageLabel(region, FOAM_STATUS_LABELS[pendingStage.stage])}”` : ""}
       description="When did this step actually happen? This is what the customer sees on tracking."
       confirmLabel="Update stage"
       saving={updateStage.isPending}

@@ -128,3 +128,16 @@ export function localiseFerryText(orderOrRegion: any, text: string): string {
     .replace(/City Air Express/g, 'Freight Hub')
     .replace(/\bManchester\b/g, 'Widnes');
 }
+
+/** Stage wording for a ferry board filter: one region localises, "all" reads neutrally. */
+export function ferryStageLabel(region: string | undefined, text: string): string {
+  if (!text) return text;
+  if (region === 'isle_of_man' || region === 'northern_ireland') return localiseFerryText(region, text);
+  return text.replace(/Northern Ireland/g, 'NI / IoM').replace(/\bNI\b(?! \/)/g, 'NI / IoM');
+}
+
+/** The ferry partner's reference: BFS number for NI, order number for Isle of Man. */
+export function ferryRefLabel(orderOrRegion: any): string {
+  const region = typeof orderOrRegion === 'string' ? orderOrRegion : ferryRegionOf(orderOrRegion);
+  return region === 'isle_of_man' ? 'Order number' : 'BFS number';
+}
