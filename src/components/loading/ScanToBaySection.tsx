@@ -33,8 +33,10 @@ export function ScanToBaySection({ onSaved }: { onSaved?: () => void }) {
   };
   useQrScanner(on && !bike, video, pickBike, () => setOn(false));
 
-  const save = async (bay: string) => {
+  const save = async (rawBay: string) => {
     if (!bike) return;
+    const bay = normaliseBayDetail(rawBay);
+    if (!bay) { toast.error("Bay not recognised — use a letter and slot, e.g. B2"); return; }
     setSaving(true);
     let { data, error } = await supabase.rpc("label_scan_action" as any, { p_order_id: bike.id, p_action: "bay", p_detail: bay });
     if (error && /already occupied/i.test(error.message)) {
