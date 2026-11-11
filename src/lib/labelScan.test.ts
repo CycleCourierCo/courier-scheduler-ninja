@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseScannedRef, panelForRoles, panelsForRoles, driverScanState, parseBayCode, bayQrText } from "./labelScan";
+import { parseScannedRef, panelForRoles, panelsForRoles, driverScanState, parseBayCode, bayQrText, normaliseBayDetail } from "./labelScan";
 
 describe("label scans", () => {
   it("reads the CCC number from the printed label URL", () => {
@@ -42,5 +42,20 @@ describe("bay QR codes", () => {
   it("never treats a bike label as a bay, or a bay label as a bike", () => {
     expect(parseBayCode("https://booking.cyclecourierco.com/tracking/CCC123456")).toBeNull();
     expect(parseScannedRef("CCCBAY:A-3")).toBeNull();
+  });
+});
+
+describe("bay letter and slot are split like standard allocations", () => {
+  it("splits an unhyphenated bay QR", () => expect(parseBayCode("CCCBAY:B2")).toBe("B-2"));
+  it("splits a two-digit slot", () => expect(parseBayCode("cccbay:a14")).toBe("A-14"));
+  it("splits typed B2, b 2 and B-2 the same way", () => {
+    expect(normaliseBayDetail("B2")).toBe("B-2");
+    expect(normaliseBayDetail("b 2")).toBe("B-2");
+    expect(normaliseBayDetail("B-2")).toBe("B-2");
+  });
+  it("keeps a whole-bay entry without a slot", () => expect(normaliseBayDetail("K")).toBe("K"));
+  it("rejects slot zero and junk", () => {
+    expect(normaliseBayDetail("B0")).toBeNull();
+    expect(normaliseBayDetail("B-2-3")).toBeNull();
   });
 });

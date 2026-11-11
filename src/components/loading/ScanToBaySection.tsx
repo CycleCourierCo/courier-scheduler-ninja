@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useQrScanner } from "@/hooks/useQrScanner";
-import { parseScannedRef } from "@/lib/labelScan";
+import { normaliseBayDetail, parseScannedRef } from "@/lib/labelScan";
 import BayScanner from "@/components/scan/BayScanner";
 import { useBayOverrideConfirm } from "@/components/loading/BayOverrideDialog";
 import { overrideBaySlot } from "@/lib/bayOverride";
