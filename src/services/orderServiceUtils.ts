@@ -164,6 +164,7 @@ export const mapDbOrderToOrderType = (dbOrder: any): Order => {
   }
 
   result.orderCollected = dbOrder.order_collected === true;
+  result.orderDelivered = dbOrder.order_delivered === true;
 
   // Links between a job that was sent back and the return job created for it
   result.returnedFromOrderId = dbOrder.returned_from_order_id || null;
