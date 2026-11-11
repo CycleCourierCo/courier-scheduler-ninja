@@ -4431,7 +4431,7 @@ export type Database = {
         Row: {
           collection_van_checked: boolean
           created_at: string
-          created_by: string
+          created_by: string | null
           delivery_van_checked: boolean
           depot_checked: boolean
           description: string
@@ -4440,12 +4440,16 @@ export type Database = {
           item_type: string
           order_id: string
           photo_path: string | null
+          reporter_email: string | null
+          reporter_name: string | null
+          reporter_phone: string | null
+          source: string
           updated_at: string
         }
         Insert: {
           collection_van_checked?: boolean
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           delivery_van_checked?: boolean
           depot_checked?: boolean
           description?: string
@@ -4454,12 +4458,16 @@ export type Database = {
           item_type?: string
           order_id: string
           photo_path?: string | null
+          reporter_email?: string | null
+          reporter_name?: string | null
+          reporter_phone?: string | null
+          source?: string
           updated_at?: string
         }
         Update: {
           collection_van_checked?: boolean
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           delivery_van_checked?: boolean
           depot_checked?: boolean
           description?: string
@@ -4468,6 +4476,10 @@ export type Database = {
           item_type?: string
           order_id?: string
           photo_path?: string | null
+          reporter_email?: string | null
+          reporter_name?: string | null
+          reporter_phone?: string | null
+          source?: string
           updated_at?: string
         }
         Relationships: [
