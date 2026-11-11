@@ -265,7 +265,10 @@ const LoadingUnloadingPage = () => {
     const occ = occupants[0];
     const occOrder = orders.find(o => o.id === occ?.orderId);
     const label = [occ?.customerName, [occ?.bikeBrand, occ?.bikeModel].filter(Boolean).join(' '), occOrder?.trackingNumber].filter(Boolean).join(' · ') || 'another bike';
-    if (!(await askOverride(`${bay}${position}`, label))) return false;
+    if (!(await askOverride(`${bay}${position}`, label))) {
+      toast.info(`Bay ${bay}${position} is already occupied by ${label} — nothing was changed`);
+      return false;
+    }
     try {
       await overrideBaySlot(orderId, bay, position);
     } catch (e: any) {
@@ -552,7 +555,7 @@ const LoadingUnloadingPage = () => {
 
       if (error) {
         console.error('Error updating storage location:', error);
-        toast.error('Failed to update storage location');
+        toast.error(/already occupied/i.test(error.message) ? error.message : 'Failed to update storage location');
         return;
       }
 
@@ -933,9 +936,6 @@ const LoadingUnloadingPage = () => {
                 <DialogContent className="inset-x-auto bottom-auto left-1/2 top-1/2 max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-md">
                   <DialogHeader><DialogTitle>Scan to bay</DialogTitle></DialogHeader>
                   <ScanToBaySection onSaved={fetchData} />
-
-        <WronglyAllocatedSection orders={orders} onChanged={fetchData} />
-        {overrideDialog}
                 </DialogContent>
               </Dialog>
 
@@ -1327,6 +1327,11 @@ const LoadingUnloadingPage = () => {
         </Card>
 
         <ScanToBaySection onSaved={fetchData} />
+
+        <WronglyAllocatedSection orders={orders} onChanged={fetchData} />
+
+        {/* Bay override confirmation — mounted at page level so it shows from every allocation path */}
+        {overrideDialog}
 
         <BikeSearchSection
           orders={orders}
