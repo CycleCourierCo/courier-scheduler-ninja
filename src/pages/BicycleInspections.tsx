@@ -493,7 +493,7 @@ const BicycleInspections = () => {
       toast.success("Storage location updated");
     },
     onError: (error) => {
-      toast.error("Failed to update storage location");
+      toast.error(/already occupied/i.test((error as any)?.message ?? "") ? (error as any).message : "Failed to update storage location");
       console.error(error);
     },
   });
