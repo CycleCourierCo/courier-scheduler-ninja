@@ -8662,6 +8662,14 @@ export type Database = {
         Returns: boolean
       }
       geomfromewkt: { Args: { "": string }; Returns: unknown }
+      get_booking_account_names: {
+        Args: { p_user_ids: string[] }
+        Returns: {
+          display_name: string
+          email: string
+          id: string
+        }[]
+      }
       get_business_accounts_for_admin: {
         Args: never
         Returns: {

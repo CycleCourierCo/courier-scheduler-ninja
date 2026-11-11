@@ -655,7 +655,7 @@ export const getPendingInspections = async () => {
         .select('*, inspection_issues(*)')
         .in('order_id', orderIds),
       userIds.length > 0
-        ? supabase.from('profiles').select('id, name, email, company_name').in('id', userIds)
+        ? (supabase.rpc as any)('get_booking_account_names', { p_user_ids: userIds })
         : Promise.resolve({ data: [] as any[], error: null } as any),
       supabase
         .from('bicycle_inspections')
@@ -669,7 +669,7 @@ export const getPendingInspections = async () => {
 
     // Look up booking-account names so the UI can filter/label by customer.
     const profileMap = new Map<string, { name: string | null; email: string | null; company: string | null }>(
-      (profs || []).map((p: any) => [p.id, { name: p.name ?? null, email: p.email ?? null, company: p.company_name ?? null }])
+      (profs || []).map((p: any) => [p.id, { name: p.display_name ?? null, email: p.email ?? null, company: null }])
     );
 
     // Index inspections by order so we don't rescan the list for every order.
