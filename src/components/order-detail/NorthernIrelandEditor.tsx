@@ -22,7 +22,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { ferryRegionOfAddress, ferryRegionOf, FERRY_REGION_LABEL, ferrySurchargeFor } from "@/utils/northernIreland";
+import { ferryRegionOfAddress, ferryRegionOf, FERRY_REGION_LABEL, ferrySurchargeFor, ferryRefLabel } from "@/utils/northernIreland";
 import { ferryPartnerFor } from "@/constants/depot";
 import { getNiDirection } from "@/utils/niDelivery";
 import { createShipdayOrder } from "@/services/shipdayService";
