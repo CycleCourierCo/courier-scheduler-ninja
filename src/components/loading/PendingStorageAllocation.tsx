@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isInspectionDoneForRouting } from "@/lib/inspectionRouting";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -251,7 +252,7 @@ export const PendingStorageAllocation = ({
                         )}
                         {/* Inspection Status Badge */}
                         {bike.needsInspection && (() => {
-                          const isComplete = bike.inspection_status === 'inspected' || bike.inspection_status === 'repaired';
+                          const isComplete = isInspectionDoneForRouting(bike.inspection_status);
                           return (
                             <Badge className={`text-xs flex items-center gap-1 ${
                               isComplete 
@@ -369,7 +370,7 @@ export const PendingStorageAllocation = ({
                           )}
                           {/* Inspection Status Badge */}
                           {bike.needsInspection && (() => {
-                            const isComplete = bike.inspection_status === 'inspected' || bike.inspection_status === 'repaired';
+                            const isComplete = isInspectionDoneForRouting(bike.inspection_status);
                             return (
                               <Badge className={`text-xs flex items-center gap-1 ${
                                 isComplete 

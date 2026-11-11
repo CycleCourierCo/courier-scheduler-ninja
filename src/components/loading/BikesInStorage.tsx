@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { isInspectionDoneForRouting } from "@/lib/inspectionRouting";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -231,7 +232,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                   })()}
                   {/* Inspection Status Badge */}
                   {order?.needsInspection && (() => {
-                    const isComplete = order.inspection_status === 'inspected' || order.inspection_status === 'repaired';
+                    const isComplete = isInspectionDoneForRouting(order.inspection_status);
                     return (
                       <Badge className={`text-xs flex items-center gap-1 ${
                         isComplete 
