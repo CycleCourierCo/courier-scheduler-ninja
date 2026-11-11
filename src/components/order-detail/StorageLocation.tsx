@@ -11,6 +11,7 @@ import { MapPin, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStorageBays, getBayMaxPosition } from "@/hooks/useStorageBays";
 import { hasLeftDepot } from "@/utils/storageLocation";
+import { hasBeenCollected } from "@/utils/depotPresence";
 import { uuid } from "@/lib/uuid";
 
 
@@ -201,7 +202,7 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
   };
 
   // Only show storage location for collected bikes still in our depot
-  if (!hasBeenCollected(order) || hasLeftDepot(order.status)) {
+  if (!hasBeenCollected(order) || hasLeftDepot(order.status) || order.orderDelivered === true) {
     return null;
   }
 

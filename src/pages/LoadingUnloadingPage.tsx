@@ -34,7 +34,7 @@ import { DEPOT_LOCATION, DEPOT_PROXIMITY_THRESHOLD_METERS } from "@/constants/de
 import { calculateDistanceInMeters } from "@/utils/locationUtils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useStorageBays } from "@/hooks/useStorageBays";
-import { hasLeftDepot } from "@/utils/storageLocation";
+import { hasBeenCollected, hasBeenDelivered } from "@/utils/depotPresence";
 import { uuid } from "@/lib/uuid";
 
 

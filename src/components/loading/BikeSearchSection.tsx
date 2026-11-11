@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useStorageBays, getBayMaxPosition } from "@/hooks/useStorageBays";
 import { normaliseDriverName } from "@/utils/driverAssignmentUtils";
 import { getOrderCollectionPhotos } from "@/utils/collectionPhotos";
+import { hasBeenCollected, hasBeenDelivered } from "@/utils/depotPresence";
 
 interface BikeSearchSectionProps {
   orders: Order[];
