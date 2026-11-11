@@ -5318,6 +5318,10 @@ export type Database = {
           is_warehouse_storage: boolean
           loaded_onto_van: boolean | null
           loaded_onto_van_at: string | null
+          misallocated_at: string | null
+          misallocated_by: string | null
+          misallocated_by_name: string | null
+          misallocated_from: string | null
           needs_inspection: boolean | null
           needs_payment_on_collection: boolean | null
           ni_bfs_number: string | null
@@ -5450,6 +5454,10 @@ export type Database = {
           is_warehouse_storage?: boolean
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
+          misallocated_at?: string | null
+          misallocated_by?: string | null
+          misallocated_by_name?: string | null
+          misallocated_from?: string | null
           needs_inspection?: boolean | null
           needs_payment_on_collection?: boolean | null
           ni_bfs_number?: string | null
@@ -5582,6 +5590,10 @@ export type Database = {
           is_warehouse_storage?: boolean
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
+          misallocated_at?: string | null
+          misallocated_by?: string | null
+          misallocated_by_name?: string | null
+          misallocated_from?: string | null
           needs_inspection?: boolean | null
           needs_payment_on_collection?: boolean | null
           ni_bfs_number?: string | null
@@ -8483,6 +8495,7 @@ export type Database = {
         }[]
       }
       disablelongtransactions: { Args: never; Returns: string }
+      dismiss_misallocated: { Args: { p_order_id: string }; Returns: undefined }
       driver_can_prove_order: {
         Args: { _captured: string; _order_id: string }
         Returns: boolean
@@ -8904,6 +8917,10 @@ export type Database = {
       }
       next_cs_ticket_ref: { Args: never; Returns: string }
       next_custom_repair_id: { Args: never; Returns: string }
+      override_bay_slot: {
+        Args: { p_bay: string; p_order_id: string; p_pos: number }
+        Returns: number
+      }
       populate_geometry_columns:
         | { Args: { tbl_oid: unknown; use_typmod?: boolean }; Returns: number }
         | { Args: { use_typmod?: boolean }; Returns: string }
