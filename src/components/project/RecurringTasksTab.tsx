@@ -51,6 +51,7 @@ const RecurringTasksTab: React.FC = () => {
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<TaskRecurrence | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<TaskRecurrence | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
 
   const openNew = () => { setEditing(null); setForm({ ...emptyForm }); setOpen(true); };
