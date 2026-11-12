@@ -1316,7 +1316,7 @@ const BicycleInspections = () => {
   const inspectionOrder = (inspections as any[]).find((o) => o.id === selectedOrderForInspection);
   const bookedBrand = (inspectionOrder?.bike_brand || "").trim();
   const bookedModel = (inspectionOrder?.bike_model || "").trim();
-  const bookedFrameSize = (inspectionOrder?.frame_size || "").trim();
+  const bookedFrameSize = (inspectionOrder?.inspection?.frame_size || inspectionOrder?.frame_size || "").trim();
 
   const identityAnswered =
     identityResult === "match"
@@ -2066,6 +2066,21 @@ const BicycleInspections = () => {
                         updateFrameSizeMutation.mutate({ inspectionId: inspection.id, frameSize: v });
                       }}
                     />
+                    {inspection.customer_size_response ? (
+                      <Badge
+                        variant={inspection.customer_size_response === "matches" ? "secondary" : "destructive"}
+                        className="max-w-full self-start"
+                        title={inspection.customer_size_note || undefined}
+                      >
+                        <span className="min-w-0 truncate">
+                          {inspection.customer_size_response === "matches"
+                            ? "Customer confirmed size"
+                            : `Customer says size is wrong${inspection.customer_size_note ? `: ${inspection.customer_size_note}` : ""}`}
+                        </span>
+                      </Badge>
+                    ) : !inspection.frame_size && inspection.actual_frame_size && inspection.released_to_customer_at ? (
+                      <Badge variant="outline" className="self-start">Size awaiting customer check</Badge>
+                    ) : null}
                   </div>
                 )}
                 {canManageInspections && (
