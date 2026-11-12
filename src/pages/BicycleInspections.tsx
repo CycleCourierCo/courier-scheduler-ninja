@@ -1197,7 +1197,7 @@ const BicycleInspections = () => {
     setIdentityResult(null);
     setIdentityBrand(order?.bike_brand || "");
     setIdentityModel(order?.bike_model || "");
-    setIdentityFrameSize("");
+    setIdentityFrameSize(order?.inspection?.actual_frame_size || "");
     setIdentityNotes("");
     setInspectionChecklistOpen(true);
 
@@ -3832,6 +3832,18 @@ const BicycleInspections = () => {
                     Booked frame size: <span className="font-medium text-foreground">{bookedFrameSize || "not supplied"}</span>
                   </p>
                 </div>
+                {!bookedFrameSize && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">No size was given at booking — enter the size found on the bike</Label>
+                    <Input
+                      value={identityFrameSize}
+                      onChange={(e) => setIdentityFrameSize(e.target.value)}
+                      placeholder="e.g. 56cm or M"
+                      aria-label="Bike size"
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-1.5">
                   <Button
                     size="sm"
@@ -3853,7 +3865,7 @@ const BicycleInspections = () => {
                   </Button>
                 </div>
 
-                {identityResult === "match" && (
+                {identityResult === "match" && !!bookedFrameSize && (
                   <div className="space-y-1">
                     <Label className="text-xs">Frame size found on the bike</Label>
                     <Input
@@ -3883,7 +3895,7 @@ const BicycleInspections = () => {
                         className="h-9 text-sm"
                       />
                     </div>
-                    <div className="space-y-1">
+                    {!!bookedFrameSize && <div className="space-y-1">
                       <Label className="text-xs">Actual frame size</Label>
                       <Input
                         value={identityFrameSize}
@@ -3891,7 +3903,7 @@ const BicycleInspections = () => {
                         placeholder="e.g. 56cm or M"
                         className="h-9 text-sm"
                       />
-                    </div>
+                    </div>}
                     <div className="space-y-1">
                       <Label className="text-xs">Note (optional)</Label>
                       <Textarea
