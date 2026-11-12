@@ -1117,7 +1117,6 @@ const LoadingUnloadingPage = () => {
           </CardContent>
         </Card>
 
-        <ScanToBaySection onSaved={fetchData} />
 
         <WronglyAllocatedSection
           orders={orders}
