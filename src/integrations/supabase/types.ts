@@ -148,6 +148,9 @@ export type Database = {
           customer_email: string | null
           customer_name: string | null
           customer_phone: string | null
+          customer_size_note: string | null
+          customer_size_responded_at: string | null
+          customer_size_response: string | null
           drivetrain_degreased_at: string | null
           drivetrain_degreased_by_id: string | null
           drivetrain_degreased_by_name: string | null
@@ -213,6 +216,9 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          customer_size_note?: string | null
+          customer_size_responded_at?: string | null
+          customer_size_response?: string | null
           drivetrain_degreased_at?: string | null
           drivetrain_degreased_by_id?: string | null
           drivetrain_degreased_by_name?: string | null
@@ -278,6 +284,9 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          customer_size_note?: string | null
+          customer_size_responded_at?: string | null
+          customer_size_response?: string | null
           drivetrain_degreased_at?: string | null
           drivetrain_degreased_by_id?: string | null
           drivetrain_degreased_by_name?: string | null
@@ -8263,6 +8272,12 @@ export type Database = {
         Args: { p_locs: Json; p_order_id: string }
         Returns: Json
       }
+      _inspection_booked_frame_size: {
+        Args: {
+          p_insp: Database["public"]["Tables"]["bicycle_inspections"]["Row"]
+        }
+        Returns: string
+      }
       _label_staff_role: { Args: { _uid: string }; Returns: string }
       _normalise_postcode: { Args: { p: string }; Returns: string }
       _postgis_deprecate: {
@@ -9615,6 +9630,10 @@ export type Database = {
           p_inspection_id: string
           p_service_decision: string
         }
+        Returns: Json
+      }
+      submit_inspection_size_confirmation: {
+        Args: { p_inspection_id: string; p_note: string; p_response: string }
         Returns: Json
       }
       submit_ni_partner_details: {

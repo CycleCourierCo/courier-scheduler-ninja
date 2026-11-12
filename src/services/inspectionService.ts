@@ -1971,6 +1971,19 @@ export const fetchPublicInspectionApproval = async (inspectionId: string): Promi
   return data ?? { found: false };
 };
 
+/** Public: customer confirms whether the size the mechanic measured is right. */
+export const submitPublicSizeConfirmation = async (
+  inspectionId: string,
+  sizeResponse: 'matches' | 'does_not_match',
+  sizeNote?: string
+): Promise<{ success: boolean; error?: string }> => {
+  const { data, error } = await supabase.functions.invoke('public-inspection-approval', {
+    body: { inspectionId, action: 'size', sizeResponse, sizeNote: sizeNote?.trim() || undefined },
+  });
+  if (error) throw error;
+  return (data || { success: false }) as any;
+};
+
 /** Public (unauthenticated) submission of the approved repairs. */
 export const submitPublicInspectionApproval = async (
   inspectionId: string,
