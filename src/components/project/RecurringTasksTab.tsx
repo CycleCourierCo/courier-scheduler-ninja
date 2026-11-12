@@ -188,7 +188,10 @@ const RecurringTasksTab: React.FC = () => {
               onClick={(e) => {
                 e.preventDefault();
                 if (!pendingDelete) return;
-                remove.mutate(pendingDelete.id, { onSuccess: () => setPendingDelete(null) });
+                remove.mutate(pendingDelete.id, {
+                  onSuccess: () => { toast.success("Repeating task deleted"); setPendingDelete(null); },
+                  onError: (err: any) => toast.error(err?.message || "Failed to delete"),
+                });
               }}
             >
               {remove.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />} Delete
