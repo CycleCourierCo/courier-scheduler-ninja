@@ -30,8 +30,8 @@ export function LoadersListDialog({ isAdmin, onChanged }: { isAdmin: boolean; on
   const [busy, setBusy] = useState<string | null>(null);
   const [calOpen, setCalOpen] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     const from = startOfDay(date).toISOString(), to = endOfDay(date).toISOString();
     const { data, error } = await (supabase as any).from("orders")
       .select("id, tracking_number, delivery_driver_name, bike_brand, bike_model, sender, receiver, tracking_events, shipday_pickup_id, storage_locations, loaded_from_locations, loaded_onto_van, loaded_onto_van_at, loaded_onto_van_by_name")
@@ -39,7 +39,7 @@ export function LoadersListDialog({ isAdmin, onChanged }: { isAdmin: boolean; on
       .not("status", "in", "(cancelled)")
       .or(`storage_locations.not.is.null,and(loaded_onto_van.eq.true,loaded_onto_van_at.gte.${from},loaded_onto_van_at.lte.${to})`);
     setLoading(false);
-    if (error) { toast.error("Couldn't load the loaders list"); return; }
+    if (error) { if (!silent) toast.error("Couldn't load the loaders list"); return; }
     setRows((data ?? []).filter((d: any) => d.loaded_onto_van || bayText(d.storage_locations)).map((d: any) => ({
       id: d.id, ref: d.tracking_number ?? "", driver: normaliseDriverName(d.delivery_driver_name) || null,
       brand: d.bike_brand ?? "", model: d.bike_model ?? "", customer: d.receiver?.name ?? "", sender: d.sender?.name ?? "",
@@ -50,6 +50,17 @@ export function LoadersListDialog({ isAdmin, onChanged }: { isAdmin: boolean; on
   }, [date]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Keep the list live for everyone: realtime order changes plus a quiet 10s poll as a fallback.
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const refresh = () => { clearTimeout(t); t = setTimeout(() => load(true), 400); };
+    const channel = supabase.channel(`loaders-list-${Math.random().toString(36).slice(2)}`)
+      .on("postgres_changes" as any, { event: "UPDATE", schema: "public", table: "orders" }, refresh)
+      .subscribe();
+    const iv = setInterval(() => { if (document.visibilityState === "visible") load(true); }, 10000);
+    return () => { clearTimeout(t); clearInterval(iv); supabase.removeChannel(channel); };
+  }, [load]);
   const groups = useMemo(() => groupLoadersList(rows), [rows]);
 
   const takeOut = async (id: string) => {
@@ -57,8 +68,9 @@ export function LoadersListDialog({ isAdmin, onChanged }: { isAdmin: boolean; on
     const { error } = await (supabase as any).rpc("load_orders_onto_van", { p_order_ids: [id] });
     setBusy(null);
     if (error) return toast.error("Couldn't mark as taken out — nothing was saved");
+    setRows((prev) => prev.map((r) => r.id === id ? { ...r, takenOut: true, takenOutAt: new Date().toISOString(), takenOutBy: r.takenOutBy } : r));
     toast.success("Marked as taken out of depot");
-    await load(); onChanged?.();
+    load(true); onChanged?.();
   };
   const undo = async (id: string) => {
     setBusy(id);
@@ -66,7 +78,7 @@ export function LoadersListDialog({ isAdmin, onChanged }: { isAdmin: boolean; on
     setBusy(null);
     if (error) return toast.error("Couldn't undo");
     toast.success("Put back in its bay");
-    await load(); onChanged?.();
+    load(true); onChanged?.();
   };
 
   return (
