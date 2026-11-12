@@ -8,6 +8,10 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Loader2, Plus, RefreshCw, Trash2, Pencil } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -155,7 +159,7 @@ const RecurringTasksTab: React.FC = () => {
                   <Pencil className="h-3 w-3" />
                 </Button>
                 <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive"
-                  onClick={() => { if (confirm("Delete this repeating task?")) remove.mutate(r.id); }}>
+                  onClick={() => setPendingDelete(r)}>
                   <Trash2 className="h-3 w-3" />
                 </Button>
               </div>
@@ -166,6 +170,31 @@ const RecurringTasksTab: React.FC = () => {
           <div className="text-sm text-muted-foreground">No repeating tasks yet.</div>
         )}
       </div>
+
+      <AlertDialog open={!!pendingDelete} onOpenChange={(o) => { if (!o && !remove.isPending) setPendingDelete(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this repeating task?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete?.title ? `"${pendingDelete.title}" will stop creating new tasks. ` : ''}Tasks it already made are kept.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={remove.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={remove.isPending}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                if (!pendingDelete) return;
+                remove.mutate(pendingDelete.id, { onSuccess: () => setPendingDelete(null) });
+              }}
+            >
+              {remove.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />} Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
