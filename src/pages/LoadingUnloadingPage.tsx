@@ -510,25 +510,29 @@ const LoadingUnloadingPage = () => {
     } catch { /* toast already shown */ }
   };
 
+  // Puts the bike back into the bay it was loaded from if that bay is still free,
+  // otherwise it lands in Pending Storage Allocation (decided on the server).
   const handleUnloadFromVan = async (orderId: string) => {
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          loaded_onto_van: false,
-          // Keep loaded_onto_van_at as history marker - used to determine who had the bike last
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
-
+      const { data, error } = await (supabase as any).rpc('unload_from_van', { p_order_id: orderId });
       if (error) {
         console.error('Error unloading bike from van:', error);
         toast.error('Failed to unload bike from van');
         return;
       }
-
-      await fetchData();
-      toast.success('Bike unloaded from van');
+      fetchData(true);
+      const restored: Array<{ bay?: string; position?: number | string }> = data?.restored || [];
+      if (data?.ok === false) {
+        toast.warning('This bike is not on a van any more');
+      } else if (restored.length > 0) {
+        const bays = restored.map(l => `${String(l.bay || '').toUpperCase()}${l.position != null ? l.position : ''}`).join(', ');
+        toast.success(`Bike unloaded and put back in ${bays}`);
+        if (data?.not_restored > 0) toast.warning(`${data.not_restored} bay(s) were taken, so those bikes need a new bay`);
+      } else if (data?.not_restored > 0) {
+        toast.warning('Its old bay has been taken, so the bike is waiting for a new bay');
+      } else {
+        toast.success('Bike unloaded from van');
+      }
     } catch (error) {
       console.error('Error unloading bike from van:', error);
       toast.error('Failed to unload bike from van');

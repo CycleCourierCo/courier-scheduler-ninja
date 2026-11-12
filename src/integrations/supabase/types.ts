@@ -8259,6 +8259,10 @@ export type Database = {
         }
         Returns: Json
       }
+      _free_bay_slots: {
+        Args: { p_locs: Json; p_order_id: string }
+        Returns: Json
+      }
       _label_staff_role: { Args: { _uid: string }; Returns: string }
       _normalise_postcode: { Args: { p: string }; Returns: string }
       _postgis_deprecate: {
@@ -9653,6 +9657,7 @@ export type Database = {
           unlinked_count: number
         }[]
       }
+      unload_from_van: { Args: { p_order_id: string }; Returns: Json }
       unlockrows: { Args: { "": string }; Returns: number }
       update_user_profile_for_management: {
         Args: { p_updates: Json; p_user_id: string }
