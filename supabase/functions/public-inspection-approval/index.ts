@@ -23,6 +23,18 @@ serve(async (req) => {
     if (!UUID.test(inspectionId)) return json({ error: "A valid inspection is required" }, 400);
 
     return await startSpan("inspection.approval", req.method === "POST" ? "Submit inspection approval" : "Get inspection approval", async () => {
+      if (req.method === "POST" && body?.action === "size") {
+        const response = body?.sizeResponse;
+        if (response !== "matches" && response !== "does_not_match") return json({ error: "Invalid size answer" }, 400);
+        const note = typeof body?.sizeNote === "string" ? body.sizeNote.slice(0, 500) : null;
+        const { data, error } = await admin.rpc("submit_inspection_size_confirmation", {
+          p_inspection_id: inspectionId,
+          p_response: response,
+          p_note: note,
+        });
+        if (error) throw error;
+        return json(data ?? { success: false });
+      }
       if (req.method === "POST" && body?.action !== "read") {
         if (!Array.isArray(body?.approvedIssueIds) || body.approvedIssueIds.length > 100 ||
           !body.approvedIssueIds.every((value: unknown) => typeof value === "string" && UUID.test(value)) ||
