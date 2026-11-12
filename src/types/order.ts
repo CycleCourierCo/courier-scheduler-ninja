@@ -160,6 +160,7 @@ export type Order = {
   senderConfirmedAt?: Date;
   receiverConfirmedAt?: Date;
   orderCollected?: boolean;
+  orderDelivered?: boolean;
   /** Set on the original job when the customer sent the bike back to the seller */
   returnedToSellerAt?: Date;
   /** Set on a return job: the job it was created from */
@@ -241,6 +242,11 @@ export type Order = {
   receiverOpeningHours?: any | null;
   senderPolygonSegment?: number;  // Changed from polygonSegment to senderPolygonSegment
   receiverPolygonSegment?: number; // Added receiverPolygonSegment for delivery addresses
+  misallocated_at?: string | null;
+  misallocated_from?: string | null;
+  misallocated_by_name?: string | null;
+  misallocated_original_by_name?: string | null;
+  misallocated_original_at?: string | null;
   storage_locations?: any; // Add storage_locations field for database storage
   loaded_onto_van?: boolean; // Track if bikes have been loaded onto van
   loaded_onto_van_at?: Date; // Track when bikes were loaded onto van

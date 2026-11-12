@@ -148,6 +148,9 @@ export type Database = {
           customer_email: string | null
           customer_name: string | null
           customer_phone: string | null
+          customer_size_note: string | null
+          customer_size_responded_at: string | null
+          customer_size_response: string | null
           drivetrain_degreased_at: string | null
           drivetrain_degreased_by_id: string | null
           drivetrain_degreased_by_name: string | null
@@ -213,6 +216,9 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          customer_size_note?: string | null
+          customer_size_responded_at?: string | null
+          customer_size_response?: string | null
           drivetrain_degreased_at?: string | null
           drivetrain_degreased_by_id?: string | null
           drivetrain_degreased_by_name?: string | null
@@ -278,6 +284,9 @@ export type Database = {
           customer_email?: string | null
           customer_name?: string | null
           customer_phone?: string | null
+          customer_size_note?: string | null
+          customer_size_responded_at?: string | null
+          customer_size_response?: string | null
           drivetrain_degreased_at?: string | null
           drivetrain_degreased_by_id?: string | null
           drivetrain_degreased_by_name?: string | null
@@ -4431,7 +4440,7 @@ export type Database = {
         Row: {
           collection_van_checked: boolean
           created_at: string
-          created_by: string
+          created_by: string | null
           delivery_van_checked: boolean
           depot_checked: boolean
           description: string
@@ -4440,12 +4449,16 @@ export type Database = {
           item_type: string
           order_id: string
           photo_path: string | null
+          reporter_email: string | null
+          reporter_name: string | null
+          reporter_phone: string | null
+          source: string
           updated_at: string
         }
         Insert: {
           collection_van_checked?: boolean
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           delivery_van_checked?: boolean
           depot_checked?: boolean
           description?: string
@@ -4454,12 +4467,16 @@ export type Database = {
           item_type?: string
           order_id: string
           photo_path?: string | null
+          reporter_email?: string | null
+          reporter_name?: string | null
+          reporter_phone?: string | null
+          source?: string
           updated_at?: string
         }
         Update: {
           collection_van_checked?: boolean
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           delivery_van_checked?: boolean
           depot_checked?: boolean
           description?: string
@@ -4468,6 +4485,10 @@ export type Database = {
           item_type?: string
           order_id?: string
           photo_path?: string | null
+          reporter_email?: string | null
+          reporter_name?: string | null
+          reporter_phone?: string | null
+          source?: string
           updated_at?: string
         }
         Relationships: [
@@ -5304,8 +5325,17 @@ export type Database = {
           is_northern_ireland: boolean
           is_scotland: boolean
           is_warehouse_storage: boolean
+          loaded_from_locations: Json | null
           loaded_onto_van: boolean | null
           loaded_onto_van_at: string | null
+          loaded_onto_van_by: string | null
+          loaded_onto_van_by_name: string | null
+          misallocated_at: string | null
+          misallocated_by: string | null
+          misallocated_by_name: string | null
+          misallocated_from: string | null
+          misallocated_original_at: string | null
+          misallocated_original_by_name: string | null
           needs_inspection: boolean | null
           needs_payment_on_collection: boolean | null
           ni_bfs_number: string | null
@@ -5436,8 +5466,17 @@ export type Database = {
           is_northern_ireland?: boolean
           is_scotland?: boolean
           is_warehouse_storage?: boolean
+          loaded_from_locations?: Json | null
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
+          loaded_onto_van_by?: string | null
+          loaded_onto_van_by_name?: string | null
+          misallocated_at?: string | null
+          misallocated_by?: string | null
+          misallocated_by_name?: string | null
+          misallocated_from?: string | null
+          misallocated_original_at?: string | null
+          misallocated_original_by_name?: string | null
           needs_inspection?: boolean | null
           needs_payment_on_collection?: boolean | null
           ni_bfs_number?: string | null
@@ -5568,8 +5607,17 @@ export type Database = {
           is_northern_ireland?: boolean
           is_scotland?: boolean
           is_warehouse_storage?: boolean
+          loaded_from_locations?: Json | null
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
+          loaded_onto_van_by?: string | null
+          loaded_onto_van_by_name?: string | null
+          misallocated_at?: string | null
+          misallocated_by?: string | null
+          misallocated_by_name?: string | null
+          misallocated_from?: string | null
+          misallocated_original_at?: string | null
+          misallocated_original_by_name?: string | null
           needs_inspection?: boolean | null
           needs_payment_on_collection?: boolean | null
           ni_bfs_number?: string | null
@@ -8220,6 +8268,16 @@ export type Database = {
         }
         Returns: Json
       }
+      _free_bay_slots: {
+        Args: { p_locs: Json; p_order_id: string }
+        Returns: Json
+      }
+      _inspection_booked_frame_size: {
+        Args: {
+          p_insp: Database["public"]["Tables"]["bicycle_inspections"]["Row"]
+        }
+        Returns: string
+      }
       _label_staff_role: { Args: { _uid: string }; Returns: string }
       _normalise_postcode: { Args: { p: string }; Returns: string }
       _postgis_deprecate: {
@@ -8471,6 +8529,7 @@ export type Database = {
         }[]
       }
       disablelongtransactions: { Args: never; Returns: string }
+      dismiss_misallocated: { Args: { p_order_id: string }; Returns: undefined }
       driver_can_prove_order: {
         Args: { _captured: string; _order_id: string }
         Returns: boolean
@@ -8650,6 +8709,14 @@ export type Database = {
         Returns: boolean
       }
       geomfromewkt: { Args: { "": string }; Returns: unknown }
+      get_booking_account_names: {
+        Args: { p_user_ids: string[] }
+        Returns: {
+          display_name: string
+          email: string
+          id: string
+        }[]
+      }
       get_business_accounts_for_admin: {
         Args: never
         Returns: {
@@ -8884,6 +8951,10 @@ export type Database = {
       }
       next_cs_ticket_ref: { Args: never; Returns: string }
       next_custom_repair_id: { Args: never; Returns: string }
+      override_bay_slot: {
+        Args: { p_bay: string; p_order_id: string; p_pos: number }
+        Returns: number
+      }
       populate_geometry_columns:
         | { Args: { tbl_oid: unknown; use_typmod?: boolean }; Returns: number }
         | { Args: { use_typmod?: boolean }; Returns: string }
@@ -9561,6 +9632,10 @@ export type Database = {
         }
         Returns: Json
       }
+      submit_inspection_size_confirmation: {
+        Args: { p_inspection_id: string; p_note: string; p_response: string }
+        Returns: Json
+      }
       submit_ni_partner_details: {
         Args: {
           p_bfs_number?: string
@@ -9577,6 +9652,7 @@ export type Database = {
         Args: { p_approved_issue_ids: string[]; p_order_id: string }
         Returns: Json
       }
+      undo_taken_out: { Args: { p_order_id: string }; Returns: boolean }
       unlinked_invoice_orders: {
         Args: never
         Returns: {
@@ -9600,6 +9676,7 @@ export type Database = {
           unlinked_count: number
         }[]
       }
+      unload_from_van: { Args: { p_order_id: string }; Returns: Json }
       unlockrows: { Args: { "": string }; Returns: number }
       update_user_profile_for_management: {
         Args: { p_updates: Json; p_user_id: string }

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { isInspectionDoneForRouting } from "@/lib/inspectionRouting";
 import { useSearchParams } from "react-router-dom";
 import Layout from "@/components/Layout";
 import { useQuery } from "@tanstack/react-query";
@@ -193,7 +194,7 @@ const JobScheduling = () => {
       const deliveryDates = order.delivery_date as string[] | null;
       const isCollected = order.order_collected === true;
       const needsInspection = order.needs_inspection === true;
-      const isInspectionComplete = order.inspection_status === 'inspected' || order.inspection_status === 'repaired';
+      const isInspectionComplete = isInspectionDoneForRouting(order.inspection_status);
       // Inspected-only only suppresses DELIVERIES for orders that actually need inspection
       // and haven't completed it. Pickups are unaffected.
       const passesInspected = !showInspectedOnly || !needsInspection || isInspectionComplete;

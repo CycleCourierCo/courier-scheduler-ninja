@@ -11,7 +11,11 @@ import { PendingStorageAllocation } from "@/components/loading/PendingStorageAll
 import { BikeSearchSection } from "@/components/loading/BikeSearchSection";
 import { QrCode } from "lucide-react";
 import { ScanToBaySection } from "@/components/loading/ScanToBaySection";
+import { LoadersListDialog } from "@/components/loading/LoadersListDialog";
 import { BikesInStorage } from "@/components/loading/BikesInStorage";
+import { useBayOverrideConfirm } from "@/components/loading/BayOverrideDialog";
+import { WronglyAllocatedSection } from "@/components/loading/WronglyAllocatedSection";
+import { overrideBaySlot, dismissMisallocated } from "@/lib/bayOverride";
 import { RemoveBikesDialog } from "@/components/loading/RemoveBikesDialog";
 
 
@@ -34,7 +38,7 @@ import { DEPOT_LOCATION, DEPOT_PROXIMITY_THRESHOLD_METERS } from "@/constants/de
 import { calculateDistanceInMeters } from "@/utils/locationUtils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useStorageBays } from "@/hooks/useStorageBays";
-import { hasLeftDepot } from "@/utils/storageLocation";
+import { hasBeenCollected, hasBeenDelivered } from "@/utils/depotPresence";
 import { uuid } from "@/lib/uuid";
 
 
@@ -48,6 +52,8 @@ export type StorageAllocation = {
   bikeModel?: string;
   customerName: string;
   allocatedAt: Date;
+  allocatedBy?: string | null;
+  allocatedByName?: string | null;
   bikeIndex?: number; // Track which bike this is for multi-bike orders
 };
 
@@ -118,9 +124,9 @@ const LoadingUnloadingPage = () => {
     [selectedLoadingDate, getBikesLoadedOnDate],
   );
 
-  const fetchData = async () => {
+  const fetchData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const ordersData = await getOrdersForLoading();
       setOrders(ordersData);
       
@@ -213,40 +219,6 @@ const LoadingUnloadingPage = () => {
     fetchProfiles();
   }, []);
 
-  // Helper function to check if order has been collected based on tracking events
-  const hasBeenCollected = (order: Order) => {
-    // Check order status first
-    if (order.status === 'collected' || order.status === 'driver_to_delivery') {
-      return true;
-    }
-    
-    // Check tracking events for collection indicators
-    const trackingUpdates = order.trackingEvents?.shipday?.updates || [];
-    return trackingUpdates.some(update => 
-      update.description?.toLowerCase().includes('collected') || 
-      update.description?.toLowerCase().includes('pickup') ||
-      update.event === 'ORDER_POD_UPLOAD' ||
-      update.status?.toLowerCase().includes('collected')
-    );
-  };
-
-  // Helper function to check if order has been delivered / left the depot
-  const hasBeenDelivered = (order: Order) => {
-    // Delivered, 3rd-party courier hand-off and ferry hand-off all mean it's gone
-    if (hasLeftDepot(order.status)) {
-      return true;
-    }
-    
-    // Check tracking events for delivery indicators
-    const trackingUpdates = order.trackingEvents?.shipday?.updates || [];
-    return trackingUpdates.some(update => 
-      update.description?.toLowerCase().includes('delivered') || 
-      update.event === 'DELIVERY_POD_UPLOAD' ||
-      update.status?.toLowerCase().includes('delivered')
-    );
-  };
-
-
   // Get bikes that need storage allocation (collected but not delivered, not cancelled, and no storage allocation)
   const allocatedOrderIds = useMemo(
     () => new Set(storageAllocations.map(allocation => allocation.orderId)),
@@ -282,9 +254,59 @@ const LoadingUnloadingPage = () => {
       .filter(item => !!item.order && item.order?.loaded_onto_van !== true);
   }, [orders, storageAllocations]);
 
+  const { ask: askOverride, dialog: overrideDialog } = useBayOverrideConfirm();
+
+  // Bay shows as taken: offer to override and move the old bike to "Wrongly allocated".
+  const resolveOccupied = async (orderId: string, bay: string, position: number): Promise<boolean> => {
+    const occupants = storageAllocations.filter(a => a.bay === bay && a.position === position && a.orderId !== orderId);
+    if (occupants.some(a => a.orderId.startsWith('stock:'))) {
+      toast.error(`Bay ${bay}${position} holds warehouse stock — move it from Warehouse Stock first`);
+      return false;
+    }
+    const occ = occupants[0];
+    const occOrder = orders.find(o => o.id === occ?.orderId);
+    const label = [occ?.customerName, [occ?.bikeBrand, occ?.bikeModel].filter(Boolean).join(' '), occOrder?.trackingNumber].filter(Boolean).join(' · ') || 'another bike';
+    if (!(await askOverride(`${bay}${position}`, label))) {
+      toast.info(`Bay ${bay}${position} is already occupied by ${label} — nothing was changed`);
+      return false;
+    }
+    try {
+      await overrideBaySlot(orderId, bay, position);
+    } catch (e: any) {
+      toast.error(e?.message ?? 'Could not override bay');
+      return false;
+    }
+    const displaced = new Set(occupants.map(a => a.orderId));
+    setStorageAllocations(prev => prev.filter(a => !(a.bay === bay && a.position === position && displaced.has(a.orderId))));
+    const { data: { user: me } } = await supabase.auth.getUser();
+    const { data: myProfile } = me ? await supabase.from('profiles').select('name').eq('id', me.id).maybeSingle() : { data: null };
+    setOrders(prev => prev.map(o => displaced.has(o.id) ? ({
+      ...o,
+      misallocated_by_name: (myProfile as any)?.name ?? null,
+      misallocated_original_by_name: (() => {
+        const l = (Array.isArray(o.storage_locations) ? o.storage_locations : []).find((l: any) => String(l.bay).toUpperCase() === bay && Number(l.position) === position) as any;
+        return l?.allocatedByName ?? null;
+      })(),
+      misallocated_original_at: (() => {
+        const l = (Array.isArray(o.storage_locations) ? o.storage_locations : []).find((l: any) => String(l.bay).toUpperCase() === bay && Number(l.position) === position) as any;
+        return l?.allocatedAt ? String(l.allocatedAt) : null;
+      })(),
+      storage_locations: (Array.isArray(o.storage_locations) ? o.storage_locations : []).filter((l: any) => !(String(l.bay).toUpperCase() === bay && Number(l.position) === position)),
+      misallocated_at: new Date().toISOString(),
+      misallocated_from: `${bay}${position}`,
+    } as any) : o));
+    toast.success(`Bay ${bay}${position} cleared — old bike moved to Wrongly allocated`);
+    return true;
+  };
+
   const handleAllocateStorage = async (orderId: string, allocationsToMake: { bay: string; position: number; bikeIndex: number }[]) => {
+    await allocateStorage(orderId, allocationsToMake);
+  };
+
+  /** Saves bay allocations for one order. Returns true only if the bays were saved. */
+  const allocateStorage = async (orderId: string, allocationsToMake: { bay: string; position: number; bikeIndex: number }[]): Promise<boolean> => {
     const order = orders.find(o => o.id === orderId);
-    if (!order) return;
+    if (!order) return false;
 
     // Check if any bay/position is already occupied
     for (const allocation of allocationsToMake) {
@@ -293,8 +315,8 @@ const LoadingUnloadingPage = () => {
       );
 
       if (isOccupied) {
-        toast.error(`Bay ${allocation.bay}${allocation.position} is already occupied`);
-        return;
+        const ok = await resolveOccupied(orderId, allocation.bay, allocation.position);
+        if (!ok) return false;
       }
     }
 
@@ -322,20 +344,22 @@ const LoadingUnloadingPage = () => {
         allocatedAt: allocation.allocatedAt instanceof Date ? allocation.allocatedAt.toISOString() : allocation.allocatedAt
       }));
 
-      const { error } = await supabase
+      const { data: savedRow, error } = await supabase
         .from('orders')
         .update({
-          storage_locations: allocationsForDb,
+          storage_locations: allocationsForDb as any,
           // Bike is now in a bay, so no driver is holding it
           held_by_driver_name: null,
           held_by_driver_at: null,
         })
-        .eq('id', orderId);
+        .eq('id', orderId)
+        .select('storage_locations')
+        .maybeSingle();
 
       if (error) {
         console.error('Error updating storage locations:', error);
-        toast.error('Failed to save storage allocation');
-        return;
+        toast.error(/already occupied/i.test(error.message) ? error.message : 'Failed to save storage allocation');
+        return false;
       }
 
       if ((order as any).isWarehouseStorage || (order as any).is_warehouse_storage) {
@@ -345,7 +369,7 @@ const LoadingUnloadingPage = () => {
       }
       // Update just this order on screen — no full page reload
       applyStorageUpdate(orderId, {
-        storage_locations: allocationsForDb,
+        storage_locations: (savedRow as any)?.storage_locations ?? allocationsForDb,
         held_by_driver_name: null,
         held_by_driver_at: null,
       });
@@ -354,9 +378,11 @@ const LoadingUnloadingPage = () => {
       const updatedCount = newAllocations.length;
       
       toast.success(`Successfully allocated ${updatedCount} bike(s) to storage.`);
+      return true;
     } catch (error) {
       console.error('Error updating storage locations:', error);
       toast.error('Failed to save storage allocation');
+      return false;
     }
   };
 
@@ -459,7 +485,7 @@ const LoadingUnloadingPage = () => {
       const { data, error } = await (supabase as any).rpc('load_orders_onto_van', { p_order_ids: ids });
       if (error) throw error;
       const loaded: string[] = data || [];
-      fetchData();
+      fetchData(true);
       return loaded.length;
     } catch (error) {
       console.error('Error loading bikes onto van:', error);
@@ -484,25 +510,29 @@ const LoadingUnloadingPage = () => {
     } catch { /* toast already shown */ }
   };
 
+  // Puts the bike back into the bay it was loaded from if that bay is still free,
+  // otherwise it lands in Pending Storage Allocation (decided on the server).
   const handleUnloadFromVan = async (orderId: string) => {
     try {
-      const { error } = await supabase
-        .from('orders')
-        .update({ 
-          loaded_onto_van: false,
-          // Keep loaded_onto_van_at as history marker - used to determine who had the bike last
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', orderId);
-
+      const { data, error } = await (supabase as any).rpc('unload_from_van', { p_order_id: orderId });
       if (error) {
         console.error('Error unloading bike from van:', error);
         toast.error('Failed to unload bike from van');
         return;
       }
-
-      await fetchData();
-      toast.success('Bike unloaded from van');
+      fetchData(true);
+      const restored: Array<{ bay?: string; position?: number | string }> = data?.restored || [];
+      if (data?.ok === false) {
+        toast.warning('This bike is not on a van any more');
+      } else if (restored.length > 0) {
+        const bays = restored.map(l => `${String(l.bay || '').toUpperCase()}${l.position != null ? l.position : ''}`).join(', ');
+        toast.success(`Bike unloaded and put back in ${bays}`);
+        if (data?.not_restored > 0) toast.warning(`${data.not_restored} bay(s) were taken, so those bikes need a new bay`);
+      } else if (data?.not_restored > 0) {
+        toast.warning('Its old bay has been taken, so the bike is waiting for a new bay');
+      } else {
+        toast.success('Bike unloaded from van');
+      }
     } catch (error) {
       console.error('Error unloading bike from van:', error);
       toast.error('Failed to unload bike from van');
@@ -526,8 +556,8 @@ const LoadingUnloadingPage = () => {
     );
 
     if (isOccupied) {
-      toast.error(`Bay ${newBay}${newPosition} is already occupied`);
-      return;
+      const ok = await resolveOccupied(allocationToUpdate.orderId, newBay, newPosition);
+      if (!ok) return;
     }
 
     try {
@@ -535,23 +565,25 @@ const LoadingUnloadingPage = () => {
       const existingAllocations = order.storage_locations || [];
       const updatedAllocations = existingAllocations.map((a: any) => 
         a.id === allocationId 
-          ? { ...a, bay: newBay, position: newPosition }
+          ? (({ allocatedBy, allocatedByName, ...rest }: any) => ({ ...rest, bay: newBay, position: newPosition }))(a)
           : a
       );
 
-      const { error } = await supabase
+      const { data: savedRow, error } = await supabase
         .from('orders')
         .update({ storage_locations: updatedAllocations })
-        .eq('id', allocationToUpdate.orderId);
+        .eq('id', allocationToUpdate.orderId)
+        .select('storage_locations')
+        .maybeSingle();
 
       if (error) {
         console.error('Error updating storage location:', error);
-        toast.error('Failed to update storage location');
+        toast.error(/already occupied/i.test(error.message) ? error.message : 'Failed to update storage location');
         return;
       }
 
       // Update just this order on screen — no full page reload
-      applyStorageUpdate(allocationToUpdate.orderId, { storage_locations: updatedAllocations });
+      applyStorageUpdate(allocationToUpdate.orderId, { storage_locations: (savedRow as any)?.storage_locations ?? updatedAllocations });
 
       toast.success(`Bike moved to bay ${newBay}${newPosition}`);
     } catch (error) {
@@ -790,7 +822,6 @@ const LoadingUnloadingPage = () => {
     
     // Auto-match drivers to profiles by name
     const autoPhones: Record<string, string> = {};
-    const autoEmails: Record<string, string> = {};
     const autoSelections: Record<string, string> = {};
     
     uniqueDrivers.forEach(driverName => {
@@ -800,13 +831,11 @@ const LoadingUnloadingPage = () => {
       if (matchedProfile) {
         autoSelections[driverName] = matchedProfile.id;
         if (matchedProfile.phone) autoPhones[driverName] = matchedProfile.phone;
-        if (matchedProfile.email) autoEmails[driverName] = matchedProfile.email;
       }
     });
     
     setDriverProfileSelections(autoSelections);
     setDriverPhoneNumbers(autoPhones);
-    setDriverEmails(autoEmails);
     setShowDriverPhoneDialog(true);
   };
 
@@ -929,7 +958,21 @@ const LoadingUnloadingPage = () => {
                 </DialogTrigger>
                 <DialogContent className="inset-x-auto bottom-auto left-1/2 top-1/2 max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-md">
                   <DialogHeader><DialogTitle>Scan to bay</DialogTitle></DialogHeader>
-                  <ScanToBaySection onSaved={fetchData} />
+                  <ScanToBaySection onSaved={() => fetchData(true)} />
+                </DialogContent>
+              </Dialog>
+
+              {/* Loaders list popup */}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="w-full md:w-auto">
+                    <Truck className="mr-2 h-4 w-4" />
+                    Loaders List
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="inset-x-auto bottom-auto left-1/2 top-1/2 max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-md">
+                  <DialogHeader><DialogTitle>Loaders List</DialogTitle></DialogHeader>
+                  <LoadersListDialog isAdmin={isAdmin} onChanged={() => fetchData(true)} onTakeOut={(id) => loadOrdersOntoVan([id])} />
                 </DialogContent>
               </Dialog>
 
@@ -1004,7 +1047,28 @@ const LoadingUnloadingPage = () => {
                                Loading List for {format(selectedLoadingDate, 'PPP')}
                              </div>
                              <div className="text-sm text-muted-foreground mt-1">
-                               {bikesLoadedOnDate.length + getBikesNeedingLoading(selectedLoadingDate).length} bikes scheduled • {bikesLoadedOnDate.length} loaded • {getBikesNeedingLoading(selectedLoadingDate).length} pending
+                               {(() => {
+                                 const day = format(selectedLoadingDate, 'yyyy-MM-dd');
+                                 const list = getBikesNeedingLoading(selectedLoadingDate);
+                                 let out = 0, inn = 0, swap = 0;
+                                 list.forEach(o => {
+                                   const qty = o.bikeQuantity || 1;
+                                   const inStorage = storageAllocations.some(a => a.orderId === o.id);
+                                   const dDate = o.scheduledDeliveryDate ? format(new Date(o.scheduledDeliveryDate), 'yyyy-MM-dd') : null;
+                                   const deliv = normaliseDriverName(o.delivery_driver_name);
+                                   const coll = normaliseDriverName(o.held_by_driver_name || o.collection_driver_name);
+                                   if (inStorage && dDate === day) out += qty;
+                                   else if (!inStorage && hasBeenCollected(o) && (!deliv || dDate !== day)) inn += qty;
+                                   else if (!inStorage && dDate === day && deliv && coll && coll !== deliv) swap += qty;
+                                 });
+                                 return (
+                                   <div className="flex flex-wrap gap-2 mt-1">
+                                     <Badge variant="outline">Going out: {out}</Badge>
+                                     <Badge variant="outline">Going in: {inn}</Badge>
+                                     <Badge variant="outline">Swapped between drivers: {swap}</Badge>
+                                   </div>
+                                 );
+                               })()}
                              </div>
                            </div>
                            {getBikesNeedingLoading(selectedLoadingDate).length > 0 && (
@@ -1042,254 +1106,6 @@ const LoadingUnloadingPage = () => {
                            )}
                          </div>
 
-                         {/* Bikes Already Loaded Section */}
-                         {bikesLoadedOnDate.length > 0 && (
-                           <div className="space-y-3">
-                             <div className="flex items-center gap-2">
-                               <div className="h-4 w-4 bg-green-500 rounded-full"></div>
-                               <h3 className="font-medium text-green-700">Bikes Already Loaded ({bikesLoadedOnDate.length})</h3>
-                             </div>
-                             <div className="space-y-2 bg-green-50 p-4 rounded-lg border border-green-200">
-                              {bikesLoadedOnDate.map((order) => {
-                                  const quantity = order.bikeQuantity || 1;
-                                  const deliveryDriverName = normaliseDriverName(order.delivery_driver_name);
-                                 const loadedTime = order.loaded_onto_van_at ? format(new Date(order.loaded_onto_van_at), 'HH:mm') : 'Unknown time';
-                                 
-                                 return (
-                                   <Card key={order.id} className="p-3 bg-white border-green-300">
-                                     <div className="space-y-2">
-                                       <div className="flex items-center justify-between">
-                                         <div className="font-medium text-green-800">
-                                           {order.receiver?.name || 'Unknown Customer'}
-                                         </div>
-                                         <div className="flex items-center gap-2">
-                                           {quantity > 1 && (
-                                             <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                                               {quantity} bikes
-                                             </div>
-                                           )}
-                                           <div className="text-xs bg-green-600 text-white px-2 py-1 rounded font-medium">
-                                             Loaded {loadedTime}
-                                           </div>
-                                         </div>
-                                       </div>
-                                       <div className="text-sm text-green-700">
-                                         <div>{order.bikeBrand} {order.bikeModel}</div>
-                                         <div>Tracking: {order.trackingNumber}</div>
-                                         <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
-                                         {deliveryDriverName && (
-                                           <div className="text-green-600 font-medium">On {deliveryDriverName} Van</div>
-                                         )}
-                                       </div>
-                                     </div>
-                                   </Card>
-                                 );
-                               })}
-                             </div>
-                           </div>
-                         )}
-
-                          {/* Bikes Still Need Loading Section */}
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-2">
-                              <div className="h-4 w-4 bg-orange-500 rounded-full"></div>
-                              <h3 className="font-medium text-orange-700">Bikes Still Need Loading ({getBikesNeedingLoading(selectedLoadingDate).length})</h3>
-                            </div>
-                            
-                            {getBikesNeedingLoading(selectedLoadingDate).length > 0 ? (
-                              <div className="space-y-4 bg-orange-50 p-4 rounded-lg border border-orange-200">
-                                 {(() => {
-                                   // Group bikes by current location
-                                   const bikesNeedingLoading = getBikesNeedingLoading(selectedLoadingDate);
-                                   const locationGroups: Record<string, Order[]> = {};
-                                   
-                                   bikesNeedingLoading.forEach(order => {
-                                     const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
-                                     
-                                     // Check if this is a same-day collection/delivery within 500m of depot
-                                     const scheduledPickup = order.scheduledPickupDate;
-                                     const scheduledDelivery = order.scheduledDeliveryDate;
-                                     let isNearDepot = false;
-                                     
-                                     if (scheduledPickup && scheduledDelivery) {
-                                       const pickupDate = format(new Date(scheduledPickup), 'yyyy-MM-dd');
-                                       const deliveryDate = format(new Date(scheduledDelivery), 'yyyy-MM-dd');
-                                       
-                                       if (pickupDate === deliveryDate) {
-                                         const collectionLat = order.sender?.address?.lat;
-                                         const collectionLon = order.sender?.address?.lon;
-                                         
-                                         if (collectionLat && collectionLon) {
-                                           const distanceToDepot = calculateDistanceInMeters(
-                                             DEPOT_LOCATION.lat,
-                                             DEPOT_LOCATION.lon,
-                                             collectionLat,
-                                             collectionLon
-                                           );
-                                           
-                                           isNearDepot = distanceToDepot <= DEPOT_PROXIMITY_THRESHOLD_METERS;
-                                         }
-                                       }
-                                     }
-                                     
-                                     if (orderAllocations.length > 0) {
-                                       // Group by bay (column) for bikes in storage
-                                       orderAllocations.forEach(allocation => {
-                                         const bayKey = `Bay ${allocation.bay}`;
-                                         if (!locationGroups[bayKey]) {
-                                           locationGroups[bayKey] = [];
-                                         }
-                                         // Only add once per order, not per allocation
-                                         if (!locationGroups[bayKey].some(o => o.id === order.id)) {
-                                           locationGroups[bayKey].push(order);
-                                         }
-                                       });
-                                     } else if (isNearDepot) {
-                                       // Bikes that need to be collected from near depot
-                                       if (!locationGroups['To Be Collected']) {
-                                         locationGroups['To Be Collected'] = [];
-                                       }
-                                       locationGroups['To Be Collected'].push(order);
-                                     } else {
-                                       // Check if in a driver's van
-                                       const collectionEvent = order.trackingEvents?.shipday?.updates?.find(
-                                         (update: any) => update.event === 'ORDER_COMPLETED' && 
-                                         update.orderId?.toString() === order.trackingEvents?.shipday?.pickup_id?.toString()
-                                       );
-                                       const driverName = normaliseDriverName(collectionEvent?.driverName);
-                                       
-                                       if (driverName) {
-                                         // Create group for this driver if it doesn't exist
-                                         const driverKey = `${driverName} Van`;
-                                         if (!locationGroups[driverKey]) {
-                                           locationGroups[driverKey] = [];
-                                         }
-                                         locationGroups[driverKey].push(order);
-                                       } else {
-                                         // Unknown location
-                                         if (!locationGroups['Driver Vans']) {
-                                           locationGroups['Driver Vans'] = [];
-                                         }
-                                         locationGroups['Driver Vans'].push(order);
-                                       }
-                                     }
-                                   });
-                                   
-                                    // Sort groups: configured bays first (in display_order), then other locations
-                                    const sortedGroups = Object.entries(locationGroups).sort(([a], [b]) => {
-                                      const bayOrder = configuredBays.map((bay) => `Bay ${bay.label}`);
-                                      const aIndex = bayOrder.indexOf(a);
-                                      const bIndex = bayOrder.indexOf(b);
-                                      
-                                      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-                                      if (aIndex !== -1) return -1;
-                                      if (bIndex !== -1) return 1;
-                                      return a.localeCompare(b);
-                                    });
-                                   
-                                   // Render groups
-                                   return sortedGroups
-                                     .filter(([_, orders]) => orders.length > 0)
-                                     .map(([locationName, orders]) => (
-                                       <div key={locationName} className="space-y-2">
-                                          <h4 className="border-b border-status-waiting pb-1 text-sm font-bold uppercase tracking-wide">
-                                            {locationName} ({orders.length})
-                                         </h4>
-                                         <div className="space-y-2">
-                                           {orders
-                                             .sort((a, b) => {
-                                               // Sort by lowest position number within the bay
-                                               const aAllocations = storageAllocations.filter(alloc => alloc.orderId === a.id);
-                                               const bAllocations = storageAllocations.filter(alloc => alloc.orderId === b.id);
-                                               const aMinPos = Math.min(...aAllocations.map(alloc => alloc.position));
-                                               const bMinPos = Math.min(...bAllocations.map(alloc => alloc.position));
-                                               return aMinPos - bMinPos;
-                                             })
-                                             .map((order) => {
-                                             const quantity = order.bikeQuantity || 1;
-                                             const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
-                                             
-                                             return (
-                                                <Card key={order.id} className="border-l-4 border-l-status-waiting p-3">
-                                                 <div className="space-y-2">
-                                                   <div className="flex items-center justify-between">
-                                                      <div className="font-bold">
-                                                       {order.receiver?.name || 'Unknown Customer'}
-                                                     </div>
-                                                     <div className="flex items-center gap-2">
-                                                       {quantity > 1 && (
-                                                          <div className="rounded-sm bg-secondary px-2 py-1 text-xs">
-                                                           {quantity} bikes
-                                                         </div>
-                                                       )}
-                                                       {orderAllocations.length > 0 && (
-                                                         <div className="flex flex-wrap gap-1">
-                                                           {orderAllocations
-                                                             .sort((a, b) => {
-                                                               if (a.bay !== b.bay) return a.bay.localeCompare(b.bay);
-                                                               return a.position - b.position;
-                                                             })
-                                                            .map((allocation) => (
-                                                               <div key={allocation.id} className="rounded-sm bg-status-done/10 px-2 py-1 font-mono text-xs text-status-done">
-                                                                {allocation.bay}{allocation.position}
-                                                              </div>
-                                                            ))}
-                                                        </div>
-                                                      )}
-                                                    </div>
-                                                  </div>
-                                                   <div className="text-sm">
-                                                    <div>{order.bikeBrand} {order.bikeModel}</div>
-                                                    <div>Tracking: {order.trackingNumber}</div>
-                                                    <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
-                                                     {(() => {
-                                                       // Show who needs to load onto van (delivery driver)
-                                                       const deliveryDriverName = normaliseDriverName(order.delivery_driver_name);
-                                                      
-                                                      if (deliveryDriverName) {
-                                                        return (
-                                                          <div className="mt-1">
-                                                             <Badge variant="waiting">
-                                                              Load onto {deliveryDriverName} van
-                                                            </Badge>
-                                                          </div>
-                                                        );
-                                                      }
-                                                      return (
-                                                        <div className="mt-1">
-                                                           <Badge variant="outline">
-                                                            Driver unassigned
-                                                          </Badge>
-                                                        </div>
-                                                      );
-                                                    })()}
-                                                  </div>
-                                                  <div className="mt-3 pt-3 border-t">
-                                                    <Button 
-                                                      size="sm" 
-                                                      className="w-full"
-                                                      onClick={() => handleLoadOntoVan(order.id)}
-                                                    >
-                                                      Load onto Van
-                                                    </Button>
-                                                  </div>
-                                                </div>
-                                              </Card>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    ));
-                                })()}
-                              </div>
-                            ) : (
-                              <div className="rounded-md border bg-muted py-8 text-center text-muted-foreground">
-                               <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                               <p>No bikes need loading for this date</p>
-                             </div>
-                           )}
-                         </div>
-
                          {/* Empty state when no bikes at all */}
                          {bikesLoadedOnDate.length === 0 && getBikesNeedingLoading(selectedLoadingDate).length === 0 && (
                            <div className="text-center py-8 text-muted-foreground">
@@ -1320,7 +1136,22 @@ const LoadingUnloadingPage = () => {
           </CardContent>
         </Card>
 
-        <ScanToBaySection onSaved={fetchData} />
+
+        <WronglyAllocatedSection
+          orders={orders}
+          onChanged={() => fetchData(true)}
+          onAssign={async (orderId, locations) => {
+            const ok = await allocateStorage(orderId, locations.map((l, i) => ({ ...l, bikeIndex: i })));
+            if (!ok) return false;
+            // Bike is back in a bay: clear the "Wrongly allocated" flag so it never reappears later.
+            try { await dismissMisallocated(orderId); } catch { /* bay is saved; flag clears on next override */ }
+            setOrders(prev => prev.map(o => o.id === orderId ? ({ ...o, misallocated_at: null, misallocated_from: null } as any) : o));
+            return true;
+          }}
+        />
+
+        {/* Bay override confirmation — mounted at page level so it shows from every allocation path */}
+        {overrideDialog}
 
         <BikeSearchSection
           orders={orders}
@@ -1423,7 +1254,6 @@ const LoadingUnloadingPage = () => {
                       if (profile) {
                         setLoaderProfileSelection(profileId);
                         setLoaderPhoneNumber(profile.phone || '');
-                        setLoaderEmail(profile.email || '');
                       }
                     }}
                   >
@@ -1449,7 +1279,23 @@ const LoadingUnloadingPage = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs text-muted-foreground">Email</Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label className="text-xs text-muted-foreground">Email</Label>
+                    {(() => {
+                      const profileEmail = loaderProfiles.find(p => p.id === loaderProfileSelection)?.email;
+                      return profileEmail ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs"
+                          onClick={() => setLoaderEmail(profileEmail)}
+                        >
+                          Fill loader's email
+                        </Button>
+                      ) : null;
+                    })()}
+                  </div>
                   <Input
                     type="email"
                     placeholder="loader@example.com"
@@ -1472,7 +1318,6 @@ const LoadingUnloadingPage = () => {
                         if (profile) {
                           setDriverProfileSelections(prev => ({ ...prev, [driver]: profileId }));
                           setDriverPhoneNumbers(prev => ({ ...prev, [driver]: profile.phone || '' }));
-                          setDriverEmails(prev => ({ ...prev, [driver]: profile.email || '' }));
                         }
                       }}
                     >
@@ -1501,7 +1346,23 @@ const LoadingUnloadingPage = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Email</Label>
+                    <div className="flex items-center justify-between gap-2">
+                      <Label className="text-xs text-muted-foreground">Email</Label>
+                      {(() => {
+                        const profileEmail = driverProfiles.find(p => p.id === driverProfileSelections[driver])?.email;
+                        return profileEmail ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-8 text-xs"
+                            onClick={() => setDriverEmails(prev => ({ ...prev, [driver]: profileEmail }))}
+                          >
+                            Fill driver's email
+                          </Button>
+                        ) : null;
+                      })()}
+                    </div>
                     <Input
                       type="email"
                       placeholder="driver@example.com"

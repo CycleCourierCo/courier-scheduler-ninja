@@ -3,6 +3,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.1';
 import { Resend } from 'npm:resend@4.0.0';
 import { requireAdminOrCronAuth, createAuthErrorResponse } from '../_shared/auth.ts';
 import { trackResend } from "../_shared/integrationLog.ts";
+import { pickTimeslipVehicle } from "../_shared/timeslipVehicle.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -11,7 +12,10 @@ const corsHeaders = {
 
 interface GenerateTimeslipsRequest {
   date: string; // YYYY-MM-DD format
+  driverId?: string; // optional: only generate for this driver's profile id
 }
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface JobInfo {
   orderId: string;
@@ -70,7 +74,18 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     );
 
-    const { date }: GenerateTimeslipsRequest = await req.json();
+    const { date, driverId: rawDriverId }: GenerateTimeslipsRequest = await req.json();
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return new Response(JSON.stringify({ error: 'A valid date (YYYY-MM-DD) is required' }), {
+        status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+    if (rawDriverId && !UUID_RE.test(rawDriverId)) {
+      return new Response(JSON.stringify({ error: 'Invalid driver' }), {
+        status: 400, headers: { 'Content-Type': 'application/json', ...corsHeaders },
+      });
+    }
+    const onlyDriverId = rawDriverId || null;
     const authHeader = req.headers.get('Authorization');
     const cronSecret = req.headers.get('X-Cron-Secret');
     
@@ -160,6 +175,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`👥 Users with driver role: ${driverIds.length}`);
 
     const createdTimeslips = [];
+    let matchedDrivers = 0;
     const warnings: string[] = [];
     const depotCoords = "52.4707965,-1.8749747"; // Depot coordinates
 
@@ -207,11 +223,18 @@ const handler = async (req: Request): Promise<Response> => {
 
 
       if (!driver) {
+        // A single-driver run ignores everyone else, including unmatched names
+        if (onlyDriverId) continue;
         const warning = `Driver not found in database: ${driverName}`;
         console.warn(`  ⚠️ ${warning}`);
         warnings.push(warning);
         continue;
       }
+
+      if (onlyDriverId && driver.id !== onlyDriverId) {
+        continue;
+      }
+      matchedDrivers++;
 
       // Build all stops from collections and deliveries
       const allStops: JobLocation[] = [];
@@ -344,7 +367,7 @@ const handler = async (req: Request): Promise<Response> => {
       // Never overwrite an approved timeslip
       const { data: existingSlip } = await supabaseClient
         .from('timeslips')
-        .select('id, status')
+        .select('id, status, vehicle_id')
         .eq('driver_id', driver.id)
         .eq('date', date)
         .maybeSingle();
@@ -352,6 +375,24 @@ const handler = async (req: Request): Promise<Response> => {
         warnings.push(`Skipped ${driverName}: timeslip already approved`);
         continue;
       }
+
+      // Van: the route assignment for this driver on this day wins, then a van
+      // already set on an existing draft, then the profile's default van.
+      // (Using the default van blindly could grab another driver's route.)
+      const { data: assignment } = await supabaseClient
+        .from('saved_route_assignments')
+        .select('vehicle_id')
+        .eq('driver_id', driver.id)
+        .eq('route_date', date)
+        .not('vehicle_id', 'is', null)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const vehicleId = pickTimeslipVehicle({
+        assignedVehicleId: assignment?.vehicle_id,
+        existingVehicleId: existingSlip?.vehicle_id,
+        defaultVehicleId: driver.default_vehicle_id,
+      });
 
       // Create or update timeslip (upsert on driver_id, date)
       const { data: timeslip, error: timeslipError } = await supabaseClient
@@ -366,7 +407,7 @@ const handler = async (req: Request): Promise<Response> => {
           hourly_rate: driver.hourly_rate || 11.00,
           van_allowance: driver.uses_own_van ? (driver.van_allowance || 0.00) : 0.00,
           mileage: (driver.van_allowance || 0) > 0 ? 160 : null,
-          vehicle_id: driver.default_vehicle_id || null,
+          vehicle_id: vehicleId,
           total_stops: totalStops,
           total_jobs: totalJobs > 0 ? totalJobs : null,
           route_links: routeLinks,
@@ -392,6 +433,11 @@ const handler = async (req: Request): Promise<Response> => {
       console.log(`     - Collections: ${jobs.collections.length}, Deliveries: ${jobs.deliveries.length}`);
       console.log(`     - Stops: ${totalStops}, Stop Hours: ${stopHours.toFixed(2)}h`);
       console.log(`     - Total Jobs: ${totalJobs}, Total Pay: £${totalPay.toFixed(2)}`);
+    }
+
+    const driversCount = onlyDriverId ? matchedDrivers : driverJobsMap.size;
+    if (onlyDriverId && matchedDrivers === 0) {
+      warnings.push('The selected driver had no completed jobs on this date');
     }
 
     // Send email notification
@@ -423,7 +469,7 @@ const handler = async (req: Request): Promise<Response> => {
 
       // Determine email subject based on outcome
       let subject = '';
-      if (createdTimeslips.length === 0 && driverJobsMap.size > 0) {
+      if (createdTimeslips.length === 0 && driversCount > 0) {
         subject = `❌ Timeslip Generation Failed - ${date}`;
       } else if (warnings.length > 0) {
         subject = `⚠️ Timeslips Generated - ${date} (${createdTimeslips.length} created, ${warnings.length} warnings)`;
@@ -432,7 +478,7 @@ const handler = async (req: Request): Promise<Response> => {
       }
 
       const emailHtml = `
-        <h2>Timeslip Generation Report - ${date}</h2>
+        <h2>Timeslip Generation Report - ${date}${onlyDriverId ? ' (single driver)' : ''}</h2>
         <p><strong>Execution Time:</strong> ${new Date().toISOString()}</p>
         <p><strong>Duration:</strong> ${(executionTime / 1000).toFixed(2)}s</p>
         <p><strong>Status:</strong> ${status.toUpperCase()}</p>
@@ -444,7 +490,7 @@ const handler = async (req: Request): Promise<Response> => {
         <ul>
           <li><strong>Total collections:</strong> ${queryResult.totalCollections}</li>
           <li><strong>Total deliveries:</strong> ${queryResult.totalDeliveries}</li>
-          <li><strong>Unique drivers:</strong> ${driverJobsMap.size}</li>
+          <li><strong>Unique drivers:</strong> ${driversCount}</li>
           <li><strong>Timeslips created:</strong> ${createdTimeslips.length}</li>
         </ul>
         
@@ -462,9 +508,9 @@ const handler = async (req: Request): Promise<Response> => {
           </ul>
         ` : ''}
         
-        ${createdTimeslips.length === 0 && driverJobsMap.size > 0 ? `
+        ${createdTimeslips.length === 0 && driversCount > 0 ? `
           <h3>🚨 Alert: No Timeslips Created</h3>
-          <p>The system found ${driverJobsMap.size} drivers with completed jobs, but created 0 timeslips.</p>
+          <p>The system found ${driversCount} drivers with completed jobs, but created 0 timeslips.</p>
           <p><strong>Possible Issues:</strong></p>
           <ul>
             <li>Driver names don't match database profiles</li>
@@ -499,7 +545,7 @@ const handler = async (req: Request): Promise<Response> => {
         run_date: date,
         status: status,
         timeslips_created: createdTimeslips.length,
-        drivers_processed: driverJobsMap.size,
+        drivers_processed: driversCount,
         warnings: warnings.length > 0 ? warnings : null,
         execution_duration_ms: executionTime
       });
@@ -517,6 +563,7 @@ const handler = async (req: Request): Promise<Response> => {
       JSON.stringify({ 
         success: true, 
         message: `Generated ${createdTimeslips.length} draft timeslip${createdTimeslips.length !== 1 ? 's' : ''}`,
+        driverMatched: onlyDriverId ? matchedDrivers > 0 : undefined,
         count: createdTimeslips.length,
         timeslips: createdTimeslips,
         warnings: warnings,

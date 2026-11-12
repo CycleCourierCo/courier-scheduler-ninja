@@ -22,7 +22,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { ferryRegionOfAddress, ferryRegionOf, FERRY_REGION_LABEL, ferrySurchargeFor } from "@/utils/northernIreland";
+import { ferryRegionOfAddress, ferryRegionOf, FERRY_REGION_LABEL, ferrySurchargeFor, ferryRefLabel } from "@/utils/northernIreland";
 import { ferryPartnerFor } from "@/constants/depot";
 import { getNiDirection } from "@/utils/niDelivery";
 import { createShipdayOrder } from "@/services/shipdayService";
@@ -172,7 +172,7 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
         .update({ ni_bfs_number: bfsInput.trim() || null, ni_bfs_updated_at: now })
         .eq("id", order.id);
       if (error) throw error;
-      toast.success("BFS number saved");
+      toast.success(`${ferryRefLabel(ferryRegion)} saved`);
     } catch (e: any) {
       console.error("BFS save failed", e);
       toast.error(e?.message || "Could not save BFS number");
@@ -461,13 +461,13 @@ const NorthernIrelandEditor: React.FC<Props> = ({ order, onUpdate, bare = false 
               <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 items-end">
                 <div className="space-y-1">
                   <Label htmlFor={`bfs-${order.id}`} className="text-xs">
-                    BFS consignment number
+                    {ferryRegion === "isle_of_man" ? "Order number" : "BFS consignment number"}
                   </Label>
                   <Input
                     id={`bfs-${order.id}`}
                     value={bfsInput}
                     onChange={(e) => setBfsInput(e.target.value)}
-                    placeholder="e.g. BFS12345678"
+                    placeholder={ferryRegion === "isle_of_man" ? "Order number" : "e.g. BFS12345678"}
                     disabled={savingBfs}
                     className="h-8"
                   />

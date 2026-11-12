@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { INSPECTION_ROUTING_LABELS, inspectionRoutingState, isInspectionDoneForRouting } from "@/lib/inspectionRouting";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -458,20 +459,12 @@ const getInspectionStatusBadge = (
 ): { text: string; color: string; icon: JSX.Element } | null => {
   // If inspection is not required, don't show any badge
   if (!needsInspection) return null;
-  
-  // Check if inspection is complete (inspected with no issues OR repaired)
-  if (inspectionStatus === 'inspected' || inspectionStatus === 'repaired') {
-    return {
-      text: 'Inspection Done',
-      color: 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300',
-      icon: <Wrench className="h-3 w-3" />
-    };
-  }
-  
-  // Show pending badge for all other cases (pending, issues_found, in_repair, or no record)
+  const state = inspectionRoutingState(inspectionStatus);
   return {
-    text: 'Inspection Pending',
-    color: 'bg-status-waiting/10 dark:bg-status-waiting/20 text-status-waiting dark:text-status-waiting',
+    text: INSPECTION_ROUTING_LABELS[state],
+    color: state === 'done'
+      ? 'bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300'
+      : 'bg-status-waiting/10 dark:bg-status-waiting/20 text-status-waiting dark:text-status-waiting',
     icon: <Wrench className="h-3 w-3" />
   };
 };
@@ -1777,7 +1770,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
       // Check if order is collected (for "collected only" filter) - use order_collected boolean
       const isCollected = order.order_collected === true;
       const needsInspection = (order as any).needs_inspection === true;
-      const isInspectionComplete = order.inspection_status === 'inspected' || order.inspection_status === 'repaired';
+      const isInspectionComplete = isInspectionDoneForRouting(order.inspection_status);
       // Inspected-only only affects DELIVERIES of orders that actually need inspection.
       // Pickups, and deliveries of orders that don't need inspection, are unaffected.
       const passesInspected = !applyFilters || !showInspectedOnly || !needsInspection || isInspectionComplete;
@@ -2995,7 +2988,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
     if (j.type !== 'delivery') return false;
     const needs = (j.orderData?.needs_inspection ?? j.order?.needs_inspection) === true;
     const st = j.orderData?.inspection_status ?? j.order?.inspection_status;
-    return needs && st !== 'inspected' && st !== 'repaired';
+    return needs && !isInspectionDoneForRouting(st);
   };
   const isNotCustomerDate = (j: any) =>
     isRemovableNotCustomerDate(j.type, selectedDate, j.orderData?.pickup_date, j.orderData?.delivery_date);
@@ -4473,7 +4466,8 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                         )}
                         {/* Inspection Status Badge */}
                         {job.order.needs_inspection && (() => {
-                          const isInspectionComplete = job.order.inspection_status === 'inspected' || job.order.inspection_status === 'repaired';
+                          const inspectionState = inspectionRoutingState(job.order.inspection_status);
+                          const isInspectionComplete = inspectionState === 'done';
                           return (
                             <Badge className={`text-xs flex items-center gap-1 ${
                               isInspectionComplete 
@@ -4481,7 +4475,7 @@ const RouteBuilder: React.FC<RouteBuilderProps> = ({
                                 : 'bg-status-waiting/10 text-status-waiting dark:bg-status-waiting/20 dark:text-status-waiting'
                             }`}>
                               <Wrench className="h-3 w-3" />
-                              {isInspectionComplete ? 'Inspection Done' : 'Inspection Pending'}
+                              {INSPECTION_ROUTING_LABELS[inspectionState]}
                             </Badge>
                           );
                         })()}

@@ -1,5 +1,9 @@
 # Roadmap
 
+- [x] Bikes in Storage: sort filter Bay / A-Z / Z-A / Newest / Oldest; 8 sort tests pass and the buttons were checked in the live preview at 360px with no sideways scrolling.
+
+- [x] Timeslips: backfill Tahir's 26–28 Oct drafts; generator uses each driver's assigned van; Generate popup can target one driver
+
 - [x] Lost and Found: order-linked items, private photos, collection/delivery van and depot checks, admin/customer-service access; five tests pass and access rules verified.
 - [ ] Lost and Found signed-in creation/photo/check readback — external unmanaged authentication prevents an authenticated browser test.
 
@@ -99,3 +103,5 @@
 - [ ] Signed-in check on a real phone as loader/driver — preview sign-in not available
 
 - [x] Tasks on phones: assignee picker works in New/Edit task and the list filter; task list fits the screen and shows who created each task.
+- [x] Route planner: ship-as-is bikes count as inspection done; Repairs Declined / Awaiting Buyer Approval badges
+- [x] Show Box My Bike buyer contact details on the order page

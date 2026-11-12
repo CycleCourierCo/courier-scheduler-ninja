@@ -11,7 +11,9 @@ import { MapPin, Package } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useStorageBays, getBayMaxPosition } from "@/hooks/useStorageBays";
 import { hasLeftDepot } from "@/utils/storageLocation";
+import { hasBeenCollected } from "@/utils/depotPresence";
 import { uuid } from "@/lib/uuid";
+import { allocatedByLabel } from "@/lib/bayOverride";
 
 
 interface StorageLocationProps {
@@ -148,7 +150,7 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
 
         if (error) {
           console.error('Error updating storage locations:', error);
-          toast.error('Failed to save storage allocation');
+          toast.error(/already occupied/i.test(error.message) ? error.message : 'Failed to save storage allocation');
           return;
         }
 
@@ -200,23 +202,8 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
     }
   };
 
-  // Check if order has been collected
-  const hasBeenCollected = (order: Order) => {
-    if (order.status === 'collected' || order.status === 'driver_to_delivery') {
-      return true;
-    }
-    
-    const trackingUpdates = order.trackingEvents?.shipday?.updates || [];
-    return trackingUpdates.some(update => 
-      update.description?.toLowerCase().includes('collected') || 
-      update.description?.toLowerCase().includes('pickup') ||
-      update.event === 'ORDER_POD_UPLOAD' ||
-      update.status?.toLowerCase().includes('collected')
-    );
-  };
-
   // Only show storage location for collected bikes still in our depot
-  if (!hasBeenCollected(order) || hasLeftDepot(order.status)) {
+  if (!hasBeenCollected(order) || hasLeftDepot(order.status) || order.orderDelivered === true) {
     return null;
   }
 
@@ -265,6 +252,9 @@ export const StorageLocation = ({ order }: StorageLocationProps) => {
                   </Badge>
                   <span className="text-sm text-muted-foreground">
                     Stored: {orderAllocations[0].allocatedAt.toLocaleDateString()} at {orderAllocations[0].allocatedAt.toLocaleTimeString()}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    By {allocatedByLabel(orderAllocations[0])}
                   </span>
                 </>
               )}

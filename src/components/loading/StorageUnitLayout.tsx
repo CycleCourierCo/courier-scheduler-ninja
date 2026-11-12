@@ -1,3 +1,4 @@
+import { allocatedByLabel } from "@/lib/bayOverride";
 import { Card } from "@/components/ui/card";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Badge } from "@/components/ui/badge";
@@ -89,6 +90,9 @@ export const StorageUnitLayout = ({ storageAllocations }: StorageUnitLayoutProps
                                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
                                   <Calendar className="h-3 w-3" />
                                   Stored: {format(allocation.allocatedAt, "MMM dd, yyyy HH:mm")}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                  Allocated by: <span className="font-medium text-foreground">{allocatedByLabel(allocation)}</span>
                                 </div>
                               </div>
                             </div>

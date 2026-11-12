@@ -3,12 +3,14 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 import { CheckCircle2, FileText, Loader2, Settings2, Wrench } from "lucide-react";
 import { toast } from "sonner";
 import { toPublicFileUrl } from "@/lib/publicFileUrl";
 import {
   fetchPublicInspectionApproval,
   submitPublicInspectionApproval,
+  submitPublicSizeConfirmation,
 } from "@/services/inspectionService";
 import DoorstepShell from "@/components/design/DoorstepShell";
 
@@ -34,6 +36,8 @@ interface ApprovalData {
   customer_name?: string | null;
   bike?: string | null;
   frame_size?: string | null;
+  measured_frame_size?: string | null;
+  customer_size_response?: 'matches' | 'does_not_match' | null;
   reference?: string | null;
   report_url?: string | null;
   issues?: ApprovalIssue[];
@@ -51,6 +55,9 @@ export default function InspectionApproval() {
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [submitted, setSubmitted] = useState(false);
   const [approvedNow, setApprovedNow] = useState<ApprovalIssue[]>([]);
+  const [sizeMismatch, setSizeMismatch] = useState(false);
+  const [sizeNote, setSizeNote] = useState("");
+  const [sizeSaving, setSizeSaving] = useState(false);
   const [serviceChoice, setServiceChoice] = useState<'accepted' | 'declined' | null>(null);
 
   useEffect(() => {
@@ -110,6 +117,22 @@ export default function InspectionApproval() {
 
   const needsServiceChoice = data?.inspection_type === 'inspection_only' && data?.service_decision === 'pending';
 
+  const answerSize = async (response: 'matches' | 'does_not_match') => {
+    if (!id) return;
+    setSizeSaving(true);
+    try {
+      const result = await submitPublicSizeConfirmation(id, response, response === 'does_not_match' ? sizeNote : undefined);
+      if (!result?.success) throw new Error(result?.error || "failed");
+      setData((d) => (d ? { ...d, customer_size_response: response } : d));
+      toast.success(response === 'matches' ? "Thanks for confirming the size" : "Thanks — we'll check the size");
+    } catch (err) {
+      console.error("Error saving size answer:", err);
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setSizeSaving(false);
+    }
+  };
+
   const handleSubmit = async (approveAll: boolean) => {
     if (!id) return;
     if (needsServiceChoice && !serviceChoice) {
@@ -163,6 +186,52 @@ export default function InspectionApproval() {
   return (
     <DoorstepShell title="Repairs for your bike" reference={data.reference ?? undefined}>
         <p className="doorstep-data break-words">{bike}{data.frame_size ? ` · ${data.frame_size}` : ""}</p>
+
+        {data.measured_frame_size && (
+          <Card className="shadow-none">
+            <CardHeader><CardTitle className="text-base">Please check the bike size</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                No size was given when this bike was booked. Our mechanic measured it as:
+              </p>
+              <p className="doorstep-data">{data.measured_frame_size}</p>
+              {data.customer_size_response ? (
+                <p className="flex items-center gap-2 text-sm font-medium">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-status-done" />
+                  {data.customer_size_response === 'matches'
+                    ? "You confirmed this is the right size."
+                    : "You told us this isn't the right size. We'll be in touch."}
+                </p>
+              ) : sizeMismatch ? (
+                <div className="space-y-2">
+                  <Textarea
+                    rows={2}
+                    maxLength={500}
+                    value={sizeNote}
+                    onChange={(e) => setSizeNote(e.target.value)}
+                    placeholder="What size should it be? (optional)"
+                    aria-label="Correct size"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button variant="outline" onClick={() => setSizeMismatch(false)} disabled={sizeSaving}>Back</Button>
+                    <Button variant="doorstep" onClick={() => answerSize('does_not_match')} disabled={sizeSaving}>
+                      {sizeSaving ? "Sending..." : "Send"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="doorstep" onClick={() => answerSize('matches')} disabled={sizeSaving}>
+                    {sizeSaving ? "Sending..." : "Yes, that's right"}
+                  </Button>
+                  <Button variant="outline" className="h-14" onClick={() => setSizeMismatch(true)} disabled={sizeSaving}>
+                    No, it's different
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
         <p className="text-muted-foreground">{pending.length > 0 ? "Our mechanic found the following. Approve what you'd like us to do." : "Your inspection report is ready."}</p>
 
         {reportUrl && (

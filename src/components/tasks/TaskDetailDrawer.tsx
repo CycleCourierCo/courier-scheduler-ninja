@@ -9,7 +9,10 @@ import { addTaskComment, deleteTask, updateTask } from "@/services/tasksService"
 import { useAuth } from "@/contexts/AuthContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { notify } from "@/lib/notify";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { TASK_STATUSES } from "@/types/task";
 import { format } from "date-fns";
 import TaskStatusBadge from "./TaskStatusBadge";
@@ -31,6 +34,8 @@ const TaskDetailDrawer: React.FC<Props> = ({ taskId, onOpenChange }) => {
   const [comment, setComment] = useState('');
   const [posting, setPosting] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   
   // Admins, project managers and whoever raised the task may remove it.
   const canDelete =
@@ -57,21 +62,20 @@ const TaskDetailDrawer: React.FC<Props> = ({ taskId, onOpenChange }) => {
     } catch (e: any) { toast.error(e?.message || 'Failed to update'); }
   };
 
-  const handleDelete = () => {
-    if (!taskId) return;
-    notify.confirm({
-      title: "Delete this task?",
-      confirmLabel: "Delete",
-      destructive: true,
-      onConfirm: async () => {
-        try {
-          await deleteTask(taskId);
-          toast.success('Task deleted');
-          qc.invalidateQueries({ queryKey: ['tasks'] });
-          onOpenChange(false);
-        } catch (e: any) { toast.error(e?.message || 'Failed to delete'); }
-      },
-    });
+  const handleDelete = async () => {
+    if (!taskId || deleting) return;
+    setDeleting(true);
+    try {
+      await deleteTask(taskId);
+      toast.success('Task deleted');
+      qc.invalidateQueries({ queryKey: ['tasks'] });
+      setConfirmDelete(false);
+      onOpenChange(false);
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to delete');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   return (
@@ -141,7 +145,7 @@ const TaskDetailDrawer: React.FC<Props> = ({ taskId, onOpenChange }) => {
                     <Pencil className="h-3 w-3 mr-1" /> Edit
                   </Button>
                   {canDelete && (
-                    <Button size="sm" variant="destructive" onClick={handleDelete}>
+                    <Button size="sm" variant="destructive" onClick={() => setConfirmDelete(true)}>
                       <Trash2 className="h-3 w-3 mr-1" /> Delete
                     </Button>
                   )}
@@ -177,6 +181,26 @@ const TaskDetailDrawer: React.FC<Props> = ({ taskId, onOpenChange }) => {
           )}
         </SheetContent>
       </Sheet>
+      <AlertDialog open={confirmDelete} onOpenChange={(o) => { if (!deleting) setConfirmDelete(o); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this task?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {task?.title ? `"${task.title}" and its comments will be removed. ` : ''}This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => { e.preventDefault(); handleDelete(); }}
+            >
+              {deleting && <Loader2 className="h-3 w-3 animate-spin mr-1" />} Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <TaskDialog open={editOpen} onOpenChange={setEditOpen} task={task || null} />
     </>
   );

@@ -133,7 +133,7 @@ export default function NiPartnerUpload() {
     e.preventDefault();
     if (!orderId) return;
     if (!bfs.trim() && !file && !labelUrl) {
-      toast.error(`Please enter a ${isIom ? "consignment" : "BFS"} number or upload a label`);
+      toast.error(`Please enter a ${isIom ? "order" : "BFS"} number or upload a label`);
       return;
     }
     setSubmitting(true);
@@ -154,7 +154,7 @@ export default function NiPartnerUpload() {
       if (data.labelUrl) {
         setLabelUrl(data.labelUrl);
       }
-      toast.success(`Label and ${isIom ? "consignment" : "BFS"} number saved`);
+      toast.success(`Label and ${isIom ? "order" : "BFS"} number saved`);
     } catch (err: any) {
       console.error("Partner upload failed", err);
       toast.error(err?.message || "Could not save — please try again");
@@ -166,7 +166,7 @@ export default function NiPartnerUpload() {
   const isIom = (job as any)?.ferry_region === "isle_of_man";
   const regionName = isIom ? "Isle of Man" : "Northern Ireland";
   const partner = ferryPartnerFor(isIom ? "isle_of_man" : "northern_ireland");
-  const refName = isIom ? "consignment number" : "BFS consignment number";
+  const refName = isIom ? "order number" : "BFS consignment number";
   const directionLabel =
     job?.direction === "inbound"
       ? `From ${regionName} to mainland`
@@ -225,7 +225,7 @@ export default function NiPartnerUpload() {
                       id="bfs"
                       value={bfs}
                       onChange={(e) => setBfs(e.target.value)}
-                      placeholder={isIom ? "Consignment number" : "e.g. BFS12345678"}
+                      placeholder={isIom ? "Order number" : "e.g. BFS12345678"}
                       disabled={submitting}
                     />
                     {bfsSaved && bfsSaved === bfs && (
@@ -280,7 +280,7 @@ export default function NiPartnerUpload() {
                     ) : (
                       <Upload className="h-4 w-4 mr-2" />
                     )}
-                    {submitting ? "Saving…" : `Upload label / save ${isIom ? "consignment" : "BFS"} number`}
+                    {submitting ? "Saving…" : `Upload label / save ${isIom ? "order" : "BFS"} number`}
                   </Button>
                 </form>
               </>

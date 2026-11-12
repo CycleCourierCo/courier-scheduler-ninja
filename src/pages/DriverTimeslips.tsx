@@ -228,13 +228,21 @@ const DriverTimeslips = () => {
 
   // Generate timeslips mutation
   const generateMutation = useMutation({
-    mutationFn: (date: Date) => timeslipService.generateTimeslips(format(date, 'yyyy-MM-dd')),
-    onSuccess: (data) => {
+    mutationFn: ({ date, driverId }: { date: Date; driverId?: string }) =>
+      timeslipService.generateTimeslips(format(date, 'yyyy-MM-dd'), driverId),
+    onSuccess: (data, vars) => {
       queryClient.invalidateQueries({ queryKey: ['timeslips'] });
       setShowGenerateDialog(false);
 
       if (data.count === 0) {
-        toast.info("No completed orders found in Shipday for this date");
+        const reason = data.warnings?.find((w: string) => w !== 'The selected driver had no completed jobs on this date');
+        if (vars.driverId && data.driverMatched === false) {
+          toast.info("That driver has no completed jobs on this date");
+        } else if (vars.driverId && reason) {
+          toast.error(`Timeslip not created: ${reason}`);
+        } else {
+          toast.info("No completed orders found for this date");
+        }
       } else {
         toast.success(`Generated ${data.count} draft timeslip${data.count !== 1 ? 's' : ''}`);
       }
@@ -343,8 +351,8 @@ const DriverTimeslips = () => {
     onError: (e: any) => toast.error(e.message || 'Delete failed'),
   });
 
-  const handleGenerate = (date: Date) => {
-    generateMutation.mutate(date);
+  const handleGenerate = (date: Date, driverId?: string) => {
+    generateMutation.mutate({ date, driverId });
   };
 
   const handleEdit = (timeslip: Timeslip) => {

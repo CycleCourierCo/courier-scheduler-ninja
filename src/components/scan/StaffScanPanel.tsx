@@ -11,7 +11,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertTriangle, Truck, Warehouse, Undo2, Wrench, ExternalLink, Route } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { panelsForRoles, driverScanState, type ScanPanel, type RouteToday } from "@/lib/labelScan";
+import { panelsForRoles, driverScanState, normaliseBayDetail, type ScanPanel, type RouteToday } from "@/lib/labelScan";
 
 const ACTION_LABEL: Record<string, string> = { bay: "Put in bay", load_van: "Loaded onto van", unload: "Unloaded to depot" };
 const PANEL_LABEL: Record<ScanPanel, string> = { admin: "Office", loader: "Loader", mechanic: "Mechanic", driver: "Driver", staff: "Staff" };
@@ -102,7 +102,7 @@ export default function StaffScanPanel({ reference, compact }: { reference: stri
           <div className="space-y-2">
             <div className="flex gap-2">
               <Input value={bay} onChange={(e) => setBay(e.target.value.toUpperCase())} placeholder="Bay, e.g. A-3" className="h-12" />
-              <Button className="h-12" disabled={!bay || act.isPending} onClick={() => act.mutate({ action: "bay", detail: bay })}><Warehouse className="mr-1 h-4 w-4" />Put in bay</Button>
+              <Button className="h-12" disabled={!bay || act.isPending} onClick={() => { const b = normaliseBayDetail(bay); if (!b) { toast.error("Bay not recognised — use a letter and slot, e.g. B2"); return; } act.mutate({ action: "bay", detail: b }); }}><Warehouse className="mr-1 h-4 w-4" />Put in bay</Button>
             </div>
             {scanBay ? (
               <BayScanner onCancel={() => setScanBay(false)} onBay={(b) => { setScanBay(false); act.mutate({ action: "bay", detail: b }); }} />

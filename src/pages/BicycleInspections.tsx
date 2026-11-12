@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { isInspectionOrderCollected, getInspectionCollectedAt } from "@/lib/inspectionCollection";
 import { getPublicAppUrl } from "@/lib/publicAppUrl";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -72,6 +73,7 @@ import {
   addIssueToExistingInspection,
   adminSetInspectionStatus,
   updateInspectionBikeType,
+  updateInspectionFrameSize,
   saveInspectionIdentity,
   reviewInspectionIdentity,
 
@@ -492,7 +494,7 @@ const BicycleInspections = () => {
       toast.success("Storage location updated");
     },
     onError: (error) => {
-      toast.error("Failed to update storage location");
+      toast.error(/already occupied/i.test((error as any)?.message ?? "") ? (error as any).message : "Failed to update storage location");
       console.error(error);
     },
   });
@@ -605,6 +607,19 @@ const BicycleInspections = () => {
     },
     onError: (error) => {
       toast.error("Failed to update bike category");
+      console.error(error);
+    },
+  });
+
+  const updateFrameSizeMutation = useMutation({
+    mutationFn: async ({ inspectionId, frameSize }: { inspectionId: string; frameSize: string }) =>
+      updateInspectionFrameSize(inspectionId, frameSize),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Bike size saved");
+    },
+    onError: (error) => {
+      toast.error("Failed to save bike size");
       console.error(error);
     },
   });
@@ -1182,7 +1197,7 @@ const BicycleInspections = () => {
     setIdentityResult(null);
     setIdentityBrand(order?.bike_brand || "");
     setIdentityModel(order?.bike_model || "");
-    setIdentityFrameSize("");
+    setIdentityFrameSize(order?.inspection?.actual_frame_size || "");
     setIdentityNotes("");
     setInspectionChecklistOpen(true);
 
@@ -1301,7 +1316,7 @@ const BicycleInspections = () => {
   const inspectionOrder = (inspections as any[]).find((o) => o.id === selectedOrderForInspection);
   const bookedBrand = (inspectionOrder?.bike_brand || "").trim();
   const bookedModel = (inspectionOrder?.bike_model || "").trim();
-  const bookedFrameSize = (inspectionOrder?.frame_size || "").trim();
+  const bookedFrameSize = (inspectionOrder?.inspection?.frame_size || inspectionOrder?.frame_size || "").trim();
 
   const identityAnswered =
     identityResult === "match"
@@ -1500,9 +1515,9 @@ const BicycleInspections = () => {
       if (sortBy === "tracking_asc") {
         return (a.tracking_number || "").localeCompare(b.tracking_number || "");
       }
-      // Use collection_confirmation_sent_at if available, fallback to created_at
-      const aTime = new Date(a.collection_confirmation_sent_at || a.created_at || 0).getTime();
-      const bTime = new Date(b.collection_confirmation_sent_at || b.created_at || 0).getTime();
+      // Use the collection time if known, fallback to created_at
+      const aTime = new Date(getInspectionCollectedAt(a) || a.created_at || 0).getTime();
+      const bTime = new Date(getInspectionCollectedAt(b) || b.created_at || 0).getTime();
       return sortBy === "oldest_collected" ? aTime - bTime : bTime - aTime;
     });
     return arr;
@@ -1510,7 +1525,7 @@ const BicycleInspections = () => {
 
   // Reference date used by the date filter: collection date, falling back to created date
   const getRefDate = (o: any) =>
-    o.collection_confirmation_sent_at || o.pickup_date || o.created_at || null;
+    getInspectionCollectedAt(o) || o.pickup_date || o.created_at || null;
   const getRepairerNames = (o: any): string[] =>
     (o.issues || [])
       .filter((iss: any) => iss.status === "repaired" && iss.resolved_by_name)
@@ -1690,7 +1705,7 @@ const BicycleInspections = () => {
       if (settled) invoicedList.push(i);
 
       if (!i.inspection || status === "pending") {
-        if (i.collection_confirmation_sent_at) collected.push(i);
+        if (isInspectionOrderCollected(i)) collected.push(i);
         else awaitingInspection.push(i);
         continue;
       }
@@ -1998,7 +2013,7 @@ const BicycleInspections = () => {
                   const hasAllocation = Array.isArray(order.storage_locations)
                     ? order.storage_locations.length > 0
                     : !!order.storage_locations;
-                  if (hasAllocation || !order.collection_confirmation_sent_at) return null;
+                  if (hasAllocation || !isInspectionOrderCollected(order) || order.order_delivered === true) return null;
                   const driver = getDriverAssignment(
                     {
                       trackingEvents: order.tracking_events,
@@ -2018,8 +2033,8 @@ const BicycleInspections = () => {
                 {canManageInspections && (
                   <Badge variant="outline" className="flex items-center gap-1">
                     <Clock className="h-3 w-3" />
-                    {order.collection_confirmation_sent_at
-                      ? `Collected ${formatDistanceToNowStrict(new Date(order.collection_confirmation_sent_at))} ago`
+                    {getInspectionCollectedAt(order)
+                      ? `Collected ${formatDistanceToNowStrict(new Date(getInspectionCollectedAt(order)!))} ago`
                       : `Awaiting collection · created ${formatDistanceToNowStrict(new Date(order.created_at))} ago`}
                   </Badge>
                 )}
@@ -2037,6 +2052,35 @@ const BicycleInspections = () => {
                         buttonClassName="h-6 text-[11px]"
                       />
                     </div>
+                    <Input
+                      key={`${inspection.id}-${inspection.actual_frame_size ?? ""}`}
+                      defaultValue={inspection.actual_frame_size ?? ""}
+                      placeholder={order.frame_size ? `Size (booked ${order.frame_size})` : "Bike size…"}
+                      aria-label="Bike size"
+                      maxLength={30}
+                      className="h-6 w-full text-[11px] sm:w-[140px]"
+                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                      onBlur={(e) => {
+                        const v = e.target.value.trim();
+                        if (v === (inspection.actual_frame_size ?? "")) return;
+                        updateFrameSizeMutation.mutate({ inspectionId: inspection.id, frameSize: v });
+                      }}
+                    />
+                    {inspection.customer_size_response ? (
+                      <Badge
+                        variant={inspection.customer_size_response === "matches" ? "secondary" : "destructive"}
+                        className="max-w-full self-start"
+                        title={inspection.customer_size_note || undefined}
+                      >
+                        <span className="min-w-0 truncate">
+                          {inspection.customer_size_response === "matches"
+                            ? "Customer confirmed size"
+                            : `Customer says size is wrong${inspection.customer_size_note ? `: ${inspection.customer_size_note}` : ""}`}
+                        </span>
+                      </Badge>
+                    ) : !inspection.frame_size && inspection.actual_frame_size && inspection.released_to_customer_at ? (
+                      <Badge variant="outline" className="self-start">Size awaiting customer check</Badge>
+                    ) : null}
                   </div>
                 )}
                 {canManageInspections && (
@@ -3803,6 +3847,18 @@ const BicycleInspections = () => {
                     Booked frame size: <span className="font-medium text-foreground">{bookedFrameSize || "not supplied"}</span>
                   </p>
                 </div>
+                {!bookedFrameSize && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">No size was given at booking — enter the size found on the bike</Label>
+                    <Input
+                      value={identityFrameSize}
+                      onChange={(e) => setIdentityFrameSize(e.target.value)}
+                      placeholder="e.g. 56cm or M"
+                      aria-label="Bike size"
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-1.5">
                   <Button
                     size="sm"
@@ -3824,7 +3880,7 @@ const BicycleInspections = () => {
                   </Button>
                 </div>
 
-                {identityResult === "match" && (
+                {identityResult === "match" && !!bookedFrameSize && (
                   <div className="space-y-1">
                     <Label className="text-xs">Frame size found on the bike</Label>
                     <Input
@@ -3854,7 +3910,7 @@ const BicycleInspections = () => {
                         className="h-9 text-sm"
                       />
                     </div>
-                    <div className="space-y-1">
+                    {!!bookedFrameSize && <div className="space-y-1">
                       <Label className="text-xs">Actual frame size</Label>
                       <Input
                         value={identityFrameSize}
@@ -3862,7 +3918,7 @@ const BicycleInspections = () => {
                         placeholder="e.g. 56cm or M"
                         className="h-9 text-sm"
                       />
-                    </div>
+                    </div>}
                     <div className="space-y-1">
                       <Label className="text-xs">Note (optional)</Label>
                       <Textarea

@@ -1,3 +1,4 @@
+import { ferryStageLabel, ferryRefLabel, localiseFerryText } from "@/utils/northernIreland";
 import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -241,7 +242,7 @@ const InboundNiSection: React.FC<{ isStaff: boolean; region?: "all" | "northern_
         <TabsList className="flex flex-wrap h-auto">
           {NI_INBOUND_STATUS_ORDER.map((s) => (
             <TabsTrigger key={s} value={s} className="text-xs sm:text-sm">
-              {NI_INBOUND_STATUS_LABELS[s]}{" "}
+              {ferryStageLabel(region, NI_INBOUND_STATUS_LABELS[s])}{" "}
               <Badge variant="outline" className="ml-2">
                 {grouped[s].length}
               </Badge>
@@ -290,7 +291,7 @@ const InboundNiSection: React.FC<{ isStaff: boolean; region?: "all" | "northern_
         onOpenChange={(o) => !o && setPendingStage(null)}
         title={
           pendingStage
-            ? `Mark as “${NI_INBOUND_STATUS_LABELS[pendingStage.stage]}”`
+            ? `Mark as “${ferryStageLabel(region, NI_INBOUND_STATUS_LABELS[pendingStage.stage])}”`
             : ""
         }
         description="When did this step actually happen? This is what the customer sees on tracking."
@@ -391,7 +392,7 @@ const InboundCard: React.FC<{
             {order.tracking_number || "No tracking number"}
           </CardTitle>
           <Badge variant="outline" className="shrink-0">
-            {NI_INBOUND_STATUS_LABELS[order.ni_inbound_status || "awaiting_ni_collection"]}
+            {localiseFerryText(order, NI_INBOUND_STATUS_LABELS[order.ni_inbound_status || "awaiting_ni_collection"])}
           </Badge>
         </div>
       </CardHeader>
@@ -425,9 +426,9 @@ const InboundCard: React.FC<{
           <p>{niParty?.name || "—"}</p>
           <p className="text-muted-foreground">{address || "—"}</p>
         </div>
-        {order.ni_bfs_number && (
+        {true && (
           <p className="text-muted-foreground">
-            <strong>BFS number:</strong> {order.ni_bfs_number}
+            <strong>{ferryRefLabel(order)}:</strong> {order.ni_bfs_number || "not added yet"}
           </p>
         )}
         {order.ni_partner_label_url && (

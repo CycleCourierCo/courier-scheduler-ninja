@@ -37,8 +37,12 @@ async function fillRecurrence(recurrenceId?: string | null): Promise<void> {
 }
 
 export async function deleteRecurrence(id: string): Promise<void> {
-  const { error } = await R().delete().eq('id', id);
+  // Ask for the row back: a permission refusal deletes nothing but returns no error.
+  const { data, error } = await R().delete().eq('id', id).select('id');
   if (error) throw error;
+  if (!data || data.length === 0) {
+    throw new Error("You can't delete this repeating task — only an admin can.");
+  }
 }
 
 /** Runs the daily generator immediately (same code path as the nightly job). */

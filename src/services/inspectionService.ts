@@ -443,6 +443,17 @@ export const updateInspectionBikeType = async (
   if (error) throw error;
 };
 
+export const updateInspectionFrameSize = async (
+  inspectionId: string,
+  frameSize: string | null
+): Promise<void> => {
+  const { error } = await supabase
+    .from('bicycle_inspections')
+    .update({ actual_frame_size: frameSize?.trim() || null } as any)
+    .eq('id', inspectionId);
+  if (error) throw error;
+};
+
 export interface InspectionIdentityInput {
   matches: boolean;
   actualBrand?: string | null;
@@ -628,6 +639,10 @@ export const getPendingInspections = async () => {
         storage_locations,
         customer_order_number,
         collection_confirmation_sent_at,
+        order_collected,
+        order_delivered,
+        scheduled_pickup_date,
+        updated_at,
         pickup_date,
         created_at,
         tracking_events,
@@ -655,7 +670,7 @@ export const getPendingInspections = async () => {
         .select('*, inspection_issues(*)')
         .in('order_id', orderIds),
       userIds.length > 0
-        ? supabase.from('profiles').select('id, name, email, company_name').in('id', userIds)
+        ? (supabase.rpc as any)('get_booking_account_names', { p_user_ids: userIds })
         : Promise.resolve({ data: [] as any[], error: null } as any),
       supabase
         .from('bicycle_inspections')
@@ -669,7 +684,7 @@ export const getPendingInspections = async () => {
 
     // Look up booking-account names so the UI can filter/label by customer.
     const profileMap = new Map<string, { name: string | null; email: string | null; company: string | null }>(
-      (profs || []).map((p: any) => [p.id, { name: p.name ?? null, email: p.email ?? null, company: p.company_name ?? null }])
+      (profs || []).map((p: any) => [p.id, { name: p.display_name ?? null, email: p.email ?? null, company: null }])
     );
 
     // Index inspections by order so we don't rescan the list for every order.
@@ -710,6 +725,10 @@ export const getPendingInspections = async () => {
       storage_locations: null,
       customer_order_number: insp.reference || null,
       collection_confirmation_sent_at: null,
+      order_collected: false,
+      order_delivered: false,
+      scheduled_pickup_date: null,
+      updated_at: insp.updated_at,
       pickup_date: null,
       created_at: insp.created_at,
       tracking_events: null,
@@ -750,6 +769,10 @@ export const getMyInspections = async (userId: string) => {
         storage_locations,
         customer_order_number,
         collection_confirmation_sent_at,
+        order_collected,
+        order_delivered,
+        scheduled_pickup_date,
+        updated_at,
         pickup_date,
         created_at
       `)
@@ -1946,6 +1969,19 @@ export const fetchPublicInspectionApproval = async (inspectionId: string): Promi
   });
   if (error) throw error;
   return data ?? { found: false };
+};
+
+/** Public: customer confirms whether the size the mechanic measured is right. */
+export const submitPublicSizeConfirmation = async (
+  inspectionId: string,
+  sizeResponse: 'matches' | 'does_not_match',
+  sizeNote?: string
+): Promise<{ success: boolean; error?: string }> => {
+  const { data, error } = await supabase.functions.invoke('public-inspection-approval', {
+    body: { inspectionId, action: 'size', sizeResponse, sizeNote: sizeNote?.trim() || undefined },
+  });
+  if (error) throw error;
+  return (data || { success: false }) as any;
 };
 
 /** Public (unauthenticated) submission of the approved repairs. */

@@ -3,11 +3,7 @@ import jsPDF from 'jspdf';
 import { format } from "date-fns";
 import type { Order } from "@/types/order";
 import { supabase } from "@/integrations/supabase/client";
-import thermalHeader from "@/assets/brand/mark-1bit-128.png.asset.json";
-import thermalCompactHeader from "@/assets/brand/mark-1bit-64.png.asset.json";
-import repairIcon from "@/assets/labels/label-icon-repair.png.asset.json";
-import boxIcon from "@/assets/labels/label-icon-box.png.asset.json";
-import { publicBrandAssetUrl } from "@/lib/brandAssets";
+import { FULL_PNG_BASE64, COMPACT_PNG_BASE64, REPAIR_PNG_BASE64, BOX_PNG_BASE64 } from "./labelArtworkData";
 import { createLabelQr } from './labelQr';
 
 export const LABEL_WIDTH = 288; // 4 inches in points
@@ -35,41 +31,32 @@ type ThermalArtwork = {
   box?: Uint8Array;
 };
 let artwork: ThermalArtwork | undefined;
-let artworkRequest: Promise<ThermalArtwork> | undefined;
 
-/** Preload original one-bit bytes; never round-trip through a canvas. */
-export const prepareThermalLabelArtwork = (): Promise<ThermalArtwork> => {
-  if (artwork) return Promise.resolve(artwork);
-  if (!artworkRequest) {
-    const load = async (path: string) => {
-      const response = await fetch(publicBrandAssetUrl(path));
-      if (!response.ok) throw new Error("Could not load thermal label artwork. Please try again.");
-      return new Uint8Array(await response.arrayBuffer());
-    };
-    const loadOptionalIcon = async (path: string) => {
-      try {
-        return await load(path);
-      } catch (error) {
-        console.warn(`Could not preload thermal label icon ${path}:`, error);
-        return undefined;
-      }
-    };
-    artworkRequest = Promise.all([
-      load(thermalHeader.url),
-      load(thermalCompactHeader.url),
-      loadOptionalIcon(repairIcon.url),
-      loadOptionalIcon(boxIcon.url),
-    ])
-      .then(([full, compact, repair, box]) => {
-        artwork = { full, compact, repair, box };
-        return artwork;
-      }).catch((error) => {
-        artworkRequest = undefined;
-        throw error;
-      });
-  }
-  return artworkRequest;
+const decodeBase64 = (value: string): Uint8Array => {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
 };
+
+/**
+ * Original one-bit artwork bytes, embedded in the app so labels never depend
+ * on fetching images from another site. Never round-trip through a canvas.
+ */
+const getThermalArtwork = (): ThermalArtwork => {
+  if (!artwork) {
+    artwork = {
+      full: decodeBase64(FULL_PNG_BASE64),
+      compact: decodeBase64(COMPACT_PNG_BASE64),
+      repair: decodeBase64(REPAIR_PNG_BASE64),
+      box: decodeBase64(BOX_PNG_BASE64),
+    };
+  }
+  return artwork;
+};
+
+/** Kept async for existing callers; the artwork is bundled so this never hits the network. */
+export const prepareThermalLabelArtwork = (): Promise<ThermalArtwork> => Promise.resolve(getThermalArtwork());
 
 /**
  * Returns the set of account (user) ids that have opted in to showing the
@@ -158,7 +145,7 @@ export const renderLabelPage = (
   pdf: jsPDF, order: Order, bikeIndex: number, quantity: number,
   labelWidth: number = LABEL_WIDTH, showSenderName: boolean = false
 ) => {
-  if (!artwork) throw new Error("Thermal label artwork must be loaded before rendering.");
+  const artwork = getThermalArtwork();
   if (labelWidth !== LABEL_WIDTH) throw new Error("Thermal labels must be printed at their native four-inch width.");
   const contentWidth = labelWidth - 2 * MARGIN;
   pdf.setTextColor(0);
@@ -223,8 +210,13 @@ export const renderLabelPage = (
   const qrSize = qrSizeAt(fit.dots);
   const qrModule = fit.dots * printerDot;
   const markSize = useCompact ? MARK_COMPACT_PT : MARK_FULL_PT;
-  pdf.addImage(useCompact ? artwork.compact : artwork.full, 'PNG', MARGIN, MARK_TOP,
-    markSize, markSize, useCompact ? 'thermal-mark-64' : 'thermal-mark-128', 'NONE');
+  try {
+    pdf.addImage(useCompact ? artwork.compact : artwork.full, 'PNG', MARGIN, MARK_TOP,
+      markSize, markSize, useCompact ? 'thermal-mark-64' : 'thermal-mark-128', 'NONE');
+  } catch (error) {
+    // A missing mark must never stop a label printing; the wording still identifies us.
+    console.warn('Could not render thermal label mark:', error);
+  }
   // Draw wording as crisp PDF text, keeping the original mark at printer-dot size.
   const brandX = MARGIN + markSize + 10;
   pdf.setFontSize(14);

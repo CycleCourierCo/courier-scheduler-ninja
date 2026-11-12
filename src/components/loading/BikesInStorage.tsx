@@ -1,4 +1,6 @@
+import { allocatedByLabel } from "@/lib/bayOverride";
 import { useState } from "react";
+import { isInspectionDoneForRouting } from "@/lib/inspectionRouting";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,6 +17,8 @@ import { generateSingleOrderLabel } from "@/utils/labelUtils";
 
 import { ChangeStorageLocationDialog } from "@/components/loading/ChangeStorageLocationDialog";
 import { getOrderCollectionPhotos } from "@/utils/collectionPhotos";
+import { STORAGE_SORT_OPTIONS, sortStorageGroups, type StorageSortKey } from "@/lib/storageSort";
+import { cn } from "@/lib/utils";
 
 // Collection images come from the pickup-leg proof-of-delivery photos
 const getCollectionImages = (order: Order | undefined): string[] => getOrderCollectionPhotos(order);
@@ -33,6 +37,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
   const [editingAllocation, setEditingAllocation] = useState<StorageAllocation | null>(null);
   const [editingOrderAllocations, setEditingOrderAllocations] = useState<StorageAllocation[]>([]);
   const [imageDialogOrder, setImageDialogOrder] = useState<Order | null>(null);
+  const [sortBy, setSortBy] = useState<StorageSortKey>("bay");
 
   const handleChangeLocation = (locations: { bay: string; position: number }[]) => {
     editingOrderAllocations.forEach((allocation, index) => {
@@ -112,19 +117,48 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
     return acc;
   }, {} as Record<string, { order: Order | undefined; allocations: StorageAllocation[] }>);
 
-  const sortedOrders = Object.entries(groupedByOrder).sort(([, a], [, b]) => {
-    // Sort by first allocation's bay and position
-    const aFirst = a.allocations[0];
-    const bFirst = b.allocations[0];
-    if (aFirst.bay !== bFirst.bay) {
-      return aFirst.bay.localeCompare(bFirst.bay);
-    }
-    return aFirst.position - bFirst.position;
+  // One row per order, carrying the fields the sort filter needs.
+  const grouped = Object.entries(groupedByOrder).map(([orderId, { order, allocations }]) => {
+    const first = allocations[0];
+    const storedAt = allocations.reduce(
+      (earliest, a) => (a.allocatedAt < earliest ? a.allocatedAt : earliest),
+      first.allocatedAt
+    );
+    return {
+      orderId,
+      order,
+      allocations,
+      name: (first.customerName || order?.sender?.name || "").trim(),
+      storedAt,
+      bay: first.bay,
+      position: first.position,
+    };
   });
+
+  const sortedOrders = sortStorageGroups(grouped, sortBy);
 
   return (
     <div className="space-y-3">
-      {sortedOrders.map(([orderId, { order, allocations }]) => {
+      <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Sort bikes in storage">
+        <span className="text-xs font-medium text-muted-foreground">Sort</span>
+        {STORAGE_SORT_OPTIONS.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={sortBy === option.value}
+            onClick={() => setSortBy(option.value)}
+            className={cn(
+              "min-h-9 rounded-full border px-3 text-xs font-medium transition-colors",
+              sortBy === option.value
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-border bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+            )}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      {sortedOrders.map(({ orderId, order, allocations }) => {
         const isMultiBike = allocations.length > 1;
         const daysInStorage = differenceInDays(new Date(), allocations[0].allocatedAt);
         
@@ -154,6 +188,9 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                           <span className="font-mono">{order.trackingNumber}</span>
                         </>
                       )}
+                    </p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      By {allocatedByLabel(allocations[0])} · {format(allocations[0].allocatedAt, "d MMM HH:mm")}
                     </p>
                   </div>
                 </div>
@@ -199,7 +236,7 @@ export const BikesInStorage = ({ bikesInStorage, onRemoveFromStorage, onRemoveAl
                   })()}
                   {/* Inspection Status Badge */}
                   {order?.needsInspection && (() => {
-                    const isComplete = order.inspection_status === 'inspected' || order.inspection_status === 'repaired';
+                    const isComplete = isInspectionDoneForRouting(order.inspection_status);
                     return (
                       <Badge className={`text-xs flex items-center gap-1 ${
                         isComplete 

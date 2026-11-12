@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import { isInspectionDoneForRouting } from "@/lib/inspectionRouting";
 import { OrderData } from "@/pages/JobScheduling";
 import { getLegContact } from "@/utils/niDelivery";
 
@@ -146,7 +147,7 @@ export const isLegViableOnDate = (
   if (!collectedInTime) return false;
 
   if (order.needs_inspection === true) {
-    const done = order.inspection_status === "inspected" || order.inspection_status === "repaired";
+    const done = isInspectionDoneForRouting(order.inspection_status);
     if (!done) return false;
   }
 
@@ -189,7 +190,7 @@ export const isLegExpired = (
   if (!collectedInTime) return false;
 
   if (order.needs_inspection === true) {
-    const done = order.inspection_status === "inspected" || order.inspection_status === "repaired";
+    const done = isInspectionDoneForRouting(order.inspection_status);
     if (!done) return false;
   }
 

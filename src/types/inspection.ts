@@ -48,6 +48,9 @@ export interface BicycleInspection {
   actual_bike_brand?: string | null;
   actual_bike_model?: string | null;
   actual_frame_size?: string | null;
+  customer_size_response?: 'matches' | 'does_not_match' | null;
+  customer_size_note?: string | null;
+  customer_size_responded_at?: string | null;
   identity_notes?: string | null;
   identity_reviewed_at?: string | null;
   identity_reviewed_by_id?: string | null;

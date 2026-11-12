@@ -34,6 +34,7 @@ import TrackingTimeline from "@/components/order-detail/TrackingTimeline";
 import ItemDetails from "@/components/order-detail/ItemDetails";
 import { StorageLocation } from "@/components/order-detail/StorageLocation";
 import ContactDetails from "@/components/order-detail/ContactDetails";
+import BoxBuyerCard from "@/components/order-detail/BoxBuyerCard";
 import AltLocationDetails from "@/components/order-detail/AltLocationDetails";
 import AdminContactEditor from "@/components/order-detail/AdminContactEditor";
 import AdminTrackingEditor from "@/components/order-detail/AdminTrackingEditor";
@@ -1880,6 +1881,7 @@ const OrderDetail = () => {
                   />
                 )}
                 <AltLocationDetails type="receiver" alt={order.receiverAltLocation} />
+                {order.isBoxMyBike && <BoxBuyerCard buyer={order.boxBuyer} />}
                 <TimeslotSelection 
                   type="receiver"
                   orderId={order.id}
