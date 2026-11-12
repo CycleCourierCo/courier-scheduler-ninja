@@ -11,6 +11,7 @@ import { PendingStorageAllocation } from "@/components/loading/PendingStorageAll
 import { BikeSearchSection } from "@/components/loading/BikeSearchSection";
 import { QrCode } from "lucide-react";
 import { ScanToBaySection } from "@/components/loading/ScanToBaySection";
+import { LoadersListDialog } from "@/components/loading/LoadersListDialog";
 import { BikesInStorage } from "@/components/loading/BikesInStorage";
 import { useBayOverrideConfirm } from "@/components/loading/BayOverrideDialog";
 import { WronglyAllocatedSection } from "@/components/loading/WronglyAllocatedSection";
@@ -954,6 +955,20 @@ const LoadingUnloadingPage = () => {
                 <DialogContent className="inset-x-auto bottom-auto left-1/2 top-1/2 max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-md">
                   <DialogHeader><DialogTitle>Scan to bay</DialogTitle></DialogHeader>
                   <ScanToBaySection onSaved={fetchData} />
+                </DialogContent>
+              </Dialog>
+
+              {/* Loaders list popup */}
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="w-full md:w-auto">
+                    <Truck className="mr-2 h-4 w-4" />
+                    Loaders List
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="inset-x-auto bottom-auto left-1/2 top-1/2 max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-md">
+                  <DialogHeader><DialogTitle>Loaders List</DialogTitle></DialogHeader>
+                  <LoadersListDialog isAdmin={isAdmin} onChanged={fetchData} />
                 </DialogContent>
               </Dialog>
 

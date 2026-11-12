@@ -5316,8 +5316,11 @@ export type Database = {
           is_northern_ireland: boolean
           is_scotland: boolean
           is_warehouse_storage: boolean
+          loaded_from_locations: Json | null
           loaded_onto_van: boolean | null
           loaded_onto_van_at: string | null
+          loaded_onto_van_by: string | null
+          loaded_onto_van_by_name: string | null
           misallocated_at: string | null
           misallocated_by: string | null
           misallocated_by_name: string | null
@@ -5454,8 +5457,11 @@ export type Database = {
           is_northern_ireland?: boolean
           is_scotland?: boolean
           is_warehouse_storage?: boolean
+          loaded_from_locations?: Json | null
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
+          loaded_onto_van_by?: string | null
+          loaded_onto_van_by_name?: string | null
           misallocated_at?: string | null
           misallocated_by?: string | null
           misallocated_by_name?: string | null
@@ -5592,8 +5598,11 @@ export type Database = {
           is_northern_ireland?: boolean
           is_scotland?: boolean
           is_warehouse_storage?: boolean
+          loaded_from_locations?: Json | null
           loaded_onto_van?: boolean | null
           loaded_onto_van_at?: string | null
+          loaded_onto_van_by?: string | null
+          loaded_onto_van_by_name?: string | null
           misallocated_at?: string | null
           misallocated_by?: string | null
           misallocated_by_name?: string | null
@@ -9620,6 +9629,7 @@ export type Database = {
         Args: { p_approved_issue_ids: string[]; p_order_id: string }
         Returns: Json
       }
+      undo_taken_out: { Args: { p_order_id: string }; Returns: boolean }
       unlinked_invoice_orders: {
         Args: never
         Returns: {
