@@ -1,8 +1,4 @@
 import { cn } from "@/lib/utils";
-import sageLogo from "@/assets/brand/logo-sage.png.asset.json";
-import creamLogo from "@/assets/brand/logo-cream.png.asset.json";
-import cloudMark from "@/assets/brand/icon-128.png.asset.json";
-import { publicBrandAssetUrl } from "@/lib/brandAssets";
 
 type BrandLogoProps = {
   className?: string;
@@ -20,7 +16,7 @@ export default function BrandLogo({ className, compact = false, lightOnly = fals
   if (compact) {
     return (
       <span className={cn("flex items-center gap-2", className)}>
-        <img src={publicBrandAssetUrl(cloudMark.url)} alt="Cycle Courier Co." width={36} height={36} className="h-9 w-9 shrink-0" />
+        <img src={"/brand/icon-128.png"} alt="Cycle Courier Co." width={36} height={36} className="h-9 w-9 shrink-0" />
         {withWordmark && (
           <span aria-hidden className="whitespace-nowrap text-[13px] font-bold leading-none tracking-tight text-primary sm:text-[15px]">
             Cycle Courier Co.
@@ -33,12 +29,12 @@ export default function BrandLogo({ className, compact = false, lightOnly = fals
   return (
     <span className={cn("block min-w-[140px]", className)}>
       <img
-        src={publicBrandAssetUrl(sageLogo.url)}
+        src={"/brand/logo-sage.png"}
         alt="Cycle Courier Co."
         className={cn("h-full w-full object-contain object-left", !lightOnly && "dark:hidden")}
       />
       {!lightOnly && (
-        <img src={publicBrandAssetUrl(creamLogo.url)} alt="Cycle Courier Co." className="hidden h-full w-full object-contain object-left dark:block" />
+        <img src={"/brand/logo-cream.png"} alt="Cycle Courier Co." className="hidden h-full w-full object-contain object-left dark:block" />
       )}
     </span>
   );
