@@ -124,9 +124,9 @@ const LoadingUnloadingPage = () => {
     [selectedLoadingDate, getBikesLoadedOnDate],
   );
 
-  const fetchData = async () => {
+  const fetchData = async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const ordersData = await getOrdersForLoading();
       setOrders(ordersData);
       
@@ -954,7 +954,7 @@ const LoadingUnloadingPage = () => {
                 </DialogTrigger>
                 <DialogContent className="inset-x-auto bottom-auto left-1/2 top-1/2 max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-lg -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-md">
                   <DialogHeader><DialogTitle>Scan to bay</DialogTitle></DialogHeader>
-                  <ScanToBaySection onSaved={fetchData} />
+                  <ScanToBaySection onSaved={() => fetchData(true)} />
                 </DialogContent>
               </Dialog>
 
@@ -968,7 +968,7 @@ const LoadingUnloadingPage = () => {
                 </DialogTrigger>
                 <DialogContent className="inset-x-auto bottom-auto left-1/2 top-1/2 max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-md">
                   <DialogHeader><DialogTitle>Loaders List</DialogTitle></DialogHeader>
-                  <LoadersListDialog isAdmin={isAdmin} onChanged={fetchData} />
+                  <LoadersListDialog isAdmin={isAdmin} onChanged={() => fetchData(true)} />
                 </DialogContent>
               </Dialog>
 
@@ -1135,7 +1135,7 @@ const LoadingUnloadingPage = () => {
 
         <WronglyAllocatedSection
           orders={orders}
-          onChanged={fetchData}
+          onChanged={() => fetchData(true)}
           onAssign={async (orderId, locations) => {
             const ok = await allocateStorage(orderId, locations.map((l, i) => ({ ...l, bikeIndex: i })));
             if (!ok) return false;
