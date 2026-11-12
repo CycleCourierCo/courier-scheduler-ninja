@@ -1028,7 +1028,28 @@ const LoadingUnloadingPage = () => {
                                Loading List for {format(selectedLoadingDate, 'PPP')}
                              </div>
                              <div className="text-sm text-muted-foreground mt-1">
-                               {bikesLoadedOnDate.length + getBikesNeedingLoading(selectedLoadingDate).length} bikes scheduled • {bikesLoadedOnDate.length} loaded • {getBikesNeedingLoading(selectedLoadingDate).length} pending
+                               {(() => {
+                                 const day = format(selectedLoadingDate, 'yyyy-MM-dd');
+                                 const list = getBikesNeedingLoading(selectedLoadingDate);
+                                 let out = 0, inn = 0, swap = 0;
+                                 list.forEach(o => {
+                                   const qty = o.bikeQuantity || 1;
+                                   const inStorage = storageAllocations.some(a => a.orderId === o.id);
+                                   const dDate = o.scheduledDeliveryDate ? format(new Date(o.scheduledDeliveryDate), 'yyyy-MM-dd') : null;
+                                   const deliv = normaliseDriverName(o.delivery_driver_name);
+                                   const coll = normaliseDriverName(o.held_by_driver_name || o.collection_driver_name);
+                                   if (inStorage && dDate === day) out += qty;
+                                   else if (!inStorage && hasBeenCollected(o) && (!deliv || dDate !== day)) inn += qty;
+                                   else if (!inStorage && dDate === day && deliv && coll && coll !== deliv) swap += qty;
+                                 });
+                                 return (
+                                   <div className="flex flex-wrap gap-2 mt-1">
+                                     <Badge variant="outline">Going out: {out}</Badge>
+                                     <Badge variant="outline">Going in: {inn}</Badge>
+                                     <Badge variant="outline">Swapped between drivers: {swap}</Badge>
+                                   </div>
+                                 );
+                               })()}
                              </div>
                            </div>
                            {getBikesNeedingLoading(selectedLoadingDate).length > 0 && (
@@ -1062,254 +1083,6 @@ const LoadingUnloadingPage = () => {
                                >
                                  📱 Send Loading List
                                </Button>
-                             </div>
-                           )}
-                         </div>
-
-                         {/* Bikes Already Loaded Section */}
-                         {bikesLoadedOnDate.length > 0 && (
-                           <div className="space-y-3">
-                             <div className="flex items-center gap-2">
-                               <div className="h-4 w-4 bg-green-500 rounded-full"></div>
-                               <h3 className="font-medium text-green-700">Bikes Already Loaded ({bikesLoadedOnDate.length})</h3>
-                             </div>
-                             <div className="space-y-2 bg-green-50 p-4 rounded-lg border border-green-200">
-                              {bikesLoadedOnDate.map((order) => {
-                                  const quantity = order.bikeQuantity || 1;
-                                  const deliveryDriverName = normaliseDriverName(order.delivery_driver_name);
-                                 const loadedTime = order.loaded_onto_van_at ? format(new Date(order.loaded_onto_van_at), 'HH:mm') : 'Unknown time';
-                                 
-                                 return (
-                                   <Card key={order.id} className="p-3 bg-white border-green-300">
-                                     <div className="space-y-2">
-                                       <div className="flex items-center justify-between">
-                                         <div className="font-medium text-green-800">
-                                           {order.receiver?.name || 'Unknown Customer'}
-                                         </div>
-                                         <div className="flex items-center gap-2">
-                                           {quantity > 1 && (
-                                             <div className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                                               {quantity} bikes
-                                             </div>
-                                           )}
-                                           <div className="text-xs bg-green-600 text-white px-2 py-1 rounded font-medium">
-                                             Loaded {loadedTime}
-                                           </div>
-                                         </div>
-                                       </div>
-                                       <div className="text-sm text-green-700">
-                                         <div>{order.bikeBrand} {order.bikeModel}</div>
-                                         <div>Tracking: {order.trackingNumber}</div>
-                                         <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
-                                         {deliveryDriverName && (
-                                           <div className="text-green-600 font-medium">On {deliveryDriverName} Van</div>
-                                         )}
-                                       </div>
-                                     </div>
-                                   </Card>
-                                 );
-                               })}
-                             </div>
-                           </div>
-                         )}
-
-                          {/* Bikes Still Need Loading Section */}
-                          <div className="space-y-3">
-                            <div className="flex items-center gap-2">
-                              <div className="h-4 w-4 bg-orange-500 rounded-full"></div>
-                              <h3 className="font-medium text-orange-700">Bikes Still Need Loading ({getBikesNeedingLoading(selectedLoadingDate).length})</h3>
-                            </div>
-                            
-                            {getBikesNeedingLoading(selectedLoadingDate).length > 0 ? (
-                              <div className="space-y-4 bg-orange-50 p-4 rounded-lg border border-orange-200">
-                                 {(() => {
-                                   // Group bikes by current location
-                                   const bikesNeedingLoading = getBikesNeedingLoading(selectedLoadingDate);
-                                   const locationGroups: Record<string, Order[]> = {};
-                                   
-                                   bikesNeedingLoading.forEach(order => {
-                                     const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
-                                     
-                                     // Check if this is a same-day collection/delivery within 500m of depot
-                                     const scheduledPickup = order.scheduledPickupDate;
-                                     const scheduledDelivery = order.scheduledDeliveryDate;
-                                     let isNearDepot = false;
-                                     
-                                     if (scheduledPickup && scheduledDelivery) {
-                                       const pickupDate = format(new Date(scheduledPickup), 'yyyy-MM-dd');
-                                       const deliveryDate = format(new Date(scheduledDelivery), 'yyyy-MM-dd');
-                                       
-                                       if (pickupDate === deliveryDate) {
-                                         const collectionLat = order.sender?.address?.lat;
-                                         const collectionLon = order.sender?.address?.lon;
-                                         
-                                         if (collectionLat && collectionLon) {
-                                           const distanceToDepot = calculateDistanceInMeters(
-                                             DEPOT_LOCATION.lat,
-                                             DEPOT_LOCATION.lon,
-                                             collectionLat,
-                                             collectionLon
-                                           );
-                                           
-                                           isNearDepot = distanceToDepot <= DEPOT_PROXIMITY_THRESHOLD_METERS;
-                                         }
-                                       }
-                                     }
-                                     
-                                     if (orderAllocations.length > 0) {
-                                       // Group by bay (column) for bikes in storage
-                                       orderAllocations.forEach(allocation => {
-                                         const bayKey = `Bay ${allocation.bay}`;
-                                         if (!locationGroups[bayKey]) {
-                                           locationGroups[bayKey] = [];
-                                         }
-                                         // Only add once per order, not per allocation
-                                         if (!locationGroups[bayKey].some(o => o.id === order.id)) {
-                                           locationGroups[bayKey].push(order);
-                                         }
-                                       });
-                                     } else if (isNearDepot) {
-                                       // Bikes that need to be collected from near depot
-                                       if (!locationGroups['To Be Collected']) {
-                                         locationGroups['To Be Collected'] = [];
-                                       }
-                                       locationGroups['To Be Collected'].push(order);
-                                     } else {
-                                       // Check if in a driver's van
-                                       const collectionEvent = order.trackingEvents?.shipday?.updates?.find(
-                                         (update: any) => update.event === 'ORDER_COMPLETED' && 
-                                         update.orderId?.toString() === order.trackingEvents?.shipday?.pickup_id?.toString()
-                                       );
-                                       const driverName = normaliseDriverName(collectionEvent?.driverName);
-                                       
-                                       if (driverName) {
-                                         // Create group for this driver if it doesn't exist
-                                         const driverKey = `${driverName} Van`;
-                                         if (!locationGroups[driverKey]) {
-                                           locationGroups[driverKey] = [];
-                                         }
-                                         locationGroups[driverKey].push(order);
-                                       } else {
-                                         // Unknown location
-                                         if (!locationGroups['Driver Vans']) {
-                                           locationGroups['Driver Vans'] = [];
-                                         }
-                                         locationGroups['Driver Vans'].push(order);
-                                       }
-                                     }
-                                   });
-                                   
-                                    // Sort groups: configured bays first (in display_order), then other locations
-                                    const sortedGroups = Object.entries(locationGroups).sort(([a], [b]) => {
-                                      const bayOrder = configuredBays.map((bay) => `Bay ${bay.label}`);
-                                      const aIndex = bayOrder.indexOf(a);
-                                      const bIndex = bayOrder.indexOf(b);
-                                      
-                                      if (aIndex !== -1 && bIndex !== -1) return aIndex - bIndex;
-                                      if (aIndex !== -1) return -1;
-                                      if (bIndex !== -1) return 1;
-                                      return a.localeCompare(b);
-                                    });
-                                   
-                                   // Render groups
-                                   return sortedGroups
-                                     .filter(([_, orders]) => orders.length > 0)
-                                     .map(([locationName, orders]) => (
-                                       <div key={locationName} className="space-y-2">
-                                          <h4 className="border-b border-status-waiting pb-1 text-sm font-bold uppercase tracking-wide">
-                                            {locationName} ({orders.length})
-                                         </h4>
-                                         <div className="space-y-2">
-                                           {orders
-                                             .sort((a, b) => {
-                                               // Sort by lowest position number within the bay
-                                               const aAllocations = storageAllocations.filter(alloc => alloc.orderId === a.id);
-                                               const bAllocations = storageAllocations.filter(alloc => alloc.orderId === b.id);
-                                               const aMinPos = Math.min(...aAllocations.map(alloc => alloc.position));
-                                               const bMinPos = Math.min(...bAllocations.map(alloc => alloc.position));
-                                               return aMinPos - bMinPos;
-                                             })
-                                             .map((order) => {
-                                             const quantity = order.bikeQuantity || 1;
-                                             const orderAllocations = storageAllocations.filter(a => a.orderId === order.id);
-                                             
-                                             return (
-                                                <Card key={order.id} className="border-l-4 border-l-status-waiting p-3">
-                                                 <div className="space-y-2">
-                                                   <div className="flex items-center justify-between">
-                                                      <div className="font-bold">
-                                                       {order.receiver?.name || 'Unknown Customer'}
-                                                     </div>
-                                                     <div className="flex items-center gap-2">
-                                                       {quantity > 1 && (
-                                                          <div className="rounded-sm bg-secondary px-2 py-1 text-xs">
-                                                           {quantity} bikes
-                                                         </div>
-                                                       )}
-                                                       {orderAllocations.length > 0 && (
-                                                         <div className="flex flex-wrap gap-1">
-                                                           {orderAllocations
-                                                             .sort((a, b) => {
-                                                               if (a.bay !== b.bay) return a.bay.localeCompare(b.bay);
-                                                               return a.position - b.position;
-                                                             })
-                                                            .map((allocation) => (
-                                                               <div key={allocation.id} className="rounded-sm bg-status-done/10 px-2 py-1 font-mono text-xs text-status-done">
-                                                                {allocation.bay}{allocation.position}
-                                                              </div>
-                                                            ))}
-                                                        </div>
-                                                      )}
-                                                    </div>
-                                                  </div>
-                                                   <div className="text-sm">
-                                                    <div>{order.bikeBrand} {order.bikeModel}</div>
-                                                    <div>Tracking: {order.trackingNumber}</div>
-                                                    <div>To: {order.receiver?.address?.city}, {order.receiver?.address?.zipCode}</div>
-                                                     {(() => {
-                                                       // Show who needs to load onto van (delivery driver)
-                                                       const deliveryDriverName = normaliseDriverName(order.delivery_driver_name);
-                                                      
-                                                      if (deliveryDriverName) {
-                                                        return (
-                                                          <div className="mt-1">
-                                                             <Badge variant="waiting">
-                                                              Load onto {deliveryDriverName} van
-                                                            </Badge>
-                                                          </div>
-                                                        );
-                                                      }
-                                                      return (
-                                                        <div className="mt-1">
-                                                           <Badge variant="outline">
-                                                            Driver unassigned
-                                                          </Badge>
-                                                        </div>
-                                                      );
-                                                    })()}
-                                                  </div>
-                                                  <div className="mt-3 pt-3 border-t">
-                                                    <Button 
-                                                      size="sm" 
-                                                      className="w-full"
-                                                      onClick={() => handleLoadOntoVan(order.id)}
-                                                    >
-                                                      Load onto Van
-                                                    </Button>
-                                                  </div>
-                                                </div>
-                                              </Card>
-                                            );
-                                          })}
-                                        </div>
-                                      </div>
-                                    ));
-                                })()}
-                              </div>
-                            ) : (
-                              <div className="rounded-md border bg-muted py-8 text-center text-muted-foreground">
-                               <Package className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                               <p>No bikes need loading for this date</p>
                              </div>
                            )}
                          </div>
