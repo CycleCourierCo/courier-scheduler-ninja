@@ -11,6 +11,7 @@ import { getCollectionPhotos } from "@/utils/collectionPhotos";
 import { normaliseDriverName } from "@/utils/driverAssignmentUtils";
 import { groupLoadersList } from "@/lib/loadersList";
 import { cn } from "@/lib/utils";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 interface Row {
   id: string; ref: string; driver: string | null; brand: string; model: string; customer: string; sender: string;
@@ -85,12 +86,17 @@ export function LoadersListDialog({ isAdmin, onChanged }: { isAdmin: boolean; on
         <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
       ) : groups.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">No bikes in the depot booked out for this day.</p>
-      ) : groups.map((g) => (
-        <section key={g.driver} className="rounded-md border">
-          <header className="flex items-center justify-between border-b bg-muted/50 px-3 py-2">
-            <span className="flex items-center gap-2 font-medium"><Truck className="h-4 w-4" />{g.driver}</span>
-            <Badge variant={g.takenOut === g.bikes.length ? "default" : "outline"}>{g.takenOut} of {g.bikes.length} taken out</Badge>
-          </header>
+      ) : (
+      <Accordion type="multiple" className="space-y-2">
+      {groups.map((g) => (
+        <AccordionItem key={g.driver} value={g.driver} className="rounded-md border">
+          <AccordionTrigger className="bg-muted/50 px-3 py-3 hover:no-underline">
+            <span className="flex flex-1 flex-wrap items-center justify-between gap-2 pr-2">
+              <span className="flex items-center gap-2 text-lg font-semibold"><Truck className="h-5 w-5" />{g.driver}</span>
+              <Badge variant={g.takenOut === g.bikes.length ? "default" : "outline"}>{g.takenOut} of {g.bikes.length} taken out</Badge>
+            </span>
+          </AccordionTrigger>
+          <AccordionContent className="pb-0">
           <ul className="divide-y">
             {g.bikes.map((b) => (
               <li key={b.id} className={cn("flex gap-3 p-3", b.takenOut && "opacity-60")}>
@@ -125,8 +131,11 @@ export function LoadersListDialog({ isAdmin, onChanged }: { isAdmin: boolean; on
               </li>
             ))}
           </ul>
-        </section>
+          </AccordionContent>
+        </AccordionItem>
       ))}
+      </Accordion>
+      )}
     </div>
   );
 }
