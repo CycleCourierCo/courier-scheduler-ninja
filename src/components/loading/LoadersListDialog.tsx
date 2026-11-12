@@ -23,7 +23,7 @@ const bayText = (locs: any): string =>
     ? locs.map((l: any) => `${l.bay ?? ""}${l.position ?? ""}`).filter(Boolean).join(", ")
     : "";
 
-export function LoadersListDialog({ isAdmin, onChanged }: { isAdmin: boolean; onChanged?: () => void }) {
+export function LoadersListDialog({ isAdmin, onChanged, onTakeOut }: { isAdmin: boolean; onChanged?: () => void; onTakeOut?: (id: string) => Promise<number> }) {
   const [date, setDate] = useState<Date>(new Date());
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
@@ -65,12 +65,15 @@ export function LoadersListDialog({ isAdmin, onChanged }: { isAdmin: boolean; on
 
   const takeOut = async (id: string) => {
     setBusy(id);
-    const { error } = await (supabase as any).rpc("load_orders_onto_van", { p_order_ids: [id] });
+    // Same save as the page's "Load onto van", so the bike shows as loaded on the van everywhere.
+    let error: unknown = null;
+    if (onTakeOut) { try { await onTakeOut(id); } catch (e) { error = e; } }
+    else ({ error } = await (supabase as any).rpc("load_orders_onto_van", { p_order_ids: [id] }));
     setBusy(null);
-    if (error) return toast.error("Couldn't mark as taken out — nothing was saved");
+    if (error) return onTakeOut ? undefined : toast.error("Couldn't mark as taken out — nothing was saved");
     setRows((prev) => prev.map((r) => r.id === id ? { ...r, takenOut: true, takenOutAt: new Date().toISOString(), takenOutBy: r.takenOutBy } : r));
-    toast.success("Marked as taken out of depot");
-    load(true); onChanged?.();
+    toast.success("Taken out of depot and loaded onto van");
+    load(true); if (!onTakeOut) onChanged?.();
   };
   const undo = async (id: string) => {
     setBusy(id);

@@ -485,7 +485,7 @@ const LoadingUnloadingPage = () => {
       const { data, error } = await (supabase as any).rpc('load_orders_onto_van', { p_order_ids: ids });
       if (error) throw error;
       const loaded: string[] = data || [];
-      fetchData();
+      fetchData(true);
       return loaded.length;
     } catch (error) {
       console.error('Error loading bikes onto van:', error);
@@ -968,7 +968,7 @@ const LoadingUnloadingPage = () => {
                 </DialogTrigger>
                 <DialogContent className="inset-x-auto bottom-auto left-1/2 top-1/2 max-h-[90vh] w-[calc(100vw-1.5rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-md">
                   <DialogHeader><DialogTitle>Loaders List</DialogTitle></DialogHeader>
-                  <LoadersListDialog isAdmin={isAdmin} onChanged={() => fetchData(true)} />
+                  <LoadersListDialog isAdmin={isAdmin} onChanged={() => fetchData(true)} onTakeOut={(id) => loadOrdersOntoVan([id])} />
                 </DialogContent>
               </Dialog>
 
