@@ -443,6 +443,17 @@ export const updateInspectionBikeType = async (
   if (error) throw error;
 };
 
+export const updateInspectionFrameSize = async (
+  inspectionId: string,
+  frameSize: string | null
+): Promise<void> => {
+  const { error } = await supabase
+    .from('bicycle_inspections')
+    .update({ actual_frame_size: frameSize?.trim() || null } as any)
+    .eq('id', inspectionId);
+  if (error) throw error;
+};
+
 export interface InspectionIdentityInput {
   matches: boolean;
   actualBrand?: string | null;

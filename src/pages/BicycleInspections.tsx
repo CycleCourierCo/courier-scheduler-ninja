@@ -73,6 +73,7 @@ import {
   addIssueToExistingInspection,
   adminSetInspectionStatus,
   updateInspectionBikeType,
+  updateInspectionFrameSize,
   saveInspectionIdentity,
   reviewInspectionIdentity,
 
@@ -606,6 +607,19 @@ const BicycleInspections = () => {
     },
     onError: (error) => {
       toast.error("Failed to update bike category");
+      console.error(error);
+    },
+  });
+
+  const updateFrameSizeMutation = useMutation({
+    mutationFn: async ({ inspectionId, frameSize }: { inspectionId: string; frameSize: string }) =>
+      updateInspectionFrameSize(inspectionId, frameSize),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["bicycle-inspections"] });
+      toast.success("Bike size saved");
+    },
+    onError: (error) => {
+      toast.error("Failed to save bike size");
       console.error(error);
     },
   });
@@ -2038,6 +2052,20 @@ const BicycleInspections = () => {
                         buttonClassName="h-6 text-[11px]"
                       />
                     </div>
+                    <Input
+                      key={`${inspection.id}-${inspection.actual_frame_size ?? ""}`}
+                      defaultValue={inspection.actual_frame_size ?? ""}
+                      placeholder={order.frame_size ? `Size (booked ${order.frame_size})` : "Bike size…"}
+                      aria-label="Bike size"
+                      maxLength={30}
+                      className="h-6 w-full text-[11px] sm:w-[140px]"
+                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                      onBlur={(e) => {
+                        const v = e.target.value.trim();
+                        if (v === (inspection.actual_frame_size ?? "")) return;
+                        updateFrameSizeMutation.mutate({ inspectionId: inspection.id, frameSize: v });
+                      }}
+                    />
                   </div>
                 )}
                 {canManageInspections && (
