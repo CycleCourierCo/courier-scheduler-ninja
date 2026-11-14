@@ -248,6 +248,7 @@ export type Order = {
   misallocated_original_by_name?: string | null;
   misallocated_original_at?: string | null;
   storage_locations?: any; // Add storage_locations field for database storage
+  loaded_from_locations?: any; // Bays the bike was in before being loaded onto the van
   loaded_onto_van?: boolean; // Track if bikes have been loaded onto van
   loaded_onto_van_at?: Date; // Track when bikes were loaded onto van
   held_by_driver_name?: string | null; // Driver physically holding the bike (e.g. after a failed delivery)
