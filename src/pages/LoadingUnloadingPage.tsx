@@ -784,13 +784,35 @@ const LoadingUnloadingPage = () => {
     handleRemoveAllBikesFromOrder(orderId);
   };
 
+  // All bikes for a driver's loading list: bikes still in depot PLUS bikes
+  // already loaded onto the van. The list must not shrink once bikes are
+  // loaded — the driver always gets their complete run for the date.
+  const getAllBikesForLoadingList = (date: Date) => {
+    const needing = getBikesNeedingLoading(date);
+    const needingIds = new Set(needing.map(o => o.id));
+    const loaded = getBikesLoadedOnDate(date).filter(o => !needingIds.has(o.id));
+    return [...needing, ...loaded];
+  };
+
+  // Bay allocations for the list: loaded bikes had their live storage
+  // locations cleared, so fall back to the bays saved when they were loaded.
+  const allocationsForList = (order: any) => {
+    if (order.loaded_onto_van) {
+      const locs = Array.isArray(order.loaded_from_locations) ? order.loaded_from_locations : [];
+      return locs.map((l: any) => ({ bay: l.bay, position: l.position }));
+    }
+    return storageAllocations
+      .filter(a => a.orderId === order.id)
+      .map(alloc => ({ bay: alloc.bay, position: alloc.position }));
+  };
+
   const handleSendLoadingList = async () => {
     if (!selectedLoadingDate) {
       toast.error("Please select a date");
       return;
     }
 
-    const bikesForDate = getBikesNeedingLoading(selectedLoadingDate);
+    const bikesForDate = getAllBikesForLoadingList(selectedLoadingDate);
     
     if (bikesForDate.length === 0) {
       toast.error("No bikes scheduled for delivery on this date");
