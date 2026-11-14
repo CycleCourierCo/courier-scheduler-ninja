@@ -37,7 +37,7 @@ export function LoadersListDialog({ isAdmin, onChanged, onTakeOut }: { isAdmin: 
       .select("id, tracking_number, delivery_driver_name, bike_brand, bike_model, sender, receiver, tracking_events, shipday_pickup_id, storage_locations, loaded_from_locations, loaded_onto_van, loaded_onto_van_at, loaded_onto_van_by_name")
       .gte("scheduled_delivery_date", from).lte("scheduled_delivery_date", to)
       .not("status", "in", "(cancelled)")
-      .or(`storage_locations.not.is.null,and(loaded_onto_van.eq.true,loaded_onto_van_at.gte.${from},loaded_onto_van_at.lte.${to})`);
+      .or(`storage_locations.not.is.null,and(loaded_onto_van.eq.true,loaded_from_locations.not.is.null)`);
     setLoading(false);
     if (error) { if (!silent) toast.error("Couldn't load the loaders list"); return; }
     setRows((data ?? []).filter((d: any) => d.loaded_onto_van || bayText(d.storage_locations)).map((d: any) => ({
