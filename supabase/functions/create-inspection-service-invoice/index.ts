@@ -83,6 +83,29 @@ async function getValidQuickBooksToken(
   return { access_token: tokenData.access_token, company_id: tokenData.company_id };
 }
 
+/** Show the inspection invoice in the order's Invoices section (no transport amount, so profit reports don't count it as transport). */
+async function linkInvoiceToOrder(
+  supabase: any,
+  orderId: string,
+  invoiceId: string,
+  invoiceNumber: string | null,
+  invoiceUrl: string,
+  invoiceDate: string | null,
+): Promise<void> {
+  const date = invoiceDate || new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/London' }).format(new Date());
+  const { error } = await supabase.from('order_invoice_links').upsert({
+    order_id: orderId,
+    quickbooks_invoice_id: invoiceId,
+    quickbooks_invoice_number: invoiceNumber,
+    quickbooks_invoice_url: invoiceUrl,
+    invoice_date: date,
+    link_source: 'invoice_creation',
+    transport_net_amount: 0,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'order_id,quickbooks_invoice_id', ignoreDuplicates: true });
+  if (error) console.error('Failed to link inspection invoice to order:', error.message);
+}
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -152,12 +175,15 @@ const handler = async (req: Request): Promise<Response> => {
         if (insErr) throw new Error('Could not create the inspection');
       }
       enabledDone = true;
-      // Not invoiced yet → the weekly run will include the service line.
-      const { count } = await supabase
-        .from('order_invoice_links')
-        .select('id', { count: 'exact', head: true })
-        .eq('order_id', orderId);
-      if (!count) return json({ enabled: true, deferred: true });
+      // Not invoiced for transport yet → the weekly run will include the service line.
+      // Inspection & service invoices are linked to the order too, so leave them out of this check.
+      const [{ data: linkRows }, { data: inspRows }] = await Promise.all([
+        supabase.from('order_invoice_links').select('quickbooks_invoice_id').eq('order_id', orderId),
+        supabase.from('bicycle_inspections').select('service_invoice_id').eq('order_id', orderId).not('service_invoice_id', 'is', null),
+      ]);
+      const serviceIds = new Set((inspRows || []).map((r: any) => String(r.service_invoice_id)));
+      const transportLinks = (linkRows || []).filter((l: any) => !serviceIds.has(String(l.quickbooks_invoice_id)));
+      if (transportLinks.length === 0) return json({ enabled: true, deferred: true });
       if (requestedType === 'inspection_only') return json({ enabled: true, awaitingServiceDecision: true });
       // Fall through to raise the retrospective invoice now.
     }
@@ -174,14 +200,24 @@ const handler = async (req: Request): Promise<Response> => {
     if (!order.needs_inspection) throw new Error('Order does not have inspection enabled');
     const { data: currentInspection } = await supabase
       .from('bicycle_inspections')
-      .select('id, service_decision, service_invoice_number')
+      .select('id, service_decision, service_invoice_id, service_invoice_number')
       .eq('order_id', orderId)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle();
     if (currentInspection?.service_invoice_number) {
-      if (mode === 'enable') return json({ enabled: true, alreadyInvoiced: true, invoiceNumber: currentInspection.service_invoice_number });
-      throw new Error(`An inspection invoice already exists: ${currentInspection.service_invoice_number}`);
+      // Already raised (e.g. automatically when the service was added) — make sure it's
+      // on the order's Invoices list and report it instead of failing.
+      const existingId = currentInspection.service_invoice_id ? String(currentInspection.service_invoice_id) : null;
+      const existingUrl = existingId ? `https://qbo.intuit.com/app/invoice?txnId=${existingId}` : null;
+      if (existingId) await linkInvoiceToOrder(supabase, orderId, existingId, currentInspection.service_invoice_number, existingUrl!, null);
+      return json({
+        enabled: mode === 'enable',
+        alreadyInvoiced: true,
+        invoiceNumber: currentInspection.service_invoice_number,
+        invoiceId: existingId,
+        invoiceUrl: existingUrl,
+      });
     }
     if (order.inspection_type === 'inspection_only' && currentInspection?.service_decision !== 'accepted') {
       throw new Error('The customer has not accepted the service');
@@ -339,6 +375,7 @@ const handler = async (req: Request): Promise<Response> => {
         service_invoiced_at: new Date().toISOString(),
       }).eq('id', currentInspection.id);
     }
+    await linkInvoiceToOrder(supabase, orderId, String(invoiceId), invoiceNumber ?? null, invoiceUrl, qbInvoice?.TxnDate || null);
 
     return new Response(JSON.stringify({
       success: true,

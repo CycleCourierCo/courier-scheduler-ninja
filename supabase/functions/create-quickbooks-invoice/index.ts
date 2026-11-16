@@ -410,8 +410,13 @@ const handler = async (req: Request): Promise<Response> => {
     }
     if (invoiceData.singleOrder) {
       if (!Array.isArray(invoiceData.orders) || invoiceData.orders.length !== 1) throw new Error('Exactly one job is required');
-      const { data: existing } = await supabase.from('order_invoice_links')
-        .select('quickbooks_invoice_number').eq('order_id', invoiceData.orders[0].id).limit(1).maybeSingle();
+      // Inspection & service invoices are linked to the job too — they don't count as transport billing.
+      const [{ data: linkRows }, { data: inspRows }] = await Promise.all([
+        supabase.from('order_invoice_links').select('quickbooks_invoice_id, quickbooks_invoice_number').eq('order_id', invoiceData.orders[0].id),
+        supabase.from('bicycle_inspections').select('service_invoice_id').eq('order_id', invoiceData.orders[0].id).not('service_invoice_id', 'is', null),
+      ]);
+      const serviceIds = new Set((inspRows || []).map((r: any) => String(r.service_invoice_id)));
+      const existing = (linkRows || []).find((l: any) => !serviceIds.has(String(l.quickbooks_invoice_id)));
       if (existing) throw new Error(`This job is already on invoice ${existing.quickbooks_invoice_number ?? ''}`.trim());
     }
     const storagePeriods = invoiceData.singleOrder ? [] : await eligibleStoragePeriods(supabase, invoiceData.customerId, londonDate(invoiceData.endDate));
