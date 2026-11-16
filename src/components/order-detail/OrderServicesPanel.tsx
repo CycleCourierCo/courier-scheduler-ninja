@@ -59,6 +59,8 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
   const [isCreatingInvoice, setIsCreatingInvoice] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [inspectionId, setInspectionId] = useState<string | null>(null);
+  const [serviceInvoice, setServiceInvoice] = useState<{ number: string; url: string | null } | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
   const { userProfile } = useAuth();
   const navigate = useNavigate();
   const isAdmin = hasRole(userProfile, "admin");
@@ -68,11 +70,12 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
     const load = async () => {
       if (!order.id || !order.needsInspection) {
         setInspectionId(null);
+        setServiceInvoice(null);
         return;
       }
       const { data, error } = await supabase
         .from("bicycle_inspections")
-        .select("id")
+        .select("id, service_invoice_id, service_invoice_number")
         .eq("order_id", order.id)
         .order("created_at", { ascending: false })
         .limit(1)
@@ -80,13 +83,26 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
       if (!cancelled) {
         if (error) console.error("Error loading inspection for order:", error);
         setInspectionId(data?.id ?? null);
+        setServiceInvoice(
+          data?.service_invoice_number
+            ? {
+                number: data.service_invoice_number,
+                url: data.service_invoice_id ? `https://qbo.intuit.com/app/invoice?txnId=${data.service_invoice_id}` : null,
+              }
+            : null
+        );
       }
     };
     load();
     return () => {
       cancelled = true;
     };
-  }, [order.id, order.needsInspection]);
+  }, [order.id, order.needsInspection, reloadKey]);
+
+  const invoicesChanged = () => {
+    setReloadKey((k) => k + 1);
+    window.dispatchEvent(new CustomEvent("order-invoices-changed", { detail: { orderId: order.id } }));
+  };
 
 
 
@@ -111,6 +127,7 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
       setIsEnabling(true);
       const result = await enableInspectionWithInvoicing(order.id, inspectionType);
       await onRefresh();
+      invoicesChanged();
       if (result.error) {
         toast.error(`Inspection added, but the invoice couldn't be raised: ${result.error}. Use Create Inspection Invoice once fixed.`);
       } else if (result.deferred) {
@@ -139,11 +156,15 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
     try {
       setIsCreatingInvoice(true);
       const result = await createInspectionServiceInvoice(order.id);
-      toast.success(`Inspection invoice created: ${result.invoiceNumber}`, {
-        action: result.invoiceUrl
-          ? { label: "Open", onClick: () => window.open(result.invoiceUrl, "_blank") }
-          : undefined,
-      });
+      invoicesChanged();
+      const openAction = result.invoiceUrl
+        ? { label: "Open", onClick: () => window.open(result.invoiceUrl!, "_blank") }
+        : undefined;
+      if (result.alreadyInvoiced) {
+        toast.info(`This inspection is already invoiced on #${result.invoiceNumber}`, { action: openAction });
+      } else {
+        toast.success(`Inspection invoice created: ${result.invoiceNumber}`, { action: openAction });
+      }
     } catch (error: any) {
       console.error("Error creating inspection invoice:", error);
       toast.error(error?.message || "Failed to create inspection invoice");
@@ -195,7 +216,22 @@ const InspectServiceSection: React.FC<OrderServicesPanelProps> = ({ order, onRef
           </Button>
         )}
 
-        {order.needsInspection && order.id && (
+        {order.needsInspection && order.id && serviceInvoice && (
+          serviceInvoice.url ? (
+            <Button variant="outline" size="sm" asChild className="flex items-center gap-2">
+              <a href={serviceInvoice.url} target="_blank" rel="noreferrer">
+                <Receipt className="h-4 w-4" />
+                Inspection invoice #{serviceInvoice.number}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            </Button>
+          ) : (
+            <Badge variant="secondary" className="flex items-center gap-1">
+              <Receipt className="h-3 w-3" /> Inspection invoice #{serviceInvoice.number}
+            </Badge>
+          )
+        )}
+        {order.needsInspection && order.id && !serviceInvoice && (
           <Button
             onClick={handleInvoice}
             disabled={isCreatingInvoice}

@@ -1703,11 +1703,15 @@ export const addIssueToExistingInspection = async (
 
 export const createInspectionServiceInvoice = async (
   orderId: string
-): Promise<{ invoiceNumber: string; invoiceId: string; invoiceUrl: string; totalAmount: number }> => {
+): Promise<{ invoiceNumber: string; invoiceId: string | null; invoiceUrl: string | null; totalAmount?: number; alreadyInvoiced?: boolean }> => {
   const { data, error } = await supabase.functions.invoke('create-inspection-service-invoice', {
     body: { orderId },
   });
-  if (error) throw error;
+  if (error) {
+    let body: any = null;
+    try { body = await (error as any).context?.json?.(); } catch { /* ignore */ }
+    throw new Error(body?.error || error.message);
+  }
   if (data?.error) throw new Error(data.error);
   return data;
 };
