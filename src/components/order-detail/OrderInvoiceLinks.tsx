@@ -11,6 +11,7 @@ import { notify } from "@/lib/notify";
 
 type InvoiceLink = {
   id: string;
+  quickbooks_invoice_id: string;
   quickbooks_invoice_number: string | null;
   quickbooks_invoice_url: string;
   invoice_date: string | null;
@@ -30,17 +31,39 @@ export default function OrderInvoiceLinks({ orderId, canInvoice = false }: { ord
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [creating, setCreating] = useState(false);
 
+  const [serviceInvoiceIds, setServiceInvoiceIds] = useState<Set<string>>(new Set());
+
   const loadLinks = useCallback(async () => {
-    const { data, error } = await supabase.from("order_invoice_links")
-      .select("id, quickbooks_invoice_number, quickbooks_invoice_url, invoice_date")
-      .eq("order_id", orderId)
-      .order("invoice_date", { ascending: false });
+    const [{ data, error }, { data: insp }] = await Promise.all([
+      supabase.from("order_invoice_links")
+        .select("id, quickbooks_invoice_id, quickbooks_invoice_number, quickbooks_invoice_url, invoice_date")
+        .eq("order_id", orderId)
+        .order("invoice_date", { ascending: false }),
+      supabase.from("bicycle_inspections")
+        .select("service_invoice_id")
+        .eq("order_id", orderId)
+        .not("service_invoice_id", "is", null),
+    ]);
     if (error) console.error("Failed to load order invoice links:", error);
     setLinks((data || []) as InvoiceLink[]);
+    setServiceInvoiceIds(new Set(((insp || []) as any[]).map((r) => String(r.service_invoice_id))));
     setLoading(false);
   }, [orderId]);
 
   useEffect(() => { loadLinks(); }, [loadLinks]);
+
+  // Other panels (e.g. the inspection invoice button) announce new invoices for this job.
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      const id = (e as CustomEvent<{ orderId?: string }>).detail?.orderId;
+      if (!id || id === orderId) loadLinks();
+    };
+    window.addEventListener("order-invoices-changed", onChanged);
+    return () => window.removeEventListener("order-invoices-changed", onChanged);
+  }, [orderId, loadLinks]);
+
+  const isServiceInvoice = (link: InvoiceLink) => serviceInvoiceIds.has(String(link.quickbooks_invoice_id));
+  const transportLinks = links.filter((l) => !isServiceInvoice(l));
 
   useEffect(() => {
     if (!canInvoice) return;
@@ -66,7 +89,7 @@ export default function OrderInvoiceLinks({ orderId, canInvoice = false }: { ord
     order.status === "delivered" || order.order_delivered === true ||
     (order.scheduled_delivery_date && String(order.scheduled_delivery_date).slice(0, 10) < today)
   );
-  const showCreate = canInvoice && !loading && links.length === 0 && isPast && !blocked;
+  const showCreate = canInvoice && !loading && transportLinks.length === 0 && isPast && !blocked;
   const billEmail = customer?.accounts_email || customer?.email || "";
 
   const createInvoice = async () => {
@@ -119,6 +142,7 @@ export default function OrderInvoiceLinks({ orderId, canInvoice = false }: { ord
               <div key={link.id} className="flex flex-wrap items-center justify-between gap-3 border-b pb-2 last:border-0 last:pb-0">
                 <div>
                   <p className="font-medium">Invoice {link.quickbooks_invoice_number ? `#${link.quickbooks_invoice_number}` : "in QuickBooks"}</p>
+                  {isServiceInvoice(link) && <p className="text-xs text-muted-foreground">Inspection &amp; service</p>}
                   {link.invoice_date && <p className="text-sm text-muted-foreground">{new Date(`${link.invoice_date}T12:00:00`).toLocaleDateString("en-GB")}</p>}
                 </div>
                 <Button variant="outline" size="sm" asChild>
@@ -130,7 +154,7 @@ export default function OrderInvoiceLinks({ orderId, canInvoice = false }: { ord
             ))}
           </div>
         )}
-        {canInvoice && !loading && links.length === 0 && blocked && (
+        {canInvoice && !loading && transportLinks.length === 0 && blocked && (
           <p className="text-sm text-muted-foreground">{blocked}</p>
         )}
         {showCreate && (
