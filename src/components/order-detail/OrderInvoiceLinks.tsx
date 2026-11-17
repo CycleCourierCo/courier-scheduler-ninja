@@ -8,6 +8,8 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { notify } from "@/lib/notify";
+import PaymentStatusBadge from "@/components/invoices/PaymentStatusBadge";
+import { useInvoicePaymentStatuses } from "@/hooks/useInvoicePaymentStatuses";
 
 type InvoiceLink = {
   id: string;
@@ -61,6 +63,8 @@ export default function OrderInvoiceLinks({ orderId, canInvoice = false }: { ord
     window.addEventListener("order-invoices-changed", onChanged);
     return () => window.removeEventListener("order-invoices-changed", onChanged);
   }, [orderId, loadLinks]);
+
+  const { data: payments } = useInvoicePaymentStatuses(links.map((l) => String(l.quickbooks_invoice_id)));
 
   const isServiceInvoice = (link: InvoiceLink) => serviceInvoiceIds.has(String(link.quickbooks_invoice_id));
   const transportLinks = links.filter((l) => !isServiceInvoice(l));
@@ -141,7 +145,12 @@ export default function OrderInvoiceLinks({ orderId, canInvoice = false }: { ord
             {links.map((link) => (
               <div key={link.id} className="flex flex-wrap items-center justify-between gap-3 border-b pb-2 last:border-0 last:pb-0">
                 <div>
-                  <p className="font-medium">Invoice {link.quickbooks_invoice_number ? `#${link.quickbooks_invoice_number}` : "in QuickBooks"}</p>
+                  <p className="flex flex-wrap items-center gap-2 font-medium">
+                    Invoice {link.quickbooks_invoice_number ? `#${link.quickbooks_invoice_number}` : "in QuickBooks"}
+                    {payments?.get(String(link.quickbooks_invoice_id)) && (
+                      <PaymentStatusBadge payment={payments.get(String(link.quickbooks_invoice_id))!} showBalance />
+                    )}
+                  </p>
                   {isServiceInvoice(link) && <p className="text-xs text-muted-foreground">Inspection &amp; service</p>}
                   {link.invoice_date && <p className="text-sm text-muted-foreground">{new Date(`${link.invoice_date}T12:00:00`).toLocaleDateString("en-GB")}</p>}
                 </div>
