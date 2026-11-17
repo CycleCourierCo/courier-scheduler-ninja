@@ -14,6 +14,9 @@ import { notify } from "@/lib/notify";
 import Layout from "@/components/Layout";
 import UnlinkedInvoicesPanel from "@/components/invoices/UnlinkedInvoicesPanel";
 import CancelledInvoicedPanel from "@/components/invoices/CancelledInvoicedPanel";
+import InvoicePaymentStatusPanel from "@/components/invoices/InvoicePaymentStatusPanel";
+import PaymentStatusBadge from "@/components/invoices/PaymentStatusBadge";
+import { useInvoicePaymentStatuses } from "@/hooks/useInvoicePaymentStatuses";
 
 type Customer = {
   id: string;
@@ -57,6 +60,7 @@ type InvoiceHistory = {
   end_date: string;
   order_count: number;
   total_amount: number;
+  quickbooks_invoice_id?: string | null;
   quickbooks_invoice_number: string;
   quickbooks_invoice_url: string;
   quickbooks_invoice_public_url?: string | null;
@@ -233,6 +237,7 @@ export default function InvoicesPage() {
 
   const invoiceHistory = historyResult?.rows;
   const historyPageCount = Math.max(1, Math.ceil((historyResult?.count || 0) / HISTORY_PAGE_SIZE));
+  const { data: historyPayments } = useInvoicePaymentStatuses((invoiceHistory || []).map((i) => i.quickbooks_invoice_id));
 
   useEffect(() => {
     // Consider connected if token exists (refresh token is valid for 100 days)
@@ -542,6 +547,8 @@ export default function InvoicesPage() {
             Jobs from {format(new Date(invoiceCutoff), "d MMM yyyy")} onwards are waiting for the next weekly invoice run, so they aren't counted as missing yet.
           </p>
         )}
+
+        <InvoicePaymentStatusPanel />
 
         <UnlinkedInvoicesPanel onChanged={() => refetchUnlinkedSummary()} />
 
@@ -890,13 +897,17 @@ export default function InvoicesPage() {
                     
                     <div className="flex flex-wrap items-center gap-2">
 
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        invoice.status === 'created' 
-                          ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                          : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
-                      }`}>
-                        {invoice.status}
-                      </span>
+                      {invoice.quickbooks_invoice_id && historyPayments?.get(invoice.quickbooks_invoice_id) ? (
+                        <PaymentStatusBadge payment={historyPayments.get(invoice.quickbooks_invoice_id)!} showBalance />
+                      ) : (
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                          invoice.status === 'created'
+                            ? 'bg-status-done/15 text-status-done'
+                            : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {invoice.status}
+                        </span>
+                      )}
                       
                       {invoice.quickbooks_invoice_url && (
                         <Button
