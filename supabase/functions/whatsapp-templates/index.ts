@@ -19,7 +19,7 @@ const CS_TEMPLATES = [
   { name: "cs_damage_claim_initial", body: "Hi {{customer_name}}, we are sorry to hear there is a problem with the bike and are investigating under ticket {{ticket_ref}}. Please reply with clear photos of the damage, a photo of the packaging as it arrived, and a short description of what you found." },
   { name: "cs_invoice_payment_query", body: "Hi {{customer_name}}, thanks for your message about billing (ticket {{ticket_ref}}). We are checking this with our accounts team. If you have an invoice number, please reply with it so we can match it up quickly." },
   { name: "cs_quote_request", body: "Hi {{customer_name}}, thanks for your enquiry. To give you an accurate price please reply with the collection postcode, delivery postcode, type of bike, and whether you need us to box it." },
-  { name: "invoice_overdue_reminder", body: "Hi {{customer_name}}, this is a friendly reminder from Cycle Courier Co that invoice {{invoice_number}} for {{amount_due}} was due on {{due_date}} and is now {{days_overdue}} days overdue. Please arrange payment at your earliest convenience, or reply to this message if you have any questions about the invoice. Thank you." },
+  { name: "invoice_payment_reminder", body: "Hi {{customer_name}}, this is a friendly reminder from Cycle Courier Co regarding invoice #{{invoice_number}} for {{amount_due}}, which was due on {{due_date}} ({{days_overdue}} days overdue). Please arrange payment at your earliest convenience, or reply to this message if you have any questions. Thank you." },
   { name: "cs_holding_update", body: "Hi {{customer_name}}, thanks for your patience on ticket {{ticket_ref}}. We are looking into this now and will message you as soon as we have an update." },
 ];
 const CATEGORIES = ["UTILITY", "MARKETING", "AUTHENTICATION"];
@@ -41,9 +41,11 @@ Deno.serve(async (req) => {
     const base = `https://api.sendzen.io/v1/${encodeURIComponent(WABA)}/message_templates`;
     const headers = { Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" };
 
-    if (action === "seed_cs") {
+    if (action === "seed_cs" || action === "seed_one") {
       const results: { name: string; ok: boolean; error?: string }[] = [];
-      for (const t of CS_TEMPLATES) {
+      const list = action === "seed_one" ? CS_TEMPLATES.filter((t) => t.name === body?.name) : CS_TEMPLATES;
+      if (!list.length) return json({ error: "Unknown standard template" }, 400);
+      for (const t of list) {
         const params = [...t.body.matchAll(/{{(\w+)}}/g)].map((m) => m[1]);
         const components = [{
           type: "BODY", text: t.body,
@@ -87,7 +89,18 @@ Deno.serve(async (req) => {
       if (typeof language !== "string" || !/^[a-z]{2}(_[A-Z]{2})?$/.test(language)) return json({ error: "Invalid language" }, 400);
       if (!CATEGORIES.includes(category)) return json({ error: "Invalid category" }, 400);
       if (!Array.isArray(components) || components.length === 0 || components.length > 10) return json({ error: "Invalid components" }, 400);
-      const r = await fetch(base, { method: "POST", headers, body: JSON.stringify({ name, language, category, components }) });
+      // Word variables ({{customer_name}}) must be submitted as NAMED with named examples, otherwise Meta rejects them.
+      const bodyComp = components.find((c: any) => String(c?.type).toUpperCase() === "BODY");
+      const names = [...new Set([...String(bodyComp?.text ?? "").matchAll(/{{\s*([a-z_][a-z0-9_]*)\s*}}/g)].map((m) => m[1]))];
+      let parameter_format: "NAMED" | "POSITIONAL" = "POSITIONAL";
+      if (bodyComp && names.length) {
+        parameter_format = "NAMED";
+        const given: unknown[] = Array.isArray(bodyComp.example?.body_text?.[0]) ? bodyComp.example.body_text[0] : [];
+        bodyComp.example = {
+          body_text_named_params: names.map((p, i) => ({ param_name: p, example: String(given[i] ?? EXAMPLES[p] ?? "example").slice(0, 200) })),
+        };
+      }
+      const r = await fetch(base, { method: "POST", headers, body: JSON.stringify({ name, language, category, parameter_format, components }) });
       const text = await r.text();
       if (!r.ok) return json({ error: "SendZen rejected the template", status: r.status, details: text.slice(0, 1000) }, 400);
       return json({ ok: true, result: text.slice(0, 1000) });
