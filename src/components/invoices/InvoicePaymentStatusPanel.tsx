@@ -9,7 +9,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { notify } from "@/lib/notify";
 import { withClassification, type InvoicePayment, type InvoicePaymentRow } from "@/hooks/useInvoicePaymentStatuses";
-import { paymentStatusText } from "../../../supabase/functions/_shared/invoicePaymentStatus";
+import { paidSoFar, paymentStatusText, summariseInvoices } from "../../../supabase/functions/_shared/invoicePaymentStatus";
 import PaymentStatusBadge from "./PaymentStatusBadge";
 import InvoiceChaserButton from "./InvoiceChaserButton";
 
@@ -50,6 +50,9 @@ export default function InvoicePaymentStatusPanel() {
   const all = data?.rows || [];
   const overdue = all.filter((r) => r.status === "overdue");
   const sum = (list: InvoicePayment[]) => list.reduce((s, r) => s + Number(r.balance || 0), 0);
+  const totals = summariseInvoices(all.map((r) => ({ total: Number(r.total_amount), balance: Number(r.balance) })));
+  const overdueTotals = summariseInvoices(overdue.map((r) => ({ total: Number(r.total_amount), balance: Number(r.balance) })));
+  const paidOf = (r: InvoicePayment) => paidSoFar({ total: Number(r.total_amount), balance: Number(r.balance) });
   const in7 = (() => {
     const limit = new Date(); limit.setDate(limit.getDate() + 7);
     const max = format(limit, "yyyy-MM-dd");
@@ -66,11 +69,11 @@ export default function InvoicePaymentStatusPanel() {
   }, [all, view, q]);
 
   const customers = useMemo(() => {
-    const m = new Map<string, { name: string; count: number; owed: number; overdue: number; overdueCount: number; oldest: number }>();
+    const m = new Map<string, { name: string; count: number; invoiced: number; paid: number; owed: number; overdue: number; overdueCount: number; oldest: number }>();
     for (const r of all.filter(matches)) {
       const name = r.customer_name || "Unknown customer";
-      const c = m.get(name) || { name, count: 0, owed: 0, overdue: 0, overdueCount: 0, oldest: 0 };
-      c.count += 1; c.owed += Number(r.balance);
+      const c = m.get(name) || { name, count: 0, invoiced: 0, paid: 0, owed: 0, overdue: 0, overdueCount: 0, oldest: 0 };
+      c.count += 1; c.owed += Number(r.balance); c.invoiced += Number(r.total_amount); c.paid += paidOf(r);
       if (r.status === "overdue") { c.overdue += Number(r.balance); c.overdueCount += 1; c.oldest = Math.max(c.oldest, r.daysOverdue); }
       m.set(name, c);
     }
@@ -101,10 +104,10 @@ export default function InvoicePaymentStatusPanel() {
   const downloadCsv = () => {
     const esc = (v: unknown) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const rows = view === "customers"
-      ? [["Customer", "Unpaid invoices", "Owed", "Overdue invoices", "Overdue amount", "Oldest overdue (days)"],
-        ...customers.map((c) => [c.name, c.count, c.owed.toFixed(2), c.overdueCount, c.overdue.toFixed(2), c.oldest])]
-      : [["Customer", "Invoice", "Invoice date", "Due date", "Total", "Owed", "Status"],
-        ...list.map((r) => [r.customer_name, r.doc_number, r.txn_date, r.due_date, Number(r.total_amount).toFixed(2), Number(r.balance).toFixed(2), paymentStatusText(r)])];
+      ? [["Customer", "Unpaid invoices", "Invoiced", "Paid so far", "Owed", "Overdue invoices", "Overdue amount", "Oldest overdue (days)"],
+        ...customers.map((c) => [c.name, c.count, c.invoiced.toFixed(2), c.paid.toFixed(2), c.owed.toFixed(2), c.overdueCount, c.overdue.toFixed(2), c.oldest])]
+      : [["Customer", "Invoice", "Invoice date", "Due date", "Invoiced", "Paid so far", "Owed", "Status"],
+        ...list.map((r) => [r.customer_name, r.doc_number, r.txn_date, r.due_date, Number(r.total_amount).toFixed(2), paidOf(r).toFixed(2), Number(r.balance).toFixed(2), paymentStatusText(r)])];
     const blob = new Blob([rows.map((r) => r.map(esc).join(",")).join("\n")], { type: "text/csv" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
@@ -133,13 +136,21 @@ export default function InvoicePaymentStatusPanel() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-md border p-3">
             <p className="text-xs text-muted-foreground">Owed in total</p>
-            <p className="text-xl font-semibold">{money(sum(all))}</p>
+            <p className="text-xl font-semibold">{money(totals.owed)}</p>
             <p className="text-xs text-muted-foreground">{all.length} unpaid invoice{all.length === 1 ? "" : "s"}</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {money(totals.invoiced)} invoiced
+              {totals.paid > 0 && <> · <span className="font-medium text-status-done">{money(totals.paid)} already paid</span> on {totals.partPaidCount} part-paid</>}
+            </p>
           </div>
           <div className="rounded-md border border-status-failed/40 bg-status-failed/5 p-3">
             <p className="text-xs text-muted-foreground">Overdue</p>
-            <p className="text-xl font-semibold text-status-failed">{money(sum(overdue))}</p>
+            <p className="text-xl font-semibold text-status-failed">{money(overdueTotals.owed)}</p>
             <p className="text-xs text-muted-foreground">{overdue.length} invoice{overdue.length === 1 ? "" : "s"} past the due date</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {money(overdueTotals.invoiced)} invoiced
+              {overdueTotals.paid > 0 && <> · <span className="font-medium text-status-done">{money(overdueTotals.paid)} already paid</span></>}
+            </p>
           </div>
           <div className="rounded-md border p-3">
             <p className="text-xs text-muted-foreground">Due in the next 7 days</p>
@@ -172,7 +183,7 @@ export default function InvoicePaymentStatusPanel() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-muted-foreground">
-                <tr><th className="p-2">Customer</th><th className="p-2">Unpaid</th><th className="p-2">Owed</th><th className="p-2">Overdue</th><th className="p-2">Oldest overdue</th></tr>
+                <tr><th className="p-2">Customer</th><th className="p-2">Unpaid</th><th className="p-2">Invoiced</th><th className="p-2">Paid so far</th><th className="p-2">Owed</th><th className="p-2">Overdue</th><th className="p-2">Oldest overdue</th></tr>
               </thead>
               <tbody>
                 {slice(customers).map((c) => (
@@ -181,7 +192,9 @@ export default function InvoicePaymentStatusPanel() {
                       <button type="button" className="text-left underline" onClick={() => { setSearch(c.name); setView("unpaid"); setPage(1); }}>{c.name}</button>
                     </td>
                     <td className="p-2">{c.count}</td>
-                    <td className="p-2">{money(c.owed)}</td>
+                    <td className="p-2">{money(c.invoiced)}</td>
+                    <td className="p-2">{c.paid > 0 ? <span className="font-medium text-status-done">{money(c.paid)}</span> : "—"}</td>
+                    <td className="p-2 font-medium">{money(c.owed)}</td>
                     <td className="p-2">{c.overdueCount ? <span className="font-medium text-status-failed">{money(c.overdue)} ({c.overdueCount})</span> : "—"}</td>
                     <td className="p-2">{c.oldest ? `${c.oldest} day${c.oldest === 1 ? "" : "s"}` : "—"}</td>
                   </tr>
@@ -193,7 +206,7 @@ export default function InvoicePaymentStatusPanel() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-muted-foreground">
-                <tr><th className="p-2">Customer</th><th className="p-2">Invoice</th><th className="p-2">Due</th><th className="p-2">Total</th><th className="p-2">Owed</th><th className="p-2">Status</th><th className="p-2"></th></tr>
+                <tr><th className="p-2">Customer</th><th className="p-2">Invoice</th><th className="p-2">Due</th><th className="p-2">Invoiced</th><th className="p-2">Paid so far</th><th className="p-2">Owed</th><th className="p-2">Status</th><th className="p-2"></th></tr>
               </thead>
               <tbody>
                 {slice(list).map((r) => (
@@ -207,6 +220,7 @@ export default function InvoicePaymentStatusPanel() {
                     </td>
                     <td className="p-2">{day(r.due_date)}</td>
                     <td className="p-2">{money(r.total_amount)}</td>
+                    <td className="p-2">{paidOf(r) > 0 ? <span className="font-medium text-status-done">{money(paidOf(r))}</span> : "—"}</td>
                     <td className="p-2 font-medium">{money(r.balance)}</td>
                     <td className="p-2"><PaymentStatusBadge payment={r} /></td>
                     <td className="p-2">{r.status === "overdue" && <InvoiceChaserButton invoiceId={r.quickbooks_invoice_id} />}</td>
