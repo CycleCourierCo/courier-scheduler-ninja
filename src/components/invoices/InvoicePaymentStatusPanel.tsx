@@ -140,7 +140,7 @@ export default function InvoicePaymentStatusPanel() {
             <p className="text-xs text-muted-foreground">{all.length} unpaid invoice{all.length === 1 ? "" : "s"}</p>
             <p className="mt-1 text-xs text-muted-foreground">
               {money(totals.invoiced)} invoiced
-              {totals.paid > 0 && <> · <span className="font-medium text-status-done">{money(totals.paid)} already paid</span> on {totals.partPaidCount} part-paid</>}
+              {totals.paid > 0 && <> · <span className="font-medium text-status-done">{money(totals.paid)} already paid</span> across {totals.partPaidCount} part-paid invoice{totals.partPaidCount === 1 ? "" : "s"}</>}
             </p>
           </div>
           <div className="rounded-md border border-status-failed/40 bg-status-failed/5 p-3">
