@@ -63,3 +63,22 @@ export function paymentStatusText(c: InvoiceClassification): string {
   if (c.status !== "overdue") return PAYMENT_STATUS_LABEL[c.status];
   return `Overdue ${c.daysOverdue} day${c.daysOverdue === 1 ? "" : "s"}${c.partPaid ? " · part paid" : ""}`;
 }
+
+/** Money already received against an invoice (original total minus what's still owed, never negative). */
+export function paidSoFar(facts: { total: number; balance: number }): number {
+  const total = Number(facts.total) || 0;
+  const balance = Number(facts.balance) || 0;
+  return Math.max(0, Math.round((total - balance) * 100) / 100);
+}
+
+/** Invoiced / paid / owed totals for a list of open invoices, so the page reconciles with QuickBooks' face-value banner. */
+export function summariseInvoices(list: { total: number; balance: number }[]) {
+  const r2 = (n: number) => Math.round(n * 100) / 100;
+  let invoiced = 0, owed = 0, partPaidCount = 0;
+  for (const f of list) {
+    invoiced += Number(f.total) || 0;
+    owed += Number(f.balance) || 0;
+    if (paidSoFar(f) > 0 && (Number(f.balance) || 0) > 0) partPaidCount += 1;
+  }
+  return { invoiced: r2(invoiced), paid: r2(Math.max(0, invoiced - owed)), owed: r2(owed), partPaidCount };
+}
