@@ -8988,6 +8988,15 @@ export type Database = {
         }[]
       }
       longtransactionsenabled: { Args: never; Returns: boolean }
+      my_overdue_invoices: {
+        Args: never
+        Returns: {
+          balance: number
+          days_overdue: number
+          doc_number: string
+          due_date: string
+        }[]
+      }
       my_profile_guard: {
         Args: never
         Returns: {

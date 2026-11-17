@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ScanLine, Truck, LogOut, User, Menu, X, Shield, Home, BarChart3, FileText, Mail, Phone, Facebook, Instagram, ExternalLink, Key, Package, Package2, Calendar, CalendarClock, CalendarOff, Users, Clock, TrendingUp, Webhook, Wrench, PoundSterling, Megaphone, Upload, Warehouse, Fuel, Car, ShieldAlert, Inbox, CheckSquare, BookOpen, Store, ClipboardCheck, Lock, Boxes, KanbanSquare, Plug , MessageSquare } from "lucide-react";
 import NoticeBanner from "./NoticeBanner";
+import OverdueInvoiceBanner from "./OverdueInvoiceBanner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
@@ -197,6 +198,7 @@ const Layout: React.FC<LayoutProps> = ({
 
 
   return <div className="min-h-screen flex flex-col">
+      <OverdueInvoiceBanner />
       <NoticeBanner />
       <header className="sticky top-0 z-50 border-b bg-card">
         <div className="container mx-auto flex min-h-16 items-center justify-between px-4 py-2">
