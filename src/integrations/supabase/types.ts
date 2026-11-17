@@ -5884,6 +5884,51 @@ export type Database = {
           },
         ]
       }
+      quickbooks_invoice_status: {
+        Row: {
+          balance: number
+          checked_at: string
+          created_at: string
+          customer_name: string | null
+          deleted: boolean
+          doc_number: string | null
+          due_date: string | null
+          qb_customer_id: string | null
+          quickbooks_invoice_id: string
+          total_amount: number
+          txn_date: string | null
+          updated_at: string
+        }
+        Insert: {
+          balance?: number
+          checked_at?: string
+          created_at?: string
+          customer_name?: string | null
+          deleted?: boolean
+          doc_number?: string | null
+          due_date?: string | null
+          qb_customer_id?: string | null
+          quickbooks_invoice_id: string
+          total_amount?: number
+          txn_date?: string | null
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          checked_at?: string
+          created_at?: string
+          customer_name?: string | null
+          deleted?: boolean
+          doc_number?: string | null
+          due_date?: string | null
+          qb_customer_id?: string | null
+          quickbooks_invoice_id?: string
+          total_amount?: number
+          txn_date?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       quickbooks_tokens: {
         Row: {
           access_token: string
@@ -8881,6 +8926,7 @@ export type Database = {
       invoke_generate_recurring_tasks: { Args: never; Returns: undefined }
       invoke_generate_timeslips: { Args: never; Returns: undefined }
       invoke_internal_report: { Args: { p_report: string }; Returns: undefined }
+      invoke_invoice_payment_sync: { Args: never; Returns: undefined }
       invoke_process_scheduled_announcements: {
         Args: never
         Returns: undefined
