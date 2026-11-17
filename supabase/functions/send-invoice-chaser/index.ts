@@ -1,4 +1,4 @@
-// Sends the invoice_overdue_reminder WhatsApp template for one overdue QuickBooks invoice.
+// Sends the invoice_payment_reminder WhatsApp template for one overdue QuickBooks invoice.
 // Admin / CS only. Phone defaults to the customer account linked by QuickBooks customer id.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
@@ -46,12 +46,12 @@ Deno.serve(async (req) => {
     }
     const params = {
       customer_name: (profile?.name || inv.customer_name || "there").split(" ")[0] || "there",
-      invoice_number: `#${inv.doc_number || inv.quickbooks_invoice_id}`,
+      invoice_number: String(inv.doc_number || inv.quickbooks_invoice_id),
       amount_due: money(Number(inv.balance)),
       due_date: new Date(`${String(inv.due_date).slice(0, 10)}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }),
       days_overdue: String(overdueDays),
     };
-    const preview = `Hi ${params.customer_name}, this is a friendly reminder from Cycle Courier Co that invoice ${params.invoice_number} for ${params.amount_due} was due on ${params.due_date} and is now ${params.days_overdue} days overdue. Please arrange payment at your earliest convenience, or reply to this message if you have any questions about the invoice. Thank you.`;
+    const preview = `Hi ${params.customer_name}, this is a friendly reminder from Cycle Courier Co regarding invoice #${params.invoice_number} for ${params.amount_due}, which was due on ${params.due_date} (${params.days_overdue} days overdue). Please arrange payment at your earliest convenience, or reply to this message if you have any questions. Thank you.`;
 
     if (!send) return json({ phone: profile?.phone || "", preview, params });
 
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         to: phone, from: "441217980767", type: "template",
         template: {
-          name: "invoice_overdue_reminder", lang_code: "en_GB",
+          name: "invoice_payment_reminder", lang_code: "en_GB",
           components: [{ type: "body", parameters: Object.entries(params).map(([k, v]) => ({ type: "text", parameter_name: k, text: v })) }],
         },
       }),
