@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyInvoice, londonToday, paymentStatusText } from "../../supabase/functions/_shared/invoicePaymentStatus";
+import { classifyInvoice, londonToday, paidSoFar, paymentStatusText, summariseInvoices } from "../../supabase/functions/_shared/invoicePaymentStatus";
 
 const TODAY = "2026-11-17";
 
@@ -35,5 +35,15 @@ describe("QuickBooks invoice payment status", () => {
 
   it("uses the London date, so 00:30 BST on 1 June is already 1 June", () => {
     expect(londonToday(new Date("2026-05-31T23:30:00Z"))).toBe("2026-06-01");
+  });
+
+  it("works out what has been paid so far as total minus what is still owed", () => {
+    expect(paidSoFar({ total: 5880, balance: 3653 })).toBe(2227);
+    expect(paidSoFar({ total: 120, balance: 120 })).toBe(0);
+  });
+
+  it("adds up invoiced, paid and owed so the page matches QuickBooks' face value", () => {
+    const s = summariseInvoices([{ total: 5880, balance: 3653 }, { total: 120, balance: 120 }]);
+    expect(s).toEqual({ invoiced: 6000, paid: 2227, owed: 3773, partPaidCount: 1 });
   });
 });

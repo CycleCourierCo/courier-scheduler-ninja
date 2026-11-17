@@ -18,7 +18,11 @@ export default function PaymentStatusBadge({ payment, showBalance = false, class
   return (
     <span className={cn("inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-xs font-medium", TONE[payment.status], className)}>
       {paymentStatusText(payment)}
-      {showBalance && owing && <span className="font-normal">· {money(payment.balance)} owed</span>}
+      {showBalance && owing && (
+        <span className="font-normal">
+          · {money(payment.balance)} owed{payment.partPaid ? ` of ${money(payment.total_amount)}` : ""}
+        </span>
+      )}
     </span>
   );
 }
