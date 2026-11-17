@@ -11,6 +11,7 @@ import { notify } from "@/lib/notify";
 import { withClassification, type InvoicePayment, type InvoicePaymentRow } from "@/hooks/useInvoicePaymentStatuses";
 import { paymentStatusText } from "../../../supabase/functions/_shared/invoicePaymentStatus";
 import PaymentStatusBadge from "./PaymentStatusBadge";
+import InvoiceChaserButton from "./InvoiceChaserButton";
 
 const money = (n: number) => `£${Number(n || 0).toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const day = (d: string | null) => (d ? format(new Date(`${d.slice(0, 10)}T12:00:00`), "d MMM yyyy") : "—");
@@ -192,7 +193,7 @@ export default function InvoicePaymentStatusPanel() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-muted-foreground">
-                <tr><th className="p-2">Customer</th><th className="p-2">Invoice</th><th className="p-2">Due</th><th className="p-2">Total</th><th className="p-2">Owed</th><th className="p-2">Status</th></tr>
+                <tr><th className="p-2">Customer</th><th className="p-2">Invoice</th><th className="p-2">Due</th><th className="p-2">Total</th><th className="p-2">Owed</th><th className="p-2">Status</th><th className="p-2"></th></tr>
               </thead>
               <tbody>
                 {slice(list).map((r) => (
@@ -208,6 +209,7 @@ export default function InvoicePaymentStatusPanel() {
                     <td className="p-2">{money(r.total_amount)}</td>
                     <td className="p-2 font-medium">{money(r.balance)}</td>
                     <td className="p-2"><PaymentStatusBadge payment={r} /></td>
+                    <td className="p-2">{r.status === "overdue" && <InvoiceChaserButton invoiceId={r.quickbooks_invoice_id} />}</td>
                   </tr>
                 ))}
               </tbody>
