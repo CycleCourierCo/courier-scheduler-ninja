@@ -8,7 +8,7 @@ const NAME_RE = /^[a-z0-9_]{1,512}$/;
 const EXAMPLES: Record<string, string> = {
   customer_name: "Sam", reference: "CCC754159147108", message: "Our driver is outside but cannot access the gate.",
   ticket_ref: "CS-1042", order_status: "Collected", tracking_number: "CCC754159147108",
-  invoice_number: "1042", amount_due: "£120.00", due_date: "3 Nov 2026", days_overdue: "14",
+  invoice_number: "1042", amount_due: "£120.00", due_date: "3 Nov 2026", days_overdue: "14", invoice_count: "3", invoice_numbers: "#1042, #1043, #1050",
 };
 // Utility versions of the inbox instant responses, for use after the 24-hour reply window closes.
 const CS_TEMPLATES = [
@@ -20,6 +20,7 @@ const CS_TEMPLATES = [
   { name: "cs_invoice_payment_query", body: "Hi {{customer_name}}, thanks for your message about billing (ticket {{ticket_ref}}). We are checking this with our accounts team. If you have an invoice number, please reply with it so we can match it up quickly." },
   { name: "cs_quote_request", body: "Hi {{customer_name}}, thanks for your enquiry. To give you an accurate price please reply with the collection postcode, delivery postcode, type of bike, and whether you need us to box it." },
   { name: "invoice_payment_reminder", body: "Hi {{customer_name}}, this is a friendly reminder from Cycle Courier Co regarding invoice #{{invoice_number}} for {{amount_due}}, which was due on {{due_date}} ({{days_overdue}} days overdue). Please arrange payment at your earliest convenience, or reply to this message if you have any questions. Thank you." },
+  { name: "customer_account_reminder", body: "Hi {{customer_name}}, this is a friendly reminder from Cycle Courier Co that {{invoice_count}} invoices on your account are overdue, totalling {{amount_due}} ({{invoice_numbers}}). The oldest is {{days_overdue}} days overdue. Please arrange payment at your earliest convenience, or reply to this message if you have any questions. Thank you." },
   { name: "cs_holding_update", body: "Hi {{customer_name}}, thanks for your patience on ticket {{ticket_ref}}. We are looking into this now and will message you as soon as we have an update." },
 ];
 const CATEGORIES = ["UTILITY", "MARKETING", "AUTHENTICATION"];

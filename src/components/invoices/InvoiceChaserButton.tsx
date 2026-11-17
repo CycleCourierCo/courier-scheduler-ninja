@@ -20,7 +20,9 @@ async function invoke(body: Record<string, unknown>) {
   return data;
 }
 
-export default function InvoiceChaserButton({ invoiceId }: { invoiceId: string }) {
+export default function InvoiceChaserButton({ invoiceId, customerName }: { invoiceId?: string; customerName?: string }) {
+  const target = customerName ? { customerName } : { invoiceId };
+  const [items, setItems] = useState<{ number: string; balance: number; due: string; days: number }[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -30,8 +32,8 @@ export default function InvoiceChaserButton({ invoiceId }: { invoiceId: string }
   const start = async () => {
     setOpen(true); setLoading(true); setPreview("");
     try {
-      const d = await invoke({ invoiceId });
-      setPhone(d.phone || ""); setPreview(d.preview || "");
+      const d = await invoke(target);
+      setPhone(d.phone || ""); setPreview(d.preview || ""); setItems(d.invoices || []);
     } catch (e: any) {
       notify.error("Couldn't prepare reminder", { description: e.message }); setOpen(false);
     } finally { setLoading(false); }
@@ -40,7 +42,7 @@ export default function InvoiceChaserButton({ invoiceId }: { invoiceId: string }
   const send = async () => {
     setSending(true);
     try {
-      await invoke({ invoiceId, phone, send: true });
+      await invoke({ ...target, phone, send: true });
       notify.success("Reminder sent on WhatsApp");
       setOpen(false);
     } catch (e: any) {
@@ -63,6 +65,13 @@ export default function InvoiceChaserButton({ invoiceId }: { invoiceId: string }
                 <Input id="chase-phone" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="07…" />
                 {!phone && <p className="text-xs text-muted-foreground">No number on the customer's account — enter one.</p>}
               </div>
+              {items.length > 1 && (
+                <ul className="text-sm divide-y rounded-md border">
+                  {items.map((i) => (
+                    <li key={i.number} className="flex justify-between p-2"><span>#{i.number} · due {i.due} ({i.days}d)</span><span className="font-medium">£{i.balance.toFixed(2)}</span></li>
+                  ))}
+                </ul>
+              )}
               <div className="rounded-md border bg-muted/40 p-3 text-sm whitespace-pre-wrap">{preview}</div>
             </div>
           )}

@@ -183,7 +183,7 @@ export default function InvoicePaymentStatusPanel() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-left text-muted-foreground">
-                <tr><th className="p-2">Customer</th><th className="p-2">Unpaid</th><th className="p-2">Invoiced</th><th className="p-2">Paid so far</th><th className="p-2">Owed</th><th className="p-2">Overdue</th><th className="p-2">Oldest overdue</th></tr>
+                <tr><th className="p-2">Customer</th><th className="p-2">Unpaid</th><th className="p-2">Invoiced</th><th className="p-2">Paid so far</th><th className="p-2">Owed</th><th className="p-2">Overdue</th><th className="p-2">Oldest overdue</th><th className="p-2"></th></tr>
               </thead>
               <tbody>
                 {slice(customers).map((c) => (
@@ -197,6 +197,7 @@ export default function InvoicePaymentStatusPanel() {
                     <td className="p-2 font-medium">{money(c.owed)}</td>
                     <td className="p-2">{c.overdueCount ? <span className="font-medium text-status-failed">{money(c.overdue)} ({c.overdueCount})</span> : "—"}</td>
                     <td className="p-2">{c.oldest ? `${c.oldest} day${c.oldest === 1 ? "" : "s"}` : "—"}</td>
+                    <td className="p-2">{c.overdueCount > 0 && c.name !== "Unknown customer" && <InvoiceChaserButton customerName={c.name} />}</td>
                   </tr>
                 ))}
               </tbody>
