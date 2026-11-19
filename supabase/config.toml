@@ -182,3 +182,6 @@ verify_jwt = false
 
 [functions.eta-link]
 verify_jwt = false
+
+[functions.sync-invoice-payment-status]
+verify_jwt = false
