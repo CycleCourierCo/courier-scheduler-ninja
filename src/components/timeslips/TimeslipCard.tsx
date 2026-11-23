@@ -74,12 +74,12 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
                 {format(new Date(timeslip.date), 'EEEE, MMMM d, yyyy')}
               </CardDescription>
             </div>
-            {isAdmin && <div className="text-right">
+            <div className="text-right">
               <p className="text-2xl font-bold text-primary">
                 £{(timeslip.total_pay ?? 0).toFixed(2)}
               </p>
               <p className="text-xs text-muted-foreground">Total Pay</p>
-            </div>}
+            </div>
           </div>
         </CardHeader>
 
