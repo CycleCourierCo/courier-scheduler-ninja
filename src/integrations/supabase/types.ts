@@ -8951,6 +8951,16 @@ export type Database = {
         Returns: boolean
       }
       is_timeslip_admin: { Args: never; Returns: boolean }
+      kb_can_edit: { Args: { _uid: string }; Returns: boolean }
+      kb_can_read_article: {
+        Args: { _article_id: string; _uid: string }
+        Returns: boolean
+      }
+      kb_can_read_category: {
+        Args: { _category_id: string; _uid: string }
+        Returns: boolean
+      }
+      kb_is_driver_only: { Args: { _uid: string }; Returns: boolean }
       label_lookup: {
         Args: { p_lat?: number; p_lon?: number; p_ref: string }
         Returns: Json
