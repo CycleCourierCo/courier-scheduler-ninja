@@ -8510,6 +8510,7 @@ export type Database = {
         Returns: undefined
       }
       can_manage_review: { Args: { _cycle_id: string }; Returns: boolean }
+      can_see_all_tasks: { Args: { _uid: string }; Returns: boolean }
       can_see_fleet_warnings: { Args: { _uid: string }; Returns: boolean }
       can_view_review: { Args: { _cycle_id: string }; Returns: boolean }
       cancelled_invoiced_orders: {
