@@ -11,10 +11,15 @@ import TaskDialog from "@/components/tasks/TaskDialog";
 import TaskDetailDrawer from "@/components/tasks/TaskDetailDrawer";
 import AssigneePicker from "@/components/tasks/AssigneePicker";
 import type { TaskFilters } from "@/types/task";
+import { getRoles } from "@/lib/roles";
+import { canSeeAllTasks } from "@/lib/taskAccess";
 
 const Tasks: React.FC = () => {
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const { data: users = [] } = useInternalUsers();
+  // Admins and project managers see everyone's tasks; other staff only see
+  // tasks assigned to them or created by them (enforced in the database).
+  const seesAll = canSeeAllTasks(getRoles(userProfile));
 
   const [status, setStatus] = useState<TaskFilters['status']>('active');
   const [priority, setPriority] = useState<TaskFilters['priority']>('all');
@@ -74,11 +79,16 @@ const Tasks: React.FC = () => {
               floating
               value={assignee || 'all'}
               onChange={v => setAssignee(v)}
-              users={users}
-              fixedOptions={[
+              users={seesAll ? users : []}
+              fixedOptions={seesAll ? [
                 { value: 'all', label: 'Anyone' },
                 { value: 'mine', label: 'Mine' },
+                { value: 'created', label: 'Created by me' },
                 { value: 'unassigned', label: 'Unassigned' },
+              ] : [
+                { value: 'all', label: 'All my tasks' },
+                { value: 'mine', label: 'Assigned to me' },
+                { value: 'created', label: 'Created by me' },
               ]}
             />
           </div>

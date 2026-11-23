@@ -61,7 +61,7 @@ export interface InternalUser {
 export interface TaskFilters {
   status?: TaskStatus | 'all' | 'active';
   priority?: TaskPriority | 'all';
-  assignee?: 'mine' | 'unassigned' | 'all' | string;
+  assignee?: 'mine' | 'created' | 'unassigned' | 'all' | string;
   due?: 'overdue' | 'today' | 'week' | 'all';
   linkedOrderId?: string;
   linkedConversationId?: string;

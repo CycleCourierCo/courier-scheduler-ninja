@@ -23,6 +23,7 @@ export async function listTasks(filters: TaskFilters = {}): Promise<Task[]> {
   if (filters.priority && filters.priority !== 'all') q = q.eq('priority', filters.priority);
 
   if (filters.assignee === 'mine' && filters.userId) q = q.eq('assignee_id', filters.userId);
+  else if (filters.assignee === 'created' && filters.userId) q = q.eq('created_by', filters.userId);
   else if (filters.assignee === 'unassigned') q = q.is('assignee_id', null);
   else if (filters.assignee && filters.assignee !== 'all') q = q.eq('assignee_id', filters.assignee);
 

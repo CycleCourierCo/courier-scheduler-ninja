@@ -29,11 +29,17 @@ import ArticleEditor from "@/components/knowledge/ArticleEditor";
 import { useKbArticle, useKbArticles, useKbCategories, useKbInvalidate } from "@/hooks/useKnowledge";
 import { createArticle, createCategory } from "@/services/knowledgeService";
 import type { KbArticle } from "@/types/knowledge";
+import { useAuth } from "@/contexts/AuthContext";
+import { getRoles } from "@/lib/roles";
+import { isKbDriverOnly } from "@/lib/knowledgeAccess";
 
 const KnowledgeBase = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const invalidate = useKbInvalidate();
+  const { userProfile } = useAuth();
+  const driverOnly = isKbDriverOnly(getRoles(userProfile));
+  const canEdit = !driverOnly;
 
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
@@ -49,9 +55,9 @@ const KnowledgeBase = () => {
   const { data: articles = [], isLoading } = useKbArticles({
     categoryId,
     search,
-    includeDrafts: true,
+    includeDrafts: canEdit,
   });
-  const { data: activeArticle } = useKbArticle(slug);
+  const { data: activeArticle, isLoading: articleLoading } = useKbArticle(slug);
 
   const counts = useMemo(() => {
     const map: Record<string, number> = {};
@@ -109,7 +115,7 @@ const KnowledgeBase = () => {
       }}
       search={search}
       onSearchChange={setSearch}
-      onNewCategory={() => setCatOpen(true)}
+      onNewCategory={canEdit ? () => setCatOpen(true) : undefined}
     />
   );
 
@@ -120,7 +126,9 @@ const KnowledgeBase = () => {
           <div className="min-w-0">
             <h1 className="break-words text-xl font-semibold sm:text-2xl">Knowledge Base &amp; SOPs</h1>
             <p className="text-sm text-muted-foreground">
-              Standard procedures for route planning, customer service, drivers and the workshop.
+              {driverOnly
+                ? "Standard procedures for drivers."
+                : "Standard procedures for route planning, customer service, drivers and the workshop."}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -134,9 +142,11 @@ const KnowledgeBase = () => {
                 <div className="mt-6">{sidebar}</div>
               </SheetContent>
             </Sheet>
-            <Button size="sm" onClick={() => setNewOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> New SOP
-            </Button>
+            {canEdit && (
+              <Button size="sm" onClick={() => setNewOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" /> New SOP
+              </Button>
+            )}
           </div>
         </div>
 
@@ -158,7 +168,7 @@ const KnowledgeBase = () => {
             {!slug && (
               <Card className="hidden lg:block">
                 <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                  Pick an SOP from the list to read it, or create a new one.
+                  {canEdit ? "Pick an SOP from the list to read it, or create a new one." : "Pick an SOP from the list to read it."}
                 </CardContent>
               </Card>
             )}
@@ -166,7 +176,7 @@ const KnowledgeBase = () => {
             {slug && !activeArticle && (
               <Card>
                 <CardContent className="py-10 text-center text-sm text-muted-foreground">
-                  Loading SOP...
+                  {articleLoading ? "Loading SOP..." : "This SOP isn't available."}
                 </CardContent>
               </Card>
             )}
@@ -182,7 +192,7 @@ const KnowledgeBase = () => {
                   <ArrowLeft className="mr-2 h-4 w-4" /> All SOPs
                 </Button>
 
-                {editing ? (
+                {editing && canEdit ? (
                   <ArticleEditor
                     article={activeArticle}
                     categories={categories}
@@ -195,6 +205,7 @@ const KnowledgeBase = () => {
                 ) : (
                   <ArticleView
                     article={activeArticle}
+                    canEdit={canEdit}
                     onEdit={() => setEditing(true)}
                     onChanged={invalidate}
                     onDeleted={() => {

@@ -11,7 +11,7 @@ interface Props {
   onSelectCategory: (id: string | null) => void;
   search: string;
   onSearchChange: (value: string) => void;
-  onNewCategory: () => void;
+  onNewCategory?: () => void;
 }
 
 const KnowledgeSidebar = ({
@@ -66,9 +66,11 @@ const KnowledgeSidebar = ({
         ))}
       </div>
 
-      <Button variant="outline" size="sm" className="w-full" onClick={onNewCategory}>
-        <Plus className="mr-2 h-4 w-4" /> New category
-      </Button>
+      {onNewCategory && (
+        <Button variant="outline" size="sm" className="w-full" onClick={onNewCategory}>
+          <Plus className="mr-2 h-4 w-4" /> New category
+        </Button>
+      )}
     </div>
   );
 };

@@ -8510,6 +8510,7 @@ export type Database = {
         Returns: undefined
       }
       can_manage_review: { Args: { _cycle_id: string }; Returns: boolean }
+      can_see_all_tasks: { Args: { _uid: string }; Returns: boolean }
       can_see_fleet_warnings: { Args: { _uid: string }; Returns: boolean }
       can_view_review: { Args: { _cycle_id: string }; Returns: boolean }
       cancelled_invoiced_orders: {
@@ -8951,6 +8952,8 @@ export type Database = {
         Returns: boolean
       }
       is_timeslip_admin: { Args: never; Returns: boolean }
+      kb_viewer_can_edit: { Args: never; Returns: boolean }
+      kb_viewer_is_driver_only: { Args: never; Returns: boolean }
       label_lookup: {
         Args: { p_lat?: number; p_lon?: number; p_ref: string }
         Returns: Json

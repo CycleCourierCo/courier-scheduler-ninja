@@ -15,12 +15,13 @@ import type { KbArticle } from "@/types/knowledge";
 
 interface Props {
   article: KbArticle;
+  canEdit?: boolean;
   onEdit: () => void;
   onChanged: () => void;
   onDeleted: () => void;
 }
 
-const ArticleView = ({ article, onEdit, onChanged, onDeleted }: Props) => {
+const ArticleView = ({ article, canEdit = true, onEdit, onChanged, onDeleted }: Props) => {
   const { userProfile } = useAuth();
   const [historyOpen, setHistoryOpen] = useState(false);
 
@@ -49,6 +50,7 @@ const ArticleView = ({ article, onEdit, onChanged, onDeleted }: Props) => {
             <p className="mt-2 break-words text-sm text-muted-foreground">{article.summary}</p>
           )}
         </div>
+        {canEdit && (
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="outline" onClick={() => setHistoryOpen(true)}>
             <History className="mr-2 h-4 w-4" /> History
@@ -62,6 +64,7 @@ const ArticleView = ({ article, onEdit, onChanged, onDeleted }: Props) => {
             </Button>
           )}
         </div>
+        )}
       </div>
 
       <ChecklistPanel articleId={article.id} articleTitle={article.title} onChanged={onChanged} />
@@ -89,12 +92,14 @@ const ArticleView = ({ article, onEdit, onChanged, onDeleted }: Props) => {
         </Card>
       )}
 
+      {canEdit && (
       <VersionHistoryDialog
         articleId={article.id}
         open={historyOpen}
         onOpenChange={setHistoryOpen}
         onRestored={onChanged}
       />
+      )}
     </div>
   );
 };
