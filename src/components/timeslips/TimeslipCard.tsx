@@ -74,12 +74,12 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
                 {format(new Date(timeslip.date), 'EEEE, MMMM d, yyyy')}
               </CardDescription>
             </div>
-            <div className="text-right">
+            {isAdmin && <div className="text-right">
               <p className="text-2xl font-bold text-primary">
                 £{(timeslip.total_pay ?? 0).toFixed(2)}
               </p>
               <p className="text-xs text-muted-foreground">Total Pay</p>
-            </div>
+            </div>}
           </div>
         </CardHeader>
 
@@ -124,10 +124,10 @@ const TimeslipCard: React.FC<TimeslipCardProps> = ({
               <span>Total Hours:</span>
               <span className="font-medium">{timeslip.total_hours}h</span>
             </div>
-            <div className="flex justify-between">
+            {isAdmin && <div className="flex justify-between">
               <span>Hourly Rate:</span>
               <span className="font-medium">{timeslip.pay_type === "per_mile" ? `£${(timeslip.per_mile_rate ?? 0).toFixed(2)}/mile` : `£${(timeslip.hourly_rate ?? 0).toFixed(2)}/h`}</span>
-            </div>
+            </div>}
             {(timeslip.van_allowance ?? 0) > 0 && (
               <div className="flex justify-between text-primary">
                 <span>Van Allowance:</span>
