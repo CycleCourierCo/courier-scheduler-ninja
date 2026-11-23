@@ -14,13 +14,13 @@
 - Bookable product names come from one master list in the bike pricing constants; booking dropdowns, API and consistency report all read it so names cannot drift.
 - Order cancellation time/user is stamped by a database trigger on orders.status; the cancelled-but-invoiced audit reads it with order_invoice_links, so every cancel path is covered.
 
-- Bulk van loading goes through the load_orders_onto_van database function in one call — avoids per-bike saves and page reloads that lock the Loading page.
+- Bulk van loading uses one load_orders_onto_van call — per-bike saves lock the Loading page.
 - Staff-visible pages must be added to the hardcoded ADMIN_MENU_SECTIONS list in Layout.tsx as well as the route/permissions config — the admin menu does not read the permissions matrix, so a page can be reachable yet absent from the menu.
 - Order webhooks fan out to customer webhook configs and to partner apps (oauth_clients.webhook_url) the customer has an active OAuth grant with, deduped by URL — a sign-in connection alone must be enough for a partner to receive updates.
 - Customer SMS goes through supabase/functions/_shared/divergentSms.ts (Divergent Connect), sent alongside WhatsApp and logged in sms_messages; delivery/replies arrive at divergent-webhook — one helper keeps sender, length limit and logging consistent.
 - Tests: vitest (`npx vitest run`), *.test.ts beside the code, one per business rule.
 - Colour comes only from the semantic tokens in src/index.css (status-*, segment-*, primary etc.); components never use raw palette utilities, and email hexes live once in _shared/emailLayout.ts mirrored by src/utils/emailBrand.ts — one source of colour keeps print, dark mode and email from drifting.
-- 48px controls come from Layout's FLOOR_SCREEN_PATHS and the doorstep shell, not per button; add workshop/driver routes there.
+- 48px controls come from Layout's FLOOR_SCREEN_PATHS/doorstep shell; add floor routes there.
 - Customer-facing follow-ups after a browser action (e.g. availability confirmation emails, NI ferry booking) are sent by an Edge Function in the background, not chained in the browser — closing the page must not lose them.
 - Admin-editable email settings live in email_templates and are applied inside send-email by template key (update.<stage> / type.<emailType>); a missing or broken template always falls back to the built-in email so customers never get a blank message.
 - Van odometer = newest manual reading (vehicle_odometer_readings) plus approved timeslip miles dated after it, else purchase baseline plus all timeslip miles (src/lib/odometer.ts) — manual readings correct drift without rewriting timeslips.
@@ -53,5 +53,6 @@
 - Instant-response matching, confidence and auto-send rules live only in supabase/functions/_shared/cannedConfidence.ts (used by the inbox, cs-auto-reply and Vitest); staff outcomes go to cs_canned_usage and database triggers enforce the live-mode threshold and auto-switch-off — so the browser can't send what the server wouldn't, and every path is covered.
 - Shipday leg eligibility lives only in _shared/shipdayLegRules.ts (never cancelled; failed only once re-dayed or sent from a route); route "Add all to Shipday" re-reads orders/days at click time (src/lib/shipdayRoutePush.ts) so failed jobs aren't auto-resent and late-added stops aren't skipped.
 - New-tab route links come only from src/lib/routeTabs.ts (route date, start time, auto Get Timeslots; split routes pass stops via localStorage); open tabs before any awaited save so browsers don't block them.
-- Sign-up rules: _shared/registrationRules.ts, mirrored in src/lib (test checks parity) so form and server agree.
+- Sign-up rules: _shared/registrationRules.ts mirrored in src/lib (parity test).
 - Generated timeslips take their van from the driver's saved_route_assignments for that date (_shared/timeslipVehicle.ts) before the profile default, and route-link triggers never reuse a route already on another timeslip — a default van must not grab another driver's route and block the slip.
+- KB driver scoping: RLS kb_viewer_* helpers, mirrored in src/lib/knowledgeAccess.ts — UI hiding alone leaks SOPs.

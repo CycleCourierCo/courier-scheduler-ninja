@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Knowledge Base: driver-only staff see only Published SOPs in the Drivers section, read-only (database + screen); rule test passes.
+
 - [x] Bikes in Storage: sort filter Bay / A-Z / Z-A / Newest / Oldest; 8 sort tests pass and the buttons were checked in the live preview at 360px with no sideways scrolling.
 
 - [x] Timeslips: backfill Tahir's 26–28 Oct drafts; generator uses each driver's assigned van; Generate popup can target one driver
