@@ -47,8 +47,8 @@
 - Edge functions that act for the business (webhook dispatch, credentialed proxies, unrestricted email) gate callers with _shared/staffAuth.ts identifyCaller (service role, X-Cron-Secret, or an explicitly allowlisted staff role); inbound webhooks fail closed when their secret is unset — one caller check keeps every path consistent.
 - New public-schema functions must explicitly `REVOKE EXECUTE ... FROM PUBLIC, anon` in the same migration unless a signed-out website flow calls them; a 2026-10-28 sweep revoked anon/PUBLIC EXECUTE from all app functions (keep-list: availability, NI partner, public tracking/inspection/repair-offer, OAuth client lookup) and fully locked get_vault_secret to service_role — default PUBLIC grants otherwise leak internals.
 
-- Fleet inspections save their expected checklist when started and can be finalised only after starting as a draft with every expected check present — the database derives the result and completion details so direct writes cannot skip checks.
-- Inspection-report generation is limited to staff or the signed-in booking owner, while public decision endpoints refresh reports server-side; foam photo access uses a service-only, rate-limited receiver-postcode database check.
+- Fleet inspections finalise only from a draft with every expected check; the database derives the result so direct writes can't skip checks.
+- Inspection reports: staff or booking owner only; public decisions refresh them server-side. Foam photos: service-only, rate-limited postcode check.
 - Isle of Man reuses the Northern Ireland ferry flow: orders.is_northern_ireland means 'ferry order' and orders.ferry_region (northern_ireland|isle_of_man) picks partner, surcharge and wording via ferryPartnerFor/ferryRegionOf/localiseFerryText (client utils + _shared/northernIreland.ts) — one flow, no duplicated pipeline.
 - Instant-response matching, confidence and auto-send rules live only in supabase/functions/_shared/cannedConfidence.ts (used by the inbox, cs-auto-reply and Vitest); staff outcomes go to cs_canned_usage and database triggers enforce the live-mode threshold and auto-switch-off — so the browser can't send what the server wouldn't, and every path is covered.
 - Shipday leg eligibility lives only in _shared/shipdayLegRules.ts (never cancelled; failed only once re-dayed or sent from a route); route "Add all to Shipday" re-reads orders/days at click time (src/lib/shipdayRoutePush.ts) so failed jobs aren't auto-resent and late-added stops aren't skipped.
@@ -56,3 +56,4 @@
 - Sign-up rules: _shared/registrationRules.ts mirrored in src/lib (parity test).
 - Generated timeslips take their van from the driver's saved_route_assignments for that date (_shared/timeslipVehicle.ts) before the profile default, and route-link triggers never reuse a route already on another timeslip — a default van must not grab another driver's route and block the slip.
 - KB driver scoping: RLS kb_viewer_* helpers, mirrored in src/lib/knowledgeAccess.ts — UI hiding alone leaks SOPs.
+- Task scoping: RLS can_see_all_tasks(), mirrored in src/lib/taskAccess.ts — UI hiding alone leaks tasks.
